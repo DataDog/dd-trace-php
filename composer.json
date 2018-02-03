@@ -26,7 +26,10 @@
     "autoload": {
         "psr-4": {
             "DDTrace\\": "./src/"
-        }
+        },
+        "files": [
+            "./src/DDTrace/MicroTime.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
