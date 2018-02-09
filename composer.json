@@ -18,7 +18,9 @@
     "minimum-stability": "dev",
     "require": {
         "opentracing/opentracing": "1.0.0-beta2",
-        "symfony/polyfill": "~1.7.0"
+        "psr/log": "~1.0.2",
+        "symfony/polyfill": "~1.7.0",
+        "guzzlehttp/psr7": "^1.4@dev"
     },
     "require-dev": {
         "phpunit/phpunit": "~5.7.19",
@@ -29,13 +31,14 @@
             "DDTrace\\": "./src/DDTrace/"
         },
         "files": [
-            "./src/DDTrace/Meta.php",
-            "./src/DDTrace/MicroTime.php"
+            "./src/DDTrace/Tags.php",
+            "./src/DDTrace/Time.php",
+            "./src/DDTrace/Types.php"
         ]
     },
     "autoload-dev": {
         "psr-4": {
-            "DDTrace\\Tests\\": "./tests/"
+            "DDTrace\\Tests\\": "./tests/DdTrace/"
         }
     },
     "scripts": {
