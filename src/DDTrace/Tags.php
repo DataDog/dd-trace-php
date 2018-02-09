@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Meta;
+namespace DDTrace\Tags;
 
 const ENV = 'env';
 

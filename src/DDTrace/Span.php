@@ -4,38 +4,12 @@ namespace DDTrace;
 
 use Exception;
 use InvalidArgumentException;
+use OpenTracing\SpanContext as OpenTracingContext;
 use Throwable;
+use OpenTracing\Span as OpenTracingSpan;
 
-final class Span
+final class Span implements OpenTracingSpan
 {
-    /**
-     * @var Tracer
-     */
-    private $tracer;
-
-    /**
-     * The unique integer (64-bit unsigned) ID of the trace containing this span.
-     * It is stored in hexadecimal representation.
-     *
-     * @var string
-     */
-    private $traceId;
-
-    /**
-     * The span integer ID of the parent span.
-     *
-     * @var string
-     */
-    private $parentId;
-
-    /**
-     * The span integer (64-bit unsigned) ID.
-     * It is stored in hexadecimal representation.
-     *
-     * @var string
-     */
-    private $spanId;
-
     /**
      * Name is the name of the operation being measured. Some examples
      * might be "http.handler", "fileserver.upload" or "video.decompress".
@@ -43,7 +17,12 @@ final class Span
      *
      * @var string
      */
-    private $name;
+    private $operationName;
+
+    /**
+     * @var OpenTracingContext
+     */
+    private $context;
 
     /**
      * Resource is a query to a service. A web application might use
@@ -72,14 +51,14 @@ final class Span
     /**
      * Protocol associated with the span
      *
-     * @var string
+     * @var string|null
      */
     private $type;
 
     /**
      * @var int
      */
-    private $start;
+    private $startTime;
 
     /**
      * @var int|null
@@ -89,31 +68,34 @@ final class Span
     /**
      * @var array
      */
-    private $meta = [];
+    private $tags = [];
 
     /**
      * @var bool
      */
     private $hasError = false;
 
+
+    /**
+     * Span constructor.
+     * @param string $operationName
+     * @param SpanContext $context
+     * @param string $service
+     * @param string $resource
+     * @param int|null $start
+     */
     public function __construct(
-        Tracer $tracer,
-        $name,
+        $operationName,
+        SpanContext $context,
         $service,
         $resource,
-        $traceId,
-        $spanId,
-        $parentId = null,
         $start = null
     ) {
-        $this->tracer = $tracer;
-        $this->name = (string) $name;
-        $this->service = $service;
+        $this->context = $context;
+        $this->operationName = (string) $operationName;
+        $this->service = (string) $service;
         $this->resource = (string) $resource;
-        $this->start = $start ?: MicroTime\now();
-        $this->traceId = $traceId;
-        $this->spanId = $spanId;
-        $this->parentId = $parentId;
+        $this->startTime = $start ?: Time\now();
     }
 
     /**
@@ -121,7 +103,7 @@ final class Span
      */
     public function getTraceId()
     {
-        return $this->traceId;
+        return $this->context->getTraceId();
     }
 
     /**
@@ -129,7 +111,7 @@ final class Span
      */
     public function getSpanId()
     {
-        return $this->spanId;
+        return $this->context->getSpanId();
     }
 
     /**
@@ -137,24 +119,15 @@ final class Span
      */
     public function getParentId()
     {
-        return $this->parentId;
+        return $this->context->getParentId();
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
-    public function getName()
+    public function overwriteOperationName($operationName)
     {
-        return $this->name;
-    }
-
-    /**
-     * @param string $name
-     * @return void
-     */
-    public function setName($name)
-    {
-        $this->name = $name;
+        $this->operationName = $operationName;
     }
 
     /**
@@ -174,7 +147,7 @@ final class Span
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getType()
     {
@@ -184,9 +157,9 @@ final class Span
     /**
      * @return int
      */
-    public function getStart()
+    public function getStartTime()
     {
-        return $this->start;
+        return $this->startTime;
     }
 
     /**
@@ -198,39 +171,44 @@ final class Span
     }
 
     /**
-     * Adds an arbitrary meta field to the current Span.
-     * If the Span has been finished, it will not be modified by the method.
-     *
-     * @param string $key
-     * @param string $value
-     * @throws InvalidArgumentException
+     * {@inheritdoc}
      */
-    public function setMeta($key, $value)
+    public function setTags(array $tags)
     {
         if ($this->isFinished()) {
             return;
         }
 
-        if ($key !== (string) $key) {
-            throw new InvalidArgumentException(
-                sprintf('First argument expected to be string, got %s', gettype($key))
-            );
-        }
+        foreach ($tags as $key => $value) {
+            if ($key !== (string) $key) {
+                throw new InvalidArgumentException(
+                    sprintf('First argument expected to be string, got %s', gettype($key))
+                );
+            }
 
-        $this->meta[$key] = (string) $value;
+            $this->tags[$key] = (string) $value;
+        }
     }
 
     /**
      * @param string $key
      * @return string|null
      */
-    public function getMeta($key)
+    public function getTag($key)
     {
-        if (array_key_exists($key, $this->meta)) {
-            return $this->meta[$key];
+        if (array_key_exists($key, $this->tags)) {
+            return $this->tags[$key];
         }
 
         return null;
+    }
+
+    /**
+     * @return array
+     */
+    public function getAllTags()
+    {
+        return $this->tags;
     }
 
     /**
@@ -249,9 +227,12 @@ final class Span
 
         if (($e instanceof Exception) || ($e instanceof Throwable)) {
             $this->hasError = true;
-            $this->setMeta(Meta\ERROR_MSG_KEY, $e->getMessage());
-            $this->setMeta(Meta\ERROR_TYPE_KEY, get_class($e));
-            $this->setMeta(Meta\ERROR_STACK_KEY, $e->getTraceAsString());
+            $this->setTags([
+                Tags\ERROR_MSG_KEY => $e->getMessage(),
+                Tags\ERROR_TYPE_KEY => get_class($e),
+                Tags\ERROR_STACK_KEY => $e->getTraceAsString(),
+            ]);
+
             return;
         }
 
@@ -266,23 +247,15 @@ final class Span
     }
 
     /**
-     * Finish closes this Span (but not its children) providing the duration
-     * of this part of the tracing session. This method is idempotent so
-     * calling this method multiple times is safe and doesn't update the
-     * current Span. Once a Span has been finished, methods that modify the Span
-     * will become no-ops.
-     *
-     * @param int|null $finish
-     * @return void
+     * {@inheritdoc}
      */
-    public function finish($finish = null)
+    public function finish($finishTime = null, array $logRecords = [])
     {
         if ($this->isFinished()) {
             return;
         }
 
-        $this->duration = ($finish ?: MicroTime\now()) - $this->start;
-        $this->tracer->record($this);
+        $this->duration = ($finishTime ?: Time\now()) - $this->startTime;
     }
 
     /**
@@ -295,8 +268,51 @@ final class Span
         $this->finish();
     }
 
-    private function isFinished()
+    /**
+     * @return bool
+     */
+    public function isFinished()
     {
         return $this->duration !== null;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getOperationName()
+    {
+        return $this->operationName;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getContext()
+    {
+        return $this->context;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function log(array $fields = [], $timestamp = null)
+    {
+        // TODO: Implement log() method.
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function addBaggageItem($key, $value)
+    {
+        $this->context = $this->context->withBaggageItem($key, $value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getBaggageItem($key)
+    {
+        return $this->context->getBaggageItem($key);
     }
 }
