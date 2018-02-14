@@ -29,8 +29,9 @@
             "DDTrace\\": "./src/DDTrace/"
         },
         "files": [
-            "./src/DDTrace/Meta.php",
-            "./src/DDTrace/MicroTime.php"
+            "./src/DDTrace/Tags.php",
+            "./src/DDTrace/Time.php",
+            "./src/DDTrace/Types.php"
         ]
     },
     "autoload-dev": {

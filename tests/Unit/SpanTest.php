@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Meta;
+use DDTrace\Tags;
 use DDTrace\Span;
 use DDTrace\Tracer;
 use Exception;
@@ -43,8 +43,8 @@ final class SpanTest extends PHPUnit_Framework_TestCase
         $span->setError(new Exception(self::EXCEPTION_MESSAGE));
 
         $this->assertTrue($span->hasError());
-        $this->assertEquals($span->getMeta(Meta\ERROR_MSG_KEY), self::EXCEPTION_MESSAGE);
-        $this->assertEquals($span->getMeta(Meta\ERROR_TYPE_KEY), Exception::class);
+        $this->assertEquals($span->getMeta(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
+        $this->assertEquals($span->getMeta(Tags\ERROR_TYPE), Exception::class);
     }
 
     public function testSpanErrorRemainsImmutableAfterFinishing()

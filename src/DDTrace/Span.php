@@ -110,7 +110,7 @@ final class Span
         $this->name = (string) $name;
         $this->service = $service;
         $this->resource = (string) $resource;
-        $this->start = $start ?: MicroTime\now();
+        $this->start = $start ?: Time\now();
         $this->traceId = $traceId;
         $this->spanId = $spanId;
         $this->parentId = $parentId;
@@ -249,9 +249,9 @@ final class Span
 
         if (($e instanceof Exception) || ($e instanceof Throwable)) {
             $this->hasError = true;
-            $this->setMeta(Meta\ERROR_MSG_KEY, $e->getMessage());
-            $this->setMeta(Meta\ERROR_TYPE_KEY, get_class($e));
-            $this->setMeta(Meta\ERROR_STACK_KEY, $e->getTraceAsString());
+            $this->setMeta(Tags\ERROR_MSG, $e->getMessage());
+            $this->setMeta(Tags\ERROR_TYPE, get_class($e));
+            $this->setMeta(Tags\ERROR_STACK, $e->getTraceAsString());
             return;
         }
 
@@ -281,7 +281,7 @@ final class Span
             return;
         }
 
-        $this->duration = ($finish ?: MicroTime\now()) - $this->start;
+        $this->duration = ($finish ?: Time\now()) - $this->start;
         $this->tracer->record($this);
     }
 
