@@ -2,9 +2,11 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Propagator;
 use DDTrace\SpanContext;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
+use OpenTracing\Exceptions\UnsupportedFormat;
 use OpenTracing\NoopSpan;
 use PHPUnit_Framework_TestCase;
 use DDTrace\Time;
@@ -14,6 +16,7 @@ final class TracerTest extends PHPUnit_Framework_TestCase
     const OPERATION_NAME = 'test_span';
     const TAG_KEY = 'test_key';
     const TAG_VALUE = 'test_value';
+    const FORMAT = 'test_format';
 
     public function testStartSpanAsNoop()
     {
@@ -46,5 +49,46 @@ final class TracerTest extends PHPUnit_Framework_TestCase
             'child_of' => $context,
         ]);
         $this->assertEquals($context->getSpanId(), $span->getParentId());
+    }
+
+    public function testInjectThrowsUnsupportedFormatException()
+    {
+        $this->expectException(UnsupportedFormat::class);
+        $context = SpanContext::createAsRoot();
+        $carrier = [];
+
+        $tracer = new Tracer(new NoopTransport);
+        $tracer->inject($context, self::FORMAT, $carrier);
+    }
+
+    public function testInjectCallsTheRightInjector()
+    {
+        $context = SpanContext::createAsRoot();
+        $carrier = [];
+
+        $propagator = $this->prophesize(Propagator::class);
+        $propagator->inject($context, $carrier)->shouldBeCalled();
+        $tracer = new Tracer(new NoopTransport, [self::FORMAT => $propagator->reveal()]);
+        $tracer->inject($context, self::FORMAT, $carrier);
+    }
+
+    public function testExtractThrowsUnsupportedFormatException()
+    {
+        $this->expectException(UnsupportedFormat::class);
+        $carrier = [];
+        $tracer = new Tracer(new NoopTransport);
+        $tracer->extract(self::FORMAT, $carrier);
+    }
+
+    public function testExtractCallsTheRightExtractor()
+    {
+        $expectedContext = SpanContext::createAsRoot();
+        $carrier = [];
+
+        $propagator = $this->prophesize(Propagator::class);
+        $propagator->extract($carrier)->shouldBeCalled()->willReturn($expectedContext);
+        $tracer = new Tracer(new NoopTransport, [self::FORMAT => $propagator->reveal()]);
+        $actualContext = $tracer->extract(self::FORMAT, $carrier);
+        $this->assertEquals($expectedContext, $actualContext);
     }
 }
