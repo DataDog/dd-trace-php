@@ -100,6 +100,15 @@ final class SpanContext implements OpenTracingSpanContext
         );
     }
 
+    public function isEqual(SpanContext $spanContext)
+    {
+        return
+            $this->traceId === $spanContext->traceId
+            && $this->spanId === $spanContext->spanId
+            && $this->parentId === $spanContext->parentId
+            && $this->baggageItems === $spanContext->baggageItems;
+    }
+
     private static function nextId()
     {
         return bin2hex(openssl_random_pseudo_bytes(8));
