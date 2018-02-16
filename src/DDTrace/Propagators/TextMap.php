@@ -45,7 +45,7 @@ final class TextMap implements Propagator
             continue;
         }
 
-        if ($traceId === null && $spanId === null) {
+        if ($traceId === null || $spanId === null) {
             return null;
         }
 

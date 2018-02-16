@@ -26,7 +26,29 @@ final class TextMapTest extends PHPUnit_Framework_TestCase
         ], $carrier);
     }
 
-    public function testExtractSpanContextFromCarrier()
+    public function testExtractSpanContextFromCarrierFailsDueToLackOfTraceId()
+    {
+        $carrier = [
+            'x-datadog-parent-id' => self::SPAN_ID,
+            'ot-baggage-' . self::BAGGAGE_ITEM_KEY => self::BAGGAGE_ITEM_VALUE,
+        ];
+        $textMapPropagator = new TextMap();
+        $context = $textMapPropagator->extract($carrier);
+        $this->assertNull($context);
+    }
+
+    public function testExtractSpanContextFromCarrierFailsDueToLackOfParentId()
+    {
+        $carrier = [
+            'x-datadog-trace-id' => self::TRACE_ID,
+            'ot-baggage-' . self::BAGGAGE_ITEM_KEY => self::BAGGAGE_ITEM_VALUE,
+        ];
+        $textMapPropagator = new TextMap();
+        $context = $textMapPropagator->extract($carrier);
+        $this->assertNull($context);
+    }
+
+    public function testExtractSpanContextFromCarrierSuccess()
     {
         $carrier = [
             'x-datadog-trace-id' => self::TRACE_ID,
