@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Although DataDog uses nanotime to report spans PHP does not support nanotime
  * plus, nanotime is a uint64 which is not supported either. Microtime will be used

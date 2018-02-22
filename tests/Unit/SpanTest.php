@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Exceptions\InvalidSpanArgument;
 use DDTrace\SpanContext;
 use DDTrace\Tags;
 use DDTrace\Span;
@@ -10,26 +11,26 @@ use PHPUnit_Framework_TestCase;
 
 final class SpanTest extends PHPUnit_Framework_TestCase
 {
-    const NAME = 'test_span';
+    const OPERATION_NAME = 'test_span';
     const SERVICE = 'test_service';
     const RESOURCE = 'test_resource';
     const ANOTHER_NAME = 'test_span2';
     const ANOTHER_SERVICE = 'test_service2';
     const ANOTHER_RESOURCE = 'test_resource2';
     const ANOTHER_TYPE = 'test_type2';
-    const META_KEY = 'test_key';
-    const META_VALUE = 'test_value';
+    const TAG_KEY = 'test_key';
+    const TAG_VALUE = 'test_value';
     const EXCEPTION_MESSAGE = 'exception message';
 
     public function testCreateSpanSuccess()
     {
         $span = $this->createSpan();
-        $span->setTags([self::META_KEY => self::META_VALUE]);
+        $span->setTags([self::TAG_KEY => self::TAG_VALUE]);
 
-        $this->assertSame(self::NAME, $span->getOperationName());
+        $this->assertSame(self::OPERATION_NAME, $span->getOperationName());
         $this->assertSame(self::SERVICE, $span->getService());
         $this->assertSame(self::RESOURCE, $span->getResource());
-        $this->assertSame(self::META_VALUE, $span->getTag(self::META_KEY));
+        $this->assertSame(self::TAG_VALUE, $span->getTag(self::TAG_KEY));
     }
 
     public function testOverwriteOperationNameSuccess()
@@ -39,16 +40,16 @@ final class SpanTest extends PHPUnit_Framework_TestCase
         $this->assertSame(self::ANOTHER_NAME, $span->getOperationName());
     }
 
-    public function testSpanMetaRemainsImmutableAfterFinishing()
+    public function testSpanTagsRemainImmutableAfterFinishing()
     {
         $span = $this->createSpan();
         $span->finish();
 
-        $span->setTags([self::META_KEY => self::META_VALUE]);
-        $this->assertNull($span->getTag(self::META_KEY));
+        $span->setTags([self::TAG_KEY => self::TAG_VALUE]);
+        $this->assertNull($span->getTag(self::TAG_KEY));
     }
 
-    public function testSpanErrorAddsExpectedMeta()
+    public function testSpanErrorAddsExpectedTags()
     {
         $span = $this->createSpan();
         $span->setError(new Exception(self::EXCEPTION_MESSAGE));
@@ -67,6 +68,14 @@ final class SpanTest extends PHPUnit_Framework_TestCase
         $this->assertFalse($span->hasError());
     }
 
+    public function testSpanErrorFailsForInvalidError()
+    {
+        $this->expectException(InvalidSpanArgument::class);
+        $this->expectExceptionMessage('Error should be either Exception or Throwable, got integer.');
+        $span = $this->createSpan();
+        $span->setError(1);
+    }
+
     public function testAddCustomTagsSuccess()
     {
         $span = $this->createSpan();
@@ -81,12 +90,20 @@ final class SpanTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(self::ANOTHER_TYPE, $span->getType());
     }
 
+    public function testAddTagsFailsForInvalidTagKey()
+    {
+        $this->expectException(InvalidSpanArgument::class);
+        $this->expectExceptionMessage('Invalid key type in given span tags. Expected string, got integer.');
+        $span = $this->createSpan();
+        $span->setTags([self::TAG_KEY]);
+    }
+
     private function createSpan()
     {
         $context = SpanContext::createAsRoot();
 
         $span = new Span(
-            self::NAME,
+            self::OPERATION_NAME,
             $context,
             self::SERVICE,
             self::RESOURCE

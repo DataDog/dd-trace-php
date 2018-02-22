@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Exceptions\InvalidSpanArgument;
 use Exception;
 use InvalidArgumentException;
 use OpenTracing\SpanContext as OpenTracingContext;
@@ -11,7 +12,7 @@ use OpenTracing\Span as OpenTracingSpan;
 final class Span implements OpenTracingSpan
 {
     /**
-     * Name is the name of the operation being measured. Some examples
+     * Operation Name is the name of the operation being measured. Some examples
      * might be "http.handler", "fileserver.upload" or "video.decompress".
      * Name should be set on every span.
      *
@@ -82,20 +83,20 @@ final class Span implements OpenTracingSpan
      * @param SpanContext $context
      * @param string $service
      * @param string $resource
-     * @param int|null $start
+     * @param int|null $startTime
      */
     public function __construct(
         $operationName,
         SpanContext $context,
         $service,
         $resource,
-        $start = null
+        $startTime = null
     ) {
         $this->context = $context;
         $this->operationName = (string) $operationName;
         $this->service = (string) $service;
         $this->resource = (string) $resource;
-        $this->startTime = $start ?: Time\now();
+        $this->startTime = $startTime ?: Time\now();
     }
 
     /**
@@ -181,9 +182,7 @@ final class Span implements OpenTracingSpan
 
         foreach ($tags as $key => $value) {
             if ($key !== (string) $key) {
-                throw new InvalidArgumentException(
-                    sprintf('First argument expected to be string, got %s', gettype($key))
-                );
+                throw InvalidSpanArgument::forTagKey($key);
             }
 
             if ($key === Tags\SERVICE_NAME) {
@@ -231,28 +230,26 @@ final class Span implements OpenTracingSpan
      * updated and the error.Error() string is included with a default meta key.
      * If the Span has been finished, it will not be modified by this method.
      *
-     * @param Throwable|Exception $e
+     * @param Throwable|Exception $error
      * @throws InvalidArgumentException
      */
-    public function setError($e)
+    public function setError($error)
     {
         if ($this->isFinished()) {
             return;
         }
 
-        if (($e instanceof Exception) || ($e instanceof Throwable)) {
+        if (($error instanceof Exception) || ($error instanceof Throwable)) {
             $this->hasError = true;
             $this->setTags([
-                Tags\ERROR_MSG => $e->getMessage(),
-                Tags\ERROR_TYPE => get_class($e),
-                Tags\ERROR_STACK => $e->getTraceAsString(),
+                Tags\ERROR_MSG => $error->getMessage(),
+                Tags\ERROR_TYPE => get_class($error),
+                Tags\ERROR_STACK => $error->getTraceAsString(),
             ]);
             return;
         }
 
-        throw new InvalidArgumentException(
-            sprintf('Error should be either Exception or Throwable, got %s.', gettype($e))
-        );
+        throw InvalidSpanArgument::forError($error);
     }
 
     public function hasError()
@@ -273,12 +270,12 @@ final class Span implements OpenTracingSpan
     }
 
     /**
-     * @param Throwable|Exception $e
+     * @param Throwable|Exception $error
      * @return void
      */
-    public function finishWithError($e)
+    public function finishWithError($error)
     {
-        $this->setError($e);
+        $this->setError($error);
         $this->finish();
     }
 

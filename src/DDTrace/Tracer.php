@@ -164,6 +164,17 @@ final class Tracer implements OpenTracingTracer
             return;
         }
 
+        $tracesToBeSent = $this->shiftFinishedTraces();
+
+        if (empty($tracesToBeSent)) {
+            return;
+        }
+
+        $this->transport->send($tracesToBeSent);
+    }
+    
+    private function shiftFinishedTraces()
+    {
         $tracesToBeSent = [];
 
         foreach ($this->traces as $trace) {
@@ -174,7 +185,7 @@ final class Tracer implements OpenTracingTracer
                     $traceToBeSent = null;
                     break;
                 }
-                $tracesToBeSent[] = $span;
+                $traceToBeSent[] = $span;
             }
 
             if ($traceToBeSent === null) {
@@ -182,10 +193,10 @@ final class Tracer implements OpenTracingTracer
             }
 
             $tracesToBeSent[] = $traceToBeSent;
-            unset($this->traces[$span->getTraceId()]);
+            unset($this->traces[$traceToBeSent[0]->getTraceId()]);
         }
-
-        $this->transport->send($tracesToBeSent);
+        
+        return $tracesToBeSent;
     }
 
     private function record(Span $span)
