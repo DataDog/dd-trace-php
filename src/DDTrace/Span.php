@@ -226,8 +226,8 @@ final class Span implements OpenTracingSpan
     }
 
     /**
-     * Stores a Throwable object within the span meta. The error status is
-     * updated and the error.Error() string is included with a default meta key.
+     * Stores a Throwable object within the span tags. The error status is
+     * updated and the error.Error() string is included with a default tag key.
      * If the Span has been finished, it will not be modified by this method.
      *
      * @param Throwable|Exception $error
