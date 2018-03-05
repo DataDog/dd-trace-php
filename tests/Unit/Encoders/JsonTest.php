@@ -12,7 +12,7 @@ final class JsonTest extends PHPUnit_Framework_TestCase
     public function testEncodeTracesSuccess()
     {
         $expectedPayload = <<<JSON
-[[{"trace_id":"160e7072ff7bd5f1","span_id":"160e7072ff7bd5f2","name":"test_name","resource":"test_resource",
+[[{"trace_id":1589331357723252209,"span_id":1589331357723252210,"name":"test_name","resource":"test_resource",
 JSON
             .    <<<JSON
 "service":"test_service","start":1518038421211969000,"error":0}]]

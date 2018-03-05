@@ -4,6 +4,11 @@ jobs:
   "php-5.6":
     docker:
       - image: circleci/php:5.6
+      - image: datadog/docker-dd-agent
+        environment:
+        - DD_APM_ENABLED=true
+        - DD_BIND_HOST=0.0.0.0
+        - DD_API_KEY=invalid_key_but_this_is_fine
     working_directory: ~/datadog
     steps:
       - checkout
@@ -12,12 +17,19 @@ jobs:
           name: Run lint
           command: composer lint
       - run:
+          command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
+      - run:
           name: Run tests
           command: composer test
 
   "php-7.0":
     docker:
       - image: circleci/php:7.0
+      - image: datadog/docker-dd-agent
+        environment:
+        - DD_APM_ENABLED=true
+        - DD_BIND_HOST=0.0.0.0
+        - DD_API_KEY=invalid_key_but_this_is_fine
     working_directory: ~/datadog
     steps:
       - checkout
@@ -25,6 +37,8 @@ jobs:
       - run:
           name: Run lint
           command: composer lint
+      - run:
+          command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
       - run:
           name: Run tests
           command: composer test
@@ -32,6 +46,11 @@ jobs:
   "php-7.1":
     docker:
       - image: circleci/php:7.1
+      - image: datadog/docker-dd-agent
+        environment:
+        - DD_APM_ENABLED=true
+        - DD_BIND_HOST=0.0.0.0
+        - DD_API_KEY=invalid_key_but_this_is_fine
     working_directory: ~/datadog
     steps:
       - checkout
@@ -39,6 +58,8 @@ jobs:
       - run:
           name: Run lint
           command: composer lint
+      - run:
+          command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
       - run:
           name: Run tests
           command: composer test
@@ -46,6 +67,11 @@ jobs:
   "php-7.2":
     docker:
       - image: circleci/php:7.2
+      - image: datadog/docker-dd-agent
+        environment:
+        - DD_APM_ENABLED=true
+        - DD_BIND_HOST=0.0.0.0
+        - DD_API_KEY=invalid_key_but_this_is_fine
     working_directory: ~/datadog
     steps:
       - checkout
@@ -53,6 +79,8 @@ jobs:
       - run:
           name: Run lint
           command: composer lint
+      - run:
+          command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
       - run:
           name: Run tests
           command: composer test

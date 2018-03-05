@@ -29,17 +29,54 @@ final class Json implements Encoder
 
     /**
      * @param Span $span
+     * @return string
+     */
+    private function encodeSpan(Span $span)
+    {
+        return str_replace([
+            '"start_micro":"-"',
+            '"duration_micro":"-"',
+            '"trace_id_hex":"-"',
+            '"span_id_hex":"-"',
+            '"parent_id_hex":"-"',
+        ], [
+            '"start":' . $span->getStartTime() . '000',
+            '"duration":' . $span->getDuration() . '000',
+            '"trace_id":' . $this->hex2dec($span->getTraceId()),
+            '"span_id":' . $this->hex2dec($span->getSpanId()),
+            '"parent_id":' . $this->hex2dec($span->getParentId()),
+        ], json_encode($this->spanToArray($span)));
+    }
+
+    /**
+     * @param string $hex
+     * @return string
+     */
+    public function hex2dec($hex)
+    {
+        $decimal = 0;
+        $len = strlen($hex);
+
+        for ($i = 1; $i <= $len; $i++) {
+            $decimal = bcadd($decimal, bcmul((string) hexdec($hex[$i - 1]), bcpow('16', (string) ($len - $i))));
+        }
+
+        return $decimal;
+    }
+
+    /**
+     * @param Span $span
      * @return array
      */
     private function spanToArray(Span $span)
     {
         $arraySpan = [
-            'trace_id' => $span->getTraceId(),
-            'span_id' => $span->getSpanId(),
+            'trace_id_hex' => '-',
+            'span_id_hex' => '-',
             'name' => $span->getOperationName(),
             'resource' => $span->getResource(),
             'service' => $span->getService(),
-            'start_micro' => 0,
+            'start_micro' => '-',
             'error' => $span->hasError() ? 1 : 0,
         ];
 
@@ -48,11 +85,11 @@ final class Json implements Encoder
         }
 
         if ($span->isFinished()) {
-            $arraySpan['duration_micro'] = 0;
+            $arraySpan['duration_micro'] = '-';
         }
 
         if ($span->getParentId() !== null) {
-            $arraySpan['parent_id'] = $span->getParentId();
+            $arraySpan['parent_id_hex'] = '-';
         }
 
         if (!empty($span->getAllTags())) {
@@ -60,16 +97,5 @@ final class Json implements Encoder
         }
 
         return $arraySpan;
-    }
-
-    private function encodeSpan(Span $span)
-    {
-        return str_replace([
-            '"start_micro":0',
-            '"duration_micro":0',
-        ], [
-            '"start":' . $span->getStartTime() . '000',
-            '"duration":' . $span->getDuration() . '000',
-        ], json_encode($this->spanToArray($span)));
     }
 }
