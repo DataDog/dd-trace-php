@@ -225,6 +225,11 @@ final class Span implements OpenTracingSpan
         return $this->tags;
     }
 
+    public function setResource($resource)
+    {
+        $this->resource = (string) $resource;
+    }
+
     /**
      * Stores a Throwable object within the span tags. The error status is
      * updated and the error.Error() string is included with a default tag key.
