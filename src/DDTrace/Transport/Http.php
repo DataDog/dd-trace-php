@@ -39,9 +39,7 @@ final class Http implements Transport
     {
         $tracesPayload = $this->encoder->encodeTraces($traces);
 
-        $headers = $this->headers + ['Content-Type' => $this->encoder->getContentType()];
-
-        $this->sendRequest($this->config['endpoint'], $headers, $tracesPayload);
+        $this->sendRequest($this->config['endpoint'], $this->headers, $tracesPayload);
     }
 
     public function setHeader($key, $value)
@@ -59,25 +57,25 @@ final class Http implements Transport
             'Content-Length: ' . strlen($body),
         ]));
 
-        if (curl_exec($handle) === true) {
-            $statusCode = curl_getinfo($handle, CURLINFO_HTTP_CODE);
-            curl_close($handle);
-
-            if ($statusCode === 415) {
-                throw new RuntimeException('Reporting of spans failed, try with version 0.2');
-            }
-
-            if ($statusCode !== 200) {
-                throw new RuntimeException(
-                    sprintf('Reporting of spans failed, status code %d', $statusCode)
-                );
-            }
-        } else {
+        if (curl_exec($handle) !== true) {
             throw new RuntimeException(sprintf(
                 'Reporting of spans failed: %s, error code %s',
                 curl_error($handle),
                 curl_errno($handle)
             ));
+        }
+
+        $statusCode = curl_getinfo($handle, CURLINFO_HTTP_CODE);
+        curl_close($handle);
+
+        if ($statusCode === 415) {
+            throw new RuntimeException('Reporting of spans failed, upgrade your client library.');
+        }
+
+        if ($statusCode !== 200) {
+            throw new RuntimeException(
+                sprintf('Reporting of spans failed, status code %d', $statusCode)
+            );
         }
     }
 }

@@ -52,7 +52,7 @@ final class Json implements Encoder
      * @param string $hex
      * @return string
      */
-    public function hex2dec($hex)
+    private function hex2dec($hex)
     {
         $decimal = 0;
         $len = strlen($hex);
