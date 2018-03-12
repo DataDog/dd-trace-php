@@ -3,10 +3,8 @@
 namespace DDTrace\Transport;
 
 use DDTrace\Encoder;
-use DDTrace\Span;
 use DDTrace\Transport;
-use Psr\Http\Message\ResponseInterface;
-use RuntimeException;
+use Psr\Log\LoggerInterface;
 
 final class Http implements Transport
 {
@@ -27,9 +25,15 @@ final class Http implements Transport
      */
     private $config;
 
-    public function __construct(Encoder $encoder, array $config = [])
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    public function __construct(Encoder $encoder, LoggerInterface $logger, array $config = [])
     {
         $this->encoder = $encoder;
+        $this->logger = $logger;
         $this->config = array_merge([
             'endpoint' => self::DEFAULT_ENDPOINT,
         ]);
@@ -58,24 +62,29 @@ final class Http implements Transport
         ]));
 
         if (curl_exec($handle) !== true) {
-            throw new RuntimeException(sprintf(
+            $this->logger->debug(sprintf(
                 'Reporting of spans failed: %s, error code %s',
                 curl_error($handle),
                 curl_errno($handle)
             ));
+
+            return;
         }
 
         $statusCode = curl_getinfo($handle, CURLINFO_HTTP_CODE);
         curl_close($handle);
 
         if ($statusCode === 415) {
-            throw new RuntimeException('Reporting of spans failed, upgrade your client library.');
+            $this->logger->debug('Reporting of spans failed, upgrade your client library.');
+            return;
         }
 
         if ($statusCode !== 200) {
-            throw new RuntimeException(
+            $this->logger->debug(
                 sprintf('Reporting of spans failed, status code %d', $statusCode)
             );
+
+            return;
         }
     }
 }

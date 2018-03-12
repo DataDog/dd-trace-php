@@ -8,6 +8,8 @@ use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop;
 use Exception;
 use PHPUnit_Framework_TestCase;
+use Prophecy\Argument;
+use Psr\Log\LoggerInterface;
 
 final class HttpTest extends PHPUnit_Framework_TestCase
 {
@@ -15,7 +17,14 @@ final class HttpTest extends PHPUnit_Framework_TestCase
     {
         $tracer = new Tracer(new Noop);
 
-        $httpTransport = new Http(new Json, [
+        $logger = $this->prophesize(LoggerInterface::class);
+        $logger
+            ->debug(
+                'Reporting of spans failed: Failed to connect to localhost port 8126: Connection refused, error code 7'
+            )
+            ->shouldBeCalled();
+
+        $httpTransport = new Http(new Json, $logger->reveal(), [
             'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
         ]);
 
@@ -31,18 +40,17 @@ final class HttpTest extends PHPUnit_Framework_TestCase
             [$span],
         ];
 
-        try {
-            $httpTransport->send($traces);
-            $this->fail('Sending expected to fail.');
-        } catch (Exception $e) {
-        }
+        $httpTransport->send($traces);
     }
 
     public function testSpanReportingSuccess()
     {
         $tracer = new Tracer(new Noop);
 
-        $httpTransport = new Http(new Json, [
+        $logger = $this->prophesize(LoggerInterface::class);
+        $logger->debug(Argument::any())->shouldNotBeCalled();
+
+        $httpTransport = new Http(new Json, $logger->reveal(), [
             'endpoint' => 'http://0.0.0.0:8126/v0.3/traces'
         ]);
 
@@ -67,10 +75,6 @@ final class HttpTest extends PHPUnit_Framework_TestCase
             [$span, $childSpan],
         ];
 
-        try {
-            $httpTransport->send($traces);
-        } catch (Exception $e) {
-            $this->fail(sprintf('Sending expected to not to fail: %s', $e->getMessage()));
-        }
+        $httpTransport->send($traces);
     }
 }
