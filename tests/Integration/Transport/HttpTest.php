@@ -20,7 +20,7 @@ final class HttpTest extends PHPUnit_Framework_TestCase
         $logger = $this->prophesize(LoggerInterface::class);
         $logger
             ->debug(
-                'Reporting of spans failed: Failed to connect to localhost port 8126: Connection refused, error code 7'
+                'Reporting of spans failed: Failed to connect to 0.0.0.0 port 8127: Connection refused, error code 7'
             )
             ->shouldBeCalled();
 

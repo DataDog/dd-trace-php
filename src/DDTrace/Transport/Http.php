@@ -36,7 +36,7 @@ final class Http implements Transport
         $this->logger = $logger;
         $this->config = array_merge([
             'endpoint' => self::DEFAULT_ENDPOINT,
-        ]);
+        ], $config);
     }
 
     public function send(array $traces)
@@ -49,6 +49,11 @@ final class Http implements Transport
     public function setHeader($key, $value)
     {
         $this->headers[(string) $key] = (string) $value;
+    }
+
+    public function getConfig()
+    {
+        return $this->config;
     }
 
     private function sendRequest($url, array $headers, $body)
