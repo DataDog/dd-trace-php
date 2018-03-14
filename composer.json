@@ -17,9 +17,12 @@
     ],
     "minimum-stability": "dev",
     "require": {
+        "php": "^5.6||^7.0",
+        "ext-bcmath": "*",
         "opentracing/opentracing": "1.0.0-beta2",
         "symfony/polyfill": "~1.7.0",
-        "guzzlehttp/psr7": "^1.4@dev"
+        "guzzlehttp/psr7": "^1.4@dev",
+        "psr/log": "^1.0@dev"
     },
     "require-dev": {
         "phpunit/phpunit": "~5.7.19",
@@ -41,7 +44,19 @@
         }
     },
     "scripts": {
-        "test": "./vendor/bin/phpunit ./tests",
+        "test": [
+            "@test-unit",
+            "@test-integration"
+        ],
+        "test-unit": "./vendor/bin/phpunit ./tests/Unit",
+        "test-integration":[
+            "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
+            "./vendor/bin/phpunit ./tests/Integration"
+        ],
+        "run-agent": [
+            "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
+            "while ! echo exit | nc localhost 8126; do sleep 1; done"
+        ],
         "lint": "./vendor/bin/phpcs --standard=ZEND --standard=PSR2 --ignore=*/vendor/* ./",
         "fix-lint": "./vendor/bin/phpcbf --standard=ZEND --standard=PSR2 --ignore=*/vendor/* ./"
     }
