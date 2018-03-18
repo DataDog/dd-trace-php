@@ -43,6 +43,9 @@
             "DDTrace\\Tests\\": "./tests/"
         }
     },
+    "provide": {
+        "opentracing/opentracing": "1.0.0-beta2"
+    },
     "scripts": {
         "test": [
             "@test-unit",
