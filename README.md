@@ -16,7 +16,11 @@ composer require datadog/dd-trace
 
 - PHP 5.6 or later
 
-## Getting started
+## Usage
+
+In order to be familiar with tracing elements it is recommended to read the [OpenTracing specification](https://github.com/opentracing/specification/blob/master/specification.md).
+
+### Creating a tracer
 
 To start using the Datadog Tracer with the OpenTracing API, you should first initialize the tracer:
 
@@ -54,9 +58,34 @@ $tracer = new Tracer($transport, [
 GlobalTracer::set($tracer);
 ```
 
-## Usage
+### Creating Spans
 
-See [Opentracing documentation](https://github.com/opentracing/opentracing-php) for some usage patterns.
+- [Starting a root span](https://github.com/opentracing/opentracing-php#starting-an-empty-trace-by-creating-a-root-span)
+- [Starting a span for a given request](https://github.com/opentracing/opentracing-php#creating-a-span-given-an-existing-request)
+- [Active span and scope manager](https://github.com/opentracing/opentracing-php#active-spans-and-scope-manager)
+	- [Creating a child span assigning parent manually](https://github.com/opentracing/opentracing-php#creating-a-child-span-assigning-parent-manually)
+	- [Creating a child span using automatic active span management](https://github.com/opentracing/opentracing-php#creating-a-child-span-using-automatic-active-span-management)
+- [Using span options](https://github.com/opentracing/opentracing-php#using-span-options)
+
+### Propagation of context
+
+- [Serializing context to the wire](https://github.com/opentracing/opentracing-php#serializing-to-the-wire)
+- [Deserializing context from the wire](https://github.com/opentracing/opentracing-php#deserializing-from-the-wire)
+- [Propagation formats](https://github.com/opentracing/opentracing-php#propagation-formats)
+
+### Flushing Spans to the agent
+
+PHP as a request scoped language has no simple means to pass the collected spans data to a background process without blocking the main request thread/process. It is mandatory to execute the `Tracer::flush()` after the response is served to the client by using [`register_shutdown_function`](http://php.net/manual/en/function.register-shutdown-function.php).
+
+```php
+use OpenTracing\GlobalTracer;
+
+$application->run();
+
+register_shutdown_function(function() {
+    GlobalTracer::get()->flush();
+});
+```
 
 ## Contributing
 
@@ -71,3 +100,7 @@ composer test
 ```bash
 composer fix-lint
 ```
+
+## Releasing
+
+See [RELEASING](RELEASING.md) for more information on releasing new versions.
