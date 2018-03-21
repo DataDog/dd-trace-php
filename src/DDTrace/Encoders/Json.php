@@ -54,14 +54,7 @@ final class Json implements Encoder
      */
     private function hex2dec($hex)
     {
-        $decimal = 0;
-        $len = strlen($hex);
-
-        for ($i = 1; $i <= $len; $i++) {
-            $decimal = bcadd($decimal, bcmul((string) hexdec($hex[$i - 1]), bcpow('16', (string) ($len - $i))));
-        }
-
-        return $decimal;
+        return base_convert($hex, 16, 10);
     }
 
     /**
