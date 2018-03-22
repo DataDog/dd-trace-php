@@ -36,17 +36,13 @@ final class Tracer implements OpenTracingTracer
      */
     private $config = [
         /**
-         * Enabled, when false, returns a no-op implementation of the Tracer.
-         */
-        'enabled' => true,
-        /**
-         * Debug, when true, writes details to logs.
-         */
-        'debug' => false,
-        /**
          * ServiceName specifies the name of this application.
          */
         'service_name' => PHP_SAPI,
+        /**
+         * Enabled, when false, returns a no-op implementation of the Tracer.
+         */
+        'enabled' => true,
         /** GlobalTags holds a set of tags that will be automatically applied to
          * all spans.
          */

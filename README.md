@@ -4,7 +4,7 @@
 [![OpenTracing Badge](https://img.shields.io/badge/OpenTracing-enabled-blue.svg)](http://opentracing.io)
 [![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%205.6-8892BF.svg)](https://php.net/)
 
-Datadog APM client that implements an [OpenTracing](http://opentracing.io) Tracer.
+DataDog APM client that implements an [OpenTracing](http://opentracing.io) Tracer.
 
 ## Installation
 
@@ -34,28 +34,48 @@ use OpenTracing\Formats;
 ...
 
 // Transport layer that communicates with the agent
-$transport = new Http(new Json(), $logger, [
-   'endpoint_url' => 'http://localhost:8126/v0.3/traces',
-]);
+$transport = new Http(new Json());
 
 // Propagation for inject/extract contexts to/from the wire
 $textMap = new TextMap();
 
-// Config for tracer
-$config = [
-    'service_name' => 'my_service',
-    'enabled' => true,
-    'global_tags' => ['host' => 'hostname'],
-];
-
 $tracer = new Tracer($transport, [
     Formats\TEXT_MAP => $textMap,
-    $config,
 ]);
 
 // Sets a global tracer (singleton). Ideally tracer should be
 // injected as a dependency
 GlobalTracer::set($tracer);
+```
+
+### Advanced configuration
+
+Transport can be customized by the config parameters:
+
+```php
+$transport = new Http(
+    new Json(),
+    $logger,
+    [
+        'endpoint_url' => 'http://localhost:8126/v0.3/traces', // Agent endpoint
+    ]
+);
+```
+Tracer can be customized by the config settings:
+
+```php
+// Config for tracer
+$config = [
+    'service_name' => 'my_service', // The name of the service.
+    'enabled' => true, // If tracer is not enabled, all spans will be created as noop.
+    'global_tags' => ['host' => 'hostname'], // Set of tags being added to every span.
+];
+
+$tracer = new Tracer(
+    $transport,
+    [ Formats\TEXT_MAP => $textMap ],
+    $config
+);
 ```
 
 ### Creating Spans

@@ -5,6 +5,7 @@ namespace DDTrace\Transport;
 use DDTrace\Encoder;
 use DDTrace\Transport;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 final class Http implements Transport
 {
@@ -30,10 +31,10 @@ final class Http implements Transport
      */
     private $logger;
 
-    public function __construct(Encoder $encoder, LoggerInterface $logger, array $config = [])
+    public function __construct(Encoder $encoder, LoggerInterface $logger = null, array $config = [])
     {
         $this->encoder = $encoder;
-        $this->logger = $logger;
+        $this->logger = $logger ?: new NullLogger();
         $this->config = array_merge([
             'endpoint' => self::DEFAULT_ENDPOINT,
         ], $config);
