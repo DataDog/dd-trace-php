@@ -33,15 +33,8 @@ use OpenTracing\Formats;
 
 ...
 
-// Transport layer that communicates with the agent
-$transport = new Http(new Json());
-
-// Propagation for inject/extract contexts to/from the wire
-$textMap = new TextMap();
-
-$tracer = new Tracer($transport, [
-    Formats\TEXT_MAP => $textMap,
-]);
+// Creates a tracer with default transport and default propagators
+$tracer = new Tracer();
 
 // Sets a global tracer (singleton). Ideally tracer should be
 // injected as a dependency
@@ -61,6 +54,7 @@ $transport = new Http(
     ]
 );
 ```
+
 Tracer can be customized by the config settings:
 
 ```php

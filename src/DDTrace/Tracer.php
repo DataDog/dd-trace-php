@@ -2,7 +2,10 @@
 
 namespace DDTrace;
 
+use DDTrace\Encoders\Json;
 use DDTrace\Propagators\Noop as NoopPropagator;
+use DDTrace\Propagators\TextMap;
+use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
 use OpenTracing\NoopSpan;
@@ -55,10 +58,12 @@ final class Tracer implements OpenTracingTracer
      * @param Propagator[] $propagators
      * @param array $config
      */
-    public function __construct(Transport $transport, array $propagators = [], array $config = [])
+    public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
-        $this->transport = $transport;
-        $this->propagators = $propagators;
+        $this->transport = $transport ?: new Http(new Json());
+        $this->propagators = $propagators ?: [
+            Formats\TEXT_MAP => new TextMap(),
+        ];
         $this->config = array_merge($this->config, $config);
     }
 
