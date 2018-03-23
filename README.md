@@ -20,16 +20,12 @@ composer require datadog/dd-trace
 
 In order to be familiar with tracing elements it is recommended to read the [OpenTracing specification](https://github.com/opentracing/specification/blob/master/specification.md).
 
-### Creating a tracer
+### Using the tracer
 
-To start using the Datadog Tracer with the OpenTracing API, you should first initialize the tracer:
+To start using the DataDog Tracer with the OpenTracing API, you should first initialize the tracer:
 
 ```php
-use DDTrace\Encoders\Json;
-use DDTrace\Propagators\TextMap;
 use DDTrace\Tracer;
-use DDTrace\Transport\Http;
-use OpenTracing\Formats;
 
 ...
 
@@ -39,7 +35,17 @@ $tracer = new Tracer();
 // Sets a global tracer (singleton). Ideally tracer should be
 // injected as a dependency
 GlobalTracer::set($tracer);
+
+$application->run();
+
+// Flushes traces to agent.
+register_shutdown_function(function() {
+    GlobalTracer::get()->flush();
+});
+
 ```
+
+PHP as a request scoped language has no simple means to pass the collected spans data to a background process without blocking the main request thread/process. It is mandatory to execute the `Tracer::flush()` after the response is served to the client by using [`register_shutdown_function`](http://php.net/manual/en/function.register-shutdown-function.php).
 
 ### Advanced configuration
 
@@ -86,20 +92,6 @@ $tracer = new Tracer(
 - [Serializing context to the wire](https://github.com/opentracing/opentracing-php#serializing-to-the-wire)
 - [Deserializing context from the wire](https://github.com/opentracing/opentracing-php#deserializing-from-the-wire)
 - [Propagation formats](https://github.com/opentracing/opentracing-php#propagation-formats)
-
-### Flushing Spans to the agent
-
-PHP as a request scoped language has no simple means to pass the collected spans data to a background process without blocking the main request thread/process. It is mandatory to execute the `Tracer::flush()` after the response is served to the client by using [`register_shutdown_function`](http://php.net/manual/en/function.register-shutdown-function.php).
-
-```php
-use OpenTracing\GlobalTracer;
-
-$application->run();
-
-register_shutdown_function(function() {
-    GlobalTracer::get()->flush();
-});
-```
 
 ## Contributing
 
