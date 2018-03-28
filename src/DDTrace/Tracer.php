@@ -53,6 +53,11 @@ final class Tracer implements OpenTracingTracer
     ];
 
     /**
+     * @var ScopeManager
+     */
+    private $scopeManager;
+
+    /**
      * Tracer constructor.
      * @param Transport $transport
      * @param Propagator[] $propagators
@@ -64,6 +69,7 @@ final class Tracer implements OpenTracingTracer
         $this->propagators = $propagators ?: [
             Formats\TEXT_MAP => new TextMap(),
         ];
+        $this->scopeManager = new ScopeManager();
         $this->config = array_merge($this->config, $config);
     }
 
@@ -109,9 +115,33 @@ final class Tracer implements OpenTracingTracer
             $options->getStartTime()
         );
 
-        $span->setTags($options->getTags() + $this->config['global_tags']);
+        $tags = $options->getTags() + $this->config['global_tags'];
+
+        foreach ($tags as $key => $value) {
+            $span->setTag($key, $value);
+        }
 
         $this->record($span);
+
+        return $span;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function startActiveSpan($operationName, $options = [])
+    {
+        if (!($options instanceof SpanOptions)) {
+            $options = SpanOptions::create($options);
+        }
+
+        if (($activeSpan = $this->getActiveSpan()) !== null) {
+            $options = $options->withParent($activeSpan);
+        }
+
+        $span = $this->startSpan($operationName, $options);
+
+        $this->scopeManager->activate($span);
 
         return $span;
     }
@@ -173,7 +203,27 @@ final class Tracer implements OpenTracingTracer
 
         $this->transport->send($tracesToBeSent);
     }
-    
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getScopeManager()
+    {
+        return $this->scopeManager;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getActiveSpan()
+    {
+        if (null !== ($activeScope = $this->scopeManager->getActive())) {
+            return $activeScope->getSpan();
+        }
+
+        return null;
+    }
+
     private function shiftFinishedTraces()
     {
         $tracesToBeSent = [];
@@ -196,7 +246,7 @@ final class Tracer implements OpenTracingTracer
             $tracesToBeSent[] = $traceToBeSent;
             unset($this->traces[$traceToBeSent[0]->getTraceId()]);
         }
-        
+
         return $tracesToBeSent;
     }
 

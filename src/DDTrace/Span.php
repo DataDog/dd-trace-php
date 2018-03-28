@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use BadMethodCallException;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use Exception;
 use InvalidArgumentException;
@@ -174,34 +175,32 @@ final class Span implements OpenTracingSpan
     /**
      * {@inheritdoc}
      */
-    public function setTags(array $tags)
+    public function setTag($key, $value)
     {
         if ($this->isFinished()) {
             return;
         }
 
-        foreach ($tags as $key => $value) {
-            if ($key !== (string) $key) {
-                throw InvalidSpanArgument::forTagKey($key);
-            }
-
-            if ($key === Tags\SERVICE_NAME) {
-                $this->service = $value;
-                continue;
-            }
-
-            if ($key === Tags\RESOURCE_NAME) {
-                $this->resource = $value;
-                continue;
-            }
-
-            if ($key === Tags\SPAN_TYPE) {
-                $this->type = $value;
-                continue;
-            }
-
-            $this->tags[$key] = (string) $value;
+        if ($key !== (string) $key) {
+            throw InvalidSpanArgument::forTagKey($key);
         }
+
+        if ($key === Tags\SERVICE_NAME) {
+            $this->service = $value;
+            return;
+        }
+
+        if ($key === Tags\RESOURCE_NAME) {
+            $this->resource = $value;
+            return;
+        }
+
+        if ($key === Tags\SPAN_TYPE) {
+            $this->type = $value;
+            return;
+        }
+
+        $this->tags[$key] = (string) $value;
     }
 
     /**
@@ -246,11 +245,9 @@ final class Span implements OpenTracingSpan
 
         if (($error instanceof Exception) || ($error instanceof Throwable)) {
             $this->hasError = true;
-            $this->setTags([
-                Tags\ERROR_MSG => $error->getMessage(),
-                Tags\ERROR_TYPE => get_class($error),
-                Tags\ERROR_STACK => $error->getTraceAsString(),
-            ]);
+            $this->tags[Tags\ERROR_MSG] = $error->getMessage();
+            $this->tags[Tags\ERROR_TYPE] = get_class($error);
+            $this->tags[Tags\ERROR_STACK] = $error->getTraceAsString();
             return;
         }
 
@@ -265,7 +262,7 @@ final class Span implements OpenTracingSpan
     /**
      * {@inheritdoc}
      */
-    public function finish($finishTime = null, array $logRecords = [])
+    public function finish($finishTime = null)
     {
         if ($this->isFinished()) {
             return;
@@ -313,7 +310,7 @@ final class Span implements OpenTracingSpan
      */
     public function log(array $fields = [], $timestamp = null)
     {
-        throw new \BadMethodCallException('not implemented');
+        throw new BadMethodCallException('not implemented');
     }
 
     /**

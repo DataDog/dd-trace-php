@@ -25,7 +25,7 @@ final class SpanTest extends PHPUnit_Framework_TestCase
     public function testCreateSpanSuccess()
     {
         $span = $this->createSpan();
-        $span->setTags([self::TAG_KEY => self::TAG_VALUE]);
+        $span->setTag(self::TAG_KEY, self::TAG_VALUE);
 
         $this->assertSame(self::OPERATION_NAME, $span->getOperationName());
         $this->assertSame(self::SERVICE, $span->getService());
@@ -45,7 +45,7 @@ final class SpanTest extends PHPUnit_Framework_TestCase
         $span = $this->createSpan();
         $span->finish();
 
-        $span->setTags([self::TAG_KEY => self::TAG_VALUE]);
+        $span->setTag(self::TAG_KEY, self::TAG_VALUE);
         $this->assertNull($span->getTag(self::TAG_KEY));
     }
 
@@ -79,11 +79,9 @@ final class SpanTest extends PHPUnit_Framework_TestCase
     public function testAddCustomTagsSuccess()
     {
         $span = $this->createSpan();
-        $span->setTags([
-            Tags\SERVICE_NAME => self::ANOTHER_SERVICE,
-            Tags\RESOURCE_NAME => self::ANOTHER_RESOURCE,
-            Tags\SPAN_TYPE => self::ANOTHER_TYPE,
-        ]);
+        $span->setTag(Tags\SERVICE_NAME, self::ANOTHER_SERVICE);
+        $span->setTag(Tags\RESOURCE_NAME, self::ANOTHER_RESOURCE);
+        $span->setTag(Tags\SPAN_TYPE, self::ANOTHER_TYPE);
 
         $this->assertEquals(self::ANOTHER_SERVICE, $span->getService());
         $this->assertEquals(self::ANOTHER_RESOURCE, $span->getResource());
@@ -95,7 +93,7 @@ final class SpanTest extends PHPUnit_Framework_TestCase
         $this->expectException(InvalidSpanArgument::class);
         $this->expectExceptionMessage('Invalid key type in given span tags. Expected string, got integer.');
         $span = $this->createSpan();
-        $span->setTags([self::TAG_KEY]);
+        $span->setTag(1, self::TAG_VALUE);
     }
 
     private function createSpan()
