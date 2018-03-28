@@ -53,6 +53,22 @@ final class TracerTest extends PHPUnit_Framework_TestCase
         $this->assertEquals($context->getSpanId(), $span->getParentId());
     }
 
+    public function testStartActiveSpan()
+    {
+        $tracer = new Tracer(new NoopTransport);
+        $span = $tracer->startActiveSpan(self::OPERATION_NAME);
+        $this->assertEquals($span, $tracer->getActiveSpan());
+    }
+
+    public function testStartActiveSpanAsChild()
+    {
+        $tracer = new Tracer(new NoopTransport);
+        $parentSpan = $tracer->startActiveSpan(self::OPERATION_NAME);
+        $childSpan = $tracer->startActiveSpan(self::ANOTHER_OPERATION_NAME);
+        $this->assertEquals($childSpan, $tracer->getActiveSpan());
+        $this->assertEquals($parentSpan->getSpanId(), $childSpan->getParentId());
+    }
+
     public function testInjectThrowsUnsupportedFormatException()
     {
         $this->expectException(UnsupportedFormat::class);
