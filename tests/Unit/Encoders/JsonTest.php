@@ -3,8 +3,10 @@
 namespace DDTrace\Tests\Unit\Encoders;
 
 use DDTrace\Encoders\Json;
+use DDTrace\ScopeManager;
 use DDTrace\Span;
 use DDTrace\SpanContext;
+use OpenTracing\NoopScopeManager;
 use PHPUnit_Framework_TestCase;
 
 final class JsonTest extends PHPUnit_Framework_TestCase
@@ -20,6 +22,7 @@ JSON;
 
         $context = new SpanContext('160e7072ff7bd5f1', '160e7072ff7bd5f2');
         $span = new Span(
+            new NoopScopeManager(),
             'test_name',
             $context,
             'test_service',
