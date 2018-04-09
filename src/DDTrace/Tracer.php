@@ -108,11 +108,13 @@ final class Tracer implements OpenTracingTracer
         }
 
         $span = new Span(
+            $this->scopeManager,
             $operationName,
             $context,
             $this->config['service_name'],
             array_key_exists('resource', $this->config) ? $this->config['resource'] : $operationName,
-            $options->getStartTime()
+            $options->getStartTime(),
+            $options->getCloseSpanOnFinish()
         );
 
         $tags = $options->getTags() + $this->config['global_tags'];

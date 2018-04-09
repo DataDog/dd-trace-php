@@ -7,6 +7,7 @@ use DDTrace\SpanContext;
 use DDTrace\Tags;
 use DDTrace\Span;
 use Exception;
+use OpenTracing\NoopScopeManager;
 use PHPUnit_Framework_TestCase;
 
 final class SpanTest extends PHPUnit_Framework_TestCase
@@ -101,6 +102,7 @@ final class SpanTest extends PHPUnit_Framework_TestCase
         $context = SpanContext::createAsRoot();
 
         $span = new Span(
+            new NoopScopeManager(),
             self::OPERATION_NAME,
             $context,
             self::SERVICE,

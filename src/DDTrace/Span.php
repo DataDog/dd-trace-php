@@ -8,6 +8,7 @@ use Exception;
 use InvalidArgumentException;
 use OpenTracing\SpanContext as OpenTracingContext;
 use Throwable;
+use OpenTracing\ScopeManager as OTScopeManager;
 use OpenTracing\Span as OpenTracingSpan;
 
 final class Span implements OpenTracingSpan
@@ -77,27 +78,41 @@ final class Span implements OpenTracingSpan
      */
     private $hasError = false;
 
+    /**
+     * @var bool
+     */
+    private $closeSpanOnFinish = false;
 
     /**
-     * Span constructor.
+     * @var ScopeManager
+     */
+    private $scopeManager;
+
+    /**
+     * @param OTScopeManager $scopeManager
      * @param string $operationName
      * @param SpanContext $context
      * @param string $service
      * @param string $resource
      * @param int|null $startTime
+     * @param bool $closeSpanOnFinish
      */
     public function __construct(
+        OTScopeManager $scopeManager,
         $operationName,
         SpanContext $context,
         $service,
         $resource,
-        $startTime = null
+        $startTime = null,
+        $closeSpanOnFinish = false
     ) {
+        $this->scopeManager = $scopeManager;
         $this->context = $context;
         $this->operationName = (string) $operationName;
         $this->service = (string) $service;
         $this->resource = (string) $resource;
         $this->startTime = $startTime ?: Time\now();
+        $this->closeSpanOnFinish = $closeSpanOnFinish;
     }
 
     /**
@@ -269,6 +284,10 @@ final class Span implements OpenTracingSpan
         }
 
         $this->duration = ($finishTime ?: Time\now()) - $this->startTime;
+
+        if ($this->closeSpanOnFinish && null !== ($scope = $this->scopeManager->getScope($this))) {
+            $scope->close();
+        }
     }
 
     /**
