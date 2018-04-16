@@ -17,9 +17,11 @@ final class ScopeManager implements OpenTracingScopeManager
      * {@inheritdoc}
      * @param Span|OpenTracingSpan $span
      */
-    public function activate(OpenTracingSpan $span)
+    public function activate(OpenTracingSpan $span, $finishSpanOnClose)
     {
-        $this->scopes[] = new Scope($this, $span);
+        $scope = new Scope($this, $span, $finishSpanOnClose);
+        $this->scopes[] = $scope;
+        return $scope;
     }
 
     /**
@@ -32,23 +34,6 @@ final class ScopeManager implements OpenTracingScopeManager
         }
 
         return $this->scopes[count($this->scopes) - 1];
-    }
-
-    /**
-     * {@inheritdoc}
-     * @param Span $span
-     */
-    public function getScope(OpenTracingSpan $span)
-    {
-        $scopeLength = count($this->scopes);
-
-        for ($i = 0; $i < $scopeLength; $i++) {
-            if ($span === $this->scopes[$i]->getSpan()) {
-                return $this->scopes[$i];
-            }
-        }
-
-        return null;
     }
 
     public function deactivate(Scope $scope)

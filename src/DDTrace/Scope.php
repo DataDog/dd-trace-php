@@ -3,6 +3,7 @@
 namespace DDTrace;
 
 use OpenTracing\Scope as OpenTracingScope;
+use OpenTracing\Span as OpenTracingSpan;
 
 final class Scope implements OpenTracingScope
 {
@@ -16,10 +17,16 @@ final class Scope implements OpenTracingScope
      */
     private $scopeManager;
 
-    public function __construct(ScopeManager $scopeManager, Span $span)
+    /**
+     * @var bool
+     */
+    private $finishSpanOnClose;
+
+    public function __construct(ScopeManager $scopeManager, OpenTracingSpan $span, $finishSpanOnClose)
     {
         $this->scopeManager = $scopeManager;
         $this->span = $span;
+        $this->finishSpanOnClose = $finishSpanOnClose;
     }
 
     /**
@@ -27,6 +34,10 @@ final class Scope implements OpenTracingScope
      */
     public function close()
     {
+        if ($this->finishSpanOnClose) {
+            $this->span->finish();
+        }
+
         $this->scopeManager->deactivate($this);
     }
 

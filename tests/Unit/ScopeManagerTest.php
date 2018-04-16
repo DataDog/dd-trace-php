@@ -22,26 +22,23 @@ final class ScopeManagerTest extends PHPUnit_Framework_TestCase
         $tracer = new Tracer(new NoopTransport);
         $span = $tracer->startSpan(self::OPERATION_NAME);
         $scopeManager = new ScopeManager();
-        $scopeManager->activate($span);
+        $scopeManager->activate($span, false);
         $this->assertSame($span, $scopeManager->getActive()->getSpan());
     }
 
     public function testGetScopeReturnsNull()
     {
         $tracer = new Tracer(new NoopTransport);
-        $span = $tracer->startSpan(self::OPERATION_NAME);
-        $scopeManager = new ScopeManager();
-        $this->assertNull($scopeManager->getScope($span));
+        $tracer->startSpan(self::OPERATION_NAME);
+        $this->assertNull($tracer->getScopeManager()->getActive());
     }
 
     public function testGetScopeSuccess()
     {
         $tracer = new Tracer(new NoopTransport);
         $span = $tracer->startSpan(self::OPERATION_NAME);
-        $scopeManager = new ScopeManager();
-        $scopeManager->activate($span);
-        $scope = $scopeManager->getScope($span);
-        $this->assertSame($span, $scope->getSpan());
+        $scope = $tracer->getScopeManager()->activate($span, false);
+        $this->assertSame($scope, $tracer->getScopeManager()->getActive());
     }
 
     public function testDeactivateSuccess()
@@ -49,8 +46,7 @@ final class ScopeManagerTest extends PHPUnit_Framework_TestCase
         $tracer = new Tracer(new NoopTransport);
         $span = $tracer->startSpan(self::OPERATION_NAME);
         $scopeManager = new ScopeManager();
-        $scopeManager->activate($span);
-        $scope = $scopeManager->getScope($span);
+        $scope = $scopeManager->activate($span, false);
         $scopeManager->deactivate($scope);
         $this->assertNull($scopeManager->getActive());
     }
