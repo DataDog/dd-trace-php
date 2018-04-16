@@ -11,7 +11,7 @@ use OpenTracing\Exceptions\UnsupportedFormat;
 use OpenTracing\NoopSpan;
 use OpenTracing\Reference;
 use OpenTracing\SpanContext as OpenTracingContext;
-use OpenTracing\SpanOptions;
+use OpenTracing\StartSpanOptions;
 use OpenTracing\Tracer as OpenTracingTracer;
 use OpenTracing\Formats;
 
@@ -58,7 +58,6 @@ final class Tracer implements OpenTracingTracer
     private $scopeManager;
 
     /**
-     * Tracer constructor.
      * @param Transport $transport
      * @param Propagator[] $propagators
      * @param array $config
@@ -95,8 +94,8 @@ final class Tracer implements OpenTracingTracer
             return NoopSpan::create();
         }
 
-        if (!($options instanceof SpanOptions)) {
-            $options = SpanOptions::create($options);
+        if (!($options instanceof StartSpanOptions)) {
+            $options = StartSpanOptions::create($options);
         }
 
         $reference = $this->findParent($options->getReferences());
@@ -131,8 +130,8 @@ final class Tracer implements OpenTracingTracer
      */
     public function startActiveSpan($operationName, $options = [])
     {
-        if (!($options instanceof SpanOptions)) {
-            $options = SpanOptions::create($options);
+        if (!($options instanceof StartSpanOptions)) {
+            $options = StartSpanOptions::create($options);
         }
 
         if (($activeSpan = $this->getActiveSpan()) !== null) {
@@ -141,9 +140,7 @@ final class Tracer implements OpenTracingTracer
 
         $span = $this->startSpan($operationName, $options);
 
-        $this->scopeManager->activate($span);
-
-        return $span;
+        return $this->scopeManager->activate($span, $options->shouldFinishSpanOnClose());
     }
 
     /**
