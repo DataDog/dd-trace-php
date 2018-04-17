@@ -4,7 +4,9 @@
 [![OpenTracing Badge](https://img.shields.io/badge/OpenTracing-enabled-blue.svg)](http://opentracing.io)
 [![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%205.6-8892BF.svg)](https://php.net/)
 
-DataDog APM client that implements an [OpenTracing](http://opentracing.io) Tracer.
+Experimental PHP Tracer!
+
+This project is experimental and under active development. Use it at your own risk.
 
 ## Installation
 
@@ -94,6 +96,8 @@ $tracer = new Tracer(
 - [Propagation formats](https://github.com/opentracing/opentracing-php#propagation-formats)
 
 ## Contributing
+
+Before contributing to this open source project, read our [CONTRIBUTING.md](https://github.com/DataDog/dd-trace-php/blob/master/CONTRIBUTING.md).
 
 ### Run tests
 
