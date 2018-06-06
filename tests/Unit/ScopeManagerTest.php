@@ -50,4 +50,19 @@ final class ScopeManagerTest extends PHPUnit_Framework_TestCase
         $scopeManager->deactivate($scope);
         $this->assertNull($scopeManager->getActive());
     }
+
+    public function testCanManageMultipleScopes()
+    {
+        $tracer = new Tracer(new NoopTransport);
+        $scopeManager = new ScopeManager();
+
+        $scope = $scopeManager->activate($tracer->startSpan(self::OPERATION_NAME), false);
+        $scopeManager->deactivate($scope);
+
+        $scope = $scopeManager->activate($tracer->startSpan(self::OPERATION_NAME), false);
+        $scopeManager->deactivate($scope);
+
+
+        $this->assertNull($scopeManager->getActive());
+    }
 }
