@@ -12,10 +12,14 @@ final class Json implements Encoder
      */
     public function encodeTraces(array $traces)
     {
-        return '[' . implode(',', array_map(function ($trace) {
-            return '[' . implode(',', array_map(function ($span) {
+        $notEmpty = function ($value) {
+            return !empty($value);
+        };
+
+        return '[' . implode(',', array_map(function ($trace) use ($notEmpty) {
+            return '[' . implode(',', array_filter(array_map(function ($span) {
                 return $this->encodeSpan($span);
-            }, $trace)) . ']';
+            }, $trace), $notEmpty)) . ']';
         }, $traces))  . ']';
     }
 
@@ -33,6 +37,11 @@ final class Json implements Encoder
      */
     private function encodeSpan(Span $span)
     {
+        $json = json_encode($this->spanToArray($span));
+        if (false === $json) {
+            return "";
+        }
+
         return str_replace([
             '"start_micro":"-"',
             '"duration_micro":"-"',
@@ -45,7 +54,7 @@ final class Json implements Encoder
             '"trace_id":' . $this->hex2dec($span->getTraceId()),
             '"span_id":' . $this->hex2dec($span->getSpanId()),
             '"parent_id":' . $this->hex2dec($span->getParentId()),
-        ], json_encode($this->spanToArray($span)));
+        ], $json);
     }
 
     /**
