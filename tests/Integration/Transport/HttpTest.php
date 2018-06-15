@@ -6,7 +6,6 @@ use DDTrace\Encoders\Json;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop;
-use Exception;
 use PHPUnit_Framework_TestCase;
 use Prophecy\Argument;
 use Psr\Log\LoggerInterface;
@@ -76,5 +75,28 @@ final class HttpTest extends PHPUnit_Framework_TestCase
         ];
 
         $httpTransport->send($traces);
+    }
+
+    public function testSilentlySendTraces()
+    {
+        $tracer = new Tracer(new Noop);
+
+        $logger = $this->prophesize(LoggerInterface::class);
+        $logger->debug(Argument::any())->shouldNotBeCalled();
+
+        $httpTransport = new Http(new Json, $logger->reveal(), [
+            'endpoint' => 'http://0.0.0.0:8126/v0.3/traces'
+        ]);
+
+        $span = $tracer->startSpan('test');
+        $span->finish();
+
+        $traces = [[$span]];
+
+        ob_start();
+        $httpTransport->send($traces);
+        $output = ob_get_clean();
+
+        $this->assertEmpty($output);
     }
 }
