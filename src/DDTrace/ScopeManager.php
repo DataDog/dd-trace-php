@@ -43,6 +43,7 @@ final class ScopeManager implements OpenTracingScopeManager
         for ($i = 0; $i < $scopeLength; $i++) {
             if ($scope === $this->scopes[$i]) {
                 array_splice($this->scopes, $i, 1);
+                break;
             }
         }
     }
