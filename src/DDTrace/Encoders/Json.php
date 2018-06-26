@@ -12,14 +12,10 @@ final class Json implements Encoder
      */
     public function encodeTraces(array $traces)
     {
-        $notEmpty = function ($value) {
-            return !empty($value);
-        };
-
-        return '[' . implode(',', array_map(function ($trace) use ($notEmpty) {
+        return '[' . implode(',', array_map(function ($trace) {
             return '[' . implode(',', array_filter(array_map(function ($span) {
                 return $this->encodeSpan($span);
-            }, $trace), $notEmpty)) . ']';
+            }, $trace))) . ']';
         }, $traces))  . ']';
     }
 
