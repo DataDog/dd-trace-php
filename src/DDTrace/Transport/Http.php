@@ -62,12 +62,13 @@ final class Http implements Transport
         $handle = curl_init($url);
         curl_setopt($handle, CURLOPT_POST, 1);
         curl_setopt($handle, CURLOPT_POSTFIELDS, $body);
+        curl_setopt($handle, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($handle, CURLOPT_HTTPHEADER, array_merge($headers, [
             'Content-Type: ' . $this->encoder->getContentType(),
             'Content-Length: ' . strlen($body),
         ]));
 
-        if (curl_exec($handle) !== true) {
+        if (curl_exec($handle) === false) {
             $this->logger->debug(sprintf(
                 'Reporting of spans failed: %s, error code %s',
                 curl_error($handle),
