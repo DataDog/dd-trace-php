@@ -1,8 +1,12 @@
 {
     "name": "datadog/dd-trace",
-    "description": "PHP APM Client",
-    "keywords": ["datadog", "php", "tracing"],
     "type": "library",
+    "description": "PHP APM Client",
+    "keywords": [
+        "datadog",
+        "php",
+        "tracing"
+    ],
     "license": "BSD-3-Clause",
     "authors": [
         {
@@ -15,17 +19,22 @@
             "role": "Developer"
         }
     ],
-    "minimum-stability": "dev",
     "require": {
-        "php": "^5.6||^7.0",
+        "php": "^5.6 || ^7.0",
         "guzzlehttp/psr7": "^1.4@dev",
         "opentracing/opentracing": "1.0.0-beta5",
         "psr/log": "^1.0@dev",
         "symfony/polyfill": "~1.7.0"
     },
+    "provide": {
+        "opentracing/opentracing": "1.0.0-beta4"
+    },
     "require-dev": {
         "phpunit/phpunit": "~5.7.19",
         "squizlabs/php_codesniffer": "3.*"
+    },
+    "config": {
+        "sort-packages": true
     },
     "autoload": {
         "psr-4": {
@@ -42,27 +51,22 @@
             "DDTrace\\Tests\\": "./tests/"
         }
     },
-    "provide": {
-        "opentracing/opentracing": "1.0.0-beta4"
-    },
+    "minimum-stability": "dev",
     "scripts": {
-        "test": [
-            "@test-unit",
-            "@test-integration"
-        ],
-        "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
-        "test-integration":[
-            "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
-            "phpunit --colors=always --configuration=phpunit.xml --testsuite=integration"
-        ],
+        "fix-lint": "phpcbf --standard=ZEND --standard=PSR2 --ignore=*/vendor/* ./",
+        "lint": "phpcs --standard=ZEND --standard=PSR2 --ignore=*/vendor/* ./",
         "run-agent": [
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
         ],
-        "lint": "phpcs --standard=ZEND --standard=PSR2 --ignore=*/vendor/* ./",
-        "fix-lint": "phpcbf --standard=ZEND --standard=PSR2 --ignore=*/vendor/* ./"
-    },
-    "config": {
-        "sort-packages": true
+        "test": [
+            "@test-unit",
+            "@test-integration"
+        ],
+        "test-integration": [
+            "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
+            "phpunit --colors=always --configuration=phpunit.xml --testsuite=integration"
+        ],
+        "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit"
     }
 }
