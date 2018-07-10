@@ -50,10 +50,10 @@
             "@test-unit",
             "@test-integration"
         ],
-        "test-unit": "phpunit ./tests/Unit",
+        "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
         "test-integration":[
             "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
-            "phpunit ./tests/Integration"
+            "phpunit --colors=always --configuration=phpunit.xml --testsuite=integration"
         ],
         "run-agent": [
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
