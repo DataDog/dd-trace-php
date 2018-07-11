@@ -52,6 +52,7 @@
         }
     },
     "minimum-stability": "dev",
+    "prefer-stable": true,
     "scripts": {
         "fix-lint": "phpcbf --standard=ZEND --standard=PSR2 --ignore=*/vendor/* ./",
         "lint": "phpcs --standard=ZEND --standard=PSR2 --ignore=*/vendor/* ./",
