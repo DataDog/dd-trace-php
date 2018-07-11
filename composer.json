@@ -24,7 +24,7 @@
         "guzzlehttp/psr7": "^1.4@dev",
         "opentracing/opentracing": "1.0.0-beta5",
         "psr/log": "^1.0@dev",
-        "symfony/polyfill": "~1.7.0"
+        "symfony/polyfill-php70": "~1.8.0"
     },
     "provide": {
         "opentracing/opentracing": "1.0.0-beta4"
