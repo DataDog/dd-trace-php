@@ -23,8 +23,7 @@
         "php": "^5.6 || ^7.0",
         "guzzlehttp/psr7": "^1.4@dev",
         "opentracing/opentracing": "1.0.0-beta5",
-        "psr/log": "^1.0@dev",
-        "symfony/polyfill": "~1.7.0"
+        "psr/log": "^1.0@dev"
     },
     "provide": {
         "opentracing/opentracing": "1.0.0-beta4"
