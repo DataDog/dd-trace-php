@@ -5,9 +5,9 @@ namespace DDTrace\Tests\Unit\Encoders;
 use DDTrace\Encoders\Json;
 use DDTrace\Span;
 use DDTrace\SpanContext;
-use PHPUnit_Framework_TestCase;
+use PHPUnit\Framework;
 
-final class JsonTest extends PHPUnit_Framework_TestCase
+final class JsonTest extends Framework\TestCase
 {
     public function testEncodeTracesSuccess()
     {

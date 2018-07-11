@@ -9,10 +9,10 @@ use DDTrace\Transport;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
 use OpenTracing\NoopSpan;
-use PHPUnit_Framework_TestCase;
+use PHPUnit\Framework;
 use DDTrace\Time;
 
-final class TracerTest extends PHPUnit_Framework_TestCase
+final class TracerTest extends Framework\TestCase
 {
     const OPERATION_NAME = 'test_span';
     const ANOTHER_OPERATION_NAME = 'test_span2';

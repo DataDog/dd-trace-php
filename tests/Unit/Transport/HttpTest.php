@@ -4,9 +4,10 @@ namespace DDTrace\Tests\Unit\Transport;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Transport\Http;
+use PHPUnit\Framework;
 use Psr\Log\NullLogger;
 
-final class HttpTest extends \PHPUnit_Framework_TestCase
+final class HttpTest extends Framework\TestCase
 {
     const ENDPOINT = 'http://myserver:8126/v0.3/traces';
 

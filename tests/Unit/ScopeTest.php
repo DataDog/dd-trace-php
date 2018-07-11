@@ -5,9 +5,9 @@ namespace DDTrace\Tests\Unit;
 use DDTrace\Scope;
 use DDTrace\ScopeManager;
 use OpenTracing\Span;
-use PHPUnit_Framework_TestCase;
+use PHPUnit\Framework;
 
-final class ScopeTest extends PHPUnit_Framework_TestCase
+final class ScopeTest extends Framework\TestCase
 {
     public function testScopeFinishesSpanOnClose()
     {

@@ -5,9 +5,9 @@ namespace DDTrace\Tests\Unit;
 use DDTrace\ScopeManager;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
-use PHPUnit_Framework_TestCase;
+use PHPUnit\Framework;
 
-final class ScopeManagerTest extends PHPUnit_Framework_TestCase
+final class ScopeManagerTest extends Framework\TestCase
 {
     const OPERATION_NAME = 'test_name';
 

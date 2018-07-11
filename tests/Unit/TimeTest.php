@@ -3,8 +3,9 @@
 namespace DDTrace\Tests;
 
 use DDTrace\Time;
+use PHPUnit\Framework;
 
-final class TimeTest extends \PHPUnit_Framework_TestCase
+final class TimeTest extends Framework\TestCase
 {
     public function testNowHasTheExpectedLength()
     {
