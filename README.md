@@ -28,6 +28,7 @@ To start using the DataDog Tracer with the OpenTracing API, you should first ini
 
 ```php
 use DDTrace\Tracer;
+use OpenTracing\GlobalTracer;
 
 ...
 
