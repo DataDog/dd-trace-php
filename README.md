@@ -30,8 +30,6 @@ To start using the DataDog Tracer with the OpenTracing API, you should first ini
 use DDTrace\Tracer;
 use OpenTracing\GlobalTracer;
 
-...
-
 // Creates a tracer with default transport and default propagators
 $tracer = new Tracer();
 
@@ -45,7 +43,6 @@ $application->run();
 register_shutdown_function(function() {
     GlobalTracer::get()->flush();
 });
-
 ```
 
 PHP as a request scoped language has no simple means to pass the collected spans data to a background process without blocking the main request thread/process. It is mandatory to execute the `Tracer::flush()` after the response is served to the client by using [`register_shutdown_function`](http://php.net/manual/en/function.register-shutdown-function.php).
@@ -55,6 +52,9 @@ PHP as a request scoped language has no simple means to pass the collected spans
 Transport can be customized by the config parameters:
 
 ```php
+use DDTrace\Encoders\Json;
+use DDTrace\Transport\Http;
+
 $transport = new Http(
     new Json(),
     $logger,
@@ -67,6 +67,9 @@ $transport = new Http(
 Tracer can be customized by the config settings:
 
 ```php
+use DDTrace\Tracer;
+use OpenTracing\Formats;
+
 // Config for tracer
 $config = [
     'service_name' => 'my_service', // The name of the service.
