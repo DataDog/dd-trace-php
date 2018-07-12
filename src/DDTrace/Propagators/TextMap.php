@@ -41,8 +41,6 @@ final class TextMap implements Propagator
             } elseif (strpos($key, self::DEFAULT_BAGGAGE_HEADER_PREFIX) === 0) {
                 $baggageItems[substr($key, strlen(self::DEFAULT_BAGGAGE_HEADER_PREFIX))] = $value;
             }
-
-            continue;
         }
 
         if ($traceId === null || $spanId === null) {
