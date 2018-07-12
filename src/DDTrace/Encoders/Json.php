@@ -4,9 +4,13 @@ namespace DDTrace\Encoders;
 
 use DDTrace\Encoder;
 use DDTrace\Span;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 
 final class Json implements Encoder
 {
+    use LoggerAwareTrait;
+
     /**
      * {@inheritdoc}
      */
@@ -35,6 +39,7 @@ final class Json implements Encoder
     {
         $json = json_encode($this->spanToArray($span));
         if (false === $json) {
+            $this->logger->debug("Failed to json-encode span: " . json_last_error_msg());
             return "";
         }
 

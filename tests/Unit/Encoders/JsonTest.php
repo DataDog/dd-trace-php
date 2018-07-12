@@ -6,6 +6,7 @@ use DDTrace\Encoders\Json;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use PHPUnit\Framework;
+use Psr\Log\LoggerInterface;
 
 final class JsonTest extends Framework\TestCase
 {
@@ -46,7 +47,15 @@ JSON;
         // this will generate a malformed UTF-8 string
         $span->setTag('invalid', hex2bin('37f2bef0ab085308'));
 
+        $logger = $this->prophesize(LoggerInterface::class);
+        $logger
+            ->debug(
+                'Failed to json-encode span: Malformed UTF-8 characters, possibly incorrectly encoded'
+            )
+            ->shouldBeCalled();
+
         $jsonEncoder = new Json();
+        $jsonEncoder->setLogger($logger->reveal());
         $encodedTrace = $jsonEncoder->encodeTraces([[$span, $span]]);
         $this->assertEquals($expectedPayload, $encodedTrace);
     }
