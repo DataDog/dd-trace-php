@@ -4,9 +4,9 @@ namespace DDTrace\Tests\Unit\Propagators;
 
 use DDTrace\Propagators\TextMap;
 use DDTrace\SpanContext;
-use PHPUnit_Framework_TestCase;
+use PHPUnit\Framework;
 
-final class TextMapTest extends PHPUnit_Framework_TestCase
+final class TextMapTest extends Framework\TestCase
 {
     const BAGGAGE_ITEM_KEY = 'test_key';
     const BAGGAGE_ITEM_VALUE = 'test_value';

@@ -7,9 +7,9 @@ use DDTrace\SpanContext;
 use DDTrace\Tags;
 use DDTrace\Span;
 use Exception;
-use PHPUnit_Framework_TestCase;
+use PHPUnit\Framework;
 
-final class SpanTest extends PHPUnit_Framework_TestCase
+final class SpanTest extends Framework\TestCase
 {
     const OPERATION_NAME = 'test_span';
     const SERVICE = 'test_service';

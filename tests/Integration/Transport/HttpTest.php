@@ -6,11 +6,11 @@ use DDTrace\Encoders\Json;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop;
-use PHPUnit_Framework_TestCase;
+use PHPUnit\Framework;
 use Prophecy\Argument;
 use Psr\Log\LoggerInterface;
 
-final class HttpTest extends PHPUnit_Framework_TestCase
+final class HttpTest extends Framework\TestCase
 {
     public function testSpanReportingFailsOnUnavailableAgent()
     {
