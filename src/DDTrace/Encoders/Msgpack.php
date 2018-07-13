@@ -4,21 +4,9 @@ namespace DDTrace\Encoders;
 
 use DDTrace\Encoder;
 use DDTrace\Span;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 
-final class Json implements Encoder
+final class Msgpack implements Encoder
 {
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    public function __construct(LoggerInterface $logger = null)
-    {
-        $this->logger = $logger ?: new NullLogger();
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -36,7 +24,7 @@ final class Json implements Encoder
      */
     public function getContentType()
     {
-        return 'application/json';
+        return 'application/msgpack';
     }
 
     /**
@@ -47,7 +35,6 @@ final class Json implements Encoder
     {
         $json = json_encode($this->spanToArray($span));
         if (false === $json) {
-            $this->logger->debug("Failed to json-encode span: " . json_last_error_msg());
             return "";
         }
 
@@ -60,10 +47,19 @@ final class Json implements Encoder
         ], [
             '"start":' . $span->getStartTime() . '000',
             '"duration":' . $span->getDuration() . '000',
-            '"trace_id":' . \hexdec($span->getTraceId()),
-            '"span_id":' . \hexdec($span->getSpanId()),
-            '"parent_id":' . \hexdec($span->getParentId()),
+            '"trace_id":' . $this->hex2dec($span->getTraceId()),
+            '"span_id":' . $this->hex2dec($span->getSpanId()),
+            '"parent_id":' . $this->hex2dec($span->getParentId()),
         ], $json);
+    }
+
+    /**
+     * @param string $hex
+     * @return string
+     */
+    private function hex2dec($hex)
+    {
+        return base_convert($hex, 16, 10);
     }
 
     /**
