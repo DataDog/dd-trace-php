@@ -6,6 +6,7 @@ use DDTrace\Encoders\Json;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use PHPUnit\Framework;
+use Prophecy\Argument;
 use Psr\Log\LoggerInterface;
 
 final class JsonTest extends Framework\TestCase
@@ -27,7 +28,11 @@ JSON;
             'test_resource',
             1518038421211969
         );
-        $jsonEncoder = new Json();
+
+        $logger = $this->prophesize(LoggerInterface::class);
+        $logger->debug(Argument::any())->shouldNotBeCalled();
+
+        $jsonEncoder = new Json($logger->reveal());
         $encodedTrace = $jsonEncoder->encodeTraces([[$span]]);
         $this->assertEquals($expectedPayload, $encodedTrace);
     }
