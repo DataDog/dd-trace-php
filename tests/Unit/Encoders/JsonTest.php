@@ -54,8 +54,7 @@ JSON;
             )
             ->shouldBeCalled();
 
-        $jsonEncoder = new Json();
-        $jsonEncoder->setLogger($logger->reveal());
+        $jsonEncoder = new Json($logger->reveal());
         $encodedTrace = $jsonEncoder->encodeTraces([[$span, $span]]);
         $this->assertEquals($expectedPayload, $encodedTrace);
     }

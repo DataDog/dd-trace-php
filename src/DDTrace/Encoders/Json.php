@@ -4,12 +4,20 @@ namespace DDTrace\Encoders;
 
 use DDTrace\Encoder;
 use DDTrace\Span;
-use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 final class Json implements Encoder
 {
-    use LoggerAwareTrait;
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    public function __construct(LoggerInterface $logger = null)
+    {
+        $this->logger = $logger ?: new NullLogger();
+    }
 
     /**
      * {@inheritdoc}
