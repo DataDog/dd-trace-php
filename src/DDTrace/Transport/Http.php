@@ -90,7 +90,6 @@ final class Http implements Transport
             $this->logger->debug(
                 sprintf('Reporting of spans failed, status code %d', $statusCode)
             );
-
             return;
         }
     }
