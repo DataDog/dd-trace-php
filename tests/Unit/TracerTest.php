@@ -29,7 +29,7 @@ final class TracerTest extends Framework\TestCase
 
     public function testCreateSpanSuccessWithExpectedValues()
     {
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $startTime = Time\now();
         $span = $tracer->startSpan(self::OPERATION_NAME, [
             'tags' => [
@@ -46,7 +46,7 @@ final class TracerTest extends Framework\TestCase
     public function testStartSpanAsChild()
     {
         $context = SpanContext::createAsRoot();
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $span = $tracer->startSpan(self::OPERATION_NAME, [
             'child_of' => $context,
         ]);
@@ -55,14 +55,14 @@ final class TracerTest extends Framework\TestCase
 
     public function testStartActiveSpan()
     {
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $scope = $tracer->startActiveSpan(self::OPERATION_NAME);
         $this->assertEquals($scope, $tracer->getScopeManager()->getActive());
     }
 
     public function testStartActiveSpanAsChild()
     {
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $parentScope = $tracer->startActiveSpan(self::OPERATION_NAME);
         $childScope = $tracer->startActiveSpan(self::ANOTHER_OPERATION_NAME);
         $this->assertEquals($childScope, $tracer->getScopeManager()->getActive());
@@ -75,7 +75,7 @@ final class TracerTest extends Framework\TestCase
         $context = SpanContext::createAsRoot();
         $carrier = [];
 
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $tracer->inject($context, self::FORMAT, $carrier);
     }
 
@@ -86,7 +86,7 @@ final class TracerTest extends Framework\TestCase
 
         $propagator = $this->prophesize(Propagator::class);
         $propagator->inject($context, $carrier)->shouldBeCalled();
-        $tracer = new Tracer(new NoopTransport, [self::FORMAT => $propagator->reveal()]);
+        $tracer = new Tracer(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
         $tracer->inject($context, self::FORMAT, $carrier);
     }
 
@@ -94,7 +94,7 @@ final class TracerTest extends Framework\TestCase
     {
         $this->expectException(UnsupportedFormat::class);
         $carrier = [];
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $tracer->extract(self::FORMAT, $carrier);
     }
 
@@ -105,7 +105,7 @@ final class TracerTest extends Framework\TestCase
 
         $propagator = $this->prophesize(Propagator::class);
         $propagator->extract($carrier)->shouldBeCalled()->willReturn($expectedContext);
-        $tracer = new Tracer(new NoopTransport, [self::FORMAT => $propagator->reveal()]);
+        $tracer = new Tracer(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
         $actualContext = $tracer->extract(self::FORMAT, $carrier);
         $this->assertEquals($expectedContext, $actualContext);
     }

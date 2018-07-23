@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<ruleset name="DD Trace PHP">
+    <description>Sniffs for DD Trace PHP</description>
+
+    <file>./</file>
+
+    <rule ref="PSR12"/>
+
+    <rule ref="Generic.Commenting.Todo"/>
+    <rule ref="Generic.Commenting.Fixme"/>
+    <rule ref="Generic.Commenting.DocComment.MissingShort">
+        <severity>0</severity>
+    </rule>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+</ruleset>

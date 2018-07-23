@@ -72,14 +72,17 @@ final class Tracer implements OpenTracingTracer
         $this->config = array_merge($this->config, $config);
     }
 
+    /**
+     * @return Tracer
+     */
     public static function noop()
     {
         return new self(
-            new NoopTransport,
+            new NoopTransport(),
             [
-                Formats\BINARY => new NoopPropagator,
-                Formats\TEXT_MAP => new NoopPropagator,
-                Formats\HTTP_HEADERS => new NoopPropagator,
+                Formats\BINARY => new NoopPropagator(),
+                Formats\TEXT_MAP => new NoopPropagator(),
+                Formats\HTTP_HEADERS => new NoopPropagator(),
             ],
             ['enabled' => false]
         );
