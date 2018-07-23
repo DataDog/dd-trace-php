@@ -19,7 +19,7 @@ final class ScopeManagerTest extends Framework\TestCase
 
     public function testActivateSuccess()
     {
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $span = $tracer->startSpan(self::OPERATION_NAME);
         $scopeManager = new ScopeManager();
         $scopeManager->activate($span, false);
@@ -28,14 +28,14 @@ final class ScopeManagerTest extends Framework\TestCase
 
     public function testGetScopeReturnsNull()
     {
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $tracer->startSpan(self::OPERATION_NAME);
         $this->assertNull($tracer->getScopeManager()->getActive());
     }
 
     public function testGetScopeSuccess()
     {
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $span = $tracer->startSpan(self::OPERATION_NAME);
         $scope = $tracer->getScopeManager()->activate($span, false);
         $this->assertSame($scope, $tracer->getScopeManager()->getActive());
@@ -43,7 +43,7 @@ final class ScopeManagerTest extends Framework\TestCase
 
     public function testDeactivateSuccess()
     {
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $span = $tracer->startSpan(self::OPERATION_NAME);
         $scopeManager = new ScopeManager();
         $scope = $scopeManager->activate($span, false);
@@ -53,7 +53,7 @@ final class ScopeManagerTest extends Framework\TestCase
 
     public function testCanManageMultipleScopes()
     {
-        $tracer = new Tracer(new NoopTransport);
+        $tracer = new Tracer(new NoopTransport());
         $scopeManager = new ScopeManager();
 
         $scope = $scopeManager->activate($tracer->startSpan(self::OPERATION_NAME), false);

@@ -13,13 +13,13 @@ final class HttpTest extends Framework\TestCase
 
     public function testConfigWithDefaultValues()
     {
-        $httpTransport = new Http(new Json, new NullLogger);
+        $httpTransport = new Http(new Json(), new NullLogger());
         $this->assertEquals('http://localhost:8126/v0.3/traces', $httpTransport->getConfig()['endpoint']);
     }
 
     public function testConfig()
     {
-        $httpTransport = new Http(new Json, new NullLogger, ['endpoint' => self::ENDPOINT]);
+        $httpTransport = new Http(new Json(), new NullLogger(), ['endpoint' => self::ENDPOINT]);
         $this->assertEquals(self::ENDPOINT, $httpTransport->getConfig()['endpoint']);
     }
 }

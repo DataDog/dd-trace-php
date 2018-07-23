@@ -14,7 +14,7 @@ final class HttpTest extends Framework\TestCase
 {
     public function testSpanReportingFailsOnUnavailableAgent()
     {
-        $tracer = new Tracer(new Noop);
+        $tracer = new Tracer(new Noop());
 
         $logger = $this->prophesize(LoggerInterface::class);
         $logger
@@ -23,7 +23,7 @@ final class HttpTest extends Framework\TestCase
             )
             ->shouldBeCalled();
 
-        $httpTransport = new Http(new Json, $logger->reveal(), [
+        $httpTransport = new Http(new Json(), $logger->reveal(), [
             'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
         ]);
 
@@ -44,12 +44,12 @@ final class HttpTest extends Framework\TestCase
 
     public function testSpanReportingSuccess()
     {
-        $tracer = new Tracer(new Noop);
+        $tracer = new Tracer(new Noop());
 
         $logger = $this->prophesize(LoggerInterface::class);
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
-        $httpTransport = new Http(new Json, $logger->reveal(), [
+        $httpTransport = new Http(new Json(), $logger->reveal(), [
             'endpoint' => 'http://0.0.0.0:8126/v0.3/traces'
         ]);
 
@@ -79,12 +79,12 @@ final class HttpTest extends Framework\TestCase
 
     public function testSilentlySendTraces()
     {
-        $tracer = new Tracer(new Noop);
+        $tracer = new Tracer(new Noop());
 
         $logger = $this->prophesize(LoggerInterface::class);
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
-        $httpTransport = new Http(new Json, $logger->reveal(), [
+        $httpTransport = new Http(new Json(), $logger->reveal(), [
             'endpoint' => 'http://0.0.0.0:8126/v0.3/traces'
         ]);
 
