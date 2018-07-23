@@ -1,94 +1,96 @@
 version: 2.0
 
+aliases:
+  - &docker_agent datadog/docker-dd-agent
+  - agent_env: &agent_env
+    - DD_APM_ENABLED=true
+    - DD_BIND_HOST=0.0.0.0
+    - DD_API_KEY=invalid_key_but_this_is_fine
+  - &load_composer_deps
+    key: 'betav1-composer-deps-{{ checksum "composer.json" }}'
+  - &composer_install_deps
+    name: Composer installing dependencies
+    command: composer install -n
+  - &save_composer_deps
+    key: 'betav1-composer-deps-{{ checksum "composer.json" }}'
+    paths:
+      - vendor/
+  - &test_results_path
+    path: test-results
+  - &test_php_defaults
+    working_directory: ~/datadog
+    steps:
+      - checkout
+      - restore_cache: *load_composer_deps
+      - run: *composer_install_deps
+      - save_cache: *save_composer_deps
+      - run:
+          name: 'Waiting for Dockerized agent'
+          command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
+      - run:
+          name: Run unit tests
+          command: composer test-unit -- --log-junit test-results/php-unit/results.xml
+      - run:
+          name: Run integration tests
+          command: composer test-integration -- --log-junit test-results/php-integration/results.xml
+      - store_test_results: *test_results_path
+      - store_artifacts: *test_results_path
+
 jobs:
+  "Lint files":
+    docker:
+      - image: circleci/php:7-cli-node-browsers
+    steps:
+      - checkout
+      - restore_cache: *load_composer_deps
+      - run: *composer_install_deps
+      - save_cache: *save_composer_deps
+      - restore_cache: &lint_deps_cache
+          key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
+      - run: npm install eclint --no-package-lock --no-save
+      - save_cache:
+          <<: *lint_deps_cache
+          paths:
+            - node_modules/
+      - run: mkdir -p test-results/phpcs
+      - run: node_modules/.bin/eclint check '**/*' '!vendor/**/*' '!LICENSE'
+      - run: composer lint -- --report=junit | tee test-results/phpcs/results.xml
+      - store_test_results: *test_results_path
+      - store_artifacts: *test_results_path
+
   "php-5.6":
+    <<: *test_php_defaults
     docker:
       - image: circleci/php:5.6
       - image: datadog/docker-dd-agent
-        environment:
-        - DD_APM_ENABLED=true
-        - DD_BIND_HOST=0.0.0.0
-        - DD_API_KEY=invalid_key_but_this_is_fine
-    working_directory: ~/datadog
-    steps:
-      - checkout
-      - run: composer install -n
-      - run:
-          name: Run lint
-          command: composer lint
-      - run:
-          command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
-      - run:
-          name: Run tests
-          command: composer test
+        environment: *agent_env
 
   "php-7.0":
+    <<: *test_php_defaults
     docker:
       - image: circleci/php:7.0
       - image: datadog/docker-dd-agent
-        environment:
-        - DD_APM_ENABLED=true
-        - DD_BIND_HOST=0.0.0.0
-        - DD_API_KEY=invalid_key_but_this_is_fine
-    working_directory: ~/datadog
-    steps:
-      - checkout
-      - run: composer install
-      - run:
-          name: Run lint
-          command: composer lint
-      - run:
-          command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
-      - run:
-          name: Run tests
-          command: composer test
+        environment: *agent_env
 
   "php-7.1":
+    <<: *test_php_defaults
     docker:
       - image: circleci/php:7.1
       - image: datadog/docker-dd-agent
-        environment:
-        - DD_APM_ENABLED=true
-        - DD_BIND_HOST=0.0.0.0
-        - DD_API_KEY=invalid_key_but_this_is_fine
-    working_directory: ~/datadog
-    steps:
-      - checkout
-      - run: composer install
-      - run:
-          name: Run lint
-          command: composer lint
-      - run:
-          command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
-      - run:
-          name: Run tests
-          command: composer test
+        environment: *agent_env
 
   "php-7.2":
+    <<: *test_php_defaults
     docker:
       - image: circleci/php:7.2
       - image: datadog/docker-dd-agent
-        environment:
-        - DD_APM_ENABLED=true
-        - DD_BIND_HOST=0.0.0.0
-        - DD_API_KEY=invalid_key_but_this_is_fine
-    working_directory: ~/datadog
-    steps:
-      - checkout
-      - run: composer install
-      - run:
-          name: Run lint
-          command: composer lint
-      - run:
-          command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
-      - run:
-          name: Run tests
-          command: composer test
+        environment: *agent_env
 
 workflows:
   version: 2
   build:
     jobs:
+      - "Lint files"
       - "php-5.6"
       - "php-7.0"
       - "php-7.1"

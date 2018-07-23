@@ -89,8 +89,8 @@ $tracer = new Tracer(
 - [Starting a root span](https://github.com/opentracing/opentracing-php#starting-an-empty-trace-by-creating-a-root-span)
 - [Starting a span for a given request](https://github.com/opentracing/opentracing-php#creating-a-span-given-an-existing-request)
 - [Active span and scope manager](https://github.com/opentracing/opentracing-php#active-spans-and-scope-manager)
-	- [Creating a child span assigning parent manually](https://github.com/opentracing/opentracing-php#creating-a-child-span-assigning-parent-manually)
-	- [Creating a child span using automatic active span management](https://github.com/opentracing/opentracing-php#creating-a-child-span-using-automatic-active-span-management)
+  - [Creating a child span assigning parent manually](https://github.com/opentracing/opentracing-php#creating-a-child-span-assigning-parent-manually)
+  - [Creating a child span using automatic active span management](https://github.com/opentracing/opentracing-php#creating-a-child-span-using-automatic-active-span-management)
 - [Using span options](https://github.com/opentracing/opentracing-php#using-span-options)
 
 ### Propagation of context
