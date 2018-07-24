@@ -7,12 +7,12 @@ aliases:
     - DD_BIND_HOST=0.0.0.0
     - DD_API_KEY=invalid_key_but_this_is_fine
   - &load_composer_deps
-    key: 'betav1-composer-deps-{{ checksum "composer.json" }}'
+    key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
   - &composer_install_deps
     name: Composer installing dependencies
     command: composer install -n
   - &save_composer_deps
-    key: 'betav1-composer-deps-{{ checksum "composer.json" }}'
+    key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
     paths:
       - vendor/
   - &test_results_path
