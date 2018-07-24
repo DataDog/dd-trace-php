@@ -17,7 +17,7 @@ aliases:
       - vendor/
   - &test_results_path
     path: test-results
-  - &test_php_defaults
+  - &php_test_defaults
     working_directory: ~/datadog
     steps:
       - checkout
@@ -59,28 +59,28 @@ jobs:
       - store_artifacts: *test_results_path
 
   "php-5.6":
-    <<: *test_php_defaults
+    <<: *php_test_defaults
     docker:
       - image: circleci/php:5.6
       - image: datadog/docker-dd-agent
         environment: *agent_env
 
   "php-7.0":
-    <<: *test_php_defaults
+    <<: *php_test_defaults
     docker:
       - image: circleci/php:7.0
       - image: datadog/docker-dd-agent
         environment: *agent_env
 
   "php-7.1":
-    <<: *test_php_defaults
+    <<: *php_test_defaults
     docker:
       - image: circleci/php:7.1
       - image: datadog/docker-dd-agent
         environment: *agent_env
 
   "php-7.2":
-    <<: *test_php_defaults
+    <<: *php_test_defaults
     docker:
       - image: circleci/php:7.2
       - image: datadog/docker-dd-agent
