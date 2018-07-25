@@ -38,13 +38,12 @@ final class ScopeManager implements OpenTracingScopeManager
 
     public function deactivate(Scope $scope)
     {
-        $scopeLength = count($this->scopes);
+        $i = array_search($scope, $this->scopes, true);
 
-        for ($i = 0; $i < $scopeLength; $i++) {
-            if ($scope === $this->scopes[$i]) {
-                array_splice($this->scopes, $i, 1);
-                break;
-            }
+        if (false === $i) {
+            return;
         }
+
+        array_splice($this->scopes, $i, 1);
     }
 }
