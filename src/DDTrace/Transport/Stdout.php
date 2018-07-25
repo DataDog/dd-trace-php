@@ -24,9 +24,8 @@ final class Stdout implements Transport
 
     public function send(array $traces)
     {
-        $tracesPayload = $this->encoder->encodeTraces($traces);
         var_dump($this->headers);
-        echo $tracesPayload;
+        echo $this->encoder->encodeTraces($traces) . "\n";
     }
 
     public function setHeader($key, $value)
