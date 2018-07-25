@@ -15,7 +15,7 @@ final class StdoutTest extends Framework\TestCase
         $tracer = new Tracer($stdoutTransport);
 
         $span = $tracer->startSpan('test');
-        $span->finish();    
+        $span->finish();
 
         $traces = [[$span]];
 
