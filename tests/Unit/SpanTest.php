@@ -82,6 +82,26 @@ final class SpanTest extends Framework\TestCase
         $this->assertFalse($span->hasError());
     }
 
+    public function testLogWithEventErrorMarksSpanWithError()
+    {
+        $span = $this->createSpan();
+
+        $span->log([Tags\LOG_EVENT => 'error']);
+        $this->assertTrue($span->hasError());
+    }
+
+    public function testLogWithOtherEventDoesNotMarkSpanWithError()
+    {
+        $span = $this->createSpan();
+
+        $span->log([Tags\LOG_EVENT => 'some other event']);
+        $this->assertFalse($span->hasError());
+
+        $span->log([Tags\LOG_ERROR => false]);
+        $this->assertFalse($span->hasError());
+    }
+
+
     public function testSpanLogWithErrorCreatesExpectedTags()
     {
         foreach ([Tags\LOG_ERROR, Tags\LOG_ERROR_OBJECT] as $key) {
