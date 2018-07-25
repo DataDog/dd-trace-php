@@ -2,7 +2,6 @@
 
 namespace DDTrace;
 
-use BadMethodCallException;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use Exception;
 use InvalidArgumentException;
@@ -94,9 +93,9 @@ final class Span implements OpenTracingSpan
         $startTime = null
     ) {
         $this->context = $context;
-        $this->operationName = (string) $operationName;
-        $this->service = (string) $service;
-        $this->resource = (string) $resource;
+        $this->operationName = (string)$operationName;
+        $this->service = (string)$service;
+        $this->resource = (string)$resource;
         $this->startTime = $startTime ?: Time\now();
     }
 
@@ -181,8 +180,13 @@ final class Span implements OpenTracingSpan
             return;
         }
 
-        if ($key !== (string) $key) {
+        if ($key !== (string)$key) {
             throw InvalidSpanArgument::forTagKey($key);
+        }
+
+        if ($key === Tags\ERROR) {
+            $this->setError($value);
+            return;
         }
 
         if ($key === Tags\SERVICE_NAME) {
@@ -200,7 +204,7 @@ final class Span implements OpenTracingSpan
             return;
         }
 
-        $this->tags[$key] = (string) $value;
+        $this->tags[$key] = (string)$value;
     }
 
     /**
@@ -226,7 +230,7 @@ final class Span implements OpenTracingSpan
 
     public function setResource($resource)
     {
-        $this->resource = (string) $resource;
+        $this->resource = (string)$resource;
     }
 
     /**
@@ -234,7 +238,7 @@ final class Span implements OpenTracingSpan
      * updated and the error.Error() string is included with a default tag key.
      * If the Span has been finished, it will not be modified by this method.
      *
-     * @param Throwable|Exception $error
+     * @param Throwable|Exception|bool|null $error
      * @throws InvalidArgumentException
      */
     public function setError($error)
@@ -249,6 +253,15 @@ final class Span implements OpenTracingSpan
             $this->tags[Tags\ERROR_TYPE] = get_class($error);
             $this->tags[Tags\ERROR_STACK] = $error->getTraceAsString();
             return;
+        }
+
+        if (is_bool($error)) {
+            $this->hasError = $error;
+            return;
+        }
+
+        if (is_null($error)) {
+            $this->hasError = false;
         }
 
         throw InvalidSpanArgument::forError($error);
@@ -310,7 +323,17 @@ final class Span implements OpenTracingSpan
      */
     public function log(array $fields = [], $timestamp = null)
     {
-        throw new BadMethodCallException('not implemented');
+        foreach ($fields as $key => $value) {
+            if ($key === Tags\LOG_EVENT && $value === Tags\ERROR) {
+                $this->setError(true);
+            } elseif ($key === Tags\LOG_ERROR || $key === Tags\LOG_ERROR_OBJECT) {
+                $this->setError($value);
+            } elseif ($key === Tags\LOG_MESSAGE) {
+                $this->setTag(Tags\ERROR_MSG, $value);
+            } elseif ($key === Tags\LOG_STACK) {
+                $this->setTag(Tags\ERROR_STACK, $value);
+            }
+        }
     }
 
     /**
