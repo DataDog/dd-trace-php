@@ -97,6 +97,6 @@ final class HttpTest extends Framework\TestCase
         $httpTransport->send($traces);
         $output = ob_get_clean();
 
-        $this->assertEmpty($output);
+        $this->assertSame('', $output);
     }
 }

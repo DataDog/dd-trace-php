@@ -34,7 +34,7 @@ JSON;
 
         $jsonEncoder = new Json($logger->reveal());
         $encodedTrace = $jsonEncoder->encodeTraces([[$span]]);
-        $this->assertEquals($expectedPayload, $encodedTrace);
+        $this->assertJsonStringEqualsJsonString($expectedPayload, $encodedTrace);
     }
 
     public function testEncodeIgnoreSpanWhenEncodingFails()
