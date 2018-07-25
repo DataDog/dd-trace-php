@@ -21,6 +21,7 @@ final class SpanTest extends Framework\TestCase
     const TAG_KEY = 'test_key';
     const TAG_VALUE = 'test_value';
     const EXCEPTION_MESSAGE = 'exception message';
+    const DUMMY_STACK_TRACE = 'dummy stack trace';
 
     public function testCreateSpanSuccess()
     {
@@ -49,6 +50,68 @@ final class SpanTest extends Framework\TestCase
         $this->assertNull($span->getTag(self::TAG_KEY));
     }
 
+    public function testSpanTagWithErrorCreatesExpectedTags()
+    {
+        $span = $this->createSpan();
+        $span->setTag(Tags\ERROR, new Exception(self::EXCEPTION_MESSAGE));
+
+        $this->assertTrue($span->hasError());
+        $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
+        $this->assertEquals($span->getTag(Tags\ERROR_TYPE), Exception::class);
+    }
+
+    public function testSpanTagWithErrorBoolProperlyMarksError()
+    {
+        $span = $this->createSpan();
+
+        $span->setTag(Tags\ERROR, true);
+        $this->assertTrue($span->hasError());
+
+        $span->setTag(Tags\ERROR, false);
+        $this->assertFalse($span->hasError());
+    }
+
+    public function testLogWithErrorBoolProperlyMarksError()
+    {
+        $span = $this->createSpan();
+
+        $span->log([Tags\LOG_ERROR => true]);
+        $this->assertTrue($span->hasError());
+
+        $span->log([Tags\LOG_ERROR => false]);
+        $this->assertFalse($span->hasError());
+    }
+
+    public function testSpanLogWithErrorCreatesExpectedTags()
+    {
+        foreach ([Tags\LOG_ERROR, Tags\LOG_ERROR_OBJECT] as $key) {
+            $span = $this->createSpan();
+            $span->log([$key => new Exception(self::EXCEPTION_MESSAGE)]);
+
+            $this->assertTrue($span->hasError());
+            $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
+            $this->assertEquals($span->getTag(Tags\ERROR_TYPE), Exception::class);
+        }
+    }
+
+    public function testSpanLogStackAddsExpectedTag()
+    {
+        $span = $this->createSpan();
+        $span->log([Tags\LOG_STACK => self::DUMMY_STACK_TRACE]);
+
+        $this->assertFalse($span->hasError());
+        $this->assertEquals($span->getTag(Tags\ERROR_STACK), self::DUMMY_STACK_TRACE);
+    }
+
+    public function testSpanLogMessageAddsExpectedTag()
+    {
+        $span = $this->createSpan();
+        $span->log([Tags\LOG_MESSAGE => self::EXCEPTION_MESSAGE]);
+
+        $this->assertFalse($span->hasError());
+        $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
+    }
+
     public function testSpanErrorAddsExpectedTags()
     {
         $span = $this->createSpan();
@@ -56,6 +119,7 @@ final class SpanTest extends Framework\TestCase
 
         $this->assertTrue($span->hasError());
         $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
+        $this->assertNotEmpty($span->getTag(Tags\ERROR_STACK));
         $this->assertEquals($span->getTag(Tags\ERROR_TYPE), Exception::class);
     }
 

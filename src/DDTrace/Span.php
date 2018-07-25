@@ -91,8 +91,7 @@ final class Span implements OpenTracingSpan
         $service,
         $resource,
         $startTime = null
-    )
-    {
+    ) {
         $this->context = $context;
         $this->operationName = (string)$operationName;
         $this->service = (string)$service;
@@ -257,7 +256,7 @@ final class Span implements OpenTracingSpan
         }
 
         if (is_bool($error)) {
-            $this->hasError = true;
+            $this->hasError = $error;
             return;
         }
 
@@ -327,11 +326,11 @@ final class Span implements OpenTracingSpan
         foreach ($fields as $key => $value) {
             if ($key === Tags\LOG_EVENT && $value === Tags\ERROR) {
                 $this->setError(true);
-            } else if ($key === Tags\LOG_ERROR || $key === Tags\LOG_ERROR_OBJECT) {
+            } elseif ($key === Tags\LOG_ERROR || $key === Tags\LOG_ERROR_OBJECT) {
                 $this->setError($value);
-            } else if ($key === Tags\LOG_MESSAGE) {
+            } elseif ($key === Tags\LOG_MESSAGE) {
                 $this->setTag(Tags\ERROR_MSG, $value);
-            } else if ($key === Tags\LOG_STACK) {
+            } elseif ($key === Tags\LOG_STACK) {
                 $this->setTag(Tags\ERROR_STACK, $value);
             }
         }
