@@ -62,28 +62,28 @@ jobs:
     <<: *php_test_defaults
     docker:
       - image: circleci/php:5.6
-      - image: datadog/docker-dd-agent
+      - image: *docker_agent
         environment: *agent_env
 
   "php-7.0":
     <<: *php_test_defaults
     docker:
       - image: circleci/php:7.0
-      - image: datadog/docker-dd-agent
+      - image: *docker_agent
         environment: *agent_env
 
   "php-7.1":
     <<: *php_test_defaults
     docker:
       - image: circleci/php:7.1
-      - image: datadog/docker-dd-agent
+      - image: *docker_agent
         environment: *agent_env
 
   "php-7.2":
     <<: *php_test_defaults
     docker:
       - image: circleci/php:7.2
-      - image: datadog/docker-dd-agent
+      - image: *docker_agent
         environment: *agent_env
 
 workflows:
