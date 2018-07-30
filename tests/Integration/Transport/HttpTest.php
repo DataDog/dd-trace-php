@@ -5,7 +5,6 @@ namespace DDTrace\Tests\Integration\Transport;
 use DDTrace\Encoders\Json;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-use DDTrace\Transport\Noop;
 use PHPUnit\Framework;
 use Prophecy\Argument;
 use Psr\Log\LoggerInterface;
@@ -14,8 +13,6 @@ final class HttpTest extends Framework\TestCase
 {
     public function testSpanReportingFailsOnUnavailableAgent()
     {
-        $tracer = new Tracer(new Noop());
-
         $logger = $this->prophesize(LoggerInterface::class);
         $logger
             ->debug(
@@ -26,6 +23,7 @@ final class HttpTest extends Framework\TestCase
         $httpTransport = new Http(new Json(), $logger->reveal(), [
             'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
         ]);
+        $tracer = new Tracer($httpTransport);
 
         $span = $tracer->startSpan('test', [
             'tags' => [
@@ -44,14 +42,13 @@ final class HttpTest extends Framework\TestCase
 
     public function testSpanReportingSuccess()
     {
-        $tracer = new Tracer(new Noop());
-
         $logger = $this->prophesize(LoggerInterface::class);
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
         $httpTransport = new Http(new Json(), $logger->reveal(), [
             'endpoint' => 'http://0.0.0.0:8126/v0.3/traces'
         ]);
+        $tracer = new Tracer($httpTransport);
 
         $span = $tracer->startSpan('test', [
             'tags' => [
@@ -79,14 +76,13 @@ final class HttpTest extends Framework\TestCase
 
     public function testSilentlySendTraces()
     {
-        $tracer = new Tracer(new Noop());
-
         $logger = $this->prophesize(LoggerInterface::class);
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
         $httpTransport = new Http(new Json(), $logger->reveal(), [
             'endpoint' => 'http://0.0.0.0:8126/v0.3/traces'
         ]);
+        $tracer = new Tracer($httpTransport);
 
         $span = $tracer->startSpan('test');
         $span->finish();
