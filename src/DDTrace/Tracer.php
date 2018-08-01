@@ -8,12 +8,12 @@ use DDTrace\Propagators\TextMap;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
+use OpenTracing\Formats;
 use OpenTracing\NoopSpan;
 use OpenTracing\Reference;
 use OpenTracing\SpanContext as OpenTracingContext;
 use OpenTracing\StartSpanOptions;
 use OpenTracing\Tracer as OpenTracingTracer;
-use OpenTracing\Formats;
 
 final class Tracer implements OpenTracingTracer
 {

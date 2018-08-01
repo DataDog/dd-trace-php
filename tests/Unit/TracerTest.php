@@ -4,13 +4,13 @@ namespace DDTrace\Tests\Unit;
 
 use DDTrace\Propagator;
 use DDTrace\SpanContext;
+use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
 use OpenTracing\NoopSpan;
 use PHPUnit\Framework;
-use DDTrace\Time;
 
 final class TracerTest extends Framework\TestCase
 {
