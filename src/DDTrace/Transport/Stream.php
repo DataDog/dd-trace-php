@@ -13,7 +13,7 @@ final class Stream implements Transport
     private $encoder;
 
     /**
-     * @var stream
+     * @var resource
      */
     private $stream;
 
