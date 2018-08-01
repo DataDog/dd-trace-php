@@ -58,6 +58,21 @@ jobs:
       - store_test_results: *test_results_path
       - store_artifacts: *test_results_path
 
+  "Static Analysis":
+    docker:
+      - image: circleci/php:7.2
+    steps:
+      - checkout
+      - restore_cache: *load_composer_deps
+      - run: *composer_install_deps
+      - save_cache: *save_composer_deps
+      - run:
+          name: Installing phpstan
+          command: composer require --dev phpstan/phpstan:~0.10.2
+      - run:
+          name: Running phpstan
+          command: vendor/bin/phpstan analyse --level=2 src
+
   "php-5.6":
     <<: *php_test_defaults
     docker:
@@ -91,6 +106,7 @@ workflows:
   build:
     jobs:
       - "Lint files"
+      - "Static Analysis"
       - "php-5.6"
       - "php-7.0"
       - "php-7.1"
