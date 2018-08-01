@@ -21,7 +21,7 @@ final class Span implements OpenTracingSpan
     private $operationName;
 
     /**
-     * @var OpenTracingContext
+     * @var SpanContext
      */
     private $context;
 
