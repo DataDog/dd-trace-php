@@ -5,9 +5,9 @@ namespace DDTrace;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use Exception;
 use InvalidArgumentException;
+use OpenTracing\Span as OpenTracingSpan;
 use OpenTracing\SpanContext as OpenTracingContext;
 use Throwable;
-use OpenTracing\Span as OpenTracingSpan;
 
 final class Span implements OpenTracingSpan
 {

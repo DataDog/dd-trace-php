@@ -3,9 +3,9 @@
 namespace DDTrace\Tests\Unit;
 
 use DDTrace\Exceptions\InvalidSpanArgument;
+use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tags;
-use DDTrace\Span;
 use Exception;
 use PHPUnit\Framework;
 
