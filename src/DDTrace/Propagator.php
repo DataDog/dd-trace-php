@@ -13,7 +13,7 @@ interface Propagator
      * an implementation specific method.
      *
      * @param SpanContext $spanContext
-     * @param $carrier
+     * @param array|\ArrayAccess $carrier
      * @return void
      */
     public function inject(SpanContext $spanContext, &$carrier);
@@ -22,7 +22,7 @@ interface Propagator
      * Extract returns the SpanContext from the given carrier using an
      * implementation specific method.
      *
-     * @param $carrier
+     * @param array|\ArrayAccess $carrier
      * @return SpanContext
      */
     public function extract($carrier);
