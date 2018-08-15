@@ -104,7 +104,7 @@ jobs:
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - run:
           name: Installing phpstan
-          command: composer require --dev phpstan/phpstan:~0.10.2
+          command: composer require --dev phpstan/phpstan:~0.10.3
       - run:
           name: Running phpstan
           command: vendor/bin/phpstan analyse --level=2 src
