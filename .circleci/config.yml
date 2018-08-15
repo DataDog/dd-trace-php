@@ -1,6 +1,10 @@
 version: 2.0
 
 aliases:
+  - &STEP_COMPOSER_SELF_UPDATE
+    run:
+      name: Updating composer itself
+      command: sudo composer self-update 1.6.5
   - &docker_agent datadog/docker-dd-agent
   - agent_env: &agent_env
     - DD_APM_ENABLED=true
@@ -21,6 +25,7 @@ aliases:
     working_directory: ~/datadog
     steps:
       - checkout
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - restore_cache: *load_composer_deps
       - run: *composer_install_deps
       - save_cache: *save_composer_deps
@@ -42,6 +47,7 @@ jobs:
       - image: circleci/php:7-cli-node-browsers
     steps:
       - checkout
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - restore_cache: *load_composer_deps
       - run: *composer_install_deps
       - save_cache: *save_composer_deps
@@ -63,6 +69,7 @@ jobs:
       - image: circleci/php:7.2
     steps:
       - checkout
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - restore_cache: *load_composer_deps
       - run: *composer_install_deps
       - save_cache: *save_composer_deps
