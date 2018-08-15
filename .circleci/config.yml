@@ -1,36 +1,57 @@
 version: 2.0
 
 aliases:
+  - &CACHE_COMPOSER_KEY
+    key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+
+  - &CACHE_NPM_KEY
+    key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
+
+  - &IMAGE_DOCKER_DD_AGENT
+    image: datadog/docker-dd-agent
+    environment:
+      - DD_APM_ENABLED=true
+      - DD_BIND_HOST=0.0.0.0
+      - DD_API_KEY=invalid_key_but_this_is_fine
+
   - &STEP_COMPOSER_SELF_UPDATE
     run:
       name: Updating composer itself
       command: sudo composer self-update 1.6.5
-  - &docker_agent datadog/docker-dd-agent
-  - agent_env: &agent_env
-    - DD_APM_ENABLED=true
-    - DD_BIND_HOST=0.0.0.0
-    - DD_API_KEY=invalid_key_but_this_is_fine
-  - &load_composer_deps
-    key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
-  - &composer_install_deps
-    name: Composer installing dependencies
-    command: composer install -n
-  - &save_composer_deps
-    key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
-    paths:
-      - vendor/
-  - &test_results_path
-    path: test-results
-  - &php_test_defaults
+
+  - &STEP_COMPOSER_CACHE_RESTORE
+    restore_cache:
+      <<: *CACHE_COMPOSER_KEY
+
+  - &STEP_COMPOSER_CACHE_SAVE
+    save_cache:
+      <<: *CACHE_COMPOSER_KEY
+      paths:
+        - vendor/
+
+  - &STEP_COMPOSER_INSTALL
+    run:
+      name: Installing dependencies with composer
+      command: composer install -n
+
+  - &STEP_STORE_ARTIFACTS
+    store_artifacts:
+      path: test-results
+
+  - &STEP_STORE_TEST_RESULTS
+    store_test_results:
+      path: test-results
+
+  - &JOB_PHP_DEFAULTS
     working_directory: ~/datadog
     steps:
       - checkout
       - <<: *STEP_COMPOSER_SELF_UPDATE
-      - restore_cache: *load_composer_deps
-      - run: *composer_install_deps
-      - save_cache: *save_composer_deps
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
       - run:
-          name: 'Waiting for Dockerized agent'
+          name: Waiting for Dockerized agent
           command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
       - run:
           name: Run unit tests
@@ -38,8 +59,8 @@ aliases:
       - run:
           name: Run integration tests
           command: composer test-integration -- --log-junit test-results/php-integration/results.xml
-      - store_test_results: *test_results_path
-      - store_artifacts: *test_results_path
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
 
 jobs:
   "Lint files":
@@ -48,21 +69,29 @@ jobs:
     steps:
       - checkout
       - <<: *STEP_COMPOSER_SELF_UPDATE
-      - restore_cache: *load_composer_deps
-      - run: *composer_install_deps
-      - save_cache: *save_composer_deps
-      - restore_cache: &lint_deps_cache
-          key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
-      - run: npm install eclint --no-package-lock --no-save
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - restore_cache:
+          <<: *CACHE_NPM_KEY
+      - run:
+          name: Installing dependencies with npm
+          command: npm install eclint --no-package-lock --no-save
       - save_cache:
-          <<: *lint_deps_cache
+          <<: *CACHE_NPM_KEY
           paths:
-            - node_modules/
-      - run: mkdir -p test-results/phpcs
-      - run: node_modules/.bin/eclint check '**/*' '!vendor/**/*' '!LICENSE'
-      - run: composer lint -- --report=junit | tee test-results/phpcs/results.xml
-      - store_test_results: *test_results_path
-      - store_artifacts: *test_results_path
+          - node_modules/
+      - run:
+          name: Creating directory for phpcs results
+          command: mkdir -p test-results/phpcs
+      - run:
+          name: Running eclint
+          command: node_modules/.bin/eclint check '**/*' '!vendor/**/*' '!LICENSE'
+      - run:
+          name: Running phpcs
+          command: composer lint -- --report=junit | tee test-results/phpcs/results.xml
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
 
   "Static Analysis":
     docker:
@@ -70,9 +99,9 @@ jobs:
     steps:
       - checkout
       - <<: *STEP_COMPOSER_SELF_UPDATE
-      - restore_cache: *load_composer_deps
-      - run: *composer_install_deps
-      - save_cache: *save_composer_deps
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
       - run:
           name: Installing phpstan
           command: composer require --dev phpstan/phpstan:~0.10.2
@@ -81,32 +110,28 @@ jobs:
           command: vendor/bin/phpstan analyse --level=2 src
 
   "php-5.6":
-    <<: *php_test_defaults
+    <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:5.6
-      - image: *docker_agent
-        environment: *agent_env
+      - <<: *IMAGE_DOCKER_DD_AGENT
 
   "php-7.0":
-    <<: *php_test_defaults
+    <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.0
-      - image: *docker_agent
-        environment: *agent_env
+      - <<: *IMAGE_DOCKER_DD_AGENT
 
   "php-7.1":
-    <<: *php_test_defaults
+    <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.1
-      - image: *docker_agent
-        environment: *agent_env
+      - <<: *IMAGE_DOCKER_DD_AGENT
 
   "php-7.2":
-    <<: *php_test_defaults
+    <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.2
-      - image: *docker_agent
-        environment: *agent_env
+      - <<: *IMAGE_DOCKER_DD_AGENT
 
 workflows:
   version: 2
