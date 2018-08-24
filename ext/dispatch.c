@@ -1,6 +1,50 @@
-#include "meat.h"
+#include "php.h"
+#include "php/ext/spl/spl_exceptions.h"
 
-int find_function(HashTable *table, zend_string *name, zend_function **function) {
+#include "ddtrace.h"
+#include "dispatch.h"
+#include "php/ext/spl/spl_exceptions.h"
+#include "compat_zend_string.h"
+
+user_opcode_handler_t ddtrace_old_fcall_handler;
+void (*ddtrace_original_execute_ex)(zend_execute_data *);
+
+#define BUSY_FLAG 1
+
+#if PHP_VERSION_ID >= 70100
+#	define RETURN_VALUE_USED(opline) ((opline)->result_type != IS_UNUSED)
+#else
+#	define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
+#endif
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+
+static void php_execute(zend_execute_data *execute_data) {
+	if (ddtrace_original_execute_ex) {
+		ddtrace_original_execute_ex(execute_data);
+	} else execute_ex(execute_data);
+}
+
+void ddtrace_dispatch_init(){
+	/**
+	 * Replacing zend_execute_ex with anything other than original 
+	 * hanges some of the bevavior in PHP compilation and execution
+	 * 
+	 * e.g. it changes compilation of function calls to produce ZEND_DO_FCALL opcode
+	 * instead of ZEND_DO_UCALL for used defined functions
+	 * 
+	 * While this extension could be developed by using zend_execute_ex to hook into every execution.
+	 * However hooking into opcode processing has the advantage of not hooking into some executable things
+	 * like generators which gives a slight performance advantage.
+	 */
+	ddtrace_original_execute_ex = zend_execute_ex;
+	zend_execute_ex = php_execute; 
+	
+    ddtrace_old_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
+	zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);
+}
+
+static int find_function(HashTable *table, zend_string *name, zend_function **function) {
 	zend_string *key = zend_string_tolower(name);
 	zend_function *ptr = zend_hash_find_ptr(table, key);
 
@@ -17,25 +61,18 @@ int find_function(HashTable *table, zend_string *name, zend_function **function)
 	return SUCCESS;
 }
 
-int find_method(zend_class_entry *ce, zend_string *name, zend_function **function) { 
+static int find_method(zend_class_entry *ce, zend_string *name, zend_function **function) { 
 	return find_function(&ce->function_table, name, function);
 }
 
-#if PHP_VERSION_ID >= 70100
-#	define RETURN_VALUE_USED(opline) ((opline)->result_type != IS_UNUSED)
-#else
-#	define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
-#endif
-
-void dispatch_free(zval *zv) {
+static void dispatch_free(zval *zv) {
 	ddtrace_dispatch_t *ureturn = Z_PTR_P(zv);
 	
 	zend_string_release(ureturn->function);
 	efree(ureturn);
 } 
 
-
-void execute_fcall(ddtrace_dispatch_t *ureturn, zend_execute_data *execute_data, zval *return_value) { 
+static void execute_fcall(ddtrace_dispatch_t *ureturn, zend_execute_data *execute_data, zval *return_value) { 
 	zend_fcall_info fci;
 	zend_fcall_info_cache fcc;
 	char *error = NULL;
@@ -107,7 +144,7 @@ ddtrace_dispatch_t* find_dispatch(zend_function *function) {
 	}
 
 	key = zend_string_tolower(function->common.function_name);
-	dispatch = zend_hash_find_ptr(returns, key);
+	dispatch = zend_hash_find_ptr(dispatch_lookup, key);
 	zend_string_release(key);
 
 	return dispatch;
@@ -145,10 +182,10 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data) {
 	return ZEND_USER_OPCODE_DISPATCH;
 } 
 
-zend_bool ddtrace_trace(zend_class_entry *clazz, zend_string *raw_name, zval *callable) {
+zend_bool ddtrace_trace(zend_class_entry *clazz, STRING_T *raw_name, zval *callable) {
 	HashTable *dispatch_lookup;
 	ddtrace_dispatch_t dispatch;
-	zend_string *name = zend_string_tolower(raw_name); // method/function names are case insensitive in PHP
+	STRING_T *name = STRING_TOLOWER(raw_name); // method/function names are case insensitive in PHP
 	zend_function *function;
 
 	if (clazz) {

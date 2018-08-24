@@ -1,19 +1,14 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
+#include "php/ext/spl/spl_exceptions.h"
 
-zend_class_entry *spl_ce_RuntimeException;
-zend_class_entry *spl_ce_InvalidArgumentException;
-user_opcode_handler_t ddtrace_old_fcall_handler;
-
-#define BUSY_FLAG 1
-
+#include "compat_zend_string.h"
 #include "ddtrace.h"
-#include "meat.h"
+#include "dispatch.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
@@ -41,8 +36,7 @@ static PHP_MINIT_FUNCTION(ddtrace)
 		return SUCCESS;
     }
 
-    ddtrace_old_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
-	zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);
+	ddtrace_dispatch_init();
 
 	return SUCCESS;
 }
@@ -64,7 +58,6 @@ static inline void table_dtor(zval *zv) {
 static PHP_RINIT_FUNCTION(ddtrace)
 {
 	zend_class_entry *ce = NULL;
-	zend_string *spl;
 
 #ifdef ZTS
 	ZEND_TSRMLS_CACHE_UPDATE();
@@ -72,14 +65,6 @@ static PHP_RINIT_FUNCTION(ddtrace)
 	if (DDTRACE(disable)) {
 		return SUCCESS;
 	}
-
-	spl = zend_string_init(ZEND_STRL("RuntimeException"), 0);
-	spl_ce_RuntimeException = (ce = zend_lookup_class(spl)) ? ce : zend_exception_get_default();
-	zend_string_release(spl);
-
-	spl = zend_string_init(ZEND_STRL("InvalidArgumentException"), 0);
-	spl_ce_InvalidArgumentException = (ce = zend_lookup_class(spl)) ? ce : zend_exception_get_default();
-	zend_string_release(spl);
 
     zend_hash_init(&DDTRACE(dispatch_lookup), 8, NULL, table_dtor, 0);
 
@@ -105,7 +90,7 @@ static PHP_MINFO_FUNCTION(ddtrace)
 
 static PHP_FUNCTION(dd_trace) 
 {
-	zend_string *function = NULL;
+	STRING_T *function = NULL;
 	zend_class_entry *clazz = NULL;
     zval *callable = NULL;
 
@@ -137,3 +122,11 @@ zend_module_entry ddtrace_module_entry = {
 	PHP_DDTRACE_VERSION,
 	STANDARD_MODULE_PROPERTIES
 };
+
+
+#ifdef COMPILE_DL_DDTRACE
+ZEND_GET_MODULE(ddtrace)
+#ifdef ZTS
+	ZEND_TSRMLS_CACHE_DEFINE();
+#endif
+#endif
