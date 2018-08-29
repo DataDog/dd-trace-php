@@ -5,7 +5,7 @@ namespace DDTrace;
 use OpenTracing\Scope as OpenTracingScope;
 use OpenTracing\Span as OpenTracingSpan;
 
-final class Scope implements OpenTracingScope
+class Scope implements OpenTracingScope
 {
     /**
      * @var Span
