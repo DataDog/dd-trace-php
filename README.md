@@ -59,7 +59,7 @@ $transport = new Http(
     new Json(),
     $logger,
     [
-        'endpoint_url' => 'http://localhost:8126/v0.3/traces', // Agent endpoint
+        'endpoint' => 'http://localhost:8126/v0.3/traces', // Agent endpoint
     ]
 );
 ```
