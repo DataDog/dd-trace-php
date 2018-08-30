@@ -223,7 +223,7 @@ final class Tracer implements OpenTracingTracer
     }
 
     /**
-     * {@inheritdoc}
+     * @return null|Span
      */
     public function getActiveSpan()
     {
