@@ -5,6 +5,7 @@ namespace DDTrace;
 use DDTrace\Encoders\Json;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
+use DDTrace\Tags;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
@@ -137,11 +138,20 @@ final class Tracer implements OpenTracingTracer
             $options = StartSpanOptions::create($options);
         }
 
+        $parentService = null;
+
         if (($activeSpan = $this->getActiveSpan()) !== null) {
             $options = $options->withParent($activeSpan);
+            $tags = $options->getTags();
+            if (!array_key_exists(Tags\SERVICE_NAME, $tags)) {
+                $parentService = $activeSpan->getService();
+            }
         }
 
         $span = $this->startSpan($operationName, $options);
+        if ($parentService !== null) {
+            $span->setTag(Tags\SERVICE_NAME, $parentService);
+        }
 
         return $this->scopeManager->activate($span, $options->shouldFinishSpanOnClose());
     }
