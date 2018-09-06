@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Unit;
 
 use DDTrace\Propagator;
 use DDTrace\SpanContext;
+use DDTrace\Tags;
 use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport;
@@ -64,9 +65,12 @@ final class TracerTest extends Framework\TestCase
     {
         $tracer = new Tracer(new NoopTransport());
         $parentScope = $tracer->startActiveSpan(self::OPERATION_NAME);
+        $parentSpan = $parentScope->getSpan();
+        $parentSpan->setTag(Tags\SERVICE_NAME, 'parent_service');
         $childScope = $tracer->startActiveSpan(self::ANOTHER_OPERATION_NAME);
         $this->assertEquals($childScope, $tracer->getScopeManager()->getActive());
         $this->assertEquals($parentScope->getSpan()->getSpanId(), $childScope->getSpan()->getParentId());
+        $this->assertEquals($parentScope->getSpan()->getService(), $childScope->getSpan()->getService());
     }
 
     public function testInjectThrowsUnsupportedFormatException()
