@@ -17,3 +17,6 @@ const LOG_ERROR = 'error';
 const LOG_ERROR_OBJECT = 'error.object';
 const LOG_MESSAGE = 'message';
 const LOG_STACK = 'stack';
+const TARGET_HOST = 'out.host';
+const TARGET_PORT = 'out.port';
+const BYTES_OUT = 'net.out.bytes';
