@@ -4,6 +4,7 @@ namespace DDTrace\Transport;
 
 use DDTrace\Encoder;
 use DDTrace\Transport;
+use DDTrace\Version;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -66,6 +67,10 @@ final class Http implements Transport
         curl_setopt($handle, CURLOPT_HTTPHEADER, array_merge($headers, [
             'Content-Type: ' . $this->encoder->getContentType(),
             'Content-Length: ' . strlen($body),
+            'Datadog-Meta-Lang: php',
+            'Datadog-Meta-Lang-Version: ' . \PHP_VERSION,
+            'Datadog-Meta-Lang-Interpreter: ' . \PHP_SAPI,
+            'Datadog-Meta-Tracer-Version: ' . Version\VERSION,
         ]));
 
         if (curl_exec($handle) === false) {
