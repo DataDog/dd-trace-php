@@ -27,12 +27,21 @@ class PDO
             $span->setTag(Tags\DB_STATEMENT, $statement);
             $span->setResource($statement);
 
-            $result = $this->exec($statement);
+            $e = null;
+            try {
+                $result = $this->exec($statement);
+                $span->setTag('db.rowcount', $result);
+            } catch (Exception $e) {
+                $span->setError($e);
+            }
 
-            $span->setTag('db.rowcount', $result);
             $scope->close();
 
-            return $result;
+            if (is_null($e)) {
+                return $result;
+            } else {
+                throw $e;
+            }
         });
 
         // public PDOStatement PDO::query(string $query)

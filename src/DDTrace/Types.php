@@ -6,7 +6,7 @@ const HTTP_CLIENT = 'http';
 const WEB_SERVLET = 'web';
 
 const CASSANDRA = 'cassandra';
-const MEMCACHE = 'memcache';
+const MEMCACHED = 'memcached';
 const MONGO = 'mongodb';
 const REDIS = 'redis';
 const SQL = 'sql';

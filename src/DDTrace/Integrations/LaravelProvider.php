@@ -3,8 +3,6 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\Encoders\Json;
-use DDTrace\Integrations\Mysqli;
-use DDTrace\Integrations\PDO;
 use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
@@ -82,6 +80,7 @@ class LaravelProvider extends ServiceProvider
 
         // Enable extension integrations
         Eloquent::load();
+        Memcached::load();
         PDO::load();
         Predis::load();
 
