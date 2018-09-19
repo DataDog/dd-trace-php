@@ -122,7 +122,7 @@ final class HttpTest extends Framework\TestCase
         $this->assertEquals(\PHP_SAPI, $traceRequest['headers']['Datadog-Meta-Lang-Interpreter']);
         $this->assertEquals(Version\VERSION, $traceRequest['headers']['Datadog-Meta-Tracer-Version']);
 
-        $process->stop();
+        $process->stop(0);
     }
 
     public function testSetHeader()
@@ -147,6 +147,6 @@ final class HttpTest extends Framework\TestCase
 
         $this->assertEquals('my-custom-value', $traceRequest['headers']['X-my-custom-header']);
 
-        $process->stop();
+        $process->stop(0);
     }
 }
