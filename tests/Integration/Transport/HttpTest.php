@@ -100,7 +100,7 @@ final class HttpTest extends Framework\TestCase
 
     public function testSendsMetaHeaders()
     {
-        $process = new Process("php -S localhost:8500 -t " . __DIR__ . "/request_replayer");
+        $process = new Process("exec php -S localhost:8500 -t " . __DIR__ . "/request_replayer");
         $process->start();
         usleep(100000);
 
@@ -127,7 +127,7 @@ final class HttpTest extends Framework\TestCase
 
     public function testSetHeader()
     {
-        $process = new Process("php -S localhost:8500 -t " . __DIR__ . "/request_replayer");
+        $process = new Process("exec php -S localhost:8500 -t " . __DIR__ . "/request_replayer");
         $process->start();
         usleep(100000);
 
