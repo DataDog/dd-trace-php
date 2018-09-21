@@ -22,7 +22,7 @@ class Mysqli
             $span->setTag('type', Types\SQL);
             $span->setResource($args[1]);
 
-            $result = call_user_func_array('mysqli_query', $args);
+            $result = mysqli_query(...$args);
 
             $scope->close();
 
@@ -52,7 +52,7 @@ class Mysqli
                 $span->setTag('db.transaction_name', $args[2]);
             }
 
-            $result = call_user_func_array('mysqli_commit', $args);
+            $result = mysqli_commit(...$args);
 
             $scope->close();
 
@@ -71,7 +71,7 @@ class Mysqli
             $span->setTag('type', Types\SQL);
             //TODO set db connection info
 
-            $result = call_user_func_array('mysqli_connect', $args);
+            $result = mysqli_connect(...$args);
 
             $scope->close();
 
@@ -86,7 +86,7 @@ class Mysqli
             //TODO set db connection info
             //TODO how to track query
 
-            $result = call_user_func_array('mysqli_stmt_execute', $args);
+            $result = mysqli_stmt_execute(...$args);
 
             $scope->close();
 
@@ -94,13 +94,13 @@ class Mysqli
         });
 
         // mixed mysqli::query ( string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
-        dd_trace('mysqli', 'query', function ($mysqli, $query) {
+        dd_trace('mysqli', 'query', function (...$args) {
             $scope = GlobalTracer::get()->startActiveSpan('mysqli.query');
             $span = $scope->getSpan();
             $span->setTag('type', Types\SQL);
-            $span->setResource($args[1]);
+            $span->setResource($args[0]);
 
-            $result = call_user_func_array('mysqli_query', $args);
+            $result = $this->query(...$args);
 
             $scope->close();
 
@@ -130,7 +130,7 @@ class Mysqli
                 $span->setTag('db.transaction_name', $args[1]);
             }
 
-            $result = call_user_func_array(array($this, 'commit'), $args);
+            $result = $this->commit(...$args);
 
             $scope->close();
 
@@ -151,5 +151,18 @@ class Mysqli
 
             return $result;
         });
+    }
+
+    public static function extractHostInfo($mysqli)
+    {
+        $host_info = $mysqli->host_info;
+        $parts = explode(':', substr($host_info, 0, strpos($host_info, ' ')));
+        $host = $parts[0];
+        $port = isset($parts[1]) ? $parts[1] : null;
+        return [
+            'db.type' => 'mysql',
+            'out.host' => $host,
+            'out.port' => $port,
+        ];
     }
 }

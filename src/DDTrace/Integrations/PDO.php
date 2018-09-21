@@ -8,6 +8,9 @@ use OpenTracing\GlobalTracer;
 
 class PDO
 {
+    private static $connections = [];
+    private static $statements = [];
+
     /**
      * Static method to add instrumentation to PDO requests
      */
@@ -18,26 +21,51 @@ class PDO
             return;
         }
 
+        // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
+        dd_trace('PDO', '__construct', function (...$args) {
+            $scope = GlobalTracer::get()->startActiveSpan('PDO.__construct');
+            $span = $scope->getSpan();
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tags\SERVICE_NAME, 'PDO');
+            $span->setResource('PDO.__construct');
+
+            $e = null;
+            try {
+                $this->__construct(...$args);
+                PDO::storeConnectionParams($this, $args);
+            } catch (\Exception $e) {
+                $span->setError($e);
+            }
+
+            $scope->close();
+
+            if ($e === null) {
+                return $this;
+            } else {
+                throw $e;
+            }
+        });
+
         // public int PDO::exec(string $query)
         dd_trace('PDO', 'exec', function ($statement) {
             $scope = GlobalTracer::get()->startActiveSpan('PDO.exec');
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setTag(Tags\DB_STATEMENT, $statement);
             $span->setResource($statement);
+            PDO::setConnectionTags($this, $span);
 
             $e = null;
             try {
                 $result = $this->exec($statement);
                 $span->setTag('db.rowcount', $result);
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $span->setError($e);
             }
 
             $scope->close();
 
-            if (is_null($e)) {
+            if ($e === null) {
                 return $result;
             } else {
                 throw $e;
@@ -54,20 +82,21 @@ class PDO
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setTag(Tags\DB_STATEMENT, $args[0]);
             $span->setResource($args[0]);
+            PDO::setConnectionTags($this, $span);
 
             $e = null;
             try {
-                $result = $this->query($args[0], isset($args[1]) ? $args[1] : null, isset($args[2]) ? $args2 : null, isset($args[3]) ? $args3 : null);
+                $result = $this->query(...$args[0]);
+                PDO::storeStatementFromConnection($this, $result);
                 $span->setTag('db.rowcount', $result->rowCount());
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $span->setError($e);
             }
 
             $scope->close();
 
-            if (is_null($e)) {
+            if ($e === null) {
                 return $result;
             } else {
                 throw $e;
@@ -80,29 +109,147 @@ class PDO
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
+            PDO::setConnectionTags($this, $span);
 
-            $result = $this->commit();
+            $e = null;
+            try {
+                $result = $this->commit();
+            } catch (\Exception $e) {
+                $span->setError($e);
+            }
 
             $scope->close();
 
-            return $result;
+            if ($e === null) {
+                return $result;
+            } else {
+                throw $e;
+            }
         });
 
-        // public bool PDOStatement::execute([array $params])
+        // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
+        dd_trace('PDO', 'prepare', function (...$args) {
+            $scope = GlobalTracer::get()->startActiveSpan('PDO.prepare');
+            $span = $scope->getSpan();
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tags\SERVICE_NAME, 'PDO');
+            $span->setResource($args[0]);
+            PDO::setConnectionTags($this, $span);
+
+            $e = null;
+            try {
+                $result = $this->prepare(...$args);
+                PDO::storeStatementFromConnection($this, $result);
+            } catch (\Exception $e) {
+                $span->setError($e);
+            }
+
+            $scope->close();
+
+            if ($e === null) {
+                return $result;
+            } else {
+                throw $e;
+            }
+        });
+
+        // public bool PDOStatement::execute ([ array $input_parameters ] )
         dd_trace('PDOStatement', 'execute', function ($params) {
             $scope = GlobalTracer::get()->startActiveSpan('PDOStatement.execute');
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setTag(Tags\DB_STATEMENT, $this->queryString);
             $span->setResource($this->queryString);
+            PDO::setStatementTags($this, $span);
 
-            $result = $this->execute($params);
+            $e = null;
+            try {
+                $result = $this->execute($params);
+                $span->setTag('db.rowcount', $this->rowCount());
+            } catch (\Exception $e) {
+                $span->setError($e);
+            }
 
-            $span->setTag('db.rowcount', $this->rowCount());
             $scope->close();
 
-            return $result;
+            if ($e === null) {
+                return $result;
+            } else {
+                throw $e;
+            }
         });
+    }
+
+    private static function parseDsn($dsn)
+    {
+        $engine = substr($dsn, 0, strpos($dsn, ':'));
+        $tags = ['db.engine' => $engine];
+        $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
+        foreach ($valStrings as $valString) {
+            if (!strpos($valString, '=')) {
+                continue;
+            }
+            list($key, $value) = explode('=', $valString);
+            switch ($key) {
+            case 'charset':
+                $tags['db.charset'] = $value;
+                break;
+            case 'dbname':
+                $tags['db.name'] = $value;
+                break;
+            case 'host':
+                $tags[Tags\TARGET_HOST] = $value;
+                break;
+            case 'port':
+                $tags[Tags\TARGET_PORT] = $value;
+                break;
+            }
+        }
+
+        return $tags;
+    }
+
+    public static function storeConnectionParams($pdo, array $constructorArgs)
+    {
+        $tags = self::parseDsn($constructorArgs[0]);
+        if (isset($constructorArgs[1])) {
+            $tags['db.user'] = $constructorArgs[1];
+        }
+        self::$connections[spl_object_hash($pdo)] = $tags;
+    }
+
+    public static function storeStatementFromConnection($pdo, $stmt)
+    {
+        $pdoHash = spl_object_hash($pdo);
+        if (isset(self::$connections[$pdoHash])) {
+            self::$statements[spl_object_hash($stmt)] = $pdoHash;
+        }
+    }
+
+    public static function setConnectionTags($pdo, $span)
+    {
+        $hash = spl_object_hash($pdo);
+        if (!isset(self::$connections[$hash])) {
+            return;
+        }
+
+        foreach (self::$connections[$hash] as $tag => $value) {
+            $span->setTag($tag, $value);
+        }
+    }
+
+    public static function setStatementTags($stmt, $span)
+    {
+        $stmtHash = spl_object_hash($stmt);
+        if (!isset(self::$statements[$stmtHash])) {
+            return;
+        }
+        if (!isset(self::$connections[self::$statements[$stmtHash]])) {
+            return;
+        }
+
+        foreach (self::$connections[self::$statements[$stmtHash]] as $tag => $value) {
+            $span->setTag($tag, $value);
+        }
     }
 }

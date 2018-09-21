@@ -17,8 +17,8 @@ class Eloquent
             return;
         }
 
-        // public function getModels($columns = ['*'])
-        dd_trace(Builder::class, 'getModels', function ($columns = ['*']) {
+        // getModels($columns = ['*'])
+        dd_trace(Builder::class, 'getModels', function (...$args) {
             $scope = GlobalTracer::get()->startActiveSpan('eloquent/get');
             $span = $scope->getSpan();
             $sql = $this->toBase()->toSql();
@@ -26,14 +26,23 @@ class Eloquent
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            $result = $this->getModels($columns);
+            $e = null;
+            try {
+                $result = $this->getModels(...$args);
+            } catch (\Exception $e) {
+                $span->setError($e);
+            }
 
             $scope->close();
 
-            return $result;
+            if ($e === null) {
+                return $result;
+            } else {
+                throw $e;
+            }
         });
 
-        // protected function performInsert(Builder $query)
+        // performInsert(Builder $query)
         dd_trace(Model::class, 'performInsert', function ($query) {
             $scope = GlobalTracer::get()->startActiveSpan('eloquent/insert');
             $span = $scope->getSpan();
@@ -42,14 +51,23 @@ class Eloquent
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            $result = $this->performInsert($query);
+            $e = null;
+            try {
+                $result = $this->performInsert($query);
+            } catch (\Exception $e) {
+                $span->setError($e);
+            }
 
             $scope->close();
 
-            return $result;
+            if ($e === null) {
+                return $result;
+            } else {
+                throw $e;
+            }
         });
 
-        // protected function performUpdate(Builder $query)
+        // performUpdate(Builder $query)
         dd_trace(Model::class, 'performUpdate', function ($query) {
             $scope = GlobalTracer::get()->startActiveSpan('eloquent/update');
             $span = $scope->getSpan();
@@ -58,11 +76,20 @@ class Eloquent
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            $result = $this->performUpdate($query);
+            $e = null;
+            try {
+                $result = $this->performUpdate($query);
+            } catch (\Exception $e) {
+                $span->setError($e);
+            }
 
             $scope->close();
 
-            return $result;
+            if ($e === null) {
+                return $result;
+            } else {
+                throw $e;
+            }
         });
 
         // public function delete()
@@ -70,11 +97,20 @@ class Eloquent
             $scope = GlobalTracer::get()->startActiveSpan('eloquent/delete');
             $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            $result = $this->delete();
+            $e = null;
+            try {
+                $result = $this->delete();
+            } catch (\Exception $e) {
+                $span->setError($e);
+            }
 
             $scope->close();
 
-            return $result;
+            if ($e === null) {
+                return $result;
+            } else {
+                throw $e;
+            }
         });
     }
 }
