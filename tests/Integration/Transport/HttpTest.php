@@ -3,13 +3,13 @@
 namespace DDTrace\Tests\Integration\Transport;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Tests\RequestReplayer;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Version;
 use PHPUnit\Framework;
 use Prophecy\Argument;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Process\Process;
 
 final class HttpTest extends Framework\TestCase
 {
@@ -100,12 +100,10 @@ final class HttpTest extends Framework\TestCase
 
     public function testSendsMetaHeaders()
     {
-        $process = new Process("exec php -S localhost:8500 -t " . __DIR__ . "/request_replayer");
-        $process->start();
-        usleep(100000);
+        $replayer = new RequestReplayer();
 
         $httpTransport = new Http(new Json(), null, [
-            'endpoint' => 'http://localhost:8500/test-trace',
+            'endpoint' => $replayer->getEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
 
@@ -115,24 +113,20 @@ final class HttpTest extends Framework\TestCase
         $traces = [[$span]];
         $httpTransport->send($traces);
 
-        $traceRequest = json_decode(file_get_contents('http://localhost:8500/replay'), true);
+        $traceRequest = $replayer->getLastRequest();
 
         $this->assertEquals('php', $traceRequest['headers']['Datadog-Meta-Lang']);
         $this->assertEquals(\PHP_VERSION, $traceRequest['headers']['Datadog-Meta-Lang-Version']);
         $this->assertEquals(\PHP_SAPI, $traceRequest['headers']['Datadog-Meta-Lang-Interpreter']);
         $this->assertEquals(Version\VERSION, $traceRequest['headers']['Datadog-Meta-Tracer-Version']);
-
-        $process->stop(0);
     }
 
     public function testSetHeader()
     {
-        $process = new Process("exec php -S localhost:8500 -t " . __DIR__ . "/request_replayer");
-        $process->start();
-        usleep(100000);
+        $replayer = new RequestReplayer();
 
         $httpTransport = new Http(new Json(), null, [
-            'endpoint' => 'http://localhost:8500/test-trace',
+            'endpoint' => $replayer->getEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
 
@@ -143,10 +137,8 @@ final class HttpTest extends Framework\TestCase
         $httpTransport->setHeader('X-my-custom-header', 'my-custom-value');
         $httpTransport->send($traces);
 
-        $traceRequest = json_decode(file_get_contents('http://localhost:8500/replay'), true);
+        $traceRequest = $replayer->getLastRequest();
 
         $this->assertEquals('my-custom-value', $traceRequest['headers']['X-my-custom-header']);
-
-        $process->stop(0);
     }
 }
