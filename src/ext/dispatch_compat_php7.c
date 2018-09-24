@@ -7,10 +7,10 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
-void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result){
+void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result) {
     fci->param_count = ZEND_CALL_NUM_ARGS(execute_data);
     fci->params = ZEND_CALL_ARG(execute_data, 1);
-    fci->retval= *result;
+    fci->retval = *result;
 }
 
 zend_function *ddtrace_function_get(const HashTable *table, zend_string *name) {
@@ -21,7 +21,7 @@ zend_function *ddtrace_function_get(const HashTable *table, zend_string *name) {
     return ptr;
 }
 
-void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch){
+void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zend_string_release(dispatch->function);
 }
 
@@ -31,7 +31,7 @@ void ddtrace_class_lookup_free(zval *zv) {
     efree(dispatch);
 }
 
-HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz){
+HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz) {
     HashTable *class_lookup;
 
     ALLOC_HASHTABLE(class_lookup);
@@ -41,11 +41,12 @@ HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz){
     return class_lookup;
 }
 
-zend_bool ddtrace_dispatch_store(HashTable *lookup,  ddtrace_dispatch_t *dispatch_orig) {
-    ddtrace_dispatch_t *dispatch = pemalloc(sizeof(ddtrace_dispatch_t), lookup->u.flags & HASH_FLAG_PERSISTENT);
+zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch_orig) {
+    ddtrace_dispatch_t *dispatch =
+        pemalloc(sizeof(ddtrace_dispatch_t), lookup->u.flags & HASH_FLAG_PERSISTENT);
     dispatch = pemalloc(sizeof(ddtrace_dispatch_t), lookup->u.flags & HASH_FLAG_PERSISTENT);
 
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
     return zend_hash_update_ptr(lookup, dispatch->function, dispatch) != NULL;
 }
-#endif // PHP 7
+#endif  // PHP 7

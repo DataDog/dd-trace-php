@@ -2,13 +2,13 @@
 #if PHP_VERSION_ID < 70000
 
 #include "ddtrace.h"
+#include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
-#include "debug.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
-#undef EX // php7 style EX
+#undef EX  // php7 style EX
 #define EX(x) ((execute_data)->x)
 
 static zend_always_inline void **vm_stack_push_args_with_copy(int count TSRMLS_DC) /* {{{ */
@@ -18,7 +18,7 @@ static zend_always_inline void **vm_stack_push_args_with_copy(int count TSRMLS_D
     zend_vm_stack_extend(count + 1 TSRMLS_CC);
 
     EG(argument_stack)->top += count;
-    *(EG(argument_stack)->top) = (void*)(zend_uintptr_t)count;
+    *(EG(argument_stack)->top) = (void *)(zend_uintptr_t)count;
     while (count-- > 0) {
         void *data = *(--p->top);
 
@@ -34,18 +34,17 @@ static zend_always_inline void **vm_stack_push_args_with_copy(int count TSRMLS_D
     return EG(argument_stack)->top++;
 }
 
-
-static zend_always_inline void** vm_stack_push_args(int count TSRMLS_DC)
-{
-    if (UNEXPECTED(EG(argument_stack)->top - ZEND_VM_STACK_ELEMETS(EG(argument_stack)) < count)
-        || UNEXPECTED(EG(argument_stack)->top == EG(argument_stack)->end)) {
+static zend_always_inline void **vm_stack_push_args(int count TSRMLS_DC) {
+    if (UNEXPECTED(EG(argument_stack)->top - ZEND_VM_STACK_ELEMETS(EG(argument_stack)) < count) ||
+        UNEXPECTED(EG(argument_stack)->top == EG(argument_stack)->end)) {
         return vm_stack_push_args_with_copy(count TSRMLS_CC);
     }
-    *(EG(argument_stack)->top) = (void*)(zend_uintptr_t)count;
+    *(EG(argument_stack)->top) = (void *)(zend_uintptr_t)count;
     return EG(argument_stack)->top++;
 }
 
-static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC){
+static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data,
+                                               zend_fcall_info *fci, zval **result TSRMLS_DC) {
     int argc = EX(opline)->extended_value + EX(call)->num_additional_args;
     fci->param_count = argc;
 
@@ -53,7 +52,7 @@ static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, 
         vm_stack_push_args(fci->param_count TSRMLS_CC);
     } else {
         zend_vm_stack_top(TSRMLS_C);
-        zend_vm_stack_push((void*)(zend_uintptr_t) fci->param_count TSRMLS_CC);
+        zend_vm_stack_push((void *)(zend_uintptr_t)fci->param_count TSRMLS_CC);
     }
 
     if (fci->param_count) {
@@ -64,7 +63,8 @@ static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, 
     fci->retval_ptr_ptr = result;
 }
 
-void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC){
+void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci,
+                         zval **result TSRMLS_DC) {
     if (EX(opline)->opcode != ZEND_DO_FCALL_BY_NAME) {
         call_slot *call = EX(call_slots) + EX(opline)->op2.num;
         call->fbc = NULL;
@@ -82,13 +82,13 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
     char *key = zend_str_tolower_dup(Z_STRVAL_P(name), Z_STRLEN_P(name));
 
     zend_function *fptr = NULL;
-    zend_hash_find(table, Z_STRVAL_P(name), Z_STRLEN_P(name)+1, (void**)&fptr);
+    zend_hash_find(table, Z_STRVAL_P(name), Z_STRLEN_P(name) + 1, (void **)&fptr);
 
     efree(key);
     return fptr;
 }
 
-void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch){
+void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zval_ptr_dtor(&dispatch->function);
     zval_dtor(&dispatch->callable);
 }
@@ -99,7 +99,7 @@ void ddtrace_class_lookup_free(void *zv) {
     efree(*dispatch);
 }
 
-HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz TSRMLS_DC){
+HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz TSRMLS_DC) {
     if (!clazz) {
         return &DDTRACE_G(function_lookup);
     }
@@ -108,7 +108,8 @@ HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz TSRMLS_DC){
     ALLOC_HASHTABLE(class_lookup);
     zend_hash_init(class_lookup, 8, NULL, ddtrace_class_lookup_free, 0);
 
-    zend_hash_update(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length, &class_lookup, sizeof(HashTable*), NULL);
+    zend_hash_update(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length, &class_lookup,
+                     sizeof(HashTable *), NULL);
     return class_lookup;
 }
 
@@ -118,11 +119,12 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
     DD_PRINTF("%s, %d", Z_STRVAL_P(dispatch->function), Z_STRLEN_P(dispatch->function));
 
-    return zend_hash_update(lookup, Z_STRVAL_P(dispatch->function), Z_STRLEN_P(dispatch->function), &dispatch, sizeof(ddtrace_dispatch_t *), NULL) == SUCCESS;
+    return zend_hash_update(lookup, Z_STRVAL_P(dispatch->function), Z_STRLEN_P(dispatch->function),
+                            &dispatch, sizeof(ddtrace_dispatch_t *), NULL) == SUCCESS;
 }
 
 // restore EX
 #undef EX
 #define EX(x) ((execute_data).x)
 
-#endif // PHP 5
+#endif  // PHP 5

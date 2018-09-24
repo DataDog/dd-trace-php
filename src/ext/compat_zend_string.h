@@ -9,7 +9,7 @@
 #define STRING_TOLOWER(x) ddtrace_string_tolower(x)
 #define STRING_VAL(x) (x)
 #define STRING_VAL_CHAR(x) (Z_STRVAL_P(x))
-zval* ddtrace_string_tolower(zval *str);
+zval *ddtrace_string_tolower(zval *str);
 #else
 #define STRING_VAL(x) ZSTR_VAL(x)
 #define STRING_VAL_CHAR(x) ZSTR_VAL(x)
@@ -17,4 +17,4 @@ zval* ddtrace_string_tolower(zval *str);
 #define STRING_TOLOWER(x) zend_string_tolower(x)
 #endif
 
-#endif // _COMPAT_ZEND_STRING_H
+#endif  // _COMPAT_ZEND_STRING_H
