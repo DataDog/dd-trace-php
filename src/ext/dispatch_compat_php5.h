@@ -6,8 +6,7 @@
 #include "debug.h"
 #include "dispatch.h"
 
-zend_always_inline void *zend_hash_str_find_ptr(const HashTable *ht, const char *key,
-                                                size_t length) {
+zend_always_inline void *zend_hash_str_find_ptr(const HashTable *ht, const char *key, size_t length) {
     void **rv = NULL;
     zend_hash_find(ht, key, length, (void **)&rv);
 
@@ -29,8 +28,7 @@ zend_always_inline zend_function *datadog_current_function(zend_execute_data *ex
     }
 }
 
-zend_always_inline zval *datadog_this(zend_function *current_function,
-                                      zend_execute_data *execute_data) {
+zend_always_inline zval *datadog_this(zend_function *current_function, zend_execute_data *execute_data) {
     if (!current_function->common.scope) {
         return NULL;
     }

@@ -29,16 +29,17 @@ static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
 void ddtrace_dispatch_init() {
     /**
      * Replacing zend_execute_ex with anything other than original
-     * hanges some of the bevavior in PHP compilation and execution
+     * changes some of the bevavior in PHP compilation and execution
      *
      * e.g. it changes compilation of function calls to produce ZEND_DO_FCALL
-     * opcode instead of ZEND_DO_UCALL for used defined functions
+     * opcode instead of ZEND_DO_UCALL for user defined functions
      *
      * While this extension could be developed by using zend_execute_ex to hook
      * into every execution. However hooking into opcode processing has the
      * advantage of not hooking into some executable things like generators which
      * gives a slight performance advantage.
      */
+    // TODO: check if necessary for php5.6
     ddtrace_original_execute_ex = zend_execute_ex;
     zend_execute_ex = php_execute;
 
@@ -91,8 +92,7 @@ zend_bool ddtrace_trace(zend_class_entry *clazz, STRING_T *name, zval *callable 
     HashTable *class_lookup = NULL;
     if (clazz) {
 #if PHP_VERSION_ID < 70000
-        class_lookup =
-            zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length);
+        class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length);
 #else
         class_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), clazz->name);
 #endif

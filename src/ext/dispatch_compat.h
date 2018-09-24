@@ -12,8 +12,7 @@ void ddtrace_class_lookup_free(zval *zv);
 #define INIT_ZVAL(x) ZVAL_NULL(&x)
 #endif
 
-void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci,
-                         zval **result TSRMLS_DC);
+void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC);
 zend_function *ddtrace_function_get(const HashTable *table, STRING_T *name);
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch);
 HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz TSRMLS_DC);

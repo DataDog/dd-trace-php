@@ -45,8 +45,7 @@ static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, const char *
     return dispatch;
 }
 
-static ddtrace_dispatch_t *find_dispatch(const char *scope_name, uint32_t scope_name_length,
-                                         const char *function_name,
+static ddtrace_dispatch_t *find_dispatch(const char *scope_name, uint32_t scope_name_length, const char *function_name,
                                          uint32_t function_name_length TSRMLS_DC) {
     if (!function_name) {
         return NULL;
@@ -70,8 +69,7 @@ typedef struct _zend_closure {
     HashTable *debug_info;
 } zend_closure;
 
-static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execute_data,
-                          zval *return_value TSRMLS_DC) {
+static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;
     char *error = NULL;
@@ -87,8 +85,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     func = datadog_current_function(execute_data);
     this = datadog_this(func, execute_data);
 
-    zend_function *callable =
-        (zend_function *)zend_get_closure_method_def(&dispatch->callable TSRMLS_CC);
+    zend_function *callable = (zend_function *)zend_get_closure_method_def(&dispatch->callable TSRMLS_CC);
 
     // convert passed callable to not be static as we're going to bind it to *this
     if (this) {
@@ -99,17 +96,15 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 #else
     func = EX(func);
     this = Z_OBJ(EX(This)) ? &EX(This) : NULL;
-    zend_create_closure(&closure,
-                        (zend_function *)zend_get_closure_method_def(&dispatch->callable),
-                        dispatch->clazz, dispatch->clazz, this TSRMLS_CC);
+    zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable), dispatch->clazz,
+                        dispatch->clazz, this TSRMLS_CC);
 #endif
 
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
         if (func->common.scope) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "cannot use return value set for %s::%s as function: %s",
-                                    STRING_VAL(func->common.scope->name),
-                                    STRING_VAL(func->common.function_name), error);
+            zend_throw_exception_ex(
+                spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "cannot use return value set for %s::%s as function: %s",
+                STRING_VAL(func->common.scope->name), STRING_VAL(func->common.function_name), error);
         } else {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
                                     "cannot use return value set for %s as function: %s",
@@ -133,8 +128,7 @@ _exit_cleanup:
     zval_dtor(&closure);
 }
 
-static int is_anonymous_closure(zend_function *fbc, const char *function_name,
-                                uint32_t *function_name_length_p) {
+static int is_anonymous_closure(zend_function *fbc, const char *function_name, uint32_t *function_name_length_p) {
     if (!(fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !function_name_length_p) {
         return 0;
     }
@@ -143,16 +137,14 @@ static int is_anonymous_closure(zend_function *fbc, const char *function_name,
         *function_name_length_p = strlen(function_name);
     }
 
-    if ((*function_name_length_p == (sizeof("{closure}") - 1)) &&
-        strcmp(function_name, "{closure}") == 0) {
+    if ((*function_name_length_p == (sizeof("{closure}") - 1)) && strcmp(function_name, "{closure}") == 0) {
         return 1;
     } else {
         return 0;
     }
 }
 
-static zend_always_inline zend_bool executing_method(zend_execute_data *execute_data,
-                                                     zval *object) {
+static zend_always_inline zend_bool executing_method(zend_execute_data *execute_data, zval *object) {
 #if PHP_VERSION_ID < 70000
     return EX(opline)->opcode != ZEND_DO_FCALL && object;
 #else
@@ -160,9 +152,8 @@ static zend_always_inline zend_bool executing_method(zend_execute_data *execute_
 #endif
 }
 
-static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data,
-                                                 zend_function *fbc, const char *function_name,
-                                                 uint32_t function_name_length TSRMLS_DC) {
+static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, zend_function *fbc,
+                                                 const char *function_name, uint32_t function_name_length TSRMLS_DC) {
     zval *object = NULL;
     const char *common_scope = NULL;
     uint32_t common_scope_length = 0;
@@ -187,11 +178,9 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
     if (executing_method(execute_data, object)) {
         DD_PRINTF("Looking for handler for %s#%s", common_scope, function_name);
-        dispatch = find_dispatch(common_scope, common_scope_length, function_name,
-                                 function_name_length TSRMLS_CC);
+        dispatch = find_dispatch(common_scope, common_scope_length, function_name, function_name_length TSRMLS_CC);
     } else {
-        dispatch =
-            lookup_dispatch(&DDTRACE_G(function_lookup), function_name, function_name_length);
+        dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), function_name, function_name_length);
     }
 
     if (!dispatch) {
@@ -208,9 +197,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         dispatch->flags ^= BUSY_FLAG;  // guard against recursion, catching only topmost execution
 
 #if PHP_VERSION_ID < 70000
-        zval *return_value =
-            (RETURN_VALUE_USED(opline) ? EX_TMP_VAR(execute_data, opline->result.var)->var.ptr
-                                       : &rv);
+        zval *return_value = (RETURN_VALUE_USED(opline) ? EX_TMP_VAR(execute_data, opline->result.var)->var.ptr : &rv);
         execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
 #else
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
@@ -229,8 +216,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     }
 }
 
-static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *execute_data,
-                                                           zend_function **fbc_p,
+static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *execute_data, zend_function **fbc_p,
                                                            char const **function_name_p,
                                                            uint32_t *function_name_length_p) {
     zend_function *fbc = NULL;

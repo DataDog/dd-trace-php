@@ -2,6 +2,6 @@
 BasedOnStyle: Google
 ---
 Language: Cpp
-ColumnLimit: 99
+ColumnLimit: 120
 IndentWidth: 4
 ---
