@@ -3,8 +3,10 @@
 namespace DDTrace\Tests\Integration\Transport;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Tests\RequestReplayer;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
+use DDTrace\Version;
 use PHPUnit\Framework;
 use Prophecy\Argument;
 use Psr\Log\LoggerInterface;
@@ -94,5 +96,49 @@ final class HttpTest extends Framework\TestCase
         $output = ob_get_clean();
 
         $this->assertSame('', $output);
+    }
+
+    public function testSendsMetaHeaders()
+    {
+        $replayer = new RequestReplayer();
+
+        $httpTransport = new Http(new Json(), null, [
+            'endpoint' => $replayer->getEndpoint(),
+        ]);
+        $tracer = new Tracer($httpTransport);
+
+        $span = $tracer->startSpan('test');
+        $span->finish();
+
+        $traces = [[$span]];
+        $httpTransport->send($traces);
+
+        $traceRequest = $replayer->getLastRequest();
+
+        $this->assertEquals('php', $traceRequest['headers']['Datadog-Meta-Lang']);
+        $this->assertEquals(\PHP_VERSION, $traceRequest['headers']['Datadog-Meta-Lang-Version']);
+        $this->assertEquals(\PHP_SAPI, $traceRequest['headers']['Datadog-Meta-Lang-Interpreter']);
+        $this->assertEquals(Version\VERSION, $traceRequest['headers']['Datadog-Meta-Tracer-Version']);
+    }
+
+    public function testSetHeader()
+    {
+        $replayer = new RequestReplayer();
+
+        $httpTransport = new Http(new Json(), null, [
+            'endpoint' => $replayer->getEndpoint(),
+        ]);
+        $tracer = new Tracer($httpTransport);
+
+        $span = $tracer->startSpan('test');
+        $span->finish();
+
+        $traces = [[$span]];
+        $httpTransport->setHeader('X-my-custom-header', 'my-custom-value');
+        $httpTransport->send($traces);
+
+        $traceRequest = $replayer->getLastRequest();
+
+        $this->assertEquals('my-custom-value', $traceRequest['headers']['X-my-custom-header']);
     }
 }
