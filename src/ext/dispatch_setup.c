@@ -29,22 +29,22 @@ static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
 #endif
 
 void ddtrace_dispatch_init() {
-    /**
-     * Replacing zend_execute_ex with anything other than original
-     * changes some of the bevavior in PHP compilation and execution
-     *
-     * e.g. it changes compilation of function calls to produce ZEND_DO_FCALL
-     * opcode instead of ZEND_DO_UCALL for user defined functions
-     *
-     * While this extension could be developed by using zend_execute_ex to hook
-     * into every execution. However hooking into opcode processing has the
-     * advantage of not hooking into some executable things like generators which
-     * gives a slight performance advantage.
-     */
-    #if PHP_VERSION_ID >= 70000
+/**
+ * Replacing zend_execute_ex with anything other than original
+ * changes some of the bevavior in PHP compilation and execution
+ *
+ * e.g. it changes compilation of function calls to produce ZEND_DO_FCALL
+ * opcode instead of ZEND_DO_UCALL for user defined functions
+ *
+ * While this extension could be developed by using zend_execute_ex to hook
+ * into every execution. However hooking into opcode processing has the
+ * advantage of not hooking into some executable things like generators which
+ * gives a slight performance advantage.
+ */
+#if PHP_VERSION_ID >= 70000
     ddtrace_original_execute_ex = zend_execute_ex;
     zend_execute_ex = php_execute;
-    #endif
+#endif
 
     ddtrace_old_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);

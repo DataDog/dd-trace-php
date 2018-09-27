@@ -91,6 +91,21 @@ jobs:
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml
+      - run:
+          name: Install clang-format 6.0
+          command: sudo apt -y install clang-format-6.0/testing
+      - run:
+          name: Run clang-format
+          command: |
+            find ./ -iname *.h -o -iname *.c | while read fname; do
+              changes=$(clang-format-6.0 -output-replacements-xml $fname | grep -c "<replacement " || true)
+              if [ $changes != 0 ]
+              then
+                clang-format-6.0 -output-replacements-xml $fname
+                echo "$fname did not pass clang-format, consider running: find ./ -iname *.h -o -iname *.c | xargs clang-format -i"
+                exit 1
+              fi
+            done
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
@@ -153,17 +168,20 @@ jobs:
   "build 7.0":
     <<: *BASE_BUILD
     docker: [ image: 'circleci/php:7.0' ]
+
   "build 7.1":
     <<: *BASE_BUILD
     docker: [ image: 'circleci/php:7.1' ]
+
   "build 7.2":
     <<: *BASE_BUILD
     docker: [ image: 'circleci/php:7.2' ]
 
-
   "php-5.6":
     <<: *JOB_PHP_DEFAULTS
-    docker: [ image: 'circleci/php:5.6', *IMAGE_DOCKER_DD_AGENT ]
+    docker:
+      - image: 'circleci/php:5.6'
+      - <<: *IMAGE_DOCKER_DD_AGENT
 
   "php-7.0":
     <<: *JOB_PHP_DEFAULTS

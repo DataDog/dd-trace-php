@@ -15,11 +15,19 @@
 
 #include "debug.h"
 
-
 #define UNUSED_1(x) (void)(x)
-#define UNUSED_2(x, y) do { UNUSED_1(x); UNUSED_1(y); } while (0)
-#define UNUSED_3(x, y, z) do { UNUSED_1(x); UNUSED_1(y); UNUSED_1(z); } while (0)
-#define _GET_UNUSED_MACRO_OF_ARITY(_1,_2,_3, ARITY,...) UNUSED_ ## ARITY
+#define UNUSED_2(x, y) \
+    do {               \
+        UNUSED_1(x);   \
+        UNUSED_1(y);   \
+    } while (0)
+#define UNUSED_3(x, y, z) \
+    do {                  \
+        UNUSED_1(x);      \
+        UNUSED_1(y);      \
+        UNUSED_1(z);      \
+    } while (0)
+#define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, ARITY, ...) UNUSED_##ARITY
 #define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 3, 2, 1)(__VA_ARGS__)
 
 #if PHP_VERSION_ID < 70000
@@ -84,7 +92,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
-
 
     zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)table_dtor, 0);
     zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_free, 0);
