@@ -52,6 +52,14 @@ final class TracerTest extends Framework\TestCase
             'child_of' => $context,
         ]);
         $this->assertEquals($context->getSpanId(), $span->getParentId());
+        $this->assertNull($span->getTag(Tags\PID));
+    }
+
+    public function testStartSpanAsRootWithPid()
+    {
+        $tracer = new Tracer(new NoopTransport());
+        $span = $tracer->startSpan(self::OPERATION_NAME);
+        $this->assertEquals(getmypid(), $span->getTag(Tags\PID));
     }
 
     public function testStartActiveSpan()

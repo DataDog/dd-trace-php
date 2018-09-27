@@ -119,6 +119,9 @@ final class Tracer implements OpenTracingTracer
         );
 
         $tags = $options->getTags() + $this->config['global_tags'];
+        if ($reference === null) {
+            $tags[Tags\PID] = getmypid();
+        }
 
         foreach ($tags as $key => $value) {
             $span->setTag($key, $value);
