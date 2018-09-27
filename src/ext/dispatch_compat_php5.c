@@ -122,8 +122,4 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
                             sizeof(ddtrace_dispatch_t *), NULL) == SUCCESS;
 }
 
-// restore EX
-#undef EX
-#define EX(x) ((execute_data).x)
-
 #endif  // PHP 5

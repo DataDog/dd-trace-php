@@ -1,5 +1,5 @@
 --TEST--
-Check used defined function can be overwritten and we're able to call the original
+Check user defined function can be overriden and we're able to call the original
 --FILE--
 <?php
 function test(){

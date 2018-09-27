@@ -1,5 +1,5 @@
 --TEST--
-Verify Multiple functions and methods will be instrumented successfully
+Verify functions and methods can be overriden even when in namespaces.
 --FILE--
 <?php
 namespace Fn {

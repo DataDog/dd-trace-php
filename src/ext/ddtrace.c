@@ -15,12 +15,17 @@
 
 #include "debug.h"
 
-#define UNUSED(x) (void)(x)
+
+#define UNUSED_1(x) (void)(x)
+#define UNUSED_2(x, y) do { UNUSED_1(x); UNUSED_1(y); } while (0)
+#define UNUSED_3(x, y, z) do { UNUSED_1(x); UNUSED_1(y); UNUSED_1(z); } while (0)
+#define _GET_UNUSED_MACRO_OF_ARITY(_1,_2,_3, ARITY,...) UNUSED_ ## ARITY
+#define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 3, 2, 1)(__VA_ARGS__)
 
 #if PHP_VERSION_ID < 70000
-#define PHP5_UNUSED(x) (void)(x)
+#define PHP5_UNUSED(...) UNUSED(__VA_ARGS__)
 #else
-#define PHP5_UNUSED(x) /* unused unused */
+#define PHP5_UNUSED(...) /* unused unused */
 #endif
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
@@ -55,8 +60,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 }
 
 static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
-    UNUSED(module_number);
-    UNUSED(type);
+    UNUSED(module_number, type);
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
@@ -71,15 +75,16 @@ static inline void table_dtor(void *zv) {
 }
 
 static PHP_RINIT_FUNCTION(ddtrace) {
-    UNUSED(module_number);
-    UNUSED(type);
+    UNUSED(module_number, type);
 
 #if defined(ZTS) && PHP_VERSION_ID >= 70000
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
+
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
 
     zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)table_dtor, 0);
     zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_free, 0);
@@ -88,8 +93,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 }
 
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
-    UNUSED(module_number);
-    UNUSED(type);
+    UNUSED(module_number, type);
+
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
@@ -99,6 +104,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
 static PHP_MINFO_FUNCTION(ddtrace) {
     UNUSED(zend_module);
+
     php_info_print_table_start();
     php_info_print_table_header(2, "Datadog tracing support", DDTRACE_G(disable) ? "disabled" : "enabled");
     php_info_print_table_row(2, "Version", PHP_DDTRACE_VERSION);
@@ -106,9 +112,7 @@ static PHP_MINFO_FUNCTION(ddtrace) {
 }
 
 static PHP_FUNCTION(dd_trace) {
-    PHP5_UNUSED(return_value_used);
-    PHP5_UNUSED(this_ptr);
-    PHP5_UNUSED(return_value_ptr);
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     STRING_T *function = NULL;
     zend_class_entry *clazz = NULL;
     zval *callable = NULL;

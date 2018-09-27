@@ -1,5 +1,5 @@
 --TEST--
-Verify Multiple functions and methods will be instrumented successfully
+Verify recursive execution works by only overriding outermost invocation.
 --FILE--
 <?php
 function test($c, $end){

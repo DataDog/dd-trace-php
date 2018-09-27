@@ -17,6 +17,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 user_opcode_handler_t ddtrace_old_fcall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
+#if PHP_VERSION_ID >= 70000
 void (*ddtrace_original_execute_ex)(zend_execute_data *TSRMLS_DC);
 
 static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
@@ -25,6 +26,7 @@ static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
     } else
         execute_ex(execute_data TSRMLS_CC);
 }
+#endif
 
 void ddtrace_dispatch_init() {
     /**
@@ -39,9 +41,10 @@ void ddtrace_dispatch_init() {
      * advantage of not hooking into some executable things like generators which
      * gives a slight performance advantage.
      */
-    // TODO: check if necessary for php5.6
+    #if PHP_VERSION_ID >= 70000
     ddtrace_original_execute_ex = zend_execute_ex;
     zend_execute_ex = php_execute;
+    #endif
 
     ddtrace_old_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);

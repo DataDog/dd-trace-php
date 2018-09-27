@@ -2,9 +2,7 @@
 Check if closure can safely use variable names also present in outside scope
 --FILE--
 <?php
-function test(){
-    echo "FUNCTION" . PHP_EOL;
-}
+// variable present in outside scope
 $variable = 1;
 
 class Test {
