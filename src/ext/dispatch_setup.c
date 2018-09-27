@@ -84,11 +84,8 @@ zend_bool ddtrace_trace(zend_class_entry *clazz, STRING_T *name, zval *callable 
         }
 
         if (function->common.scope != clazz) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "failed to set return for %s::%s, the method is defined in %s",
-                                    STRING_VAL(clazz->name), STRING_VAL(name),
-                                    STRING_VAL(function->common.scope->name));
-            return 0;
+            clazz = function->common.scope;
+            DD_PRINTF("Overriding Parent class method");
         }
     }
 
