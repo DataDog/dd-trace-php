@@ -89,7 +89,10 @@ class PDO
             try {
                 $result = $this->query(...$args[0]);
                 PDO::storeStatementFromConnection($this, $result);
-                $span->setTag('db.rowcount', $result->rowCount());
+                try {
+                    $span->setTag('db.rowcount', $result->rowCount());
+                } catch (\Exception $e) {
+                }
             } catch (\Exception $e) {
                 $span->setError($e);
             }
@@ -165,7 +168,10 @@ class PDO
             $e = null;
             try {
                 $result = $this->execute($params);
-                $span->setTag('db.rowcount', $this->rowCount());
+                try {
+                    $span->setTag('db.rowcount', $this->rowCount());
+                } catch (\Exception $e) {
+                }
             } catch (\Exception $e) {
                 $span->setError($e);
             }
