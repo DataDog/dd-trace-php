@@ -1,5 +1,5 @@
-#ifndef _DISPATCH_COMPAT_H
-#define _DISPATCH_COMPAT_H
+#ifndef DISPATCH_COMPAT_H
+#define DISPATCH_COMPAT_H
 #include "Zend/zend_types.h"
 #include "compat_zend_string.h"
 #include "dispatch.h"
@@ -18,4 +18,4 @@ void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch);
 HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz TSRMLS_DC);
 zend_bool ddtrace_dispatch_store(HashTable *class_lookup, ddtrace_dispatch_t *dispatch);
 
-#endif  //_DISPATCH_COMPAT_H
+#endif  // DISPATCH_COMPAT_H

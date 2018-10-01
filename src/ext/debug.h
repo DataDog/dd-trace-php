@@ -10,6 +10,6 @@
     } while (0)
 #else
 #define DD_PRINTF(...)
-#endif
+#endif  // DEBUG
 
-#endif
+#endif  // DD_DEBUG_H

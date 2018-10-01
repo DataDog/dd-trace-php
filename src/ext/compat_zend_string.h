@@ -1,5 +1,5 @@
-#ifndef _COMPAT_ZEND_STRING_H
-#define _COMPAT_ZEND_STRING_H
+#ifndef COMPAT_ZEND_STRING_H
+#define COMPAT_ZEND_STRING_H
 #include "Zend/zend.h"
 
 #if PHP_VERSION_ID < 70000
@@ -15,6 +15,6 @@ zval *ddtrace_string_tolower(zval *str);
 #define STRING_VAL_CHAR(x) ZSTR_VAL(x)
 #define STRING_T zend_string
 #define STRING_TOLOWER(x) zend_string_tolower(x)
-#endif
+#endif  // PHP_VERSION_ID < 70000
 
-#endif  // _COMPAT_ZEND_STRING_H
+#endif  // COMPAT_ZEND_STRING_H

@@ -1,5 +1,5 @@
-#ifndef _DISPATCH_COMPAT_PHP5_H
-#define _DISPATCH_COMPAT_PHP5_H
+#ifndef DISPATCH_COMPAT_PHP5_H
+#define DISPATCH_COMPAT_PHP5_H
 #if PHP_VERSION_ID < 70000
 #include "Zend/zend_types.h"
 #include "compat_zend_string.h"
@@ -38,5 +38,5 @@ zend_always_inline zval *datadog_this(zend_function *current_function, zend_exec
 
 #undef EX
 #define EX(x) ((execute_data).x)
-#endif
-#endif  //_DISPATCH_COMPAT_PHP5_H
+#endif  // PHP_VERSION_ID < 70000
+#endif  // DISPATCH_COMPAT_PHP5_H

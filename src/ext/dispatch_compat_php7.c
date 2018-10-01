@@ -45,4 +45,4 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
     return zend_hash_update_ptr(lookup, dispatch->function, dispatch) != NULL;
 }
-#endif  // PHP 7
+#endif  // PHP_VERSION_ID >= 70000
