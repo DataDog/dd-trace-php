@@ -16,6 +16,14 @@ function now()
 }
 
 /**
+ * @return int
+ */
+function fromMicrotime($microtime)
+{
+    return (int) $microtime * 1000 * 1000;
+}
+
+/**
  * @param mixed $time
  * @return bool
  */

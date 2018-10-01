@@ -4,8 +4,11 @@ namespace DDTrace\Integrations;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Tags;
+use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
+use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Pipeline\Pipeline;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -39,16 +42,45 @@ class LaravelProvider extends ServiceProvider
             return;
         }
 
-        // Creates a tracer with default transport and default propagators
+        // Creates a tracer with default transport and default encoders
         $tracer = new Tracer(new Http(new Json()));
 
-        // Sets a global tracer (singleton).
+        // Sets a global tracer (singleton). Also store it in the Laravel
+        // container for easy Laravel-specific use.
         GlobalTracer::set($tracer);
+        $this->app->instance('context.tracer', $tracer);
+
+        // Trace middleware
+        dd_trace(Pipeline::class, 'through', function ($pipes) {
+            foreach ($pipes as $pipe) {
+                dd_trace($pipe, 'handle', function (...$args) {
+                    $scope = GlobalTracer::get()->startActiveSpan('laravel.middleware');
+                    $span = $scope->getSpan();
+                    $span->setResource(get_class($this));
+
+                    $e = null;
+                    try {
+                        $result = $this->handle(...$args);
+                    } catch (\Exception $e) {
+                        $span->setError($e);
+                    }
+
+                    $scope->close();
+
+                    if ($e === null) {
+                        return $result;
+                    } else {
+                        throw $e;
+                    }
+                });
+            }
+            return $this->through($pipes);
+        });
 
         // Create a trace span for every template rendered
         // public function get($path, array $data = array())
         dd_trace(CompilerEngine::class, 'get', function ($scope, $path, $data) {
-            $scope = GlobalTracer::get()->startActiveSpan('laravel/view');
+            $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
 
             $e = null;
             try {
@@ -67,15 +99,26 @@ class LaravelProvider extends ServiceProvider
         });
 
         // Create a span that starts from when Laravel first boots (public/index.php)
-        $scope = $tracer->startActiveSpan('bootstrap'/*, ['start_time' => LARAVEL_START]*/);
+        $scope = $tracer->startActiveSpan('laravel.request', ['start_time' => Time\fromMicrotime(LARAVEL_START)]);
         $scope->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
 
         // Name the scope when the route matches
-        $this->app['events']->listen(RouteMatched::class, function (RouteMatched $routeMatched) use ($scope) {
+        $this->app['events']->listen(RouteMatched::class, function (RouteMatched $event) use ($scope) {
             $span = $scope->getSpan();
-            $span->setResource(Route::getCurrentRoute()->getActionName() . ' ' . Route::currentRouteName());
+            $span->setResource($event->route->getActionName() . ' ' . Route::currentRouteName());
             $span->setTag('laravel.route.name', Route::currentRouteName());
-            $span->setTag('laravel.route.action', Route::getCurrentRoute()->getActionName());
+            $span->setTag('laravel.route.action', $event->route->getActionName());
+            $span->setTag('http.method', $event->request->method());
+            $span->setTag('http.url', $event->request->path());
+        });
+
+        $this->app['events']->listen(RequestHandled::class, function (RequestHandled $event) use ($scope) {
+            $span = $scope->getSpan();
+            $span->setTag('http.status_code', $event->response->status());
+            try {
+                $span->setTag('laravel.user', auth()->user()->id ?? '-');
+            } catch (\Exception $e) {
+            }
         });
 
         // Enable extension integrations
