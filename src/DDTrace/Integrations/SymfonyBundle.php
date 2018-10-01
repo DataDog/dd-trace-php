@@ -3,8 +3,6 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\Encoders\Json;
-use DDTrace\Integrations\Mysqli;
-use DDTrace\Integrations\PDO;
 use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
