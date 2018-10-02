@@ -46,48 +46,36 @@ class SymfonyBundle extends Bundle
         GlobalTracer::set($tracer);
 
         // Create a span that starts from when Symfony first boots
-        $scope = $tracer->startActiveSpan('bootstrap');
+        $scope = $tracer->startActiveSpan('symfony.request');
         $scope->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
         dd_trace(HttpKernel::class, 'handle', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan('kernel/handle');
-            $span = $scope->getSpan();
+            $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
 
-            $e = null;
             try {
-                $result = $this->handle(...$args);
+                return $this->handle(...$args);
             } catch (\Exception $e) {
+                $span = $scope->getSpan();
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 
         // public function dispatch($eventName, Event $event = null)
         dd_trace(EventDispatcher::class, 'dispatch', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan($args[0]);
+            $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
 
-            $e = null;
             try {
-                $result = $this->dispatch(...$args);
+                return $this->dispatch(...$args);
             } catch (\Exception $e) {
                 $span = $scope->getSpan();
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 

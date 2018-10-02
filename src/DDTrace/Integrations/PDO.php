@@ -29,20 +29,15 @@ class PDO
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
             $span->setResource('PDO.__construct');
 
-            $e = null;
             try {
                 $this->__construct(...$args);
                 PDO::storeConnectionParams($this, $args);
+                return $this;
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $this;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 
@@ -55,20 +50,15 @@ class PDO
             $span->setResource($statement);
             PDO::setConnectionTags($this, $span);
 
-            $e = null;
             try {
                 $result = $this->exec($statement);
                 $span->setTag('db.rowcount', $result);
+                return $result;
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 

@@ -48,7 +48,7 @@ class LaravelProvider extends ServiceProvider
         // Sets a global tracer (singleton). Also store it in the Laravel
         // container for easy Laravel-specific use.
         GlobalTracer::set($tracer);
-        $this->app->instance('context.tracer', $tracer);
+        $this->app->instance('datadog.tracer', $tracer);
 
         // Trace middleware
         dd_trace(Pipeline::class, 'through', function ($pipes) {
@@ -58,19 +58,13 @@ class LaravelProvider extends ServiceProvider
                     $span = $scope->getSpan();
                     $span->setResource(get_class($this));
 
-                    $e = null;
                     try {
-                        $result = $this->handle(...$args);
+                        return $this->handle(...$args);
                     } catch (\Exception $e) {
                         $span->setError($e);
-                    }
-
-                    $scope->close();
-
-                    if ($e === null) {
-                        return $result;
-                    } else {
                         throw $e;
+                    } finally {
+                        $scope->close();
                     }
                 });
             }
@@ -82,19 +76,13 @@ class LaravelProvider extends ServiceProvider
         dd_trace(CompilerEngine::class, 'get', function ($scope, $path, $data) {
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
 
-            $e = null;
             try {
-                $result = $this->getModels($builder);
+                return $this->getModels($builder);
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 

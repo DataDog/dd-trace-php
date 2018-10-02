@@ -100,11 +100,14 @@ class Mysqli
             $span->setTag('type', Types\SQL);
             $span->setResource($args[0]);
 
-            $result = $this->query(...$args);
-
-            $scope->close();
-
-            return $result;
+            try {
+                return $this->query(...$args);
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
         });
 
         // mysqli_stmt mysqli::prepare ( string $query )
@@ -114,11 +117,14 @@ class Mysqli
             $span->setTag('type', Types\SQL);
             $span->setResource($query);
 
-            $result = $this->prepare($query);
-
-            $scope->close();
-
-            return $result;
+            try {
+                return $this->prepare($query);
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
         });
 
         // bool mysqli::commit ([ int $flags [, string $name ]] )
@@ -130,11 +136,14 @@ class Mysqli
                 $span->setTag('db.transaction_name', $args[1]);
             }
 
-            $result = $this->commit(...$args);
-
-            $scope->close();
-
-            return $result;
+            try {
+                return $this->commit(...$args);
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
         });
 
         // bool mysqli_stmt::execute ( void )
@@ -145,11 +154,14 @@ class Mysqli
             //TODO set db connection info
             //TODO how to track query
 
-            $result = $this->execute();
-
-            $scope->close();
-
-            return $result;
+            try {
+                return $this->execute();
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
         });
     }
 

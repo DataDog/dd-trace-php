@@ -19,97 +19,73 @@ class Eloquent
 
         // getModels($columns = ['*'])
         dd_trace(Builder::class, 'getModels', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan('eloquent/get');
+            $scope = GlobalTracer::get()->startActiveSpan('eloquent.get');
             $span = $scope->getSpan();
             $sql = $this->toBase()->toSql();
             $span->setResource($sql);
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            $e = null;
             try {
-                $result = $this->getModels(...$args);
+                return $this->getModels(...$args);
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 
         // performInsert(Builder $query)
         dd_trace(Model::class, 'performInsert', function ($query) {
-            $scope = GlobalTracer::get()->startActiveSpan('eloquent/insert');
+            $scope = GlobalTracer::get()->startActiveSpan('eloquent.insert');
             $span = $scope->getSpan();
             $sql = $query->toBase()->toSql();
             $span->setResource($sql);
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            $e = null;
             try {
-                $result = $this->performInsert($query);
+                return $this->performInsert($query);
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 
         // performUpdate(Builder $query)
         dd_trace(Model::class, 'performUpdate', function ($query) {
-            $scope = GlobalTracer::get()->startActiveSpan('eloquent/update');
+            $scope = GlobalTracer::get()->startActiveSpan('eloquent.update');
             $span = $scope->getSpan();
             $sql = $query->toBase()->toSql();
             $span->setResource($sql);
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            $e = null;
             try {
-                $result = $this->performUpdate($query);
+                return $this->performUpdate($query);
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 
         // public function delete()
         dd_trace(Model::class, 'delete', function () {
-            $scope = GlobalTracer::get()->startActiveSpan('eloquent/delete');
+            $scope = GlobalTracer::get()->startActiveSpan('eloquent.delete');
             $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            $e = null;
             try {
-                $result = $this->delete();
+                return $this->delete();
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
     }

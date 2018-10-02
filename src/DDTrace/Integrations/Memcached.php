@@ -97,19 +97,13 @@ class Memcached
             $span->setTag('memcached.command', 'flush');
             $span->setResource('flush');
 
-            $e = null;
             try {
-                $result = $this->flush(...$args);
+                return $this->flush(...$args);
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 
@@ -211,19 +205,13 @@ class Memcached
         $span->setTag('memcached.query', "$command $key");
         $span->setResource($command);
 
-        $e = null;
         try {
-            $result = $memcached->$command(...$args);
+            return $memcached->$command(...$args);
         } catch (\Exception $e) {
             $span->setError($e);
-        }
-
-        $scope->close();
-
-        if ($e === null) {
-            return $result;
-        } else {
             throw $e;
+        } finally {
+            $scope->close();
         }
     }
 
@@ -241,19 +229,13 @@ class Memcached
         $span->setTag('memcached.query', "$command $key");
         $span->setResource($command);
 
-        $e = null;
         try {
-            $result = $memcached->$command(...$args);
+            return $memcached->$command(...$args);
         } catch (\Exception $e) {
             $span->setError($e);
-        }
-
-        $scope->close();
-
-        if ($e === null) {
-            return $result;
-        } else {
             throw $e;
+        } finally {
+            $scope->close();
         }
     }
 
@@ -271,19 +253,13 @@ class Memcached
         $span->setTag('memcached.query', "cas $key");
         $span->setResource('cas');
 
-        $e = null;
         try {
-            $result = $memcached->cas(...$args);
+            return $memcached->cas(...$args);
         } catch (\Exception $e) {
             $span->setError($e);
-        }
-
-        $scope->close();
-
-        if ($e === null) {
-            return $result;
-        } else {
             throw $e;
+        } finally {
+            $scope->close();
         }
     }
 
@@ -303,19 +279,13 @@ class Memcached
         $span->setResource('casByKey');
         self::setServerTagsByKey($span, $memcached, $serverKey);
 
-        $e = null;
         try {
-            $result = $memcached->casByKey(...$args);
+            return $memcached->casByKey(...$args);
         } catch (\Exception $e) {
             $span->setError($e);
-        }
-
-        $scope->close();
-
-        if ($e === null) {
-            return $result;
-        } else {
             throw $e;
+        } finally {
+            $scope->close();
         }
     }
 
@@ -331,19 +301,13 @@ class Memcached
         $span->setTag('memcached.query', $query);
         $span->setResource($command);
 
-        $e = null;
         try {
-            $result = $memcached->$command(...$args);
+            return $memcached->$command(...$args);
         } catch (\Exception $e) {
             $span->setError($e);
-        }
-
-        $scope->close();
-
-        if ($e === null) {
-            return $result;
-        } else {
             throw $e;
+        } finally {
+            $scope->close();
         }
     }
 
@@ -361,19 +325,13 @@ class Memcached
         $span->setTag('memcached.query', $query);
         $span->setResource($command);
 
-        $e = null;
         try {
-            $result = $memcached->$command(...$args);
+            return $memcached->$command(...$args);
         } catch (\Exception $e) {
             $span->setError($e);
-        }
-
-        $scope->close();
-
-        if ($e === null) {
-            return $result;
-        } else {
             throw $e;
+        } finally {
+            $scope->close();
         }
     }
 
