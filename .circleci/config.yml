@@ -15,26 +15,23 @@ aliases:
       - DD_API_KEY=invalid_key_but_this_is_fine
 
   - &STEP_INSTALL_DDTRACE_EXT
-    working_directory: ~/datadog
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/datadog
-      - run:
-          name: Configure PHP to use local extensions
-          command: echo -e "extension=opcache.so\nextension=ddtrace.so\nextension_dir=$(pwd)/modules" | sudo tee /usr/local/etc/php/conf.d/ddtrace.ini
-      - run:
-          name: Generate build scaffold
-          command: phpize && ./configure
-      - run:
-          name: Compile -Wall -Werr
-          command: make CFLAGS='-O0 -g -Wall -Wextra -Werror'
-      - run:
-          name: Install ddtrace module
-          command: make install || true
-      - run:
-          name: Copy all local modules to module dir
-          command: find /usr/local/lib/php/extensions -name '*.so' | xargs -n 1 -I {} cp {} modules/
+    attach_workspace:
+      at: ~/datadog
+    run:
+      name: Configure PHP to use local extensions
+      command: echo -e "extension=opcache.so\nextension=ddtrace.so\nextension_dir=$(pwd)/modules" | sudo tee /usr/local/etc/php/conf.d/ddtrace.ini
+    run:
+      name: Generate build scaffold
+      command: phpize && ./configure
+    run:
+      name: Compile -Wall -Werr
+      command: make CFLAGS='-O0 -g -Wall -Wextra -Werror'
+    run:
+      name: Install ddtrace module
+      command: make install || true
+    run:
+      name: Copy all local modules to module dir
+      command: find /usr/local/lib/php/extensions -name '*.so' | xargs -n 1 -I {} cp {} modules/
 
   - &STEP_COMPOSER_SELF_UPDATE
     run:
