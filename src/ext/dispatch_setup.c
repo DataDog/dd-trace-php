@@ -36,9 +36,9 @@ void ddtrace_dispatch_init() {
  * e.g. it changes compilation of function calls to produce ZEND_DO_FCALL
  * opcode instead of ZEND_DO_UCALL for user defined functions
  *
- * While this extension could be developed by using zend_execute_ex to hook
- * into every execution. However hooking into opcode processing has the
- * advantage of not hooking into some executable things like generators which
+ * This extension could be developed by using zend_execute_ex to hook
+ * into every execution, however hooking into opcode processing has the
+ * advantage of not hooking into other executable things like generators which
  * gives a slight performance advantage.
  */
 #if PHP_VERSION_ID >= 70000
