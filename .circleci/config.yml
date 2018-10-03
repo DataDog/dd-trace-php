@@ -15,8 +15,6 @@ aliases:
       - DD_API_KEY=invalid_key_but_this_is_fine
 
   - &STEP_INSTALL_DDTRACE_EXT
-    attach_workspace:
-      at: ~/datadog
     run:
       name: Configure PHP to use local extensions
       command: echo -e "extension=opcache.so\nextension=ddtrace.so\nextension_dir=$(pwd)/modules" | sudo tee /usr/local/etc/php/conf.d/ddtrace.ini
