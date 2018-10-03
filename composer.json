@@ -22,6 +22,7 @@
     "require": {
         "php": "^5.6 || ^7.0",
         "ext-curl": "*",
+        "ext-ddtrace": "*",
         "opentracing/opentracing": "1.0.0-beta5@dev",
         "psr/http-message": "^1.0",
         "psr/log": "^1.0.0",
@@ -31,6 +32,7 @@
         "opentracing/opentracing": "1.0.0-beta5"
     },
     "require-dev": {
+        "phpstan/phpstan": "^0.10.3",
         "phpunit/phpunit": "^5.7.19",
         "squizlabs/php_codesniffer": "^3.3.0",
         "symfony/process": "*"

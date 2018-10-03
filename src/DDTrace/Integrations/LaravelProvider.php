@@ -2,9 +2,9 @@
 
 namespace DDTrace\Integrations;
 
+use DDTrace;
 use DDTrace\Encoders\Json;
 use DDTrace\Tags;
-use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use Illuminate\Foundation\Http\Events\RequestHandled;

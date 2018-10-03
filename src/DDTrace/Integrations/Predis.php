@@ -35,19 +35,13 @@ class Predis
             $span->setTag('redis.args_length', count($command->getArguments()));
             $span->setResource($query);
 
-            $e = null;
             try {
-                $result = $this->executeCommand($command);
+                return $this->executeCommand($command);
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
     }
