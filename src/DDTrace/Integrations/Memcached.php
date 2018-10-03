@@ -53,17 +53,20 @@ class Memcached
             return Memcached::traceCas($this, $args);
         });
 
-        // bool Memcached::casByKey ( float $cas_token , string $server_key , string $key , mixed $value [, int $expiration ] )
+        // bool Memcached::casByKey ( float $cas_token , string $server_key , string $key , mixed $value
+        //     [, int $expiration ] )
         dd_trace('Memcached', 'casByKey', function (...$args) {
             return Memcached::traceCasByKey($this, $args);
         });
 
-        // int Memcached::decrement ( string $key [, int $offset = 1 [, int $initial_value = 0 [, int $expiry = 0 ]]] )
+        // int Memcached::decrement ( string $key [, int $offset = 1 [, int $initial_value = 0
+        //     [, int $expiry = 0 ]]] )
         dd_trace('Memcached', 'decrement', function (...$args) {
             return Memcached::traceCommand($this, 'decrement', $args);
         });
 
-        // int Memcached::decrementByKey ( string $server_key , string $key [, int $offset = 1 [, int $initial_value = 0 [, int $expiry = 0 ]]] )
+        // int Memcached::decrementByKey ( string $server_key , string $key
+        //      [, int $offset = 1 [, int $initial_value = 0 [, int $expiry = 0 ]]] )
         dd_trace('Memcached', 'decrementByKey', function (...$args) {
             return Memcached::traceCommandByKey($this, 'decrementByKey', $args);
         });
@@ -127,12 +130,14 @@ class Memcached
             return Memcached::traceCommandByKey($this, 'getMultiByKey', $args);
         });
 
-        // int Memcached::increment ( string $key [, int $offset = 1 [, int $initial_value = 0 [, int $expiry = 0 ]]] )
+        // int Memcached::increment ( string $key [, int $offset = 1 [, int $initial_value = 0
+        //     [, int $expiry = 0 ]]] )
         dd_trace('Memcached', 'increment', function (...$args) {
             return Memcached::traceCommand($this, 'increment', $args);
         });
 
-        // int Memcached::incrementByKey ( string $server_key , string $key [, int $offset = 1 [, int $initial_value = 0 [, int $expiry = 0 ]]] )
+        // int Memcached::incrementByKey ( string $server_key , string $key [, int $offset = 1
+        //     [, int $initial_value = 0 [, int $expiry = 0 ]]] )
         dd_trace('Memcached', 'incrementByKey', function (...$args) {
             return Memcached::traceCommandByKey($this, 'incrementByKey', $args);
         });
@@ -152,7 +157,7 @@ class Memcached
             return Memcached::traceCommand($this, 'replace', $args);
         });
 
-        // bool Memcached::replaceByKey ( string $server_key , string $key , mixed $value [, int $expiration ] )
+        // bool Memcached::replaceByKey ( string $server_key , string $key , mixed $value [, int $expiration  ] )
         dd_trace('Memcached', 'replaceByKey', function (...$args) {
             return Memcached::traceCommandByKey($this, 'replaceByKey', $args);
         });

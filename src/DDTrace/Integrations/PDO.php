@@ -75,7 +75,6 @@ class PDO
             $span->setResource($args[0]);
             PDO::setConnectionTags($this, $span);
 
-            $e = null;
             try {
                 $result = $this->query(...$args[0]);
                 PDO::storeStatementFromConnection($this, $result);
@@ -83,16 +82,12 @@ class PDO
                     $span->setTag('db.rowcount', $result->rowCount());
                 } catch (\Exception $e) {
                 }
+                return $result;
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 
@@ -104,19 +99,13 @@ class PDO
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
             PDO::setConnectionTags($this, $span);
 
-            $e = null;
             try {
-                $result = $this->commit();
+                return $this->commit();
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 
@@ -129,20 +118,15 @@ class PDO
             $span->setResource($args[0]);
             PDO::setConnectionTags($this, $span);
 
-            $e = null;
             try {
                 $result = $this->prepare(...$args);
                 PDO::storeStatementFromConnection($this, $result);
+                return $result;
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
 
@@ -155,23 +139,18 @@ class PDO
             $span->setResource($this->queryString);
             PDO::setStatementTags($this, $span);
 
-            $e = null;
             try {
                 $result = $this->execute($params);
                 try {
                     $span->setTag('db.rowcount', $this->rowCount());
                 } catch (\Exception $e) {
                 }
+                return $result;
             } catch (\Exception $e) {
                 $span->setError($e);
-            }
-
-            $scope->close();
-
-            if ($e === null) {
-                return $result;
-            } else {
                 throw $e;
+            } finally {
+                $scope->close();
             }
         });
     }
@@ -187,18 +166,18 @@ class PDO
             }
             list($key, $value) = explode('=', $valString);
             switch ($key) {
-            case 'charset':
-                $tags['db.charset'] = $value;
-                break;
-            case 'dbname':
-                $tags['db.name'] = $value;
-                break;
-            case 'host':
-                $tags[Tags\TARGET_HOST] = $value;
-                break;
-            case 'port':
-                $tags[Tags\TARGET_PORT] = $value;
-                break;
+                case 'charset':
+                    $tags['db.charset'] = $value;
+                    break;
+                case 'dbname':
+                    $tags['db.name'] = $value;
+                    break;
+                case 'host':
+                    $tags[Tags\TARGET_HOST] = $value;
+                    break;
+                case 'port':
+                    $tags[Tags\TARGET_PORT] = $value;
+                    break;
             }
         }
 
