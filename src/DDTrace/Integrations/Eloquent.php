@@ -82,6 +82,7 @@ class Eloquent
             try {
                 return $this->delete();
             } catch (\Exception $e) {
+                $span = $scope->getSpan();
                 $span->setError($e);
                 throw $e;
             } finally {
