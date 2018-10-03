@@ -38,15 +38,6 @@
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
-#define ddtrace_disabled_guard()                                                               \
-    do {                                                                                       \
-        if (DDTRACE_G(disable)) {                                                              \
-            zend_throw_exception_ex(spl_ce_RuntimeException, 0 TSRMLS_CC,                      \
-                                    "ddtrace is disabled by configuration (ddtrace.disable)"); \
-            return;                                                                            \
-        }                                                                                      \
-    } while (0)
-
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
@@ -124,7 +115,9 @@ static PHP_FUNCTION(dd_trace) {
     zend_class_entry *clazz = NULL;
     zval *callable = NULL;
 
-    ddtrace_disabled_guard();
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
 
 #if PHP_VERSION_ID < 70000
     ALLOC_INIT_ZVAL(function);
