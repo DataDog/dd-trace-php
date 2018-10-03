@@ -11,6 +11,7 @@
     <rule ref="Generic.Commenting.DocComment.MissingShort">
         <severity>0</severity>
     </rule>
+    <exclude-pattern>run-tests.php</exclude-pattern>
     <exclude-pattern>*/vendor/*</exclude-pattern>
     <exclude-pattern>*/node_modules/*</exclude-pattern>
 </ruleset>
