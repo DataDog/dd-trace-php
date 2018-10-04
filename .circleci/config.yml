@@ -33,7 +33,7 @@ aliases:
       working_directory: ~/datadog
     run:
       name: Copy all local modules to module dir
-      command: find /usr/local/lib/php/extensions -name '*.so' | xargs -n 1 -I {} cp {} modules/
+      command: find /usr/local/lib/php/extensions -name '*.so' | xargs -n 1 -I {} cp {} $(pwd)/modules/
       working_directory: ~/datadog
 
   - &STEP_COMPOSER_SELF_UPDATE
