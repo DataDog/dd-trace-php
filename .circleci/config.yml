@@ -73,6 +73,7 @@ aliases:
       - checkout
       - attach_workspace:
           at: ~/datadog
+      - <<: *STEP_USE_LOCAL_EXTENSIONS
       - run:
           name: Waiting for Dockerized agent
           command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
