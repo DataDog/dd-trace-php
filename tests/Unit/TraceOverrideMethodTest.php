@@ -5,11 +5,19 @@ namespace DDTrace\Tests\Unit;
 use DDTrace\Scope;
 use DDTrace\ScopeManager;
 use OpenTracing\Span;
-use OpenTracing\NoopSpan;
 use PHPUnit\Framework;
 
-final class DDTraceTest extends Framework\TestCase
+final class TraceOverrideMethodTest extends Framework\TestCase
 {
+    protected function setUp()
+    {
+        if (!extension_loaded('ddtrace')) {
+            $this->markTestSkipped(
+                'The ddtrace extension is not loaded.'
+            );
+        }
+    }
+
     public function testMethodInvokesExpectedResults()
     {
         dd_trace(Scope::class, "close", function (...$args) {
@@ -26,7 +34,7 @@ final class DDTraceTest extends Framework\TestCase
     public function testMethodCanBeOverridenByTrace()
     {
         dd_trace(Scope::class, "close", function (...$args) {
-            //Don't call close to test if the method was successfully overriden
+            // Don't call close() to verify the method was successfully overwritten
         });
         $val = 0;
 
