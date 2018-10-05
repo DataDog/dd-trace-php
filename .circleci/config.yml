@@ -115,7 +115,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!run-tests.php'
+          command: node_modules/.bin/eclint check '**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE'
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml
