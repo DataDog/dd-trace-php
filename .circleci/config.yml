@@ -17,7 +17,7 @@ aliases:
   - &STEP_USE_LOCAL_EXTENSIONS
     run:
       name: Configure PHP to use local extensions
-      command: echo -e "extension=opcache.so\nextension=ddtrace.so\nextension_dir=$(pwd)/modules" | sudo tee /usr/local/etc/php/conf.d/ddtrace.ini
+      command: echo -e "zend_extension=opcache.so\nextension=ddtrace.so\nextension_dir=$(pwd)/modules" | sudo tee /usr/local/etc/php/conf.d/ddtrace.ini
 
   - &STEP_EXT_BUILD_SCAFFOLD
     run:
@@ -157,6 +157,7 @@ jobs:
           name: Running phpstan
           command: vendor/bin/phpstan analyse --level=2 src
   "build 5.6": &BASE_BUILD
+    working_directory: ~/datadog
     docker:
       - image: circleci/php:5.6
     steps:
