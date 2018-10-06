@@ -19,4 +19,5 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #ifndef PHP_DDTRACE_VERSION
 #define PHP_DDTRACE_VERSION "0.0.0-unknown"
 #endif
+
 #endif  // DDTRACE_H

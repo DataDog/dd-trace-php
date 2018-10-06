@@ -7,6 +7,7 @@
 #include <php_ini.h>
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
+#include <SAPI.h>
 
 #include "compat_zend_string.h"
 #include "ddtrace.h"
@@ -104,11 +105,31 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     return SUCCESS;
 }
 
+static int datadog_info_print(const char *str)
+{
+    return php_output_write(str, strlen(str));
+}
+
 static PHP_MINFO_FUNCTION(ddtrace) {
     UNUSED(zend_module);
 
+    php_info_print_box_start(0);
+    if (!sapi_module.phpinfo_as_text) {
+        datadog_info_print("<a href=\"https://www.datadoghq.com/\"><img style=\"height:70px; width:auto; border:none;\" src=\"");
+        datadog_info_print(DATADOG_LOGO_DATA_URI "\" alt=\"Datadog logo 'Bits'\" /></a>\n");
+    }
+    datadog_info_print("Datadog PHP tracer extension (experimental)");
+    if (!sapi_module.phpinfo_as_text) {
+        datadog_info_print("<br><strong>Start your <a href=\"https://www.datadoghq.com/\" style=\"background:transparent;\">free trial</a>.</strong>");
+    } else {
+        datadog_info_print("\nStart your free trial at https://www.datadoghq.com/");
+    }
+    datadog_info_print(!sapi_module.phpinfo_as_text ? "<br><br>" : "\n");
+    datadog_info_print("(c) Datadog 2018\n");
+    php_info_print_box_end();
+
     php_info_print_table_start();
-    php_info_print_table_header(2, "Datadog tracing support", DDTRACE_G(disable) ? "disabled" : "enabled");
+    php_info_print_table_row(2, "Datadog tracing support", DDTRACE_G(disable) ? "disabled" : "enabled");
     php_info_print_table_row(2, "Version", PHP_DDTRACE_VERSION);
     php_info_print_table_end();
 }
