@@ -27,7 +27,7 @@ class PDO
             trigger_error('The ddtrace extension is required to instrument PDO', E_USER_WARNING);
             return;
         }
-        if (!class_exists('PDO')) {
+        if (!extension_loaded('PDO')) {
             trigger_error('PDO is not loaded and cannot be instrumented', E_USER_WARNING);
             return;
         }

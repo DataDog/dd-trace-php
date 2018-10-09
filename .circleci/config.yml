@@ -7,37 +7,40 @@ aliases:
   - &CACHE_NPM_KEY
     key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
 
-  - &IMAGE_DOCKER_DD_AGENT
+  - &CONTAINER_DD_AGENT
     image: datadog/docker-dd-agent
     environment:
       - DD_APM_ENABLED=true
       - DD_BIND_HOST=0.0.0.0
       - DD_API_KEY=invalid_key_but_this_is_fine
 
+  - &CONTAINER_MYSQL
+    image: mysql:5.6
+    environment:
+      - MYSQL_ROOT_PASSWORD=admin
+      - MYSQL_PASSWORD=test
+      - MYSQL_USER=test
+      - MYSQL_DATABASE=test
+
+  - &STEP_INSTALL_PHP_EXTENSIONS
+    run:
+      name: Install PHP extensions
+      command: sudo docker-php-ext-install mysqli pdo pdo_mysql
+
   - &STEP_USE_LOCAL_EXTENSIONS
     run:
       name: Configure PHP to use local extensions
       command: echo -e "zend_extension=opcache.so\nextension=ddtrace.so\nextension_dir=$(pwd)/modules" | sudo tee /usr/local/etc/php/conf.d/ddtrace.ini
 
-  - &STEP_EXT_BUILD_SCAFFOLD
+  - &STEP_COPY_LOCAL_EXTENSIONS
     run:
-      name: Generate build scaffold
-      command: phpize && ./configure
-
-  - &STEP_EXT_MAKE
-    run:
-      name: Compile -Wall -Werr
-      command: make CFLAGS='-O0 -g -Wall -Wextra -Werror'
-
-  - &STEP_EXT_INSTALL
-    run:
-      name: Install ddtrace module
-      command: make install || true
-
-  - &STEP_COPY_LOCAL_MODULES
-    run:
-      name: Copy all local modules to module dir
+      name: Copy all local extensions to modules/ dir
       command: find /usr/local/lib/php/extensions -name '*.so' | xargs -n 1 -I {} cp {} modules/
+
+  - &STEP_EXT_MAKE_INSTALL
+    run:
+      name: Generate build scaffold, compile -Wall -Werr, install
+      command: phpize && ./configure && make CFLAGS='-O0 -g -Wall -Wextra -Werror' && sudo make install
 
   - &STEP_COMPOSER_SELF_UPDATE
     run:
@@ -73,18 +76,23 @@ aliases:
       - checkout
       - attach_workspace:
           at: ~/datadog
-      - <<: *STEP_USE_LOCAL_EXTENSIONS
+      - *STEP_INSTALL_PHP_EXTENSIONS
+      - *STEP_USE_LOCAL_EXTENSIONS
+      - *STEP_COPY_LOCAL_EXTENSIONS
       - run:
           name: Waiting for Dockerized agent
           command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
+      - run:
+          name: Waiting for Dockerized MySQL
+          command: dockerize -wait tcp://localhost:3306 -timeout 1m
       - run:
           name: Run unit tests
           command: composer test-unit -- --log-junit test-results/php-unit/results.xml
       - run:
           name: Run integration tests
           command: composer test-integration -- --log-junit test-results/php-integration/results.xml
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
+      - *STEP_STORE_TEST_RESULTS
+      - *STEP_STORE_ARTIFACTS
 
 jobs:
   "Lint files":
@@ -92,15 +100,14 @@ jobs:
       - image: circleci/php:7-cli-node-browsers
     steps:
       - checkout
-      - <<: *STEP_USE_LOCAL_EXTENSIONS
-      - <<: *STEP_EXT_BUILD_SCAFFOLD
-      - <<: *STEP_EXT_MAKE
-      - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COPY_LOCAL_MODULES
-      - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL
-      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - *STEP_INSTALL_PHP_EXTENSIONS
+      - *STEP_USE_LOCAL_EXTENSIONS
+      - *STEP_EXT_MAKE_INSTALL
+      - *STEP_COPY_LOCAL_EXTENSIONS
+      - *STEP_COMPOSER_SELF_UPDATE
+      - *STEP_COMPOSER_CACHE_RESTORE
+      - *STEP_COMPOSER_INSTALL
+      - *STEP_COMPOSER_CACHE_SAVE
       - restore_cache:
           <<: *CACHE_NPM_KEY
       - run:
@@ -134,44 +141,43 @@ jobs:
                 exit 1
               fi
             done
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
+      - *STEP_STORE_TEST_RESULTS
+      - *STEP_STORE_ARTIFACTS
 
   "Static Analysis":
     docker:
       - image: circleci/php:7.2
     steps:
       - checkout
-      - <<: *STEP_USE_LOCAL_EXTENSIONS
-      - <<: *STEP_EXT_BUILD_SCAFFOLD
-      - <<: *STEP_EXT_MAKE
-      - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COPY_LOCAL_MODULES
-      - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL
-      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - *STEP_INSTALL_PHP_EXTENSIONS
+      - *STEP_USE_LOCAL_EXTENSIONS
+      - *STEP_EXT_MAKE_INSTALL
+      - *STEP_COPY_LOCAL_EXTENSIONS
+      - *STEP_COMPOSER_SELF_UPDATE
+      - *STEP_COMPOSER_CACHE_RESTORE
+      - *STEP_COMPOSER_INSTALL
+      - *STEP_COMPOSER_CACHE_SAVE
       - run:
           name: Installing phpstan
           command: composer require --dev phpstan/phpstan:~0.10.3
       - run:
           name: Running phpstan
           command: vendor/bin/phpstan analyse --level=2 src
+
   "build 5.6": &BASE_BUILD
     working_directory: ~/datadog
     docker:
       - image: circleci/php:5.6
     steps:
       - checkout
-      - <<: *STEP_USE_LOCAL_EXTENSIONS
-      - <<: *STEP_EXT_BUILD_SCAFFOLD
-      - <<: *STEP_EXT_MAKE
-      - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COPY_LOCAL_MODULES
-      - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL
-      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - *STEP_INSTALL_PHP_EXTENSIONS
+      - *STEP_USE_LOCAL_EXTENSIONS
+      - *STEP_EXT_MAKE_INSTALL
+      - *STEP_COPY_LOCAL_EXTENSIONS
+      - *STEP_COMPOSER_SELF_UPDATE
+      - *STEP_COMPOSER_CACHE_RESTORE
+      - *STEP_COMPOSER_INSTALL
+      - *STEP_COMPOSER_CACHE_SAVE
       - run:
           name: testresults dir
           command: mkdir test-results
@@ -189,8 +195,8 @@ jobs:
           paths:
             - vendor/
             - modules/
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
+      - *STEP_STORE_TEST_RESULTS
+      - *STEP_STORE_ARTIFACTS
 
   "build 7.0":
     <<: *BASE_BUILD
@@ -208,25 +214,29 @@ jobs:
     <<: *JOB_PHP_DEFAULTS
     docker:
       - image: 'circleci/php:5.6'
-      - <<: *IMAGE_DOCKER_DD_AGENT
+      - *CONTAINER_DD_AGENT
+      - *CONTAINER_MYSQL
 
   "php-7.0":
     <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.0
-      - <<: *IMAGE_DOCKER_DD_AGENT
+      - *CONTAINER_DD_AGENT
+      - *CONTAINER_MYSQL
 
   "php-7.1":
     <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.1
-      - <<: *IMAGE_DOCKER_DD_AGENT
+      - *CONTAINER_DD_AGENT
+      - *CONTAINER_MYSQL
 
   "php-7.2":
     <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.2
-      - <<: *IMAGE_DOCKER_DD_AGENT
+      - *CONTAINER_DD_AGENT
+      - *CONTAINER_MYSQL
 
 workflows:
   version: 2
