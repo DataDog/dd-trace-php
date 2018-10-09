@@ -6,7 +6,7 @@
 
 PHP Tracer
 
-This is alpha software. We recommend using it staging.
+This is alpha software. We do not recommend using it in production yet.
 
 ## Installation
 
