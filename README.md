@@ -4,9 +4,9 @@
 [![OpenTracing Badge](https://img.shields.io/badge/OpenTracing-enabled-blue.svg)](http://opentracing.io)
 [![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%205.6-8892BF.svg)](https://php.net/)
 
-Experimental PHP Tracer!
+PHP Tracer
 
-This project is experimental and under active development. Use it at your own risk.
+This is alpha software. We do not recommend using it in production yet.
 
 ## Installation
 
