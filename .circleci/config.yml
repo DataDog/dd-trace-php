@@ -115,7 +115,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE'
+          command: node_modules/.bin/eclint check '**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon'
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml
