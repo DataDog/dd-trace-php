@@ -15,6 +15,8 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\View\Engines\CompilerEngine;
 use OpenTracing\GlobalTracer;
 
+use function DDTrace\Time\fromMicrotime;
+
 /**
  * DataDog Laravel tracing provider. Use by installing the dd-trace library:
  *
@@ -87,7 +89,7 @@ class LaravelProvider extends ServiceProvider
         });
 
         // Create a span that starts from when Laravel first boots (public/index.php)
-        $scope = $tracer->startActiveSpan('laravel.request', ['start_time' => Time\fromMicrotime(LARAVEL_START)]);
+        $scope = $tracer->startActiveSpan('laravel.request', ['start_time' => fromMicrotime(LARAVEL_START)]);
         $scope->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
 
         // Name the scope when the route matches
