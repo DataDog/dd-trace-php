@@ -349,7 +349,7 @@ class Memcached
      * distribution being rebuilt. Getting around that would likely be
      * prohibitively expensive though.
      */
-    public static function setServerTagsByKey($span, $memcached, $key)
+    private static function setServerTagsByKey($span, $memcached, $key)
     {
         $server = $memcached->getServerByKey($key);
         $span->setTag(Tags\TARGET_HOST, $server['host']);
