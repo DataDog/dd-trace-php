@@ -76,7 +76,7 @@ class PDO
             PDO::setConnectionTags($this, $span);
 
             try {
-                $result = $this->query(...$args[0]);
+                $result = $this->query(...$args);
                 PDO::storeStatementFromConnection($this, $result);
                 try {
                     $span->setTag('db.rowcount', $result->rowCount());
