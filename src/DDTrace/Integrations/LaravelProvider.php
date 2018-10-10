@@ -50,7 +50,8 @@ class LaravelProvider extends ServiceProvider
         // Sets a global tracer (singleton). Also store it in the Laravel
         // container for easy Laravel-specific use.
         GlobalTracer::set($tracer);
-        $this->app->instance('datadog.tracer', $tracer);
+        $this->app->instance(Tracer::class, $tracer);
+        $this->app->alias(Tracer::class, 'datadog.tracer');
 
         // Trace middleware
         dd_trace(Pipeline::class, 'through', function ($pipes) {
@@ -99,7 +100,7 @@ class LaravelProvider extends ServiceProvider
             $span->setTag('laravel.route.name', Route::currentRouteName());
             $span->setTag('laravel.route.action', $event->route->getActionName());
             $span->setTag('http.method', $event->request->method());
-            $span->setTag('http.url', $event->request->path());
+            $span->setTag('http.url', $event->request->url());
         });
 
         $this->app['events']->listen(RequestHandled::class, function (RequestHandled $event) use ($scope) {
