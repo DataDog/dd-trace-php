@@ -13,8 +13,11 @@ class Eloquent
     public static function load()
     {
         if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Eloquent integrations.', E_USER_WARNING);
+            trigger_error('The ddtrace extension is required to instrument Eloquent', E_USER_WARNING);
             return;
+        }
+        if (!class_exists(Builder::class)) {
+            trigger_error('Eloquent is not loaded and connot be instrumented', E_USER_WARNING);
         }
 
         // getModels($columns = ['*'])

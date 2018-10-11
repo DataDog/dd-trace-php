@@ -8,7 +8,14 @@ use OpenTracing\GlobalTracer;
 
 class PDO
 {
+    /**
+     * @var array
+     */
     private static $connections = [];
+
+    /**
+     * @var array
+     */
     private static $statements = [];
 
     /**
@@ -17,7 +24,11 @@ class PDO
     public static function load()
     {
         if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load PDO integration.', E_USER_WARNING);
+            trigger_error('The ddtrace extension is required to instrument PDO', E_USER_WARNING);
+            return;
+        }
+        if (!class_exists('PDO')) {
+            trigger_error('PDO is not loaded and cannot be instrumented', E_USER_WARNING);
             return;
         }
 

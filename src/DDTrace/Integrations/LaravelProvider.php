@@ -51,7 +51,6 @@ class LaravelProvider extends ServiceProvider
         // container for easy Laravel-specific use.
         GlobalTracer::set($tracer);
         $this->app->instance(Tracer::class, $tracer);
-        $this->app->alias(Tracer::class, 'datadog.tracer');
 
         // Trace middleware
         dd_trace(Pipeline::class, 'through', function ($pipes) {
@@ -114,9 +113,13 @@ class LaravelProvider extends ServiceProvider
 
         // Enable extension integrations
         Eloquent::load();
-        Memcached::load();
+        if (class_exists('Memcached')) {
+            Memcached::load();
+        }
         PDO::load();
-        Predis::load();
+        if (class_exists('Predis\Client')) {
+            Predis::load();
+        }
 
         // Flushes traces to agent.
         register_shutdown_function(function () use ($scope) {

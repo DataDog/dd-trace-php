@@ -81,6 +81,12 @@ class SymfonyBundle extends Bundle
 
         // Enable extension integrations
         PDO::load();
+        if (class_exists('Memcached')) {
+            Memcached::load();
+        }
+        if (class_exists('Predis\Client')) {
+            Predis::load();
+        }
 
         // Flushes traces to agent.
         register_shutdown_function(function () use ($scope) {

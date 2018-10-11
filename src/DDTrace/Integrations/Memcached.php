@@ -24,8 +24,11 @@ class Memcached
     public static function load()
     {
         if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Memcached tracing.', E_USER_WARNING);
+            trigger_error('The ddtrace extension is required to instrument Memcached', E_USER_WARNING);
             return;
+        }
+        if (!class_exists('Memcached')) {
+            trigger_error('Memcached is not loaded and connot be instrumented', E_USER_WARNING);
         }
 
         // bool Memcached::add ( string $key , mixed $value [, int $expiration ] )
