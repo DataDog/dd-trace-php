@@ -13,6 +13,8 @@ configure.*
 config.*
 *.la
 *.lo
+*.o
+*.so
 install-sh
 libtool
 ltmain.sh

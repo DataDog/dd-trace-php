@@ -6,6 +6,7 @@ use DDTrace\Exceptions\InvalidSpanArgument;
 use Exception;
 use InvalidArgumentException;
 use OpenTracing\Span as OpenTracingSpan;
+use OpenTracing\SpanContext as OpenTracingContext;
 use Throwable;
 
 final class Span implements OpenTracingSpan
@@ -74,7 +75,6 @@ final class Span implements OpenTracingSpan
      * @var bool
      */
     private $hasError = false;
-
 
     /**
      * Span constructor.
