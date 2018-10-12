@@ -1,23 +1,30 @@
 VERSION := 7_2
 BUILD_DIR := tmp/build_$(VERSION)
+SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
+WALL_FLAGS := -Wall -Werror -Wextra
 
-all: configure $(BUILD_DIR)/modules/ddtrace.so
+CFLAGS := -O2 $(WALL_FLAGS)
+
+all: configure $(SO_FILE)
 
 configure: config.m4
 	phpize
 
 $(BUILD_DIR)/Makefile:
-	mkdir -p $(dir $@)
-	cd $(dir $@); $(abspath configure)
+	mkdir -p $(BUILD_DIR)
+	cd $(BUILD_DIR); $(abspath configure)
 
-$(BUILD_DIR)/modules/ddtrace.so: $(BUILD_DIR)/Makefile
-	$(MAKE) -C $(BUILD_DIR)
+$(SO_FILE): $(BUILD_DIR)/Makefile
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
 
-install: $(BUILD_DIR)/modules/ddtrace.so
+install: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) install
 
-sudo_install: $(BUILD_DIR)/modules/ddtrace.so
+sudo_install: $(SO_FILE)
 	sudo $(MAKE) -C $(BUILD_DIR) install
+
+test: $(SO_FILE)
+	$(MAKE) -C $(BUILD_DIR) test
 
 clean:
 	phpize --clean
