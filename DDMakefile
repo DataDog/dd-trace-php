@@ -1,0 +1,26 @@
+VERSION := 7_2
+BUILD_DIR := tmp/build_$(VERSION)
+
+all: configure $(BUILD_DIR)/modules/ddtrace.so
+
+configure: config.m4
+	phpize
+
+$(BUILD_DIR)/Makefile:
+	mkdir -p $(dir $@)
+	cd $(dir $@); $(abspath configure)
+
+$(BUILD_DIR)/modules/ddtrace.so: $(BUILD_DIR)/Makefile
+	$(MAKE) -C $(BUILD_DIR)
+
+install: $(BUILD_DIR)/modules/ddtrace.so
+	$(MAKE) -C $(BUILD_DIR) install
+
+sudo_install: $(BUILD_DIR)/modules/ddtrace.so
+	sudo $(MAKE) -C $(BUILD_DIR) install
+
+clean:
+	phpize --clean
+	rm -rf $(BUILD_DIR)
+
+.PHONY: clean all install sudo_install

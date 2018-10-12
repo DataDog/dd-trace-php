@@ -1,0 +1,16 @@
+version: '3'
+services:
+  '7.1':
+    image: "circleci/php:7.1"
+    working_dir: '/home/circleci/app'
+    stdin_open: true
+    tty: true
+    volumes: [ '.:/home/circleci/app' ]
+    depends_on: [ redis ]
+    environment:
+      - REDIS_HOSTNAME=redis
+      - REDIS_PORT=6379
+  redis:
+    image: "circleci/redis:4.0-alpine"
+    expose:
+      - "6379"
