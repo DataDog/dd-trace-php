@@ -9,6 +9,4 @@ RELEASING.md        export-ignore
 
 # ext/ddtrace
 .circleci           export-ignore
-src/ext             export-ignore
 .clang-format       export-ignore
-config.m4           export-ignore
