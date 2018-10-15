@@ -79,7 +79,7 @@ class LaravelProvider extends ServiceProvider
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
 
             try {
-                return $this->get($builder);
+                return $this->get($path, $data);
             } catch (\Exception $e) {
                 $scope->getSpan()->setError($e);
                 throw $e;
