@@ -30,7 +30,7 @@ test_c: $(SO_FILE)
 test_c_mem: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m"
 
-test_integration: install $(INI_FILE)
+test_integration: $(INI_FILE)
 	composer test
 
 dist_clean:
