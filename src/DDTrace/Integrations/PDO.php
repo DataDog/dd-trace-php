@@ -142,7 +142,7 @@ class PDO
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
-        dd_trace('PDOStatement', 'execute', function ($params) {
+        dd_trace('PDOStatement', 'execute', function ($params = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('PDOStatement.execute');
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
