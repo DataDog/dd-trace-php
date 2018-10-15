@@ -75,13 +75,13 @@ class LaravelProvider extends ServiceProvider
 
         // Create a trace span for every template rendered
         // public function get($path, array $data = array())
-        dd_trace(CompilerEngine::class, 'get', function ($scope, $path, $data) {
+        dd_trace(CompilerEngine::class, 'get', function ($path, $data = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
 
             try {
-                return $this->getModels($builder);
+                return $this->get($builder);
             } catch (\Exception $e) {
-                $span->setError($e);
+                $scope->getSpan()->setError($e);
                 throw $e;
             } finally {
                 $scope->close();
