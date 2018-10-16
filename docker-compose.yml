@@ -6,7 +6,7 @@ services:
     stdin_open: true
     tty: true
     volumes: [ '.:/home/circleci/app' ]
-    depends_on: [ redis ]
+    depends_on: [ redis, ddagent ]
     environment:
       - REDIS_HOSTNAME=redis
       - REDIS_PORT=6379
@@ -14,3 +14,13 @@ services:
     image: "circleci/redis:4.0-alpine"
     expose:
       - "6379"
+  ddagent:
+    image: datadog/docker-dd-agent:latest-alpine
+    environment:
+      - DD_APM_ENABLED=true
+      - DD_BIND_HOST=0.0.0.0
+      - DD_API_KEY=5fa68aae23e4822d6f778f8d163f85e8
+    # expose:
+    #   - "8126"
+    ports:
+      - "8126:8126"
