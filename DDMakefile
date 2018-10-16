@@ -1,5 +1,5 @@
-VERSION := 7_2
-BUILD_DIR := tmp/build_$(VERSION)
+BUILD_SUFFIX := extension
+BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Werror -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
@@ -24,13 +24,15 @@ install: $(SO_FILE)
 $(INI_FILE):
 	echo "extension=ddtrace.so" | $(SUDO) tee $@
 
+install_ini: $(INI_FILE)
+
 test_c: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all"
 
 test_c_mem: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m"
 
-test_integration: $(INI_FILE)
+test_integration: install_ini
 	composer test
 
 dist_clean:
@@ -40,4 +42,4 @@ dist_clean:
 clean:
 	$(MAKE) -C $(BUILD_DIR) clean
 
-.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration
+.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini
