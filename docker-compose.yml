@@ -6,21 +6,24 @@ services:
     stdin_open: true
     tty: true
     volumes: [ '.:/home/circleci/app' ]
-    depends_on: [ redis, ddagent ]
+    depends_on:
+      - redis_integration
+      - ddagent_integration
     environment:
-      - REDIS_HOSTNAME=redis
-      - REDIS_PORT=6379
-  redis:
+      - REDIS_HOSTNAME=redis_integration
+      - DDAGENT_HOSTNAME=ddagent_integration
+  redis_integration:
     image: "circleci/redis:4.0-alpine"
-    expose:
-      - "6379"
-  ddagent:
-    image: datadog/docker-dd-agent:latest-alpine
+  ddagent_integration:
+    image: datadog/agent:latest
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-X", "HEAD", "http://localhost:8126"]
+      interval: 10s
+      timeout: 2s
+      retries: 2
     environment:
       - DD_APM_ENABLED=true
       - DD_BIND_HOST=0.0.0.0
       - DD_API_KEY=5fa68aae23e4822d6f778f8d163f85e8
-    # expose:
-    #   - "8126"
     ports:
       - "8126:8126"

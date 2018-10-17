@@ -13,6 +13,14 @@ use Psr\Log\LoggerInterface;
 
 final class HttpTest extends Framework\TestCase
 {
+    public function agentUrl() {
+        return 'http://' . ($_SERVER["DDAGENT_HOSTNAME"] ? $_SERVER["DDAGENT_HOSTNAME"] :  "blah") . ':8126';
+    }
+
+    public function agentTracesUrl(){
+        return $this->agentUrl() . '/v0.3/traces';
+    }
+
     public function testSpanReportingFailsOnUnavailableAgent()
     {
         $logger = $this->prophesize(LoggerInterface::class);
@@ -48,7 +56,7 @@ final class HttpTest extends Framework\TestCase
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
         $httpTransport = new Http(new Json(), $logger->reveal(), [
-            'endpoint' => 'http://0.0.0.0:8126/v0.3/traces'
+            'endpoint' => $this->agentTracesUrl()
         ]);
         $tracer = new Tracer($httpTransport);
 
@@ -82,7 +90,7 @@ final class HttpTest extends Framework\TestCase
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
         $httpTransport = new Http(new Json(), $logger->reveal(), [
-            'endpoint' => 'http://0.0.0.0:8126/v0.3/traces'
+            'endpoint' => $this->agentTracesUrl()
         ]);
         $tracer = new Tracer($httpTransport);
 
