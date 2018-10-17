@@ -136,7 +136,7 @@ class LaravelProvider extends ServiceProvider
         } elseif (is_callable('config')) {
             return config('app.name');
         } else {
-            return 'symfony';
+            return 'laravel';
         }
     }
 }
