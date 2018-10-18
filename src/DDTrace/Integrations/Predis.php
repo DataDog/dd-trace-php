@@ -6,6 +6,7 @@ use DDTrace\Tags;
 use DDTrace\Types;
 use OpenTracing\GlobalTracer;
 use Predis\Client;
+use Predis\Pipeline\Pipeline;
 
 const VALUE_PLACEHOLDER = "?";
 const VALUE_MAX_LEN = 100;
@@ -15,25 +16,77 @@ const CMD_MAX_LEN = 1000;
 class Predis
 {
     /**
+     * @var array
+     */
+    private static $connections = [];
+
+    /**
      * Static method to add instrumentation to the Predis library
      */
     public static function load()
     {
         if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Predis integration.', E_USER_WARNING);
+            trigger_error('The ddtrace extension is required to instrument Predis', E_USER_WARNING);
+            return;
+        }
+        if (!class_exists(Client::class)) {
+            trigger_error('Predis is not loaded and connot be instrumented', E_USER_WARNING);
             return;
         }
 
+        // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
+        dd_trace(Client::class, '__construct', function (...$args) {
+            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client__construct');
+            $span = $scope->getSpan();
+            $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
+            $span->setTag(Tags\SERVICE_NAME, 'redis');
+            $span->setResource('Predis.Client.__construct');
+
+            try {
+                $this->__construct(...$args);
+                Predis::storeConnectionParams($this, $args);
+                return $this;
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
+        });
+
+        // public void Predis\Client::connect()
+        dd_trace(Client::class, 'connect', function () {
+            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.connect');
+            $span = $scope->getSpan();
+            $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
+            $span->setTag(Tags\SERVICE_NAME, 'redis');
+            $span->setResource('Predis.Client.connect');
+            Predis::setConnectionTags($this, $span);
+
+            try {
+                return $this->connect();
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
+        });
+
         // public mixed Predis\Client::executeCommand(CommandInterface $command)
         dd_trace(Client::class, 'executeCommand', function ($command) {
-            $query = Predis::formatCommandArgs($command);
-            $scope = GlobalTracer::get()->startActiveSpan('Predis.executeCommand');
+            $arguments = $command->getArguments();
+            array_unshift($arguments, $command->getId());
+            $query = Predis::formatArguments($arguments);
+
+            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeCommand');
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setTag('redis.raw_command', $query);
-            $span->setTag('redis.args_length', count($command->getArguments()));
+            $span->setTag('redis.args_length', count($arguments));
             $span->setResource($query);
+            Predis::setConnectionTags($this, $span);
 
             try {
                 return $this->executeCommand($command);
@@ -44,30 +97,82 @@ class Predis
                 $scope->close();
             }
         });
+
+        // public mixed Predis\Client::executeRaw(array $arguments, bool &$error)
+        dd_trace(Client::class, 'executeRaw', function ($arguments, &$error = null) {
+            $query = Predis::formatArguments($arguments);
+
+            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeCommand');
+            $span = $scope->getSpan();
+            $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
+            $span->setTag(Tags\SERVICE_NAME, 'redis');
+            $span->setTag('redis.raw_command', $query);
+            $span->setTag('redis.args_length', count($arguments));
+            $span->setResource($query);
+            Predis::setConnectionTags($this, $span);
+
+            try {
+                return $this->executeRaw($arguments, $error);
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
+        });
+
+        // protected array Predis\Pipeline::executePipeline(ConnectionInterface $connection, \SplQueue $commands)
+        dd_trace(Pipeline::class, 'executePipeline', function ($connection, $commands) {
+            $scope = GlobalTracer::get()->startActiveSpan('Predis.Pipeline.executePipeline');
+            $span = $scope->getSpan();
+            $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
+            $span->setTag(Tags\SERVICE_NAME, 'redis');
+            $span->setTag('redis.pipeline_length', count($commands));
+
+            try {
+                return $this->executePipeline($connection, $commands);
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
+        });
     }
 
-    /* things to include (from python tracer):
-# net extension
-DB = 'out.redis_db'
+    public static function storeConnectionParams($predis, $args)
+    {
+        $tags = [];
 
-# standard tags
-RAWCMD = 'redis.raw_command'
-ARGS_LEN = 'redis.args_length'
-PIPELINE_LEN = 'redis.pipeline_length'
-PIPELINE_AGE = 'redis.pipeline_age'
-IMMEDIATE_PIPELINE = 'redis.pipeline_immediate_command'
-
-def _extract_conn_tags(conn_kwargs):
-    """ Transform redis conn info into dogtrace metas """
-    try:
-        return {
-            net.TARGET_HOST: conn_kwargs['host'],
-            net.TARGET_PORT: conn_kwargs['port'],
-            redisx.DB: conn_kwargs['db'] or 0,
+        try {
+            $identifier = (string)$predis->getConnection();
+            list($host, $port) = explode(':', $identifier);
+            $tags[Tags\TARGET_HOST] = $host;
+            $tags[Tags\TARGET_PORT] = $port;
+        } catch (\Exception $e) {
         }
-    except Exception:
-        return {}
-    */
+
+        if (isset($args[1])) {
+            $options = $args[1];
+            if (isset($options['parameters']) && isset($options['parameters']['database'])) {
+                $tags['out.redis_db'] = $options['parameters']['database'];
+            }
+        }
+
+        self::$connections[spl_object_hash($predis)] = $tags;
+    }
+
+    public static function setConnectionTags($predis, $span)
+    {
+        $hash = spl_object_hash($predis);
+        if (!isset(self::$connections[$hash])) {
+            return;
+        }
+
+        foreach (self::$connections[$hash] as $tag => $value) {
+            $span->setTag($tag, $value);
+        }
+    }
 
     /**
      * Format a command by removing unwanted values
@@ -76,11 +181,8 @@ def _extract_conn_tags(conn_kwargs):
      * - Skip binary content
      * - Truncate
      */
-    public static function formatCommandArgs($command)
+    public static function formatArguments($arguments)
     {
-        $arguments = $command->getArguments();
-        array_unshift($arguments, $command->getId());
-
         $len = 0;
         $out = [];
 
@@ -107,14 +209,5 @@ def _extract_conn_tags(conn_kwargs):
         }
 
         return implode(' ', $out);
-    }
-
-    public static function extractConnTags($predisClient)
-    {
-        /*
-        net.TARGET_HOST: conn_kwargs['host'],
-        net.TARGET_PORT: conn_kwargs['port'],
-        redisx.DB: conn_kwargs['db'] or 0,
-        */
     }
 }

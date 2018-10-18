@@ -11,6 +11,10 @@
     <rule ref="Generic.Commenting.DocComment.MissingShort">
         <severity>0</severity>
     </rule>
+    <!-- PHP compatibility checks -->
+    <config name="installed_paths" value="vendor/phpcompatibility/phpcompatibility-symfony,vendor/phpcompatibility/phpcompatibility-paragonie,vendor/phpcompatibility/php-compatibility"/>
+    <config name="testVersion" value="5.6-7.3"/>
+    <rule ref="PHPCompatibilitySymfonyPolyfillPHP70"/>
     <exclude-pattern>run-tests.php</exclude-pattern>
     <exclude-pattern>*/vendor/*</exclude-pattern>
     <exclude-pattern>*/node_modules/*</exclude-pattern>

@@ -8,7 +8,14 @@ use OpenTracing\GlobalTracer;
 
 class PDO
 {
+    /**
+     * @var array
+     */
     private static $connections = [];
+
+    /**
+     * @var array
+     */
     private static $statements = [];
 
     /**
@@ -17,7 +24,11 @@ class PDO
     public static function load()
     {
         if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load PDO integration.', E_USER_WARNING);
+            trigger_error('The ddtrace extension is required to instrument PDO', E_USER_WARNING);
+            return;
+        }
+        if (!class_exists('PDO')) {
+            trigger_error('PDO is not loaded and cannot be instrumented', E_USER_WARNING);
             return;
         }
 
@@ -76,7 +87,7 @@ class PDO
             PDO::setConnectionTags($this, $span);
 
             try {
-                $result = $this->query(...$args[0]);
+                $result = $this->query(...$args);
                 PDO::storeStatementFromConnection($this, $result);
                 try {
                     $span->setTag('db.rowcount', $result->rowCount());
@@ -131,7 +142,7 @@ class PDO
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
-        dd_trace('PDOStatement', 'execute', function ($params) {
+        dd_trace('PDOStatement', 'execute', function ($params = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('PDOStatement.execute');
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);

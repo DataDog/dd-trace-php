@@ -50,7 +50,7 @@ class LaravelProvider extends ServiceProvider
         // Sets a global tracer (singleton). Also store it in the Laravel
         // container for easy Laravel-specific use.
         GlobalTracer::set($tracer);
-        $this->app->instance('datadog.tracer', $tracer);
+        $this->app->instance(Tracer::class, $tracer);
 
         // Trace middleware
         dd_trace(Pipeline::class, 'through', function ($pipes) {
@@ -75,13 +75,13 @@ class LaravelProvider extends ServiceProvider
 
         // Create a trace span for every template rendered
         // public function get($path, array $data = array())
-        dd_trace(CompilerEngine::class, 'get', function ($scope, $path, $data) {
+        dd_trace(CompilerEngine::class, 'get', function ($path, $data = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
 
             try {
-                return $this->getModels($builder);
+                return $this->get($path, $data);
             } catch (\Exception $e) {
-                $span->setError($e);
+                $scope->getSpan()->setError($e);
                 throw $e;
             } finally {
                 $scope->close();
@@ -99,23 +99,28 @@ class LaravelProvider extends ServiceProvider
             $span->setTag('laravel.route.name', Route::currentRouteName());
             $span->setTag('laravel.route.action', $event->route->getActionName());
             $span->setTag('http.method', $event->request->method());
-            $span->setTag('http.url', $event->request->path());
+            $span->setTag('http.url', $event->request->url());
         });
 
         $this->app['events']->listen(RequestHandled::class, function (RequestHandled $event) use ($scope) {
             $span = $scope->getSpan();
             $span->setTag('http.status_code', $event->response->status());
             try {
-                $span->setTag('laravel.user', auth()->user()->id ?? '-');
+                $user = auth()->user()->id;
+                $span->setTag('laravel.user', strlen($user) ? $user : '-');
             } catch (\Exception $e) {
             }
         });
 
         // Enable extension integrations
         Eloquent::load();
-        Memcached::load();
+        if (class_exists('Memcached')) {
+            Memcached::load();
+        }
         PDO::load();
-        Predis::load();
+        if (class_exists('Predis\Client')) {
+            Predis::load();
+        }
 
         // Flushes traces to agent.
         register_shutdown_function(function () use ($scope) {
@@ -131,7 +136,7 @@ class LaravelProvider extends ServiceProvider
         } elseif (is_callable('config')) {
             return config('app.name');
         } else {
-            return 'symfony';
+            return 'laravel';
         }
     }
 }
