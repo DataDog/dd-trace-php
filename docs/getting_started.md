@@ -117,7 +117,7 @@ For Symfony applications, add the bundle in app/AppKernel.php:
 
 To add spans for another function or method, you can use `dd_trace` to open a span before the code executes, close it when it’s done, set additional tags or errors on the span, and for more advanced usage, modify either the arguments or the return value.
 
-Here’s an example of tracing the `CustomDriver` class’s `doWork` method, including noting and re-throwing exceptions:
+Here’s an example of tracing the `CustomDriver` class’s `doWork` method, including reporting any exceptions as errors on the span and re-throwing them:
 
 ```php
 dd_trace("CustomDriver", "doWork", function (...$args) {
