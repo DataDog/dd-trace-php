@@ -108,7 +108,7 @@ For Symfony applications, add the bundle in app/AppKernel.php:
 ```php
     return [
         // ...
-        new DDTrace\Integrations\SymfonyBundle(),
+        DDTrace\Integrations\SymfonyBundle::class => ['all' => true],
         // ...
     ];
 ```
