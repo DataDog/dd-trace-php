@@ -110,7 +110,7 @@ For Symfony applications, add the bundle in app/AppKernel.php:
         // ...
         new DDTrace\Integrations\SymfonyBundle(),
         // ...
-        ];
+    ];
 ```
 
 #### Adding tracing to a custom function or method
