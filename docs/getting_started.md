@@ -106,7 +106,7 @@ For Symfony applications, add the bundle in app/AppKernel.php:
 
 
 ```php
-    $bundles = [
+    return [
         // ...
         new DDTrace\Integrations\SymfonyBundle(),
         // ...
