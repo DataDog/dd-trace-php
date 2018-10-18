@@ -84,7 +84,8 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
 
     zend_hash_find(table, key, Z_STRLEN_P(name) + 1, (void **)&fptr);
 
-    DD_PRINTF("Looking for key %s (length: %d, h: 0x%lX) in table", key, Z_STRLEN_P(name), zend_inline_hash_func(key, key_len));
+    DD_PRINTF("Looking for key %s (length: %d, h: 0x%lX) in table", key, Z_STRLEN_P(name),
+              zend_inline_hash_func(key, key_len));
     DD_PRINT_HASH(table);
     DD_PRINTF("Found: %s", fptr != NULL ? "true" : "false");
 
