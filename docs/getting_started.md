@@ -15,7 +15,7 @@ At this moment it is only distributed in source code form, and requires manual c
 ```bash
 mkdir dd-trace
 cd dd-trace
-curl -L https://github.com/DataDog/dd-trace-php/archive/v0.2.3.tar.gz | tar x --strip-components=1
+curl -L https://github.com/DataDog/dd-trace-php/archive/v0.2.4.tar.gz | tar x --strip-components=1
 phpize # generate files needed to build PHP extension
 ./configure
 make
@@ -25,7 +25,7 @@ sudo make install
 #### Bash one-liner
 
 ```bash
-(cd $(mktemp -d); curl -L https://github.com/DataDog/dd-trace-php/archive/v0.2.2.tar.gz | tar x --strip-components=1 && phpize && ./configure && make && sudo make install )
+(cd $(mktemp -d); curl -L https://github.com/DataDog/dd-trace-php/archive/v0.2.4.tar.gz | tar x --strip-components=1 && phpize && ./configure && make && sudo make install )
 ```
 
 ### Enabling the extension
