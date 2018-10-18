@@ -30,7 +30,7 @@ sudo make install
 
 ### Enabling the extension
 
-After the extensions has been installed, the PHP runtime needs to be configured to use it.
+After the extension has been installed, the PHP runtime needs to be configured to use it.
 
 To do that we need to modify `php.ini`. This file’s location depends on how PHP has been built and configured on your system. To find out where yours is, run the following command:
 
@@ -43,7 +43,7 @@ Scan for additional .ini files in: /usr/local/etc/php/7.2/conf.d
 Additional .ini files parsed:      /usr/local/etc/php/7.2/conf.d/ext-opcache.ini
 ```
 
-Now the only remaining thing is to add following line to the `.ini` file found using above command:
+Now the only remaining thing is to add following line to the `.ini` file found using the above command:
 
 ```ini
 extension=ddtrace.so
@@ -113,7 +113,7 @@ For Symfony applications, add the bundle in app/AppKernel.php:
         ];
 ```
 
-#### Adding tracing to a function or method
+#### Adding tracing to a custom function or method
 
 To add spans for another function or method, you can use `dd_trace` to open a span before the code executes, close it when it’s done, set additional tags or errors on the span, and for more advanced usage, modify either the arguments or the return value.
 
