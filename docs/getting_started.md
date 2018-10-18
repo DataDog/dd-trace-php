@@ -93,7 +93,7 @@ composer update
 To enable Laravel integration we need to configure a new Provider in `config/app.php`
 
 ```php
-   'providers' => array_merge(include(base_path('modules/system/providers.php')), [
+   'providers' => [
 # .....
      'DDTrace\Integrations\LaravelProvider',
 ```
