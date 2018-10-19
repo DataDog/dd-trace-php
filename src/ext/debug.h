@@ -21,13 +21,13 @@
         for (i = 0; i < ht->nTableSize; i++) {                                         \
             p = ht->arBuckets[i];                                                      \
             while (p != NULL) {                                                        \
-                DD_PRINTF("%s (len: %d) <==> 0x%lX\n", p->arKey, p->nKeyLength, p->h); \
+                DD_PRINTF("%s (len: %d) <==> 0x%lX", p->arKey, p->nKeyLength, p->h); \
                 p = p->pNext;                                                          \
             }                                                                          \
         }                                                                              \
         p = ht->pListTail;                                                             \
         while (p != NULL) {                                                            \
-            DD_PRINTF("%s (len: %d) <==> 0x%lX\n", p->arKey, p->nKeyLength, p->h);     \
+            DD_PRINTF("%s (len: %d) <==> 0x%lX", p->arKey, p->nKeyLength, p->h);     \
             p = p->pListLast;                                                          \
         }                                                                              \
     } while (0)
