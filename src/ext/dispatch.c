@@ -69,15 +69,17 @@ typedef struct _zend_closure {
     HashTable *debug_info;
 } zend_closure;
 
-static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
+static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execute_data,
+                          zval **return_value_ptr TSRMLS_DC) {
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;
     char *error = NULL;
-    zval closure, rv;
+    zval closure, rv, *rv_ptr;
     INIT_ZVAL(closure);
     INIT_ZVAL(rv);
+    rv_ptr = &rv;
 
-    zval *result = return_value ? return_value : &rv;
+    zval **result_ptr = return_value_ptr ? return_value_ptr : &rv_ptr;
     zval *this = NULL;
 
     zend_function *func;
@@ -116,10 +118,10 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         goto _exit_cleanup;
     }
 
-    ddtrace_setup_fcall(execute_data, &fci, &result TSRMLS_CC);
+    ddtrace_setup_fcall(execute_data, &fci, result_ptr TSRMLS_CC);
 
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS) {
-        if (!return_value) {
+        if (!return_value_ptr) {
             zval_dtor(&rv);
         }
     }
@@ -197,11 +199,14 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         dispatch->flags ^= BUSY_FLAG;  // guard against recursion, catching only topmost execution
 
 #if PHP_VERSION_ID < 70000
-        zval *return_value = (RETURN_VALUE_USED(opline) ? EX_TMP_VAR(execute_data, opline->result.var)->var.ptr : &rv);
-        execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
+        zval *return_value = NULL;
+        execute_fcall(dispatch, execute_data, &return_value TSRMLS_CC);
+        if (return_value != NULL) {
+            EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
+        }
 #else
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
-        execute_fcall(dispatch, EX(call), return_value TSRMLS_CC);
+        execute_fcall(dispatch, EX(call), &return_value TSRMLS_CC);
 #endif
 
         dispatch->flags ^= BUSY_FLAG;
