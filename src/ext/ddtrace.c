@@ -4,8 +4,8 @@
 #include <Zend/zend.h>
 #include <Zend/zend_exceptions.h>
 #include <php.h>
-#include <php/ext/spl/spl_exceptions.h>
 #include <php_ini.h>
+#include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
 #include "compat_zend_string.h"

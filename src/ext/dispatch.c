@@ -1,16 +1,15 @@
-#include "php.h"
-#include "php/ext/spl/spl_exceptions.h"
+#include <php.h>
+#include <ext/spl/spl_exceptions.h>
 
 #include "ddtrace.h"
 #include "dispatch.h"
-#include "php/ext/spl/spl_exceptions.h"
 
-#include "Zend/zend.h"
+#include <Zend/zend.h>
 #include "compat_zend_string.h"
 #include "dispatch_compat.h"
 
-#include "Zend/zend_closures.h"
-#include "Zend/zend_exceptions.h"
+#include <Zend/zend_closures.h>
+#include <Zend/zend_exceptions.h>
 #include "debug.h"
 
 #define BUSY_FLAG 1
