@@ -72,18 +72,25 @@ static int find_method(zend_class_entry *ce, STRING_T *name, zend_function **fun
     return find_function(&ce->function_table, name, function);
 }
 
+
+static int whitelisted(STRING_T *name){
+    static const char constructor[] = "__construct";
+
+    return (((sizeof(constructor)-1) == STRING_LEN(name)) && !strncmp(constructor, STRING_VAL_CHAR(name), STRING_LEN(name)));
+}
+
 zend_bool ddtrace_trace(zend_class_entry *clazz, STRING_T *name, zval *callable TSRMLS_DC) {
-    zend_function *function;
+    zend_function *function = NULL;
 
     if (clazz) {
-        if (find_method(clazz, name, &function) != SUCCESS) {
+        if (find_method(clazz, name, &function) != SUCCESS && !whitelisted(name)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "failed to set return for %s::%s, the method does not exist",
+                                    "failed to override %s::%s, the method does not exist",
                                     STRING_VAL(clazz->name), STRING_VAL_CHAR(name));
             return 0;
         }
 
-        if (function->common.scope != clazz) {
+        if (function != NULL && function->common.scope != clazz) {
             clazz = function->common.scope;
             DD_PRINTF("Overriding Parent class method");
         }
