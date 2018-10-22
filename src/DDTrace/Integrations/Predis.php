@@ -53,7 +53,6 @@ class Predis
             $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setResource('Predis.Client.__construct');
-
             try {
                 $this->__construct(...$args);
                 Predis::storeConnectionParams($this, $args);

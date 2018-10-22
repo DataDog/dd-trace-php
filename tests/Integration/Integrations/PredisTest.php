@@ -3,27 +3,30 @@
 namespace DDTrace\Tests\Integration\Integrations;
 
 use DDTrace\Encoders\Json;
-// use DDTrace\Tests\RequestReplayer;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-// use DDTrace\Version;
+use DDTrace\Transport\Stream;
 use DDTrace\Integrations\Predis;
+use DDTrace\Tests\DebugTransport;
 
-// use Predis\Client;
 use PHPUnit\Framework;
-// use Prophecy\Argument;
-// use Psr\Log\LoggerInterface;
 use OpenTracing\GlobalTracer;
-
 
 final class PredisTest extends Framework\TestCase
 {
     public static function setUpBeforeClass()
     {
-        $tracer = new Tracer(new Http(new Json()));
-        GlobalTracer::set($tracer);
-
         Predis::load();
+    }
+
+    /**
+     * @var DDTrace\Test\DebugTransport
+     */
+    private $transport;
+
+    public function setUp(){
+        $this->transport = new DebugTransport();
+        GlobalTracer::set(new Tracer($this->transport));
     }
 
     public function redisHostname(){
@@ -32,10 +35,12 @@ final class PredisTest extends Framework\TestCase
 
     public function testPredisWorks()
     {
-        $client = new \Predis\Client([ host => $this->redisHostname() ]);
+        $client = new \Predis\Client([ "host" => $this->redisHostname() ]);
 
         $client->set('foo', 'bar');
         $this->assertEquals($client->get('foo'), 'bar');
-        return;
+
+        GlobalTracer::get()->flush();
+        $this->assertEquals($this->transport->getTraces(), []);
     }
 }
