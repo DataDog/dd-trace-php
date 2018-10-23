@@ -33,7 +33,7 @@ test_c_mem: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m"
 
 test_integration: install_ini
-	composer test
+	composer test -- $(PHPUNIT)
 
 dist_clean:
 	phpize --clean
