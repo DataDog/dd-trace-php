@@ -29,8 +29,6 @@ class DebugTransport implements Transport
 
     public function send(array $traces)
     {
-        echo var_export($traces, true).PHP_EOL;
-        die();
         $this->traces = array_merge($this->traces, $traces);
     }
 
