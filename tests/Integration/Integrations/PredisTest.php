@@ -22,7 +22,7 @@ final class PredisTest extends Framework\TestCase
     }
 
     public function redisHostname(){
-        return $_SERVER["REDIS_HOSTNAME"] ? $_SERVER["REDIS_HOSTNAME"] : 'localhost';
+        return $_SERVER["REDIS_HOSTNAME"] ? $_SERVER["REDIS_HOSTNAME"] : '0.0.0.0';
     }
 
     public function withTracer($fn){

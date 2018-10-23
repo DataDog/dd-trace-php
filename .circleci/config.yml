@@ -8,11 +8,13 @@ aliases:
     key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
 
   - &IMAGE_DOCKER_DD_AGENT
-    image: datadog/docker-dd-agent
+    image: datadog/agent:latest
     environment:
       - DD_APM_ENABLED=true
       - DD_BIND_HOST=0.0.0.0
       - DD_API_KEY=invalid_key_but_this_is_fine
+  - &IMAGE_DOCKER_REDIS
+    image: circleci/redis:4.0-alpine
 
   - &STEP_EXT_INSTALL
     run:
@@ -54,6 +56,11 @@ aliases:
       - attach_workspace:
           at: ~/datadog
       - <<: *STEP_EXT_INSTALL
+      - run:
+          name: export .env.circleci
+          command: |
+           echo "export $(cat .env.circleci | xargs)" >> $BASH_ENV
+
       - run:
           name: Waiting for Dockerized agent
           command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
@@ -178,24 +185,28 @@ jobs:
     docker:
       - image: 'circleci/php:5.6'
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_REDIS
 
   "php-7.0":
     <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.0
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_REDIS
 
   "php-7.1":
     <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.1
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_REDIS
 
   "php-7.2":
     <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.2
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_REDIS
 
 workflows:
   version: 2
