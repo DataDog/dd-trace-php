@@ -20,18 +20,6 @@ class Predis
      */
     private static $connections = [];
 
-    public static function unload()
-    {
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('The ddtrace extension is required to instrument Predis', E_USER_WARNING);
-            return;
-        }
-        if (!class_exists(Client::class)) {
-            trigger_error('Predis is not loaded and connot be instrumented', E_USER_WARNING);
-            return;
-        }
-    }
-
     /**
      * Static method to add instrumentation to the Predis library
      */
