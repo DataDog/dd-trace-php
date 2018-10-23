@@ -13,11 +13,13 @@ use Psr\Log\LoggerInterface;
 
 final class HttpTest extends Framework\TestCase
 {
-    public function agentUrl() {
+    public function agentUrl()
+    {
         return 'http://' . ($_SERVER["DDAGENT_HOSTNAME"] ? $_SERVER["DDAGENT_HOSTNAME"] :  "localhost") . ':8126';
     }
 
-    public function agentTracesUrl(){
+    public function agentTracesUrl()
+    {
         return $this->agentUrl() . '/v0.3/traces';
     }
 

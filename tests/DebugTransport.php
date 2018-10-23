@@ -9,7 +9,6 @@ use DDTrace\Transport;
 use PHPUnit\Framework;
 use OpenTracing\GlobalTracer;
 
-
 class DebugTransport implements Transport
 {
     /**
@@ -45,11 +44,13 @@ class DebugTransport implements Transport
     /**
      * @return array()
      */
-    public function getHeaders(){
+    public function getHeaders()
+    {
         return $this->headers;
     }
 
-    public function getTraces(){
+    public function getTraces()
+    {
         return $this->traces;
     }
 }
