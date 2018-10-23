@@ -1,0 +1,45 @@
+BUILD_SUFFIX := extension
+BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
+SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
+WALL_FLAGS := -Wall -Werror -Wextra
+CFLAGS := -O2 $(WALL_FLAGS)
+
+INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
+
+all: configure $(SO_FILE)
+
+configure: config.m4
+	phpize
+
+$(BUILD_DIR)/Makefile: configure
+	mkdir -p $(BUILD_DIR)
+	cd $(BUILD_DIR); $(abspath configure)
+
+$(SO_FILE): $(BUILD_DIR)/Makefile
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
+
+install: $(SO_FILE)
+	$(SUDO) $(MAKE) -C $(BUILD_DIR) install
+
+$(INI_FILE):
+	echo "extension=ddtrace.so" | $(SUDO) tee $@
+
+install_ini: $(INI_FILE)
+
+test_c: $(SO_FILE)
+	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all"
+
+test_c_mem: $(SO_FILE)
+	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m"
+
+test_integration: install_ini
+	composer test
+
+dist_clean:
+	phpize --clean
+	rm -rf $(BUILD_DIR)
+
+clean:
+	$(MAKE) -C $(BUILD_DIR) clean
+
+.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini

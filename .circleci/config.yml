@@ -8,36 +8,18 @@ aliases:
     key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
 
   - &IMAGE_DOCKER_DD_AGENT
-    image: datadog/docker-dd-agent
+    image: datadog/agent:latest
     environment:
       - DD_APM_ENABLED=true
       - DD_BIND_HOST=0.0.0.0
       - DD_API_KEY=invalid_key_but_this_is_fine
-
-  - &STEP_USE_LOCAL_EXTENSIONS
-    run:
-      name: Configure PHP to use local extensions
-      command: echo -e "zend_extension=opcache.so\nextension=ddtrace.so\nextension_dir=$(pwd)/modules" | sudo tee /usr/local/etc/php/conf.d/ddtrace.ini
-
-  - &STEP_EXT_BUILD_SCAFFOLD
-    run:
-      name: Generate build scaffold
-      command: phpize && ./configure
-
-  - &STEP_EXT_MAKE
-    run:
-      name: Compile -Wall -Werr
-      command: make CFLAGS='-O0 -g -Wall -Wextra -Werror'
+  - &IMAGE_DOCKER_REDIS
+    image: circleci/redis:4.0-alpine
 
   - &STEP_EXT_INSTALL
     run:
-      name: Install ddtrace module
-      command: make install || true
-
-  - &STEP_COPY_LOCAL_MODULES
-    run:
-      name: Copy all local modules to module dir
-      command: find /usr/local/lib/php/extensions -name '*.so' | xargs -n 1 -I {} cp {} modules/
+      name: Build and install extension
+      command: make -f DDMakefile install install_ini SUDO=sudo BUILD_DIR=tmp/build_extension
 
   - &STEP_COMPOSER_SELF_UPDATE
     run:
@@ -73,7 +55,11 @@ aliases:
       - checkout
       - attach_workspace:
           at: ~/datadog
-      - <<: *STEP_USE_LOCAL_EXTENSIONS
+      - <<: *STEP_EXT_INSTALL
+      - run:
+          name: export .env.circleci
+          command: |
+            echo "export $(cat .env.circleci | xargs)" >> $BASH_ENV
       - run:
           name: Waiting for Dockerized agent
           command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
@@ -92,11 +78,7 @@ jobs:
       - image: circleci/php:7-cli-node-browsers
     steps:
       - checkout
-      - <<: *STEP_USE_LOCAL_EXTENSIONS
-      - <<: *STEP_EXT_BUILD_SCAFFOLD
-      - <<: *STEP_EXT_MAKE
       - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COPY_LOCAL_MODULES
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_INSTALL
@@ -115,7 +97,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon'
+          command: node_modules/.bin/eclint check '**/*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon'
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml
@@ -142,11 +124,7 @@ jobs:
       - image: circleci/php:7.2
     steps:
       - checkout
-      - <<: *STEP_USE_LOCAL_EXTENSIONS
-      - <<: *STEP_EXT_BUILD_SCAFFOLD
-      - <<: *STEP_EXT_MAKE
       - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COPY_LOCAL_MODULES
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_INSTALL
@@ -157,17 +135,14 @@ jobs:
       - run:
           name: Running phpstan
           command: vendor/bin/phpstan analyse --level=2 src
+
   "build 5.6": &BASE_BUILD
     working_directory: ~/datadog
     docker:
       - image: circleci/php:5.6
     steps:
       - checkout
-      - <<: *STEP_USE_LOCAL_EXTENSIONS
-      - <<: *STEP_EXT_BUILD_SCAFFOLD
-      - <<: *STEP_EXT_MAKE
       - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COPY_LOCAL_MODULES
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_INSTALL
@@ -177,18 +152,18 @@ jobs:
           command: mkdir test-results
       - run:
           name: Run extension tests
-          command: TEST_PHP_JUNIT=test-results/simle_test.xml REPORT_EXIT_STATUS=1 make test TESTS='-q --show-all'
+          command: TEST_PHP_JUNIT=test-results/simle_test.xml REPORT_EXIT_STATUS=1 make -f DDMakefile test_c
       - run:
           name: Install VALGRIND(todo build custom image)
           command: sudo apt update && sudo apt install valgrind -y
       - run:
           name: Run extension tests with leak detection
-          command: TEST_PHP_JUNIT=test-results/leak_test.xml REPORT_EXIT_STATUS=1 make test TESTS='-q -m --show-all'
+          command: TEST_PHP_JUNIT=test-results/leak_test.xml REPORT_EXIT_STATUS=1 make -f DDMakefile test_c_mem
       - persist_to_workspace:
           root: '.'
           paths:
             - vendor/
-            - modules/
+            - tmp/build_extension
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
@@ -209,24 +184,28 @@ jobs:
     docker:
       - image: 'circleci/php:5.6'
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_REDIS
 
   "php-7.0":
     <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.0
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_REDIS
 
   "php-7.1":
     <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.1
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_REDIS
 
   "php-7.2":
     <<: *JOB_PHP_DEFAULTS
     docker:
       - image: circleci/php:7.2
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_REDIS
 
 workflows:
   version: 2
