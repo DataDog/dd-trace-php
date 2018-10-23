@@ -10,18 +10,18 @@ services:
     volumes: [ '.:/home/circleci/app' ]
     tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
     depends_on:
-      - redis
-      - ddagent
+      - redis_integration
+      - ddagent_integration
     environment:
-      - REDIS_HOSTNAME=redis
-      - DDAGENT_HOSTNAME=ddagent
+      - REDIS_HOSTNAME=redis_integration
+      - DDAGENT_HOSTNAME=ddagent_integration
     command: make -f DDMakefile install test_integration SUDO=sudo
   '5.6': { <<: *base, image: 'circleci/php:5.6' }
   '7.0': { <<: *base, image: 'circleci/php:7.0' }
   '7.1': { <<: *base, image: 'circleci/php:7.1' }
-  redis:
+  redis_integration:
     image: "circleci/redis:4.0-alpine"
-  ddagent:
+  ddagent_integration:
     image: datadog/agent:latest
     healthcheck:
       test: ["CMD", "curl", "-f", "-X", "HEAD", "http://localhost:8126"]
