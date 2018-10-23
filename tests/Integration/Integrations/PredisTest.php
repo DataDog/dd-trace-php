@@ -9,23 +9,24 @@ use DDTrace\Transport\Stream;
 use DDTrace\Integrations\Predis;
 use DDTrace\Tests\DebugTransport;
 
-use PHPUnit\Framework;
+use PHPUnit\Framework\TestCase;
 use OpenTracing\GlobalTracer;
-use DDTrace\Span;
 use OpenTracing\Span as OpenTracingSpan;
 
-final class PredisTest extends Framework\TestCase
+final class PredisTest extends TestCase
 {
     public static function setUpBeforeClass()
     {
         Predis::load();
     }
 
-    public function redisHostname(){
+    public function redisHostname()
+    {
         return $_SERVER["REDIS_HOSTNAME"] ? $_SERVER["REDIS_HOSTNAME"] : '0.0.0.0';
     }
 
-    public function withTracer($fn){
+    public function withTracer($fn)
+    {
         $transport = new DebugTransport();
         $tracer = new Tracer($transport);
         GlobalTracer::set($tracer);
@@ -36,8 +37,9 @@ final class PredisTest extends Framework\TestCase
         return $transport->getTraces();
     }
 
-    public function inTestScope($name, $fn) {
-       return $this->withTracer(function($tracer) use($fn, $name){
+    public function inTestScope($name, $fn)
+    {
+        return $this->withTracer(function ($tracer) use ($fn, $name) {
             $scope = $tracer->startActiveSpan($name);
             $fn($tracer);
             $scope->close();
@@ -46,7 +48,7 @@ final class PredisTest extends Framework\TestCase
 
     public function testPredisIntegrationCreatesSpans()
     {
-        $traces = $this->inTestScope('redis.test', function(){
+        $traces = $this->inTestScope('redis.test', function () {
             $client = new \Predis\Client([ "host" => $this->redisHostname() ]);
             $value = 'bar';
 
@@ -66,7 +68,7 @@ final class PredisTest extends Framework\TestCase
     {
         $client = new \Predis\Client([ "host" => $this->redisHostname() ]);
 
-        $traces = $this->withTracer(function() use($client){
+        $traces = $this->withTracer(function () use ($client) {
             $client->set('foo', 'value');
         });
         $this->assertCount(1, $traces);
