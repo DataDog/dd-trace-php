@@ -2,13 +2,13 @@
 Check user defined function can safely catch and rethrow exception
 --FILE--
 <?php
-function test(){
-    throw new RuntimeException("FUNCTION");
+function test($param){
+    throw new RuntimeException("FUNCTION " . $param);
 }
 
-dd_trace("test", function(){
+dd_trace("test", function($param){
     try {
-        test();
+        test($param);
     } catch (\Exception $e) {
         echo "EXCEPTION IN HOOK " . $e->getMessage() . PHP_EOL;
         throw $e;
@@ -18,7 +18,7 @@ dd_trace("test", function(){
 });
 
 try {
-    test();
+    test("1");
 } catch (\Exception $e) {
     echo "EXCEPTION IN " . $e->getMessage() . PHP_EOL;
 } finally {
@@ -27,7 +27,7 @@ try {
 
 ?>
 --EXPECT--
-EXCEPTION IN HOOK FUNCTION
+EXCEPTION IN HOOK FUNCTION 1
 FINALLY
-EXCEPTION IN FUNCTION
+EXCEPTION IN FUNCTION 1
 HOOK
