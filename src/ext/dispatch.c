@@ -267,12 +267,12 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 }
 
 static int update_opcode_leave(zend_execute_data *execute_data) {
-#if PHP_VERSION_ID >= 70000
-    EX(call) = EX(call)->prev_execute_data;
-#else
-    if (EG(exception)){
-        zend_vm_stack_pop(); // clear param data if FN has thrown an exception
+#if PHP_VERSION_ID < 70000
+    if (EG(exception)) {
+        zend_vm_stack_pop();  // clear param data if FN has thrown an exception
     }
+#else
+    EX(call) = EX(call)->prev_execute_data;
 #endif
     EX(opline) = EX(opline) + 1;
 
