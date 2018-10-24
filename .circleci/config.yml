@@ -56,10 +56,20 @@ aliases:
       - attach_workspace:
           at: ~/datadog
       - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - run:
+          name: testresults dir
+          command: mkdir test-results
       - run:
           name: export .env.circleci
           command: |
             echo "export $(cat .env.circleci | xargs)" >> $BASH_ENV
+      - run:
+          name: Run extension tests with leak detection
+          command: TEST_PHP_JUNIT=test-results/leak_test.xml REPORT_EXIT_STATUS=1 make -f DDMakefile test_c_mem
       - run:
           name: Waiting for Dockerized agent
           command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
@@ -69,6 +79,11 @@ aliases:
       - run:
           name: Run integration tests
           command: composer test-integration -- --log-junit test-results/php-integration/results.xml
+      - persist_to_workspace:
+          root: '.'
+          paths:
+          - vendor/
+          - tmp/build_extension
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
@@ -136,74 +151,32 @@ jobs:
           name: Running phpstan
           command: vendor/bin/phpstan analyse --level=2 src
 
-  "build 5.6": &BASE_BUILD
-    working_directory: ~/datadog
-    docker:
-      - image: circleci/php:5.6
-    steps:
-      - checkout
-      - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL
-      - <<: *STEP_COMPOSER_CACHE_SAVE
-      - run:
-          name: testresults dir
-          command: mkdir test-results
-      - run:
-          name: Run extension tests
-          command: TEST_PHP_JUNIT=test-results/simle_test.xml REPORT_EXIT_STATUS=1 make -f DDMakefile test_c
-      - run:
-          name: Install VALGRIND(todo build custom image)
-          command: sudo apt update && sudo apt install valgrind -y
-      - run:
-          name: Run extension tests with leak detection
-          command: TEST_PHP_JUNIT=test-results/leak_test.xml REPORT_EXIT_STATUS=1 make -f DDMakefile test_c_mem
-      - persist_to_workspace:
-          root: '.'
-          paths:
-            - vendor/
-            - tmp/build_extension
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
-
-  "build 7.0":
-    <<: *BASE_BUILD
-    docker: [ image: 'circleci/php:7.0' ]
-
-  "build 7.1":
-    <<: *BASE_BUILD
-    docker: [ image: 'circleci/php:7.1' ]
-
-  "build 7.2":
-    <<: *BASE_BUILD
-    docker: [ image: 'circleci/php:7.2' ]
 
   "php-5.6":
     <<: *JOB_PHP_DEFAULTS
     docker:
-      - image: 'circleci/php:5.6'
+      - image: datadog/docker-library:ddtrace_php_5_6
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
 
   "php-7.0":
     <<: *JOB_PHP_DEFAULTS
     docker:
-      - image: circleci/php:7.0
+      - image: datadog/docker-library:ddtrace_php_7_0
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
 
   "php-7.1":
     <<: *JOB_PHP_DEFAULTS
     docker:
-      - image: circleci/php:7.1
+      - image: datadog/docker-library:ddtrace_php_7_1
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
 
   "php-7.2":
     <<: *JOB_PHP_DEFAULTS
     docker:
-      - image: circleci/php:7.2
+      - image: datadog/docker-library:ddtrace_php_7_2
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
 
@@ -213,11 +186,7 @@ workflows:
     jobs:
       - "Lint files"
       - "Static Analysis"
-      - "build 5.6"
-      - "build 7.0"
-      - "build 7.1"
-      - "build 7.2"
-      - "php-5.6": { requires: [ "build 5.6" ] }
-      - "php-7.0": { requires: [ "build 7.0" ] }
-      - "php-7.1": { requires: [ "build 7.1" ] }
-      - "php-7.2": { requires: [ "build 7.2" ] }
+      - "php-5.6"
+      - "php-7.0"
+      - "php-7.1"
+      - "php-7.2"
