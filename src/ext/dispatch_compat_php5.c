@@ -68,7 +68,7 @@ static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, 
 void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC) {
     if (EX(opline)->opcode != ZEND_DO_FCALL_BY_NAME) {
         call_slot *call = EX(call_slots) + EX(opline)->op2.num;
-        call->fbc = NULL;
+        call->fbc = EX(function_state).function;
         call->object = NULL;
         call->called_scope = NULL;
         call->num_additional_args = 0;
