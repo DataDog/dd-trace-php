@@ -67,6 +67,8 @@
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
         ],
+        "install-ext": "make -f DDMakefile install_ini install SUDO=sudo $*",
+        "test-ext": "make -f DDMakefile test_c",
         "test": "phpunit --colors=always --configuration=phpunit.xml",
         "test-integration": [
             "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",

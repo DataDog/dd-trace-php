@@ -68,9 +68,6 @@ aliases:
           command: |
             echo "export $(cat .env.circleci | xargs)" >> $BASH_ENV
       - run:
-          name: Run extension tests
-          command: TEST_PHP_JUNIT=test-results/simle_test.xml REPORT_EXIT_STATUS=1 make -f DDMakefile test_c
-      - run:
           name: Run extension tests with leak detection
           command: TEST_PHP_JUNIT=test-results/leak_test.xml REPORT_EXIT_STATUS=1 make -f DDMakefile test_c_mem
       - run:
