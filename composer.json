@@ -26,6 +26,8 @@
         "opentracing/opentracing": "1.0.0-beta5@dev",
         "psr/http-message": "^1.0",
         "psr/log": "^1.0.0",
+        "symfony/polyfill-php55": "^1.9",
+        "symfony/polyfill-php56": "^1.9",
         "symfony/polyfill-php70": "^1.8.0"
     },
     "provide": {
@@ -33,6 +35,7 @@
     },
     "require-dev": {
         "phpcompatibility/php-compatibility": "^9.0",
+        "phpcompatibility/phpcompatibility-passwordcompat": "^1.0",
         "phpcompatibility/phpcompatibility-symfony": "*",
         "phpunit/phpunit": "^5.7.19",
         "predis/predis": "^1.1",
@@ -63,6 +66,7 @@
     "scripts": {
         "fix-lint": "phpcbf",
         "lint": "phpcs",
+        "lint-5.4": "phpcs --runtime-set testVersion 5.4-7.3",
         "run-agent": [
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
