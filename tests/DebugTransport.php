@@ -2,12 +2,8 @@
 
 namespace DDTrace\Tests;
 
-use DDTrace\Encoders\Json;
-use DDTrace\Tracer;
 use DDTrace\Transport;
 
-use PHPUnit\Framework;
-use OpenTracing\GlobalTracer;
 
 class DebugTransport implements Transport
 {

@@ -2,17 +2,11 @@
 
 namespace DDTrace\Tests\Integration\Integrations;
 
-use DDTrace\Encoders\Json;
-use DDTrace\Tracer;
-use DDTrace\Transport\Http;
-use DDTrace\Transport\Stream;
 use DDTrace\Integrations\Predis;
-use DDTrace\Tests\DebugTransport;
+use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 
-use PHPUnit\Framework\TestCase;
-use OpenTracing\GlobalTracer;
 
-final class PredisTest extends TestCase
+final class PredisTest extends IntegrationTestCase
 {
     public static function setUpBeforeClass()
     {
@@ -22,27 +16,6 @@ final class PredisTest extends TestCase
     public function redisHostname()
     {
         return $_SERVER["REDIS_HOSTNAME"] ? $_SERVER["REDIS_HOSTNAME"] : '0.0.0.0';
-    }
-
-    public function withTracer($fn)
-    {
-        $transport = new DebugTransport();
-        $tracer = new Tracer($transport);
-        GlobalTracer::set($tracer);
-
-        $fn($tracer);
-        $tracer->flush();
-
-        return $transport->getTraces();
-    }
-
-    public function inTestScope($name, $fn)
-    {
-        return $this->withTracer(function ($tracer) use ($fn, $name) {
-            $scope = $tracer->startActiveSpan($name);
-            $fn($tracer);
-            $scope->close();
-        });
     }
 
     public function testPredisIntegrationCreatesSpans()
