@@ -11,7 +11,6 @@ use DDTrace\Tests\DebugTransport;
 
 use PHPUnit\Framework\TestCase;
 use OpenTracing\GlobalTracer;
-use OpenTracing\Span as OpenTracingSpan;
 
 final class PredisTest extends TestCase
 {
@@ -60,7 +59,7 @@ final class PredisTest extends TestCase
         $this->assertCount(1, $traces);
         $trace = $traces[0];
 
-        $this->assertContainsOnlyInstancesOf(OpenTracingSpan::class, $trace);
+        $this->assertContainsOnlyInstancesOf("\OpenTracing\Span", $trace);
         $this->assertGreaterThan(2, count($trace)); # two Redis operations -> at least 2 spans
     }
 
