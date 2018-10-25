@@ -9,12 +9,22 @@ use DDTrace\Tests\DebugTransport;
 use PHPUnit\Framework\TestCase;
 use OpenTracing\GlobalTracer;
 
-
 /**
  * A basic class to be extended when testing integrations.
  */
 abstract class IntegrationTestCase extends TestCase
 {
+    /**
+     * @var SpanChecker
+     */
+    private $spanChecker;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->spanChecker = new SpanChecker($this);
+    }
+
     /**
      * @param $fn
      * @return Span[][]
@@ -53,117 +63,6 @@ abstract class IntegrationTestCase extends TestCase
      */
     public function assertSpans($traces, $expectedSpans)
     {
-        // First we assert that ALL the expected spans are in the actual traces and no unexpected span exists.
-        $expectedSpansReferences = array_map(function (SpanAssertion $assertion) {
-            return $assertion->getOperationName();
-        }, $expectedSpans);
-        sort($expectedSpansReferences);
-        $tracesReferences = array_map(function (Span $span) {
-            return $span->getOperationName();
-        }, $this->flattenTraces($traces));
-        sort($tracesReferences);
-
-        $this->assertEquals($expectedSpansReferences, $tracesReferences, 'Missing or additional spans.');
-
-        // Then we assert content on each individual received span
-        foreach ($expectedSpans as $ex) {
-            $this->assertSpan($traces, $ex);
-        }
-    }
-
-    /**
-     * Checks that a span expectation is matched in a collection on Spans.
-     *
-     * @param $traces
-     * @param SpanAssertion $exp
-     */
-    public function assertSpan($traces, SpanAssertion $exp)
-    {
-        $span = $this->findSpan($traces, $exp->getOperationName());
-        $this->assertNotNull($span, 'Expected span was not \'' . $exp->getOperationName() . '\' found.');
-
-        if ($exp->isOnlyCheckExistence()) {
-            return;
-        }
-
-        $this->assertSame(
-            $exp->getOperationName(),
-            $span->getOperationName(),
-            "Wrong value for 'operation name'"
-        );
-        $this->assertSame(
-            $exp->hasError(),
-            $span->hasError(),
-            "Wrong value for 'error'"
-        );
-        if ($exp->getExactTags() != SpanAssertion::NOT_TESTED) {
-            $filtered = [];
-            foreach ($span->getAllTags() as $key => $value) {
-                if (!in_array($key, $exp->getExistingTagNames())) {
-                    $filtered[] = $key;
-                }
-            }
-            $this->assertEquals(
-                $exp->getExactTags(),
-                $filtered,
-                "Wrong value for 'tags'"
-            );
-            foreach ($exp->getExistingTagNames() as $tagName) {
-                $this->assertArrayHasKey($tagName, $span->getAllTags());
-            }
-        }
-        if ($exp->getService() != SpanAssertion::NOT_TESTED) {
-            $this->assertSame(
-                $exp->getService(),
-                $span->getService(),
-                "Wrong value for 'service'"
-            );
-        }
-        if ($exp->getType() != SpanAssertion::NOT_TESTED) {
-            $this->assertSame(
-                $exp->getType(),
-                $span->getType(),
-                "Wrong value for 'type'"
-            );
-        }
-        if ($exp->getResource() != SpanAssertion::NOT_TESTED) {
-            $this->assertSame(
-                $exp->getResource(),
-                $span->getResource(),
-                "Wrong value for 'resource'"
-            );
-        }
-    }
-
-    /**
-     * @param $traces Span[][]
-     * @param $name string
-     * @return Span|null
-     */
-    public function findSpan($traces, $name)
-    {
-        foreach ($traces as $block) {
-            /** @var Span $trace */
-            foreach ($block as $trace) {
-                if ($trace->getOperationName() == $name) {
-                    return $trace;
-                }
-            }
-        }
-    }
-
-    /**
-     * @param Span[][] $traces
-     * @return Span[]
-     */
-    public function flattenTraces($traces)
-    {
-        $result = [];
-
-        array_walk_recursive($traces, function (Span $span) use (&$result) {
-            $result[] = $span;
-        });
-
-        return $result;
+        $this->spanChecker->assertSpans($traces, $expectedSpans);
     }
 }
