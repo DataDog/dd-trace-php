@@ -26,6 +26,8 @@
         "opentracing/opentracing": "1.0.0-beta5@dev",
         "psr/http-message": "^1.0",
         "psr/log": "^1.0.0",
+        "symfony/polyfill-php55": "^1.9",
+        "symfony/polyfill-php56": "^1.9",
         "symfony/polyfill-php70": "^1.8.0"
     },
     "provide": {
@@ -33,6 +35,7 @@
     },
     "require-dev": {
         "phpcompatibility/php-compatibility": "^9.0",
+        "phpcompatibility/phpcompatibility-passwordcompat": "^1.0",
         "phpcompatibility/phpcompatibility-symfony": "*",
         "phpunit/phpunit": "^5.7.19",
         "predis/predis": "^1.1",
