@@ -29,7 +29,7 @@ final class MemcachedTest extends IntegrationTestCase
         parent::setUp();
         $this->client = new \Memcached();
         $this->client->addServer('memcached_integration', 11211);
-        $this->withTracer(function() {
+        $this->withTracer(function () {
             // Cleaning up existing data from previous tests
             $this->client->flush();
         });
@@ -41,9 +41,9 @@ final class MemcachedTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    public function test_add()
+    public function testAdd()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->add('key', 'value');
         });
         $this->assertSpans($traces, [
@@ -55,9 +55,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_addByKey()
+    public function testAddByKey()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
         });
         $this->assertSpans($traces, [
@@ -71,9 +71,9 @@ final class MemcachedTest extends IntegrationTestCase
     }
 
     /** Should fail because memcached is compressed by default */
-    public function test_append_compressed()
+    public function testAppendCompressed()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             try {
                 $this->client->append('key', 'value');
                 $this->fail('An exception should be raised because client is compressed');
@@ -91,10 +91,10 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_append_uncompressed()
+    public function testAppendUncompressed()
     {
         $this->client->setOption(\Memcached::OPT_COMPRESSION, false);
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->append('key', 'value');
         });
         $this->assertSpans($traces, [
@@ -107,9 +107,9 @@ final class MemcachedTest extends IntegrationTestCase
     }
 
     /** Should fail because memcached is compressed by default */
-    public function test_appendByKey_compressed()
+    public function testAppendByKeyCompressed()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             try {
                 $this->client->appendByKey('my_server', 'key', 'value');
                 $this->fail('An exception should be raised because client is compressed');
@@ -129,10 +129,10 @@ final class MemcachedTest extends IntegrationTestCase
     }
 
     /** Should fail because memcached is compressed by default */
-    public function test_appendByKey()
+    public function testAppendByKey()
     {
         $this->client->setOption(\Memcached::OPT_COMPRESSION, false);
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->appendByKey('my_server', 'key', 'value');
         });
         $this->assertSpans($traces, [
@@ -145,9 +145,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_delete()
+    public function testDelete()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->add('key', 'value');
             $this->assertSame('value', $this->client->get('key'));
             $this->client->delete('key');
@@ -165,9 +165,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_deleteByKey()
+    public function testDeleteByKey()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
             $this->assertSame('value', $this->client->getByKey('my_server', 'key'));
             $this->client->deleteByKey('my_server', 'key');
@@ -186,9 +186,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_deleteMulti()
+    public function testDeleteMulti()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->add('key1', 'value1');
             $this->client->add('key2', 'value2');
             $this->assertSame('value1', $this->client->get('key1'));
@@ -217,9 +217,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_deleteMultiByKey()
+    public function testDeleteMultiByKey()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->addByKey('my_server', 'key1', 'value1');
             $this->client->addByKey('my_server', 'key2', 'value2');
             $this->assertSame('value1', $this->client->getByKey('my_server', 'key1'));
@@ -244,10 +244,10 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_decrement_binary_protocol()
+    public function testDecrementBinaryProtocol()
     {
         $this->client->setOption(\Memcached::OPT_BINARY_PROTOCOL, true);
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->decrement('key', 2, 100);
             // Note that the default value is set as 'string' instead of int. This is not a side effect
             // of our instrumentation, as it happens also when not loading the integration.
@@ -273,10 +273,10 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_decrement_non_binary_protocol()
+    public function testSDecrementNonBinaryProtocol()
     {
         $this->client->setOption(\Memcached::OPT_BINARY_PROTOCOL, false);
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->add('key', 100);
             $this->client->decrement('key', 2);
             // Note that default value is set as 'string' instead of int. This is not a side effect
@@ -294,9 +294,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_decrementByKey()
+    public function testDecrementByKey()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->addByKey('my_server', 'key', 100);
             $this->client->decrementByKey('my_server', 'key', 2);
             // Note that default value is set as 'string' instead of int. This is not a side effect
@@ -315,10 +315,10 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_increment_binary_protocol()
+    public function testIncrementBinaryProtocol()
     {
         $this->client->setOption(\Memcached::OPT_BINARY_PROTOCOL, true);
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->increment('key', 2, 100);
             // Note that the default value is set as 'string' instead of int. This is not a side effect
             // of our instrumentation, as it happens also when not loading the integration.
@@ -342,10 +342,10 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_increment_non_binary_protocol()
+    public function testIncrementNonBinaryProtocol()
     {
         $this->client->setOption(\Memcached::OPT_BINARY_PROTOCOL, false);
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->add('key', 0);
             $this->client->increment('key', 2);
             // Note that default value is set as 'string' instead of int. This is not a side effect
@@ -363,9 +363,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_incrementByKey()
+    public function testIncrementByKey()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->addByKey('my_server', 'key', 100);
             $this->client->incrementByKey('my_server', 'key', 2);
             // Note that default value is set as 'string' instead of int. This is not a side effect
@@ -384,9 +384,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_flush()
+    public function testFlush()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->add('key', 'value');
             $this->assertSame('value', $this->client->get('key'));
             $this->client->flush();
@@ -403,9 +403,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_get()
+    public function testGet()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->add('key', 'value');
             $this->assertSame('value', $this->client->get('key'));
         });
@@ -419,9 +419,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_getMulti()
+    public function testGetMulti()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->add('key1', 'value1');
             $this->client->add('key2', 'value2');
             $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], $this->client->getMulti(['key1', 'key2']));
@@ -437,9 +437,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_getByKey()
+    public function testGetByKey()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
             $this->assertSame('value', $this->client->getByKey('my_server', 'key'));
         });
@@ -454,9 +454,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_getMultiByKey()
+    public function testGetMultiByKey()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->addByKey('my_server', 'key1', 'value1');
             $this->client->addByKey('my_server', 'key2', 'value2');
             $this->assertEquals(
@@ -476,9 +476,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_replace()
+    public function testReplace()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->add('key', 'value');
             $this->client->replace('key', 'replaced');
             $this->assertEquals('replaced', $this->client->get('key'));
@@ -494,9 +494,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_replaceByKey()
+    public function testReplaceByKey()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
             $this->client->replaceByKey('my_server', 'key', 'replaced');
             $this->assertEquals('replaced', $this->client->getByKey('my_server', 'key'));
@@ -513,9 +513,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_set()
+    public function testSet()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->set('key', 'value');
         });
         $this->assertSpans($traces, [
@@ -527,9 +527,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_setByKey()
+    public function testSetByKey()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->setByKey('my_server', 'key', 'value');
         });
         $this->assertSpans($traces, [
@@ -542,11 +542,11 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_setMulti()
+    public function testSetMulti()
     {
-        $traces = $this->withTracer(function() {
-            $this->client->setMulti(['key1' =>'value1', 'key2' => 'value2']);
-            $this->assertEquals(['key1' =>'value1', 'key2' => 'value2'], $this->client->getMulti(['key1', 'key2']));
+        $traces = $this->withTracer(function () {
+            $this->client->setMulti(['key1' => 'value1', 'key2' => 'value2']);
+            $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], $this->client->getMulti(['key1', 'key2']));
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.setMulti', 'memcached', 'memcached', 'setMulti')
@@ -558,11 +558,14 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_setMultiByKey()
+    public function testSetMultiByKey()
     {
-        $traces = $this->withTracer(function() {
-            $this->client->setMultiByKey('my_server', ['key1' =>'value1', 'key2' => 'value2']);
-            $this->assertEquals(['key1' =>'value1', 'key2' => 'value2'], $this->client->getMultiByKey('my_server', ['key1', 'key2']));
+        $traces = $this->withTracer(function () {
+            $this->client->setMultiByKey('my_server', ['key1' => 'value1', 'key2' => 'value2']);
+            $this->assertEquals(
+                ['key1' => 'value1', 'key2' => 'value2'],
+                $this->client->getMultiByKey('my_server', ['key1', 'key2'])
+            );
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.setMultiByKey', 'memcached', 'memcached', 'setMultiByKey')
@@ -575,9 +578,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_touch()
+    public function testTouch()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->touch('key');
         });
         $this->assertSpans($traces, [
@@ -589,9 +592,9 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    public function test_touchByKey()
+    public function testTouchByKey()
     {
-        $traces = $this->withTracer(function() {
+        $traces = $this->withTracer(function () {
             $this->client->touchByKey('my_server', 'key');
         });
         $this->assertSpans($traces, [
