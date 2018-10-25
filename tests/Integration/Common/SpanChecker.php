@@ -6,7 +6,6 @@ use DDTrace\Span;
 use PHPUnit\Framework\TestCase;
 
 /**
- * TODO: in the future this may be transformed to a PHPUnit contraint
  * @see https://phpunit.de/manual/5.7/en/extending-phpunit.html#extending-phpunit.custom-assertions
  */
 final class SpanChecker
