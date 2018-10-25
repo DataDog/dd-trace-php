@@ -33,7 +33,7 @@ final class MysqliTest extends Framework\TestCase
         GlobalTracer::set($tracer);
         Mysqli::load();
 
-        $mysql = mysqli_connect('127.0.0.1', 'test', 'test', 'test');
+        $mysql = mysqli_connect('mysql_integration', 'test', 'test', 'test');
 
         $tracer->flush();
 
