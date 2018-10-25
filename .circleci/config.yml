@@ -147,7 +147,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running phpcs
-          command: (git diff --name-status origin/master...HEAD | egrep "^[ACMR].*\.php$" | cut -c 3-) | xargs composer lint-5.4 -- --report=junit | tee test-results/phpcs/results.xml
+          command: (git diff --name-status origin/master...HEAD | egrep "^[ACMR].*\.php$" | cut -c 3- || true) | xargs -r composer lint-5.4 -- --report=junit | tee test-results/phpcs/results.xml
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
   "Static Analysis":
