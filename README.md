@@ -105,9 +105,36 @@ Before contributing to this open source project, read our [CONTRIBUTING.md](http
 
 ### Run tests
 
-```bash
-composer test
-```
+The recommended way to run tests is using the preconfigured docker images that we provide for the different PHP versions.
+
+  - PHP 5.6: `datadog/docker-library:ddtrace_php_5_6`
+  - PHP 7.0: `datadog/docker-library:ddtrace_php_7_0`
+  - PHP 7.1: `datadog/docker-library:ddtrace_php_7_1`
+  - PHP 7.2: `datadog/docker-library:ddtrace_php_7_2`
+
+In order to run tests open a `bash` in the proper image, e.g. for PHP 5.6;
+
+    $ docker-compose run 5.6 bash
+
+At the begin of you session, or at any time when you update the php extension, install it:
+
+    $ composer install-ext
+
+In order to run the tracer tests:
+
+    $ composer test
+
+
+Please note that the later is a wrapper around `phpunit`, so you can use all the common
+[options](https://phpunit.de/manual/5.7/en/textui.html#textui.clioptions) that you would with `phpunit`. Note, though,
+that you need prepend the options list with the additional `--` dashes that `composer` requires:
+
+    # Run a suite and a filter
+    $ composer test -- --testsuite=unit --filter=Predis
+
+In order to run tests for the php extension:
+
+    $ composer test-ext
 
 ### Fix lint
 

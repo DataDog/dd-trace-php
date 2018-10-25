@@ -1,0 +1,41 @@
+version: '3.6'
+
+services:
+
+  '7.2': &base
+    image: "datadog/docker-library:ddtrace_php_7_2"
+    ulimits:
+      core: 99999999999
+    working_dir: '/home/circleci/app'
+    stdin_open: true
+    tty: true
+    volumes: [ '.:/home/circleci/app' ]
+    tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
+    depends_on:
+      - redis_integration
+      - ddagent_integration
+    environment:
+      - REDIS_HOSTNAME=redis_integration
+      - DDAGENT_HOSTNAME=ddagent_integration
+
+  '5.6': { <<: *base, image: 'datadog/docker-library:ddtrace_php_5_6' }
+
+  '7.0': { <<: *base, image: 'datadog/docker-library:ddtrace_php_7_0' }
+
+  '7.1': { <<: *base, image: 'datadog/docker-library:ddtrace_php_7_1' }
+
+  redis_integration:
+    image: "circleci/redis:4.0-alpine"
+  ddagent_integration:
+    image: datadog/agent:latest
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-X", "HEAD", "http://localhost:8126"]
+      interval: 10s
+      timeout: 2s
+      retries: 2
+    environment:
+      - DD_APM_ENABLED=true
+      - DD_BIND_HOST=0.0.0.0
+      - DD_API_KEY=invalid_key_but_its_ok
+    ports:
+      - "8126:8126"
