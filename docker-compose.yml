@@ -12,6 +12,7 @@ services:
     volumes: [ '.:/home/circleci/app' ]
     tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
     depends_on:
+      - memcached_integration
       - redis_integration
       - ddagent_integration
     environment:
@@ -28,6 +29,10 @@ services:
 
   redis_integration:
     image: "circleci/redis:4.0-alpine"
+
+  memcached_integration:
+    image: "memcached:1.5-alpine"
+
   ddagent_integration:
     image: datadog/agent:latest
     healthcheck:
