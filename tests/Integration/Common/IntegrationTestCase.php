@@ -51,14 +51,14 @@ abstract class IntegrationTestCase extends TestCase
      * @param $traces
      * @param SpanAssertion[] $expectedSpans
      */
-    public function assertSpans($traces, SpanAssertion ...$expectedSpans)
+    public function assertSpans($traces, $expectedSpans)
     {
         // First we assert that ALL the expected spans are in the actual traces and no unexpected span exists.
-        $expectedSpansReferences = array_map(function(SpanAssertion $assertion) {
+        $expectedSpansReferences = array_map(function (SpanAssertion $assertion) {
             return $assertion->getOperationName();
         }, $expectedSpans);
         sort($expectedSpansReferences);
-        $tracesReferences = array_map(function(Span $span) {
+        $tracesReferences = array_map(function (Span $span) {
             return $span->getOperationName();
         }, $this->flattenTraces($traces));
         sort($tracesReferences);
@@ -97,9 +97,12 @@ abstract class IntegrationTestCase extends TestCase
             "Wrong value for 'error'"
         );
         if ($exp->getExactTags() != SpanAssertion::NOT_TESTED) {
-            $filtered = array_filter($span->getAllTags(), function($key) use ($exp){
-                return !in_array($key, $exp->getExistingTagNames());
-            }, ARRAY_FILTER_USE_KEY);
+            $filtered = [];
+            foreach ($span->getAllTags() as $key => $value) {
+                if (!in_array($key, $exp->getExistingTagNames())) {
+                    $filtered[] = $key;
+                }
+            }
             $this->assertEquals(
                 $exp->getExactTags(),
                 $filtered,
@@ -157,7 +160,7 @@ abstract class IntegrationTestCase extends TestCase
     {
         $result = [];
 
-        array_walk_recursive($traces, function(Span $span) use (&$result) {
+        array_walk_recursive($traces, function (Span $span) use (&$result) {
             $result[] = $span;
         });
 
