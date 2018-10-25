@@ -53,6 +53,7 @@ abstract class IntegrationTestCase extends TestCase
      */
     public function assertSpans($traces, SpanAssertion ...$expectedSpans)
     {
+        // First we assert that ALL the expected spans are in the actual traces and no unexpected span exists.
         $expectedSpansReferences = array_map(function(SpanAssertion $assertion) {
             return $assertion->getOperationName();
         }, $expectedSpans);
@@ -64,6 +65,7 @@ abstract class IntegrationTestCase extends TestCase
 
         $this->assertEquals($expectedSpansReferences, $tracesReferences, 'Missing or additional spans.');
 
+        // Then we assert content on each individual received span
         foreach ($expectedSpans as $ex) {
             $this->assertSpan($traces, $ex);
         }
