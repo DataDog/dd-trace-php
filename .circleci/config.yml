@@ -16,6 +16,10 @@ aliases:
   - &IMAGE_DOCKER_REDIS
     image: circleci/redis:4.0-alpine
 
+  - &IMAGE_DOCKER_MEMCHACED
+    image: memcached:1.5-alpine
+    name: memcached_integration
+
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
@@ -176,6 +180,7 @@ jobs:
       - image: datadog/docker-library:ddtrace_php_5_6
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_MEMCHACED
 
   "php-7.0":
     <<: *JOB_PHP_DEFAULTS
@@ -183,6 +188,7 @@ jobs:
       - image: datadog/docker-library:ddtrace_php_7_0
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_MEMCHACED
 
   "php-7.1":
     <<: *JOB_PHP_DEFAULTS
@@ -190,6 +196,7 @@ jobs:
       - image: datadog/docker-library:ddtrace_php_7_1
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_MEMCHACED
 
   "php-7.2":
     <<: *JOB_PHP_DEFAULTS
@@ -197,6 +204,7 @@ jobs:
       - image: datadog/docker-library:ddtrace_php_7_2
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_MEMCHACED
 
   "7.0 20151012": &ARTIFACT_BUILD
     working_directory: ~/datadog
