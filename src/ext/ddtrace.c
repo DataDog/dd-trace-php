@@ -151,8 +151,6 @@ static PHP_FUNCTION(dd_trace) {
 
 #if PHP_VERSION_ID < 70000
     FREE_ZVAL(function);
-    // efree(clazz);
-    // efree(function);
 #endif
     RETURN_BOOL(rv);
 }
