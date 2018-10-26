@@ -2,7 +2,7 @@
 FROM ubuntu:14.04
 
 RUN apt-get update && apt-get upgrade -y \
- && apt-get -y install build-essential curl \
+    && apt-get -y install build-essential curl \
     libxml2-dev \
     re2c libbz2-dev \
     pkg-config libssl-dev \

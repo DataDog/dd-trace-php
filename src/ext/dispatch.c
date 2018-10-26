@@ -117,11 +117,11 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         }
     }
 
-    #if PHP_VERSION_ID < 70000
-    if (fci.params){
+#if PHP_VERSION_ID < 70000
+    if (fci.params) {
         efree(fci.params);
     }
-    #endif
+#endif
 
 _exit_cleanup:
 #if PHP_VERSION_ID < 70000
