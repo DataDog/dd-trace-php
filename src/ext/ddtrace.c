@@ -69,8 +69,9 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 }
 
 static inline void table_dtor(void *zv) {
-    zend_hash_destroy((HashTable *)zv);
-    efree(zv);
+    HashTable *ht = *(HashTable **)zv;
+    zend_hash_destroy(ht);
+    efree(ht);
 }
 
 static PHP_RINIT_FUNCTION(ddtrace) {
@@ -96,6 +97,9 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+    zend_hash_destroy(&DDTRACE_G(class_lookup));
+    zend_hash_destroy(&DDTRACE_G(function_lookup));
 
     return SUCCESS;
 }
@@ -143,8 +147,12 @@ static PHP_FUNCTION(dd_trace) {
         return;
     }
 #endif
+    zend_bool rv = ddtrace_trace(clazz, function, callable TSRMLS_CC);
 
-    RETURN_BOOL(ddtrace_trace(clazz, function, callable TSRMLS_CC));
+#if PHP_VERSION_ID < 70000
+    FREE_ZVAL(function);
+#endif
+    RETURN_BOOL(rv);
 }
 
 static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) ZEND_FE_END};

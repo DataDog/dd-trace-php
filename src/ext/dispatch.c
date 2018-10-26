@@ -61,13 +61,6 @@ static ddtrace_dispatch_t *find_dispatch(const char *scope_name, uint32_t scope_
     return lookup_dispatch(class_lookup, function_name, function_name_length);
 }
 
-typedef struct _zend_closure {
-    zend_object std;
-    zend_function func;
-    zval *this_ptr;
-    HashTable *debug_info;
-} zend_closure;
-
 static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execute_data,
                           zval **return_value_ptr TSRMLS_DC) {
     zend_fcall_info fci;
@@ -118,14 +111,25 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     }
 
     ddtrace_setup_fcall(execute_data, &fci, result_ptr TSRMLS_CC);
-
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS) {
         if (!return_value_ptr) {
             zval_dtor(&rv);
         }
     }
 
+#if PHP_VERSION_ID < 70000
+    if (fci.params) {
+        efree(fci.params);
+    }
+#endif
+
 _exit_cleanup:
+#if PHP_VERSION_ID < 70000
+    if (this) {
+        Z_DELREF_P(this);
+    }
+#endif
+
     zval_dtor(&closure);
 }
 
