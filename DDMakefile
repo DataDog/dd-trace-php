@@ -42,4 +42,18 @@ dist_clean:
 clean:
 	$(MAKE) -C $(BUILD_DIR) clean
 
-.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini
+EXT_DIR=/opt/datadog-php
+FPM_INFO_OPTS=-n ddtrace --version 0.0.1 --provides ddtrace --vendor DataDog  --url https://datadog.com/ --no-depends
+FPM_DIR_OPTS=--directories $(EXT_DIR)/etc --config-files $(EXT_DIR)/etc \
+	-s dir extensions/=$(EXT_DIR)/extensions package/post-install.sh=$(EXT_DIR)/bin/post-install.sh tmp/etc/=$(EXT_DIR)/etc
+tmp/etc:
+	mkdir -p tmp/etc
+ddtrace.deb: tmp/etc
+	fpm -t deb $(FPM_INFO_OPTS) $(FPM_DIR_OPTS)
+ddtrace.rpm: tmp/etc
+	fpm -t rpm $(FPM_INFO_OPTS) $(FPM_DIR_OPTS)
+ddtrace.tar: tmp/etc
+	fpm -t tar $(FPM_INFO_OPTS) $(FPM_DIR_OPTS)
+
+.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini ddtrace.deb ddtrace.rpm
+

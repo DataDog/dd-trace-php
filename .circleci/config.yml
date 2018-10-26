@@ -170,7 +170,6 @@ jobs:
           name: Running phpstan
           command: vendor/bin/phpstan analyse --level=2 src
 
-
   "php-5.6":
     <<: *JOB_PHP_DEFAULTS
     docker:
@@ -199,14 +198,74 @@ jobs:
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
 
+  "7.0 20151012": &ARTIFACT_BUILD
+    working_directory: ~/datadog
+    docker: [ image: 'circleci/php:7.0' ]
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/datadog
+      - run:
+          name: Build extension .so
+          command: |
+              mkdir -p extensions
+              make -f DDMakefile all CFLAGS="-O2 -Wall -Werror -Wextra"
+              SUFFIX="$( echo "$CIRCLE_JOB" | awk '{print $NF}' )"
+              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-$SUFFIX.so
+      - persist_to_workspace:
+          root: '.'
+          paths: ['./extensions']
+  "7.1 20160303":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.1' ]
+  "7.2 20170718":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.2' ]
+  "7.0 zts 20151012-zts":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.0-zts' ]
+  "7.1 zts 20160303-zts":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.1-zts' ]
+  "7.2 zts 20170718-zts":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.2-zts' ]
+  "package extension":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.2' ]
+    steps:
+      - attach_workspace:
+          at: ~/datadog
+      - run:
+          name: Package
+          command: |
+              tar -zcf extensions.tar.gz ./extensions
+      - run: sudo apt-get update && sudo apt-get install -y ruby ruby-dev rubygems build-essential && sudo gem install --no-ri --no-rdoc fpm
+
+      - store_artifacts:
+          path: extensions.tar.gz
 workflows:
   version: 2
   build:
     jobs:
-      - "Lint files"
-      - "Check 5.4 compatibility (only changed files)"
-      - "Static Analysis"
-      - "php-5.6"
-      - "php-7.0"
-      - "php-7.1"
-      - "php-7.2"
+      - "7.0 20151012"
+      - "7.1 20160303"
+      - "7.2 20170718"
+      - "7.0 zts 20151012-zts"
+      - "7.1 zts 20160303-zts"
+      - "7.2 zts 20170718-zts"
+      - "package extension":
+          requires:
+            - "7.0 20151012"
+            - "7.1 20160303"
+            - "7.2 20170718"
+            - "7.0 zts 20151012-zts"
+            - "7.1 zts 20160303-zts"
+            - "7.2 zts 20170718-zts"
+      # - "Lint files"
+      # - "Check 5.4 compatibility (only changed files)"
+      # - "Static Analysis"
+      # - "php-5.6"
+      # - "php-7.0"
+      # - "php-7.1"
+      # - "php-7.2"
