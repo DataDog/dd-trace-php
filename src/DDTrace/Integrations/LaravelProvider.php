@@ -55,6 +55,8 @@ class LaravelProvider extends ServiceProvider
         // Trace middleware
         dd_trace(Pipeline::class, 'through', function ($pipes) {
             foreach ($pipes as $pipe) {
+                $pipeClass = explode(':', $pipe)[0];
+
                 dd_trace($pipe, 'handle', function (...$args) {
                     $scope = GlobalTracer::get()->startActiveSpan('laravel.middleware');
                     $span = $scope->getSpan();

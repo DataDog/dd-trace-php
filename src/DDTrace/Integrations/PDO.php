@@ -142,7 +142,7 @@ class PDO
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
-        dd_trace('PDOStatement', 'execute', function ($params = array()) {
+        dd_trace('PDOStatement', 'execute', function (...$params) {
             $scope = GlobalTracer::get()->startActiveSpan('PDOStatement.execute');
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
@@ -151,7 +151,7 @@ class PDO
             PDO::setStatementTags($this, $span);
 
             try {
-                $result = $this->execute($params);
+                $result = $this->execute(...$params);
                 try {
                     $span->setTag('db.rowcount', $this->rowCount());
                 } catch (\Exception $e) {
