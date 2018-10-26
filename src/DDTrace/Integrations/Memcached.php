@@ -38,7 +38,7 @@ class Memcached
 
         // bool Memcached::addByKey ( string $server_key , string $key , mixed $value [, int $expiration ] )
         dd_trace('Memcached', 'addByKey', function (...$args) {
-            return Memcached::traceCommandByKey($this, 'add', $args);
+            return Memcached::traceCommandByKey($this, 'addByKey', $args);
         });
 
         // bool Memcached::append ( string $key , string $value )
@@ -125,12 +125,12 @@ class Memcached
 
         // mixed Memcached::getMulti ( array $keys [, int $flags ] )
         dd_trace('Memcached', 'getMulti', function (...$args) {
-            return Memcached::traceCommand($this, 'getMulti', $args);
+            return Memcached::traceMulti($this, 'getMulti', $args);
         });
 
         // array Memcached::getMultiByKey ( string $server_key , array $keys [, int $flags ] )
         dd_trace('Memcached', 'getMultiByKey', function (...$args) {
-            return Memcached::traceCommandByKey($this, 'getMultiByKey', $args);
+            return Memcached::traceMultiByKey($this, 'getMultiByKey', $args);
         });
 
         // int Memcached::increment ( string $key [, int $offset = 1 [, int $initial_value = 0
@@ -305,7 +305,7 @@ class Memcached
         $span->setTag(Tags\SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', $command);
 
-        $query = "$command " . implode(',', array_keys($args[0]));
+        $query = "$command " . implode(',', self::extractKeys($args[0]));
         $span->setTag('memcached.query', $query);
         $span->setResource($command);
 
@@ -329,7 +329,7 @@ class Memcached
         $span->setTag('memcached.server_key', $args[0]);
         self::setServerTagsByKey($span, $memcached, $args[0]);
 
-        $query = "$command " . implode(',', array_keys($args[1]));
+        $query = "$command " . implode(',', self::extractKeys($args[1]));
         $span->setTag('memcached.query', $query);
         $span->setResource($command);
 
@@ -357,5 +357,22 @@ class Memcached
         $server = $memcached->getServerByKey($key);
         $span->setTag(Tags\TARGET_HOST, $server['host']);
         $span->setTag(Tags\TARGET_PORT, $server['port']);
+    }
+
+    /**
+     * Given a callback arg, it extract the keys depending on scalar vs associative array.
+     *
+     * @param $array
+     * @return array
+     */
+    private static function extractKeys($array)
+    {
+        if (array_keys($array) === range(0, count($array) - 1)) {
+            // Non-Association array, used in getMulti...
+            return array_values($array);
+        } else {
+            // Associative array, used in setMulti...
+            return array_keys($array);
+        }
     }
 }
