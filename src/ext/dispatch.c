@@ -115,10 +115,6 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         if (!return_value_ptr) {
             zval_dtor(&rv);
         }
-        // TODO: handle the case when this is a constructor
-        // if (*result_ptr && EX(opline)->result_type & EXT_TYPE_UNUSED){
-        //     efree(*result_ptr);
-        // }
     }
 
     #if PHP_VERSION_ID < 70000
@@ -128,9 +124,11 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     #endif
 
 _exit_cleanup:
+#if PHP_VERSION_ID < 70000
     if (this) {
         Z_DELREF_P(this);
     }
+#endif
 
     zval_dtor(&closure);
 }
