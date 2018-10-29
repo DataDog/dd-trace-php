@@ -58,7 +58,7 @@ FPM_INFO_OPTS=-a native -n $(PACKAGE_NAME) -m dev@datadoghq.com --license "BSD 3
 FPM_DIR_OPTS=--directories $(EXT_DIR)/etc --config-files $(EXT_DIR)/etc -s dir
 FPM_FILES=extensions/=$(EXT_DIR)/extensions package/post-install.sh=$(EXT_DIR)/bin/post-install.sh package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
 	docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md
-FPM_OPTS=$(FPM_INFO_OPTS) $(FPM_DIR_OPTS) --after-install=package/post-install.sh
+FPM_OPTS=$(FPM_INFO_OPTS) $(FPM_DIR_OPTS) --after-install=package/post-install.sh --depends="php > 7"
 
 
 PACKAGES_BUILD_DIR:=build/packages
@@ -76,6 +76,7 @@ $(PACKAGES_BUILD_DIR):
 	fpm -p $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME).x86_64.tar.gz -t tar $(FPM_OPTS) $(FPM_FILES)
 
 packages: .apk .rpm .deb .tar.gz
+	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
 .PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini .apk .rpm .deb .tar.gz src/ext/version.h
 
