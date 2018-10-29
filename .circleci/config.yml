@@ -244,17 +244,20 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ruby ruby-dev rubygems build-essential rpm && sudo gem install --no-ri --no-rdoc fpm
       - run: make -f DDMakefile packages
       - store_artifacts: { path: 'build/packages', destination: / }
-      - store_artifacts: { path: 'packages.tar.gz', destination: 'all' }
+      - store_artifacts: { path: 'packages.tar.gz', destination: '/all/' }
 workflows:
   version: 2
-  build:
+  build_packages:
     jobs:
-      - "7.0 20151012"
-      - "7.1 20160303"
-      - "7.2 20170718"
-      - "7.0 zts 20151012-zts"
-      - "7.1 zts 20160303-zts"
-      - "7.2 zts 20170718-zts"
+      - "hold":
+          type: approval
+      - "7.0 20151012": &BUILD_PACKAGE_FORKFLOW
+          requires: [ "hold" ]
+      - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
+      - "7.2 20170718": *BUILD_PACKAGE_FORKFLOW
+      - "7.0 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
+      - "7.1 zts 20160303-zts": *BUILD_PACKAGE_FORKFLOW
+      - "7.2 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
       - "package extension":
           requires:
             - "7.0 20151012"
@@ -263,10 +266,12 @@ workflows:
             - "7.0 zts 20151012-zts"
             - "7.1 zts 20160303-zts"
             - "7.2 zts 20170718-zts"
-      # - "Lint files"
-      # - "Check 5.4 compatibility (only changed files)"
-      # - "Static Analysis"
-      # - "php-5.6"
-      # - "php-7.0"
-      # - "php-7.1"
-      # - "php-7.2"
+  build:
+    jobs:
+      - "Lint files"
+      - "Check 5.4 compatibility (only changed files)"
+      - "Static Analysis"
+      - "php-5.6"
+      - "php-7.0"
+      - "php-7.1"
+      - "php-7.2"
