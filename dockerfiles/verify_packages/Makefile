@@ -5,6 +5,8 @@ ALPINE_PHP_VERSIONS=7.0.alpine 7.1.alpine 7.2.alpine
 
 .PHONY: $(DEB_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) all
 
+all: $(DEB_PHP_VERSIONS) $(CENTOS6_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS)
+
 $(DEB_PHP_VERSIONS): %.deb:
 	@echo Building Debian Jessie - PHP $*
 	@docker build -t deb_jessie:$* --build-arg php_version=$* -f dockerfiles/verify_packages/debian_jessie/Dockerfile .
@@ -22,4 +24,3 @@ $(ALPINE_PHP_VERSIONS): %.alpine:
 	@echo Building Alpine - PHP $*
 	@docker build -t alpine_php:$* -f dockerfiles/verify_packages/alpine/$*/Dockerfile .
 
-all: $(DEB_PHP_VERSIONS) $(CENTOS6_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS)
