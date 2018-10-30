@@ -24,6 +24,8 @@ services:
 
   '7.1': { <<: *base, image: 'datadog/docker-library:ddtrace_php_7_1' }
 
+  'fpm': { <<: *base, image: 'circleci/ruby:2.5', depends_on: [] }
+
   redis_integration:
     image: "circleci/redis:4.0-alpine"
   ddagent_integration:
