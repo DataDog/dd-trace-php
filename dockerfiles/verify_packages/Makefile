@@ -1,7 +1,7 @@
 DEB_PHP_VERSIONS:=7.0.deb 7.1.deb 7.2.deb
 CENTOS6_PHP_VERSIONS=70.centos6 71.centos6
 CENTOS7_PHP_VERSIONS=70.centos7 71.centos7 72.centos7
-ALPINE_PHP_VERSIONS=7.0.alpine 7.1.alpine 7.2.alpine
+ALPINE_PHP_VERSIONS=7.0.alpine 7.1.alpine 7.2.alpine 7.0-zts.alpine 7.1-zts.alpine 7.2-zts.alpine
 
 .PHONY: $(DEB_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) all
 
@@ -22,5 +22,8 @@ $(CENTOS6_PHP_VERSIONS): %.centos6:
 
 $(ALPINE_PHP_VERSIONS): %.alpine:
 	@echo Building Alpine - PHP $*
-	@docker build -t alpine_php:$* -f dockerfiles/verify_packages/alpine/$*/Dockerfile .
+	@test -f dockerfiles/verify_packages/alpine/Dockerfile && rm dockerfiles/verify_packages/alpine/Dockerfile || true
+	@sed -e "s/%%php_version%%/$*-alpine/g" dockerfiles/verify_packages/alpine/Dockerfile.template > dockerfiles/verify_packages/alpine/Dockerfile
+	@docker build -t alpine_php:$* -f dockerfiles/verify_packages/alpine/Dockerfile .
+	@test -f dockerfiles/verify_packages/alpine/Dockerfile && rm dockerfiles/verify_packages/alpine/Dockerfile
 

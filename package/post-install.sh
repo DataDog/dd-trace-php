@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash --login
 
 EXTENSION_BASE_DIR=/opt/datadog-php
 EXTENSION_DIR=${EXTENSION_BASE_DIR}/extensions

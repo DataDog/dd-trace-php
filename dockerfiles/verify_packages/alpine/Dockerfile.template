@@ -1,4 +1,4 @@
-FROM php:7.0-alpine
+FROM php:%%php_version%%
 
 ADD build/packages /packages
 
