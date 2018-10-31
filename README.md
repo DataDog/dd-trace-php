@@ -6,7 +6,15 @@
 
 PHP Tracer
 
-This is alpha software. We do not recommend using it in production yet.
+This is Beta software. We do not recommend using it in production yet.
+
+## Getting Started
+
+For a basic product overview, check out our [setup documentation](https://docs.datadoghq.com/tracing/setup/php/).
+
+For installation, configuration, and and details about using the API, check out our [API documentation](docs/getting_started.md).
+
+For descriptions of terminology used in APM, take a look at the [official documentation](https://docs.datadoghq.com/tracing/visualization/).
 
 ## Installation
 
@@ -16,7 +24,7 @@ composer require datadog/dd-trace
 
 ## Requirements
 
-- PHP 5.6 or later
+- PHP 7.0 or later
 
 ## Usage
 
