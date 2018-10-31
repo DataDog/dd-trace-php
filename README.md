@@ -6,7 +6,7 @@
 
 PHP Tracer
 
-This is alpha software. We do not recommend using it in production yet.
+This is Beta software. We do not recommend using it in production yet.
 
 ## Installation
 
@@ -16,7 +16,7 @@ composer require datadog/dd-trace
 
 ## Requirements
 
-- PHP 5.6 or later
+- PHP 7.0 or later
 
 ## Usage
 
