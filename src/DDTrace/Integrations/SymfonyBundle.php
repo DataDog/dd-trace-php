@@ -4,6 +4,7 @@ namespace DDTrace\Integrations;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Tags;
+use DDTrace\Types;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use OpenTracing\GlobalTracer;
@@ -39,6 +40,7 @@ class SymfonyBundle extends Bundle
             return;
         }
 
+
         // Creates a tracer with default transport and default propagators
         $tracer = new Tracer(new Http(new Json()));
 
@@ -47,19 +49,26 @@ class SymfonyBundle extends Bundle
 
         // Create a span that starts from when Symfony first boots
         $scope = $tracer->startActiveSpan('symfony.request');
-        $scope->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
+        $symfony_request_span = $scope->getSpan();
+        $symfony_request_span->setTag(Tags\SERVICE_NAME, $this->getAppName());
+        $symfony_request_span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
-        dd_trace(HttpKernel::class, 'handle', function (...$args) {
+        dd_trace(HttpKernel::class, 'handle', function ($request, ...$args) use ($symfony_request_span) {
             $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
 
             try {
-                return $this->handle(...$args);
+                return $this->handle($request, ...$args);
             } catch (\Exception $e) {
                 $span = $scope->getSpan();
                 $span->setError($e);
                 throw $e;
             } finally {
+                $route = $request->get('_route');
+
+                if ($symfony_request_span !== null && $route !== null) {
+                    $symfony_request_span->setResource($route);
+                }
                 $scope->close();
             }
         });
