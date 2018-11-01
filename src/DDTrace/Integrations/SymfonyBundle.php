@@ -40,7 +40,6 @@ class SymfonyBundle extends Bundle
             return;
         }
 
-
         // Creates a tracer with default transport and default propagators
         $tracer = new Tracer(new Http(new Json()));
 
