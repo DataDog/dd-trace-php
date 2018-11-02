@@ -115,6 +115,9 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         if (!return_value_ptr) {
             zval_dtor(&rv);
         }
+        #if PHP_VERSION_ID < 70000
+        zend_vm_stack_clear_multiple(0 TSRMLS_CC);
+        #endif
     }
 
 #if PHP_VERSION_ID < 70000
