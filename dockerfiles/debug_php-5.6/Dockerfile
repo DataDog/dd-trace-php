@@ -33,7 +33,6 @@ RUN apt-get install -y libgmp-dev libmcrypt-dev && ln -s /usr/include/x86_64-lin
 
 RUN ./configure --help
 
-
 RUN ./configure \
     --enable-mbstring \
     --enable-zip \
@@ -68,32 +67,11 @@ RUN ./configure \
     --disable-nls \
     --enable-debug
 
-# RUN ./configure  --enable-debug --help
-
-
 RUN make -j 4
 
 RUN make install
-# RUN apk --update add wget \
-# 	curl \
-# 	git \
-# 	grep \
-# 	gmp-dev \
-# 	libmcrypt-dev \
-# 	freetype-dev \
-# 	libxpm-dev \
-# 	libwebp-dev \
-# 	libjpeg-turbo-dev \
-# 	libjpeg \
-# 	bzip2-dev \
-# 	openssl-dev \
-# 	krb5-dev \
-# 	libxml2-dev \
-# 	build-base \
-# 	tar \
-# 	make \
-# 	autoconf
 
+RUN apt-get install -y valgrind
 
 CMD ["bash"]
 
