@@ -31,7 +31,7 @@ final class MemcachedTest extends IntegrationTestCase
     {
         parent::setUp();
 
-        if(PHP_MAJOR_VERSION < 7) {
+        if (PHP_MAJOR_VERSION < 7) {
             $this->markTestSkipped('Memcached integration with php 5.6 has a known bug. Work in Progress to fix it.');
         }
 
