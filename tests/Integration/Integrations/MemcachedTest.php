@@ -30,6 +30,11 @@ final class MemcachedTest extends IntegrationTestCase
     protected function setUp()
     {
         parent::setUp();
+
+        if(PHP_MAJOR_VERSION < 7) {
+            $this->markTestSkipped('Memcached integration with php 5.6 has a known bug. Work in Progress to fix it.');
+        }
+
         $this->client = new \Memcached();
         $this->client->addServer(MEMCACHED_HOST, MEMCACHED_PORT);
         $this->withTracer(function () {
