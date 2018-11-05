@@ -5,9 +5,8 @@ namespace DDTrace\Tests\Integration\Common;
 use DDTrace\Span;
 use DDTrace\Tracer;
 use DDTrace\Tests\DebugTransport;
-
-use PHPUnit\Framework\TestCase;
 use OpenTracing\GlobalTracer;
+use PHPUnit\Framework\TestCase;
 
 /**
  * A basic class to be extended when testing integrations.
