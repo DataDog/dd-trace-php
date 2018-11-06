@@ -32,7 +32,7 @@ class SymfonyBundle extends Bundle
         parent::boot();
 
         if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
+            trigger_error('ddtrace extension required to load Symfony integration.', E_USER_WARNING);
             return;
         }
 
