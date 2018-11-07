@@ -36,15 +36,16 @@ class SymfonyBundle extends Bundle
             return;
         }
 
-        if (php_sapi_name() == 'cli') {
+        // TODO: move to a utility class
+        if (getenv('APP_ENV') != 'test' && php_sapi_name() == 'cli') {
             return;
         }
-
         // Creates a tracer with default transport and default propagators
         $tracer = new Tracer(new Http(new Json()));
 
         // Sets a global tracer (singleton).
         GlobalTracer::set($tracer);
+
 
         // Create a span that starts from when Symfony first boots
         $scope = $tracer->startActiveSpan('symfony.request');
