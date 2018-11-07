@@ -237,7 +237,7 @@ final class Span implements OpenTracingSpan
      * updated and the error.Error() string is included with a default tag key.
      * If the Span has been finished, it will not be modified by this method.
      *
-     * @param Throwable|Exception|bool|null $error
+     * @param Throwable|Exception|bool|string|null $error
      * @throws InvalidArgumentException
      */
     public function setError($error)
@@ -264,6 +264,21 @@ final class Span implements OpenTracingSpan
         }
 
         throw InvalidSpanArgument::forError($error);
+    }
+
+    /**
+     * @param string $message
+     * @param string $type
+     */
+    public function setRawError($message, $type)
+    {
+        if ($this->isFinished()) {
+            return;
+        }
+
+        $this->hasError = true;
+        $this->tags[Tags\ERROR_MSG] = $message;
+        $this->tags[Tags\ERROR_TYPE] = $type;
     }
 
     public function hasError()
