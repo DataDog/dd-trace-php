@@ -4,7 +4,7 @@ namespace Tests\Integration;
 
 use DDTrace\Tests\Integration\Common\SpanAssertionTrait;
 use DDTrace\Tests\Integration\Common\TracerTestTrait;
-use DDTrace\Tests\Integration\Frameworks\Laravel\Util\Version_4\Laravel4ExpectationsProvider;
+use DDTrace\Tests\Integration\Frameworks\Laravel\Laravel4ExpectationsProvider;
 use DDTrace\Tests\Integration\Frameworks\TestSpecs;
 use DDTrace\Tests\Integration\Frameworks\Util\CommonSpecsProvider;
 use DDTrace\Tests\Integration\Frameworks\Util\Request\GetSpec;

@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Frameworks\Laravel\Util\Version_5;
+namespace DDTrace\Tests\Integration\Frameworks\Laravel;
 
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 use DDTrace\Tests\Integration\Frameworks\Util\ExpectationProvider;
