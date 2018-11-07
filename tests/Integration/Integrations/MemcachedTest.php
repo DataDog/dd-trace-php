@@ -6,14 +6,6 @@ use DDTrace\Integrations;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 
-const MEMCACHED_HOST = 'memcached_integration';
-const MEMCACHED_PORT = '11211';
-
-const BASE_TAGS = [
-    'out.host' => MEMCACHED_HOST,
-    'out.port' => MEMCACHED_PORT,
-];
-
 
 final class MemcachedTest extends IntegrationTestCase
 {
@@ -21,6 +13,9 @@ final class MemcachedTest extends IntegrationTestCase
      * @var \Memcached
      */
     private $client;
+
+    private static $host = 'memcached_integration';
+    private static $port = '11211';
 
     public static function setUpBeforeClass()
     {
@@ -36,7 +31,7 @@ final class MemcachedTest extends IntegrationTestCase
         }
 
         $this->client = new \Memcached();
-        $this->client->addServer(MEMCACHED_HOST, MEMCACHED_PORT);
+        $this->client->addServer(self::$host, self::$port);
         $this->isolateTracer(function () {
             // Cleaning up existing data from previous tests
             $this->client->flush();
@@ -50,7 +45,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.add', 'memcached', 'memcached', 'add')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'add key',
                     'memcached.command' => 'add',
                 ])),
@@ -64,7 +59,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.addByKey', 'memcached', 'memcached', 'addByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'addByKey key',
                     'memcached.command' => 'addByKey',
                     'memcached.server_key' => 'my_server',
@@ -85,7 +80,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.append', 'memcached', 'memcached', 'append')
                 ->setError()
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'append key',
                     'memcached.command' => 'append',
                 ]))
@@ -101,7 +96,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.append', 'memcached', 'memcached', 'append')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'append key',
                     'memcached.command' => 'append',
                 ])),
@@ -121,7 +116,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.appendByKey', 'memcached', 'memcached', 'appendByKey')
                 ->setError()
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'appendByKey key',
                     'memcached.command' => 'appendByKey',
                     'memcached.server_key' => 'my_server',
@@ -139,7 +134,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.appendByKey', 'memcached', 'memcached', 'appendByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'appendByKey key',
                     'memcached.command' => 'appendByKey',
                     'memcached.server_key' => 'my_server',
@@ -162,7 +157,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.delete', 'memcached', 'memcached', 'delete')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'delete key',
                     'memcached.command' => 'delete',
                 ])),
@@ -185,7 +180,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::build('Memcached.deleteByKey', 'memcached', 'memcached', 'deleteByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'deleteByKey key',
                     'memcached.command' => 'deleteByKey',
                     'memcached.server_key' => 'my_server',
@@ -248,7 +243,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::build('Memcached.deleteMultiByKey', 'memcached', 'memcached', 'deleteMultiByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'deleteMultiByKey key1,key2',
                     'memcached.command' => 'deleteMultiByKey',
                     'memcached.server_key' => 'my_server',
@@ -276,13 +271,13 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement key',
                     'memcached.command' => 'decrement',
                 ])),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement key',
                     'memcached.command' => 'decrement',
                 ])),
@@ -305,7 +300,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement key',
                     'memcached.command' => 'decrement',
                 ])),
@@ -327,7 +322,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.decrementByKey', 'memcached', 'memcached', 'decrementByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrementByKey key',
                     'memcached.command' => 'decrementByKey',
                     'memcached.server_key' => 'my_server',
@@ -352,13 +347,13 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment key',
                     'memcached.command' => 'increment',
                 ])),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment key',
                     'memcached.command' => 'increment',
                 ])),
@@ -380,7 +375,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment key',
                     'memcached.command' => 'increment',
                 ])),
@@ -401,7 +396,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.incrementByKey', 'memcached', 'memcached', 'incrementByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'incrementByKey key',
                     'memcached.command' => 'incrementByKey',
                     'memcached.server_key' => 'my_server',
@@ -442,7 +437,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.get', 'memcached', 'memcached', 'get')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'get key',
                     'memcached.command' => 'get',
                 ])),
@@ -478,7 +473,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.getByKey', 'memcached', 'memcached', 'getByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'getByKey key',
                     'memcached.command' => 'getByKey',
                     'memcached.server_key' => 'my_server',
@@ -501,7 +496,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.getMultiByKey', 'memcached', 'memcached', 'getMultiByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'getMultiByKey key1,key2',
                     'memcached.command' => 'getMultiByKey',
                     'memcached.server_key' => 'my_server',
@@ -520,7 +515,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.replace', 'memcached', 'memcached', 'replace')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'replace key',
                     'memcached.command' => 'replace',
                 ])),
@@ -539,7 +534,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.replaceByKey', 'memcached', 'memcached', 'replaceByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'replaceByKey key',
                     'memcached.command' => 'replaceByKey',
                     'memcached.server_key' => 'my_server',
@@ -555,7 +550,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.set', 'memcached', 'memcached', 'set')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'set key',
                     'memcached.command' => 'set',
                 ])),
@@ -569,7 +564,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.setByKey', 'memcached', 'memcached', 'setByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'setByKey key',
                     'memcached.command' => 'setByKey',
                     'memcached.server_key' => 'my_server',
@@ -606,7 +601,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.setMultiByKey', 'memcached', 'memcached', 'setMultiByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'setMultiByKey key1,key2',
                     'memcached.command' => 'setMultiByKey',
                     'memcached.server_key' => 'my_server',
@@ -622,7 +617,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.touch', 'memcached', 'memcached', 'touch')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'touch key',
                     'memcached.command' => 'touch',
                 ])),
@@ -636,11 +631,19 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.touchByKey', 'memcached', 'memcached', 'touchByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'touchByKey key',
                     'memcached.command' => 'touchByKey',
                     'memcached.server_key' => 'my_server',
                 ])),
         ]);
+    }
+
+    private static function baseTags()
+    {
+        return [
+            'out.host' => self::$host,
+            'out.port' => self::$port,
+        ];
     }
 }
