@@ -41,7 +41,8 @@ class LaravelProvider extends ServiceProvider
             return;
         }
 
-        if (php_sapi_name() == 'cli') {
+        // TODO: move to a utility class
+        if (getenv('APP_ENV') != 'testing' && php_sapi_name() == 'cli') {
             return;
         }
 
