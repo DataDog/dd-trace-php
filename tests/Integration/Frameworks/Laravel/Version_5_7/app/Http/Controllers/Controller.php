@@ -11,4 +11,9 @@ class Controller extends BaseController
     {
         return "simple";
     }
+
+    public function simple_view()
+    {
+        return view("simple_view");
+    }
 }

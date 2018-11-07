@@ -11,6 +11,7 @@ class TestSpecs
     {
         return [
             GetSpec::create('A simple GET request', '/simple'),
+            GetSpec::create('A simple GET request with a view', '/simple_view'),
         ];
     }
 }
