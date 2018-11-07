@@ -6,6 +6,7 @@ use DDTrace;
 use DDTrace\Encoders\Json;
 use DDTrace\Tags;
 use DDTrace\Tracer;
+use DDTrace\Types;
 use DDTrace\Transport\Http;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Pipeline\Pipeline;
@@ -55,6 +56,8 @@ class LaravelProvider extends ServiceProvider
         // Trace middleware
         dd_trace(Pipeline::class, 'through', function ($pipes) {
             foreach ($pipes as $pipe) {
+                $pipeClass = explode(':', $pipe)[0];
+
                 dd_trace($pipe, 'handle', function (...$args) {
                     $scope = GlobalTracer::get()->startActiveSpan('laravel.middleware');
                     $span = $scope->getSpan();
@@ -91,6 +94,7 @@ class LaravelProvider extends ServiceProvider
         // Create a span that starts from when Laravel first boots (public/index.php)
         $scope = $tracer->startActiveSpan('laravel.request', ['start_time' => fromMicrotime(LARAVEL_START)]);
         $scope->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
+        $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
         // Name the scope when the route matches
         $this->app['events']->listen(RouteMatched::class, function (RouteMatched $event) use ($scope) {

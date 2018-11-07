@@ -40,7 +40,7 @@ final class PredisTest extends IntegrationTestCase
     {
         $client = new \Predis\Client([ "host" => $this->redisHostname() ]);
 
-        $traces = $this->withTracer(function () use ($client) {
+        $traces = $this->isolateTracer(function () use ($client) {
             $client->set('foo', 'value');
         });
         $this->assertCount(1, $traces);

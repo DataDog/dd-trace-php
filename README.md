@@ -3,10 +3,21 @@
 [![CircleCI](https://circleci.com/gh/DataDog/dd-trace-php/tree/master.svg?style=svg)](https://circleci.com/gh/DataDog/dd-trace-php/tree/master)
 [![OpenTracing Badge](https://img.shields.io/badge/OpenTracing-enabled-blue.svg)](http://opentracing.io)
 [![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%205.6-8892BF.svg)](https://php.net/)
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
+[![Packagist Version](https://img.shields.io/packagist/v/datadog/dd-trace.svg)](https://packagist.org/packages/datadog/dd-trace)
+[![Total Downloads](https://img.shields.io/packagist/dt/datadog/dd-trace.svg)](https://packagist.org/packages/datadog/dd-trace)
 
 PHP Tracer
 
-This is alpha software. We do not recommend using it in production yet.
+This is Beta software. We do not recommend using it in production yet.
+
+## Getting Started
+
+For a basic product overview, check out our [setup documentation](https://docs.datadoghq.com/tracing/setup/php/).
+
+For installation, configuration, and and details about using the API, check out our [API documentation](docs/getting_started.md).
+
+For descriptions of terminology used in APM, take a look at the [official documentation](https://docs.datadoghq.com/tracing/visualization/).
 
 ## Installation
 
@@ -16,7 +27,7 @@ composer require datadog/dd-trace
 
 ## Requirements
 
-- PHP 5.6 or later
+- PHP 7.0 or later
 
 ## Usage
 

@@ -5,9 +5,8 @@ namespace DDTrace\Tests\Integration\Common;
 use DDTrace\Span;
 use DDTrace\Tracer;
 use DDTrace\Tests\DebugTransport;
-
-use PHPUnit\Framework\TestCase;
 use OpenTracing\GlobalTracer;
+use PHPUnit\Framework\TestCase;
 
 /**
  * A basic class to be extended when testing integrations.
@@ -29,7 +28,7 @@ abstract class IntegrationTestCase extends TestCase
      * @param $fn
      * @return Span[][]
      */
-    public function withTracer($fn)
+    public function isolateTracer($fn)
     {
         $transport = new DebugTransport();
         $tracer = new Tracer($transport);
@@ -48,7 +47,7 @@ abstract class IntegrationTestCase extends TestCase
      */
     public function inTestScope($name, $fn)
     {
-        return $this->withTracer(function ($tracer) use ($fn, $name) {
+        return $this->isolateTracer(function ($tracer) use ($fn, $name) {
             $scope = $tracer->startActiveSpan($name);
             $fn($tracer);
             $scope->close();

@@ -26,6 +26,10 @@ aliases:
   - &IMAGE_DOCKER_REDIS
     image: circleci/redis:4.0-alpine
 
+  - &IMAGE_DOCKER_MEMCHACED
+    image: memcached:1.5-alpine
+    name: memcached_integration
+
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
@@ -126,10 +130,10 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon'
+          command: node_modules/.bin/eclint check '**/*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon' '!tests/Integration/Frameworks/*/Version_*/**' || touch .failure
       - run:
           name: Running phpcs
-          command: composer lint -- --report=junit | tee test-results/phpcs/results.xml
+          command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
       - run:
           name: Install clang-format 6.0
           command: sudo apt -y install clang-format-6.0/testing
@@ -142,9 +146,12 @@ jobs:
               then
                 clang-format-6.0 -output-replacements-xml $fname
                 echo "$fname did not pass clang-format, consider running: find ./ -iname *.h -o -iname *.c | xargs clang-format -i"
-                exit 1
+                touch .failure
               fi
             done
+      - run:
+          name: Check linting failure
+          command: test -e .failure && exit 1 || true
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
@@ -190,6 +197,7 @@ jobs:
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_MEMCHACED
 
   "php-7.0":
     <<: *JOB_PHP_DEFAULTS
@@ -198,6 +206,7 @@ jobs:
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_MEMCHACED
 
   "php-7.1":
     <<: *JOB_PHP_DEFAULTS
@@ -206,6 +215,7 @@ jobs:
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_MEMCHACED
 
   "php-7.2":
     <<: *JOB_PHP_DEFAULTS
@@ -214,9 +224,84 @@ jobs:
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_MEMCHACED
+
+  "7.0 20151012": &ARTIFACT_BUILD
+    working_directory: ~/datadog
+    docker: [ image: 'circleci/php:7.0' ]
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/datadog
+      - run:
+          name: Build extension .so
+          command: |
+              mkdir -p extensions
+              make -f DDMakefile all CFLAGS="-O2 -Wall -Werror -Wextra"
+              SUFFIX="$( echo "$CIRCLE_JOB" | awk '{print $NF}' )"
+              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-$SUFFIX.so
+      - persist_to_workspace:
+          root: '.'
+          paths: ['./extensions']
+  "7.1 20160303":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.1' ]
+  "7.2 20170718":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.2' ]
+  "7.0 zts 20151012-zts":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.0-zts' ]
+  "7.1 zts 20160303-zts":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.1-zts' ]
+  "7.2 zts 20170718-zts":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.2-zts' ]
+  "package extension":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.2' ]
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/datadog
+      - run:
+          name: Install FPM and build dependencies
+          command: sudo apt-get update && sudo apt-get install -y ruby ruby-dev rubygems build-essential rpm && sudo gem install --no-ri --no-rdoc fpm
+      - run:
+          name: Build packages
+          command: make -f DDMakefile packages
+      - store_artifacts: { path: 'build/packages', destination: / }
+      - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
+      - setup_remote_docker
+      - run:
+          name: Test installing packages on target systems
+          command: make -f dockerfiles/verify_packages/Makefile
+
 
 workflows:
   version: 2
+  build_packages:
+    jobs:
+      - "7.0 20151012": &BUILD_PACKAGE_FORKFLOW
+          filters:
+            tags:
+              only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
+            branches:
+              ignore: /.*/
+      - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
+      - "7.2 20170718": *BUILD_PACKAGE_FORKFLOW
+      - "7.0 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
+      - "7.1 zts 20160303-zts": *BUILD_PACKAGE_FORKFLOW
+      - "7.2 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
+      - "package extension":
+          requires:
+            - "7.0 20151012"
+            - "7.1 20160303"
+            - "7.2 20170718"
+            - "7.0 zts 20151012-zts"
+            - "7.1 zts 20160303-zts"
+            - "7.2 zts 20170718-zts"
   build:
     jobs:
       - "Lint files"
