@@ -12,7 +12,7 @@
 >
     <testsuites>
         <testsuite name="Integration">
-            <directory>../tests/Version_4</directory>
+            <directory>./app/tests</directory>
         </testsuite>
     </testsuites>
     <php>

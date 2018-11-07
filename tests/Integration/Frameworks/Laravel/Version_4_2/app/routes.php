@@ -11,7 +11,5 @@
 |
 */
 
-Route::get('/', function()
-{
-	return View::make('hello');
-});
+Route::get('/simple', 'HomeController@simple');
+Route::get('/simple_view', 'HomeController@simple_view');

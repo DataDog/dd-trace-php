@@ -122,6 +122,10 @@ return array(
 		'Illuminate\View\ViewServiceProvider',
 		'Illuminate\Workbench\WorkbenchServiceProvider',
 
+		/*
+		 * 3rd parties
+		 */
+		DDTrace\Integrations\LaravelProvider::class,
 	),
 
 	/*

@@ -6692,7 +6692,8 @@ use Monolog\Handler\HandlerInterface;
 use Monolog\Handler\StreamHandler;
 use Psr\Log\LoggerInterface;
 use Psr\Log\InvalidArgumentException;
-class Logger implements LoggerInterface
+use Exception;
+class Logger implements LoggerInterface, ResettableInterface
 {
     const DEBUG = 100;
     const INFO = 200;
@@ -6709,10 +6710,11 @@ class Logger implements LoggerInterface
     protected $handlers;
     protected $processors;
     protected $microsecondTimestamps = true;
+    protected $exceptionHandler;
     public function __construct($name, array $handlers = array(), array $processors = array())
     {
         $this->name = $name;
-        $this->handlers = $handlers;
+        $this->setHandlers($handlers);
         $this->processors = $processors;
     }
     public function getName()
@@ -6800,16 +6802,41 @@ class Logger implements LoggerInterface
         }
         $ts->setTimezone(static::$timezone);
         $record = array('message' => (string) $message, 'context' => $context, 'level' => $level, 'level_name' => $levelName, 'channel' => $this->name, 'datetime' => $ts, 'extra' => array());
-        foreach ($this->processors as $processor) {
-            $record = call_user_func($processor, $record);
-        }
-        while ($handler = current($this->handlers)) {
-            if (true === $handler->handle($record)) {
-                break;
+        try {
+            foreach ($this->processors as $processor) {
+                $record = call_user_func($processor, $record);
             }
-            next($this->handlers);
+            while ($handler = current($this->handlers)) {
+                if (true === $handler->handle($record)) {
+                    break;
+                }
+                next($this->handlers);
+            }
+        } catch (Exception $e) {
+            $this->handleException($e, $record);
         }
         return true;
+    }
+    public function close()
+    {
+        foreach ($this->handlers as $handler) {
+            if (method_exists($handler, 'close')) {
+                $handler->close();
+            }
+        }
+    }
+    public function reset()
+    {
+        foreach ($this->handlers as $handler) {
+            if ($handler instanceof ResettableInterface) {
+                $handler->reset();
+            }
+        }
+        foreach ($this->processors as $processor) {
+            if ($processor instanceof ResettableInterface) {
+                $processor->reset();
+            }
+        }
     }
     public function addDebug($message, array $context = array())
     {
@@ -6870,6 +6897,25 @@ class Logger implements LoggerInterface
             }
         }
         return false;
+    }
+    public function setExceptionHandler($callback)
+    {
+        if (!is_callable($callback)) {
+            throw new \InvalidArgumentException('Exception handler must be valid callable (callback or object with an __invoke method), ' . var_export($callback, true) . ' given');
+        }
+        $this->exceptionHandler = $callback;
+        return $this;
+    }
+    public function getExceptionHandler()
+    {
+        return $this->exceptionHandler;
+    }
+    protected function handleException(Exception $e, array $record)
+    {
+        if (!$this->exceptionHandler) {
+            throw $e;
+        }
+        call_user_func($this->exceptionHandler, $e, $record);
     }
     public function log($level, $message, array $context = array())
     {
@@ -6945,10 +6991,11 @@ interface LoggerInterface
 }
 namespace Monolog\Handler;
 
-use Monolog\Logger;
 use Monolog\Formatter\FormatterInterface;
 use Monolog\Formatter\LineFormatter;
-abstract class AbstractHandler implements HandlerInterface
+use Monolog\Logger;
+use Monolog\ResettableInterface;
+abstract class AbstractHandler implements HandlerInterface, ResettableInterface
 {
     protected $level = Logger::DEBUG;
     protected $bubble = true;
@@ -7028,6 +7075,14 @@ abstract class AbstractHandler implements HandlerInterface
             
         }
     }
+    public function reset()
+    {
+        foreach ($this->processors as $processor) {
+            if ($processor instanceof ResettableInterface) {
+                $processor->reset();
+            }
+        }
+    }
     protected function getDefaultFormatter()
     {
         return new LineFormatter();
@@ -7035,6 +7090,7 @@ abstract class AbstractHandler implements HandlerInterface
 }
 namespace Monolog\Handler;
 
+use Monolog\ResettableInterface;
 abstract class AbstractProcessingHandler extends AbstractHandler
 {
     public function handle(array $record)
@@ -7154,7 +7210,7 @@ class StreamHandler extends AbstractProcessingHandler
             set_error_handler(array($this, 'customErrorHandler'));
             $status = mkdir($dir, 511, true);
             restore_error_handler();
-            if (false === $status) {
+            if (false === $status && !is_dir($dir)) {
                 throw new \UnexpectedValueException(sprintf('There is no existing directory at "%s" and its not buildable: ' . $this->errorMessage, $dir));
             }
         }
@@ -7187,6 +7243,13 @@ class RotatingFileHandler extends StreamHandler
     public function close()
     {
         parent::close();
+        if (true === $this->mustRotate) {
+            $this->rotate();
+        }
+    }
+    public function reset()
+    {
+        parent::reset();
         if (true === $this->mustRotate) {
             $this->rotate();
         }
@@ -7252,7 +7315,7 @@ class RotatingFileHandler extends StreamHandler
     protected function getGlobPattern()
     {
         $fileInfo = pathinfo($this->filename);
-        $glob = str_replace(array('{filename}', '{date}'), array($fileInfo['filename'], '*'), $fileInfo['dirname'] . '/' . $this->filenameFormat);
+        $glob = str_replace(array('{filename}', '{date}'), array($fileInfo['filename'], '[0-9][0-9][0-9][0-9]*'), $fileInfo['dirname'] . '/' . $this->filenameFormat);
         if (!empty($fileInfo['extension'])) {
             $glob .= '.' . $fileInfo['extension'];
         }
