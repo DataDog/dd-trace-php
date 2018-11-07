@@ -2,59 +2,205 @@
 
 namespace DDTrace\Tests\Integration\Integrations;
 
-use DDTrace\Integrations\Mysqli;
-use DDTrace\Tracer;
-use DDTrace\Transport;
-use OpenTracing\GlobalTracer;
-use PHPUnit\Framework;
+use DDTrace\Integrations\Mysqli as MysqliIntegration;
+use DDTrace\Tests\Integration\Common\IntegrationTestCase;
+use DDTrace\Tests\Integration\Common\SpanAssertion;
 
-final class Sink implements Transport
+
+final class MysqliTest extends IntegrationTestCase
 {
-    public $traces = [];
-    public $headers = [];
+    private static $host = 'mysql_integration';
+    private static $db = 'test';
+    private static $user = 'test';
+    private static $password = 'test';
 
-    public function send(array $traces)
+    public static function setUpBeforeClass()
     {
-        $this->traces = $traces;
+        MysqliIntegration::load();
     }
 
-    public function setHeader($key, $value)
+    protected function setUp()
     {
-        $this->headers[$key] = $value;
+        parent::setUp();
+        $this->setUpDatabase();
     }
-}
 
-final class MysqliTest extends Framework\TestCase
-{
+    protected function tearDown()
+    {
+        $this->clearDatabase();
+        parent::tearDown();
+    }
+
     public function testProceduralConnect()
     {
-        $sink = new Sink();
-        $tracer = new Tracer($sink);
-        GlobalTracer::set($tracer);
-        Mysqli::load();
+        $traces = $this->isolateTracer(function() {
+            \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+        });
 
-        $mysql = mysqli_connect('mysql_integration', 'test', 'test', 'test');
-
-        $tracer->flush();
-
-        $spans = $sink->traces[0];
-        $this->assertEquals(1, count($spans));
+        $this->assertSpans($traces, [
+            SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect'),
+        ]);
     }
 
     public function testProceduralConnectError()
     {
-        $sink = new Sink();
-        $tracer = new Tracer($sink);
-        GlobalTracer::set($tracer);
-        Mysqli::load();
+        $traces = $this->isolateTracer(function() {
+            try {
+                \mysqli_connect(self::$host, 'wrong');
+                $this->fail('should not be possible to connect to wrong host');
+            } catch (\Exception $ex) {}
+        });
 
-        $mysql = @mysqli_connect('0.0.0.0');
+        $this->assertSpans($traces, [
+            SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
+                ->setError()
+                ->withExistingTagsNames([
+                    'error.msg',
+                    'error.type',
+                    'error.stack',
+                ]),
+        ]);
+    }
 
-        $tracer->flush();
+    public function testConstructorConnect()
+    {
+        $traces = $this->isolateTracer(function() {
+            new \mysqli(self::$host, self::$user, self::$password, self::$db);
+        });
 
-        $spans = $sink->traces[0];
-        $this->assertEquals(1, count($spans));
-        $span = $spans[0];
-        $this->assertTrue($span->hasError());
+        $this->assertSpans($traces, [
+            SpanAssertion::build('mysqli.__construct', 'mysqli', 'sql', 'mysqli.__construct'),
+        ]);
+    }
+
+    public function testProceduralQuery()
+    {
+        $traces = $this->isolateTracer(function() {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            \mysqli_query($mysqli, 'SELECT * from tests');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('mysqli_connect'),
+            SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests'),
+        ]);
+    }
+
+    public function testConstructorQuery()
+    {
+        $traces = $this->isolateTracer(function() {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->query('SELECT * from tests');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('mysqli.__construct'),
+            SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests'),
+        ]);
+    }
+
+    public function testProceduralCommit()
+    {
+        $traces = $this->isolateTracer(function() {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            \mysqli_query($mysqli, "INSERT INTO tests (id, name) VALUES (100, 'Tom'");
+            \mysqli_commit($mysqli);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('mysqli_connect'),
+            SpanAssertion::exists('mysqli_query'),
+            SpanAssertion::build('mysqli_commit', 'mysqli', 'sql', 'mysqli_commit'),
+        ]);
+    }
+
+    public function testConstructorPreparedStatement()
+    {
+        $traces = $this->isolateTracer(function() {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $stmt = $mysqli->prepare("INSERT INTO tests (id, name) VALUES (?, ?)");
+            $id = 100;
+            $name = 100;
+            $stmt->bind_param('is', $id, $name);
+            $stmt->execute();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('mysqli.__construct'),
+            SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)'),
+            SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'mysqli_stmt.execute'),
+        ]);
+    }
+
+    public function testProceduralPreparedStatement()
+    {
+        $traces = $this->isolateTracer(function() {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $stmt = \mysqli_prepare($mysqli, "INSERT INTO tests (id, name) VALUES (?, ?)");
+            $id = 100;
+            $name = 100;
+            $stmt->bind_param('is', $id, $name);
+
+            \mysqli_stmt_execute($stmt);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('mysqli_connect'),
+            SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)'),
+            SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'mysqli_stmt_execute'),
+        ]);
+    }
+
+    public function testConstructorConnectError()
+    {
+        $traces = $this->isolateTracer(function() {
+            try {
+                new \mysqli(self::$host, 'wrong');
+                $this->fail('should not be possible to connect to wrong host');
+            } catch (\Exception $ex) {}
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('mysqli.__construct', 'mysqli', 'sql', 'mysqli.__construct')
+                ->setError()
+                ->withExistingTagsNames([
+                    'error.msg',
+                    'error.type',
+                    'error.stack',
+                ]),
+        ]);
+    }
+
+    private function baseTags()
+    {
+        return [
+            'out.host' => self::$host,
+            'db.name' => self::$db,
+            'db.user' => self::$user,
+        ];
+    }
+
+    private function setUpDatabase()
+    {
+        $this->isolateTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->query("
+                CREATE TABLE tests (
+                    id integer not null primary key,
+                    name varchar(100)
+                )
+            ");
+            $mysqli->query("INSERT INTO tests (id, name) VALUES (1, 'Tom')");
+            $mysqli->commit();
+        });
+    }
+
+    private function clearDatabase()
+    {
+        $this->isolateTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->query("DROP TABLE tests");
+            $mysqli->commit();
+        });
     }
 }

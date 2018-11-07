@@ -28,16 +28,23 @@ class Mysqli
         dd_trace('mysqli_connect', function (...$args) {
             $scope = GlobalTracer::get()->startActiveSpan('mysqli_connect');
             $span = $scope->getSpan();
-            $span->setTag('type', Types\SQL);
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'mysqli');
             //TODO set db connection info
 
-            $result = mysqli_connect(...$args);
-            if ($result === false) {
-                $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
+            try {
+                // Depending on configuration, connections errors can both cause an exception and return false
+                $result = mysqli_connect(...$args);
+                if ($result === false) {
+                    $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
+                }
+                $scope->close();
+            } catch (\Exception $ex) {
+                $span->setError($ex);
+                $scope->close();
+                throw $ex;
             }
 
-            $scope->close();
 
             return $result;
         });
@@ -76,7 +83,8 @@ class Mysqli
         dd_trace('mysqli_query', function (...$args) {
             $scope = GlobalTracer::get()->startActiveSpan('mysqli_query');
             $span = $scope->getSpan();
-            $span->setTag('type', Types\SQL);
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
             $span->setResource($args[1]);
 
             $result = mysqli_query(...$args);
@@ -90,7 +98,8 @@ class Mysqli
         dd_trace('mysqli_prepare', function ($mysqli, $query) {
             $scope = GlobalTracer::get()->startActiveSpan('mysqli_prepare');
             $span = $scope->getSpan();
-            $span->setTag('type', Types\SQL);
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
             $span->setResource($query);
 
             $result = mysqli_prepare($mysqli, $query);
@@ -104,7 +113,8 @@ class Mysqli
         dd_trace('mysqli_commit', function (...$args) {
             $scope = GlobalTracer::get()->startActiveSpan('mysqli_commit');
             $span = $scope->getSpan();
-            $span->setTag('type', Types\SQL);
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
             if (isset($args[2])) {
                 $span->setTag('db.transaction_name', $args[2]);
             }
@@ -120,7 +130,8 @@ class Mysqli
         dd_trace('mysqli_stmt_execute', function (...$args) {
             $scope = GlobalTracer::get()->startActiveSpan('mysqli_stmt_execute');
             $span = $scope->getSpan();
-            $span->setTag('type', Types\SQL);
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
             //TODO set db connection info
             //TODO how to track query
 
@@ -135,7 +146,8 @@ class Mysqli
         dd_trace('mysqli', 'query', function (...$args) {
             $scope = GlobalTracer::get()->startActiveSpan('mysqli.query');
             $span = $scope->getSpan();
-            $span->setTag('type', Types\SQL);
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
             $span->setResource($args[0]);
 
             try {
@@ -152,7 +164,8 @@ class Mysqli
         dd_trace('mysqli', 'prepare', function ($query) {
             $scope = GlobalTracer::get()->startActiveSpan('mysqli.prepare');
             $span = $scope->getSpan();
-            $span->setTag('type', Types\SQL);
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
             $span->setResource($query);
 
             try {
@@ -169,7 +182,7 @@ class Mysqli
         dd_trace('mysqli', 'commit', function (...$args) {
             $scope = GlobalTracer::get()->startActiveSpan('mysqli.commit');
             $span = $scope->getSpan();
-            $span->setTag('type', Types\SQL);
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             if (isset($args[1])) {
                 $span->setTag('db.transaction_name', $args[1]);
             }
@@ -188,7 +201,8 @@ class Mysqli
         dd_trace('mysqli_stmt', 'execute', function () {
             $scope = GlobalTracer::get()->startActiveSpan('mysqli_stmt.execute');
             $span = $scope->getSpan();
-            $span->setTag('type', Types\SQL);
+            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
             //TODO set db connection info
             //TODO how to track query
 
