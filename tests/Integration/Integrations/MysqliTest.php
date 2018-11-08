@@ -36,7 +36,8 @@ final class MysqliTest extends IntegrationTestCase
     public function testProceduralConnect()
     {
         $traces = $this->isolateTracer(function() {
-            \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->close();
         });
 
         $this->assertSpans($traces, [
@@ -68,7 +69,8 @@ final class MysqliTest extends IntegrationTestCase
     public function testConstructorConnect()
     {
         $traces = $this->isolateTracer(function() {
-            new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->close();
         });
 
         $this->assertSpans($traces, [
@@ -82,6 +84,7 @@ final class MysqliTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function() {
             $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
             \mysqli_query($mysqli, 'SELECT * from tests');
+            $mysqli->close();
         });
 
         $this->assertSpans($traces, [
@@ -96,6 +99,7 @@ final class MysqliTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function() {
             $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
             $mysqli->query('SELECT * from tests');
+            $mysqli->close();
         });
 
         $this->assertSpans($traces, [
@@ -111,6 +115,7 @@ final class MysqliTest extends IntegrationTestCase
             $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
             \mysqli_query($mysqli, "INSERT INTO tests (id, name) VALUES (100, 'Tom'");
             \mysqli_commit($mysqli);
+            $mysqli->close();
         });
 
         $this->assertSpans($traces, [
@@ -130,6 +135,7 @@ final class MysqliTest extends IntegrationTestCase
             $name = 100;
             $stmt->bind_param('is', $id, $name);
             $stmt->execute();
+            $mysqli->close();
         });
 
         $this->assertSpans($traces, [
@@ -150,6 +156,7 @@ final class MysqliTest extends IntegrationTestCase
             $stmt->bind_param('is', $id, $name);
 
             \mysqli_stmt_execute($stmt);
+            $mysqli->close();
         });
 
         $this->assertSpans($traces, [
@@ -192,6 +199,8 @@ final class MysqliTest extends IntegrationTestCase
             $fetched = $result->$method(...$args);
         });
 
+        $mysqli->close();
+
         if (is_callable($expected)) {
             $expected($fetched);
         } else {
@@ -220,6 +229,8 @@ final class MysqliTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function() use (&$fetched, $method, $args, $result) {
             $fetched = $result->$method(...$args);
         });
+
+        $mysqli->close();
 
         if (is_callable($expected)) {
             $expected($fetched);
@@ -250,6 +261,8 @@ final class MysqliTest extends IntegrationTestCase
             $fetched = $methodName($result, ...$args);
         });
 
+        $mysqli->close();
+
         if (is_callable($expected)) {
             $expected($fetched);
         } else {
@@ -279,6 +292,8 @@ final class MysqliTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function() use (&$fetched, $methodName, $args, $result) {
             $fetched = $methodName($result, ...$args);
         });
+
+        $mysqli->close();
 
         if (is_callable($expected)) {
             $expected($fetched);
@@ -361,6 +376,7 @@ final class MysqliTest extends IntegrationTestCase
             ");
             $mysqli->query("INSERT INTO tests (id, name) VALUES (1, 'Tom')");
             $mysqli->commit();
+            $mysqli->close();
         });
     }
 
@@ -370,6 +386,7 @@ final class MysqliTest extends IntegrationTestCase
             $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
             $mysqli->query("DROP TABLE tests");
             $mysqli->commit();
+            $mysqli->close();
         });
     }
 }

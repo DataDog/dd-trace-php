@@ -4,13 +4,15 @@ namespace DDTrace\Util;
 
 
 /**
- *
+ * A key value store that stores metada into object instances.
  */
 class ObjectKVStore
 {
     private static $KEY_PREFIX = '__dd_store_';
 
     /**
+     * Put or replaces a key with a specific value.
+     *
      * @param mixed $instance
      * @param string $key
      * @param mixed $value
@@ -25,6 +27,8 @@ class ObjectKVStore
     }
 
     /**
+     * Extract a key's value from an instance. If the key is not set => fallbacks to default.
+     *
      * @param mixed $instance
      * @param string $key
      * @param mixed $default
@@ -40,6 +44,8 @@ class ObjectKVStore
     }
 
     /**
+     * Copy a value from a source instance to a destination instance.
+     *
      * @param mixed $instance_source
      * @param mixed $instance_destination
      * @param string $key
@@ -50,6 +56,8 @@ class ObjectKVStore
     }
 
     /**
+     * Given a human-friendly key name, return a modified version of the key which is scoped into a Datadog namespace.
+     *
      * @param string $key
      * @return string
      */
@@ -59,6 +67,8 @@ class ObjectKVStore
     }
 
     /**
+     * Tells whether or not a set of info is enough to be used as a store.
+     *
      * @param mixed $instance
      * @param string $key
      * @return bool

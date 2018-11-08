@@ -131,4 +131,12 @@ final class ObjectKVStoreTest extends TestCase
         ObjectKVStore::propagate($source, $destination, 'key');
         $this->assertSame('value', ObjectKVStore::get($destination, 'key'));
     }
+
+    public function test_key_is_scoped()
+    {
+        $instance = new \stdClass();
+        ObjectKVStore::put($instance, 'key', 'value');
+        $this->assertFalse(property_exists($instance, 'key'));
+        $this->assertTrue(property_exists($instance, '__dd_store_key'));
+    }
 }
