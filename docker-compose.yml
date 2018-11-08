@@ -35,14 +35,6 @@ services:
 
   'fpm': { <<: *base, image: 'circleci/ruby:2.5', depends_on: [] }
 
-  mysql_integration:
-    image: mysql:5.6
-    environment:
-    - MYSQL_ROOT_PASSWORD=test
-    - MYSQL_PASSWORD=test
-    - MYSQL_USER=test
-    - MYSQL_DATABASE=test
-
   redis_integration:
     image: "circleci/redis:4.0-alpine"
 

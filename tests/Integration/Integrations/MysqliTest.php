@@ -11,6 +11,7 @@ final class MysqliTest extends IntegrationTestCase
 {
     private static $host = 'mysql_integration';
     private static $db = 'test';
+    private static $port = '3306';
     private static $user = 'test';
     private static $password = 'test';
 
@@ -38,7 +39,8 @@ final class MysqliTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect'),
+            SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
+                ->withExactTags(self::baseTags()),
         ]);
     }
 
@@ -69,7 +71,8 @@ final class MysqliTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('mysqli.__construct', 'mysqli', 'sql', 'mysqli.__construct'),
+            SpanAssertion::build('mysqli.__construct', 'mysqli', 'sql', 'mysqli.__construct')
+                ->withExactTags(self::baseTags()),
         ]);
     }
 
@@ -82,7 +85,8 @@ final class MysqliTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::exists('mysqli_connect'),
-            SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests'),
+            SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->withExactTags(self::baseTags()),
         ]);
     }
 
@@ -95,7 +99,8 @@ final class MysqliTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::exists('mysqli.__construct'),
-            SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests'),
+            SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->withExactTags(self::baseTags()),
         ]);
     }
 
@@ -110,7 +115,8 @@ final class MysqliTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('mysqli_connect'),
             SpanAssertion::exists('mysqli_query'),
-            SpanAssertion::build('mysqli_commit', 'mysqli', 'sql', 'mysqli_commit'),
+            SpanAssertion::build('mysqli_commit', 'mysqli', 'sql', 'mysqli_commit')
+                ->withExactTags(self::baseTags()),
         ]);
     }
 
@@ -127,7 +133,8 @@ final class MysqliTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::exists('mysqli.__construct'),
-            SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)'),
+            SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
+                ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'mysqli_stmt.execute'),
         ]);
     }
@@ -146,7 +153,8 @@ final class MysqliTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::exists('mysqli_connect'),
-            SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)'),
+            SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
+                ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'mysqli_stmt_execute'),
         ]);
     }
@@ -175,8 +183,8 @@ final class MysqliTest extends IntegrationTestCase
     {
         return [
             'out.host' => self::$host,
-            'db.name' => self::$db,
-            'db.user' => self::$user,
+            'out.port' => self::$port,
+            'db.type' => 'mysql',
         ];
     }
 

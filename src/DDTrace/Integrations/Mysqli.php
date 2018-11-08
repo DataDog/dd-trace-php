@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations;
 
+use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
 use OpenTracing\GlobalTracer;
@@ -25,18 +26,18 @@ class Mysqli
         //      [, string $dbname = ""
         //      [, int $port = ini_get("mysqli.default_port")
         //      [, string $socket = ini_get("mysqli.default_socket") ]]]]]] )
-        dd_trace('mysqli_connect', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan('mysqli_connect');
+        dd_trace('mysqli_connect', function () {
+            $args = func_get_args();
+            $scope = Mysqli::initScope('mysqli_connect', 'mysqli_connect');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-            //TODO set db connection info
 
             try {
                 // Depending on configuration, connections errors can both cause an exception and return false
                 $result = mysqli_connect(...$args);
                 if ($result === false) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
+                } else {
+                    Mysqli::setConnectionInfo($span, $result);
                 }
                 $scope->close();
             } catch (\Exception $ex) {
@@ -56,19 +57,19 @@ class Mysqli
         //      [, int $port = ini_get("mysqli.default_port")
         //      [, string $socket = ini_get("mysqli.default_socket") ]]]]]] )
         $mysqli_constructor = PHP_MAJOR_VERSION > 5 ? '__construct' : 'mysqli';
-        dd_trace('mysqli', $mysqli_constructor, function (...$args) use ($mysqli_constructor) {
-            $scope = GlobalTracer::get()->startActiveSpan('mysqli.__construct');
+        dd_trace('mysqli', $mysqli_constructor, function () use ($mysqli_constructor) {
+            $args = func_get_args();
+            $scope = Mysqli::initScope('mysqli.__construct', 'mysqli.__construct');
+            /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-            $span->setResource('mysqli.__construct');
-            //TODO set db connection info
 
             try {
                 $this->$mysqli_constructor(...$args);
                 //Mysqli::storeConnectionParams($this, $args);
                 if (mysqli_connect_errno()) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
+                } else {
+                    Mysqli::setConnectionInfo($span, $this);
                 }
                 return $this;
             } catch (\Exception $e) {
@@ -81,11 +82,10 @@ class Mysqli
 
         // mixed mysqli_query ( mysqli $link , string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
         dd_trace('mysqli_query', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan('mysqli_query');
+            $scope = Mysqli::initScope('mysqli_query', $args[1]);
+            /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-            $span->setResource($args[1]);
+            Mysqli::setConnectionInfo($span, $args[0]);
 
             $result = mysqli_query(...$args);
 
@@ -96,11 +96,10 @@ class Mysqli
 
         // mysqli_stmt mysqli_prepare ( mysqli $link , string $query )
         dd_trace('mysqli_prepare', function ($mysqli, $query) {
-            $scope = GlobalTracer::get()->startActiveSpan('mysqli_prepare');
+            $scope = Mysqli::initScope('mysqli_prepare', $query);
+            /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-            $span->setResource($query);
+            Mysqli::setConnectionInfo($span, $mysqli);
 
             $result = mysqli_prepare($mysqli, $query);
 
@@ -110,11 +109,13 @@ class Mysqli
         });
 
         // bool mysqli_commit ( mysqli $link [, int $flags [, string $name ]] )
-        dd_trace('mysqli_commit', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan('mysqli_commit');
+        dd_trace('mysqli_commit', function () {
+            $args = func_get_args();
+            $scope = Mysqli::initScope('mysqli_commit', 'mysqli_commit');
+            /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
+            Mysqli::setConnectionInfo($span, $args[0]);
+
             if (isset($args[2])) {
                 $span->setTag('db.transaction_name', $args[2]);
             }
@@ -127,13 +128,9 @@ class Mysqli
         });
 
         // bool mysqli_stmt_execute ( mysqli_stmt $stmt )
-        dd_trace('mysqli_stmt_execute', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan('mysqli_stmt_execute');
-            $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-            //TODO set db connection info
-            //TODO how to track query
+        dd_trace('mysqli_stmt_execute', function () {
+            $args = func_get_args();
+            $scope = Mysqli::initScope('mysqli_stmt_execute', 'mysqli_stmt_execute');
 
             $result = mysqli_stmt_execute(...$args);
 
@@ -143,12 +140,12 @@ class Mysqli
         });
 
         // mixed mysqli::query ( string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
-        dd_trace('mysqli', 'query', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan('mysqli.query');
+        dd_trace('mysqli', 'query', function () {
+            $args = func_get_args();
+            $scope = Mysqli::initScope('mysqli.query', $args[0]);
+            /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-            $span->setResource($args[0]);
+            Mysqli::setConnectionInfo($span, $this);
 
             try {
                 return $this->query(...$args);
@@ -162,11 +159,10 @@ class Mysqli
 
         // mysqli_stmt mysqli::prepare ( string $query )
         dd_trace('mysqli', 'prepare', function ($query) {
-            $scope = GlobalTracer::get()->startActiveSpan('mysqli.prepare');
+            $scope = Mysqli::initScope('mysqli.prepare', $query);
+            /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-            $span->setResource($query);
+            Mysqli::setConnectionInfo($span, $this);
 
             try {
                 return $this->prepare($query);
@@ -179,10 +175,13 @@ class Mysqli
         });
 
         // bool mysqli::commit ([ int $flags [, string $name ]] )
-        dd_trace('mysqli', 'commit', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan('mysqli.commit');
+        dd_trace('mysqli', 'commit', function () {
+            $args = func_get_args();
+            $scope = Mysqli::initScope('mysqli.commit', 'mysqli.commit');
+            /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            Mysqli::setConnectionInfo($span, $this);
+
             if (isset($args[1])) {
                 $span->setTag('db.transaction_name', $args[1]);
             }
@@ -199,12 +198,10 @@ class Mysqli
 
         // bool mysqli_stmt::execute ( void )
         dd_trace('mysqli_stmt', 'execute', function () {
-            $scope = GlobalTracer::get()->startActiveSpan('mysqli_stmt.execute');
+            $args = func_get_args();
+            $scope = Mysqli::initScope('mysqli_stmt.execute', 'mysqli_stmt.execute');
+            /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-            //TODO set db connection info
-            //TODO how to track query
 
             try {
                 return $this->execute();
@@ -222,11 +219,39 @@ class Mysqli
         $host_info = $mysqli->host_info;
         $parts = explode(':', substr($host_info, 0, strpos($host_info, ' ')));
         $host = $parts[0];
-        $port = isset($parts[1]) ? $parts[1] : null;
+        $port = isset($parts[1]) ? $parts[1] : '3306';
         return [
             'db.type' => 'mysql',
             'out.host' => $host,
             'out.port' => $port,
         ];
+    }
+
+    /**
+     * @param string $operationName
+     * @param string $resource
+     * @return \OpenTracing\Scope
+     */
+    public static function initScope($operationName, $resource)
+    {
+        $scope = GlobalTracer::get()->startActiveSpan($operationName);
+        /** @var \DDTrace\Span $span */
+        $span = $scope->getSpan();
+        $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+        $span->setTag(Tags\SERVICE_NAME, 'mysqli');
+        $span->setResource($resource);
+        return $scope;
+    }
+
+    /**
+     * @param Span $span
+     * @param $mysqli
+     */
+    public static function setConnectionInfo($span, $mysqli)
+    {
+        $hostInfo = self::extractHostInfo($mysqli);
+        foreach ($hostInfo as $tagName => $value){
+            $span->setTag($tagName, $value);
+        }
     }
 }
