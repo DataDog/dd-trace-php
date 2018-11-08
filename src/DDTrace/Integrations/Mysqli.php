@@ -257,7 +257,7 @@ class Mysqli
 
             try {
                 $result = $this->get_result();
-                ObjectKVStore::put($result, 'host_info', ObjectKVStore::get($this, 'host_info'));
+                ObjectKVStore::propagate($this, $result, 'host_info');
                 ObjectKVStore::put($result, 'query', $resource);
                 return $result;
             } catch (\Exception $e) {
