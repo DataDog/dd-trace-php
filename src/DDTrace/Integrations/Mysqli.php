@@ -5,6 +5,7 @@ namespace DDTrace\Integrations;
 use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
+use DDTrace\Util\ObjectKVStore;
 use OpenTracing\GlobalTracer;
 
 class Mysqli
@@ -81,13 +82,20 @@ class Mysqli
         });
 
         // mixed mysqli_query ( mysqli $link , string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
-        dd_trace('mysqli_query', function (...$args) {
-            $scope = Mysqli::initScope('mysqli_query', $args[1]);
+        dd_trace('mysqli_query', function () {
+            $args = func_get_args();
+            $mysqli = $args[0];
+            $query = $args[1];
+
+            $scope = Mysqli::initScope('mysqli_query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            Mysqli::setConnectionInfo($span, $args[0]);
+            Mysqli::setConnectionInfo($span, $mysqli);
+            Mysqli::storeQuery($mysqli, $query);
 
             $result = mysqli_query(...$args);
+            Mysqli::storeQuery($result, $query);
+            ObjectKVStore::put($result, 'host_info', Mysqli::extractHostInfo($mysqli));
 
             $scope->close();
 
@@ -101,20 +109,25 @@ class Mysqli
             $span = $scope->getSpan();
             Mysqli::setConnectionInfo($span, $mysqli);
 
-            $result = mysqli_prepare($mysqli, $query);
+            $statement = mysqli_prepare($mysqli, $query);
+            Mysqli::storeQuery($statement, $query);
+            $host_info = Mysqli::extractHostInfo($mysqli);
+            ObjectKVStore::put($statement, 'host_info', $host_info);
 
             $scope->close();
 
-            return $result;
+            return $statement;
         });
 
         // bool mysqli_commit ( mysqli $link [, int $flags [, string $name ]] )
         dd_trace('mysqli_commit', function () {
             $args = func_get_args();
-            $scope = Mysqli::initScope('mysqli_commit', 'mysqli_commit');
+            $mysqli = $args[0];
+            $resource = Mysqli::retrieveQuery($mysqli, 'mysqli_commit');
+            $scope = Mysqli::initScope('mysqli_commit', $resource);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            Mysqli::setConnectionInfo($span, $args[0]);
+            Mysqli::setConnectionInfo($span, $mysqli);
 
             if (isset($args[2])) {
                 $span->setTag('db.transaction_name', $args[2]);
@@ -128,13 +141,24 @@ class Mysqli
         });
 
         // bool mysqli_stmt_execute ( mysqli_stmt $stmt )
-        dd_trace('mysqli_stmt_execute', function () {
-            $args = func_get_args();
-            $scope = Mysqli::initScope('mysqli_stmt_execute', 'mysqli_stmt_execute');
+        dd_trace('mysqli_stmt_execute', function ($stmt) {
+            $resource = Mysqli::retrieveQuery($stmt, 'mysqli_stmt_execute');
+            $scope = Mysqli::initScope('mysqli_stmt_execute', $resource);
 
-            $result = mysqli_stmt_execute(...$args);
+            $result = mysqli_stmt_execute($stmt);
 
             $scope->close();
+
+            return $result;
+        });
+
+        // bool mysqli_stmt_get_result ( mysqli_stmt $stmt )
+        dd_trace('mysqli_stmt_get_result', function ($stmt) {
+            $resource = Mysqli::retrieveQuery($stmt, 'mysqli_stmt_get_result');
+            $result = mysqli_stmt_get_result($stmt);
+
+            Mysqli::storeQuery($result, $resource);
+            ObjectKVStore::propagate($stmt, $result, 'host_info');
 
             return $result;
         });
@@ -142,13 +166,19 @@ class Mysqli
         // mixed mysqli::query ( string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
         dd_trace('mysqli', 'query', function () {
             $args = func_get_args();
-            $scope = Mysqli::initScope('mysqli.query', $args[0]);
+            $query = $args[0];
+            $scope = Mysqli::initScope('mysqli.query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
             Mysqli::setConnectionInfo($span, $this);
+            Mysqli::storeQuery($this, $query);
 
             try {
-                return $this->query(...$args);
+                $result = $this->query(...$args);
+                $host_info = Mysqli::extractHostInfo($this);
+                ObjectKVStore::put($result, 'host_info', $host_info);
+                ObjectKVStore::put($result, 'query', $query);
+                return $result;
             } catch (\Exception $e) {
                 $span->setError($e);
                 throw $e;
@@ -165,7 +195,11 @@ class Mysqli
             Mysqli::setConnectionInfo($span, $this);
 
             try {
-                return $this->prepare($query);
+                $statement = $this->prepare($query);
+                $host_info = Mysqli::extractHostInfo($this);
+                ObjectKVStore::put($statement, 'host_info', $host_info);
+                Mysqli::storeQuery($statement, $query);
+                return $statement;
             } catch (\Exception $e) {
                 $span->setError($e);
                 throw $e;
@@ -177,7 +211,8 @@ class Mysqli
         // bool mysqli::commit ([ int $flags [, string $name ]] )
         dd_trace('mysqli', 'commit', function () {
             $args = func_get_args();
-            $scope = Mysqli::initScope('mysqli.commit', 'mysqli.commit');
+            $resource = Mysqli::retrieveQuery($this, 'mysqli.commit');
+            $scope = Mysqli::initScope('mysqli.commit', $resource);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
             Mysqli::setConnectionInfo($span, $this);
@@ -198,8 +233,8 @@ class Mysqli
 
         // bool mysqli_stmt::execute ( void )
         dd_trace('mysqli_stmt', 'execute', function () {
-            $args = func_get_args();
-            $scope = Mysqli::initScope('mysqli_stmt.execute', 'mysqli_stmt.execute');
+            $resource = Mysqli::retrieveQuery($this, 'mysqli_stmt.execute');
+            $scope = Mysqli::initScope('mysqli_stmt.execute', $resource);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
 
@@ -212,8 +247,114 @@ class Mysqli
                 $scope->close();
             }
         });
+
+        // bool mysqli_stmt::execute ( void )
+        dd_trace('mysqli_stmt', 'get_result', function () {
+            $resource = Mysqli::retrieveQuery($this, 'mysqli_stmt.get_result');
+            $scope = Mysqli::initScope('mysqli_stmt.get_result', $resource);
+            /** @var \DDTrace\Span $span */
+            $span = $scope->getSpan();
+
+            try {
+                $result = $this->get_result();
+                ObjectKVStore::put($result, 'host_info', ObjectKVStore::get($this, 'host_info'));
+                ObjectKVStore::put($result, 'query', $resource);
+                return $result;
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
+        });
+
+        // Procedural fetch methods
+        Mysqli::traceProceduralFetchMethod('mysqli_fetch_all');
+        Mysqli::traceProceduralFetchMethod('mysqli_fetch_array');
+        Mysqli::traceProceduralFetchMethod('mysqli_fetch_assoc');
+        Mysqli::traceProceduralFetchMethod('mysqli_fetch_field_direct');
+        Mysqli::traceProceduralFetchMethod('mysqli_fetch_field');
+        Mysqli::traceProceduralFetchMethod('mysqli_fetch_fields');
+        Mysqli::traceProceduralFetchMethod('mysqli_fetch_object');
+        Mysqli::traceProceduralFetchMethod('mysqli_fetch_row');
+
+        // Constructor fetch methods
+        Mysqli::traceConstructorFetchMethod('fetch_all');
+        Mysqli::traceConstructorFetchMethod('fetch_array');
+        Mysqli::traceConstructorFetchMethod('fetch_assoc');
+        Mysqli::traceConstructorFetchMethod('fetch_field_direct');
+        Mysqli::traceConstructorFetchMethod('fetch_field');
+        Mysqli::traceConstructorFetchMethod('fetch_fields');
+        Mysqli::traceConstructorFetchMethod('fetch_object');
+        Mysqli::traceConstructorFetchMethod('fetch_row');
     }
 
+    /**
+     * Trace a generic fetch method in a constructor instance approach.
+     *
+     * @param string $methodName
+     */
+    private static function traceConstructorFetchMethod($methodName)
+    {
+        dd_trace('mysqli_result', $methodName, function() use ($methodName) {
+            $operationName = 'mysqli_result' . '.' . $methodName;
+            $args = func_get_args();
+            $resource = Mysqli::retrieveQuery($this, $operationName);
+            $scope = Mysqli::initScope($operationName, $resource);
+            /** @var \DDTrace\Span $span */
+            $span = $scope->getSpan();
+            $host_info = ObjectKVStore::get($this, 'host_info', []);
+            foreach ($host_info as $key => $value) {
+                $span->setTag($key, $value);
+            }
+
+            try {
+                return $this->$methodName(...$args);
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
+        });
+    }
+
+    /**
+     * Trace a generic fetch method in a procedural instance approach.
+     *
+     * @param string $methodName
+     */
+    private static function traceProceduralFetchMethod($methodName)
+    {
+        dd_trace($methodName, function() use ($methodName) {
+            $args = func_get_args();
+            $mysql_result = $args[0];
+            $resource = Mysqli::retrieveQuery($mysql_result, $methodName);
+            $scope = Mysqli::initScope($methodName, $resource);
+            /** @var \DDTrace\Span $span */
+            $span = $scope->getSpan();
+            $host_info = ObjectKVStore::get($mysql_result, 'host_info', []);
+            foreach ($host_info as $key => $value) {
+                $span->setTag($key, $value);
+            }
+
+            try {
+                return $methodName(...$args);
+            } catch (\Exception $e) {
+                $span->setError($e);
+                throw $e;
+            } finally {
+                $scope->close();
+            }
+        });
+    }
+
+    /**
+     * Given a mysqli instance, it extract an array containing host info.
+     *
+     * @param $mysqli
+     * @return array
+     */
     public static function extractHostInfo($mysqli)
     {
         $host_info = $mysqli->host_info;
@@ -228,6 +369,8 @@ class Mysqli
     }
 
     /**
+     * Initialize a scope setting basic tags to identify the mysqli service.
+     *
      * @param string $operationName
      * @param string $resource
      * @return \OpenTracing\Scope
@@ -244,6 +387,8 @@ class Mysqli
     }
 
     /**
+     * Set connection info into an existing span.
+     *
      * @param Span $span
      * @param $mysqli
      */
@@ -253,5 +398,28 @@ class Mysqli
         foreach ($hostInfo as $tagName => $value){
             $span->setTag($tagName, $value);
         }
+    }
+
+    /**
+     * Store a query into a mysqli or statement instance.
+     *
+     * @param mixed $instance
+     * @param string $query
+     */
+    public static function storeQuery($instance, $query)
+    {
+        ObjectKVStore::put($instance, 'query', $query);
+    }
+
+    /**
+     * Retrieves a query from a mysqli or statement instance.
+     *
+     * @param mixed $instance
+     * @param string $fallbackValue
+     * @return string|null
+     */
+    public static function retrieveQuery($instance, $fallbackValue)
+    {
+        return ObjectKVStore::get($instance, 'query', $fallbackValue);
     }
 }

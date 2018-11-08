@@ -18,9 +18,9 @@ abstract class IntegrationTestCase extends TestCase
      */
     private $spanChecker;
 
-    public function __construct()
+    protected function setUp()
     {
-        parent::__construct();
+        parent::setUp();
         $this->spanChecker = new SpanChecker($this);
     }
 

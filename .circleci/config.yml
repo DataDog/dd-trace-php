@@ -196,7 +196,6 @@ jobs:
     docker:
       - image: datadog/docker-library:ddtrace_php_5_6
       - <<: *IMAGE_DOCKER_DD_AGENT
-      - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
@@ -206,7 +205,6 @@ jobs:
     docker:
       - image: datadog/docker-library:ddtrace_php_7_0
       - <<: *IMAGE_DOCKER_DD_AGENT
-      - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
@@ -216,7 +214,6 @@ jobs:
     docker:
       - image: datadog/docker-library:ddtrace_php_7_1
       - <<: *IMAGE_DOCKER_DD_AGENT
-      - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
@@ -226,7 +223,6 @@ jobs:
     docker:
       - image: datadog/docker-library:ddtrace_php_7_2
       - <<: *IMAGE_DOCKER_DD_AGENT
-      - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL

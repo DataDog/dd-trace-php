@@ -17,6 +17,7 @@ final class MysqliTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
+        parent::setUpBeforeClass();
         MysqliIntegration::load();
     }
 
@@ -115,7 +116,7 @@ final class MysqliTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('mysqli_connect'),
             SpanAssertion::exists('mysqli_query'),
-            SpanAssertion::build('mysqli_commit', 'mysqli', 'sql', 'mysqli_commit')
+            SpanAssertion::build('mysqli_commit', 'mysqli', 'sql', "INSERT INTO tests (id, name) VALUES (100, 'Tom'")
                 ->withExactTags(self::baseTags()),
         ]);
     }
@@ -135,7 +136,7 @@ final class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli.__construct'),
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
-            SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'mysqli_stmt.execute'),
+            SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)'),
         ]);
     }
 
@@ -155,7 +156,7 @@ final class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli_connect'),
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
-            SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'mysqli_stmt_execute'),
+            SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)'),
         ]);
     }
 
@@ -177,6 +178,166 @@ final class MysqliTest extends IntegrationTestCase
                     'error.stack',
                 ]),
         ]);
+    }
+
+    /**
+     * @dataProvider fetchScenarios
+     */
+    public function testConstructorFetchMethod($method, $args, $expected)
+    {
+        $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+        $result = $mysqli->query('SELECT * from tests');
+
+        $traces = $this->isolateTracer(function() use (&$fetched, $method, $args, $result) {
+            $fetched = $result->$method(...$args);
+        });
+
+        if (is_callable($expected)) {
+            $expected($fetched);
+        } else {
+            $this->assertEquals($expected, $fetched);
+        }
+
+        $this->assertSpans(
+            $traces,
+            [
+                SpanAssertion::build('mysqli_result.' . $method, 'mysqli', 'sql', 'SELECT * from tests')
+                    ->withExactTags(self::baseTags()),
+            ]
+        );
+    }
+
+    /**
+     * @dataProvider fetchScenarios
+     */
+    public function testConstructorStatementFetchMethod($method, $args, $expected)
+    {
+        $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+        $stmt = $mysqli->prepare('SELECT * from tests');
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $traces = $this->isolateTracer(function() use (&$fetched, $method, $args, $result) {
+            $fetched = $result->$method(...$args);
+        });
+
+        if (is_callable($expected)) {
+            $expected($fetched);
+        } else {
+            $this->assertEquals($expected, $fetched);
+        }
+
+        $this->assertSpans(
+            $traces,
+            [
+                SpanAssertion::build('mysqli_result.' . $method, 'mysqli', 'sql', 'SELECT * from tests')
+                    ->withExactTags(self::baseTags()),
+            ]
+        );
+    }
+
+    /**
+     * @dataProvider fetchScenarios
+     */
+    public function testProceduralFetchMethod($method, $args, $expected)
+    {
+        $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+        $result = \mysqli_query($mysqli, 'SELECT * from tests');
+        $methodName = 'mysqli_' . $method;
+        $fetched = null;
+
+        $traces = $this->isolateTracer(function() use (&$fetched, $methodName, $args, $result) {
+            $fetched = $methodName($result, ...$args);
+        });
+
+        if (is_callable($expected)) {
+            $expected($fetched);
+        } else {
+            $this->assertEquals($expected, $fetched);
+        }
+
+        $this->assertSpans(
+            $traces,
+            [
+                SpanAssertion::build('mysqli_' . $method, 'mysqli', 'sql', 'SELECT * from tests')
+                    ->withExactTags(self::baseTags()),
+            ]);
+    }
+
+    /**
+     * @dataProvider fetchScenarios
+     */
+    public function testProceduralStatementFetchMethod($method, $args, $expected)
+    {
+        $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+        $stmt = \mysqli_prepare($mysqli, 'SELECT * from tests');
+        \mysqli_stmt_execute($stmt);
+        $result = \mysqli_stmt_get_result($stmt);
+        $methodName = 'mysqli_' . $method;
+        $fetched = null;
+
+        $traces = $this->isolateTracer(function() use (&$fetched, $methodName, $args, $result) {
+            $fetched = $methodName($result, ...$args);
+        });
+
+        if (is_callable($expected)) {
+            $expected($fetched);
+        } else {
+            $this->assertEquals($expected, $fetched);
+        }
+
+        $this->assertSpans(
+            $traces,
+            [
+                SpanAssertion::build('mysqli_' . $method, 'mysqli', 'sql', 'SELECT * from tests')
+                    ->withExactTags(self::baseTags()),
+            ]);
+    }
+
+    public function fetchScenarios()
+    {
+        return [
+            [
+                'fetch_all',
+                [ MYSQLI_NUM ],
+                [ [ 1, 'Tom' ] ],
+            ],
+            [
+                'fetch_array',
+                [ MYSQLI_NUM ],
+                [ 1, 'Tom' ],
+            ],
+            [
+                'fetch_assoc',
+                [],
+                [ 'id' => 1, 'name' => 'Tom' ],
+            ],
+            [
+                'fetch_field_direct',
+                [ 1 ],
+                function($fetched) { $this->assertTrue(is_object($fetched)); },
+            ],
+            [
+                'fetch_field',
+                [],
+                function($fetched) { $this->assertTrue(is_object($fetched)); },
+            ],
+            [
+                'fetch_fields',
+                [],
+                function($fetched) { $this->assertTrue(is_array($fetched)); },
+            ],
+            [
+                'fetch_object',
+                [],
+                function($fetched) { $this->assertTrue(is_object($fetched)); },
+            ],
+            [
+                'fetch_row',
+                [],
+                [1, 'Tom'],
+            ],
+        ];
     }
 
     private function baseTags()
