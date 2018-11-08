@@ -35,7 +35,7 @@ final class MysqliTest extends IntegrationTestCase
 
     public function testProceduralConnect()
     {
-        $traces = $this->isolateTracer(function() {
+        $traces = $this->isolateTracer(function () {
             $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
             $mysqli->close();
         });
@@ -48,11 +48,12 @@ final class MysqliTest extends IntegrationTestCase
 
     public function testProceduralConnectError()
     {
-        $traces = $this->isolateTracer(function() {
+        $traces = $this->isolateTracer(function () {
             try {
                 \mysqli_connect(self::$host, 'wrong');
                 $this->fail('should not be possible to connect to wrong host');
-            } catch (\Exception $ex) {}
+            } catch (\Exception $ex) {
+            }
         });
 
         $this->assertSpans($traces, [
@@ -68,7 +69,7 @@ final class MysqliTest extends IntegrationTestCase
 
     public function testConstructorConnect()
     {
-        $traces = $this->isolateTracer(function() {
+        $traces = $this->isolateTracer(function () {
             $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
             $mysqli->close();
         });
@@ -81,7 +82,7 @@ final class MysqliTest extends IntegrationTestCase
 
     public function testProceduralQuery()
     {
-        $traces = $this->isolateTracer(function() {
+        $traces = $this->isolateTracer(function () {
             $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
             \mysqli_query($mysqli, 'SELECT * from tests');
             $mysqli->close();
@@ -96,7 +97,7 @@ final class MysqliTest extends IntegrationTestCase
 
     public function testConstructorQuery()
     {
-        $traces = $this->isolateTracer(function() {
+        $traces = $this->isolateTracer(function () {
             $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
             $mysqli->query('SELECT * from tests');
             $mysqli->close();
@@ -111,7 +112,7 @@ final class MysqliTest extends IntegrationTestCase
 
     public function testProceduralCommit()
     {
-        $traces = $this->isolateTracer(function() {
+        $traces = $this->isolateTracer(function () {
             $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
             \mysqli_query($mysqli, "INSERT INTO tests (id, name) VALUES (100, 'Tom'");
             \mysqli_commit($mysqli);
@@ -128,7 +129,7 @@ final class MysqliTest extends IntegrationTestCase
 
     public function testConstructorPreparedStatement()
     {
-        $traces = $this->isolateTracer(function() {
+        $traces = $this->isolateTracer(function () {
             $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
             $stmt = $mysqli->prepare("INSERT INTO tests (id, name) VALUES (?, ?)");
             $id = 100;
@@ -148,7 +149,7 @@ final class MysqliTest extends IntegrationTestCase
 
     public function testProceduralPreparedStatement()
     {
-        $traces = $this->isolateTracer(function() {
+        $traces = $this->isolateTracer(function () {
             $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
             $stmt = \mysqli_prepare($mysqli, "INSERT INTO tests (id, name) VALUES (?, ?)");
             $id = 100;
@@ -169,11 +170,12 @@ final class MysqliTest extends IntegrationTestCase
 
     public function testConstructorConnectError()
     {
-        $traces = $this->isolateTracer(function() {
+        $traces = $this->isolateTracer(function () {
             try {
                 new \mysqli(self::$host, 'wrong');
                 $this->fail('should not be possible to connect to wrong host');
-            } catch (\Exception $ex) {}
+            } catch (\Exception $ex) {
+            }
         });
 
         $this->assertSpans($traces, [
@@ -195,7 +197,7 @@ final class MysqliTest extends IntegrationTestCase
         $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
         $result = $mysqli->query('SELECT * from tests');
 
-        $traces = $this->isolateTracer(function() use (&$fetched, $method, $args, $result) {
+        $traces = $this->isolateTracer(function () use (&$fetched, $method, $args, $result) {
             $fetched = $result->$method(...$args);
         });
 
@@ -226,7 +228,7 @@ final class MysqliTest extends IntegrationTestCase
         $stmt->execute();
         $result = $stmt->get_result();
 
-        $traces = $this->isolateTracer(function() use (&$fetched, $method, $args, $result) {
+        $traces = $this->isolateTracer(function () use (&$fetched, $method, $args, $result) {
             $fetched = $result->$method(...$args);
         });
 
@@ -242,7 +244,7 @@ final class MysqliTest extends IntegrationTestCase
             $traces,
             [
                 SpanAssertion::build('mysqli_result.' . $method, 'mysqli', 'sql', 'SELECT * from tests')
-                    ->withExactTags(self::baseTags()),
+                ->withExactTags(self::baseTags()),
             ]
         );
     }
@@ -257,7 +259,7 @@ final class MysqliTest extends IntegrationTestCase
         $methodName = 'mysqli_' . $method;
         $fetched = null;
 
-        $traces = $this->isolateTracer(function() use (&$fetched, $methodName, $args, $result) {
+        $traces = $this->isolateTracer(function () use (&$fetched, $methodName, $args, $result) {
             $fetched = $methodName($result, ...$args);
         });
 
@@ -273,8 +275,9 @@ final class MysqliTest extends IntegrationTestCase
             $traces,
             [
                 SpanAssertion::build('mysqli_' . $method, 'mysqli', 'sql', 'SELECT * from tests')
-                    ->withExactTags(self::baseTags()),
-            ]);
+                ->withExactTags(self::baseTags()),
+            ]
+        );
     }
 
     /**
@@ -289,7 +292,7 @@ final class MysqliTest extends IntegrationTestCase
         $methodName = 'mysqli_' . $method;
         $fetched = null;
 
-        $traces = $this->isolateTracer(function() use (&$fetched, $methodName, $args, $result) {
+        $traces = $this->isolateTracer(function () use (&$fetched, $methodName, $args, $result) {
             $fetched = $methodName($result, ...$args);
         });
 
@@ -305,8 +308,9 @@ final class MysqliTest extends IntegrationTestCase
             $traces,
             [
                 SpanAssertion::build('mysqli_' . $method, 'mysqli', 'sql', 'SELECT * from tests')
-                    ->withExactTags(self::baseTags()),
-            ]);
+                ->withExactTags(self::baseTags()),
+            ]
+        );
     }
 
     public function fetchScenarios()
@@ -330,22 +334,30 @@ final class MysqliTest extends IntegrationTestCase
             [
                 'fetch_field_direct',
                 [ 1 ],
-                function($fetched) { $this->assertTrue(is_object($fetched)); },
+                function ($fetched) {
+                    $this->assertTrue(is_object($fetched));
+                },
             ],
             [
                 'fetch_field',
                 [],
-                function($fetched) { $this->assertTrue(is_object($fetched)); },
+                function ($fetched) {
+                    $this->assertTrue(is_object($fetched));
+                },
             ],
             [
                 'fetch_fields',
                 [],
-                function($fetched) { $this->assertTrue(is_array($fetched)); },
+                function ($fetched) {
+                    $this->assertTrue(is_array($fetched));
+                },
             ],
             [
                 'fetch_object',
                 [],
-                function($fetched) { $this->assertTrue(is_object($fetched)); },
+                function ($fetched) {
+                    $this->assertTrue(is_object($fetched));
+                },
             ],
             [
                 'fetch_row',

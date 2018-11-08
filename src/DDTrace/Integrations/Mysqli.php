@@ -296,7 +296,7 @@ class Mysqli
      */
     private static function traceConstructorFetchMethod($methodName)
     {
-        dd_trace('mysqli_result', $methodName, function() use ($methodName) {
+        dd_trace('mysqli_result', $methodName, function () use ($methodName) {
             $operationName = 'mysqli_result' . '.' . $methodName;
             $args = func_get_args();
             $resource = Mysqli::retrieveQuery($this, $operationName);
@@ -326,7 +326,7 @@ class Mysqli
      */
     private static function traceProceduralFetchMethod($methodName)
     {
-        dd_trace($methodName, function() use ($methodName) {
+        dd_trace($methodName, function () use ($methodName) {
             $args = func_get_args();
             $mysql_result = $args[0];
             $resource = Mysqli::retrieveQuery($mysql_result, $methodName);
@@ -395,7 +395,7 @@ class Mysqli
     public static function setConnectionInfo($span, $mysqli)
     {
         $hostInfo = self::extractHostInfo($mysqli);
-        foreach ($hostInfo as $tagName => $value){
+        foreach ($hostInfo as $tagName => $value) {
             $span->setTag($tagName, $value);
         }
     }
