@@ -266,24 +266,24 @@ class Mysqli
         });
 
         // Procedural fetch methods
-        Mysqli::traceProceduralFetchMethod('mysqli_fetch_all');
-        Mysqli::traceProceduralFetchMethod('mysqli_fetch_array');
-        Mysqli::traceProceduralFetchMethod('mysqli_fetch_assoc');
-        Mysqli::traceProceduralFetchMethod('mysqli_fetch_field_direct');
-        Mysqli::traceProceduralFetchMethod('mysqli_fetch_field');
-        Mysqli::traceProceduralFetchMethod('mysqli_fetch_fields');
-        Mysqli::traceProceduralFetchMethod('mysqli_fetch_object');
-        Mysqli::traceProceduralFetchMethod('mysqli_fetch_row');
+        self::traceProceduralFetchMethod('mysqli_fetch_all');
+        self::traceProceduralFetchMethod('mysqli_fetch_array');
+        self::traceProceduralFetchMethod('mysqli_fetch_assoc');
+        self::traceProceduralFetchMethod('mysqli_fetch_field_direct');
+        self::traceProceduralFetchMethod('mysqli_fetch_field');
+        self::traceProceduralFetchMethod('mysqli_fetch_fields');
+        self::traceProceduralFetchMethod('mysqli_fetch_object');
+        self::traceProceduralFetchMethod('mysqli_fetch_row');
 
         // Constructor fetch methods
-        Mysqli::traceConstructorFetchMethod('fetch_all');
-        Mysqli::traceConstructorFetchMethod('fetch_array');
-        Mysqli::traceConstructorFetchMethod('fetch_assoc');
-        Mysqli::traceConstructorFetchMethod('fetch_field_direct');
-        Mysqli::traceConstructorFetchMethod('fetch_field');
-        Mysqli::traceConstructorFetchMethod('fetch_fields');
-        Mysqli::traceConstructorFetchMethod('fetch_object');
-        Mysqli::traceConstructorFetchMethod('fetch_row');
+        self::traceConstructorFetchMethod('fetch_all');
+        self::traceConstructorFetchMethod('fetch_array');
+        self::traceConstructorFetchMethod('fetch_assoc');
+        self::traceConstructorFetchMethod('fetch_field_direct');
+        self::traceConstructorFetchMethod('fetch_field');
+        self::traceConstructorFetchMethod('fetch_fields');
+        self::traceConstructorFetchMethod('fetch_object');
+        self::traceConstructorFetchMethod('fetch_row');
     }
 
     /**
