@@ -6,14 +6,6 @@ use DDTrace\Integrations;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 
-const MEMCACHED_HOST = 'memcached_integration';
-const MEMCACHED_PORT = '11211';
-
-const BASE_TAGS = [
-    'out.host' => MEMCACHED_HOST,
-    'out.port' => MEMCACHED_PORT,
-];
-
 
 final class MemcachedTest extends IntegrationTestCase
 {
@@ -21,6 +13,9 @@ final class MemcachedTest extends IntegrationTestCase
      * @var \Memcached
      */
     private $client;
+
+    private static $host = 'memcached_integration';
+    private static $port = '11211';
 
     public static function setUpBeforeClass()
     {
@@ -36,8 +31,8 @@ final class MemcachedTest extends IntegrationTestCase
         }
 
         $this->client = new \Memcached();
-        $this->client->addServer(MEMCACHED_HOST, MEMCACHED_PORT);
-        $this->withTracer(function () {
+        $this->client->addServer(self::$host, self::$port);
+        $this->isolateTracer(function () {
             // Cleaning up existing data from previous tests
             $this->client->flush();
         });
@@ -45,12 +40,12 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testAdd()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.add', 'memcached', 'memcached', 'add')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'add key',
                     'memcached.command' => 'add',
                 ])),
@@ -59,12 +54,12 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testAddByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.addByKey', 'memcached', 'memcached', 'addByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'addByKey key',
                     'memcached.command' => 'addByKey',
                     'memcached.server_key' => 'my_server',
@@ -75,7 +70,7 @@ final class MemcachedTest extends IntegrationTestCase
     /** Should fail because memcached is compressed by default */
     public function testAppendCompressed()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             try {
                 $this->client->append('key', 'value');
                 $this->fail('An exception should be raised because client is compressed');
@@ -85,7 +80,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.append', 'memcached', 'memcached', 'append')
                 ->setError()
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'append key',
                     'memcached.command' => 'append',
                 ]))
@@ -96,12 +91,12 @@ final class MemcachedTest extends IntegrationTestCase
     public function testAppendUncompressed()
     {
         $this->client->setOption(\Memcached::OPT_COMPRESSION, false);
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->append('key', 'value');
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.append', 'memcached', 'memcached', 'append')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'append key',
                     'memcached.command' => 'append',
                 ])),
@@ -111,7 +106,7 @@ final class MemcachedTest extends IntegrationTestCase
     /** Should fail because memcached is compressed by default */
     public function testAppendByKeyCompressed()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             try {
                 $this->client->appendByKey('my_server', 'key', 'value');
                 $this->fail('An exception should be raised because client is compressed');
@@ -121,7 +116,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.appendByKey', 'memcached', 'memcached', 'appendByKey')
                 ->setError()
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'appendByKey key',
                     'memcached.command' => 'appendByKey',
                     'memcached.server_key' => 'my_server',
@@ -134,12 +129,12 @@ final class MemcachedTest extends IntegrationTestCase
     public function testAppendByKey()
     {
         $this->client->setOption(\Memcached::OPT_COMPRESSION, false);
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->appendByKey('my_server', 'key', 'value');
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.appendByKey', 'memcached', 'memcached', 'appendByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'appendByKey key',
                     'memcached.command' => 'appendByKey',
                     'memcached.server_key' => 'my_server',
@@ -149,7 +144,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testDelete()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
 
             $this->assertSame('value', $this->client->get('key'));
@@ -162,7 +157,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.delete', 'memcached', 'memcached', 'delete')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'delete key',
                     'memcached.command' => 'delete',
                 ])),
@@ -172,7 +167,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testDeleteByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
 
             $this->assertSame('value', $this->client->getByKey('my_server', 'key'));
@@ -185,7 +180,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::build('Memcached.deleteByKey', 'memcached', 'memcached', 'deleteByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'deleteByKey key',
                     'memcached.command' => 'deleteByKey',
                     'memcached.server_key' => 'my_server',
@@ -196,7 +191,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testDeleteMulti()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->add('key1', 'value1');
             $this->client->add('key2', 'value2');
 
@@ -230,7 +225,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testDeleteMultiByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key1', 'value1');
             $this->client->addByKey('my_server', 'key2', 'value2');
 
@@ -248,7 +243,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::build('Memcached.deleteMultiByKey', 'memcached', 'memcached', 'deleteMultiByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'deleteMultiByKey key1,key2',
                     'memcached.command' => 'deleteMultiByKey',
                     'memcached.server_key' => 'my_server',
@@ -261,7 +256,7 @@ final class MemcachedTest extends IntegrationTestCase
     public function testDecrementBinaryProtocol()
     {
         $this->client->setOption(\Memcached::OPT_BINARY_PROTOCOL, true);
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->decrement('key', 2, 100);
 
             // Note that the default value is set as 'string' instead of int. This is not a side effect
@@ -276,13 +271,13 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement key',
                     'memcached.command' => 'decrement',
                 ])),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement key',
                     'memcached.command' => 'decrement',
                 ])),
@@ -293,7 +288,7 @@ final class MemcachedTest extends IntegrationTestCase
     public function testDecrementNonBinaryProtocol()
     {
         $this->client->setOption(\Memcached::OPT_BINARY_PROTOCOL, false);
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->add('key', 100);
 
             $this->client->decrement('key', 2);
@@ -305,7 +300,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement key',
                     'memcached.command' => 'decrement',
                 ])),
@@ -315,7 +310,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testDecrementByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key', 100);
 
             $this->client->decrementByKey('my_server', 'key', 2);
@@ -327,7 +322,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.decrementByKey', 'memcached', 'memcached', 'decrementByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrementByKey key',
                     'memcached.command' => 'decrementByKey',
                     'memcached.server_key' => 'my_server',
@@ -339,7 +334,7 @@ final class MemcachedTest extends IntegrationTestCase
     public function testIncrementBinaryProtocol()
     {
         $this->client->setOption(\Memcached::OPT_BINARY_PROTOCOL, true);
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->increment('key', 2, 100);
 
             // Note that the default value is set as 'string' instead of int. This is not a side effect
@@ -352,13 +347,13 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment key',
                     'memcached.command' => 'increment',
                 ])),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment key',
                     'memcached.command' => 'increment',
                 ])),
@@ -369,7 +364,7 @@ final class MemcachedTest extends IntegrationTestCase
     public function testIncrementNonBinaryProtocol()
     {
         $this->client->setOption(\Memcached::OPT_BINARY_PROTOCOL, false);
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->add('key', 0);
             $this->client->increment('key', 2);
 
@@ -380,7 +375,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment key',
                     'memcached.command' => 'increment',
                 ])),
@@ -390,7 +385,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testIncrementByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key', 100);
             $this->client->incrementByKey('my_server', 'key', 2);
 
@@ -401,7 +396,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.incrementByKey', 'memcached', 'memcached', 'incrementByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'incrementByKey key',
                     'memcached.command' => 'incrementByKey',
                     'memcached.server_key' => 'my_server',
@@ -412,7 +407,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testFlush()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
 
             $this->assertSame('value', $this->client->get('key'));
@@ -434,7 +429,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGet()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
 
             $this->assertSame('value', $this->client->get('key'));
@@ -442,7 +437,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.get', 'memcached', 'memcached', 'get')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'get key',
                     'memcached.command' => 'get',
                 ])),
@@ -451,7 +446,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGetMulti()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->add('key1', 'value1');
             $this->client->add('key2', 'value2');
 
@@ -470,7 +465,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGetByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
 
             $this->assertSame('value', $this->client->getByKey('my_server', 'key'));
@@ -478,7 +473,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.getByKey', 'memcached', 'memcached', 'getByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'getByKey key',
                     'memcached.command' => 'getByKey',
                     'memcached.server_key' => 'my_server',
@@ -488,7 +483,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testGetMultiByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key1', 'value1');
             $this->client->addByKey('my_server', 'key2', 'value2');
 
@@ -501,7 +496,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.getMultiByKey', 'memcached', 'memcached', 'getMultiByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'getMultiByKey key1,key2',
                     'memcached.command' => 'getMultiByKey',
                     'memcached.server_key' => 'my_server',
@@ -511,7 +506,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testReplace()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
             $this->client->replace('key', 'replaced');
 
@@ -520,7 +515,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.replace', 'memcached', 'memcached', 'replace')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'replace key',
                     'memcached.command' => 'replace',
                 ])),
@@ -530,7 +525,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testReplaceByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
             $this->client->replaceByKey('my_server', 'key', 'replaced');
 
@@ -539,7 +534,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.replaceByKey', 'memcached', 'memcached', 'replaceByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'replaceByKey key',
                     'memcached.command' => 'replaceByKey',
                     'memcached.server_key' => 'my_server',
@@ -550,12 +545,12 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testSet()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->set('key', 'value');
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.set', 'memcached', 'memcached', 'set')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'set key',
                     'memcached.command' => 'set',
                 ])),
@@ -564,12 +559,12 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testSetByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->setByKey('my_server', 'key', 'value');
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.setByKey', 'memcached', 'memcached', 'setByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'setByKey key',
                     'memcached.command' => 'setByKey',
                     'memcached.server_key' => 'my_server',
@@ -579,7 +574,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testSetMulti()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->setMulti(['key1' => 'value1', 'key2' => 'value2']);
 
             $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], $this->client->getMulti(['key1', 'key2']));
@@ -596,7 +591,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testSetMultiByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->setMultiByKey('my_server', ['key1' => 'value1', 'key2' => 'value2']);
 
             $this->assertEquals(
@@ -606,7 +601,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.setMultiByKey', 'memcached', 'memcached', 'setMultiByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'setMultiByKey key1,key2',
                     'memcached.command' => 'setMultiByKey',
                     'memcached.server_key' => 'my_server',
@@ -617,12 +612,12 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testTouch()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->touch('key');
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.touch', 'memcached', 'memcached', 'touch')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'touch key',
                     'memcached.command' => 'touch',
                 ])),
@@ -631,16 +626,24 @@ final class MemcachedTest extends IntegrationTestCase
 
     public function testTouchByKey()
     {
-        $traces = $this->withTracer(function () {
+        $traces = $this->isolateTracer(function () {
             $this->client->touchByKey('my_server', 'key');
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.touchByKey', 'memcached', 'memcached', 'touchByKey')
-                ->withExactTags(array_merge(BASE_TAGS, [
+                ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'touchByKey key',
                     'memcached.command' => 'touchByKey',
                     'memcached.server_key' => 'my_server',
                 ])),
         ]);
+    }
+
+    private static function baseTags()
+    {
+        return [
+            'out.host' => self::$host,
+            'out.port' => self::$port,
+        ];
     }
 }
