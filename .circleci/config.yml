@@ -258,14 +258,18 @@ jobs:
           name: Test installing packages on target systems
           command: make -f dockerfiles/verify_packages/Makefile
 
+
 workflows:
   version: 2
   build_packages:
     jobs:
-      - "hold":
-          type: approval
       - "7.0 20151012": &BUILD_PACKAGE_FORKFLOW
-          requires: [ "hold" ]
+          filters:
+            tags:
+              only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
+            branches:
+              # Always build on master
+              ignore: /^(?!master$).*/
       - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
       - "7.2 20170718": *BUILD_PACKAGE_FORKFLOW
       - "7.0 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
