@@ -31,6 +31,7 @@ final class SpanChecker
      */
     public function assertSpans($traces, $expectedSpans)
     {
+        $flattenTraces = $this->flattenTraces($traces);
         // First we assert that ALL the expected spans are in the actual traces and no unexpected span exists.
         $expectedSpansReferences = array_map(function (SpanAssertion $assertion) {
             return $assertion->getOperationName();
@@ -38,26 +39,25 @@ final class SpanChecker
         sort($expectedSpansReferences);
         $tracesReferences = array_map(function (Span $span) {
             return $span->getOperationName();
-        }, $this->flattenTraces($traces));
+        }, $flattenTraces);
         sort($tracesReferences);
 
         $this->testCase->assertEquals($expectedSpansReferences, $tracesReferences, 'Missing or additional spans.');
 
         // Then we assert content on each individual received span
-        foreach ($expectedSpans as $ex) {
-            $this->assertSpan($traces, $ex);
+        for ($i = 0; $i < count($flattenTraces); $i++) {
+            $this->assertSpan($flattenTraces[$i], $expectedSpans[$i]);
         }
     }
 
     /**
      * Checks that a span expectation is matched in a collection on Spans.
      *
-     * @param $traces
+     * @param Span $span
      * @param SpanAssertion $exp
      */
-    public function assertSpan($traces, SpanAssertion $exp)
+    public function assertSpan($span, SpanAssertion $exp)
     {
-        $span = $this->findSpan($traces, $exp->getOperationName());
         $this->testCase->assertNotNull($span, 'Expected span was not \'' . $exp->getOperationName() . '\' found.');
 
         if ($exp->isOnlyCheckExistence()) {
@@ -110,23 +110,6 @@ final class SpanChecker
                 $span->getResource(),
                 "Wrong value for 'resource'"
             );
-        }
-    }
-
-    /**
-     * @param $traces Span[][]
-     * @param $name string
-     * @return Span|null
-     */
-    public function findSpan($traces, $name)
-    {
-        foreach ($traces as $block) {
-            /** @var Span $trace */
-            foreach ($block as $trace) {
-                if ($trace->getOperationName() == $name) {
-                    return $trace;
-                }
-            }
         }
     }
 

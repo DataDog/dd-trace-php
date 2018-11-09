@@ -35,15 +35,17 @@ class Predis
         }
 
         // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
-        dd_trace(Client::class, '__construct', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client__construct');
+        dd_trace(Client::class, '__construct', function () {
+            $args = func_get_args();
+            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.__construct');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
+            $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setResource('Predis.Client.__construct');
             try {
                 $this->__construct(...$args);
                 Predis::storeConnectionParams($this, $args);
+                Predis::setConnectionTags($this, $span);
                 return $this;
             } catch (\Exception $e) {
                 $span->setError($e);
@@ -57,7 +59,7 @@ class Predis
         dd_trace(Client::class, 'connect', function () {
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.connect');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
+            $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setResource('Predis.Client.connect');
             Predis::setConnectionTags($this, $span);
@@ -80,7 +82,7 @@ class Predis
 
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeCommand');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
+            $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
@@ -101,9 +103,9 @@ class Predis
         dd_trace(Client::class, 'executeRaw', function ($arguments, &$error = null) {
             $query = Predis::formatArguments($arguments);
 
-            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeCommand');
+            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeRaw');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
+            $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
@@ -124,9 +126,10 @@ class Predis
         dd_trace(Pipeline::class, 'executePipeline', function ($connection, $commands) {
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Pipeline.executePipeline');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\REDIS);
+            $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setTag('redis.pipeline_length', count($commands));
+            Predis::setConnectionTags($this, $span);
 
             try {
                 return $this->executePipeline($connection, $commands);
