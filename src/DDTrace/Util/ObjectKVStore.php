@@ -4,7 +4,7 @@ namespace DDTrace\Util;
 
 
 /**
- * A key value store that stores metada into object instances.
+ * A key value store that stores metadata into object instances.
  *
  * Performance considerations. We basically have a couple of simple approached to get values stored in memory per
  * objects:

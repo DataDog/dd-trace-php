@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
 use DDTrace\Util\ObjectKVStore;
@@ -47,7 +46,6 @@ class Mysqli
                 throw $ex;
             }
 
-
             return $result;
         });
 
@@ -84,8 +82,7 @@ class Mysqli
         // mixed mysqli_query ( mysqli $link , string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
         dd_trace('mysqli_query', function () {
             $args = func_get_args();
-            $mysqli = $args[0];
-            $query = $args[1];
+            list($mysqli, $query) = $args;
 
             $scope = Mysqli::initScope('mysqli_query', $query);
             /** @var \DDTrace\Span $span */
@@ -122,7 +119,7 @@ class Mysqli
         // bool mysqli_commit ( mysqli $link [, int $flags [, string $name ]] )
         dd_trace('mysqli_commit', function () {
             $args = func_get_args();
-            $mysqli = $args[0];
+            list($mysqli) = $args;
             $resource = Mysqli::retrieveQuery($mysqli, 'mysqli_commit');
             $scope = Mysqli::initScope('mysqli_commit', $resource);
             /** @var \DDTrace\Span $span */
@@ -166,7 +163,7 @@ class Mysqli
         // mixed mysqli::query ( string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
         dd_trace('mysqli', 'query', function () {
             $args = func_get_args();
-            $query = $args[0];
+            list($query) = $args;
             $scope = Mysqli::initScope('mysqli.query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
@@ -297,7 +294,7 @@ class Mysqli
     private static function traceConstructorFetchMethod($methodName)
     {
         dd_trace('mysqli_result', $methodName, function () use ($methodName) {
-            $operationName = 'mysqli_result' . '.' . $methodName;
+            $operationName = 'mysqli_result.' . $methodName;
             $args = func_get_args();
             $resource = Mysqli::retrieveQuery($this, $operationName);
             $scope = Mysqli::initScope($operationName, $resource);
@@ -328,7 +325,7 @@ class Mysqli
     {
         dd_trace($methodName, function () use ($methodName) {
             $args = func_get_args();
-            $mysql_result = $args[0];
+            list($mysql_result) = $args;
             $resource = Mysqli::retrieveQuery($mysql_result, $methodName);
             $scope = Mysqli::initScope($methodName, $resource);
             /** @var \DDTrace\Span $span */
@@ -389,7 +386,7 @@ class Mysqli
     /**
      * Set connection info into an existing span.
      *
-     * @param Span $span
+     * @param \OpenTracing\Span $span
      * @param $mysqli
      */
     public static function setConnectionInfo($span, $mysqli)

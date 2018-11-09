@@ -95,7 +95,7 @@ class PDO
                 PDO::detectError($span, $this);
                 PDO::storeStatementFromConnection($this, $result);
                 try {
-                    $span->setTag('db.rowcount', $result != false ? $result->rowCount() : '');
+                    $span->setTag('db.rowcount', $result !== false ? $result->rowCount() : '');
                 } catch (\Exception $e) {
                 }
                 return $result;
