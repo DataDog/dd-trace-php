@@ -18,6 +18,15 @@ final class PredisTest extends IntegrationTestCase
         Predis::load();
     }
 
+    protected function setUp()
+    {
+        parent::setUp();
+
+        if (PHP_MAJOR_VERSION < 7) {
+            $this->markTestSkipped('Predis integration with php 5.6 has a known bug. Work in Progress to fix it.');
+        }
+    }
+
     public function testPredisIntegrationCreatesSpans()
     {
         $traces = $this->inTestScope('redis.test', function () {

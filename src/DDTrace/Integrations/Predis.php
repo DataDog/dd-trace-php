@@ -29,13 +29,13 @@ class Predis
             trigger_error('The ddtrace extension is required to instrument Predis', E_USER_WARNING);
             return;
         }
-        if (!class_exists(Client::class)) {
+        if (!class_exists('\Predis\Client')) {
             trigger_error('Predis is not loaded and connot be instrumented', E_USER_WARNING);
             return;
         }
 
         // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
-        dd_trace(Client::class, '__construct', function () {
+        dd_trace('\Predis\Client', '__construct', function () {
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.__construct');
             $span = $scope->getSpan();
@@ -43,7 +43,7 @@ class Predis
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setResource('Predis.Client.__construct');
             try {
-                $this->__construct(...$args);
+                call_user_func_array([$this, '__construct'], $args);
                 Predis::storeConnectionParams($this, $args);
                 Predis::setConnectionTags($this, $span);
                 return $this;
@@ -56,7 +56,7 @@ class Predis
         });
 
         // public void Predis\Client::connect()
-        dd_trace(Client::class, 'connect', function () {
+        dd_trace('\Predis\Client', 'connect', function () {
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.connect');
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
@@ -75,7 +75,7 @@ class Predis
         });
 
         // public mixed Predis\Client::executeCommand(CommandInterface $command)
-        dd_trace(Client::class, 'executeCommand', function ($command) {
+        dd_trace('\Predis\Client', 'executeCommand', function ($command) {
             $arguments = $command->getArguments();
             array_unshift($arguments, $command->getId());
             $query = Predis::formatArguments($arguments);
@@ -100,7 +100,7 @@ class Predis
         });
 
         // public mixed Predis\Client::executeRaw(array $arguments, bool &$error)
-        dd_trace(Client::class, 'executeRaw', function ($arguments, &$error = null) {
+        dd_trace('\Predis\Client', 'executeRaw', function ($arguments, &$error = null) {
             $query = Predis::formatArguments($arguments);
 
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeRaw');
