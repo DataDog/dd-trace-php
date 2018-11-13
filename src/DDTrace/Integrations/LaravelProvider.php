@@ -135,12 +135,14 @@ class LaravelProvider extends ServiceProvider
 
     private function getAppName()
     {
+        $name = null;
+
         if (isset($_ENV['ddtrace_app_name'])) {
-            return $_ENV['ddtrace_app_name'];
+            $name = $_ENV['ddtrace_app_name'];
         } elseif (is_callable('config')) {
-            return config('app.name');
-        } else {
-            return 'laravel';
+            $name = config('app.name');
         }
+
+        return empty($name) ? 'laravel' : $name;
     }
 }
