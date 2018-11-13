@@ -55,23 +55,42 @@ class LaravelProvider extends ServiceProvider
 
         // Trace middleware
         dd_trace(Pipeline::class, 'through', function ($pipes) {
+
+            // Pipes can be passed both as an array and as multiple arguments
+            // https://github.com/laravel/framework/blob/621d91d802016ab4a64acc5c65f81cb9f5e5f779/src/Illuminate/Pipeline/Pipeline.php#L74
+            $pipes = is_array($pipes) ? $pipes : func_get_args();
+
             foreach ($pipes as $pipe) {
-                $pipeClass = explode(':', $pipe)[0];
+                // Pipes can be passed both as class to the pipeline and as instances
+                if (is_string($pipe) || is_object($pipe)) {
 
-                dd_trace($pipe, 'handle', function (...$args) {
-                    $scope = GlobalTracer::get()->startActiveSpan('laravel.middleware');
-                    $span = $scope->getSpan();
-                    $span->setResource(get_class($this));
-
-                    try {
-                        return $this->handle(...$args);
-                    } catch (\Exception $e) {
-                        $span->setError($e);
-                        throw $e;
-                    } finally {
-                        $scope->close();
+                    if (is_string($pipe)) {
+                        // Middleware can be passed parameters during registration, in the form
+                        // 'middleware_name_or_class:param1,param2', so we need to extract the real name/class from the
+                        // pipeline
+                        // See: https://laravel.com/docs/5.7/middleware#middleware-parameters
+                        $class = explode(':', $pipe)[0];
+                    } else {
+                        // If an instance is passed instead of the class, than we need to know the class from it.
+                        $class = get_class($pipe);
                     }
-                });
+
+                    dd_trace($class, 'handle', function () {
+                        $args = func_get_args();
+                        $scope = GlobalTracer::get()->startActiveSpan('laravel.middleware');
+                        $span = $scope->getSpan();
+                        $span->setResource(get_class($this));
+
+                        try {
+                            return call_user_func_array([$this, 'handle'], $args);
+                        } catch (\Exception $e) {
+                            $span->setError($e);
+                            throw $e;
+                        } finally {
+                            $scope->close();
+                        }
+                    });
+                }
             }
             return $this->through($pipes);
         });
