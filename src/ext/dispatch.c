@@ -115,9 +115,6 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         if (!return_value_ptr) {
             zval_dtor(&rv);
         }
-        #if PHP_VERSION_ID < 70000
-        zend_vm_stack_clear_multiple(0 TSRMLS_CC);
-        #endif
     }
 
 #if PHP_VERSION_ID < 70000
@@ -275,9 +272,8 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 
 static int update_opcode_leave(zend_execute_data *execute_data) {
 #if PHP_VERSION_ID < 70000
-    if (EG(exception)) {
-        zend_vm_stack_pop();  // clear param data if FN has thrown an exception
-    }
+    zend_vm_stack_clear_multiple(0 TSRMLS_CC);
+    EX(call)--;
 #else
     EX(call) = EX(call)->prev_execute_data;
 #endif
