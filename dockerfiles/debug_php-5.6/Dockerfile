@@ -30,10 +30,9 @@ WORKDIR /src/php
 RUN ./buildconf --force
 
 RUN apt-get install -y libgmp-dev libmcrypt-dev && ln -s /usr/include/x86_64-linux-gnu/gmp.h /usr/include/gmp.h
+RUN apt-get install -y valgrind vim
 
-RUN ./configure --help
-
-RUN ./configure \
+RUN ./configure  \
     --enable-mbstring \
     --enable-zip \
     --enable-bcmath \
@@ -45,6 +44,9 @@ RUN ./configure \
     --enable-sysvsem \
     --enable-sysvshm \
     --enable-wddx \
+    --with-mysqli --with-mysql --with-pdo-mysql --enable-opcache --enable-mysqlnd \
+    --with-config-file-scan-dir=/usr/local/etc/php/conf.d \
+    --with-config-file-path=/usr/local/etc/php \
     --with-curl \
     --with-mcrypt \
     --with-t1lib=/usr \
@@ -67,11 +69,16 @@ RUN ./configure \
     --disable-nls \
     --enable-debug
 
-RUN make -j 4
+RUN make -j 2
 
 RUN make install
 
-RUN apt-get install -y valgrind
+RUN mkdir -p /usr/local/etc/php/conf.d
+
+RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
+  && php -r "if (hash_file('sha384', 'composer-setup.php') === '93b54496392c062774670ac18b134c3b3a95e5a5e5c8f1a9f115f203b75bf9a129d5daa8ba6a13e2cc8a1da0806388a8') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"\
+  && php composer-setup.php && php -r "unlink('composer-setup.php');"\
+  && mv composer.phar /usr/local/bin/composer
 
 CMD ["bash"]
 
