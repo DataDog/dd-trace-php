@@ -73,6 +73,7 @@ final class PDOTest extends IntegrationTestCase
             $pdo->beginTransaction();
             $pdo->exec($query);
             $pdo->commit();
+            $pdo = null;
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
@@ -93,6 +94,7 @@ final class PDOTest extends IntegrationTestCase
                 $pdo->beginTransaction();
                 $pdo->exec($query);
                 $pdo->commit();
+                $pdo = null;
             } catch (\PDOException $ex) {
             }
         });
@@ -119,6 +121,7 @@ final class PDOTest extends IntegrationTestCase
                 $pdo->beginTransaction();
                 $pdo->exec($query);
                 $pdo->commit();
+                $pdo = null;
                 $this->fail('Should throw and exception');
             } catch (\PDOException $ex) {
             }
@@ -140,6 +143,7 @@ final class PDOTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
             $pdo->query($query);
+            $pdo = null;
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
@@ -157,6 +161,7 @@ final class PDOTest extends IntegrationTestCase
             try {
                 $pdo = $this->pdoInstance();
                 $pdo->query($query);
+                $pdo = null;
             } catch (\PDOException $ex) {
             }
         });
@@ -180,6 +185,7 @@ final class PDOTest extends IntegrationTestCase
                 $pdo = $this->pdoInstance();
                 $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
                 $pdo->query($query);
+                $pdo = null;
             } catch (\PDOException $ex) {
             }
         });
@@ -202,6 +208,7 @@ final class PDOTest extends IntegrationTestCase
             $pdo->beginTransaction();
             $pdo->exec($query);
             $pdo->commit();
+            $pdo = null;
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
@@ -220,6 +227,9 @@ final class PDOTest extends IntegrationTestCase
             $stmt->execute([1]);
             $results = $stmt->fetchAll();
             $this->assertEquals('Tom', $results[0]['name']);
+            $stmt->closeCursor();
+            $stmt = null;
+            $pdo = null;
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
@@ -249,6 +259,9 @@ final class PDOTest extends IntegrationTestCase
                 $stmt = $pdo->prepare($query);
                 $stmt->execute([1]);
                 $stmt->fetchAll();
+                $stmt->closeCursor();
+                $stmt = null;
+                $pdo = null;
             } catch (\PDOException $ex) {
             }
         });
@@ -276,6 +289,9 @@ final class PDOTest extends IntegrationTestCase
                 $stmt = $pdo->prepare($query);
                 $stmt->execute([1]);
                 $stmt->fetchAll();
+                $stmt->closeCursor();
+                $stmt = null;
+                $pdo = null;
             } catch (\PDOException $ex) {
             }
         });
@@ -310,6 +326,7 @@ final class PDOTest extends IntegrationTestCase
             ");
             $pdo->exec("INSERT INTO tests (id, name) VALUES (1, 'Tom')");
             $pdo->commit();
+            $dbh = null;
         });
     }
 
@@ -320,6 +337,7 @@ final class PDOTest extends IntegrationTestCase
             $pdo->beginTransaction();
             $pdo->exec("DROP TABLE tests");
             $pdo->commit();
+            $dbh = null;
         });
     }
 

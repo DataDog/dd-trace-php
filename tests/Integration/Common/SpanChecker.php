@@ -64,15 +64,17 @@ final class SpanChecker
             return;
         }
 
+        $namePrefix = $exp->getOperationName() . ': ';
+
         $this->testCase->assertSame(
             $exp->getOperationName(),
             $span->getOperationName(),
-            "Wrong value for 'operation name'"
+            $namePrefix . "Wrong value for 'operation name'"
         );
         $this->testCase->assertSame(
             $exp->hasError(),
             $span->hasError(),
-            "Wrong value for 'error'"
+            $namePrefix . "Wrong value for 'error'"
         );
         if ($exp->getExactTags() != SpanAssertion::NOT_TESTED) {
             $filtered = [];
@@ -84,7 +86,7 @@ final class SpanChecker
             $this->testCase->assertEquals(
                 $exp->getExactTags(),
                 $filtered,
-                "Wrong value for 'tags'"
+                $namePrefix . "Wrong value for 'tags'"
             );
             foreach ($exp->getExistingTagNames() as $tagName) {
                 $this->testCase->assertArrayHasKey($tagName, $span->getAllTags());
@@ -94,21 +96,21 @@ final class SpanChecker
             $this->testCase->assertSame(
                 $exp->getService(),
                 $span->getService(),
-                "Wrong value for 'service'"
+                $namePrefix . "Wrong value for 'service'"
             );
         }
         if ($exp->getType() != SpanAssertion::NOT_TESTED) {
             $this->testCase->assertSame(
                 $exp->getType(),
                 $span->getType(),
-                "Wrong value for 'type'"
+                $namePrefix . "Wrong value for 'type'"
             );
         }
         if ($exp->getResource() != SpanAssertion::NOT_TESTED) {
             $this->testCase->assertSame(
                 $exp->getResource(),
                 $span->getResource(),
-                "Wrong value for 'resource'"
+                $namePrefix . "Wrong value for 'resource'"
             );
         }
     }

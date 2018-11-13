@@ -27,7 +27,7 @@ class PDO
             trigger_error('The ddtrace extension is required to instrument PDO', E_USER_WARNING);
             return;
         }
-        if (!class_exists('PDO')) {
+        if (!extension_loaded('PDO')) {
             trigger_error('PDO is not loaded and cannot be instrumented', E_USER_WARNING);
             return;
         }
@@ -95,7 +95,7 @@ class PDO
                 PDO::detectError($span, $this);
                 PDO::storeStatementFromConnection($this, $result);
                 try {
-                    $span->setTag('db.rowcount', $result != false ? $result->rowCount() : '');
+                    $span->setTag('db.rowcount', $result !== false ? $result->rowCount() : '');
                 } catch (\Exception $e) {
                 }
                 return $result;

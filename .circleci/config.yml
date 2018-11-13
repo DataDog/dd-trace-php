@@ -1,6 +1,7 @@
 version: 2.0
 
 aliases:
+
   - &CACHE_COMPOSER_KEY
     key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
 
@@ -88,6 +89,9 @@ aliases:
           name: Waiting for Dockerized agent
           command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
       - run:
+          name: Waiting for Dockerized MySQL
+          command: dockerize -wait tcp://mysql_integration:3306 -timeout 1m
+      - run:
           name: Run unit tests
           command: composer test-unit -- --log-junit test-results/php-unit/results.xml
       - run:
@@ -102,6 +106,7 @@ aliases:
       - <<: *STEP_STORE_ARTIFACTS
 
 jobs:
+
   "Lint files": &lint_files
     docker:
       - image: circleci/php:7-cli-node-browsers
@@ -150,6 +155,7 @@ jobs:
           command: test -e .failure && exit 1 || true
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
+
   "Check 5.4 compatibility (only changed files)":
     <<: *lint_files
     steps:
@@ -167,6 +173,7 @@ jobs:
           command: (git diff --name-status origin/master...HEAD | egrep "^[ACMR].*\.php$" | cut -c 3- || true) | xargs -r composer lint-5.4 -- --report=junit | tee test-results/phpcs/results.xml
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
+
   "Static Analysis":
     docker:
       - image: circleci/php:7.2

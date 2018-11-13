@@ -92,11 +92,12 @@ final class SpanAssertion
 
     /**
      * @param array $tagNames
+     * @param bool $merge If true, the provided tags are nmerged with the default ones
      * @return $this
      */
-    public function withExistingTagsNames(array $tagNames)
+    public function withExistingTagsNames(array $tagNames, $merge = true)
     {
-        $this->existingTags = $tagNames;
+        $this->existingTags = $merge ? array_merge($tagNames, $this->existingTags) : $tagNames;
         return $this;
     }
 
