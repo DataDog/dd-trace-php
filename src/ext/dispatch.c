@@ -77,7 +77,10 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     zend_function *func;
 #if PHP_VERSION_ID < 70000
     func = datadog_current_function(execute_data);
-    this = datadog_this(func, execute_data);
+
+    if (dispatch->clazz) {
+        this = datadog_this(func, execute_data);
+    }
 
     zend_function *callable = (zend_function *)zend_get_closure_method_def(&dispatch->callable TSRMLS_CC);
 
