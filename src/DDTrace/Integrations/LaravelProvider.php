@@ -58,7 +58,7 @@ class LaravelProvider extends ServiceProvider
             foreach ($pipes as $pipe) {
                 $pipeClass = explode(':', $pipe)[0];
 
-                dd_trace($pipe, 'handle', function (...$args) {
+                dd_trace($pipeClass, 'handle', function (...$args) {
                     $scope = GlobalTracer::get()->startActiveSpan('laravel.middleware');
                     $span = $scope->getSpan();
                     $span->setResource(get_class($this));
