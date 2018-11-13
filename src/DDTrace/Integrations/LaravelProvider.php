@@ -63,7 +63,6 @@ class LaravelProvider extends ServiceProvider
             foreach ($pipes as $pipe) {
                 // Pipes can be passed both as class to the pipeline and as instances
                 if (is_string($pipe) || is_object($pipe)) {
-
                     if (is_string($pipe)) {
                         // Middleware can be passed parameters during registration, in the form
                         // 'middleware_name_or_class:param1,param2', so we need to extract the real name/class from the
