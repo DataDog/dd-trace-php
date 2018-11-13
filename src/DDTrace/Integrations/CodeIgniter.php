@@ -31,10 +31,10 @@ class CodeIgniter
     private $tracer;
     private $CI;
 
-    private $span_codeigniter;
-    private $span_system;
-    private $span_controller_construct;
-    private $span_controller;
+    private $scope_codeigniter;
+    private $scope_system;
+    private $scope_controller_construct;
+    private $scope_controller;
 
     public function __construct()
     {
@@ -69,13 +69,12 @@ class CodeIgniter
             $this->create_tracer();
 
             $scope = $this->tracer->startActiveSpan('codeigniter.system');
-            $this->span_system = $scope->getSpan();
+            $this->scope_system = $scope;
         }
     }
 
     public function create_tracer()
     {
-        $self = $this;
         $this->enabled = true;
         $tracer = new Tracer(new Http(new Json()));
 
@@ -83,19 +82,50 @@ class CodeIgniter
         $this->tracer = $tracer;
 
         $scope = $tracer->startActiveSpan('codeigniter');
-        $this->span_codeigniter = $scope->getSpan();
-        $this->span_codeigniter->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+        $this->scope_codeigniter = $scope;
+        $span = $this->scope_codeigniter->getSpan();
+        $span->setTag(Tags\SERVICE_NAME, $this->getAppName());
+        $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
-        dd_trace('CI_URI', '_set_uri_string', function ($str) {
-            try {
-                $this->_set_uri_string($str);
-            } catch (\Exception $e) {
-                throw $e;
-            } finally {
-                if (isset($this->span_codeigniter))
-                    $this->span_codeigniter->setResource($str);
-            }
-        });
+        /*register_shutdown_function(function () use ($scope) {
+            $scope->close();
+            GlobalTracer::get()->flush();
+        });*/
+    }
+
+    public function pre_controller()
+    {
+        if (!$this->enabled)
+            return;
+
+        if (isset($this->scope_system) && $this->scope_system !== null)
+            $this->scope_system->close();
+
+        $scope = GlobalTracer::get()->startActiveSpan('codeigniter.controller.construct');
+        $this->scope_controller_construct = $scope;
+    }
+
+    public function post_controller_constructor()
+    {
+        $this->CI = &get_instance();
+        $self = $this;
+
+        $this->CI->ddtrace = $this;
+
+        if ($this->enabled == false)
+            return;
+
+        if (isset($this->scope_codeigniter) && $this->scope_codeigniter !== null)
+        {
+            dd_trace('CI_URI', '_set_uri_string', function ($str) {
+                try {
+                    $this->_set_uri_string($str);
+                    $this->scope_codeigniter->getSpan()->setResource($str);
+                } catch (\Exception $e) {
+                    throw $e;
+                }
+            });
+        }
 
         dd_trace('CI_Loader', 'view', function ($view, $data = array(), $return = false) {
             $scope = GlobalTracer::get()->startActiveSpan('codeigniter.view');
@@ -119,8 +149,8 @@ class CodeIgniter
             $span->setResource('codeigniter.database');
             try {
                 $db = $this->database($params, $return, $query_builder);
-                $span->setTag(Tags\SERVICE_TYPE, get_class($db));
-                $self->hook_database($db);
+                $span->setTag(Tags\SERVICE_NAME, get_class(get_instance()->db));
+                $self->hook_database();
 
                 return $db;
             } catch (\Exception $e) {
@@ -131,30 +161,35 @@ class CodeIgniter
             }
         });
 
-        register_shutdown_function(function () use ($scope) {
-            $scope->close();
-            GlobalTracer::get()->flush();
-        });
+        if (isset($this->scope_controller_construct) && $this->scope_controller_construct !== null)
+        {
+            $this->scope_controller_construct->getSpan()->overwriteOperationName($this->CI->uri->ruri_string().'.__construct');
+            $this->scope_controller_construct->close();
+        }
+
+        $scope = GlobalTracer::get()->startActiveSpan($this->CI->uri->rsegment(0).'.'.$this->CI->uri->ruri_string());
+        $this->scope_controller = $scope;
     }
 
-    public function hook_database($db)
+    public function hook_database()
     {
         if ($this->hooked_database)
             return;
         $this->hooked_database = true;
 
-        $db_class = get_class($db);
+        $db_class = get_class($this->CI->db);
 
         dd_trace($db_class, 'query', function ($sql, $binds = FALSE, $return_object = NULL) {
             $scope = GlobalTracer::get()->startActiveSpan('codeigniter.database.query');
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'codeigniter.database');
+            $span->setTag(Tags\SERVICE_NAME, get_class($this));
             $span->setResource($sql);
             try {
                 $result = $this->query($sql, $binds, $return_object);
-                $span->setTag('db.rowcount', $result->num_rows());
-                return $return;
+                if (is_object($result))
+                    $span->setTag('db.rowcount', $result->num_rows());
+                return $result;
             } catch (\Exception $e) {
                 $span->setError($e);
                 throw $e;
@@ -164,40 +199,24 @@ class CodeIgniter
         });
     }
 
-    public function pre_controller()
-    {
-        if (!$this->enabled)
-            return;
-
-        if (isset($this->span_system) && $this->span_system !== null)
-            $this->span_system->close();
-
-        $scope = GlobalTracer::get()->startActiveSpan('codeigniter.controller.construct');
-        $this->span_controller_construct = $scope->getSpan();
-    }
-
-    public function post_controller_constructor()
-    {
-        $this->CI = &get_instance();
-
-        if ($this->enabled == false)
-            return;
-
-        if (isset($this->span_controller_construct) && $this->span_controller_construct !== null)
-        {
-            $this->span_controller_construct->overwriteOperationName($this->CI->uri->rsegment(0).'.__construct');
-        }
-
-        $scope = GlobalTracer::get()->startActiveSpan($this->CI->uri->rsegment(0).'.'.$this->CI->uri->rsegment(1));
-        $this->span_controller = $scope->getSpan();
-    }
-
     public function post_controller()
     {
         if (!$this->enabled)
             return;
 
-        if (isset($this->span_controller) && $this->span_controller !== false)
-            $this->span_controller->close();
+        if (isset($this->scope_controller) && $this->scope_controller !== false)
+            $this->scope_controller->close();
+
+        $this->scope_codeigniter->close();
+        GlobalTracer::get()->flush();
+    }
+
+    private function getAppName()
+    {
+        if (isset($_ENV['ddtrace_app_name'])) {
+            return $_ENV['ddtrace_app_name'];
+        } else {
+            return 'codeigniter';
+        }
     }
 }
