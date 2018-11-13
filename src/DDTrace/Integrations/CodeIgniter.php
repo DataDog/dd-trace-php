@@ -87,10 +87,18 @@ class CodeIgniter
         $span->setTag(Tags\SERVICE_NAME, $this->getAppName());
         $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
-        /*register_shutdown_function(function () use ($scope) {
+        if (class_exists('Memcached')) {
+            Memcached::load();
+        }
+        PDO::load();
+        if (class_exists('Predis\Client')) {
+            Predis::load();
+        }
+
+        register_shutdown_function(function () use ($scope) {
             $scope->close();
             GlobalTracer::get()->flush();
-        });*/
+        });
     }
 
     public function pre_controller()
@@ -206,9 +214,6 @@ class CodeIgniter
 
         if (isset($this->scope_controller) && $this->scope_controller !== false)
             $this->scope_controller->close();
-
-        $this->scope_codeigniter->close();
-        GlobalTracer::get()->flush();
     }
 
     private function getAppName()
