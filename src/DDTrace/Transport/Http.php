@@ -8,9 +8,17 @@ use DDTrace\Version;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
+
 final class Http implements Transport
 {
-    const DEFAULT_ENDPOINT = 'http://localhost:8126/v0.3/traces';
+    // Env variables to configure trace agent. They will be moved to a configuration class once we implement it.
+    const AGENT_HOST_ENV = 'DD_AGENT_HOST';
+    const TRACE_AGENT_PORT_ENV = 'DD_TRACE_AGENT_PORT';
+
+    // Default values for trace agent configuration
+    const DEFAULT_AGENT_HOST = 'localhost';
+    const DEFAULT_TRACE_AGENT_PORT = '8126';
+    const DEFAULT_TRACE_AGENT_PATH = '/v0.3/traces';
 
     /**
      * @var Encoder
@@ -34,16 +42,32 @@ final class Http implements Transport
 
     public function __construct(Encoder $encoder, LoggerInterface $logger = null, array $config = [])
     {
+        $this->configure($config);
+
         $this->encoder = $encoder;
         $this->logger = $logger ?: new NullLogger();
-        $this->config = array_merge([
-            'endpoint' => self::DEFAULT_ENDPOINT,
-        ], $config);
 
         $this->setHeader('Datadog-Meta-Lang', 'php');
         $this->setHeader('Datadog-Meta-Lang-Version', \PHP_VERSION);
         $this->setHeader('Datadog-Meta-Lang-Interpreter', \PHP_SAPI);
         $this->setHeader('Datadog-Meta-Tracer-Version', Version\VERSION);
+    }
+
+    /**
+     * Configures this http transport.
+     *
+     * @param array $config
+     */
+    private function configure($config)
+    {
+        $host = getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
+        $port = getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
+        $path = self::DEFAULT_TRACE_AGENT_PATH;
+        $endpoint = "http://${host}:${port}${path}";
+
+        $this->config = array_merge([
+            'endpoint' => $endpoint,
+        ], $config);
     }
 
     public function send(array $traces)

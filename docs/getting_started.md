@@ -144,3 +144,12 @@ dd_trace("CustomDriver", "doWork", function (...$args) {
     }
 });
 ```
+
+## Configuration
+
+It is possible to configure the agent connections parameters by means of env variables.
+
+| Env variable          | Default     | Note                        |
+|-----------------------|-------------|-----------------------------|
+| `DD_AGENT_HOST`       | `localhost` | The agent host name         |
+| `DD_TRACE_AGENT_PORT` | `8126`      | The trace agent port number |
