@@ -149,7 +149,8 @@ dd_trace("CustomDriver", "doWork", function (...$args) {
 
 It is possible to configure the agent connections parameters by means of env variables.
 
-| Env variable          | Default     | Note                        |
-|-----------------------|-------------|-----------------------------|
-| `DD_AGENT_HOST`       | `localhost` | The agent host name         |
-| `DD_TRACE_AGENT_PORT` | `8126`      | The trace agent port number |
+| Env variable          | Default            | Note                                    |
+|-----------------------|--------------------|-----------------------------------------|
+| `DD_AGENT_HOST`       | `localhost`        | The agent host name                     |
+| `DD_TRACE_AGENT_PORT` | `8126`             | The trace agent port number             |
+| `ddtrace_app_name`    | `framework's name` | The service name (Laravel and Symphony) |
