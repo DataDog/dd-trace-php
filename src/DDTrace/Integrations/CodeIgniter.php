@@ -54,19 +54,21 @@ class CodeIgniter
         if (!isset($EXT->hooks['pre_controller'])) {
             $EXT->hooks['pre_controller'] = array();
         }
-        $EXT->hooks['pre_controller'][] = function() use ($self) { $self->pre_controller(); };
+        $EXT->hooks['pre_controller'][] = function () use ($self) {
+            $self->preController();
+        };
 
         if (!isset($EXT->hooks['post_controller_constructor'])) {
             $EXT->hooks['post_controller_constructor'] = array();
         }
-        $EXT->hooks['post_controller_constructor'][] = function() use ($self) {
-            $self->post_controller_constructor();
+        $EXT->hooks['post_controller_constructor'][] = function () use ($self) {
+            $self->postControllerConstructor();
         };
 
         if (!isset($EXT->hooks['post_controller'])) {
             $EXT->hooks['post_controller'] = array();
         }
-        $EXT->hooks['post_controller'][] = function() use ($self) {
+        $EXT->hooks['post_controller'][] = function () use ($self) {
             $self->post_controller();
         };
 
@@ -122,7 +124,7 @@ class CodeIgniter
         $this->scope_controller_construct = $scope;
     }
 
-    public function postController_constructor()
+    public function postControllerConstructor()
     {
         $this->CI = &get_instance();
         $self = $this;
@@ -182,11 +184,11 @@ class CodeIgniter
 
         if (isset($this->scope_controller_construct) && $this->scope_controller_construct !== null) {
             $span = $this->scope_controller_construct->getSpan();
-            $span->overwriteOperationName($this->CI->uri->ruri_string().'.__construct');
+            $span->overwriteOperationName($this->CI->uri->ruri_string() . '.__construct');
             $this->scope_controller_construct->close();
         }
 
-        $scope = GlobalTracer::get()->startActiveSpan($this->CI->uri->rsegment(0).'.'.$this->CI->uri->ruri_string());
+        $scope = GlobalTracer::get()->startActiveSpan($this->CI->uri->rsegment(0) . '.' . $this->CI->uri->ruri_string());
         $this->scope_controller = $scope;
     }
 
