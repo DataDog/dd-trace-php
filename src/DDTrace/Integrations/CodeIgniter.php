@@ -244,7 +244,7 @@ class CodeIgniter
         if (isset($_ENV['ddtrace_app_name'])) {
             return $_ENV['ddtrace_app_name'];
         } elseif (isset($this->CI) && $this->CI !== null) {
-            $name = $this->config->item('ddtrace_service');
+            $name = $this->CI->config->item('ddtrace_service');
             if (!empty($name))
                 return $name;
         }
