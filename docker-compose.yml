@@ -1,29 +1,33 @@
 version: '3.6'
 
+x-aliases:
+  - &base_php_service
+      ulimits:
+        core: 99999999999
+      working_dir: '/home/circleci/app'
+      stdin_open: true
+      tty: true
+      volumes: [ '.:/home/circleci/app' ]
+      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
+      depends_on:
+        - redis_integration
+        - mysql_integration
+        - ddagent_integration
+        - memcached_integration
+      environment:
+        - REDIS_HOSTNAME=redis_integration
+        - DDAGENT_HOSTNAME=ddagent_integration
+
 services:
+  '5.6': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_5_6' }
+  '5.6-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-5.6' }
 
-  '7.2': &base
-    image: "datadog/docker-library:ddtrace_php_7_2"
-    ulimits:
-      core: 99999999999
-    working_dir: '/home/circleci/app'
-    stdin_open: true
-    tty: true
-    volumes: [ '.:/home/circleci/app' ]
-    tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
-    depends_on:
-      - memcached_integration
-      - redis_integration
-      - ddagent_integration
-    environment:
-      - REDIS_HOSTNAME=redis_integration
-      - DDAGENT_HOSTNAME=ddagent_integration
+  '7.0': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_0' }
+  '7.1': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_1' }
+  '7.2': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_2' }
+  '7.2-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-7.2' }
 
-  '5.6': { <<: *base, image: 'datadog/docker-library:ddtrace_php_5_6' }
-
-  '7.0': { <<: *base, image: 'datadog/docker-library:ddtrace_php_7_0' }
-
-  '7.1': { <<: *base, image: 'datadog/docker-library:ddtrace_php_7_1' }
+  'fpm': { <<: *base_php_service, image: 'circleci/ruby:2.5', depends_on: [] }
 
   mysql_integration:
     image: mysql:5.6
@@ -32,8 +36,6 @@ services:
       - MYSQL_PASSWORD=test
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
-
-  'fpm': { <<: *base, image: 'circleci/ruby:2.5', depends_on: [] }
 
   redis_integration:
     image: "circleci/redis:4.0-alpine"

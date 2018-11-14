@@ -51,7 +51,9 @@ static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, 
     if (EX(call)->num_additional_args) {
         vm_stack_push_args(fci->param_count TSRMLS_CC);
     } else {
-        EX(function_state).arguments = zend_vm_stack_top(TSRMLS_C);
+        if (fci->param_count) {
+            EX(function_state).arguments = zend_vm_stack_top(TSRMLS_C);
+        }
         zend_vm_stack_push((void *)(zend_uintptr_t)fci->param_count TSRMLS_CC);
     }
 
