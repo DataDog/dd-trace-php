@@ -4,24 +4,33 @@ namespace DDTrace\Tests\Integration\Integrations;
 
 use DDTrace\Integrations\Predis;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
+use DDTrace\Tests\Integration\Common\SpanAssertion;
+use Predis\Response\Status;
 
 
 final class PredisTest extends IntegrationTestCase
 {
+    private $host = 'redis_integration';
+    private $port = '6379';
+
     public static function setUpBeforeClass()
     {
         Predis::load();
     }
 
-    public function redisHostname()
+    protected function setUp()
     {
-        return $_SERVER["REDIS_HOSTNAME"] ? $_SERVER["REDIS_HOSTNAME"] : '0.0.0.0';
+        parent::setUp();
+
+        if (PHP_MAJOR_VERSION < 7) {
+            $this->markTestSkipped('Predis integration with php 5.6 has a known bug. Work in Progress to fix it.');
+        }
     }
 
     public function testPredisIntegrationCreatesSpans()
     {
         $traces = $this->inTestScope('redis.test', function () {
-            $client = new \Predis\Client([ "host" => $this->redisHostname() ]);
+            $client = new \Predis\Client([ "host" => $this->host ]);
             $value = 'bar';
 
             $client->set('foo', $value);
@@ -36,24 +45,112 @@ final class PredisTest extends IntegrationTestCase
         $this->assertGreaterThan(2, count($trace)); # two Redis operations -> at least 2 spans
     }
 
-    public function testPredisSetCommandSpanExists()
+    public function testPredisConstruct()
     {
-        $client = new \Predis\Client([ "host" => $this->redisHostname() ]);
+        $traces = $this->isolateTracer(function () {
+            $client = new \Predis\Client([ "host" => $this->host ]);
+            $this->assertNotNull($client);
+        });
 
-        $traces = $this->isolateTracer(function () use ($client) {
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Predis.Client.__construct', 'redis', 'cache', 'Predis.Client.__construct')
+                ->withExactTags($this->baseTags()),
+        ]);
+    }
+
+    public function testPredisConnect()
+    {
+        $traces = $this->isolateTracer(function () {
+            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client->connect();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Predis.Client.__construct'),
+            SpanAssertion::build('Predis.Client.connect', 'redis', 'cache', 'Predis.Client.connect')
+                ->withExactTags($this->baseTags()),
+        ]);
+    }
+
+    public function testPredisSetCommand()
+    {
+        $traces = $this->isolateTracer(function () {
+            $client = new \Predis\Client([ "host" => $this->host ]);
             $client->set('foo', 'value');
         });
-        $this->assertCount(1, $traces);
-        $this->assertCount(1, $traces[0]);
 
-        $span = $traces[0][0];
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Predis.Client.__construct'),
+            SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'cache', 'SET foo value')
+                ->withExactTags(array_merge([], $this->baseTags(), [
+                    'redis.raw_command' => 'SET foo value',
+                    'redis.args_length' => '3',
+                ])),
+        ]);
+    }
 
-        $this->assertEquals('SET foo value', $span->getResource());
-        $this->assertEquals('redis', $span->getType());
-        $this->assertEquals('redis', $span->getService());
+    public function testPredisGetCommand()
+    {
+        $traces = $this->isolateTracer(function () {
+            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client->set('key', 'value');
+            $this->assertSame('value', $client->get('key'));
+        });
 
-        $this->assertNotEmpty($span->getTraceId());
-        $this->assertNotEmpty($span->getSpanId());
-        $this->assertEquals($span->getTraceId(), $span->getSpanId());
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Predis.Client.__construct'),
+            SpanAssertion::exists('Predis.Client.executeCommand'),
+            SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'cache', 'GET key')
+                ->withExactTags(array_merge([], $this->baseTags(), [
+                    'redis.raw_command' => 'GET key',
+                    'redis.args_length' => '2',
+                ])),
+        ]);
+    }
+
+    public function testPredisRawCommand()
+    {
+        $traces = $this->isolateTracer(function () {
+            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client->executeRaw(["SET", "key", "value"]);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Predis.Client.__construct'),
+            SpanAssertion::build('Predis.Client.executeRaw', 'redis', 'cache', 'SET key value')
+                ->withExactTags(array_merge([], $this->baseTags(), [
+                    'redis.raw_command' => 'SET key value',
+                    'redis.args_length' => '3',
+                ])),
+        ]);
+    }
+
+    public function testPredisPipeline()
+    {
+        $traces = $this->isolateTracer(function () {
+            $client = new \Predis\Client([ "host" => $this->host ]);
+            list($responsePing, $responseFlush) = $client->pipeline(function ($pipe) {
+                $pipe->ping();
+                $pipe->flushdb();
+            });
+            $this->assertInstanceOf(Status::class, $responsePing);
+            $this->assertInstanceOf(Status::class, $responseFlush);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Predis.Client.__construct'),
+            SpanAssertion::build('Predis.Pipeline.executePipeline', 'redis', 'cache', 'Predis.Pipeline.executePipeline')
+                ->withExactTags([
+                    'redis.pipeline_length' => '2'
+                ]),
+        ]);
+    }
+
+    private function baseTags()
+    {
+        return [
+            'out.host' => $this->host,
+            'out.port' => $this->port,
+        ];
     }
 }

@@ -17,6 +17,7 @@ aliases:
 
   - &IMAGE_DOCKER_REDIS
     image: circleci/redis:4.0-alpine
+    name: redis_integration
 
   - &IMAGE_DOCKER_MEMCHACED
     image: memcached:1.5-alpine
