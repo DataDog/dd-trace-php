@@ -69,7 +69,7 @@ class CodeIgniter
             $EXT->hooks['post_controller'] = array();
         }
         $EXT->hooks['post_controller'][] = function () use ($self) {
-            $self->post_controller();
+            $self->postController();
         };
 
         if (php_sapi_name() == 'cli') {
