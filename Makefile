@@ -1,39 +1,45 @@
 BUILD_SUFFIX := extension
 BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
+ABS_SRC_DIR := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 # WALL_FLAGS := -Wall -Werror -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
-VERSION:=$(shell cat src/DDTrace/Tracer.php | grep 'const VERSION' | awk '{print $$NF}' | cut -d\' -f2)
+VERSION:=$(shell cat src/DDTrace/Version.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2)
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 
-all: configure $(SO_FILE)
+all: $(BUILD_DIR)/configure $(SO_FILE)
 
 src/ext/version.h:
 	@echo "Creating [src/ext/version.h]\n"
-	@echo -n "PHP: "
-	@cat src/DDTrace/Tracer.php | grep 'const VERSION'
+	@echo "PHP: "
+	@cat src/DDTrace/Version.php | grep VERSION
 	@(echo '#ifndef PHP_DDTRACE_VERSION\n#define PHP_DDTRACE_VERSION "$(VERSION)"\n#endif' ) > $@
 	@echo "C: "
 	@cat $@ #| grep '#define'
 
-configure: config.m4
-	phpize
+$(BUILD_DIR)/config.m4: config.m4
+	@mkdir -p $(BUILD_DIR)
+	@cp config.m4 $@
 
-$(BUILD_DIR)/Makefile: configure
-	mkdir -p $(BUILD_DIR)
-	cd $(BUILD_DIR); $(abspath configure)
+$(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
+	@(cd $(BUILD_DIR); phpize)
+
+$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
+	@(cd $(BUILD_DIR); ./configure --srcdir=$(ABS_SRC_DIR))
 
 $(SO_FILE): $(BUILD_DIR)/Makefile src/ext/version.h
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
+	@$(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
 
 install: $(SO_FILE)
-	$(SUDO) $(MAKE) -C $(BUILD_DIR) install
+	@$(SUDO) $(MAKE) -C $(BUILD_DIR) install
 
 $(INI_FILE):
 	echo "extension=ddtrace.so" | $(SUDO) tee $@
 
 install_ini: $(INI_FILE)
+
+install_all: install install_ini
 
 test_c: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)"
@@ -45,7 +51,6 @@ test_integration: install_ini
 	composer test -- $(PHPUNIT)
 
 dist_clean:
-	phpize --clean
 	rm -rf $(BUILD_DIR)
 
 clean:
@@ -78,5 +83,4 @@ $(PACKAGES_BUILD_DIR):
 packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
-.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini .apk .rpm .deb .tar.gz src/ext/version.h
-
+.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz src/ext/version.h

@@ -10,6 +10,13 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 #undef EX  // php7 style EX
 #define EX(x) ((execute_data)->x)
+// #define FBC() EX(call)->fbc
+#define FBC() EX(fbc)
+#define OBJECT() EX(object)
+// #define NUM_ADDITIONAL_ARGS() EX(call)->num_additional_args
+#define NUM_ADDITIONAL_ARGS() (0)
+
+
 
 static zend_always_inline void **vm_stack_push_args_with_copy(int count TSRMLS_DC) /* {{{ */
 {
@@ -45,10 +52,10 @@ static zend_always_inline void **vm_stack_push_args(int count TSRMLS_DC) {
 
 static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, zend_fcall_info *fci,
                                                zval **result TSRMLS_DC) {
-    int argc = EX(opline)->extended_value + EX(call)->num_additional_args;
+    int argc = EX(opline)->extended_value + NUM_ADDITIONAL_ARGS();
     fci->param_count = argc;
 
-    if (EX(call)->num_additional_args) {
+    if (NUM_ADDITIONAL_ARGS()) {
         vm_stack_push_args(fci->param_count TSRMLS_CC);
     } else {
         if (fci->param_count) {
@@ -67,13 +74,13 @@ static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, 
 
 void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC) {
     if (EX(opline)->opcode != ZEND_DO_FCALL_BY_NAME) {
-        call_slot *call = EX(call_slots) + EX(opline)->op2.num;
-        call->fbc = EX(function_state).function;
-        call->object = NULL;
-        call->called_scope = NULL;
-        call->num_additional_args = 0;
-        call->is_ctor_call = 0;
-        EX(call) = call;
+        // call_slot *call = EX(call_slots) + EX(opline)->op2.num;
+        // call->fbc = EX(function_state).function;
+        // call->object = NULL;
+        // call->called_scope = NULL;
+        // call->num_additional_args = 0;
+        // call->is_ctor_call = 0;
+        // EX(call) = call;
     }
 
     setup_fcal_name(execute_data, fci, result TSRMLS_CC);

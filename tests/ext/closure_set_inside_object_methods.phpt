@@ -12,14 +12,14 @@ $variable = 1000;
 
 final class TestSetup {
     public function setup(){
-        dd_trace(Test::class, "m", function($i) {
+        dd_trace("Test", "m", function($i) {
             $variable = $i + 10;
             $this->m($variable);
             echo "HOOK " . $variable . PHP_EOL;
         });
     }
     public function setup_ext($j){
-        dd_trace(Test::class, "m", function($i) use ($j){
+        dd_trace("Test", "m", function($i) use ($j){
             global $variable;
             $variable += $i + $j;
             $this->m($variable);

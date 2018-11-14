@@ -172,8 +172,11 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     if (fbc->common.scope) {
 #if PHP_VERSION_ID < 70000
         object = EG(This);
-        if (!object && EX(call)) {
-            object = EX(call)->object;
+        // if (!object && EX(object)) {
+        //     object = EX(call)->object;
+        // }
+        if (!object && OBJECT()) {
+            object = OBJECT();
         }
 
         common_scope = fbc->common.scope->name;
@@ -207,12 +210,15 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
         dispatch->flags ^= BUSY_FLAG;  // guard against recursion, catching only topmost execution
 
+#define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
 #if PHP_VERSION_ID < 70000
         zval *return_value = NULL;
         execute_fcall(dispatch, execute_data, &return_value TSRMLS_CC);
         if (return_value != NULL) {
-            EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
+            // EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
+            EX_T(opline->result.var).var.ptr_ptr = return_value;
         }
+
 #else
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
         execute_fcall(dispatch, EX(call), &return_value TSRMLS_CC);
@@ -239,7 +245,7 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 
 #if PHP_VERSION_ID < 70000
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
-        fbc = EX(call)->fbc;
+        fbc = FBC();
         function_name = fbc->common.function_name;
         function_name_length = 0;
     } else {
@@ -248,7 +254,8 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
         function_name_length = Z_STRLEN_P(EX(opline)->op1.zv);
     }
 #else
-    fbc = EX(call)->func;
+    fbc = FBC();
+    // fbc = EX(call)->func;
     if (fbc->common.function_name) {
         function_name = ZSTR_VAL(fbc->common.function_name);
         function_name_length = ZSTR_LEN(fbc->common.function_name);
@@ -278,8 +285,8 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 
 static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 #if PHP_VERSION_ID < 70000
-    zend_vm_stack_clear_multiple(0 TSRMLS_CC);
-    EX(call)--;
+    zend_vm_stack_clear_multiple(TSRMLS_CC);
+    // EX(call)--;
 #else
     EX(call) = EX(call)->prev_execute_data;
 #endif

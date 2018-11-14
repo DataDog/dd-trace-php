@@ -12,8 +12,8 @@ namespace Fn {
         echo "FUNCTION EXIT " . $c . PHP_EOL;
     }
 
-    function test_va(...$args){
-        test(...$args);
+    function test_va(){
+        test(func_get_arg(0), func_get_arg(1));
     }
 }
 
@@ -22,19 +22,19 @@ namespace Klass {
         public function m($c, $end){
             echo "METHOD START " . $c .  PHP_EOL;
             \Fn\test(1, 2);
-            \Fn\test_va(...[1,2]);
+            \Fn\test_va(1,2);
 
             if ($c < $end) {
                 $this->m($c + 1, $end);
             }
             echo "METHOD END " . $c .  PHP_EOL;
         }
-        public function m2(...$args){
-            $this->m(...$args);
+        public function m2(){
+            $this->m(func_get_arg(0), func_get_arg(1));
         }
     }
 
-    dd_trace(Test::class, "m", function($c, $end){
+    dd_trace("Klass\\Test", "m", function($c, $end){
         echo "M HOOK START " . $c . PHP_EOL;
         $this->m($c, $end);
         echo "M HOOK END " . $c . PHP_EOL;
@@ -62,7 +62,7 @@ namespace {
 
     Fn\test(1, 3);
     echo PHP_EOL;
-    Fn\test_va(...[1,3]);
+    Fn\test_va(1,3);
     echo PHP_EOL;
     (new Klass\Test())->m(1,3);
     echo PHP_EOL;

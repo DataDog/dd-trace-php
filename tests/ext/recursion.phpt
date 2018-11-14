@@ -11,15 +11,15 @@ function test($c, $end){
     echo "FUNCTION EXIT " . $c . PHP_EOL;
 }
 
-function test_va(...$args){
-    test(...$args);
+function test_va(){
+    test(func_get_arg(0), func_get_arg(1));
 }
 
 class Test {
     public function m($c, $end){
         echo "METHOD START " . $c .  PHP_EOL;
         test(1, 2);
-        test_va(...[1,2]);
+        test_va(1, 2);
 
         if ($c < $end) {
             $this->m($c + 1, $end);
@@ -40,7 +40,7 @@ dd_trace("test_va", function($c, $end){
     echo "FVA HOOK END " . $c . PHP_EOL;
 });
 
-dd_trace(Test::class, "m", function($c, $end){
+dd_trace('Test', "m", function($c, $end){
     echo "M HOOK START " . $c . PHP_EOL;
     $this->m($c, $end);
     echo "M HOOK END " . $c . PHP_EOL;
@@ -48,7 +48,7 @@ dd_trace(Test::class, "m", function($c, $end){
 
 test(1, 3);
 echo PHP_EOL;
-test_va(...[1,3]);
+test_va(1,3);
 echo PHP_EOL;
 (new Test())->m(1,3);
 echo PHP_EOL;
