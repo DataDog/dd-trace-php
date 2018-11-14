@@ -19,6 +19,7 @@ x-aliases:
         - DDAGENT_HOSTNAME=ddagent_integration
 
 services:
+  '5.4-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-5.4' }
   '5.6': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_5_6' }
   '5.6-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-5.6' }
 
