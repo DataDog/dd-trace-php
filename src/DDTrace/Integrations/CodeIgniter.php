@@ -120,7 +120,8 @@ class CodeIgniter
             $this->scope_system->close();
         }
 
-        $scope = GlobalTracer::get()->startActiveSpan('codeigniter.controller.construct');
+        global $RTR;
+        $scope = GlobalTracer::get()->startActiveSpan($RTR->class . '/'. $RTR->method . '/__construct');
         $this->scope_controller_construct = $scope;
     }
 
@@ -150,7 +151,7 @@ class CodeIgniter
             $scope = GlobalTracer::get()->startActiveSpan('codeigniter.view');
             $span = $scope->getSpan();
             try {
-                $span->setTag('view', $view);
+                $span->setResource($view);
                 return $this->view($view, $data, $return);
             } catch (\Exception $e) {
                 $span->setError($e);
@@ -183,11 +184,11 @@ class CodeIgniter
 
         if (isset($this->scope_controller_construct) && $this->scope_controller_construct !== null) {
             $span = $this->scope_controller_construct->getSpan();
-            $span->overwriteOperationName($this->CI->uri->ruri_string() . '.__construct');
             $this->scope_controller_construct->close();
         }
 
-        $scope = GlobalTracer::get()->startActiveSpan($this->CI->uri->ruri_string());
+        global $RTR;
+        $scope = GlobalTracer::get()->startActiveSpan($RTR->class . '/'. $RTR->method);
         $this->scope_controller = $scope;
     }
 
