@@ -51,17 +51,24 @@ class CodeIgniter
         }
 
         $self = $this;
-        if (!isset($EXT->hooks['pre_controller']))
+        if (!isset($EXT->hooks['pre_controller'])) {
             $EXT->hooks['pre_controller'] = array();
+        }
         $EXT->hooks['pre_controller'][] = function() use ($self) { $self->pre_controller(); };
 
-        if (!isset($EXT->hooks['post_controller_constructor']))
+        if (!isset($EXT->hooks['post_controller_constructor'])) {
             $EXT->hooks['post_controller_constructor'] = array();
-        $EXT->hooks['post_controller_constructor'][] = function() use ($self) { $self->post_controller_constructor(); };
+        }
+        $EXT->hooks['post_controller_constructor'][] = function() use ($self) {
+            $self->post_controller_constructor();
+        };
 
-        if (!isset($EXT->hooks['post_controller']))
+        if (!isset($EXT->hooks['post_controller'])) {
             $EXT->hooks['post_controller'] = array();
-        $EXT->hooks['post_controller'][] = function() use ($self) { $self->post_controller(); };
+        }
+        $EXT->hooks['post_controller'][] = function() use ($self) {
+            $self->post_controller();
+        };
 
         if (php_sapi_name() == 'cli') {
             $this->enabled = false;
@@ -103,11 +110,13 @@ class CodeIgniter
 
     public function pre_controller()
     {
-        if (!$this->enabled)
+        if (!$this->enabled) {
             return;
+        }
 
-        if (isset($this->scope_system) && $this->scope_system !== null)
+        if (isset($this->scope_system) && $this->scope_system !== null) {
             $this->scope_system->close();
+        }
 
         $scope = GlobalTracer::get()->startActiveSpan('codeigniter.controller.construct');
         $this->scope_controller_construct = $scope;
@@ -120,8 +129,9 @@ class CodeIgniter
 
         $this->CI->ddtrace = $this;
 
-        if ($this->enabled == false)
+        if ($this->enabled == false) {
             return;
+        }
 
         if (isset($this->scope_codeigniter) && $this->scope_codeigniter !== null)
         {
@@ -149,12 +159,13 @@ class CodeIgniter
             }
         });
 
-        dd_trace('CI_Loader', 'database', function ($params = '', $return = FALSE, $query_builder = NULL) use ($self) {
+        dd_trace('CI_Loader', 'database', function ($params = '', $return = false, $query_builder = null) use ($self) {
             $scope = GlobalTracer::get()->startActiveSpan('codeigniter.database');
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'codeigniter.database');
             $span->setResource('codeigniter.database');
+
             try {
                 $db = $this->database($params, $return, $query_builder);
                 $span->setTag(Tags\SERVICE_NAME, get_class(get_instance()->db));
@@ -169,9 +180,9 @@ class CodeIgniter
             }
         });
 
-        if (isset($this->scope_controller_construct) && $this->scope_controller_construct !== null)
-        {
-            $this->scope_controller_construct->getSpan()->overwriteOperationName($this->CI->uri->ruri_string().'.__construct');
+        if (isset($this->scope_controller_construct) && $this->scope_controller_construct !== null) {
+            $span = $this->scope_controller_construct->getSpan();
+            $span->overwriteOperationName($this->CI->uri->ruri_string().'.__construct');
             $this->scope_controller_construct->close();
         }
 
@@ -181,22 +192,25 @@ class CodeIgniter
 
     public function hook_database()
     {
-        if ($this->hooked_database)
+        if ($this->hooked_database) {
             return;
+        }
         $this->hooked_database = true;
 
         $db_class = get_class($this->CI->db);
 
-        dd_trace($db_class, 'query', function ($sql, $binds = FALSE, $return_object = NULL) {
+        dd_trace($db_class, 'query', function ($sql, $binds = false, $return_object = null) {
             $scope = GlobalTracer::get()->startActiveSpan('codeigniter.database.query');
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, get_class($this));
             $span->setResource($sql);
+
             try {
                 $result = $this->query($sql, $binds, $return_object);
-                if (is_object($result))
+                if (is_object($result)) {
                     $span->setTag('db.rowcount', $result->num_rows());
+                }
                 return $result;
             } catch (\Exception $e) {
                 $span->setError($e);
@@ -209,11 +223,13 @@ class CodeIgniter
 
     public function post_controller()
     {
-        if (!$this->enabled)
+        if (!$this->enabled) {
             return;
+        }
 
-        if (isset($this->scope_controller) && $this->scope_controller !== false)
+        if (isset($this->scope_controller) && $this->scope_controller !== false) {
             $this->scope_controller->close();
+        }
     }
 
     private function getAppName()
