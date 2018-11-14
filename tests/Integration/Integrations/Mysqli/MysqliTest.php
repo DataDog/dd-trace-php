@@ -1,8 +1,8 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Integrations;
+namespace DDTrace\Tests\Integration\Integrations\Mysqli;
 
-use DDTrace\Integrations\Mysqli as MysqliIntegration;
+use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 
