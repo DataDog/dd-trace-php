@@ -21,6 +21,8 @@ use OpenTracing\GlobalTracer;
  * And in config/hooks.php add:
  *
  * $hook['pre_system'] = function() { new DDTrace\Integrations\CodeIgniter };
+ *
+ * The service name can be set via config/config.php by adding a new config item "ddtrace_service"
  */
 
 class CodeIgniter
@@ -183,8 +185,11 @@ class CodeIgniter
         });
 
         if (isset($this->scope_controller_construct) && $this->scope_controller_construct !== null) {
-            $span = $this->scope_controller_construct->getSpan();
             $this->scope_controller_construct->close();
+        }
+
+        if (isset($this->scope_codeigniter) && $this->scope_codeigniter !== null) {
+            $this->scope_codeigniter->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
         }
 
         global $RTR;
@@ -238,8 +243,12 @@ class CodeIgniter
     {
         if (isset($_ENV['ddtrace_app_name'])) {
             return $_ENV['ddtrace_app_name'];
-        } else {
-            return 'codeigniter';
+        } elseif (isset($this->CI) && $this->CI !== null) {
+            $name = $this->config->item('ddtrace_service');
+            if (!empty($name))
+                return $name;
         }
+
+        return 'codeigniter';
     }
 }
