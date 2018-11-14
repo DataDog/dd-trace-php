@@ -38,10 +38,10 @@ class CodeIgniter
 
     public function __construct()
     {
-        $this->pre_system();
+        $this->preSystem();
     }
 
-    public function pre_system()
+    public function preSystem()
     {
         global $EXT;
 
@@ -73,14 +73,14 @@ class CodeIgniter
         if (php_sapi_name() == 'cli') {
             $this->enabled = false;
         } else {
-            $this->create_tracer();
+            $this->createTracer();
 
             $scope = $this->tracer->startActiveSpan('codeigniter.system');
             $this->scope_system = $scope;
         }
     }
 
-    public function create_tracer()
+    public function createTracer()
     {
         $this->enabled = true;
         $tracer = new Tracer(new Http(new Json()));
@@ -108,7 +108,7 @@ class CodeIgniter
         });
     }
 
-    public function pre_controller()
+    public function preController()
     {
         if (!$this->enabled) {
             return;
@@ -122,7 +122,7 @@ class CodeIgniter
         $this->scope_controller_construct = $scope;
     }
 
-    public function post_controller_constructor()
+    public function postController_constructor()
     {
         $this->CI = &get_instance();
         $self = $this;
@@ -169,7 +169,7 @@ class CodeIgniter
             try {
                 $db = $this->database($params, $return, $query_builder);
                 $span->setTag(Tags\SERVICE_NAME, get_class(get_instance()->db));
-                $self->hook_database();
+                $self->hookDatabase();
 
                 return $db;
             } catch (\Exception $e) {
@@ -190,7 +190,7 @@ class CodeIgniter
         $this->scope_controller = $scope;
     }
 
-    public function hook_database()
+    public function hookDatabase()
     {
         if ($this->hooked_database) {
             return;
@@ -221,7 +221,7 @@ class CodeIgniter
         });
     }
 
-    public function post_controller()
+    public function postController()
     {
         if (!$this->enabled) {
             return;
