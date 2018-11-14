@@ -135,8 +135,7 @@ class CodeIgniter
             return;
         }
 
-        if (isset($this->scope_codeigniter) && $this->scope_codeigniter !== null)
-        {
+        if (isset($this->scope_codeigniter) && $this->scope_codeigniter !== null) {
             dd_trace('CI_URI', '_set_uri_string', function ($str) {
                 try {
                     $this->_set_uri_string($str);
@@ -188,7 +187,7 @@ class CodeIgniter
             $this->scope_controller_construct->close();
         }
 
-        $scope = GlobalTracer::get()->startActiveSpan($this->CI->uri->rsegment(0) . '.' . $this->CI->uri->ruri_string());
+        $scope = GlobalTracer::get()->startActiveSpan($this->CI->uri->ruri_string());
         $this->scope_controller = $scope;
     }
 
