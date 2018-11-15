@@ -227,10 +227,9 @@ jobs:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
-
-  "7.0 20151012": &ARTIFACT_BUILD
+  "5.6 20131106": &ARTIFACT_BUILD
     working_directory: ~/datadog
-    docker: [ image: 'circleci/php:7.0' ]
+    docker: [ image: 'circleci/php:5.6' ]
     steps:
       - checkout
       - attach_workspace:
@@ -245,12 +244,18 @@ jobs:
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions']
+  "7.0 20151012":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.0' ]
   "7.1 20160303":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.1' ]
   "7.2 20170718":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.2' ]
+  "5.6 zts 20131106-zts":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:5.6-zts' ]
   "7.0 zts 20151012-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.0-zts' ]
@@ -280,28 +285,31 @@ jobs:
           name: Test installing packages on target systems
           command: make -f dockerfiles/verify_packages/Makefile
 
-
 workflows:
   version: 2
   build_packages:
     jobs:
-      - "7.0 20151012": &BUILD_PACKAGE_FORKFLOW
+      - "5.6 20131106": &BUILD_PACKAGE_FORKFLOW
           filters:
             tags:
               only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
             branches:
               # Always build on master
               ignore: /^(?!master$).*/
+      - "7.0 20151012": *BUILD_PACKAGE_FORKFLOW
       - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
       - "7.2 20170718": *BUILD_PACKAGE_FORKFLOW
+      - "5.6 zts 20131106-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.0 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.1 zts 20160303-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.2 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
       - "package extension":
           requires:
+            - "5.6 20131106"
             - "7.0 20151012"
             - "7.1 20160303"
             - "7.2 20170718"
+            - "5.6 zts 20131106-zts"
             - "7.0 zts 20151012-zts"
             - "7.1 zts 20160303-zts"
             - "7.2 zts 20170718-zts"
