@@ -253,6 +253,9 @@ jobs:
   "7.2 20170718":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.2' ]
+  "5.6 zts 20131106-zts":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:5.6-zts' ]
   "7.0 zts 20151012-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.0-zts' ]
@@ -296,6 +299,7 @@ workflows:
       - "7.0 20151012": *BUILD_PACKAGE_FORKFLOW
       - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
       - "7.2 20170718": *BUILD_PACKAGE_FORKFLOW
+      - "5.6 zts 20131106-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.0 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.1 zts 20160303-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.2 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
@@ -305,6 +309,7 @@ workflows:
             - "7.0 20151012"
             - "7.1 20160303"
             - "7.2 20170718"
+            - "5.6 zts 20131106-zts"
             - "7.0 zts 20151012-zts"
             - "7.1 zts 20160303-zts"
             - "7.2 zts 20170718-zts"
