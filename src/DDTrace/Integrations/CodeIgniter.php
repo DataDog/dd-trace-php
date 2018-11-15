@@ -191,6 +191,12 @@ class CodeIgniter
         if (isset($this->scope_codeigniter) && $this->scope_codeigniter !== null) {
             $this->scope_codeigniter->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
         }
+        if (isset($this->scope_system) && $this->scope_system !== null) {
+            $this->scope_system->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
+        }
+        if (isset($this->scope_controller_construct) && $this->scope_controller_construct !== null) {
+            $this->scope_controller_construct->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
+        }
 
         global $RTR;
         $scope = GlobalTracer::get()->startActiveSpan($RTR->class . '/'. $RTR->method);
