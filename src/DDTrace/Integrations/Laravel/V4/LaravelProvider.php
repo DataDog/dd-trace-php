@@ -61,7 +61,7 @@ class LaravelProvider extends ServiceProvider
     {
         $tracer = GlobalTracer::get();
 
-        dd_trace('Illuminate\Routing\Route', 'run', function() {
+        dd_trace('Illuminate\Routing\Route', 'run', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.action', $this->uri);
             $span = $scope->getSpan();
 
@@ -75,7 +75,7 @@ class LaravelProvider extends ServiceProvider
             }
         });
 
-        dd_trace('Illuminate\View\View', 'render', function() {
+        dd_trace('Illuminate\View\View', 'render', function () {
             $args = func_get_args();
             $scope = LaravelProvider::buildBaseScope('laravel.view.render', $this->view);
             $span = $scope->getSpan();
@@ -90,7 +90,7 @@ class LaravelProvider extends ServiceProvider
             }
         });
 
-        dd_trace('Illuminate\Events\Dispatcher', 'fire', function() {
+        dd_trace('Illuminate\Events\Dispatcher', 'fire', function () {
             $args = func_get_args();
             $scope = LaravelProvider::buildBaseScope('laravel.event.handle', $args[0]);
             $span = $scope->getSpan();
