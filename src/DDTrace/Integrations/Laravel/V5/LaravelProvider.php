@@ -1,21 +1,41 @@
 <?php
 
-namespace DDTrace\Integrations;
+namespace DDTrace\Integrations\Laravel\V5;
 
-use DDTrace\Integrations\Laravel\V5\LaravelProvider as LaravelV5Provider;
+use DDTrace;
+use DDTrace\Encoders\Json;
+use DDTrace\Tags;
+use DDTrace\Tracer;
+use DDTrace\Types;
+use DDTrace\Transport\Http;
+use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Pipeline\Pipeline;
+use Illuminate\Routing\Events\RouteMatched;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
+use Illuminate\View\Engines\CompilerEngine;
+use OpenTracing\GlobalTracer;
 
+use function DDTrace\Time\fromMicrotime;
 
 /**
- * @deprecated: see -> DDTrace\Integrations\Laravel\V5\LaravelProvider
+ * DataDog Laravel tracing provider. Use by installing the dd-trace library:
+ *
+ * composer require datadog/dd-trace
+ *
+ * And then load the provider in config/app.php:
+ *
+ *     'providers' => array_merge(include(base_path('modules/system/providers.php')), [
+ *        // 'Illuminate\Html\HtmlServiceProvider', // Example
+ *
+ *        'DDTrace\Integrations\LaravelProvider',
+ *        'System\ServiceProvider',
+ *   ]),
  */
-class LaravelProvider extends LaravelV5Provider
+class LaravelProvider extends ServiceProvider
 {
-    /**
-     * A proxy to the new integration, temporarily left here for backward compatibility.
-     */
     public function register()
     {
-<<<<<<< HEAD
         if (!extension_loaded('ddtrace')) {
             trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
             return;
@@ -50,10 +70,6 @@ class LaravelProvider extends LaravelV5Provider
                         // See: https://laravel.com/docs/5.7/middleware#middleware-parameters
                         $class = explode(':', $pipe)[0];
                     } else {
-                        // If it is a closure, we ignore it
-                        if ($pipe instanceof \Closure) {
-                            continue;
-                        }
                         // If an instance is passed instead of the class, than we need to know the class from it.
                         $class = get_class($pipe);
                     }
@@ -146,10 +162,5 @@ class LaravelProvider extends LaravelV5Provider
         }
 
         return empty($name) ? 'laravel' : $name;
-=======
-        error_log('DEPRECATED: Class "DDTrace\Integrations\LaravelProvider" will be removed soon, '
-            . 'you should use the new integration in "DDTrace\Integrations\Laravel" package');
-        return parent::register();
->>>>>>> 0c6b8918aea169ba78aa960439754df712f3a1ea
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Integrations;
+namespace DDTrace\Integrations\Eloquent;
 
 use DDTrace\Tags;
 use DDTrace\Types;
@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use OpenTracing\GlobalTracer;
 
-class Eloquent
+
+class EloquentIntegration
 {
     public static function load()
     {

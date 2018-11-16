@@ -1,8 +1,8 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Integrations;
+namespace DDTrace\Tests\Integration\Integrations\Predis;
 
-use DDTrace\Integrations\Predis;
+use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 use Predis\Response\Status;
@@ -15,7 +15,7 @@ final class PredisTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
-        Predis::load();
+        PredisIntegration::load();
     }
 
     protected function setUp()
