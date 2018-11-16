@@ -82,19 +82,23 @@ class SymfonyBundle extends Bundle
         });
 
         // public function handleException(\Exception $e, Request $request, int $type): Response
-        dd_trace(HttpKernel::class, 'handleException', function (\Exception $e, Request $request, int $type) use ($symfonyRequestSpan) {
-            $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
-            $symfonyRequestSpan->setError($e);
+        dd_trace(
+            HttpKernel::class,
+            'handleException',
+            function (\Exception $e, Request $request, $type) use ($symfonyRequestSpan) {
+                $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
+                $symfonyRequestSpan->setError($e);
 
-            try {
-                return $this->handleException($e, $request, $type);
-            } catch (\Exception $e) {
-                $span = $scope->getSpan();
-                $span->setError($e);
-            } finally {
-                $scope->close();
+                try {
+                    return $this->handleException($e, $request, $type);
+                } catch (\Exception $e) {
+                    $span = $scope->getSpan();
+                    $span->setError($e);
+                } finally {
+                    $scope->close();
+                }
             }
-        });
+        );
 
         // public function dispatch($eventName, Event $event = null)
         dd_trace(EventDispatcher::class, 'dispatch', function (...$args) {
