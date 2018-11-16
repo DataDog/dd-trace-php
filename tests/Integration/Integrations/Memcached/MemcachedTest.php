@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Integrations;
+namespace DDTrace\Tests\Integration\Integrations\Memcached;
 
 use DDTrace\Integrations;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
@@ -19,7 +19,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
-        Integrations\Memcached::load();
+        Integrations\Memcached\MemcachedIntegration::load();
     }
 
     protected function setUp()
