@@ -11,6 +11,5 @@
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/simple', 'Controller@simple');
+Route::get('/simple_view', 'Controller@simple_view');
