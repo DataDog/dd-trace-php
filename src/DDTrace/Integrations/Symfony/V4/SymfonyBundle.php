@@ -3,14 +3,18 @@
 namespace DDTrace\Integrations\Symfony\V4;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Integrations\Memcached\MemcachedIntegration;
+use DDTrace\Integrations\PDO\PDOIntegration;
+use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Tags;
-use DDTrace\Types;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
+use DDTrace\Types;
 use OpenTracing\GlobalTracer;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Symfony\Component\HttpKernel\HttpKernel;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
  * DataDog Symfony tracing bundle. Use by installing the dd-trace library:
@@ -48,13 +52,18 @@ class SymfonyBundle extends Bundle
 
         // Create a span that starts from when Symfony first boots
         $scope = $tracer->startActiveSpan('symfony.request');
-        $symfony_request_span = $scope->getSpan();
-        $symfony_request_span->setTag(Tags\SERVICE_NAME, $this->getAppName());
-        $symfony_request_span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+        $symfonyRequestSpan = $scope->getSpan();
+        $symfonyRequestSpan->setTag(Tags\SERVICE_NAME, $this->getAppName());
+        $symfonyRequestSpan->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
-        dd_trace(HttpKernel::class, 'handle', function ($request, ...$args) use ($symfony_request_span) {
+        dd_trace(HttpKernel::class, 'handle', function ($request, ...$args) use ($symfonyRequestSpan) {
             $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
+            $symfonyRequestSpan->setTag('request.method', $request->getMethod());
+            $symfonyRequestSpan->setTag('request.uri', $request->getUri());
+            $symfonyRequestSpan->setTag('request.content-type', $request->getContentType());
+            $symfonyRequestSpan->setTag('request.referrer', $request->headers->get('referer'));
+            $symfonyRequestSpan->setTag('request.client-ip', $request->getClientIp());
 
             try {
                 return $this->handle($request, ...$args);
@@ -65,9 +74,24 @@ class SymfonyBundle extends Bundle
             } finally {
                 $route = $request->get('_route');
 
-                if ($symfony_request_span !== null && $route !== null) {
-                    $symfony_request_span->setResource($route);
+                if ($symfonyRequestSpan !== null && $route !== null) {
+                    $symfonyRequestSpan->setResource($route);
                 }
+                $scope->close();
+            }
+        });
+
+        // public function handleException(\Exception $e, Request $request, int $type): Response
+        dd_trace(HttpKernel::class, 'handleException', function (\Exception $e, Request $request, int $type) use ($symfonyRequestSpan) {
+            $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
+            $symfonyRequestSpan->setError($e);
+
+            try {
+                return $this->handleException($e, $request, $type);
+            } catch (\Exception $e) {
+                $span = $scope->getSpan();
+                $span->setError($e);
+            } finally {
                 $scope->close();
             }
         });
@@ -88,9 +112,9 @@ class SymfonyBundle extends Bundle
         });
 
         // Enable extension integrations
-        PDO::load();
+        PDOIntegration::load();
         if (class_exists('Memcached')) {
-            Memcached::load();
+            MemcachedIntegration::load();
         }
         if (class_exists('Predis\Client')) {
             PredisIntegration::load();
