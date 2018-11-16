@@ -4,6 +4,10 @@ namespace DDTrace\Integrations\Laravel\V5;
 
 use DDTrace;
 use DDTrace\Encoders\Json;
+use DDTrace\Integrations\Eloquent\EloquentIntegration;
+use DDTrace\Integrations\Memcached\MemcachedIntegration;
+use DDTrace\Integrations\PDO\PDOIntegration;
+use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Types;
@@ -34,6 +38,7 @@ use function DDTrace\Time\fromMicrotime;
  */
 class LaravelProvider extends ServiceProvider
 {
+    /**  @inheritdoc */
     public function register()
     {
         if (!extension_loaded('ddtrace')) {
@@ -52,6 +57,12 @@ class LaravelProvider extends ServiceProvider
         // container for easy Laravel-specific use.
         GlobalTracer::set($tracer);
         $this->app->instance(Tracer::class, $tracer);
+    }
+
+    /**  @inheritdoc */
+    public function boot()
+    {
+        $tracer = GlobalTracer::get();
 
         // Trace middleware
         dd_trace(Pipeline::class, 'through', function ($pipes) {
@@ -135,13 +146,13 @@ class LaravelProvider extends ServiceProvider
         });
 
         // Enable extension integrations
-        Eloquent::load();
+        EloquentIntegration::load();
         if (class_exists('Memcached')) {
-            Memcached::load();
+            MemcachedIntegration::load();
         }
-        PDO::load();
+        PDOIntegration::load();
         if (class_exists('Predis\Client')) {
-            Predis::load();
+            PredisIntegration::load();
         }
 
         // Flushes traces to agent.
