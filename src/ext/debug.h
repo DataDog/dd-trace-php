@@ -9,7 +9,7 @@
     } while (0)
 
 #ifdef DEBUG
-#define DD_PRINTF(fmt, ...) __DD_PRINTF(fmt, ...)
+#define DD_PRINTF(fmt, ...) __DD_PRINTF(fmt, ##__VA_ARGS__)
 #define DD_PRINT_HASH(ht)                                                              \
     do {                                                                               \
         Bucket *p;                                                                     \
