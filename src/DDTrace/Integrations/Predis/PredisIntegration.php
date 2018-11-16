@@ -125,7 +125,7 @@ class PredisIntegration
         }
 
         // Predis < 1 has not this method
-        if (method_exists('\Predis\Client', 'executePipeline')) {
+        if (method_exists('\Predis\Pipeline\Pipeline', 'executePipeline')) {
             // protected array Predis\Pipeline::executePipeline(ConnectionInterface $connection, \SplQueue $commands)
             dd_trace(Pipeline::class, 'executePipeline', function ($connection, $commands) {
                 $scope = GlobalTracer::get()->startActiveSpan('Predis.Pipeline.executePipeline');
