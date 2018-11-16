@@ -34,7 +34,7 @@ use function DDTrace\Time\fromMicrotime;
  */
 class LaravelProvider extends ServiceProvider
 {
-    public function register()
+    public function boot()
     {
         if (!extension_loaded('ddtrace')) {
             trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
