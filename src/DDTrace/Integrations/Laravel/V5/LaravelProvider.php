@@ -155,8 +155,8 @@ class LaravelProvider extends ServiceProvider
     {
         $name = null;
 
-        if (isset($_ENV['ddtrace_app_name'])) {
-            $name = $_ENV['ddtrace_app_name'];
+        if (getenv('ddtrace_app_name')) {
+            $name = getenv('ddtrace_app_name');
         } elseif (is_callable('config')) {
             $name = config('app.name');
         }

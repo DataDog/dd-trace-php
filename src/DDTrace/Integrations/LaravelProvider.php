@@ -6,7 +6,7 @@ use DDTrace\Integrations\Laravel\V5\LaravelProvider as LaravelV5Provider;
 
 
 /**
- * @deprecated: see -> DDTrace\Integrations\Laravel\V5\LarvelProvider
+ * @deprecated: see -> DDTrace\Integrations\Laravel\V5\LaravelProvider
  */
 class LaravelProvider extends LaravelV5Provider
 {

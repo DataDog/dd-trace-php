@@ -273,7 +273,7 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
     return 1;
 }
 
-static int update_opcode_leave(zend_execute_data *execute_data) {
+static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 #if PHP_VERSION_ID < 70000
     zend_vm_stack_clear_multiple(0 TSRMLS_CC);
     EX(call)--;
@@ -294,7 +294,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
 
     if (get_wrappable_function(execute_data, &fbc, &function_name, &function_name_length) &&
         wrap_and_run(execute_data, fbc, function_name, function_name_length TSRMLS_CC)) {
-        return update_opcode_leave(execute_data);
+        return update_opcode_leave(execute_data TSRMLS_CC);
     }
 
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
