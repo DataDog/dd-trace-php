@@ -204,13 +204,10 @@ class MemcachedIntegration
         $span->setTag(Tags\SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', $command);
 
-        if (is_array($args[0])) {
-            $key = implode(' ', $args[0]);
-        } else {
-            $key = $args[0];
-            self::setServerTagsByKey($span, $memcached, $key);
+        if (!is_array($args[0])) {
+            self::setServerTagsByKey($span, $memcached, $args[0]);
         }
-        $span->setTag('memcached.query', "$command $key");
+        $span->setTag('memcached.query', "$command " . self::obfuscateKeys($args[0]));
         $span->setResource($command);
 
         try {
@@ -233,8 +230,7 @@ class MemcachedIntegration
         $span->setTag('memcached.server_key', $args[0]);
         self::setServerTagsByKey($span, $memcached, $args[0]);
 
-        $key = is_array($args[1]) ? implode(' ', $args[1]) : $args[1];
-        $span->setTag('memcached.query', "$command $key");
+        $span->setTag('memcached.query', "$command " . self::obfuscateKeys($args[1]));
         $span->setResource($command);
 
         try {
@@ -256,9 +252,8 @@ class MemcachedIntegration
         $span->setTag('memcached.command', 'cas');
         $span->setTag('memcached.cas_token', $args[0]);
 
-        $key = $args[1];
-        self::setServerTagsByKey($span, $memcached, $key);
-        $span->setTag('memcached.query', "cas $key");
+        self::setServerTagsByKey($span, $memcached, $args[1]);
+        $span->setTag('memcached.query', 'cas ?');
         $span->setResource('cas');
 
         try {
@@ -281,9 +276,8 @@ class MemcachedIntegration
         $span->setTag('memcached.cas_token', $args[0]);
 
         $serverKey = $args[1];
-        $key = $args[2];
         $span->setTag('memcached.server_key', $serverKey);
-        $span->setTag('memcached.query', "casByKey $key");
+        $span->setTag('memcached.query', 'casByKey ?');
         $span->setResource('casByKey');
         self::setServerTagsByKey($span, $memcached, $serverKey);
 
@@ -305,7 +299,7 @@ class MemcachedIntegration
         $span->setTag(Tags\SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', $command);
 
-        $query = "$command " . implode(',', self::extractKeys($args[0]));
+        $query = "$command " . self::obfuscateKeys($args[0], ',');
         $span->setTag('memcached.query', $query);
         $span->setResource($command);
 
@@ -329,7 +323,7 @@ class MemcachedIntegration
         $span->setTag('memcached.server_key', $args[0]);
         self::setServerTagsByKey($span, $memcached, $args[0]);
 
-        $query = "$command " . implode(',', self::extractKeys($args[1]));
+        $query = "$command " . self::obfuscateKeys($args[1], ',');
         $span->setTag('memcached.query', $query);
         $span->setResource($command);
 
@@ -362,17 +356,16 @@ class MemcachedIntegration
     /**
      * Given a callback arg, it extract the keys depending on scalar vs associative array.
      *
-     * @param $array
-     * @return array
+     * @param mixed $keys
+     * @param string $glue
+     * @return string
      */
-    private static function extractKeys($array)
+    private static function obfuscateKeys($keys, $glue = ' ')
     {
-        if (array_keys($array) === range(0, count($array) - 1)) {
-            // Non-Association array, used in getMulti...
-            return array_values($array);
-        } else {
-            // Associative array, used in setMulti...
-            return array_keys($array);
+        if (!is_array($keys)) {
+            return '?';
         }
+        $obfuscatedKeys = str_repeat('?' . $glue, count($keys));
+        return rtrim($obfuscatedKeys, $glue);
     }
 }
