@@ -59,11 +59,10 @@ class SymfonyBundle extends Bundle
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
         dd_trace(HttpKernel::class, 'handle', function ($request, ...$args) use ($symfonyRequestSpan) {
             $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
-            $symfonyRequestSpan->setTag('request.method', $request->getMethod());
-            $symfonyRequestSpan->setTag('request.uri', $request->getUri());
+            $symfonyRequestSpan->setTag(Tags\HTTP_METHOD, $request->getMethod());
+            $symfonyRequestSpan->setTag(Tags\HTTP_URL, $request->getUri());
             $symfonyRequestSpan->setTag('request.content-type', $request->getContentType());
             $symfonyRequestSpan->setTag('request.referrer', $request->headers->get('referer'));
-            $symfonyRequestSpan->setTag('request.client-ip', $request->getClientIp());
 
             try {
                 return $this->handle($request, ...$args);
