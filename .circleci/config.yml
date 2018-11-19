@@ -98,6 +98,12 @@ aliases:
       - run:
           name: Run integration tests
           command: composer test-integration -- --log-junit test-results/php-integration/results.xml
+      - run:
+          name: Prepare Laravel Tests
+          command: composer laravel-install
+      - run:
+          name: Run Laravel Tests
+          command: composer laravel-test
       - persist_to_workspace:
           root: '.'
           paths:

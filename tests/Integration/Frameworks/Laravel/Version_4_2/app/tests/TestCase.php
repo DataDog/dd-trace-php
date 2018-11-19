@@ -14,9 +14,7 @@ class TestCase extends BaseTestCase {
 	 */
 	public function createApplication()
 	{
-		$unitTesting = true;
-
-		$testEnvironment = 'testing';
+		$testEnvironment = 'dd_testing';
 
 		return require __DIR__.'/../../bootstrap/start.php';
 	}

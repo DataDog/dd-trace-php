@@ -26,4 +26,9 @@ class HomeController extends Controller {
 	{
 		return View::make('simple_view');
 	}
+
+	public function error()
+	{
+		throw new Exception('Controller error');
+	}
 }

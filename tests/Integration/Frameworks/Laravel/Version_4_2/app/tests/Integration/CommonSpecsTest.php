@@ -25,7 +25,7 @@ class CommonSpecsTest extends TestCase
     {
         $traces = $this->simulateWebRequestTracer(function() use ($spec) {
             if ($spec instanceof GetSpec) {
-            $response = $this->call('GET', $spec->getPath());
+                $response = $this->call('GET', $spec->getPath());
                 $this->assertSame($spec->getStatusCode(), $response->getStatusCode());
             } else {
                 $this->fail('Unhandled request spec type');
