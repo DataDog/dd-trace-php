@@ -8,6 +8,7 @@ use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Types;
@@ -43,7 +44,7 @@ class LaravelProvider extends ServiceProvider
             return;
         }
 
-        if (getenv('APP_ENV') != 'testing' && php_sapi_name() == 'cli') {
+        if (getenv('APP_ENV') != 'dd_testing' && php_sapi_name() == 'cli') {
             return;
         }
 
@@ -60,6 +61,52 @@ class LaravelProvider extends ServiceProvider
     public function boot()
     {
         $tracer = GlobalTracer::get();
+
+        // Create a span that starts from when Laravel first boots (public/index.php)
+        $scope = $tracer->startActiveSpan('laravel.request', ['start_time' => fromMicrotime(LARAVEL_START)]);
+        $requestSpan = $scope->getSpan();
+        $requestSpan->setTag(Tags\SERVICE_NAME, $this->getAppName());
+        $requestSpan->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+
+        // Name the scope when the route matches
+        $this->app['events']->listen('router.matched', function () use ($scope) {
+            $args = func_get_args();
+            list($route, $request) = $args;
+            $span = $scope->getSpan();
+
+            $span->setResource($route->getActionName() . ' ' . Route::currentRouteName());
+            $span->setTag('laravel.route.name', $route->getName());
+            $span->setTag('laravel.route.action', $route->getActionName());
+            $span->setTag(Tags\HTTP_METHOD, $request->method());
+            $span->setTag(Tags\HTTP_URL, $request->url());
+        });
+
+        // Enable extension integrations
+        EloquentIntegration::load();
+        if (class_exists('Memcached')) {
+            MemcachedIntegration::load();
+        }
+
+        PDOIntegration::load();
+
+        if (class_exists('Predis\Client')) {
+            PredisIntegration::load();
+        }
+
+        // Flushes traces to agent.
+        register_shutdown_function(function () use ($scope) {
+            $scope->close();
+            GlobalTracer::get()->flush();
+        });
+
+        dd_trace('Illuminate\Foundation\Application', 'handle', function () use ($requestSpan) {
+            $args = func_get_args();
+
+            $response = call_user_func_array([$this, 'handle'], $args);
+            $requestSpan->setTag(Tags\HTTP_STATUS_CODE, $response->getStatusCode());
+
+            return $response;
+        });
 
         dd_trace('Illuminate\Routing\Route', 'run', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.action', $this->uri);
@@ -104,42 +151,6 @@ class LaravelProvider extends ServiceProvider
                 $scope->close();
             }
         });
-
-        // Create a span that starts from when Laravel first boots (public/index.php)
-        $scope = $tracer->startActiveSpan('laravel.request', ['start_time' => fromMicrotime(LARAVEL_START)]);
-        $scope->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
-        $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
-
-        // Name the scope when the route matches
-        $this->app['events']->listen('router.matched', function () use ($scope) {
-            $args = func_get_args();
-            list($route, $request) = $args;
-            $span = $scope->getSpan();
-
-            $span->setResource($route->getActionName() . ' ' . Route::currentRouteName());
-            $span->setTag('laravel.route.name', $route->getName());
-            $span->setTag('laravel.route.action', $route->getActionName());
-            $span->setTag(Tags\HTTP_METHOD, $request->method());
-            $span->setTag(Tags\HTTP_URL, $request->url());
-        });
-
-        // Enable extension integrations
-        EloquentIntegration::load();
-        if (class_exists('Memcached')) {
-            MemcachedIntegration::load();
-        }
-
-        PDOIntegration::load();
-
-        if (class_exists('Predis\Client')) {
-            PredisIntegration::load();
-        }
-
-        // Flushes traces to agent.
-        register_shutdown_function(function () use ($scope) {
-            $scope->close();
-            GlobalTracer::get()->flush();
-        });
     }
 
     /**
@@ -155,7 +166,11 @@ class LaravelProvider extends ServiceProvider
         $span = $scope->getSpan();
         $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
         $span->setTag(Tags\SERVICE_NAME, self::getAppName());
-        $span->setResource($resource);
+
+        if ($span instanceof Span) {
+            $span->setResource($resource);
+        }
+
         return $scope;
     }
 
