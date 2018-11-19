@@ -98,47 +98,53 @@ class PredisIntegration
             }
         });
 
-        // public mixed Predis\Client::executeRaw(array $arguments, bool &$error)
-        dd_trace('\Predis\Client', 'executeRaw', function ($arguments, &$error = null) {
-            $query = PredisIntegration::formatArguments($arguments);
+        // Predis < 1 has not this method
+        if (method_exists('\Predis\Client', 'executeRaw')) {
+            // public mixed Predis\Client::executeRaw(array $arguments, bool &$error)
+            dd_trace('\Predis\Client', 'executeRaw', function ($arguments, &$error = null) {
+                $query = PredisIntegration::formatArguments($arguments);
 
-            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeRaw');
-            $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
-            $span->setTag(Tags\SERVICE_NAME, 'redis');
-            $span->setTag('redis.raw_command', $query);
-            $span->setTag('redis.args_length', count($arguments));
-            $span->setResource($query);
-            PredisIntegration::setConnectionTags($this, $span);
+                $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeRaw');
+                $span = $scope->getSpan();
+                $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
+                $span->setTag(Tags\SERVICE_NAME, 'redis');
+                $span->setTag('redis.raw_command', $query);
+                $span->setTag('redis.args_length', count($arguments));
+                $span->setResource($query);
+                PredisIntegration::setConnectionTags($this, $span);
 
-            try {
-                return $this->executeRaw($arguments, $error);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
-        });
+                try {
+                    return $this->executeRaw($arguments, $error);
+                } catch (\Exception $e) {
+                    $span->setError($e);
+                    throw $e;
+                } finally {
+                    $scope->close();
+                }
+            });
+        }
 
-        // protected array Predis\Pipeline::executePipeline(ConnectionInterface $connection, \SplQueue $commands)
-        dd_trace(Pipeline::class, 'executePipeline', function ($connection, $commands) {
-            $scope = GlobalTracer::get()->startActiveSpan('Predis.Pipeline.executePipeline');
-            $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
-            $span->setTag(Tags\SERVICE_NAME, 'redis');
-            $span->setTag('redis.pipeline_length', count($commands));
-            PredisIntegration::setConnectionTags($this, $span);
+        // Predis < 1 has not this method
+        if (method_exists('\Predis\Pipeline\Pipeline', 'executePipeline')) {
+            // protected array Predis\Pipeline::executePipeline(ConnectionInterface $connection, \SplQueue $commands)
+            dd_trace(Pipeline::class, 'executePipeline', function ($connection, $commands) {
+                $scope = GlobalTracer::get()->startActiveSpan('Predis.Pipeline.executePipeline');
+                $span = $scope->getSpan();
+                $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
+                $span->setTag(Tags\SERVICE_NAME, 'redis');
+                $span->setTag('redis.pipeline_length', count($commands));
+                PredisIntegration::setConnectionTags($this, $span);
 
-            try {
-                return $this->executePipeline($connection, $commands);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
-        });
+                try {
+                    return $this->executePipeline($connection, $commands);
+                } catch (\Exception $e) {
+                    $span->setError($e);
+                    throw $e;
+                } finally {
+                    $scope->close();
+                }
+            });
+        }
     }
 
     public static function storeConnectionParams($predis, $args)
