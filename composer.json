@@ -34,6 +34,7 @@
         "opentracing/opentracing": "1.0.0-beta5"
     },
     "require-dev": {
+        "guzzlehttp/guzzle": "^6.3",
         "phpcompatibility/php-compatibility": "^9.0",
         "phpcompatibility/phpcompatibility-passwordcompat": "^1.0",
         "phpcompatibility/phpcompatibility-symfony": "*",
