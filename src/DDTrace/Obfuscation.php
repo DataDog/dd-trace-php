@@ -2,7 +2,7 @@
 
 namespace DDTrace;
 
-class Obfuscation
+final class Obfuscation
 {
     const REPLACEMENT = '?';
     const DEFAULT_GLUE = ' ';
@@ -10,7 +10,7 @@ class Obfuscation
     /**
      * Obfuscate secrets with a replacement
      *
-     * @param mixed $keys
+     * @param string|array $keys
      * @param string $glue
      * @return string
      */
