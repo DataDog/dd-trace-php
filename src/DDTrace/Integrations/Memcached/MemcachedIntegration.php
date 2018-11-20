@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Memcached;
 
 use DDTrace\Tags;
 use DDTrace\Types;
+use DDTrace\Obfuscation;
 use OpenTracing\GlobalTracer;
 
 /**
@@ -207,7 +208,7 @@ class MemcachedIntegration
         if (!is_array($args[0])) {
             self::setServerTagsByKey($span, $memcached, $args[0]);
         }
-        $span->setTag('memcached.query', "$command " . self::obfuscateKeys($args[0]));
+        $span->setTag('memcached.query', "$command " . Obfuscation::toObfuscatedString($args[0]));
         $span->setResource($command);
 
         try {
@@ -230,7 +231,7 @@ class MemcachedIntegration
         $span->setTag('memcached.server_key', $args[0]);
         self::setServerTagsByKey($span, $memcached, $args[0]);
 
-        $span->setTag('memcached.query', "$command " . self::obfuscateKeys($args[1]));
+        $span->setTag('memcached.query', "$command " . Obfuscation::toObfuscatedString($args[1]));
         $span->setResource($command);
 
         try {
@@ -299,7 +300,7 @@ class MemcachedIntegration
         $span->setTag(Tags\SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', $command);
 
-        $query = "$command " . self::obfuscateKeys($args[0], ',');
+        $query = "$command " . Obfuscation::toObfuscatedString($args[0], ',');
         $span->setTag('memcached.query', $query);
         $span->setResource($command);
 
@@ -323,7 +324,7 @@ class MemcachedIntegration
         $span->setTag('memcached.server_key', $args[0]);
         self::setServerTagsByKey($span, $memcached, $args[0]);
 
-        $query = "$command " . self::obfuscateKeys($args[1], ',');
+        $query = "$command " . Obfuscation::toObfuscatedString($args[1], ',');
         $span->setTag('memcached.query', $query);
         $span->setResource($command);
 
@@ -351,21 +352,5 @@ class MemcachedIntegration
         $server = $memcached->getServerByKey($key);
         $span->setTag(Tags\TARGET_HOST, $server['host']);
         $span->setTag(Tags\TARGET_PORT, $server['port']);
-    }
-
-    /**
-     * Given a callback arg, it extract the keys depending on scalar vs associative array.
-     *
-     * @param mixed $keys
-     * @param string $glue
-     * @return string
-     */
-    private static function obfuscateKeys($keys, $glue = ' ')
-    {
-        if (!is_array($keys)) {
-            return '?';
-        }
-        $obfuscatedKeys = str_repeat('?' . $glue, count($keys));
-        return rtrim($obfuscatedKeys, $glue);
     }
 }
