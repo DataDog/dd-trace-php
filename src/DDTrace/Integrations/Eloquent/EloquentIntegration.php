@@ -25,7 +25,7 @@ class EloquentIntegration
         dd_trace(Builder::class, 'getModels', function (...$args) {
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.get');
             $span = $scope->getSpan();
-            $sql = $this->toBase()->toSql();
+            $sql = $this->getQuery()->toSql();
             $span->setResource($sql);
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
@@ -41,16 +41,19 @@ class EloquentIntegration
         });
 
         // performInsert(Builder $query)
-        dd_trace(Model::class, 'performInsert', function ($query) {
+        dd_trace(Model::class, 'performInsert', function () {
+            $args = func_get_args();
+            $eloquentQueryBuilder = $args[0];
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.insert');
             $span = $scope->getSpan();
-            $sql = $query->toBase()->toSql();
+            $sql = $eloquentQueryBuilder->getQuery()->toSql();
             $span->setResource($sql);
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
             try {
-                return $this->performInsert($query);
+                // Eloquent for 4.2 can receive $options
+                return call_user_func_array([$this, 'performInsert'], $args);
             } catch (\Exception $e) {
                 $span->setError($e);
                 throw $e;
@@ -60,16 +63,18 @@ class EloquentIntegration
         });
 
         // performUpdate(Builder $query)
-        dd_trace(Model::class, 'performUpdate', function ($query) {
+        dd_trace(Model::class, 'performUpdate', function () {
+            $args = func_get_args();
+            $eloquentQueryBuilder = $args[0];
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.update');
             $span = $scope->getSpan();
-            $sql = $query->toBase()->toSql();
+            $sql = $eloquentQueryBuilder->getQuery()->toSql();
             $span->setResource($sql);
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
             try {
-                return $this->performUpdate($query);
+                return call_user_func_array([$this, 'performUpdate'], $args);
             } catch (\Exception $e) {
                 $span->setError($e);
                 throw $e;
