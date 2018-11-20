@@ -11,10 +11,8 @@ use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Types;
 use OpenTracing\GlobalTracer;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
-use Symfony\Component\HttpKernel\HttpKernel;
 
 /**
  * DataDog Symfony tracing bundle. Use by installing the dd-trace library:
@@ -57,32 +55,34 @@ class SymfonyBundle extends Bundle
         $symfonyRequestSpan->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
-        dd_trace(HttpKernel::class, 'handle', function ($request, ...$args) use ($symfonyRequestSpan) {
-            $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
-            $symfonyRequestSpan->setTag(Tags\HTTP_METHOD, $request->getMethod());
-            $symfonyRequestSpan->setTag(Tags\HTTP_URL, $request->getUri());
-            $symfonyRequestSpan->setTag('request.content-type', $request->getContentType());
-            $symfonyRequestSpan->setTag('request.referrer', $request->headers->get('referer'));
+        dd_trace(
+            'Symfony\Component\HttpKernel\HttpKernel',
+            'handle',
+            function ($request, ...$args) use ($symfonyRequestSpan) {
+                $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
+                $symfonyRequestSpan->setTag(Tags\HTTP_METHOD, $request->getMethod());
+                $symfonyRequestSpan->setTag(Tags\HTTP_URL, $request->getUriForPath($request->getPathInfo()));
 
-            try {
-                return $this->handle($request, ...$args);
-            } catch (\Exception $e) {
-                $span = $scope->getSpan();
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $route = $request->get('_route');
+                try {
+                    return $this->handle($request, ...$args);
+                } catch (\Exception $e) {
+                    $span = $scope->getSpan();
+                    $span->setError($e);
+                    throw $e;
+                } finally {
+                    $route = $request->get('_route');
 
-                if ($symfonyRequestSpan !== null && $route !== null) {
-                    $symfonyRequestSpan->setResource($route);
+                    if ($symfonyRequestSpan !== null && $route !== null) {
+                        $symfonyRequestSpan->setResource($route);
+                    }
+                    $scope->close();
                 }
-                $scope->close();
             }
-        });
+        );
 
         // public function handleException(\Exception $e, Request $request, int $type): Response
         dd_trace(
-            HttpKernel::class,
+            'Symfony\Component\HttpKernel\HttpKernel',
             'handleException',
             function (\Exception $e, Request $request, $type) use ($symfonyRequestSpan) {
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
@@ -100,19 +100,23 @@ class SymfonyBundle extends Bundle
         );
 
         // public function dispatch($eventName, Event $event = null)
-        dd_trace(EventDispatcher::class, 'dispatch', function (...$args) {
-            $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
+        dd_trace(
+            'Symfony\Component\EventDispatcher\EventDispatcher',
+            'dispatch',
+            function (...$args) {
+                $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
 
-            try {
-                return $this->dispatch(...$args);
-            } catch (\Exception $e) {
-                $span = $scope->getSpan();
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
+                try {
+                    return $this->dispatch(...$args);
+                } catch (\Exception $e) {
+                    $span = $scope->getSpan();
+                    $span->setError($e);
+                    throw $e;
+                } finally {
+                    $scope->close();
+                }
             }
-        });
+        );
 
         // Enable extension integrations
         PDOIntegration::load();
