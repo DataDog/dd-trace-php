@@ -63,7 +63,7 @@ aliases:
   - &STEP_COMPOSER_INSTALL
     run:
       name: Installing dependencies with composer
-      command: composer install --no-interaction --ignore-platform-reqs
+      command: composer install --no-interaction --ignore-platform-reqs --no-plugins
 
 
   - &STEP_PREPARE_TEST_RESULTS_DIR
