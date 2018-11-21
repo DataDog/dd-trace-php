@@ -21,7 +21,10 @@ zend_function *ddtrace_function_get(const HashTable *table, zend_string *name) {
     return ptr;
 }
 
-void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) { zend_string_release(dispatch->function); }
+void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
+    zend_string_release(dispatch->function);
+    zval_dtor(&dispatch->callable);
+}
 
 void ddtrace_class_lookup_free(zval *zv) {
     ddtrace_dispatch_t *dispatch = Z_PTR_P(zv);
