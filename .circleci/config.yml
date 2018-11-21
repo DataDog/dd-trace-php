@@ -218,11 +218,8 @@ jobs:
       - <<: *STEP_COMPOSER_INSTALL
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - run:
-          name: Installing phpstan
-          command: composer require --dev phpstan/phpstan:~0.10.3
-      - run:
           name: Running phpstan
-          command: vendor/bin/phpstan analyse --level=2 src
+          command: composer static-analyze
 
   "php-5.6":
     working_directory: ~/datadog
