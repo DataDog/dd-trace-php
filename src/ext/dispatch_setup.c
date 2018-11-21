@@ -14,6 +14,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 user_opcode_handler_t ddtrace_old_fcall_handler;
+user_opcode_handler_t ddtrace_old_icall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
 #if PHP_VERSION_ID >= 70000
@@ -34,17 +35,14 @@ void ddtrace_dispatch_init() {
  *
  * e.g. it changes compilation of function calls to produce ZEND_DO_FCALL
  * opcode instead of ZEND_DO_UCALL for user defined functions
- *
- * This extension could be developed by using zend_execute_ex to hook
- * into every execution, however hooking into opcode processing has the
- * advantage of not hooking into other executable things like generators which
- * gives a slight performance advantage.
  */
 #if PHP_VERSION_ID >= 70000
     ddtrace_original_execute_ex = zend_execute_ex;
     zend_execute_ex = php_execute;
-#endif
 
+    ddtrace_old_icall_handler = zend_get_user_opcode_handler(ZEND_DO_ICALL);
+    zend_set_user_opcode_handler(ZEND_DO_ICALL, ddtrace_wrap_fcall);
+#endif
     ddtrace_old_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);
 

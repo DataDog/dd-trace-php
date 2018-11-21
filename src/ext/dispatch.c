@@ -28,6 +28,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 extern user_opcode_handler_t ddtrace_old_fcall_handler;
+extern user_opcode_handler_t ddtrace_old_icall_handler;
 extern user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
 static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, const char *function_name,
