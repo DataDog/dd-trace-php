@@ -137,7 +137,6 @@ aliases:
     store_test_results:
       path: test-results
 
-
 jobs:
 
   "Lint files": &lint_files
