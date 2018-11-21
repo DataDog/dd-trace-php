@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Routing\Controller as BaseController;
 
 
-class Controller extends BaseController
+class CommonSpecsController extends BaseController
 {
     public function simple()
     {
@@ -15,5 +15,10 @@ class Controller extends BaseController
     public function simple_view()
     {
         return view("simple_view");
+    }
+
+    public function error()
+    {
+        throw new \Exception('Controller error');
     }
 }

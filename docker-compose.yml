@@ -7,7 +7,9 @@ x-aliases:
       working_dir: '/home/circleci/app'
       stdin_open: true
       tty: true
-      volumes: [ '.:/home/circleci/app' ]
+      volumes:
+        - .:/home/circleci/app
+        - composer-cache:/root/.composer/cache
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
         - redis_integration
@@ -59,3 +61,7 @@ services:
       - DD_API_KEY=invalid_key_but_its_ok
     ports:
       - "8126:8126"
+
+
+volumes:
+  composer-cache:

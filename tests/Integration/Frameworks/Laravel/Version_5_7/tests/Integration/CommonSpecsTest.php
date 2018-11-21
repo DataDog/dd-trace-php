@@ -23,7 +23,7 @@ class CommonSpecsTest extends TestCase
      */
     public function testSpecs(RequestSpec $spec, array $spanExpectations)
     {
-        $traces = $this->isolateTracer(function() use ($spec) {
+        $traces = $this->simulateWebRequestTracer(function() use ($spec) {
             if ($spec instanceof GetSpec) {
                 $response = $this->get($spec->getPath());
                 $response->assertStatus($spec->getStatusCode());

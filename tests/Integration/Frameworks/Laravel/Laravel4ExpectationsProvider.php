@@ -30,14 +30,17 @@ class Laravel4ExpectationsProvider implements ExpectationProvider
             ],
             'A simple GET request with a view' => [
                 SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
+                SpanAssertion::exists('laravel.request'),
                 SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::exists('laravel.action'),
+                SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::build('laravel.view.render', 'laravel', 'web', 'simple_view'),
-                SpanAssertion::exists('laravel.request'),
+                SpanAssertion::exists('laravel.event.handle'),
+                SpanAssertion::exists('laravel.event.handle'),
             ],
             'A GET request with an exception' => [
+                SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@error error')
                     ->withExactTags([
                         'laravel.route.name' => 'error',
@@ -48,7 +51,7 @@ class Laravel4ExpectationsProvider implements ExpectationProvider
                     ]),
                 SpanAssertion::exists('laravel.event.handle'),
                 SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::build('laravel.action', 'laravel', 'web', 'laravel.action')
+                SpanAssertion::build('laravel.action', 'laravel', 'web', 'error')
                     ->withExactTags([
                         'error.msg' => 'Controller error',
                         'error.type' => 'Exception',

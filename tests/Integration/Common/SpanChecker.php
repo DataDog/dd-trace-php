@@ -40,9 +40,15 @@ final class SpanChecker
             return $span->getOperationName();
         }, $flattenTraces);
 
+        $expectedOperationsAndResources = array_map(function(SpanAssertion $assertion) {
+            return $assertion->getOperationName() . ' - ' . ($assertion->getResource() ?: 'not specified');
+        }, $expectedSpans);
+        $actualOperationsAndResources = array_map(function(Span $span) {
+            return $span->getOperationName() . ' - ' . $span->getResource();
+        }, $flattenTraces);
         $this->testCase->assertEquals($expectedSpansReferences, $tracesReferences,
-            'Missing or additional spans. Expected: ' . print_r($expectedSpansReferences, 1) .
-            "\n Found: " . print_r($tracesReferences, 2)
+            'Missing or additional spans. Expected: ' . print_r($expectedOperationsAndResources, 1) .
+            "\n Found: " . print_r($actualOperationsAndResources, 2)
         );
 
         // Then we assert content on each individual received span
@@ -108,8 +114,6 @@ final class SpanChecker
             );
         }
         if ($exp->getResource() != SpanAssertion::NOT_TESTED) {
-            var_dump($exp->getResource());
-            var_dump($span->getResource());
             $this->testCase->assertSame(
                 $exp->getResource(),
                 $span->getResource(),

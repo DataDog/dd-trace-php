@@ -11,5 +11,6 @@
 |
 */
 
-Route::get('/simple', 'Controller@simple');
-Route::get('/simple_view', 'Controller@simple_view');
+Route::get('/simple', ['as' => 'simple_route', 'uses' => 'CommonSpecsController@simple']);
+Route::get('/simple_view', 'CommonSpecsController@simple_view');
+Route::get('/error', 'CommonSpecsController@error');

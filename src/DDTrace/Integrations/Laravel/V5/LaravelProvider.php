@@ -52,7 +52,6 @@ class LaravelProvider extends ServiceProvider
 
         // Creates a tracer with default transport and default encoders
         $tracer = new Tracer(new Http(new Json()));
-
         // Sets a global tracer (singleton). Also store it in the Laravel
         // container for easy Laravel-specific use.
         GlobalTracer::set($tracer);
@@ -109,6 +108,7 @@ class LaravelProvider extends ServiceProvider
         // public function get($path, array $data = array())
         dd_trace(CompilerEngine::class, 'get', function ($path, $data = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
+            $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
             try {
                 return $this->get($path, $data);
@@ -128,7 +128,7 @@ class LaravelProvider extends ServiceProvider
         // Name the scope when the route matches
         $this->app['events']->listen(RouteMatched::class, function (RouteMatched $event) use ($scope) {
             $span = $scope->getSpan();
-            $span->setResource($event->route->getActionName() . ' ' . Route::currentRouteName());
+            $span->setResource($event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route'));
             $span->setTag('laravel.route.name', Route::currentRouteName());
             $span->setTag('laravel.route.action', $event->route->getActionName());
             $span->setTag('http.method', $event->request->method());
