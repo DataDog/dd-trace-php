@@ -106,7 +106,25 @@ Now your Laravel application should start sending traces to the Datadog agent ru
 
 #### Symfony integration
 
-For Symfony applications, add the bundle in `config/bundles.php`:
+For Symfony applications, add the bundle in `app/AppKernel.php`
+
+```php
+public function registerBundles()
+{
+    $bundles = array(
+      ...
+      new DDTrace\Integrations\SymfonyBundle(),
+    );
+    
+    ...
+
+    return $bundles;
+}
+```
+
+## Flex
+
+For Symfony Flex applications, add the bundle in `config/bundles.php`:
 
 
 ```php
