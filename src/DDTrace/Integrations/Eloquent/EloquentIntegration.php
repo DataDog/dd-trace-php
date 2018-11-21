@@ -4,8 +4,6 @@ namespace DDTrace\Integrations\Eloquent;
 
 use DDTrace\Tags;
 use DDTrace\Types;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use OpenTracing\GlobalTracer;
 
 
@@ -17,12 +15,13 @@ class EloquentIntegration
             trigger_error('The ddtrace extension is required to instrument Eloquent', E_USER_WARNING);
             return;
         }
-        if (!class_exists(Builder::class)) {
+        if (!class_exists('Illuminate\Database\Eloquent\Builder')) {
             trigger_error('Eloquent is not loaded and connot be instrumented', E_USER_WARNING);
         }
 
         // getModels($columns = ['*'])
-        dd_trace(Builder::class, 'getModels', function (...$args) {
+        dd_trace('Illuminate\Database\Eloquent\Builder', 'getModels', function () {
+            $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.get');
             $span = $scope->getSpan();
             $sql = $this->getQuery()->toSql();
@@ -31,7 +30,7 @@ class EloquentIntegration
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
             try {
-                return $this->getModels(...$args);
+                return call_user_func_array([$this, 'getModels'], $args);
             } catch (\Exception $e) {
                 $span->setError($e);
                 throw $e;
@@ -41,7 +40,7 @@ class EloquentIntegration
         });
 
         // performInsert(Builder $query)
-        dd_trace(Model::class, 'performInsert', function () {
+        dd_trace('Illuminate\Database\Eloquent\Model', 'performInsert', function () {
             $args = func_get_args();
             $eloquentQueryBuilder = $args[0];
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.insert');
@@ -63,7 +62,7 @@ class EloquentIntegration
         });
 
         // performUpdate(Builder $query)
-        dd_trace(Model::class, 'performUpdate', function () {
+        dd_trace('Illuminate\Database\Eloquent\Model', 'performUpdate', function () {
             $args = func_get_args();
             $eloquentQueryBuilder = $args[0];
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.update');
@@ -84,7 +83,7 @@ class EloquentIntegration
         });
 
         // public function delete()
-        dd_trace(Model::class, 'delete', function () {
+        dd_trace('Illuminate\Database\Eloquent\Model', 'delete', function () {
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.delete');
             $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\SQL);
 
