@@ -15,14 +15,16 @@ class GuzzleIntegration
             return;
         }
 
-        // Psr\Http\Message\ResponseInterface GuzzleHttp\Client::request ( string $method [, string $uri, array $options ] )
+        // Psr\Http\Message\ResponseInterface GuzzleHttp\Client::request
+        //   ( string $method [, string $uri, array $options ] )
         dd_trace('GuzzleHttp\Client', 'request', function (...$args) {
             $tracer = new GuzzleTracer($this, 'request', $args);
             $tracer->setTag('http.method', strtoupper($args[0]));
             return $tracer->trace();
         });
 
-        // Psr\Http\Message\ResponseInterface GuzzleHttp\Client::send ( Psr\Http\Message\RequestInterface $request [, array $options ] )
+        // Psr\Http\Message\ResponseInterface GuzzleHttp\Client::send
+        //   ( Psr\Http\Message\RequestInterface $request [, array $options ] )
         dd_trace('GuzzleHttp\Client', 'send', function (...$args) {
             $tracer = new GuzzleTracer($this, 'send', $args);
             $tracer->setTag('http.method', $args[0]->getMethod());
