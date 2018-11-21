@@ -37,6 +37,7 @@
         "elasticsearch/elasticsearch": "1.2.*",
         "guzzlehttp/guzzle": "^5.0",
         "mockery/mockery": "*",
+        "phpbench/phpbench": "@dev",
         "phpcompatibility/php-compatibility": "^9.0",
         "phpcompatibility/phpcompatibility-passwordcompat": "^1.0",
         "phpcompatibility/phpcompatibility-symfony": "*",

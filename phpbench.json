@@ -1,0 +1,17 @@
+{
+    "bootstrap": "vendor/autoload.php",
+    "path": "benchmarks",
+    "reports": {
+        "integrations": {
+            "generator": "table",
+            "break": ["benchmark"],
+            "cols": [
+                "subject",
+                "revs",
+                "mem_peak",
+                "mean",
+                "diff"
+            ]
+        }
+    }
+}
