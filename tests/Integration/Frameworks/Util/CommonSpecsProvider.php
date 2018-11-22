@@ -15,7 +15,7 @@ class CommonSpecsProvider
      */
     public function provide(array $requests, ExpectationProvider $expectationProvider)
     {
-        $allRequestNames = array_map(function(RequestSpec $spec) {
+        $allRequestNames = array_map(function (RequestSpec $spec) {
             return $spec->getName();
         }, $requests);
         sort($allRequestNames);

@@ -40,13 +40,15 @@ final class SpanChecker
             return $span->getOperationName();
         }, $flattenTraces);
 
-        $expectedOperationsAndResources = array_map(function(SpanAssertion $assertion) {
+        $expectedOperationsAndResources = array_map(function (SpanAssertion $assertion) {
             return $assertion->getOperationName() . ' - ' . ($assertion->getResource() ?: 'not specified');
         }, $expectedSpans);
-        $actualOperationsAndResources = array_map(function(Span $span) {
+        $actualOperationsAndResources = array_map(function (Span $span) {
             return $span->getOperationName() . ' - ' . $span->getResource();
         }, $flattenTraces);
-        $this->testCase->assertEquals($expectedSpansReferences, $tracesReferences,
+        $this->testCase->assertEquals(
+            $expectedSpansReferences,
+            $tracesReferences,
             'Missing or additional spans. Expected: ' . print_r($expectedOperationsAndResources, 1) .
             "\n Found: " . print_r($actualOperationsAndResources, 2)
         );
