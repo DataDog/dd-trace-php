@@ -80,17 +80,9 @@
         ],
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
 
-        "laravel-42-install": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_4_2 install",
+        "laravel-42-update": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_4_2 update",
         "laravel-42-test": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_4_2 test",
-        "laravel-57-install": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_5_7 install",
-        "laravel-57-test": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_5_7 test",
-        "laravel-install": [
-            "@laravel-42-install",
-            "@laravel-57-install"
-        ],
-        "laravel-test": [
-            "@laravel-42-test",
-            "@laravel-57-test"
-        ]
+        "laravel-57-update": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_5_7 update",
+        "laravel-57-test": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_5_7 test"
     }
 }
