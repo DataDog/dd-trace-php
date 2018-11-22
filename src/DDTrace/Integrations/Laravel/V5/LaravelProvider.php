@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Laravel\V5;
 
 use DDTrace;
+use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Encoders\Json;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
@@ -120,8 +121,16 @@ class LaravelProvider extends ServiceProvider
             }
         });
 
+        $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
+            $tracer,
+            [
+                'start_time' => fromMicrotime(LARAVEL_START),
+            ],
+            $this->app->make('request')->header()
+        );
+
         // Create a span that starts from when Laravel first boots (public/index.php)
-        $scope = $tracer->startActiveSpan('laravel.request', ['start_time' => fromMicrotime(LARAVEL_START)]);
+        $scope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
         $scope->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
         $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
