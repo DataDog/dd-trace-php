@@ -32,9 +32,6 @@ aliases:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
-  - &STEP_CHECKOUT
-    checkout:
-
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
       at: ~/datadog
@@ -232,7 +229,7 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
     steps:
-      - <<: *STEP_CHECKOUT
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
@@ -261,7 +258,7 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
     steps:
-      - <<: *STEP_CHECKOUT
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
@@ -289,7 +286,7 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
     steps:
-      - <<: *STEP_CHECKOUT
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
@@ -320,7 +317,7 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
     steps:
-      - <<: *STEP_CHECKOUT
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
