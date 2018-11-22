@@ -63,9 +63,9 @@ aliases:
 
 
   - &STEP_PREPARE_TEST_RESULTS_DIR
-    - run:
-        name: testresults dir
-        command: mkdir test-results
+    run:
+      name: testresults dir
+      command: mkdir test-results
 
   - &STEP_EXPORT_CI_ENV
     run:
