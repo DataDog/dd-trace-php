@@ -272,7 +272,8 @@ jobs:
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
-# There are issues installing MCrypt on 7.0 image that prevents Laravel tests to be run. This will be addressed ASAP.
+      - <<: *STEP_UPDATE_LARAVEL_42_ENV
+      - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
