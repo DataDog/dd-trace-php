@@ -33,7 +33,7 @@ aliases:
       - MYSQL_DATABASE=test
 
   - &STEP_CHECKOUT
-    checkout
+    checkout:
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
@@ -232,25 +232,25 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
     steps:
-    - <<: *STEP_CHECKOUT
-    - <<: *STEP_ATTACH_WORKSPACE
-    - <<: *STEP_EXT_INSTALL
-    - <<: *STEP_COMPOSER_SELF_UPDATE
-    - <<: *STEP_COMPOSER_CACHE_RESTORE
-    - <<: *STEP_COMPOSER_INSTALL
-    - <<: *STEP_COMPOSER_CACHE_SAVE
-    - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-    - <<: *STEP_EXPORT_CI_ENV
-    - <<: *STEP_RUN_EXTENSION_TESTS
-    - <<: *STEP_WAIT_AGENT
-    - <<: *STEP_WAIT_MYSQL
-    - <<: *STEP_RUN_UNIT_TESTS
-    - <<: *STEP_RUN_INTEGRATION_TESTS
-    - <<: *STEP_UPDATE_LARAVEL_42_ENV
-    - <<: *STEP_RUN_LARAVEL_42_TESTS
-    - <<: *STEP_PERSIST_TO_WORKSPACE
-    - <<: *STEP_STORE_TEST_RESULTS
-    - <<: *STEP_STORE_ARTIFACTS
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_RUN_EXTENSION_TESTS
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_42_ENV
+      - <<: *STEP_RUN_LARAVEL_42_TESTS
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
 
   "php-7.0":
     working_directory: ~/datadog
@@ -261,24 +261,24 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
     steps:
-    - <<: *STEP_CHECKOUT
-    - <<: *STEP_ATTACH_WORKSPACE
-    - <<: *STEP_EXT_INSTALL
-    - <<: *STEP_COMPOSER_SELF_UPDATE
-    - <<: *STEP_COMPOSER_CACHE_RESTORE
-    - <<: *STEP_COMPOSER_INSTALL
-    - <<: *STEP_COMPOSER_CACHE_SAVE
-    - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-    - <<: *STEP_EXPORT_CI_ENV
-    - <<: *STEP_RUN_EXTENSION_TESTS
-    - <<: *STEP_WAIT_AGENT
-    - <<: *STEP_WAIT_MYSQL
-    - <<: *STEP_RUN_UNIT_TESTS
-    - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_RUN_EXTENSION_TESTS
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_INTEGRATION_TESTS
 # There are issues installing MCrypt on 7.0 image that prevents Laravel tests to be run. This will be addressed ASAP.
-    - <<: *STEP_PERSIST_TO_WORKSPACE
-    - <<: *STEP_STORE_TEST_RESULTS
-    - <<: *STEP_STORE_ARTIFACTS
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
 
   "php-7.1":
     working_directory: ~/datadog
@@ -289,27 +289,27 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
     steps:
-    - <<: *STEP_CHECKOUT
-    - <<: *STEP_ATTACH_WORKSPACE
-    - <<: *STEP_EXT_INSTALL
-    - <<: *STEP_COMPOSER_SELF_UPDATE
-    - <<: *STEP_COMPOSER_CACHE_RESTORE
-    - <<: *STEP_COMPOSER_INSTALL
-    - <<: *STEP_COMPOSER_CACHE_SAVE
-    - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-    - <<: *STEP_EXPORT_CI_ENV
-    - <<: *STEP_RUN_EXTENSION_TESTS
-    - <<: *STEP_WAIT_AGENT
-    - <<: *STEP_WAIT_MYSQL
-    - <<: *STEP_RUN_UNIT_TESTS
-    - <<: *STEP_RUN_INTEGRATION_TESTS
-    - <<: *STEP_UPDATE_LARAVEL_42_ENV
-    - <<: *STEP_RUN_LARAVEL_42_TESTS
-    - <<: *STEP_UPDATE_LARAVEL_57_ENV
-    - <<: *STEP_RUN_LARAVEL_57_TESTS
-    - <<: *STEP_PERSIST_TO_WORKSPACE
-    - <<: *STEP_STORE_TEST_RESULTS
-    - <<: *STEP_STORE_ARTIFACTS
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_RUN_EXTENSION_TESTS
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_42_ENV
+      - <<: *STEP_RUN_LARAVEL_42_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_57_ENV
+      - <<: *STEP_RUN_LARAVEL_57_TESTS
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
 
   "php-7.2":
     working_directory: ~/datadog
@@ -320,27 +320,27 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
     steps:
-    - <<: *STEP_CHECKOUT
-    - <<: *STEP_ATTACH_WORKSPACE
-    - <<: *STEP_EXT_INSTALL
-    - <<: *STEP_COMPOSER_SELF_UPDATE
-    - <<: *STEP_COMPOSER_CACHE_RESTORE
-    - <<: *STEP_COMPOSER_INSTALL
-    - <<: *STEP_COMPOSER_CACHE_SAVE
-    - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-    - <<: *STEP_EXPORT_CI_ENV
-    - <<: *STEP_RUN_EXTENSION_TESTS
-    - <<: *STEP_WAIT_AGENT
-    - <<: *STEP_WAIT_MYSQL
-    - <<: *STEP_RUN_UNIT_TESTS
-    - <<: *STEP_RUN_INTEGRATION_TESTS
-    - <<: *STEP_UPDATE_LARAVEL_42_ENV
-    - <<: *STEP_RUN_LARAVEL_42_TESTS
-    - <<: *STEP_UPDATE_LARAVEL_57_ENV
-    - <<: *STEP_RUN_LARAVEL_57_TESTS
-    - <<: *STEP_PERSIST_TO_WORKSPACE
-    - <<: *STEP_STORE_TEST_RESULTS
-    - <<: *STEP_STORE_ARTIFACTS
+      - <<: *STEP_CHECKOUT
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_RUN_EXTENSION_TESTS
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_42_ENV
+      - <<: *STEP_RUN_LARAVEL_42_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_57_ENV
+      - <<: *STEP_RUN_LARAVEL_57_TESTS
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
 
   "5.6 20131106": &ARTIFACT_BUILD
     working_directory: ~/datadog
