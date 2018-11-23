@@ -2,6 +2,8 @@
 
 return array(
 
+	'log' => 'errorlog',
+
 	/*
 	|--------------------------------------------------------------------------
 	| Application Debug Mode
@@ -13,7 +15,7 @@ return array(
 	|
 	*/
 
-	'debug' => false,
+	'debug' => true,
 
 	/*
 	|--------------------------------------------------------------------------
@@ -122,6 +124,10 @@ return array(
 		'Illuminate\View\ViewServiceProvider',
 		'Illuminate\Workbench\WorkbenchServiceProvider',
 
+		/*
+		 * 3rd parties
+		 */
+		DDTrace\Integrations\Laravel\V4\LaravelProvider::class,
 	),
 
 	/*

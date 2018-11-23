@@ -1,6 +1,11 @@
 <?php
 
-class TestCase extends Illuminate\Foundation\Testing\TestCase {
+namespace Tests;
+
+use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+
+
+class TestCase extends BaseTestCase {
 
 	/**
 	 * Creates the application.
@@ -9,11 +14,8 @@ class TestCase extends Illuminate\Foundation\Testing\TestCase {
 	 */
 	public function createApplication()
 	{
-		$unitTesting = true;
-
-		$testEnvironment = 'testing';
+		$testEnvironment = 'dd_testing';
 
 		return require __DIR__.'/../../bootstrap/start.php';
 	}
-
 }

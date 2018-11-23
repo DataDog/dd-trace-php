@@ -32,12 +32,14 @@ final class SpanAssertion
 
     /**
      * @param string $name
+     * @param null $resource
      * @param bool $error
      * @return SpanAssertion
      */
-    public static function exists($name, $error = false)
+    public static function exists($name, $resource = null, $error = false)
     {
-        return SpanAssertion::forOperation($name, $error, true);
+        return SpanAssertion::forOperation($name, $error, true)
+            ->resource($resource);
     }
 
     /**
@@ -156,10 +158,16 @@ final class SpanAssertion
     }
 
     /**
+     * @param bool $isChildSpan
      * @return string[]
      */
-    public function getExistingTagNames()
+    public function getExistingTagNames($isChildSpan = false)
     {
+        if ($isChildSpan) {
+            return array_filter($this->existingTags, function ($name) {
+                return $name !== 'system.pid';
+            });
+        }
         return $this->existingTags;
     }
 

@@ -7,7 +7,8 @@ x-aliases:
       working_dir: '/home/circleci/app'
       stdin_open: true
       tty: true
-      volumes: [ '.:/home/circleci/app' ]
+      volumes:
+        - .:/home/circleci/app
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
         - redis_integration

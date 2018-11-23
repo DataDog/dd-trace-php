@@ -11,6 +11,6 @@
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/simple', ['as' => 'simple_route', 'uses' => 'CommonSpecsController@simple']);
+Route::get('/simple_view', 'CommonSpecsController@simple_view');
+Route::get('/error', 'CommonSpecsController@error');

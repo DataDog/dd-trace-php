@@ -36,13 +36,22 @@ final class SpanChecker
         $expectedSpansReferences = array_map(function (SpanAssertion $assertion) {
             return $assertion->getOperationName();
         }, $expectedSpans);
-        sort($expectedSpansReferences);
         $tracesReferences = array_map(function (Span $span) {
             return $span->getOperationName();
         }, $flattenTraces);
-        sort($tracesReferences);
 
-        $this->testCase->assertEquals($expectedSpansReferences, $tracesReferences, 'Missing or additional spans.');
+        $expectedOperationsAndResources = array_map(function (SpanAssertion $assertion) {
+            return $assertion->getOperationName() . ' - ' . ($assertion->getResource() ?: 'not specified');
+        }, $expectedSpans);
+        $actualOperationsAndResources = array_map(function (Span $span) {
+            return $span->getOperationName() . ' - ' . $span->getResource();
+        }, $flattenTraces);
+        $this->testCase->assertEquals(
+            $expectedSpansReferences,
+            $tracesReferences,
+            'Missing or additional spans. Expected: ' . print_r($expectedOperationsAndResources, 1) .
+            "\n Found: " . print_r($actualOperationsAndResources, 2)
+        );
 
         // Then we assert content on each individual received span
         for ($i = 0; $i < count($flattenTraces); $i++) {
@@ -88,7 +97,7 @@ final class SpanChecker
                 $filtered,
                 $namePrefix . "Wrong value for 'tags'"
             );
-            foreach ($exp->getExistingTagNames() as $tagName) {
+            foreach ($exp->getExistingTagNames($span->getParentId() !== null) as $tagName) {
                 $this->testCase->assertArrayHasKey($tagName, $span->getAllTags());
             }
         }

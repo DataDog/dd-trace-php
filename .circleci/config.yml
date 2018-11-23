@@ -32,6 +32,10 @@ aliases:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
+  - &STEP_ATTACH_WORKSPACE
+    attach_workspace:
+      at: ~/datadog
+
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
@@ -57,6 +61,70 @@ aliases:
       name: Installing dependencies with composer
       command: composer install -n
 
+
+  - &STEP_PREPARE_TEST_RESULTS_DIR
+    run:
+      name: testresults dir
+      command: mkdir test-results
+
+  - &STEP_EXPORT_CI_ENV
+    run:
+      name: export .env.circleci
+      command: |
+        echo "export $(cat .env.circleci | xargs)" >> $BASH_ENV
+
+  - &STEP_RUN_EXTENSION_TESTS
+    run:
+      name: Run extension tests with leak detection
+      command: TEST_PHP_JUNIT=test-results/leak_test.xml REPORT_EXIT_STATUS=1 make -f DDMakefile test_c_mem
+
+  - &STEP_WAIT_AGENT
+    run:
+      name: Waiting for Dockerized agent
+      command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
+
+  - &STEP_WAIT_MYSQL
+    run:
+      name: Waiting for Dockerized MySQL
+      command: dockerize -wait tcp://mysql_integration:3306 -timeout 1m
+
+  - &STEP_RUN_UNIT_TESTS
+    run:
+      name: Run unit tests
+      command: composer test-unit -- --log-junit test-results/php-unit/results.xml
+
+  - &STEP_RUN_INTEGRATION_TESTS
+    run:
+      name: Run integration tests
+      command: composer test-integration -- --log-junit test-results/php-integration/results.xml
+
+  - &STEP_UPDATE_LARAVEL_42_ENV
+    run:
+      name: Update the Laravel 4.2 test environment
+      command: composer laravel-42-update
+
+  - &STEP_UPDATE_LARAVEL_57_ENV
+    run:
+      name: Update the Laravel 5.7 test environment
+      command: composer laravel-57-update
+
+  - &STEP_RUN_LARAVEL_42_TESTS
+    run:
+      name: Run the Laravel 4.2 test suite
+      command: composer laravel-42-test
+
+  - &STEP_RUN_LARAVEL_57_TESTS
+    run:
+      name: Run the Laravel 5.7 test suite
+      command: composer laravel-57-test
+
+  - &STEP_PERSIST_TO_WORKSPACE
+    persist_to_workspace:
+      root: '.'
+      paths:
+      - vendor/
+      - tmp/build_extension
+
   - &STEP_STORE_ARTIFACTS
     store_artifacts:
       path: test-results
@@ -65,46 +133,6 @@ aliases:
     store_test_results:
       path: test-results
 
-  - &JOB_PHP_DEFAULTS
-    working_directory: ~/datadog
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/datadog
-      - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL
-      - <<: *STEP_COMPOSER_CACHE_SAVE
-      - run:
-          name: testresults dir
-          command: mkdir test-results
-      - run:
-          name: export .env.circleci
-          command: |
-            echo "export $(cat .env.circleci | xargs)" >> $BASH_ENV
-      - run:
-          name: Run extension tests with leak detection
-          command: TEST_PHP_JUNIT=test-results/leak_test.xml REPORT_EXIT_STATUS=1 make -f DDMakefile test_c_mem
-      - run:
-          name: Waiting for Dockerized agent
-          command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
-      - run:
-          name: Waiting for Dockerized MySQL
-          command: dockerize -wait tcp://mysql_integration:3306 -timeout 1m
-      - run:
-          name: Run unit tests
-          command: composer test-unit -- --log-junit test-results/php-unit/results.xml
-      - run:
-          name: Run integration tests
-          command: composer test-integration -- --log-junit test-results/php-integration/results.xml
-      - persist_to_workspace:
-          root: '.'
-          paths:
-          - vendor/
-          - tmp/build_extension
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
 
 jobs:
 
@@ -193,40 +221,125 @@ jobs:
           command: vendor/bin/phpstan analyse --level=2 src
 
   "php-5.6":
-    <<: *JOB_PHP_DEFAULTS
+    working_directory: ~/datadog
     docker:
       - image: datadog/docker-library:ddtrace_php_5_6
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+    steps:
+      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_RUN_EXTENSION_TESTS
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_42_ENV
+      - <<: *STEP_RUN_LARAVEL_42_TESTS
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
 
   "php-7.0":
-    <<: *JOB_PHP_DEFAULTS
+    working_directory: ~/datadog
     docker:
       - image: datadog/docker-library:ddtrace_php_7_0
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+    steps:
+      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_RUN_EXTENSION_TESTS
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_42_ENV
+      - <<: *STEP_RUN_LARAVEL_42_TESTS
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
 
   "php-7.1":
-    <<: *JOB_PHP_DEFAULTS
+    working_directory: ~/datadog
     docker:
       - image: datadog/docker-library:ddtrace_php_7_1
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+    steps:
+      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_RUN_EXTENSION_TESTS
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_42_ENV
+      - <<: *STEP_RUN_LARAVEL_42_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_57_ENV
+      - <<: *STEP_RUN_LARAVEL_57_TESTS
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
 
   "php-7.2":
-    <<: *JOB_PHP_DEFAULTS
+    working_directory: ~/datadog
     docker:
       - image: datadog/docker-library:ddtrace_php_7_2
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+    steps:
+      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_RUN_EXTENSION_TESTS
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_42_ENV
+      - <<: *STEP_RUN_LARAVEL_42_TESTS
+      - <<: *STEP_UPDATE_LARAVEL_57_ENV
+      - <<: *STEP_RUN_LARAVEL_57_TESTS
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
+
   "5.6 20131106": &ARTIFACT_BUILD
     working_directory: ~/datadog
     docker: [ image: 'circleci/php:5.6' ]
@@ -244,27 +357,35 @@ jobs:
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions']
+
   "7.0 20151012":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.0' ]
+
   "7.1 20160303":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.1' ]
+
   "7.2 20170718":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.2' ]
+
   "5.6 zts 20131106-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:5.6-zts' ]
+
   "7.0 zts 20151012-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.0-zts' ]
+
   "7.1 zts 20160303-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.1-zts' ]
+
   "7.2 zts 20170718-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.2-zts' ]
+
   "package extension":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.2' ]
