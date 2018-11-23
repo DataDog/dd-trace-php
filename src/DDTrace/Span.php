@@ -229,7 +229,7 @@ final class Span implements OpenTracingSpan
 
     /**
      * @deprecated
-     * @param $resource
+     * @param string $resource
      */
     public function setResource($resource)
     {
