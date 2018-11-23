@@ -92,14 +92,20 @@ composer update
 
 ### Enabling tracing
 
-#### Laravel integration
+#### Laravel 5 integration
 
 To enable Laravel integration we need to configure a new Provider in `config/app.php`
 
 ```php
     'providers' => [
 # .....
-      'DDTrace\Integrations\LaravelProvider',
+      'DDTrace\Integrations\Laravel\V5\LaravelProvider',
+```
+
+Copy the package config to your local config with the publish command:
+
+```
+php artisan vendor:publish --provider="DDTrace\Integrations\Laravel\V5\LaravelProvider"
 ```
 
 Now your Laravel application should start sending traces to the Datadog agent running on localhost (in default configuration). The Datadog agent must have APM enabled; see https://docs.datadoghq.com/tracing/setup/ for instructions on installing and configuring the agent.

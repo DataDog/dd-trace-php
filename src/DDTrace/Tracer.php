@@ -229,6 +229,14 @@ final class Tracer implements OpenTracingTracer
     }
 
     /**
+     * @param array $tags
+     */
+    public function setTags(array $tags)
+    {
+        $this->config['global_tags'] = array_merge($this->config['global_tags'], $tags);
+    }
+
+    /**
      * @return null|Span
      */
     public function getActiveSpan()

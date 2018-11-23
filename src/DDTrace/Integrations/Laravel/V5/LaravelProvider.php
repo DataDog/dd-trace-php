@@ -41,6 +41,30 @@ class LaravelProvider extends ServiceProvider
     /**  @inheritdoc */
     public function register()
     {
+        $configPath = __DIR__ . '/../config/ddtrace.php';
+        $this->mergeConfigFrom($configPath, 'ddtrace');
+
+        Configuration::replace(new ConfigRegistry(
+            $this->app['config']
+        ));
+
+        // Creates a tracer with default transport and default encoders
+        $this->app->singleton(Tracer::class, function ($app) {
+            return new Tracer(new Http(new Json()), null, [
+                'service_name' => $app['config']->get('ddtrace.service_name'),
+                'enabled' => $app['config']->get('ddtrace.trace_enabled'),
+                'global_tags' => $app['config']->get('ddtrace.global_tags'),
+            ]);
+        });
+    }
+
+    /**  @inheritdoc */
+    public function boot()
+    {
+        $this->publishes([
+            __DIR__ . '/../config/ddtrace.php' => config_path('ddtrace.php'),
+        ]);
+
         if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
             return;
         }
@@ -54,22 +78,10 @@ class LaravelProvider extends ServiceProvider
             return;
         }
 
-        // Creates a tracer with default transport and default encoders
-        $tracer = new Tracer(new Http(new Json()));
-        // Sets a global tracer (singleton). Also store it in the Laravel
-        // container for easy Laravel-specific use.
+        $tracer = $this->app->make(Tracer::class);
+
+        // Sets a global tracer (singleton).
         GlobalTracer::set($tracer);
-        $this->app->instance(Tracer::class, $tracer);
-    }
-
-    /**  @inheritdoc */
-    public function boot()
-    {
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
-            return;
-        }
-
-        $tracer = GlobalTracer::get();
 
         // Trace middleware
         dd_trace('Illuminate\Pipeline\Pipeline', 'then', function () {
