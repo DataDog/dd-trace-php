@@ -148,7 +148,7 @@ dd_trace("CustomDriver", "doWork", function (...$args) {
 
     // we can access object data via $this, and also execute 
     // the original method the same way 
-    $span->setResource($this->workToDo);
+    $span->setTag(Tags\RESOURCE_NAME, $this->workToDo);
     
     try {
         $result = $this->doWork(...$args);

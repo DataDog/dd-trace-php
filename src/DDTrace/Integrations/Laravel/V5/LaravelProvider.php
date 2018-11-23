@@ -128,7 +128,10 @@ class LaravelProvider extends ServiceProvider
         // Name the scope when the route matches
         $this->app['events']->listen(RouteMatched::class, function (RouteMatched $event) use ($scope) {
             $span = $scope->getSpan();
-            $span->setTag(Tags\RESOURCE_NAME, $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route'));
+            $span->setTag(
+                Tags\RESOURCE_NAME,
+                $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
+            );
             $span->setTag('laravel.route.name', Route::currentRouteName());
             $span->setTag('laravel.route.action', $event->route->getActionName());
             $span->setTag('http.method', $event->request->method());
