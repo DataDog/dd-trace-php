@@ -2,25 +2,26 @@
 
 namespace DDTrace\Tests\Integration\Frameworks\Util;
 
+use DDTrace\Tests\Integration\Frameworks\TestScenarios;
 use DDTrace\Tests\Integration\Frameworks\Util\Request\RequestSpec;
 use PHPUnit\Framework\ExpectationFailedException;
 
 
-class CommonSpecsProvider
+trait CommonScenariosDataProviderTrait
 {
     /**
-     * @param RequestSpec[] $requests
-     * @param ExpectationProvider $expectationProvider
+     * @param array $definedExpectations
      * @return array
      */
-    public function provide(array $requests, ExpectationProvider $expectationProvider)
+    public function buildDataProvider($definedExpectations)
     {
+        $scenarios = TestScenarios::all();
+
         $allRequestNames = array_map(function (RequestSpec $spec) {
             return $spec->getName();
-        }, $requests);
+        }, $scenarios);
         sort($allRequestNames);
 
-        $definedExpectations = $expectationProvider->provide();
         $allExpectationNames = array_keys($definedExpectations);
         sort($allExpectationNames);
 
@@ -31,15 +32,15 @@ class CommonSpecsProvider
                 . implode(', ', $unexpectedExpectations));
         }
 
-        // We expect that all the requests that we defined have a corresponding expectation to serve
+        // We expect that all the scenarios that we defined have a corresponding expectation to serve
         $unexpectedRequest = array_diff($allRequestNames, $allExpectationNames);
         if ($unexpectedRequest) {
-            throw new ExpectationFailedException('Found the following requests not having any expectation defined: '
+            throw new ExpectationFailedException('Found the following scenarios not having any expectation defined: '
                 . implode(', ', $unexpectedRequest));
         }
 
         $dataProvider = [];
-        foreach ($requests as $request) {
+        foreach ($scenarios as $request) {
             $dataProvider[$request->getName()] = [ $request, $definedExpectations[$request->getName()] ];
         }
 
