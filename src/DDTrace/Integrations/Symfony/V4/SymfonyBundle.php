@@ -73,7 +73,7 @@ class SymfonyBundle extends Bundle
                     $route = $request->get('_route');
 
                     if ($symfonyRequestSpan !== null && $route !== null) {
-                        $symfonyRequestSpan->setResource($route);
+                        $symfonyRequestSpan->setTag(Tags\RESOURCE_NAME, $route);
                     }
                     $scope->close();
                 }

@@ -25,7 +25,7 @@ class EloquentIntegration
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.get');
             $span = $scope->getSpan();
             $sql = $this->getQuery()->toSql();
-            $span->setResource($sql);
+            $span->setTag(Tags\RESOURCE_NAME, $sql);
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
@@ -46,7 +46,7 @@ class EloquentIntegration
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.insert');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
-            $span->setResource($sql);
+            $span->setTag(Tags\RESOURCE_NAME, $sql);
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
@@ -68,7 +68,7 @@ class EloquentIntegration
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.update');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
-            $span->setResource($sql);
+            $span->setTag(Tags\RESOURCE_NAME, $sql);
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 

@@ -39,7 +39,7 @@ class PDOIntegration
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setResource('PDO.__construct');
+            $span->setTag(Tags\RESOURCE_NAME,'PDO.__construct');
 
             try {
                 $this->__construct(...$args);
@@ -60,7 +60,7 @@ class PDOIntegration
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setResource($statement);
+            $span->setTag(Tags\RESOURCE_NAME,$statement);
             PDOIntegration::setConnectionTags($this, $span);
 
             try {
@@ -87,7 +87,7 @@ class PDOIntegration
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setResource($args[0]);
+            $span->setTag(Tags\RESOURCE_NAME,$args[0]);
             PDOIntegration::setConnectionTags($this, $span);
 
             try {
@@ -134,7 +134,7 @@ class PDOIntegration
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setResource($args[0]);
+            $span->setTag(Tags\RESOURCE_NAME,$args[0]);
             PDOIntegration::setConnectionTags($this, $span);
 
             try {
@@ -156,7 +156,7 @@ class PDOIntegration
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setResource($this->queryString);
+            $span->setTag(Tags\RESOURCE_NAME,$this->queryString);
             PDOIntegration::setStatementTags($this, $span);
 
             try {

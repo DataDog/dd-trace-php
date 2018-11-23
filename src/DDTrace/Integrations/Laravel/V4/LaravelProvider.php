@@ -74,7 +74,7 @@ class LaravelProvider extends ServiceProvider
             list($route, $request) = $args;
             $span = $scope->getSpan();
 
-            $span->setResource($route->getActionName() . ' ' . Route::currentRouteName());
+            $span->setTag(Tags\RESOURCE_NAME, $route->getActionName() . ' ' . Route::currentRouteName());
             $span->setTag('laravel.route.name', $route->getName());
             $span->setTag('laravel.route.action', $route->getActionName());
             $span->setTag(Tags\HTTP_METHOD, $request->method());
@@ -166,10 +166,7 @@ class LaravelProvider extends ServiceProvider
         $span = $scope->getSpan();
         $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
         $span->setTag(Tags\SERVICE_NAME, self::getAppName());
-
-        if ($span instanceof Span) {
-            $span->setResource($resource);
-        }
+        $span->setTag(Tags\RESOURCE_NAME, $resource);
 
         return $scope;
     }

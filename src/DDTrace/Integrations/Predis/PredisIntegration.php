@@ -40,7 +40,7 @@ class PredisIntegration
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
-            $span->setResource('Predis.Client.__construct');
+            $span->setTag(Tags\RESOURCE_NAME,'Predis.Client.__construct');
             try {
                 call_user_func_array([$this, '__construct'], $args);
                 PredisIntegration::storeConnectionParams($this, $args);
@@ -60,7 +60,7 @@ class PredisIntegration
             $span = $scope->getSpan();
             $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
-            $span->setResource('Predis.Client.connect');
+            $span->setTag(Tags\RESOURCE_NAME,'Predis.Client.connect');
             PredisIntegration::setConnectionTags($this, $span);
 
             try {
@@ -85,7 +85,7 @@ class PredisIntegration
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
-            $span->setResource($query);
+            $span->setTag(Tags\RESOURCE_NAME,$query);
             PredisIntegration::setConnectionTags($this, $span);
 
             try {
@@ -110,7 +110,7 @@ class PredisIntegration
                 $span->setTag(Tags\SERVICE_NAME, 'redis');
                 $span->setTag('redis.raw_command', $query);
                 $span->setTag('redis.args_length', count($arguments));
-                $span->setResource($query);
+                $span->setTag(Tags\RESOURCE_NAME,$query);
                 PredisIntegration::setConnectionTags($this, $span);
 
                 try {
