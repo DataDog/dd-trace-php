@@ -210,9 +210,7 @@ jobs:
       - checkout
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_INSTALL
-      - <<: *STEP_COMPOSER_CACHE_SAVE
       - run:
           name: Installing phpstan
           command: composer require --dev phpstan/phpstan:~0.10.3
