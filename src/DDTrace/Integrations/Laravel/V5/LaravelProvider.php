@@ -137,7 +137,7 @@ class LaravelProvider extends ServiceProvider
 
         $this->app['events']->listen(RequestHandled::class, function (RequestHandled $event) use ($scope) {
             $span = $scope->getSpan();
-            $span->setTag('http.status_code', $event->response->status());
+            $span->setTag('http.status_code', $event->response->getStatusCode());
             try {
                 $user = auth()->user()->id;
                 $span->setTag('laravel.user', strlen($user) ? $user : '-');
