@@ -228,7 +228,7 @@ final class Span implements OpenTracingSpan
     }
 
     /**
-     * @deprecated You should use DDTrace\Span::setTag(Tags\RESOURCE_NAME, $value)
+     * @deprecated
      * @param $resource
      */
     public function setResource($resource)
