@@ -136,8 +136,8 @@ class SymfonyBundle extends Bundle
 
     private function getAppName()
     {
-        if (isset($_ENV['ddtrace_app_name'])) {
-            return $_ENV['ddtrace_app_name'];
+        if (!empty(getenv('ddtrace_app_name'))) {
+            return getenv('ddtrace_app_name');
         } else {
             return 'symfony';
         }
