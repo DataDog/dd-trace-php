@@ -6,6 +6,11 @@
 
     <rule ref="PSR12"/>
 
+    <!-- Allow snake-case in test names to improve readability of specific test case -->
+    <rule ref="PSR1.Methods.CamelCapsMethodName.NotCamelCaps">
+        <exclude-pattern>./tests</exclude-pattern>
+    </rule>
+
     <rule ref="Generic.Commenting.Todo"/>
     <rule ref="Generic.Commenting.Fixme"/>
     <rule ref="Generic.Commenting.DocComment.MissingShort">
