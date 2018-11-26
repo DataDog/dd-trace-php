@@ -102,7 +102,7 @@ class MemcachedIntegration
             $span->setTag(Tags\SPAN_TYPE, Types\MEMCACHED);
             $span->setTag(Tags\SERVICE_NAME, 'memcached');
             $span->setTag('memcached.command', 'flush');
-            $span->setResource('flush');
+            $span->setTag(Tags\RESOURCE_NAME, 'flush');
 
             try {
                 return $this->flush(...$args);
@@ -209,7 +209,7 @@ class MemcachedIntegration
             self::setServerTagsByKey($span, $memcached, $args[0]);
         }
         $span->setTag('memcached.query', "$command " . Obfuscation::toObfuscatedString($args[0]));
-        $span->setResource($command);
+        $span->setTag(Tags\RESOURCE_NAME, $command);
 
         try {
             return $memcached->$command(...$args);
@@ -232,7 +232,7 @@ class MemcachedIntegration
         self::setServerTagsByKey($span, $memcached, $args[0]);
 
         $span->setTag('memcached.query', "$command " . Obfuscation::toObfuscatedString($args[1]));
-        $span->setResource($command);
+        $span->setTag(Tags\RESOURCE_NAME, $command);
 
         try {
             return $memcached->$command(...$args);
@@ -255,7 +255,7 @@ class MemcachedIntegration
 
         self::setServerTagsByKey($span, $memcached, $args[1]);
         $span->setTag('memcached.query', 'cas ?');
-        $span->setResource('cas');
+        $span->setTag(Tags\RESOURCE_NAME, 'cas');
 
         try {
             return $memcached->cas(...$args);
@@ -279,7 +279,7 @@ class MemcachedIntegration
         $serverKey = $args[1];
         $span->setTag('memcached.server_key', $serverKey);
         $span->setTag('memcached.query', 'casByKey ?');
-        $span->setResource('casByKey');
+        $span->setTag(Tags\RESOURCE_NAME, 'casByKey');
         self::setServerTagsByKey($span, $memcached, $serverKey);
 
         try {
@@ -302,7 +302,7 @@ class MemcachedIntegration
 
         $query = "$command " . Obfuscation::toObfuscatedString($args[0], ',');
         $span->setTag('memcached.query', $query);
-        $span->setResource($command);
+        $span->setTag(Tags\RESOURCE_NAME, $command);
 
         try {
             return $memcached->$command(...$args);
@@ -326,7 +326,7 @@ class MemcachedIntegration
 
         $query = "$command " . Obfuscation::toObfuscatedString($args[1], ',');
         $span->setTag('memcached.query', $query);
-        $span->setResource($command);
+        $span->setTag(Tags\RESOURCE_NAME, $command);
 
         try {
             return $memcached->$command(...$args);

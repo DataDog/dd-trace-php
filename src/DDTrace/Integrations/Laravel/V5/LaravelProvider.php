@@ -88,7 +88,7 @@ class LaravelProvider extends ServiceProvider
                         $args = func_get_args();
                         $scope = GlobalTracer::get()->startActiveSpan('laravel.middleware');
                         $span = $scope->getSpan();
-                        $span->setResource(get_class($this));
+                        $span->setTag(Tags\RESOURCE_NAME, get_class($this));
 
                         try {
                             return call_user_func_array([$this, 'handle'], $args);
@@ -128,7 +128,10 @@ class LaravelProvider extends ServiceProvider
         // Name the scope when the route matches
         $this->app['events']->listen(RouteMatched::class, function (RouteMatched $event) use ($scope) {
             $span = $scope->getSpan();
-            $span->setResource($event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route'));
+            $span->setTag(
+                Tags\RESOURCE_NAME,
+                $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
+            );
             $span->setTag('laravel.route.name', Route::currentRouteName());
             $span->setTag('laravel.route.action', $event->route->getActionName());
             $span->setTag('http.method', $event->request->method());

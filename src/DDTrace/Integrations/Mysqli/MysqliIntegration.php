@@ -379,7 +379,7 @@ class MysqliIntegration
         $span = $scope->getSpan();
         $span->setTag(Tags\SPAN_TYPE, Types\SQL);
         $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-        $span->setResource($resource);
+        $span->setTag(Tags\RESOURCE_NAME, $resource);
         return $scope;
     }
 
