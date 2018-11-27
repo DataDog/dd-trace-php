@@ -54,9 +54,9 @@ final class TextMap implements Propagator
      * A utility function to mitigate differences between how headers are provided by various web frameworks.
      * E.g. in both the cases that follow, this method would return 'application/json':
      *   1) as array of values: ['content-type' => ['application/json']]
-     *   2) as string value: ['content-type0 => 'application/json']
+     *   2) as string value: ['content-type' => 'application/json']
      *
-     * @param $value
+     * @param array|string $value
      * @return mixed|null
      */
     private function extractStringOrFirstArrayElement($value)

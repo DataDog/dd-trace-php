@@ -15,7 +15,7 @@ class Headers
      * @param string[] $headers
      * @return string[]
      */
-    public static function headersMapToColonSeparatedValues($headers)
+    public static function headersMapToColonSeparatedValues(array $headers)
     {
         $headers = $headers ?: [];
         $colonSeparatedValues = [];

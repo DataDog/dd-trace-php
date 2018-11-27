@@ -21,7 +21,7 @@ class StartSpanOptionsFactory
      * @param array $headers An associative array containing header names and values.
      * @return StartSpanOptions
      */
-    public static function createForWebRequest(OTTracer $tracer, $options = [], $headers = [])
+    public static function createForWebRequest(OTTracer $tracer, array $options = [], array $headers = [])
     {
         $spanContext = $tracer->extract(\OpenTracing\Formats\HTTP_HEADERS, $headers);
         if ($spanContext) {
