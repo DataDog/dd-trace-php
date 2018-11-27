@@ -22,7 +22,7 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
         $this->tracer = \Mockery::mock('OpenTracing\Tracer');
     }
 
-    public function test_createForWebRequest_noExtractedContext()
+    public function testCreateForWebRequestNoExtractedContext()
     {
         $this->tracer->shouldReceive('extract')->andReturnNull();
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest($this->tracer);
@@ -30,7 +30,7 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
         $this->assertEmpty($startSpanOptions->getReferences());
     }
 
-    public function test_createForWebRequest_extractedContext()
+    public function testCreateForWebRequestExtractedContext()
     {
         $spanContext = new SpanContext('trace_id', 'span_id');
         $this->tracer->shouldReceive('extract')->andReturn($spanContext);
@@ -42,7 +42,7 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
         $this->assertSame($spanContext, $references[0]->getContext());
     }
 
-    public function test_createForWebRequest_httpHeadersPassedAsCarrier()
+    public function testCreateForWebRequestHttpHeadersPassedAsCarrier()
     {
         $headers = [];
         $this->tracer->shouldReceive('extract')
