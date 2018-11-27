@@ -66,8 +66,10 @@ final class Tracer implements OpenTracingTracer
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
         $this->transport = $transport ?: new Http(new Json());
+        $textMapPropagator = new TextMap();
         $this->propagators = $propagators ?: [
-            Formats\TEXT_MAP => new TextMap(),
+            Formats\TEXT_MAP => $textMapPropagator,
+            Formats\HTTP_HEADERS => $textMapPropagator,
         ];
         $this->scopeManager = new ScopeManager();
         $this->config = array_merge($this->config, $config);
