@@ -11,7 +11,7 @@ class Urls
     /**
      * Removes query string and fragment from a url.
      *
-     * @param $url
+     * @param string $url
      * @return string
      */
     public static function sanitize($url)
