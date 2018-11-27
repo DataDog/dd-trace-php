@@ -27,7 +27,7 @@ composer require datadog/dd-trace
 
 ## Requirements
 
-- PHP 7.0 or later
+- PHP 5.6, 7.0 or later
 
 ## Usage
 
