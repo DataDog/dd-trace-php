@@ -16,7 +16,9 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
-        GuzzleIntegration::load();
+        if(!GuzzleIntegration::load()) {
+            self::markTestSkipped('Guzzle required to run tests.');
+        }
     }
 
     protected function setUp()

@@ -14,13 +14,17 @@ abstract class Integration
     {
         if (!extension_loaded('ddtrace')) {
             trigger_error('The ddtrace extension is required to trace ' . static::CLASS_NAME, E_USER_WARNING);
-            return;
+            return false;
         }
         if (!class_exists(static::CLASS_NAME)) {
             trigger_error(static::CLASS_NAME . ' is not loaded and cannot be traced', E_USER_WARNING);
-            return;
+            return false;
         }
+        static::loadIntegration();
+        return true;
     }
+
+    abstract protected static function loadIntegration();
 
     /**
      * @param string $method

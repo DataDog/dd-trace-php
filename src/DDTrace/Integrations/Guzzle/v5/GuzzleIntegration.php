@@ -11,9 +11,8 @@ class GuzzleIntegration extends Integration
 {
     const CLASS_NAME = 'GuzzleHttp\Client';
 
-    public static function load()
+    protected static function loadIntegration()
     {
-        parent::load();
         self::traceMethod('send', function (Span $span, array $args) {
             $span->setTag('http.method', $args[0]->getMethod());
         });
