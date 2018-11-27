@@ -47,6 +47,9 @@ services:
   memcached_integration:
     image: "memcached:1.5-alpine"
 
+  httpbin_integration:
+    image: kennethreitz/httpbin
+
   ddagent_integration:
     image: datadog/agent:latest
     healthcheck:
