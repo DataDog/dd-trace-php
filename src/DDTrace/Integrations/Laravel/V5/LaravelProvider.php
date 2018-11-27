@@ -80,6 +80,10 @@ class LaravelProvider extends ServiceProvider
                         // See: https://laravel.com/docs/5.7/middleware#middleware-parameters
                         $class = explode(':', $pipe)[0];
                     } else {
+                        // Ignore closures
+                        if ($pipe instanceof \Closure) {
+                            continue;
+                        }
                         // If an instance is passed instead of the class, than we need to know the class from it.
                         $class = get_class($pipe);
                     }
