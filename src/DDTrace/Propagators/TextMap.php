@@ -57,7 +57,7 @@ final class TextMap implements Propagator
      *   2) as string value: ['content-type' => 'application/json']
      *
      * @param array|string $value
-     * @return mixed|null
+     * @return string|null
      */
     private function extractStringOrFirstArrayElement($value)
     {
