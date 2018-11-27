@@ -17,7 +17,6 @@ class Headers
      */
     public static function headersMapToColonSeparatedValues(array $headers)
     {
-        $headers = $headers ?: [];
         $colonSeparatedValues = [];
 
         foreach ($headers as $key => $value) {

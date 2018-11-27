@@ -65,8 +65,7 @@ final class TextMap implements Propagator
             return $value[0];
         } elseif (is_string($value)) {
             return $value;
-        } else {
-            return null;
         }
+        return null;
     }
 }

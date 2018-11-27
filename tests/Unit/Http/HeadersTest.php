@@ -8,17 +8,12 @@ use PHPUnit\Framework;
 
 final class HeadersTest extends Framework\TestCase
 {
-    public function test_headersMapToColonSeparatedValues_emptyArray()
+    public function testHeadersMapToColonSeparatedValuesEmptyArray()
     {
         $this->assertEmpty(Headers::headersMapToColonSeparatedValues([]));
     }
 
-    public function test_headersMapToColonSeparatedValues_null()
-    {
-        $this->assertEmpty(Headers::headersMapToColonSeparatedValues(null));
-    }
-
-    public function test_headersMapToColonSeparatedValues_values()
+    public function testHeadersMapToColonSeparatedValuesValues()
     {
         $this->assertSame(
             [
