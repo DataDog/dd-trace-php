@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Integrations\Guzzle\v5;
+namespace DDTrace\Integrations\Guzzle\V5;
 
 use DDTrace\Tags;
 use DDTrace\Types;

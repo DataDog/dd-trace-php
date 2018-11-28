@@ -1,12 +1,12 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Integrations\Guzzle\v5;
+namespace DDTrace\Tests\Integration\Integrations\Guzzle\V5;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Message\Request;
 use GuzzleHttp\Ring\Client\MockHandler;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
-use DDTrace\Integrations\Guzzle\v5\GuzzleIntegration;
+use DDTrace\Integrations\Guzzle\V5\GuzzleIntegration;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 
 final class GuzzleIntegrationTest extends IntegrationTestCase
