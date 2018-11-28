@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Guzzle\V5;
 use DDTrace\Tags;
 use DDTrace\Types;
 use OpenTracing\Span;
+use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
 use GuzzleHttp\Message\ResponseInterface;
 
@@ -16,7 +17,7 @@ class GuzzleIntegration extends Integration
     {
         self::traceMethod('send', function (Span $span, array $args) {
             $span->setTag('http.method', $args[0]->getMethod());
-            $span->setTag('http.url', $args[0]->getUrl());
+            $span->setTag('http.url', Urls::sanitize($args[0]->getUrl()));
         }, function (Span $span, $response) {
             if (!$response instanceof ResponseInterface) {
                 return;

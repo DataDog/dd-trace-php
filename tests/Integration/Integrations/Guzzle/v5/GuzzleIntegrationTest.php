@@ -34,13 +34,13 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
     public function testAliasMethods($method)
     {
         $traces = $this->isolateTracer(function () use ($method) {
-            $this->client->$method('http://example.com');
+            $this->client->$method('http://example.com/?foo=secret');
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
                 ->withExactTags([
                     'http.method' => strtoupper($method),
-                    'http.url' => 'http://example.com',
+                    'http.url' => 'http://example.com/',
                     'http.status_code' => '200',
                 ]),
         ]);
