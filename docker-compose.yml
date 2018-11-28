@@ -41,6 +41,9 @@ services:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
+  elasticsearch2_integration:
+    image: "elasticsearch:2"
+
   redis_integration:
     image: "circleci/redis:4.0-alpine"
 
