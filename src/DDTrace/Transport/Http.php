@@ -115,6 +115,8 @@ final class Http implements Transport
         curl_setopt($handle, CURLOPT_POST, true);
         curl_setopt($handle, CURLOPT_POSTFIELDS, $body);
         curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($handle, CURLOPT_TIMEOUT_MS, 500);
+        curl_setopt($handle, CURLOPT_CONNECTTIMEOUT_MS, 100);
 
         $curlHeaders = [
             'Content-Type: ' . $this->encoder->getContentType(),
