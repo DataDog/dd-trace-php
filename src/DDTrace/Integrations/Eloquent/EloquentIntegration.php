@@ -16,7 +16,8 @@ class EloquentIntegration
             return;
         }
         if (!class_exists('Illuminate\Database\Eloquent\Builder')) {
-            trigger_error('Eloquent is not loaded and connot be instrumented', E_USER_WARNING);
+            trigger_error('Eloquent is not loaded and cannot be instrumented', E_USER_WARNING);
+            return;
         }
 
         // getModels($columns = ['*'])
