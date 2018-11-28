@@ -24,23 +24,32 @@ abstract class Integration
         return true;
     }
 
+    /**
+     * Each integration's implementation of this method will include
+     * all the methods to trace by calling the traceMethod() for each
+     * method that should be traced.
+     *
+     * @return void
+     */
     abstract protected static function loadIntegration();
 
     /**
      * @param string $method
-     * @param \Closure $spanMutator
+     * @param \Closure|null $preCallHook
+     * @param \Closure|null $postCallHook
      */
-    protected static function traceMethod($method, \Closure $spanMutator = null)
+    protected static function traceMethod($method, \Closure $preCallHook = null, \Closure $postCallHook = null)
     {
         $className = static::CLASS_NAME;
         $integrationClass = get_called_class();
-        dd_trace($className, $method, function () use ($className, $integrationClass, $method, $spanMutator) {
+        dd_trace($className, $method, function ()
+            use ($className, $integrationClass, $method, $preCallHook, $postCallHook) {
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
             $integrationClass::setDefaultTags($span, $method);
-            if (null !== $spanMutator) {
-                $spanMutator($span, $args);
+            if (null !== $preCallHook) {
+                $preCallHook($span, $args);
             }
 
             $returnVal = null;
@@ -50,6 +59,9 @@ abstract class Integration
             } catch (\Exception $e) {
                 $span->setError($e);
                 $thrownException = $e;
+            }
+            if (null !== $postCallHook) {
+                $postCallHook($span, $returnVal);
             }
             $scope->close();
             if (null !== $thrownException) {

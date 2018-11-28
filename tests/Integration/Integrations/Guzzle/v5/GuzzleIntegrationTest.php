@@ -37,9 +37,11 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $this->client->$method('http://example.com');
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'guzzle', 'send')
+            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
                 ->withExactTags([
                     'http.method' => strtoupper($method),
+                    'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
                 ]),
         ]);
     }
@@ -64,9 +66,11 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $this->client->send($request);
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'guzzle', 'send')
+            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
                 ->withExactTags([
                     'http.method' => 'PUT',
+                    'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
                 ]),
         ]);
     }

@@ -8,7 +8,6 @@ const WEB_SERVLET = 'web';
 const SQL = 'sql';
 
 const CASSANDRA = 'cassandra';
-const GUZZLE = 'guzzle';
 const MEMCACHED = 'memcached';
 const MONGO = 'mongodb';
 const REDIS = 'redis';
