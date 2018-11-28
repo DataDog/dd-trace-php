@@ -114,15 +114,12 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     UNUSED(zend_module);
 
     php_info_print_box_start(0);
-    if (!sapi_module.phpinfo_as_text) {
-        datadog_info_print("<a href=\"https://www.datadoghq.com/\"><img style=\"height:70px; width:auto; border:none;\" src=\"");
-        datadog_info_print(DATADOG_LOGO_DATA_URI "\" alt=\"Datadog logo 'Bits'\" /></a>\n");
-    }
     datadog_info_print("Datadog PHP tracer extension (experimental)");
     if (!sapi_module.phpinfo_as_text) {
-        datadog_info_print("<br><strong>Start your <a href=\"https://www.datadoghq.com/\" style=\"background:transparent;\">free trial</a>.</strong>");
+        datadog_info_print("<br><strong>For help, check out ");
+        datadog_info_print("<a href=\"https://github.com/DataDog/dd-trace-php/blob/master/README.md#getting-started\" style=\"background:transparent;\">the documentation</a>.</strong>");
     } else {
-        datadog_info_print("\nStart your free trial at https://www.datadoghq.com/");
+        datadog_info_print("\nFor help, check out the documentation at https://github.com/DataDog/dd-trace-php/blob/master/README.md#getting-started");
     }
     datadog_info_print(!sapi_module.phpinfo_as_text ? "<br><br>" : "\n");
     datadog_info_print("(c) Datadog 2018\n");
