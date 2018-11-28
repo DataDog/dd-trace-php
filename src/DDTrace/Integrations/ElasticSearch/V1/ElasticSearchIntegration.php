@@ -20,7 +20,6 @@ class ElasticSearchIntegration
         }
 
         if (!class_exists('Elasticsearch\Client')) {
-            trigger_error('Elasticsearch\Client class is missing and cannot be instrumented', E_USER_WARNING);
             return;
         }
 
