@@ -1,13 +1,10 @@
 # Changelog
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
 ### Added
 - Changelog
-- Custom PHP info output for ddtrace module #63 - thanks @SammyK 
+- Custom PHP info output for ddtrace module #63 - thanks @SammyK
 - `static-analyze` to composer scripts #137
 - distributed tracing initial support - without sampling priority #145
 - Curl integration #147
@@ -51,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - badges to README.md: #99 - thanks @inverse
 
 ### Changed
-- Extend Predis integration tests coverage: #110
+- Predis integration tests coverage: #110
 
 ### Fixed
 - Laravel preventing traces from being sent when app name is empty: #112 - thanks @stayallive
