@@ -111,7 +111,7 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     UNUSED(zend_module);
 
     php_info_print_box_start(0);
-    datadog_info_print("Datadog PHP tracer extension (experimental)");
+    datadog_info_print("Datadog PHP tracer extension");
     if (!sapi_module.phpinfo_as_text) {
         datadog_info_print("<br><strong>For help, check out ");
         datadog_info_print(
