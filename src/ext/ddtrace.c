@@ -1,13 +1,13 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include <SAPI.h>
 #include <Zend/zend.h>
 #include <Zend/zend_exceptions.h>
 #include <php.h>
 #include <php_ini.h>
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
-#include <SAPI.h>
 
 #include "compat_zend_string.h"
 #include "ddtrace.h"
@@ -105,10 +105,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     return SUCCESS;
 }
 
-static int datadog_info_print(const char *str)
-{
-    return php_output_write(str, strlen(str));
-}
+static int datadog_info_print(const char *str) { return php_output_write(str, strlen(str)); }
 
 static PHP_MINFO_FUNCTION(ddtrace) {
     UNUSED(zend_module);
@@ -117,9 +114,13 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     datadog_info_print("Datadog PHP tracer extension (experimental)");
     if (!sapi_module.phpinfo_as_text) {
         datadog_info_print("<br><strong>For help, check out ");
-        datadog_info_print("<a href=\"https://github.com/DataDog/dd-trace-php/blob/master/README.md#getting-started\" style=\"background:transparent;\">the documentation</a>.</strong>");
+        datadog_info_print(
+            "<a href=\"https://github.com/DataDog/dd-trace-php/blob/master/README.md#getting-started\" "
+            "style=\"background:transparent;\">the documentation</a>.</strong>");
     } else {
-        datadog_info_print("\nFor help, check out the documentation at https://github.com/DataDog/dd-trace-php/blob/master/README.md#getting-started");
+        datadog_info_print(
+            "\nFor help, check out the documentation at "
+            "https://github.com/DataDog/dd-trace-php/blob/master/README.md#getting-started");
     }
     datadog_info_print(!sapi_module.phpinfo_as_text ? "<br><br>" : "\n");
     datadog_info_print("(c) Datadog 2018\n");
