@@ -29,7 +29,7 @@ class PredisIntegration
             return;
         }
         if (!class_exists('\Predis\Client')) {
-            trigger_error('Predis is not loaded and connot be instrumented', E_USER_WARNING);
+            trigger_error('Predis is not loaded and cannot be instrumented', E_USER_WARNING);
             return;
         }
 

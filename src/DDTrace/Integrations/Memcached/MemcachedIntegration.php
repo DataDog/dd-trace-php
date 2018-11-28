@@ -29,7 +29,8 @@ class MemcachedIntegration
             return;
         }
         if (!class_exists('Memcached')) {
-            trigger_error('Memcached is not loaded and connot be instrumented', E_USER_WARNING);
+            trigger_error('Memcached is not loaded and cannot be instrumented', E_USER_WARNING);
+            return;
         }
 
         // bool Memcached::add ( string $key , mixed $value [, int $expiration ] )

@@ -9,7 +9,6 @@ use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
-use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Types;
@@ -17,9 +16,6 @@ use DDTrace\Transport\Http;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use OpenTracing\GlobalTracer;
-
-use function DDTrace\Time\fromMicrotime;
-
 
 /**
  * DataDog Laravel 4.2 tracing provider. Use by installing the dd-trace library:
