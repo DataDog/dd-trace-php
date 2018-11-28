@@ -1,13 +1,15 @@
 <?php
 
-namespace DDTrace\Integrations\ElasticSearch;
+namespace DDTrace\Integrations\ElasticSearch\V1;
 
 use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
 use OpenTracing\GlobalTracer;
 
-
+/**
+ * ElasticSearch driver v1 Integration
+ */
 class ElasticSearchIntegration
 {
     const DEFAULT_SERVICE_NAME = 'elasticsearch';
@@ -27,13 +29,21 @@ class ElasticSearchIntegration
         self::traceClientMethod('__construct');
         self::traceClientMethod('count');
         self::traceClientMethod('delete');
-        self::traceClientMethod('exist');
+        self::traceClientMethod('exists');
         self::traceClientMethod('explain');
         self::traceClientMethod('get');
         self::traceClientMethod('index');
         self::traceClientMethod('scroll');
         self::traceClientMethod('search');
         self::traceClientMethod('update');
+
+        // Serializers
+        self::traceMethod('Elasticsearch\Serializers\ArrayToJSONSerializer', 'serialize');
+        self::traceMethod('Elasticsearch\Serializers\ArrayToJSONSerializer', 'deserialize');
+        self::traceMethod('Elasticsearch\Serializers\EverythingToJSONSerializer', 'serialize');
+        self::traceMethod('Elasticsearch\Serializers\EverythingToJSONSerializer', 'deserialize');
+        self::traceMethod('Elasticsearch\Serializers\SmartSerializer', 'serialize');
+        self::traceMethod('Elasticsearch\Serializers\SmartSerializer', 'deserialize');
 
         // IndicesNamespace operations
         self::traceNamespaceMethod('IndicesNamespace', 'analyze');
@@ -99,7 +109,6 @@ class ElasticSearchIntegration
         self::traceNamespaceMethod('SnapshotNamespace', 'status');
 
         // ClusterNamespace operations
-        self::traceNamespaceMethod('ClusterNamespace', 'get');
         self::traceNamespaceMethod('ClusterNamespace', 'getSettings');
         self::traceNamespaceMethod('ClusterNamespace', 'health');
         self::traceNamespaceMethod('ClusterNamespace', 'pendingTasks');
@@ -113,6 +122,37 @@ class ElasticSearchIntegration
         self::traceNamespaceMethod('NodesNamespace', 'info');
         self::traceNamespaceMethod('NodesNamespace', 'shutdown');
         self::traceNamespaceMethod('NodesNamespace', 'stats');
+
+        // Endpoints
+        dd_trace('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function () {
+            $args = func_get_args();
+            $tracer = GlobalTracer::get();
+            $scope = $tracer->startActiveSpan("Elasticsearch.Endpoint.performRequest");
+            $span = $scope->getSpan();
+
+            $span->setTag(Tags\SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
+            $span->setTag(Tags\SPAN_TYPE, Types\ELASTICSEARCH);
+            $span->setTag(Tags\RESOURCE_NAME, $this->getUri());
+            $span->setTag(Tags\HTTP_METHOD, $this->getMethod());
+
+            // PHP 5.4 compatible try-catch-finally
+            $thrown = null;
+            $result = null;
+            try {
+                $result = call_user_func_array([$this, 'performRequest'], $args);
+            } catch (\Exception $ex) {
+                $thrown = $ex;
+                if ($span instanceof Span) {
+                    $span->setError($ex);
+                }
+            }
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $result;
+        });
     }
 
     /**
@@ -120,7 +160,7 @@ class ElasticSearchIntegration
      */
     public static function traceClientMethod($name)
     {
-        $class = '\Elasticsearch\Client';
+        $class = 'Elasticsearch\Client';
         if (!method_exists($class, $name)) {
             return;
         }
@@ -157,12 +197,65 @@ class ElasticSearchIntegration
     }
 
     /**
+     * @param string $class
+     * @param array $methods
+     */
+    public static function traceSimpleMethodsCall($class, array $methods)
+    {
+        foreach ($methods as $method) {
+            ElasticSearchIntegration::traceMethod($class, $method);
+        }
+    }
+
+    /**
+     * @param string $class
+     * @param string $name
+     */
+    public static function traceMethod($class, $name)
+    {
+        if (!method_exists($class, $name)) {
+            return;
+        }
+
+        dd_trace($class, $name, function () use ($class, $name) {
+            $args = func_get_args();
+
+            $tracer = GlobalTracer::get();
+            $operationName = str_replace('\\', '.', "$class.$name");
+            $scope = $tracer->startActiveSpan($operationName);
+            $span = $scope->getSpan();
+
+            $span->setTag(Tags\SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
+            $span->setTag(Tags\SPAN_TYPE, Types\ELASTICSEARCH);
+            $span->setTag(Tags\RESOURCE_NAME, $operationName);
+
+            // PHP 5.4 compatible try-catch-finally
+            $thrown = null;
+            $result = null;
+            try {
+                $result = call_user_func_array([$this, $name], $args);
+            } catch (\Exception $ex) {
+                $thrown = $ex;
+                if ($span instanceof Span) {
+                    $span->setError($ex);
+                }
+            }
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $result;
+        });
+    }
+
+    /**
      * @param string $namespace
      * @param string $name
      */
     public static function traceNamespaceMethod($namespace, $name)
     {
-        $class = '\Elasticsearch\Namespace' . $namespace;
+        $class = 'Elasticsearch\Namespaces\\' . $namespace;
         if (!method_exists($class, $name)) {
             return;
         }
@@ -203,7 +296,7 @@ class ElasticSearchIntegration
      * @param array|null $params
      * @return string
      */
-    private static function buildResourceName($methodName, $params)
+    public static function buildResourceName($methodName, $params)
     {
         if (!is_array($params)) {
             return $methodName;

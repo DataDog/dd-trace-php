@@ -11,9 +11,10 @@ x-aliases:
         - .:/home/circleci/app
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
+        - ddagent_integration
+        - elasticsearch2_integration
         - redis_integration
         - mysql_integration
-        - ddagent_integration
         - memcached_integration
       environment:
         - REDIS_HOSTNAME=redis_integration

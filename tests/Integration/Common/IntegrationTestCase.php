@@ -33,4 +33,15 @@ abstract class IntegrationTestCase extends TestCase
     {
         $this->assertExpectedSpans($this, $traces, $expectedSpans);
     }
+
+    /**
+     * Checks that the provide span exists in the provided traces and matches expectations.
+     *
+     * @param $traces
+     * @param SpanAssertion $expectedSpan
+     */
+    public function assertOneSpan($traces, SpanAssertion $expectedSpan)
+    {
+        $this->assertOneExpectedSpan($this, $traces, $expectedSpan);
+    }
 }
