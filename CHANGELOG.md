@@ -7,20 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Changelog
-- Custom PHP info output for ddtrace module #63
+- Custom PHP info output for ddtrace module #63 - thanks @SammyK 
 - `static-analyze` to composer scripts #137
 - distributed tracing initial support - without sampling priority #145
 - Curl integration #147
-- Ignore Closure in laravel #125 - thanks #Patrik
+- Ignore Closure in laravel #125 - thanks @Sh4d1
 
 ## [0.4.2] - 2018-11-21
 ### Added
 - Laravel 4.2 and 5.7 tests coverage : #139
 
 ### Fixed
-- Deprecated method Span::setResource() not part of OpenTracing\Span: #141 (Fixes #140)
+- Deprecated method `Span::setResource()` not part of `OpenTracing\Span`: #141 (Fixes #140)
 - Laravel integration using HttpFoundation to retrieve status code: #142 - thanks @funkjedi
-- SynfonyBundle using getenv() in place of $_ENV to read env variables: #143 - thanks @hinrik
+- SynfonyBundle using `getenv()` in place of `$_ENV` to read env variables: #143 - thanks @hinrik
 
 ## [0.4.1] - 2018-11-21
 ### Fixed
