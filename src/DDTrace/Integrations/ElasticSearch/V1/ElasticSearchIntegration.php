@@ -168,11 +168,11 @@ class ElasticSearchIntegration
             return;
         }
 
-        dd_trace($class, $name, function () use ($name) {
+        dd_trace($class, $name, function () use ($namespace, $name) {
             $args = func_get_args();
             list($params) = extract($args);
             $tracer = GlobalTracer::get();
-            $scope = $tracer->startActiveSpan("Elasticsearch.Client.$name");
+            $scope = $tracer->startActiveSpan("Elasticsearch.$namespace.$name");
             $span = $scope->getSpan();
 
             $span->setTag(Tags\SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
