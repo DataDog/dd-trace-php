@@ -42,8 +42,13 @@ abstract class Integration
     {
         $className = static::CLASS_NAME;
         $integrationClass = get_called_class();
-        dd_trace($className, $method, function ()
-            use ($className, $integrationClass, $method, $preCallHook, $postCallHook) {
+        dd_trace($className, $method, function () use (
+            $className,
+            $integrationClass,
+            $method,
+            $preCallHook,
+            $postCallHook
+        ) {
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
