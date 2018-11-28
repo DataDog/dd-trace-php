@@ -60,10 +60,15 @@ aliases:
       paths:
         - vendor/
 
+  - &STEP_COMPOSER_INSTALL_LEGACY
+    run:
+      name: Installing composer dependencies without PHPStan
+      command: composer remove phpstan/phpstan --no-interaction --no-plugins --dev
+
   - &STEP_COMPOSER_INSTALL
     run:
       name: Installing dependencies with composer
-      command: composer install -n
+      command: composer install --no-interaction
 
 
   - &STEP_PREPARE_TEST_RESULTS_DIR
@@ -137,7 +142,6 @@ aliases:
     store_test_results:
       path: test-results
 
-
 jobs:
 
   "Lint files": &lint_files
@@ -196,7 +200,7 @@ jobs:
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_INSTALL_LEGACY
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - run:
           name: Creating directory for phpcs results
@@ -218,11 +222,8 @@ jobs:
       - <<: *STEP_COMPOSER_INSTALL
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - run:
-          name: Installing phpstan
-          command: composer require --dev phpstan/phpstan:~0.10.3
-      - run:
           name: Running phpstan
-          command: vendor/bin/phpstan analyse --level=2 src
+          command: composer static-analyze
 
   "php-5.6":
     working_directory: ~/datadog
@@ -239,7 +240,7 @@ jobs:
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_INSTALL_LEGACY
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
@@ -269,7 +270,7 @@ jobs:
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_INSTALL_LEGACY
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV

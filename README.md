@@ -153,6 +153,12 @@ In order to run tests for the php extension:
 composer fix-lint
 ```
 
+### Static Analyzer
+
+The [PHPStan static analyzer](https://github.com/phpstan/phpstan) is part of the build checks when submitting a PR. To ensure your contribution passes the static analyzer, run the following:
+
+    $ composer static-analyze
+
 ## Releasing
 
 See [RELEASING](RELEASING.md) for more information on releasing new versions.
