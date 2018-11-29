@@ -38,6 +38,5 @@ trait SpanAssertionTrait
         } else {
             $spanChecker->assertSpan($found[0], $expectedSpan);
         }
-
     }
 }

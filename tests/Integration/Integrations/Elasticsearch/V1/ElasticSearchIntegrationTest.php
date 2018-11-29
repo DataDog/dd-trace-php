@@ -345,13 +345,17 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::exists('Elasticsearch.Client.search'),
-            SpanAssertion::build('Elasticsearch.Endpoint.performRequest', 'elasticsearch', 'elasticsearch', 'performRequest')
-                ->withExactTags([
-                    'elasticsearch.url' => '/my_index/_search',
-                    'elasticsearch.method' => 'GET',
-                    'elasticsearch.params' => '[]',
-                    'elasticsearch.body' => '{"query":{"match_all":[]}}'
-                ]),
+            SpanAssertion::build(
+                'Elasticsearch.Endpoint.performRequest',
+                'elasticsearch',
+                'elasticsearch',
+                'performRequest'
+            )->withExactTags([
+                'elasticsearch.url' => '/my_index/_search',
+                'elasticsearch.method' => 'GET',
+                'elasticsearch.params' => '[]',
+                'elasticsearch.body' => '{"query":{"match_all":[]}}'
+            ]),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
         ]);
