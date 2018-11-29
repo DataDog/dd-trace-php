@@ -2,14 +2,12 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Encoders\Json;
 use DDTrace\Propagator;
 use DDTrace\SpanContext;
 use DDTrace\Tags;
 use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport;
-use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
 use PHPUnit\Framework;
