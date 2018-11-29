@@ -399,7 +399,8 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client, $namespace, $method) {
             try {
                 $client->$namespace()->$method([]);
-            } catch (\Exception $ex) {
+            } catch (\Elasticsearch\Common\Exceptions\BadRequest400Exception $ex) {
+            } catch (\Elasticsearch\Common\Exceptions\RuntimeException $ex) {
             }
         });
 
@@ -417,10 +418,10 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
             ['indices', 'close'],
             ['indices', 'create'],
             ['indices', 'delete'],
-//            ['indices', 'deleteAlias'],
-//            ['indices', 'deleteMapping'],
-//            ['indices', 'deleteTemplate'],
-//            ['indices', 'deleteWarmer'],
+            ['indices', 'deleteAlias'],
+            ['indices', 'deleteMapping'],
+            ['indices', 'deleteTemplate'],
+            ['indices', 'deleteWarmer'],
             ['indices', 'exists'],
             ['indices', 'existsAlias'],
             ['indices', 'existsTemplate'],
