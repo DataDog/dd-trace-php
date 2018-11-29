@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file - [docs/chan
 - Curl integration #147
 - Ignore Closure in laravel #125 - thanks @Sh4d1
 
+### Fixed
+- `DDTrace\Tracer` returning a `DDTrace\NoopSpan` in place of `OpenTracing\NooSpan` when disabled #155
+
 ## [0.4.2] - 2018-11-21
 ### Added
 - Laravel 4.2 and 5.7 tests coverage : #139
