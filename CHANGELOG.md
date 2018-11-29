@@ -1,0 +1,141 @@
+# Changelog
+All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
+
+## [Unreleased]
+### Added
+- Changelog
+- Custom PHP info output for ddtrace module #63 - thanks @SammyK
+- `static-analyze` to composer scripts #137
+- distributed tracing initial support - without sampling priority #145
+- Curl integration #147
+- Ignore Closure in laravel #125 - thanks @Sh4d1
+
+## [0.4.2] - 2018-11-21
+### Added
+- Laravel 4.2 and 5.7 tests coverage : #139
+
+### Fixed
+- Deprecated method `Span::setResource()` not part of `OpenTracing\Span`: #141 (Fixes #140)
+- Laravel integration using HttpFoundation to retrieve status code: #142 - thanks @funkjedi
+- SynfonyBundle using `getenv()` in place of `$_ENV` to read env variables: #143 - thanks @hinrik
+
+## [0.4.1] - 2018-11-21
+### Fixed
+- Memcached key obfuscation: #132
+- support tracing of Eloquent 4.2: #136
+- support tracing calls to internal functions: #126
+- Symfony exception handling and meta tags for request: #129 - thanks @jkrnak
+- Symfony docs: #134 - thanks @inverse
+
+## [0.4.0] - 2018-11-19
+### Added
+- Laravel 4.2 initial support
+
+## [0.3.1] - 2018-11-16
+### Fixed
+- Laravel 5 secondary intergations pointing to non-existing classes: #127
+
+## [0.3.0] - 2018-11-15
+### Added
+- support for PHP 5.6 🎉 #97 , #122
+- Mysqli Integration: #104 - thanks @chuck
+- Laravel improved pipeline tracing: #117
+- ability to configure agent's connection parameters through env variables: #111
+- PDO integration tests: #101
+- Memcached integration tests: #88
+- improvements to testing utils: #100 , #89
+- improvements to the ci workflow: #102
+- badges to README.md: #99 - thanks @inverse
+
+### Changed
+- Predis integration tests coverage: #110
+
+### Fixed
+- Laravel preventing traces from being sent when app name is empty: #112 - thanks @stayallive
+- error message in SymfonyBundle.php when ddtrace extension is not loaded: #98 - thanks @inverse
+- ext-json required dependency to composer.json: #103 - thanks @inverse
+- Laravel service name from env variable: #118 - thanks @Sh4d1
+
+## [0.2.7] - 2018-11-15
+### Added
+- span type to Symfony and Laravel integration
+- post-install script checking if extension is successfully enabled
+
+### Fixed
+- memory leaks on request finalization
+
+## [0.2.6] - 2018-10-25
+### Changed
+- ext-ddtrace is no longer required when installing via composer
+
+### Fixed
+- exception handling in C extension (PHP 5.6)
+
+## [0.2.5] - 2018-10-22
+### Fixed
+- handling of function return values in (PHP 5.6)
+
+## [0.2.4] - 2018-10-18
+### Fixed
+- instrumenting method name in mixed case (PHP 5.6)
+
+## [0.2.3] - 2018-10-16
+### Fixed
+- compatibility in Laravel user tracking (PHP 5.6)
+- linking on older GCC (Debian Stretch)
+
+## [0.2.2] - 2018-10-15
+### Fixed
+- Laravel template rendering method signature missmatch
+
+## [0.2.1] - 2018-10-15
+### Fixed
+- Laravel template rendering tracing
+- PDO execute without parameters
+
+## [0.2.0] - 2018-10-15
+### Added
+- ddtrace C extension to allow introspection into running PHP code
+- initial Laravel auto instrumentation integration
+- initial Symfony auto instrumentation integration
+- initial Eloquent auto instrumentation integration
+- initial Memcached auto instrumentation integration
+- initial PDO auto instrumentation integration
+- initial Predis auto instrumentation integration
+
+## [0.1.2] - 2018-08-01
+### Fixed
+- Opentracing dependency so it can be installed without modifying minimum-stability.
+
+## [0.1.1] - 2018-08-1
+### Added
+- added a Resource transport for debugging trace data
+
+### Changed
+- dependency cleanup
+
+### Fixed
+- error "Undefined offset: 1" when using Tracer::startActiveSpan
+- Composer polyfill installation conflict
+- Curl outputing to STDOUT when reporting to the trace agent
+
+## [0.1.0] - 2018-08-01
+### Added
+- OpenTracing compliance tha can be used for manual instrumentation
+
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.4.2...HEAD
+[0.4.2]: https://github.com/DataDog/dd-trace-php/compare/0.4.1...0.4.2
+[0.4.1]: https://github.com/DataDog/dd-trace-php/compare/0.4.0...0.4.1
+[0.4.0]: https://github.com/DataDog/dd-trace-php/compare/0.3.1...0.4.0
+[0.3.1]: https://github.com/DataDog/dd-trace-php/compare/0.3.0...0.3.1
+[0.3.0]: https://github.com/DataDog/dd-trace-php/compare/0.2.7...0.3.0
+[0.2.7]: https://github.com/DataDog/dd-trace-php/compare/0.2.6...0.2.7
+[0.2.6]: https://github.com/DataDog/dd-trace-php/compare/0.2.5...0.2.6
+[0.2.5]: https://github.com/DataDog/dd-trace-php/compare/0.2.4...0.2.5
+[0.2.4]: https://github.com/DataDog/dd-trace-php/compare/0.2.3...0.2.4
+[0.2.3]: https://github.com/DataDog/dd-trace-php/compare/0.2.2...0.2.3
+[0.2.2]: https://github.com/DataDog/dd-trace-php/compare/0.2.1...0.2.2
+[0.2.1]: https://github.com/DataDog/dd-trace-php/compare/0.2.0...0.2.1
+[0.2.0]: https://github.com/DataDog/dd-trace-php/compare/v0.1.2...0.2.0
+[0.1.2]: https://github.com/DataDog/dd-trace-php/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/DataDog/dd-trace-php/compare/v0.1.0...v0.1.1
