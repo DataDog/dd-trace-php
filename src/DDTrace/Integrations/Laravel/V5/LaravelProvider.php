@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Laravel\V5;
 use DDTrace;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Encoders\Json;
+use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
@@ -162,6 +163,7 @@ class LaravelProvider extends ServiceProvider
         });
 
         // Enable extension integrations
+        ElasticSearchIntegration::load();
         EloquentIntegration::load();
         if (class_exists('Memcached')) {
             MemcachedIntegration::load();
