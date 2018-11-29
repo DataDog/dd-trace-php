@@ -2,15 +2,16 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Encoders\Json;
 use DDTrace\Propagator;
 use DDTrace\SpanContext;
 use DDTrace\Tags;
 use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport;
+use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
-use OpenTracing\NoopSpan;
 use PHPUnit\Framework;
 
 final class TracerTest extends Framework\TestCase
@@ -25,7 +26,7 @@ final class TracerTest extends Framework\TestCase
     {
         $tracer = Tracer::noop();
         $span = $tracer->startSpan(self::OPERATION_NAME);
-        $this->assertInstanceOf(NoopSpan::class, $span);
+        $this->assertInstanceOf('\DDTrace\NoopSpan', $span);
     }
 
     public function testCreateSpanSuccessWithExpectedValues()

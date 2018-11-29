@@ -5,11 +5,10 @@ namespace DDTrace;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use Exception;
 use InvalidArgumentException;
-use OpenTracing\Span as OpenTracingSpan;
 use Throwable;
 
 
-final class Span implements OpenTracingSpan
+final class Span implements SpanInterface
 {
     /**
      * Operation Name is the name of the operation being measured. Some examples
