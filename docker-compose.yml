@@ -16,6 +16,7 @@ x-aliases:
         - elasticsearch2_integration
         - httpbin_integration
         - redis_integration
+        - mongodb_integration
         - mysql_integration
         - memcached_integration
       environment:
@@ -46,6 +47,15 @@ services:
 
   elasticsearch2_integration:
     image: "elasticsearch:2"
+
+  mongodb_integration:
+    image: "bitnami/mongodb:4.0"
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGODB_USERNAME=test
+      - MONGODB_PASSWORD=test
+      - MONGODB_DATABASE=test
 
   redis_integration:
     image: "circleci/redis:4.0-alpine"
