@@ -2,16 +2,20 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+
+## [0.5.0] - 2018-11-29
 ### Added
-- Changelog
+- Changelog #152
 - Custom PHP info output for ddtrace module #63 - thanks @SammyK
+- guzzle v5 integration #148
 - `static-analyze` to composer scripts #137
 - distributed tracing initial support - without sampling priority #145
-- Curl integration #147
+- curl integration #147
 - Ignore Closure in laravel #125 - thanks @Sh4d1
 
 ### Fixed
 - `DDTrace\Tracer` returning a `DDTrace\NoopSpan` in place of `OpenTracing\NooSpan` when disabled #155
+- PHP 5.6 ZTS builds #153
 
 ## [0.4.2] - 2018-11-21
 ### Added
@@ -126,7 +130,8 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.4.2...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.5.0...HEAD
+[0.5.0]: https://github.com/DataDog/dd-trace-php/compare/0.4.2...0.5.0
 [0.4.2]: https://github.com/DataDog/dd-trace-php/compare/0.4.1...0.4.2
 [0.4.1]: https://github.com/DataDog/dd-trace-php/compare/0.4.0...0.4.1
 [0.4.0]: https://github.com/DataDog/dd-trace-php/compare/0.3.1...0.4.0
