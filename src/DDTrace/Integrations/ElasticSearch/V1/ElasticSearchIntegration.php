@@ -6,6 +6,8 @@ use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
 use OpenTracing\GlobalTracer;
+use Elasticsearch\Client;
+use const DDTrace\Tags\RESOURCE_NAME;
 
 /**
  * ElasticSearch driver v1 Integration
@@ -132,13 +134,22 @@ class ElasticSearchIntegration
 
             $span->setTag(Tags\SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
             $span->setTag(Tags\SPAN_TYPE, Types\ELASTICSEARCH);
-            $span->setTag(Tags\RESOURCE_NAME, $this->getUri());
-            $span->setTag(Tags\HTTP_METHOD, $this->getMethod());
 
             // PHP 5.4 compatible try-catch-finally
             $thrown = null;
             $result = null;
             try {
+                // Some endpoints can throw exception during getURI() if some parameters are missing, wso
+                // make sure that the uri is read within the try-catch-finally block.
+                $span->setTag(Tags\RESOURCE_NAME, 'performRequest');
+                $span->setTag(Tags\ELASTICSEARCH_URL, $this->getURI());
+                $span->setTag(Tags\ELASTICSEARCH_METHOD, $this->getMethod());
+                if (is_array($this->params)) {
+                    $span->setTag(Tags\ELASTICSEARCH_PARAMS, json_encode($this->params));
+                }
+                if ($this->getMethod() === 'GET' && $body = $this->getBody()) {
+                    $span->setTag(Tags\ELASTICSEARCH_BODY, json_encode($this->getBody()));
+                }
                 $result = call_user_func_array([$this, 'performRequest'], $args);
             } catch (\Exception $ex) {
                 $thrown = $ex;

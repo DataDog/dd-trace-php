@@ -36,7 +36,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
 
     public function testConstructor()
     {
-        $traces = $this->isolateTracer(function() {
+        $traces = $this->isolateTracer(function () {
             $this->client();
         });
 
@@ -53,7 +53,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function testCount()
     {
         $client = $this->client();
-        $traces = $this->isolateTracer(function() use ($client) {
+        $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('count', $client->count());
         });
 
@@ -78,7 +78,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
-        $traces = $this->isolateTracer(function() use ($client) {
+        $traces = $this->isolateTracer(function () use ($client) {
             $this->assertTrue(is_array($client->delete([
                 'id' => 1,
                 'index' => 'my_index',
@@ -107,7 +107,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
-        $traces = $this->isolateTracer(function() use ($client) {
+        $traces = $this->isolateTracer(function () use ($client) {
             $this->assertTrue($client->exists([
                 'id' => 1,
                 'index' => 'my_index',
@@ -136,7 +136,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
-        $traces = $this->isolateTracer(function() use ($client) {
+        $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('explanation', $client->explain([
                 'id' => 1,
                 'index' => 'my_index',
@@ -171,7 +171,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
-        $traces = $this->isolateTracer(function() use ($client) {
+        $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('found', $client->get([
                 'id' => 1,
                 'index' => 'my_index',
@@ -194,7 +194,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function testIndex()
     {
         $client = $this->client();
-        $traces = $this->isolateTracer(function() use ($client) {
+        $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('created', $client->index([
                 'id' => 1,
                 'index' => 'my_index',
@@ -236,7 +236,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 )
             )
         ]);
-        $traces = $this->isolateTracer(function() use ($client, $docs) {
+        $traces = $this->isolateTracer(function () use ($client, $docs) {
             // Now we loop until the scroll "cursors" are exhausted
             $scroll_id = $docs['_scroll_id'];
             while (\true) {
@@ -299,7 +299,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
-        $traces = $this->isolateTracer(function() use ($client) {
+        $traces = $this->isolateTracer(function () use ($client) {
             $client->search([
                 'index' => 'my_index',
                 'body' => array(
@@ -323,6 +323,40 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPerformRequest()
+    {
+        $client = $this->client();
+        $client->index([
+            'id' => 1,
+            'index' => 'my_index',
+            'type' => 'my_type',
+            'body' => ['my' => 'body'],
+        ]);
+        $traces = $this->isolateTracer(function () use ($client) {
+            $client->search([
+                'index' => 'my_index',
+                'body' => array(
+                    'query' => array(
+                        'match_all' => array()
+                    )
+                )
+            ]);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Client.search'),
+            SpanAssertion::build('Elasticsearch.Endpoint.performRequest', 'elasticsearch', 'elasticsearch', 'performRequest')
+                ->withExactTags([
+                    'elasticsearch.url' => '/my_index/_search',
+                    'elasticsearch.method' => 'GET',
+                    'elasticsearch.params' => '[]',
+                    'elasticsearch.body' => '{"query":{"match_all":[]}}'
+                ]),
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+        ]);
+    }
+
     public function testUpdate()
     {
         $client = $this->client();
@@ -332,7 +366,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
-        $traces = $this->isolateTracer(function() use ($client) {
+        $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('_type', $client->update([
                 'id' => 1,
                 'index' => 'my_index',
@@ -355,6 +389,9 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
     }
 
     /**
+     * In the case of namespaces we are not storing any additional info in the spans, so we only want
+     * to make sure that the appropriate methods are traced.
+     *
      * @dataProvider namespacesDataProvider
      * @param string $namespace
      * @param string $method
@@ -363,10 +400,11 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
     {
         $client = $this->client();
 
-        $traces = $this->isolateTracer(function() use ($client, $namespace, $method) {
+        $traces = $this->isolateTracer(function () use ($client, $namespace, $method) {
             try {
                 $client->$namespace()->$method([]);
-            } catch (\Exception $ex) {}
+            } catch (\Exception $ex) {
+            }
         });
 
         $fragment = ucfirst($namespace);

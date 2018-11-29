@@ -13,6 +13,7 @@ x-aliases:
       depends_on:
         - ddagent_integration
         - elasticsearch2_integration
+        - httpbin_integration
         - redis_integration
         - mysql_integration
         - memcached_integration
