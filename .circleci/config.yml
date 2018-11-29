@@ -19,6 +19,10 @@ aliases:
     image: circleci/redis:4.0-alpine
     name: redis_integration
 
+  - &IMAGE_DOCKER_ELASTICSEARCH2
+    image: elasticsearch:2
+    name: elasticsearch2_integration
+
   - &IMAGE_DOCKER_HTTPBIN
     image: kennethreitz/httpbin
     name: httpbin_integration
@@ -230,6 +234,7 @@ jobs:
     docker:
       - image: datadog/docker-library:ddtrace_php_5_6
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
@@ -260,6 +265,7 @@ jobs:
     docker:
       - image: datadog/docker-library:ddtrace_php_7_0
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
@@ -290,6 +296,7 @@ jobs:
     docker:
       - image: datadog/docker-library:ddtrace_php_7_1
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
@@ -322,6 +329,7 @@ jobs:
     docker:
       - image: datadog/docker-library:ddtrace_php_7_2
       - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
