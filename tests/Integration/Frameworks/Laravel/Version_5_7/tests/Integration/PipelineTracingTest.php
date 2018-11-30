@@ -5,14 +5,9 @@ namespace Tests\Integration;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 use DDTrace\Tests\Integration\Common\SpanAssertionTrait;
 use DDTrace\Tests\Integration\Common\TracerTestTrait;
-use DDTrace\Tests\Integration\Frameworks\Util\CommonScenariosDataProviderTrait;
-use DDTrace\Tests\Integration\Frameworks\Util\Request\GetSpec;
-use DDTrace\Tests\Integration\Frameworks\Util\Request\RequestSpec;
 use Illuminate\Pipeline\Pipeline;
 use Tests\TestCase;
 
-/**
- */
 class PipelineTracingTest extends TestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
