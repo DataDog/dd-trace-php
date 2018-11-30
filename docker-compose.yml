@@ -9,6 +9,7 @@ x-aliases:
       tty: true
       volumes:
         - .:/home/circleci/app
+        - .composer:/home/circleci/.composer
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
         - redis_integration

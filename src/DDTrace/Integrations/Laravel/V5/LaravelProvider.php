@@ -65,13 +65,10 @@ class LaravelProvider extends ServiceProvider
         $tracer = GlobalTracer::get();
 
         // Trace middleware
-        dd_trace(Pipeline::class, 'through', function ($pipes) {
+        dd_trace('Illuminate\Pipeline\Pipeline', 'then', function () {
+            $args = func_get_args();
 
-            // Pipes can be passed both as an array and as multiple arguments
-            // https://github.com/laravel/framework/blob/621d91d802016ab4a64acc5c65f81cb9f5e5f779/src/Illuminate/Pipeline/Pipeline.php#L74
-            $pipes = is_array($pipes) ? $pipes : func_get_args();
-
-            foreach ($pipes as $pipe) {
+            foreach ($this->pipes as $pipe) {
                 // Pipes can be passed both as class to the pipeline and as instances
                 if (is_string($pipe) || is_object($pipe)) {
                     if (is_string($pipe)) {
@@ -89,14 +86,16 @@ class LaravelProvider extends ServiceProvider
                         $class = get_class($pipe);
                     }
 
-                    dd_trace($class, 'handle', function () {
+                    $handlerMethod = $this->method;
+                    dd_trace($class, $handlerMethod, function () use ($handlerMethod) {
                         $args = func_get_args();
-                        $scope = GlobalTracer::get()->startActiveSpan('laravel.middleware');
+                        $scope = GlobalTracer::get()->startActiveSpan('laravel.pipeline.pipe');
                         $span = $scope->getSpan();
-                        $span->setTag(Tags\RESOURCE_NAME, get_class($this));
+                        $span->setTag(Tags\RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
+                        $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
                         try {
-                            return call_user_func_array([$this, 'handle'], $args);
+                            return call_user_func_array([$this, $handlerMethod], $args);
                         } catch (\Exception $e) {
                             $span->setError($e);
                             throw $e;
@@ -106,7 +105,8 @@ class LaravelProvider extends ServiceProvider
                     });
                 }
             }
-            return $this->through($pipes);
+
+            return call_user_func_array([$this, 'then'], $args);
         });
 
         // Create a trace span for every template rendered
