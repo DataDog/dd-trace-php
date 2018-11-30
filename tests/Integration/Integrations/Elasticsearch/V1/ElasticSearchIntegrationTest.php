@@ -92,7 +92,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.delete',
                 'elasticsearch',
                 'elasticsearch',
-                'delete'
+                'delete index:' . $this->envSpecificIndexName() . ' type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
@@ -122,7 +122,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.exists',
                 'elasticsearch',
                 'elasticsearch',
-                'exists'
+                'exists index:' . $this->envSpecificIndexName() . ' type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
@@ -157,7 +157,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.explain',
                 'elasticsearch',
                 'elasticsearch',
-                'explain'
+                'explain index:' . $this->envSpecificIndexName() . ' type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
@@ -188,7 +188,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.get',
                 'elasticsearch',
                 'elasticsearch',
-                'get'
+                'get index:' . $this->envSpecificIndexName() . ' type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
@@ -212,7 +212,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.index',
                 'elasticsearch',
                 'elasticsearch',
-                'index'
+                'index index:' . $this->envSpecificIndexName() . ' type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
@@ -313,7 +313,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.search',
                 'elasticsearch',
                 'elasticsearch',
-                'search'
+                'search index:' . $this->envSpecificIndexName()
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
@@ -384,7 +384,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.update',
                 'elasticsearch',
                 'elasticsearch',
-                'update'
+                'update index:' . $this->envSpecificIndexName() . ' type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
