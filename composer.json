@@ -34,6 +34,7 @@
         "opentracing/opentracing": "1.0.0-beta5"
     },
     "require-dev": {
+        "elasticsearch/elasticsearch": "1.2.*",
         "guzzlehttp/guzzle": "^5.0",
         "mockery/mockery": "*",
         "phpcompatibility/php-compatibility": "^9.0",

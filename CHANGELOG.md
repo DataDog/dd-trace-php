@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file - [docs/chan
 - distributed tracing initial support - without sampling priority #145
 - curl integration #147
 - Ignore Closure in laravel #125 - thanks @Sh4d1
+- elastic search v1.x client integration #154
 
 ### Fixed
 - `DDTrace\Tracer` returning a `DDTrace\NoopSpan` in place of `OpenTracing\NooSpan` when disabled #155

@@ -23,3 +23,9 @@ const LOG_STACK = 'stack';
 const TARGET_HOST = 'out.host';
 const TARGET_PORT = 'out.port';
 const BYTES_OUT = 'net.out.bytes';
+
+// Elasticsearch
+const ELASTICSEARCH_BODY = 'elasticsearch.body';
+const ELASTICSEARCH_METHOD = 'elasticsearch.method';
+const ELASTICSEARCH_PARAMS = 'elasticsearch.params';
+const ELASTICSEARCH_URL = 'elasticsearch.url';

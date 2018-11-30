@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Laravel\V4;
 use DDTrace;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Encoders\Json;
+use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
@@ -93,6 +94,7 @@ class LaravelProvider extends ServiceProvider
         }
 
         PDOIntegration::load();
+        ElasticSearchIntegration::load();
 
         if (class_exists('Predis\Client')) {
             PredisIntegration::load();

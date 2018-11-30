@@ -8,6 +8,7 @@ const WEB_SERVLET = 'web';
 const SQL = 'sql';
 
 const CASSANDRA = 'cassandra';
+const ELASTICSEARCH = 'elasticsearch';
 const MEMCACHED = 'memcached';
 const MONGO = 'mongodb';
 const REDIS = 'redis';
