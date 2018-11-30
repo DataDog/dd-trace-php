@@ -37,7 +37,7 @@ abstract class IntegrationTestCase extends TestCase
     /**
      * Checks that the provide span exists in the provided traces and matches expectations.
      *
-     * @param $traces
+     * @param Span[][] $traces
      * @param SpanAssertion $expectedSpan
      */
     public function assertOneSpan($traces, SpanAssertion $expectedSpan)

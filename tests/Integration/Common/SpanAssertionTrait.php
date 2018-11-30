@@ -22,7 +22,7 @@ trait SpanAssertionTrait
      * Checks that the provide span exists in the provided traces and matches expectations.
      *
      * @param TestCase $testCase
-     * @param $traces
+     * @param Span[][] $traces
      * @param SpanAssertion $expectedSpan
      */
     public function assertOneExpectedSpan($testCase, $traces, SpanAssertion $expectedSpan)

@@ -19,7 +19,7 @@ class ElasticSearchIntegration
     public static function load()
     {
         if (!extension_loaded('ddtrace')) {
-            trigger_error('The ddtrace extension is required to instrument Eloquent', E_USER_WARNING);
+            trigger_error('The ddtrace extension is required to instrument ElasticSearch', E_USER_WARNING);
             return;
         }
 
@@ -139,7 +139,7 @@ class ElasticSearchIntegration
             $thrown = null;
             $result = null;
             try {
-                // Some endpoints can throw exception during getURI() if some parameters are missing, wso
+                // Some endpoints can throw exception during getURI() if some parameters are missing, so
                 // make sure that the uri is read within the try-catch-finally block.
                 $span->setTag(Tags\RESOURCE_NAME, 'performRequest');
                 $span->setTag(Tags\ELASTICSEARCH_URL, $this->getURI());
@@ -303,7 +303,7 @@ class ElasticSearchIntegration
     }
 
     /**
-     * @param $methodName
+     * @param string $methodName
      * @param array|null $params
      * @return string
      */

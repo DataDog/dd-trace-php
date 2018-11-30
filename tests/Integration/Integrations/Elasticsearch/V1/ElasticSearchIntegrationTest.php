@@ -79,7 +79,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
             'body' => ['my' => 'body'],
         ]);
         $traces = $this->isolateTracer(function () use ($client) {
-            $this->assertTrue(is_array($client->delete([
+            $this->assertInternalType('array', $client->delete([
                 'id' => 1,
                 'index' => $this->envSpecificIndexName(),
                 'type' => 'my_type',
