@@ -74,7 +74,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => $this->envSpecificIndexName(),
+            'index' => 'my_index',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -82,7 +82,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertInternalType('array', $client->delete([
                 'id' => 1,
-                'index' => $this->envSpecificIndexName(),
+                'index' => 'my_index',
                 'type' => 'my_type',
             ]));
         });
@@ -92,7 +92,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.delete',
                 'elasticsearch',
                 'elasticsearch',
-                'delete index:' . $this->envSpecificIndexName() . ' type:my_type'
+                'delete index:my_index type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
@@ -104,7 +104,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => $this->envSpecificIndexName(),
+            'index' => 'my_index',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -112,7 +112,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertTrue($client->exists([
                 'id' => 1,
-                'index' => $this->envSpecificIndexName(),
+                'index' => 'my_index',
                 'type' => 'my_type',
             ]));
         });
@@ -122,7 +122,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.exists',
                 'elasticsearch',
                 'elasticsearch',
-                'exists index:' . $this->envSpecificIndexName() . ' type:my_type'
+                'exists index:my_index type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
@@ -134,7 +134,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => $this->envSpecificIndexName(),
+            'index' => 'my_index',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -142,7 +142,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('explanation', $client->explain([
                 'id' => 1,
-                'index' => $this->envSpecificIndexName(),
+                'index' => 'my_index',
                 'type' => 'my_type',
                 'body' => [
                     'query' => [
@@ -157,7 +157,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.explain',
                 'elasticsearch',
                 'elasticsearch',
-                'explain index:' . $this->envSpecificIndexName() . ' type:my_type'
+                'explain index:my_index type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
@@ -170,7 +170,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => $this->envSpecificIndexName(),
+            'index' => 'my_index',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -178,7 +178,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('found', $client->get([
                 'id' => 1,
-                'index' => $this->envSpecificIndexName(),
+                'index' => 'my_index',
                 'type' => 'my_type',
             ]));
         });
@@ -188,7 +188,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.get',
                 'elasticsearch',
                 'elasticsearch',
-                'get index:' . $this->envSpecificIndexName() . ' type:my_type'
+                'get index:my_index type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
@@ -201,7 +201,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('created', $client->index([
                 'id' => 1,
-                'index' => $this->envSpecificIndexName(),
+                'index' => 'my_index',
                 'type' => 'my_type',
                 'body' => ['my' => 'body'],
             ]));
@@ -212,7 +212,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.index',
                 'elasticsearch',
                 'elasticsearch',
-                'index index:' . $this->envSpecificIndexName() . ' type:my_type'
+                'index index:my_index type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
@@ -223,9 +223,10 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function testScroll()
     {
         $client = $this->client();
+        $client->indices()->delete(['index' => 'my_index']);
         $client->index([
             'id' => 1,
-            'index' => $this->envSpecificIndexName(),
+            'index' => 'my_index',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -234,7 +235,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
             'search_type' => 'scan',
             'scroll' => '1s',
             'size' => 1,
-            'index' => $this->envSpecificIndexName(),
+            'index' => 'my_index',
             'body' => [
                 'query' => [
                     'match_all' => [],
@@ -292,14 +293,14 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => $this->envSpecificIndexName(),
+            'index' => 'my_index',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
         $client->indices()->flush();
         $traces = $this->isolateTracer(function () use ($client) {
             $client->search([
-                'index' => $this->envSpecificIndexName(),
+                'index' => 'my_index',
                 'body' => [
                     'query' => [
                         'match_all' => [],
@@ -313,7 +314,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.search',
                 'elasticsearch',
                 'elasticsearch',
-                'search index:' . $this->envSpecificIndexName()
+                'search index:' . 'my_index'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
@@ -326,14 +327,14 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => $this->envSpecificIndexName(),
+            'index' => 'my_index',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
         $client->indices()->flush();
         $traces = $this->isolateTracer(function () use ($client) {
             $client->search([
-                'index' => $this->envSpecificIndexName(),
+                'index' => 'my_index',
                 'body' => [
                     'query' => [
                         'match_all' => [],
@@ -350,7 +351,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'performRequest'
             )->withExactTags([
-                'elasticsearch.url' => '/' . $this->envSpecificIndexName() . '/_search',
+                'elasticsearch.url' => '/my_index/_search',
                 'elasticsearch.method' => 'GET',
                 'elasticsearch.params' => '[]',
                 'elasticsearch.body' => '{"query":{"match_all":[]}}'
@@ -365,7 +366,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $client = $this->client();
         $client->index([
             'id' => 1,
-            'index' => $this->envSpecificIndexName(),
+            'index' => 'my_index',
             'type' => 'my_type',
             'body' => ['my' => 'body'],
         ]);
@@ -373,7 +374,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($client) {
             $this->assertArrayHasKey('_type', $client->update([
                 'id' => 1,
-                'index' => $this->envSpecificIndexName(),
+                'index' => 'my_index',
                 'type' => 'my_type',
                 'body' => ['doc' => ['my' => 'body']],
             ]));
@@ -384,7 +385,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'Elasticsearch.Client.update',
                 'elasticsearch',
                 'elasticsearch',
-                'update index:' . $this->envSpecificIndexName() . ' type:my_type'
+                'update index:my_index type:my_type'
             ),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
@@ -510,17 +511,5 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch2_integration',
             ],
         ]);
-    }
-
-    /**
-     * Returns an index name that depends on the environment, so that we do not see tests that cause each other to fail
-     * in CI because a different env for a different version of PHP is also executing tests against the elasticsearch
-     * container.
-     *
-     * @return string
-     */
-    private function envSpecificIndexName()
-    {
-        return 'index_' . str_replace('.', '', PHP_VERSION);
     }
 }
