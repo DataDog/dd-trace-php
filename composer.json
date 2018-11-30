@@ -42,7 +42,6 @@
         "phpcompatibility/phpcompatibility-symfony": "*",
         "phpstan/phpstan": "^0.10.5",
         "phpunit/phpunit": "^5.7.19",
-        "pimple/pimple": "~2.0",
         "predis/predis": "^1.1",
         "squizlabs/php_codesniffer": "^3.3.0",
         "symfony/process": "*"

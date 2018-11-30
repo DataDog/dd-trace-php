@@ -6,8 +6,6 @@ use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
 use OpenTracing\GlobalTracer;
-use Elasticsearch\Client;
-use const DDTrace\Tags\RESOURCE_NAME;
 
 /**
  * ElasticSearch driver v1 Integration
@@ -178,7 +176,7 @@ class ElasticSearchIntegration
 
         dd_trace($class, $name, function () use ($name) {
             $args = func_get_args();
-            list($params) = extract($args);
+            list($params) = $args;
             $tracer = GlobalTracer::get();
             $scope = $tracer->startActiveSpan("Elasticsearch.Client.$name");
             $span = $scope->getSpan();
@@ -273,7 +271,7 @@ class ElasticSearchIntegration
 
         dd_trace($class, $name, function () use ($namespace, $name) {
             $args = func_get_args();
-            list($params) = extract($args);
+            list($params) = $args;
             $tracer = GlobalTracer::get();
             $scope = $tracer->startActiveSpan("Elasticsearch.$namespace.$name");
             $span = $scope->getSpan();

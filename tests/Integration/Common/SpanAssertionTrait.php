@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Integration\Common;
 
 use DDTrace\Span;
+use PHPUnit\Framework\TestCase;
 
 trait SpanAssertionTrait
 {
