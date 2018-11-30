@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Fixed
+- Laravel pipelines tracer supporting configurable handler method #15
 
 ## [0.5.0] - 2018-11-29
 ### Added
