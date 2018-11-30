@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Added
+- Possibility to enable/disable distributed tracing and priority sampling #160
 
 ## [0.6.0] - 2018-12-03
 ### Added
