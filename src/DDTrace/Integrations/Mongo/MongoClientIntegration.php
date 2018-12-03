@@ -17,11 +17,24 @@ class MongoClientIntegration extends Integration
         self::traceMethod('__construct', function (Span $span, array $args) {
             if (isset($args[0])) {
                 $span->setTag('mongodb.server', Obfuscation::dsn($args[0]));
+                $dbName = self::extractDatabaseNameFromDsn($args[0]);
+                if (null !== $dbName) {
+                    $span->setTag('mongodb.db', $dbName);
+                }
             }
             if (isset($args[1]['db'])) {
                 $span->setTag('mongodb.db', $args[1]['db']);
             }
         });
+    }
+
+    private static function extractDatabaseNameFromDsn($dsn)
+    {
+        $matches = [];
+        if (false === preg_match('/^.+\/\/.+\/(.+)$/', $dsn, $matches)) {
+            return $dsn;
+        }
+        return $matches[1];
     }
 
     public static function setDefaultTags(Span $span, $method)

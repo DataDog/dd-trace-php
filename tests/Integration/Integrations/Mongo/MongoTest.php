@@ -58,8 +58,6 @@ final class MongoTest extends IntegrationTestCase
                     self::PORT
                 ),
                 [
-                    'username' => self::USER,
-                    'password' => self::PASSWORD,
                     'db' => self::DATABASE,
                 ]
             );
@@ -70,6 +68,33 @@ final class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
                 ->withExactTags([
                     'mongodb.server' => 'mongodb://?:?@mongodb_integration:27017',
+                    'mongodb.db' => 'test',
+                ]),
+        ]);
+    }
+
+    public function testDatabaseNameExtractedFromDsnString()
+    {
+        $traces = $this->isolateTracer(function () {
+            $mongo = new MongoClient(
+                sprintf(
+                    'mongodb://%s:%s/%s',
+                    self::HOST,
+                    self::PORT,
+                    self::DATABASE
+                ),
+                [
+                    'username' => self::USER,
+                    'password' => self::PASSWORD,
+                ]
+            );
+            $mongo->close(true);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
+                ->withExactTags([
+                    'mongodb.server' => 'mongodb://mongodb_integration:27017/test',
                     'mongodb.db' => 'test',
                 ]),
         ]);
