@@ -2,12 +2,14 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+
+## [0.6.0] - 2018-12-03
 ### Added
 - Guzzle and Curl enabling for Laravel integrations #161
 
 ## [0.5.1] - 2018-11-30
 ### Fixed
-- Laravel pipelines tracer supporting configurable handler method #15
+- Laravel pipelines tracer supporting configurable handler method #158
 
 ## [0.5.0] - 2018-11-29
 ### Added
@@ -137,7 +139,8 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.5.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.6.0...HEAD
+[0.6.0]: https://github.com/DataDog/dd-trace-php/compare/0.5.1...0.6.0
 [0.5.1]: https://github.com/DataDog/dd-trace-php/compare/0.5.0...0.5.1
 [0.5.0]: https://github.com/DataDog/dd-trace-php/compare/0.4.2...0.5.0
 [0.4.2]: https://github.com/DataDog/dd-trace-php/compare/0.4.1...0.4.2
