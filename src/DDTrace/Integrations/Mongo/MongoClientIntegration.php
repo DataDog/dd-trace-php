@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Mongo;
 
 use DDTrace\Span;
+use DDTrace\Tags;
 use DDTrace\Obfuscation;
 use DDTrace\Integrations\Integration;
 
@@ -14,16 +15,32 @@ final class MongoClientIntegration extends Integration
     {
         self::traceMethod('__construct', function (Span $span, array $args) {
             if (isset($args[0])) {
-                $span->setTag('mongodb.server', Obfuscation::dsn($args[0]));
+                $span->setTag(Tags\MONGODB_SERVER, Obfuscation::dsn($args[0]));
                 $dbName = self::extractDatabaseNameFromDsn($args[0]);
                 if (null !== $dbName) {
-                    $span->setTag('mongodb.db', $dbName);
+                    $span->setTag(Tags\MONGODB_DATABASE, $dbName);
                 }
             }
             if (isset($args[1]['db'])) {
-                $span->setTag('mongodb.db', $args[1]['db']);
+                $span->setTag(Tags\MONGODB_DATABASE, $args[1]['db']);
             }
         });
+        self::traceMethod('selectCollection', function (Span $span, array $args) {
+            $span->setTag(Tags\MONGODB_DATABASE, $args[0]);
+            $span->setTag(Tags\MONGODB_COLLECTION, $args[1]);
+        });
+        self::traceMethod('selectDB', function (Span $span, array $args) {
+            $span->setTag(Tags\MONGODB_DATABASE, $args[0]);
+        });
+        self::traceMethod('setReadPreference', function (Span $span, array $args) {
+            $span->setTag(Tags\MONGODB_READ_PREFERENCE, $args[0]);
+        });
+        //self::traceMethod('getConnections');
+        self::traceMethod('getHosts');
+        self::traceMethod('getReadPreference');
+        self::traceMethod('getWriteConcern');
+        //self::traceMethod('listDBs');
+        self::traceMethod('setWriteConcern');
     }
 
     private static function extractDatabaseNameFromDsn($dsn)

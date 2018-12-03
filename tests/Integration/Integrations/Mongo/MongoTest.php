@@ -31,6 +31,7 @@ final class MongoTest extends IntegrationTestCase
         parent::tearDown();
     }
 
+    // MongoClient tests
     public function testClientConnectAndClose()
     {
         $traces = $this->isolateTracer(function () {
@@ -101,6 +102,86 @@ final class MongoTest extends IntegrationTestCase
         ]);
     }
 
+    public function testClientSelectCollection()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->selectCollection(self::DATABASE, 'foo_collection');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoClient.selectCollection', 'mongo', 'mongodb', 'selectCollection')
+                ->withExactTags([
+                    'mongodb.collection' => 'foo_collection',
+                    'mongodb.db' => self::DATABASE,
+                ]),
+        ]);
+    }
+
+    public function testSelectDB()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->selectDB(self::DATABASE);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoClient.selectDB', 'mongo', 'mongodb', 'selectDB')
+                ->withExactTags([
+                    'mongodb.db' => self::DATABASE,
+                ]),
+        ]);
+    }
+
+    public function testClientSetReadPreference()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->setReadPreference(MongoClient::RP_NEAREST);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoClient.setReadPreference', 'mongo', 'mongodb', 'setReadPreference')
+                ->withExactTags([
+                    'mongodb.read_preference' => MongoClient::RP_NEAREST,
+                ]),
+        ]);
+    }
+
+    public function testClientSetWriteConcern()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->setWriteConcern('majority');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoClient.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern'),
+        ]);
+    }
+
+    /**
+     * @dataProvider clientMethods
+     */
+    public function testClientMethods($method)
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) use ($method) {
+            $mongo->{$method}();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoClient.' . $method, 'mongo', 'mongodb', $method),
+        ]);
+    }
+
+    public function clientMethods()
+    {
+        return [
+            //['getConnections'],
+            ['getHosts'],
+            ['getReadPreference'],
+            ['getWriteConcern'],
+            //['listDBs'],
+        ];
+    }
+
+    // MongoDB tests
     public function testCommandWithQueryAndTimeout()
     {
         $traces = $this->isolateClient(function (MongoClient $mongo) {
