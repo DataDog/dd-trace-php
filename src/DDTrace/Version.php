@@ -2,4 +2,4 @@
 
 namespace DDTrace\Version;
 
-const VERSION = '0.5.1-beta';
+const VERSION = '0.6.0-beta';
