@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integration\Integrations\Mongo;
 
+use MongoId;
 use MongoClient;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
@@ -98,6 +99,180 @@ final class MongoTest extends IntegrationTestCase
                     'mongodb.db' => 'test',
                 ]),
         ]);
+    }
+
+    public function testCommandWithQueryAndTimeout()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->{self::DATABASE}->command([
+                'distinct' => 'people',
+                'key' => 'age',
+                'query' => ['age' => ['$gte' => 18]]
+            ], ['socketTimeoutMS' => 500]);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoDB.command', 'mongo', 'mongodb', 'command')
+                ->withExactTags([
+                    'mongodb.query' => '{"age":{"$gte":18}}',
+                    'mongodb.timeout' => '500',
+                ]),
+        ]);
+    }
+
+    public function testCreateDBRef()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->{self::DATABASE}->createDBRef('foo_collection', new MongoId('47cc67093475061e3d9536d2'));
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoDB.createDBRef', 'mongo', 'mongodb', 'createDBRef')
+                ->withExactTags([
+                    'mongodb.collection' => 'foo_collection',
+                    'mongodb.bson.id' => '47cc67093475061e3d9536d2',
+                ]),
+        ]);
+    }
+
+    public function testCreateCollection()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->{self::DATABASE}->createCollection('foo_collection');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoDB.createCollection', 'mongo', 'mongodb', 'createCollection')
+                ->withExactTags([
+                    'mongodb.collection' => 'foo_collection',
+                ]),
+        ]);
+    }
+
+    public function testExecute()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->{self::DATABASE}->execute('"foo";');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoDB.execute', 'mongo', 'mongodb', 'execute'),
+        ]);
+    }
+
+    public function testGetDBRef()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->{self::DATABASE}->getDBRef([
+                '$ref' => 'foo_collection',
+                '$id' => new MongoId('47cc67093475061e3d9536d2'),
+            ]);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoDB.getDBRef', 'mongo', 'mongodb', 'getDBRef')
+                ->withExactTags([
+                    'mongodb.collection' => 'foo_collection',
+                ]),
+        ]);
+    }
+
+    public function testSelectCollection()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->{self::DATABASE}->selectCollection('foo_collection');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoDB.selectCollection', 'mongo', 'mongodb', 'selectCollection')
+                ->withExactTags([
+                    'mongodb.collection' => 'foo_collection',
+                ]),
+        ]);
+    }
+
+    public function testSetProfilingLevel()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->{self::DATABASE}->setProfilingLevel(2);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoDB.setProfilingLevel', 'mongo', 'mongodb', 'setProfilingLevel')
+                ->withExactTags([
+                    'mongodb.profiling_level' => '2',
+                ]),
+        ]);
+    }
+
+    public function testSetReadPreference()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->{self::DATABASE}->setReadPreference(MongoClient::RP_NEAREST);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoDB.setReadPreference', 'mongo', 'mongodb', 'setReadPreference')
+                ->withExactTags([
+                    'mongodb.read_preference' => MongoClient::RP_NEAREST,
+                ]),
+        ]);
+    }
+
+    public function testSetWriteConcern()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            $mongo->{self::DATABASE}->setWriteConcern('foo');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoDB.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern'),
+        ]);
+    }
+
+    /**
+     * @dataProvider dbMethods
+     */
+    public function testDBWithDefaultTags($method)
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) use ($method) {
+            $mongo->{self::DATABASE}->{$method}();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoDB.' . $method, 'mongo', 'mongodb', $method),
+        ]);
+    }
+
+    public function dbMethods()
+    {
+        return [
+            ['drop'],
+            ['forceError'],
+            ['getCollectionInfo'],
+            ['getCollectionNames'],
+            ['getGridFS'],
+            ['getProfilingLevel'],
+            ['getReadPreference'],
+            ['getSlaveOkay'],
+            ['getWriteConcern'],
+            ['lastError'],
+            ['listCollections'],
+            ['prevError'],
+            ['repair'],
+            ['resetError'],
+            ['setSlaveOkay'],
+        ];
+    }
+
+    private function isolateClient(\Closure $callback)
+    {
+        $mongo = self::getClient();
+        $traces = $this->isolateTracer(function () use ($mongo, $callback) {
+            $callback($mongo);
+        });
+        $mongo->close(true);
+        return $traces;
     }
 
     private static function getClient()

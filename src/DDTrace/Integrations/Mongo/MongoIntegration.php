@@ -2,7 +2,12 @@
 
 namespace DDTrace\Integrations\Mongo;
 
-class MongoIntegration
+use DDTrace\Span;
+use DDTrace\Tags;
+use DDTrace\Types;
+use DDTrace\Integrations\Integration;
+
+final class MongoIntegration
 {
     public static function load()
     {
@@ -10,5 +15,13 @@ class MongoIntegration
             return;
         }
         MongoClientIntegration::load();
+        MongoDBIntegration::load();
+    }
+
+    public static function setDefaultTags(Span $span, $method)
+    {
+        Integration::setDefaultTags($span, $method);
+        $span->setTag(Tags\SPAN_TYPE, Types\MONGO);
+        $span->setTag(Tags\SERVICE_NAME, 'mongo');
     }
 }

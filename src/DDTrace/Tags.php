@@ -29,3 +29,11 @@ const ELASTICSEARCH_BODY = 'elasticsearch.body';
 const ELASTICSEARCH_METHOD = 'elasticsearch.method';
 const ELASTICSEARCH_PARAMS = 'elasticsearch.params';
 const ELASTICSEARCH_URL = 'elasticsearch.url';
+
+// MongoDB
+const MONGODB_COLLECTION = 'mongodb.collection';
+const MONGODB_BSON_ID = 'mongodb.bson.id';
+const MONGODB_PROFILING_LEVEL = 'mongodb.profiling_level';
+const MONGODB_READ_PREFERENCE = 'mongodb.read_preference';
+const MONGODB_TIMEOUT = 'mongodb.timeout';
+const MONGODB_QUERY = 'mongodb.query';

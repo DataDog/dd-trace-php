@@ -3,12 +3,10 @@
 namespace DDTrace\Integrations\Mongo;
 
 use DDTrace\Span;
-use DDTrace\Tags;
-use DDTrace\Types;
 use DDTrace\Obfuscation;
 use DDTrace\Integrations\Integration;
 
-class MongoClientIntegration extends Integration
+final class MongoClientIntegration extends Integration
 {
     const CLASS_NAME = 'MongoClient';
 
@@ -39,8 +37,6 @@ class MongoClientIntegration extends Integration
 
     public static function setDefaultTags(Span $span, $method)
     {
-        parent::setDefaultTags($span, $method);
-        $span->setTag(Tags\SPAN_TYPE, Types\MONGO);
-        $span->setTag(Tags\SERVICE_NAME, 'mongo');
+        MongoIntegration::setDefaultTags($span, $method);
     }
 }
