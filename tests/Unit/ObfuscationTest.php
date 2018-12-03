@@ -36,4 +36,25 @@ final class ObfuscationTest extends Framework\TestCase
             $obfuscated
         );
     }
+
+    /**
+     * @dataProvider providerDsnStrings
+     */
+    public function testDsnStringSecretsWillBeObfuscated($dsn, $expectedDsn)
+    {
+        $obfuscated = Obfuscation::dsn($dsn);
+        $this->assertSame($expectedDsn, $obfuscated);
+    }
+
+    public function providerDsnStrings()
+    {
+        return [
+            ['foo://host', 'foo://host'],
+            ['foo://host:port', 'foo://host:port'],
+            ['foo://host1:port1,host2:port2/db', 'foo://host1:port1,host2:port2/db'],
+            ['foo://user:pass@host', 'foo://?:?@host'],
+            ['foo://user:pass@host:port', 'foo://?:?@host:port'],
+            ['foo://user:pass@host1:port1,host2:port2/db', 'foo://?:?@host1:port1,host2:port2/db'],
+        ];
+    }
 }

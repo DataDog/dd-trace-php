@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Mongo;
 use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
+use DDTrace\Obfuscation;
 use DDTrace\Integrations\Integration;
 
 class MongoClientIntegration extends Integration
@@ -15,7 +16,7 @@ class MongoClientIntegration extends Integration
     {
         self::traceMethod('__construct', function (Span $span, array $args) {
             if (isset($args[0])) {
-                $span->setTag('mongodb.server', $args[0]);
+                $span->setTag('mongodb.server', Obfuscation::dsn($args[0]));
             }
             if (isset($args[1]['db'])) {
                 $span->setTag('mongodb.db', $args[1]['db']);

@@ -46,6 +46,35 @@ final class MongoTest extends IntegrationTestCase
         ]);
     }
 
+    public function testSecretsAreSanitizedFromDsnString()
+    {
+        $traces = $this->isolateTracer(function () {
+            $mongo = new MongoClient(
+                sprintf(
+                    'mongodb://%s:%s@%s:%s',
+                    self::USER,
+                    self::PASSWORD,
+                    self::HOST,
+                    self::PORT
+                ),
+                [
+                    'username' => self::USER,
+                    'password' => self::PASSWORD,
+                    'db' => self::DATABASE,
+                ]
+            );
+            $mongo->close(true);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
+                ->withExactTags([
+                    'mongodb.server' => 'mongodb://?:?@mongodb_integration:27017',
+                    'mongodb.db' => 'test',
+                ]),
+        ]);
+    }
+
     private static function getClient()
     {
         return new MongoClient(
