@@ -2,11 +2,13 @@
 
 namespace DDTrace\Tests\Integration\Integrations\Curl;
 
+use DDTrace\Configuration;
 use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 use DDTrace\Tracer;
+use OpenTracing\GlobalTracer;
 
 
 final class CurlIntegrationTest extends IntegrationTestCase
@@ -145,13 +147,51 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsPropagated()
     {
-        $this->isolateTracer(function() {
+        $found = [];
+
+        $traces = $this->isolateTracer(function() use (&$found) {
+
+            $tracer = GlobalTracer::get();
+            $span = $tracer->startActiveSpan('some_operation')->getSpan();
 
             $ch = curl_init(self::URL . '/headers');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            $response = json_decode(curl_exec($ch), 1);
-            error_log("Response: " . print_r($response, 1));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'honored: preserved_value',
+            ]);
+            $found = json_decode(curl_exec($ch), 1);
+
+            $span->finish();
         });
 
+        // trace is: some_operation
+        $this->assertSame($traces[0][0]->getContext()->getSpanId(), $found['headers']['X-Datadog-Trace-Id']);
+        // parent is: curl_exec
+        $this->assertSame($traces[0][1]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
+        // existing headers are honored
+        $this->assertSame('preserved_value', $found['headers']['Honored']);
+    }
+
+    public function testDistributedTracingIsNotPropagatedIfDisabled()
+    {
+        $found = [];
+        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+            'isDistributedTracingEnabled' => false
+        ]));
+
+        $this->isolateTracer(function() use (&$found) {
+
+            $tracer = GlobalTracer::get();
+            $span = $tracer->startActiveSpan('some_operation')->getSpan();
+
+            $ch = curl_init(self::URL . '/headers');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $found = json_decode(curl_exec($ch), 1);
+
+            $span->finish();
+        });
+
+        $this->assertArrayNotHasKey('X-Datadog-Trace-Id', $found['headers']);
+        $this->assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
     }
 }

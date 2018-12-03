@@ -64,13 +64,25 @@ class CurlIntegration
             if ($option === CURLOPT_HTTPHEADER
                     && $globalConfig->isDistributedTracingEnabled()
                     && is_array($value)
-                    && !Headers::headerExistsInColonSeparatedValues($value,TextMap::DEFAULT_TRACE_ID_HEADER)
             ) {
                 // Storing data to be used during exec as it cannot be retrieved at then.
                 ArrayKVStore::putForResource($ch, 'http_headers', $value);
             }
 
             return curl_setopt($ch, $option, $value);
+        });
+
+        dd_trace('curl_setopt_array', function($ch, $options) use ($globalConfig) {
+            // Note that curl_setopt with option CURLOPT_HTTPHEADER overwrite data instead of appending it if called
+            // multiple times on the same resource.
+            if ($globalConfig->isDistributedTracingEnabled()
+                    && array_key_exists(CURLOPT_HTTPHEADER, $options)
+            ) {
+                // Storing data to be used during exec as it cannot be retrieved at then.
+                ArrayKVStore::putForResource($ch, 'http_headers', $options[CURLOPT_HTTPHEADER]);
+            }
+
+            return curl_setopt_array($ch, $options);
         });
     }
 
@@ -83,20 +95,14 @@ class CurlIntegration
             return;
         }
 
-        $currentHttpHeaders = ArrayKVStore::getForResource($ch, 'http_headers');
-        if (is_array($currentHttpHeaders)
-                && !Headers::headerExistsInColonSeparatedValues(
-                        $currentHttpHeaders,
-                        TextMap::DEFAULT_TRACE_ID_HEADER
-                    )
-        ) {
+        $currentHttpHeaders = ArrayKVStore::getForResource($ch, 'http_headers', []);
+        if (is_array($currentHttpHeaders)) {
             $tracer = GlobalTracer::get();
             $context = $tracer->getActiveSpan()->getContext();
-            $carrier = [];
+            $carrier = Headers::colonSeparatedValuesToHeadersMap($currentHttpHeaders);
             $tracer->inject($context, HTTP_HEADERS, $carrier);
 
-            $newHeaders = array_merge([], $currentHttpHeaders, Headers::headersMapToColonSeparatedValues($carrier));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $newHeaders);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, Headers::headersMapToColonSeparatedValues($carrier));
         }
     }
 }

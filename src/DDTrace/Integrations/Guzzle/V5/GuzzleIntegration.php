@@ -64,6 +64,6 @@ class GuzzleIntegration extends Integration
         $context = $span->getContext();
         $tracer = GlobalTracer::get();
         $tracer->inject($context, HTTP_HEADERS, $headers);
-        $request->addHeaders($headers);
+        $request->setHeaders($headers);
     }
 }

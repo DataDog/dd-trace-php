@@ -27,6 +27,25 @@ class Headers
     }
 
     /**
+     * Provided an indexed array as input ['header_name: value'], it returns an associative array indexed by header
+     * name: ['header_name' => 'value'].
+     *
+     * @param string[] $csvHeaders
+     * @return string[]
+     */
+    public static function colonSeparatedValuesToHeadersMap(array $csvHeaders)
+    {
+        $map = [];
+
+        foreach ($csvHeaders as $csv) {
+            list($name, $value) = explode(':', $csv, 2);
+            $map[trim($name)] = trim($value);
+        }
+
+        return $map;
+    }
+
+    /**
      * Given a list of headers in the format ['hd1: value1', 'hd2: value2'] tells whether or not a given header,
      * e.g. 'hd1' is present.
      *
