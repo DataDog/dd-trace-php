@@ -19,8 +19,6 @@ use OpenTracing\GlobalTracer;
  */
 class CurlIntegration
 {
-    const URL = 'url';
-
     /**
      * Loads the integration.
      */

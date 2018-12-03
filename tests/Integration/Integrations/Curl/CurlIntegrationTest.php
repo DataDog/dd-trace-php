@@ -3,8 +3,10 @@
 namespace DDTrace\Tests\Integration\Integrations\Curl;
 
 use DDTrace\Integrations\Curl\CurlIntegration;
+use DDTrace\Tests\DebugTransport;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
+use DDTrace\Tracer;
 
 
 final class CurlIntegrationTest extends IntegrationTestCase
@@ -139,5 +141,17 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ])
                 ->setError(),
         ]);
+    }
+
+    public function testDistributedTracingIsPropagated()
+    {
+        $this->isolateTracer(function() {
+
+            $ch = curl_init(self::URL . '/headers');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = json_decode(curl_exec($ch), 1);
+            error_log("Response: " . print_r($response, 1));
+        });
+
     }
 }
