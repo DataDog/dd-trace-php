@@ -32,7 +32,7 @@ class MongoClientIntegration extends Integration
     {
         $matches = [];
         if (false === preg_match('/^.+\/\/.+\/(.+)$/', $dsn, $matches)) {
-            return $dsn;
+            return null;
         }
         return $matches[1];
     }
