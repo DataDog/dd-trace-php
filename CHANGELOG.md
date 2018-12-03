@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Fixed
+- "Undefined offset: 0" errors in ElasticSearch integration #165
 
 ## [0.6.0] - 2018-12-03
 ### Added
