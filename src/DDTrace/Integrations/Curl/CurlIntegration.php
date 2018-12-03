@@ -26,7 +26,6 @@ class CurlIntegration
             return;
         }
         if (!function_exists('curl_exec')) {
-            trigger_error('curl is not loaded and cannot be instrumented', E_USER_WARNING);
             return;
         }
 

@@ -17,9 +17,9 @@ abstract class Integration
             return false;
         }
         if (!class_exists(static::CLASS_NAME)) {
-            trigger_error(static::CLASS_NAME . ' is not loaded and cannot be traced', E_USER_WARNING);
             return false;
         }
+        // See comment on the commented out abstract function definition.
         static::loadIntegration();
         return true;
     }
@@ -31,7 +31,11 @@ abstract class Integration
      *
      * @return void
      */
-    abstract protected static function loadIntegration();
+    // The abstract method definition is disabled because of PHP throwing the error:
+    // ErrorException: Static function DDTrace\Integrations\Integration::loadIntegration() should not be abstract
+    // We should refactor this piece of code using interfaces.
+    //
+    // abstract protected static function loadIntegration();
 
     /**
      * @param string $method

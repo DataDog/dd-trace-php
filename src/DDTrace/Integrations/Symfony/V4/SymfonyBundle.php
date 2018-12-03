@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Symfony\V4;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
@@ -120,6 +121,7 @@ class SymfonyBundle extends Bundle
         );
 
         // Enable extension integrations
+        CurlIntegration::load();
         ElasticSearchIntegration::load();
         PDOIntegration::load();
         if (class_exists('Memcached')) {

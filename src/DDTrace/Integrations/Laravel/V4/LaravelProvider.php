@@ -3,17 +3,19 @@
 namespace DDTrace\Integrations\Laravel\V4;
 
 use DDTrace;
-use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Encoders\Json;
+use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
+use DDTrace\Integrations\Guzzle\V5\GuzzleIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tags;
 use DDTrace\Tracer;
-use DDTrace\Types;
 use DDTrace\Transport\Http;
+use DDTrace\Types;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use OpenTracing\GlobalTracer;
@@ -88,10 +90,12 @@ class LaravelProvider extends ServiceProvider
         });
 
         // Enable extension integrations
+        CurlIntegration::load();
         EloquentIntegration::load();
         if (class_exists('Memcached')) {
             MemcachedIntegration::load();
         }
+        GuzzleIntegration::load();
 
         PDOIntegration::load();
         ElasticSearchIntegration::load();

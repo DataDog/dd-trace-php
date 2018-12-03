@@ -3,19 +3,19 @@
 namespace DDTrace\Integrations\Laravel\V5;
 
 use DDTrace;
-use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Encoders\Json;
+use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tags;
 use DDTrace\Tracer;
-use DDTrace\Types;
 use DDTrace\Transport\Http;
+use DDTrace\Types;
 use Illuminate\Foundation\Http\Events\RequestHandled;
-use Illuminate\Pipeline\Pipeline;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -163,6 +163,7 @@ class LaravelProvider extends ServiceProvider
         });
 
         // Enable extension integrations
+        CurlIntegration::load();
         ElasticSearchIntegration::load();
         EloquentIntegration::load();
         if (class_exists('Memcached')) {

@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Added
+- Guzzle and Curl enabling for Laravel integrations #161
 
 ## [0.5.1] - 2018-11-30
 ### Fixed
