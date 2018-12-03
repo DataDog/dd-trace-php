@@ -25,4 +25,27 @@ class Headers
 
         return $colonSeparatedValues;
     }
+
+    /**
+     * Given a list of headers in the format ['hd1: value1', 'hd2: value2'] tells whether or not a given header,
+     * e.g. 'hd1' is present.
+     *
+     * @param array|null $headers
+     * @param string $name
+     * @return bool
+     */
+    public static function headerExistsInColonSeparatedValues($headers, $name)
+    {
+        if (empty($headers)) {
+           return false;
+        }
+
+        foreach ($headers as $header) {
+            if ($name === substr($header, 0, strlen($header))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

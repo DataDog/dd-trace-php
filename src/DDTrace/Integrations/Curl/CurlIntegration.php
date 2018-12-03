@@ -2,10 +2,15 @@
 
 namespace DDTrace\Integrations\Curl;
 
+use DDTrace\Configuration;
+use DDTrace\Http\Headers;
 use DDTrace\Http\Urls;
+use DDTrace\Propagators\TextMap;
 use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
+use DDTrace\Util\ArrayKVStore;
+use const OpenTracing\Formats\HTTP_HEADERS;
 use OpenTracing\GlobalTracer;
 
 
@@ -21,6 +26,8 @@ class CurlIntegration
      */
     public static function load()
     {
+        $globalConfig = Configuration::instance();
+
         if (!extension_loaded('ddtrace')) {
             trigger_error('The ddtrace extension is required to instrument curl', E_USER_WARNING);
             return;
@@ -36,6 +43,8 @@ class CurlIntegration
             $span->setTag(Tags\SERVICE_NAME, 'curl');
             $span->setTag(Tags\SPAN_TYPE, Types\HTTP_CLIENT);
 
+            CurlIntegration::injectDistributedTracingHeaders($ch);
+
             $result = curl_exec($ch);
             if ($result === false && $span instanceof Span) {
                 $span->setRawError(curl_error($ch), 'curl error');
@@ -50,5 +59,46 @@ class CurlIntegration
             $scope->close();
             return $result;
         });
+
+        dd_trace('curl_setopt', function($ch, $option, $value) use ($globalConfig) {
+            // Note that curl_setopt with option CURLOPT_HTTPHEADER overwrite data instead of appending it if called
+            // multiple times on the same resource.
+            if ($option === CURLOPT_HTTPHEADER
+                    && $globalConfig->isDistributedTracingEnabled()
+                    && is_array($value)
+                    && !Headers::headerExistsInColonSeparatedValues($value,TextMap::DEFAULT_TRACE_ID_HEADER)
+            ) {
+                // Storing data to be used during exec as it cannot be retrieved at then.
+                ArrayKVStore::putForResource($ch, 'http_headers', $value);
+            }
+
+            return curl_setopt($ch, $option, $value);
+        });
+    }
+
+    /**
+     * @param resource $ch
+     */
+    public static function injectDistributedTracingHeaders($ch)
+    {
+        if (!Configuration::instance()->isDistributedTracingEnabled()) {
+            return;
+        }
+
+        $currentHttpHeaders = ArrayKVStore::getForResource($ch, 'http_headers');
+        if (is_array($currentHttpHeaders)
+                && !Headers::headerExistsInColonSeparatedValues(
+                        $currentHttpHeaders,
+                        TextMap::DEFAULT_TRACE_ID_HEADER
+                    )
+        ) {
+            $tracer = GlobalTracer::get();
+            $context = $tracer->getActiveSpan()->getContext();
+            $carrier = [];
+            $tracer->inject($context, HTTP_HEADERS, $carrier);
+
+            $newHeaders = array_merge([], $currentHttpHeaders, Headers::headersMapToColonSeparatedValues($carrier));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $newHeaders);
+        }
     }
 }
