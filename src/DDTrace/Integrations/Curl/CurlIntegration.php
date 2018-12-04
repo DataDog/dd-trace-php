@@ -79,7 +79,7 @@ class CurlIntegration
                     && array_key_exists(CURLOPT_HTTPHEADER, $options)
             ) {
                 // Storing data to be used during exec as it cannot be retrieved at then.
-                ArrayKVStore::putForResource($ch, 'http_headers', $options[CURLOPT_HTTPHEADER]);
+                ArrayKVStore::putForResource($ch, HTTP_HEADERS, $options[CURLOPT_HTTPHEADER]);
             }
 
             return curl_setopt_array($ch, $options);
@@ -95,7 +95,7 @@ class CurlIntegration
             return;
         }
 
-        $currentHttpHeaders = ArrayKVStore::getForResource($ch, 'http_headers', []);
+        $currentHttpHeaders = ArrayKVStore::getForResource($ch, HTTP_HEADERS, []);
         if (is_array($currentHttpHeaders)) {
             $tracer = GlobalTracer::get();
             $context = $tracer->getActiveSpan()->getContext();
