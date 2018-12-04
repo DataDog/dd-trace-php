@@ -56,7 +56,7 @@ final class MongoClientIntegration extends Integration
         if (false === preg_match('/^.+\/\/.+\/(.+)$/', $dsn, $matches)) {
             return null;
         }
-        return $matches[1];
+        return isset($matches[1]) ? $matches[1] : null;
     }
 
     public static function setDefaultTags(Span $span, $method)
