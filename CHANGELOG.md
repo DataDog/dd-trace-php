@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file - [docs/chan
 ## [Unreleased]
 ### Added
 - Possibility to enable/disable distributed tracing and priority sampling #160
-- Injecting distributed tracing headers in guzzle and curl requests
+- Injecting distributed tracing headers in guzzle and curl requests #167
 
 ## [0.6.0] - 2018-12-03
 ### Added
