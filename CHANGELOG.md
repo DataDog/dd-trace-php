@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file - [docs/chan
 ## [Unreleased]
 ### Added
 - Possibility to enable/disable distributed tracing and priority sampling #160
+- Tracing for the [legacy MongoDB extension](http://php.net/manual/en/book.mongo.php) for PHP 5 #166
 - Injecting distributed tracing headers in guzzle and curl requests #167
 - Possibility to autoload all integrations and to disable specific ones #168
 
