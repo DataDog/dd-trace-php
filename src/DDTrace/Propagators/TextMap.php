@@ -7,20 +7,16 @@ use DDTrace\SpanContext;
 
 final class TextMap implements Propagator
 {
-    const DEFAULT_BAGGAGE_HEADER_PREFIX = 'ot-baggage-';
-    const DEFAULT_TRACE_ID_HEADER = 'x-datadog-trace-id';
-    const DEFAULT_PARENT_ID_HEADER = 'x-datadog-parent-id';
-
     /**
      * {@inheritdoc}
      */
     public function inject(SpanContext $spanContext, &$carrier)
     {
-        $carrier[self::DEFAULT_TRACE_ID_HEADER] = $spanContext->getTraceId();
-        $carrier[self::DEFAULT_PARENT_ID_HEADER] = $spanContext->getSpanId();
+        $carrier[Propagator::DEFAULT_TRACE_ID_HEADER] = $spanContext->getTraceId();
+        $carrier[Propagator::DEFAULT_PARENT_ID_HEADER] = $spanContext->getSpanId();
 
         foreach ($spanContext as $key => $value) {
-            $carrier[self::DEFAULT_BAGGAGE_HEADER_PREFIX . $key] = $value;
+            $carrier[Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX . $key] = $value;
         }
     }
 
@@ -34,12 +30,12 @@ final class TextMap implements Propagator
         $baggageItems = [];
 
         foreach ($carrier as $key => $value) {
-            if ($key === self::DEFAULT_TRACE_ID_HEADER) {
+            if ($key === Propagator::DEFAULT_TRACE_ID_HEADER) {
                 $traceId = $this->extractStringOrFirstArrayElement($value);
-            } elseif ($key === self::DEFAULT_PARENT_ID_HEADER) {
+            } elseif ($key === Propagator::DEFAULT_PARENT_ID_HEADER) {
                 $spanId = $this->extractStringOrFirstArrayElement($value);
-            } elseif (strpos($key, self::DEFAULT_BAGGAGE_HEADER_PREFIX) === 0) {
-                $baggageItems[substr($key, strlen(self::DEFAULT_BAGGAGE_HEADER_PREFIX))] = $value;
+            } elseif (strpos($key, Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX) === 0) {
+                $baggageItems[substr($key, strlen(Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX))] = $value;
             }
         }
 

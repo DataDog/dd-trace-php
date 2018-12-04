@@ -46,6 +46,17 @@ class ArrayKVStore
     }
 
     /**
+     * Delete a key's value from an instance, if present.
+     *
+     * @param resource $resource
+     */
+    public static function deleteResource($resource)
+    {
+        $resourceKey = self::getResourceKey($resource);
+        unset(self::$resource_registry[$resourceKey]);
+    }
+
+    /**
      * Clears the storage.
      */
     public static function clear()

@@ -3,14 +3,12 @@
 namespace DDTrace\Integrations\Curl;
 
 use DDTrace\Configuration;
-use DDTrace\Http\Headers;
+use DDTrace\Formats;
 use DDTrace\Http\Urls;
-use DDTrace\Propagators\TextMap;
 use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
 use DDTrace\Util\ArrayKVStore;
-use const OpenTracing\Formats\HTTP_HEADERS;
 use OpenTracing\GlobalTracer;
 
 
@@ -66,7 +64,7 @@ class CurlIntegration
                     && is_array($value)
             ) {
                 // Storing data to be used during exec as it cannot be retrieved at then.
-                ArrayKVStore::putForResource($ch, 'http_headers', $value);
+                ArrayKVStore::putForResource($ch, Formats\CURL_HTTP_HEADERS, $value);
             }
 
             return curl_setopt($ch, $option, $value);
@@ -79,10 +77,15 @@ class CurlIntegration
                     && array_key_exists(CURLOPT_HTTPHEADER, $options)
             ) {
                 // Storing data to be used during exec as it cannot be retrieved at then.
-                ArrayKVStore::putForResource($ch, HTTP_HEADERS, $options[CURLOPT_HTTPHEADER]);
+                ArrayKVStore::putForResource($ch, Formats\CURL_HTTP_HEADERS, $options[CURLOPT_HTTPHEADER]);
             }
 
             return curl_setopt_array($ch, $options);
+        });
+
+        dd_trace('curl_close', function ($ch) use ($globalConfig) {
+            ArrayKVStore::deleteResource($ch);
+            return curl_close($ch);
         });
     }
 
@@ -95,14 +98,13 @@ class CurlIntegration
             return;
         }
 
-        $currentHttpHeaders = ArrayKVStore::getForResource($ch, HTTP_HEADERS, []);
-        if (is_array($currentHttpHeaders)) {
+        $httpHeaders = ArrayKVStore::getForResource($ch, Formats\CURL_HTTP_HEADERS, []);
+        if (is_array($httpHeaders)) {
             $tracer = GlobalTracer::get();
             $context = $tracer->getActiveSpan()->getContext();
-            $carrier = Headers::colonSeparatedValuesToHeadersMap($currentHttpHeaders);
-            $tracer->inject($context, HTTP_HEADERS, $carrier);
+            $tracer->inject($context, Formats\CURL_HTTP_HEADERS, $httpHeaders);
 
-            curl_setopt($ch, CURLOPT_HTTPHEADER, Headers::headersMapToColonSeparatedValues($carrier));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeaders);
         }
     }
 }

@@ -3,11 +3,11 @@
 namespace DDTrace\Tests\Integration\Integrations\Curl;
 
 use DDTrace\Configuration;
+use DDTrace\Formats;
 use DDTrace\Integrations\Curl\CurlIntegration;
-use DDTrace\Tests\DebugTransport;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
-use DDTrace\Tracer;
+use DDTrace\Util\ArrayKVStore;
 use OpenTracing\GlobalTracer;
 
 
@@ -143,6 +143,15 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ])
                 ->setError(),
         ]);
+    }
+
+    public function testKVStoreIsCleanedOnCurlClose()
+    {
+        $ch = curl_init(self::URL . '/status/200');
+        curl_setopt($ch, CURLOPT_HTTPHEADER, []);
+        $this->assertNotSame('default', ArrayKVStore::getForResource($ch, Formats\CURL_HTTP_HEADERS, 'default'));
+        curl_close($ch);
+        $this->assertSame('default', ArrayKVStore::getForResource($ch, Formats\CURL_HTTP_HEADERS, 'default'));
     }
 
     public function testDistributedTracingIsPropagated()
