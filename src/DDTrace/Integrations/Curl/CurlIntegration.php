@@ -58,7 +58,7 @@ class CurlIntegration
             return $result;
         });
 
-        dd_trace('curl_setopt', function($ch, $option, $value) use ($globalConfig) {
+        dd_trace('curl_setopt', function ($ch, $option, $value) use ($globalConfig) {
             // Note that curl_setopt with option CURLOPT_HTTPHEADER overwrite data instead of appending it if called
             // multiple times on the same resource.
             if ($option === CURLOPT_HTTPHEADER
@@ -72,7 +72,7 @@ class CurlIntegration
             return curl_setopt($ch, $option, $value);
         });
 
-        dd_trace('curl_setopt_array', function($ch, $options) use ($globalConfig) {
+        dd_trace('curl_setopt_array', function ($ch, $options) use ($globalConfig) {
             // Note that curl_setopt with option CURLOPT_HTTPHEADER overwrite data instead of appending it if called
             // multiple times on the same resource.
             if ($globalConfig->isDistributedTracingEnabled()

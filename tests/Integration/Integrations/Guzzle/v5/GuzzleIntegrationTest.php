@@ -84,9 +84,9 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         $client = new Client();
         $found = [];
 
-        $traces = $this->isolateTracer(function() use (&$found, $client) {
+        $traces = $this->isolateTracer(function () use (&$found, $client) {
             $tracer = GlobalTracer::get();
-             $span = $tracer->startActiveSpan('some_operation')->getSpan();
+            $span = $tracer->startActiveSpan('some_operation')->getSpan();
 
             $response = $client->get(self::URL . '/headers', [
                 'headers' => [
@@ -114,7 +114,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             'isDistributedTracingEnabled' => false
         ]));
 
-        $this->isolateTracer(function() use (&$found, $client) {
+        $this->isolateTracer(function () use (&$found, $client) {
             $tracer = GlobalTracer::get();
             $span = $tracer->startActiveSpan('some_operation')->getSpan();
 

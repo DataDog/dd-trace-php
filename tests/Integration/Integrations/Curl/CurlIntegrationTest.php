@@ -149,7 +149,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
     {
         $found = [];
 
-        $traces = $this->isolateTracer(function() use (&$found) {
+        $traces = $this->isolateTracer(function () use (&$found) {
 
             $tracer = GlobalTracer::get();
             $span = $tracer->startActiveSpan('some_operation')->getSpan();
@@ -179,7 +179,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             'isDistributedTracingEnabled' => false
         ]));
 
-        $this->isolateTracer(function() use (&$found) {
+        $this->isolateTracer(function () use (&$found) {
 
             $tracer = GlobalTracer::get();
             $span = $tracer->startActiveSpan('some_operation')->getSpan();
