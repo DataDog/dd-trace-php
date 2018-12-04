@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Laravel\V4;
 
 use DDTrace;
+use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\StartSpanOptionsFactory;
@@ -30,9 +31,15 @@ use OpenTracing\GlobalTracer;
  */
 class LaravelProvider extends ServiceProvider
 {
+    const NAME = 'laravel';
+
     /** @inheritdoc */
     public function register()
     {
+        if (!Configuration::instance()->isIntegrationEnabled(self::NAME)) {
+            return;
+        }
+
         if (!extension_loaded('ddtrace')) {
             trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
             return;
@@ -54,6 +61,10 @@ class LaravelProvider extends ServiceProvider
     /** @inheritdoc */
     public function boot()
     {
+        if (!Configuration::instance()->isIntegrationEnabled(self::NAME)) {
+            return;
+        }
+
         $tracer = GlobalTracer::get();
 
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(

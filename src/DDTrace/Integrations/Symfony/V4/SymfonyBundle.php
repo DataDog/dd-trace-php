@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Symfony\V4;
 
+use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tags;
@@ -27,9 +28,15 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
  */
 class SymfonyBundle extends Bundle
 {
+    const NAME = 'symfony';
+
     public function boot()
     {
         parent::boot();
+
+        if (!Configuration::instance()->isIntegrationEnabled(self::NAME)) {
+            return;
+        }
 
         if (!extension_loaded('ddtrace')) {
             trigger_error('ddtrace extension required to load Symfony integration.', E_USER_WARNING);
