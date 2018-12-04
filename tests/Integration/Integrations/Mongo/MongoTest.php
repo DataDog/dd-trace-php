@@ -330,20 +330,15 @@ final class MongoTest extends IntegrationTestCase
     {
         return [
             ['drop'],
-            ['forceError'],
             ['getCollectionInfo'],
             ['getCollectionNames'],
             ['getGridFS'],
             ['getProfilingLevel'],
             ['getReadPreference'],
-            ['getSlaveOkay'],
             ['getWriteConcern'],
             ['lastError'],
             ['listCollections'],
-            ['prevError'],
             ['repair'],
-            ['resetError'],
-            ['setSlaveOkay'],
         ];
     }
 
@@ -610,17 +605,6 @@ final class MongoTest extends IntegrationTestCase
         ]);
     }
 
-    public function testCollectionSetSlaveOkay()
-    {
-        $traces = $this->isolateCollection(function (MongoCollection $collection) {
-            $collection->setSlaveOkay();
-        });
-
-        $this->assertSpans($traces, [
-            SpanAssertion::build('MongoCollection.setSlaveOkay', 'mongo', 'mongodb', 'setSlaveOkay'),
-        ]);
-    }
-
     public function testCollectionSetWriteConcern()
     {
         $traces = $this->isolateCollection(function (MongoCollection $collection) {
@@ -671,7 +655,6 @@ final class MongoTest extends IntegrationTestCase
             ['getIndexInfo'],
             ['getName'],
             ['getReadPreference'],
-            ['getSlaveOkay'],
             ['getWriteConcern'],
             ['validate'],
         ];

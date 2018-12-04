@@ -56,20 +56,15 @@ final class MongoDBIntegration extends Integration
         // Methods that don't need extra tags added
         self::traceMethod('drop');
         self::traceMethod('execute');
-        self::traceMethod('forceError');
         self::traceMethod('getCollectionInfo');
         self::traceMethod('getCollectionNames');
         self::traceMethod('getGridFS');
         self::traceMethod('getProfilingLevel');
         self::traceMethod('getReadPreference');
-        self::traceMethod('getSlaveOkay');
         self::traceMethod('getWriteConcern');
         self::traceMethod('lastError');
         self::traceMethod('listCollections');
-        self::traceMethod('prevError');
         self::traceMethod('repair');
-        self::traceMethod('resetError');
-        self::traceMethod('setSlaveOkay');
         self::traceMethod('setWriteConcern');
     }
 

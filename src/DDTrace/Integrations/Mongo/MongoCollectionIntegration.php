@@ -94,13 +94,11 @@ final class MongoCollectionIntegration extends Integration
         self::traceMethod('getIndexInfo');
         self::traceMethod('getName');
         self::traceMethod('getReadPreference');
-        self::traceMethod('getSlaveOkay');
         self::traceMethod('getWriteConcern');
         self::traceMethod('group');
         self::traceMethod('insert');
         self::traceMethod('parallelCollectionScan');
         self::traceMethod('save');
-        self::traceMethod('setSlaveOkay');
         self::traceMethod('setWriteConcern');
         self::traceMethod('validate');
     }
