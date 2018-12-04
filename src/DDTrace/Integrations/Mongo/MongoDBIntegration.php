@@ -12,6 +12,7 @@ final class MongoDBIntegration extends Integration
 
     protected static function loadIntegration()
     {
+        // array MongoDB::command ( array $command [, array $options = array() [, string &$hash ]] )
         self::traceMethod('command', function (Span $span, array $args) {
             if (isset($args[0]['query'])) {
                 $span->setTag(Tags\MONGODB_QUERY, json_encode($args[0]['query']));
@@ -22,6 +23,7 @@ final class MongoDBIntegration extends Integration
                 $span->setTag(Tags\MONGODB_TIMEOUT, $args[1]['timeout']);
             }
         });
+        // array MongoDB::createDBRef ( string $collection , mixed $document_or_id )
         self::traceMethod('createDBRef', function (Span $span, array $args) {
             $span->setTag(Tags\MONGODB_COLLECTION, $args[0]);
         }, function (Span $span, $ref) {
@@ -29,23 +31,29 @@ final class MongoDBIntegration extends Integration
                 $span->setTag(Tags\MONGODB_BSON_ID, (string) $ref['$id']);
             }
         });
+        // MongoCollection MongoDB::createCollection ( string $name [, array $options ] )
         self::traceMethod('createCollection', function (Span $span, array $args) {
             $span->setTag(Tags\MONGODB_COLLECTION, $args[0]);
         });
+        // MongoCollection MongoDB::selectCollection ( string $name )
         self::traceMethod('selectCollection', function (Span $span, array $args) {
             $span->setTag(Tags\MONGODB_COLLECTION, $args[0]);
         });
+        // array MongoDB::getDBRef ( array $ref )
         self::traceMethod('getDBRef', function (Span $span, array $args) {
             if (isset($args[0]['$ref'])) {
                 $span->setTag(Tags\MONGODB_COLLECTION, $args[0]['$ref']);
             }
         });
+        // int MongoDB::setProfilingLevel ( int $level )
         self::traceMethod('setProfilingLevel', function (Span $span, array $args) {
             $span->setTag(Tags\MONGODB_PROFILING_LEVEL, $args[0]);
         });
+        // bool MongoDB::setReadPreference ( string $read_preference [, array $tags ] )
         self::traceMethod('setReadPreference', function (Span $span, array $args) {
             $span->setTag(Tags\MONGODB_READ_PREFERENCE, $args[0]);
         });
+        // Methods that don't need extra tags added
         self::traceMethod('drop');
         self::traceMethod('execute');
         self::traceMethod('forceError');

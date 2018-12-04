@@ -175,11 +175,10 @@ final class MongoTest extends IntegrationTestCase
     public function clientMethods()
     {
         return [
-            //['getConnections'],
             ['getHosts'],
             ['getReadPreference'],
             ['getWriteConcern'],
-            //['listDBs'],
+            ['listDBs'],
         ];
     }
 
