@@ -3,7 +3,7 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\Tags;
-use OpenTracing\Span;
+use DDTrace\Span;
 use OpenTracing\GlobalTracer;
 
 abstract class Integration
