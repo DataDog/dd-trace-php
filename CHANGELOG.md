@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file - [docs/chan
 ## [Unreleased]
 ### Added
 - Possibility to enable/disable distributed tracing and priority sampling #160
+- Injecting distributed tracing headers in guzzle and curl requests #167
+
 ### Fixed
 - "Undefined offset: 0" errors in ElasticSearch integration #165
 

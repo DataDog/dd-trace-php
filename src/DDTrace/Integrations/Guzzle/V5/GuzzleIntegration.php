@@ -2,8 +2,11 @@
 
 namespace DDTrace\Integrations\Guzzle\V5;
 
+use DDTrace\Configuration;
 use DDTrace\Tags;
 use DDTrace\Types;
+use const OpenTracing\Formats\HTTP_HEADERS;
+use OpenTracing\GlobalTracer;
 use OpenTracing\Span;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
@@ -16,8 +19,10 @@ class GuzzleIntegration extends Integration
     protected static function loadIntegration()
     {
         self::traceMethod('send', function (Span $span, array $args) {
-            $span->setTag('http.method', $args[0]->getMethod());
-            $span->setTag('http.url', Urls::sanitize($args[0]->getUrl()));
+            list($request) = $args;
+            GuzzleIntegration::injectDistributedTracingHeaders($request, $span);
+            $span->setTag('http.method', $request->getMethod());
+            $span->setTag('http.url', Urls::sanitize($request->getUrl()));
         }, function (Span $span, $response) {
             if (!$response instanceof ResponseInterface) {
                 return;
@@ -31,5 +36,28 @@ class GuzzleIntegration extends Integration
         parent::setDefaultTags($span, $method);
         $span->setTag(Tags\SPAN_TYPE, Types\HTTP_CLIENT);
         $span->setTag(Tags\SERVICE_NAME, 'guzzle');
+    }
+
+    /**
+     * @param \GuzzleHttp\Message\MessageInterface $request
+     * @param Span $span
+     */
+    public static function injectDistributedTracingHeaders($request, $span)
+    {
+        if (!Configuration::instance()->isDistributedTracingEnabled()) {
+            return;
+        }
+
+        if (!is_subclass_of($request, '\GuzzleHttp\Message\MessageInterface')) {
+            return;
+        }
+
+        // Associative array of header names to values
+        $headers = $request->getHeaders();
+
+        $context = $span->getContext();
+        $tracer = GlobalTracer::get();
+        $tracer->inject($context, HTTP_HEADERS, $headers);
+        $request->setHeaders($headers);
     }
 }

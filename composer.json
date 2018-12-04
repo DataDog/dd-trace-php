@@ -54,6 +54,7 @@
             "DDTrace\\": "./src/DDTrace/"
         },
         "files": [
+            "./src/DDTrace/Formats.php",
             "./src/DDTrace/Tags.php",
             "./src/DDTrace/Time.php",
             "./src/DDTrace/Types.php",

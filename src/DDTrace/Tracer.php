@@ -3,13 +3,14 @@
 namespace DDTrace;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
 use DDTrace\Tags;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
-use OpenTracing\Formats;
+use DDTrace\Formats;
 use OpenTracing\Reference;
 use OpenTracing\SpanContext as OpenTracingContext;
 use OpenTracing\StartSpanOptions;
@@ -69,6 +70,7 @@ final class Tracer implements OpenTracingTracer
         $this->propagators = $propagators ?: [
             Formats\TEXT_MAP => $textMapPropagator,
             Formats\HTTP_HEADERS => $textMapPropagator,
+            Formats\CURL_HTTP_HEADERS => new CurlHeadersMap(),
         ];
         $this->scopeManager = new ScopeManager();
         $this->config = array_merge($this->config, $config);
