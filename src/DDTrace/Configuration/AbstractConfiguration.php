@@ -5,7 +5,7 @@ namespace DDTrace\Configuration;
 /**
  * DDTrace abstract configuration class.
  */
-abstract class AbstractConfiguration
+abstract class AbstractConfiguration implements Registry
 {
     /**
      * @var static
@@ -20,6 +20,16 @@ abstract class AbstractConfiguration
     protected function __construct()
     {
         $this->registry = new EnvVariableRegistry();
+    }
+
+    /**
+     * @inheritdoc
+     *
+     * Allows users to access configuration properties by name instead of calling explicit methods.
+     */
+    public function boolValue($key, $default)
+    {
+        return $this->registry->boolValue($key, $default);
     }
 
     /**

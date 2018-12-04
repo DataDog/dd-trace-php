@@ -6,7 +6,7 @@ namespace DDTrace\Configuration;
  * Registry that holds configuration properties and that is able to recover configuration values from environment
  * variables.
  */
-class EnvVariableRegistry
+class EnvVariableRegistry implements Registry
 {
     /**
      * @var array
