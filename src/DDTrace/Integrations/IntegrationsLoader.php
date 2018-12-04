@@ -33,7 +33,7 @@ class IntegrationsLoader
      */
     public static function load()
     {
-        $globalConfig = Configuration::instance();
+        $globalConfig = Configuration::get();
 
         if (!$globalConfig->isEnabled()) {
             return;

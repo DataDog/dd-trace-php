@@ -22,7 +22,7 @@ class StartSpanOptionsFactory
      */
     public static function createForWebRequest(OTTracer $tracer, array $options = [], array $headers = [])
     {
-        $globalConfiguration = Configuration::instance();
+        $globalConfiguration = Configuration::get();
 
         if ($globalConfiguration->isDistributedTracingEnabled()
                 && $spanContext = $tracer->extract(\OpenTracing\Formats\HTTP_HEADERS, $headers)) {

@@ -28,7 +28,7 @@ class CurlIntegration
             return;
         }
 
-        $globalConfig = Configuration::instance();
+        $globalConfig = Configuration::get();
 
         dd_trace('curl_exec', function ($ch) {
             $tracer = GlobalTracer::get();
@@ -92,7 +92,7 @@ class CurlIntegration
      */
     public static function injectDistributedTracingHeaders($ch)
     {
-        if (!Configuration::instance()->isDistributedTracingEnabled()) {
+        if (!Configuration::get()->isDistributedTracingEnabled()) {
             return;
         }
 

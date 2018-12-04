@@ -34,7 +34,7 @@ class SymfonyBundle extends Bundle
     {
         parent::boot();
 
-        if (!Configuration::instance()->isIntegrationEnabled(self::NAME)) {
+        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
             return;
         }
 

@@ -36,7 +36,7 @@ class LaravelProvider extends ServiceProvider
     /** @inheritdoc */
     public function register()
     {
-        if (!Configuration::instance()->isIntegrationEnabled(self::NAME)) {
+        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
             return;
         }
 
@@ -61,7 +61,7 @@ class LaravelProvider extends ServiceProvider
     /** @inheritdoc */
     public function boot()
     {
-        if (!Configuration::instance()->isIntegrationEnabled(self::NAME)) {
+        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
             return;
         }
 
