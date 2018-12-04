@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Added
+- Possibility to enable/disable distributed tracing and priority sampling #160
 ### Fixed
 - "Undefined offset: 0" errors in ElasticSearch integration #165
 

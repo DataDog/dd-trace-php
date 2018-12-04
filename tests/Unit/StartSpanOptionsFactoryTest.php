@@ -2,12 +2,12 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Configuration;
 use DDTrace\SpanContext;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tracer;
 use Mockery\MockInterface;
 use OpenTracing\Reference;
-
 
 final class StartSpanOptionsFactoryTest extends BaseTestCase
 {
@@ -40,6 +40,18 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
 
         $this->assertTrue($references[0]->isType('child_of'));
         $this->assertSame($spanContext, $references[0]->getContext());
+    }
+
+    public function testCreateForWebRequestNotExtractedContextIfDisabled()
+    {
+        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+            'isDistributedTracingEnabled' => false,
+        ]));
+        $this->tracer->shouldReceive('extract')->never();
+
+        $startSpanOptions = StartSpanOptionsFactory::createForWebRequest($this->tracer);
+
+        $this->assertEmpty($startSpanOptions->getReferences());
     }
 
     public function testCreateForWebRequestHttpHeadersPassedAsCarrier()
