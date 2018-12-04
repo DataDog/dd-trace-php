@@ -98,7 +98,6 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        error_log("Traces: " . print_r($traces, 1));
         // trace is: some_operation
         $this->assertSame($traces[0][0]->getContext()->getSpanId(), $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec, used under the hood

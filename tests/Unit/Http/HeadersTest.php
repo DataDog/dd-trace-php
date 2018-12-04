@@ -26,4 +26,23 @@ final class HeadersTest extends Framework\TestCase
             ])
         );
     }
+
+    public function testColonSeparatedValuesToHeadersMapEmptyArray()
+    {
+        $this->assertEmpty(Headers::colonSeparatedValuesToHeadersMap([]));
+    }
+
+    public function testColonSeparatedValuesToHeadersMapValues()
+    {
+        $this->assertSame(
+            [
+                'key1' => 'value1',
+                'key2' => 'value2',
+            ],
+            Headers::colonSeparatedValuesToHeadersMap([
+                'key1: value1',
+                'key2: value2',
+            ])
+        );
+    }
 }

@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Guzzle\V5;
 
 use DDTrace\Configuration;
-use DDTrace\Propagators\TextMap;
 use DDTrace\Tags;
 use DDTrace\Types;
 use const OpenTracing\Formats\HTTP_HEADERS;
@@ -55,11 +54,6 @@ class GuzzleIntegration extends Integration
 
         // Associative array of header names to values
         $headers = $request->getHeaders();
-
-        // If distributed tracing http headers have already been manually provided, we honer them.
-        if (array_key_exists(TextMap::DEFAULT_TRACE_ID_HEADER, $headers)) {
-            return;
-        }
 
         $context = $span->getContext();
         $tracer = GlobalTracer::get();
