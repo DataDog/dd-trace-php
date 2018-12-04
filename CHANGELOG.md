@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file - [docs/chan
 ## [Unreleased]
 ### Added
 - Possibility to enable/disable distributed tracing and priority sampling #160
+### Fixed
+- "Undefined offset: 0" errors in ElasticSearch integration #165
 
 ## [0.6.0] - 2018-12-03
 ### Added

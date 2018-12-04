@@ -176,7 +176,10 @@ class ElasticSearchIntegration
 
         dd_trace($class, $name, function () use ($name) {
             $args = func_get_args();
-            list($params) = $args;
+            $params = [];
+            if (isset($args[0])) {
+                list($params) = $args;
+            }
             $tracer = GlobalTracer::get();
             $scope = $tracer->startActiveSpan("Elasticsearch.Client.$name");
             $span = $scope->getSpan();
@@ -271,7 +274,10 @@ class ElasticSearchIntegration
 
         dd_trace($class, $name, function () use ($namespace, $name) {
             $args = func_get_args();
-            list($params) = $args;
+            $params = [];
+            if (isset($args[0])) {
+                list($params) = $args;
+            }
             $tracer = GlobalTracer::get();
             $scope = $tracer->startActiveSpan("Elasticsearch.$namespace.$name");
             $span = $scope->getSpan();
