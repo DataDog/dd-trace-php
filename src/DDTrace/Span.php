@@ -76,6 +76,11 @@ final class Span implements SpanInterface
     private $hasError = false;
 
     /**
+     * @var int
+     */
+    private $prioritySampling;
+
+    /**
      * Span constructor.
      * @param string $operationName
      * @param SpanContext $context
@@ -369,5 +374,21 @@ final class Span implements SpanInterface
     public function getBaggageItem($key)
     {
         return $this->context->getBaggageItem($key);
+    }
+
+    /**
+     * @return int
+     */
+    public function getPrioritySampling()
+    {
+        return $this->prioritySampling;
+    }
+
+    /**
+     * @param int $prioritySampling
+     */
+    public function setPrioritySampling($prioritySampling)
+    {
+        $this->prioritySampling = $prioritySampling;
     }
 }

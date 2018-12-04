@@ -10,7 +10,6 @@ use DDTrace\Tests\Integration\Common\SpanAssertion;
 use DDTrace\Util\ArrayKVStore;
 use OpenTracing\GlobalTracer;
 
-
 final class CurlIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';

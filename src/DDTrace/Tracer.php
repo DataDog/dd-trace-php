@@ -6,6 +6,9 @@ use DDTrace\Encoders\Json;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
+use DDTrace\Sampling\AlwaysKeepSampler;
+use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Sampling\Sampler;
 use DDTrace\Tags;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
@@ -29,6 +32,11 @@ final class Tracer implements OpenTracingTracer
      * @var Transport
      */
     private $transport;
+
+    /**
+     * @var Sampler
+     */
+    private $sampler;
 
     /**
      * @var Propagator[]
@@ -59,6 +67,11 @@ final class Tracer implements OpenTracingTracer
     private $scopeManager;
 
     /**
+     * @var Configuration
+     */
+    private $globalConfig;
+
+    /**
      * @param Transport $transport
      * @param Propagator[] $propagators
      * @param array $config
@@ -74,6 +87,8 @@ final class Tracer implements OpenTracingTracer
         ];
         $this->scopeManager = new ScopeManager();
         $this->config = array_merge($this->config, $config);
+        $this->globalConfig = Configuration::instance();
+        $this->sampler = new AlwaysKeepSampler();
     }
 
     /**
@@ -120,6 +135,8 @@ final class Tracer implements OpenTracingTracer
             array_key_exists('resource', $this->config) ? $this->config['resource'] : $operationName,
             $options->getStartTime()
         );
+
+        $this->handlePrioritySampling($span);
 
         $tags = $options->getTags() + $this->config['global_tags'];
         if ($reference === null) {
@@ -273,5 +290,33 @@ final class Tracer implements OpenTracingTracer
         }
 
         $this->traces[$span->getTraceId()][$span->getSpanId()] = $span;
+    }
+
+    /**
+     * @param Span $span
+     */
+    private function handlePrioritySampling(Span $span)
+    {
+        if (!$this->globalConfig->isPrioritySamplingEnabled()) {
+            return;
+        }
+
+        // This is a temporary guard that will go away once we complete the refactoring to entirely depend only on
+        // DDTrace extensions of OpenTracing.
+        if (!is_subclass_of($span, '\DDTrace\Span')) {
+            return;
+        }
+
+        if (!$span->getContext()->isHostRoot()) {
+            // Only root spans for each host must have the sampling priority value set.
+            return;
+        }
+
+        $propagated = $span->getContext()->getPropagatedPrioritySampling();
+        $parsed = PrioritySampling::parse($propagated);
+        if ($parsed === PrioritySampling::UNKNOWN) {
+            // Priority sampling was not propagated, let's determine the proper value.
+            $span->setPrioritySampling($this->sampler->getPrioritySampling($span));
+        }
     }
 }

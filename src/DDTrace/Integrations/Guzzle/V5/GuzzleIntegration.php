@@ -3,9 +3,9 @@
 namespace DDTrace\Integrations\Guzzle\V5;
 
 use DDTrace\Configuration;
+use DDTrace\Formats;
 use DDTrace\Tags;
 use DDTrace\Types;
-use const OpenTracing\Formats\HTTP_HEADERS;
 use OpenTracing\GlobalTracer;
 use OpenTracing\Span;
 use DDTrace\Http\Urls;
@@ -57,7 +57,12 @@ class GuzzleIntegration extends Integration
 
         $context = $span->getContext();
         $tracer = GlobalTracer::get();
-        $tracer->inject($context, HTTP_HEADERS, $headers);
+        $tracer->inject($context, Formats\HTTP_HEADERS, $headers);
         $request->setHeaders($headers);
+
+        $context = $span->getContext();
+        $tracer = GlobalTracer::get();
+        $tracer->inject($context, Formats\HTTP_HEADERS, $headers);
+        $request->addHeaders(Formats\$headers);
     }
 }

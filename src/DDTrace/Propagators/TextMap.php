@@ -2,11 +2,22 @@
 
 namespace DDTrace\Propagators;
 
+use DDTrace\Configuration;
 use DDTrace\Propagator;
 use DDTrace\SpanContext;
 
 final class TextMap implements Propagator
 {
+    /**
+     * @var Configuration
+     */
+    private $globalConfig;
+
+    public function __construct()
+    {
+        $this->globalConfig = Configuration::instance();
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -27,6 +38,7 @@ final class TextMap implements Propagator
     {
         $traceId = null;
         $spanId = null;
+        $prioritySampling = null;
         $baggageItems = [];
 
         foreach ($carrier as $key => $value) {
@@ -43,7 +55,9 @@ final class TextMap implements Propagator
             return null;
         }
 
-        return new SpanContext($traceId, $spanId, null, $baggageItems);
+        $spanContext = new SpanContext($traceId, $spanId, null, $baggageItems, true);
+        $this->extractPrioritySampling($spanContext, $carrier);
+        return $spanContext;
     }
 
     /**
@@ -63,5 +77,19 @@ final class TextMap implements Propagator
             return $value;
         }
         return null;
+    }
+
+    /**
+     * Extract from carrier the propagated priority sampling.
+     *
+     * @param SpanContext $spanContext
+     * @param array $carrier
+     */
+    private function extractPrioritySampling(SpanContext $spanContext, $carrier)
+    {
+        $value = isset($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER])
+            ? $carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]
+            : null;
+        $spanContext->setPropagatedPrioritySampling($value);
     }
 }
