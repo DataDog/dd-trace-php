@@ -3,7 +3,9 @@
 namespace DDTrace\Tests\Integration\Integrations\Mongo;
 
 use MongoId;
+use MongoCode;
 use MongoClient;
+use MongoCollection;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
@@ -346,12 +348,354 @@ final class MongoTest extends IntegrationTestCase
         ];
     }
 
+    // MongoCollection tests
+    public function testCollection()
+    {
+        $traces = $this->isolateClient(function (MongoClient $mongo) {
+            new MongoCollection($mongo->{self::DATABASE}, 'foo_collection');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.__construct', 'mongo', 'mongodb', '__construct')
+                ->withExactTags([
+                    'mongodb.db' => self::DATABASE,
+                    'mongodb.collection' => 'foo_collection',
+                ]),
+        ]);
+    }
+
+    public function testCollectionAggregate()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->aggregate([], ['explain' => true]);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.aggregate', 'mongo', 'mongodb', 'aggregate'),
+        ]);
+    }
+
+    public function testCollectionAggregateCursor()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->aggregateCursor([], ['explain' => true]);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.aggregateCursor', 'mongo', 'mongodb', 'aggregateCursor'),
+        ]);
+    }
+
+    public function testCollectionBatchInsert()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->batchInsert([
+                ['title' => 'Foo'],
+                ['title' => 'Bar'],
+            ]);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.batchInsert', 'mongo', 'mongodb', 'batchInsert'),
+        ]);
+    }
+
+    public function testCollectionCount()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->count(['title' => 'Foo']);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.count', 'mongo', 'mongodb', 'count')
+                ->withExactTags([
+                    'mongodb.query' => '{"title":"Foo"}',
+                ]),
+        ]);
+    }
+
+    public function testCollectionCreateDBRef()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->createDBRef(new MongoId('47cc67093475061e3d9536d2'));
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.createDBRef', 'mongo', 'mongodb', 'createDBRef')
+                ->withExactTags([
+                    'mongodb.bson.id' => '47cc67093475061e3d9536d2',
+                    'mongodb.collection' => 'foo_collection',
+                ]),
+        ]);
+    }
+
+    public function testCollectionCreateIndex()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->createIndex(['foo' => 1]);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.createIndex', 'mongo', 'mongodb', 'createIndex'),
+        ]);
+    }
+
+    public function testCollectionDeleteIndex()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->deleteIndex('foo');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.deleteIndex', 'mongo', 'mongodb', 'deleteIndex'),
+        ]);
+    }
+
+    public function testCollectionDistinct()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->distinct('foo', ['foo' => 'bar']);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.distinct', 'mongo', 'mongodb', 'distinct')
+                ->withExactTags([
+                    'mongodb.query' => '{"foo":"bar"}',
+                ]),
+        ]);
+    }
+
+    public function testCollectionFind()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->find(['foo' => 'bar']);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.find', 'mongo', 'mongodb', 'find')
+                ->withExactTags([
+                    'mongodb.query' => '{"foo":"bar"}',
+                ]),
+        ]);
+    }
+
+    public function testCollectionFindAndModify()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->findAndModify(
+                ['foo' => 'bar'],
+                [],
+                [],
+                ['update' => true]
+            );
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.findAndModify', 'mongo', 'mongodb', 'findAndModify')
+                ->withExactTags([
+                    'mongodb.query' => '{"foo":"bar"}',
+                ]),
+        ]);
+    }
+
+    public function testCollectionFindOne()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->findOne(['foo' => 'bar']);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.findOne', 'mongo', 'mongodb', 'findOne')
+                ->withExactTags([
+                    'mongodb.query' => '{"foo":"bar"}',
+                ]),
+        ]);
+    }
+
+    public function testCollectionGetDBRef()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->getDBRef([
+                '$ref' => 'foo_collection',
+                '$id' => '47cc67093475061e3d9536d2',
+            ]);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.getDBRef', 'mongo', 'mongodb', 'getDBRef')
+                ->withExactTags([
+                    'mongodb.bson.id' => '47cc67093475061e3d9536d2',
+                    'mongodb.collection' => 'foo_collection',
+                ]),
+        ]);
+    }
+
+    public function testCollectionGroup()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->group(
+                [],
+                ['foo' => ''],
+                new MongoCode('function (obj, prev) {}')
+            );
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.group', 'mongo', 'mongodb', 'group'),
+        ]);
+    }
+
+    public function testCollectionInsert()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->insert(['foo' => 'bar']);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.insert', 'mongo', 'mongodb', 'insert'),
+        ]);
+    }
+
+    public function testCollectionParallelCollectionScan()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->parallelCollectionScan(2);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build(
+                'MongoCollection.parallelCollectionScan',
+                'mongo',
+                'mongodb',
+                'parallelCollectionScan'
+            ),
+        ]);
+    }
+
+    public function testCollectionRemove()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->remove(['foo' => 'bar']);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.remove', 'mongo', 'mongodb', 'remove')
+                ->withExactTags([
+                    'mongodb.query' => '{"foo":"bar"}',
+                ]),
+        ]);
+    }
+
+    public function testCollectionSave()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->save(['foo' => 'bar']);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.save', 'mongo', 'mongodb', 'save'),
+        ]);
+    }
+
+    public function testCollectionSetReadPreference()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->setReadPreference(MongoClient::RP_NEAREST);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.setReadPreference', 'mongo', 'mongodb', 'setReadPreference')
+                ->withExactTags([
+                    'mongodb.read_preference' => MongoClient::RP_NEAREST,
+                ]),
+        ]);
+    }
+
+    public function testCollectionSetSlaveOkay()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->setSlaveOkay();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.setSlaveOkay', 'mongo', 'mongodb', 'setSlaveOkay'),
+        ]);
+    }
+
+    public function testCollectionSetWriteConcern()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->setWriteConcern('majority');
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern'),
+        ]);
+    }
+
+    public function testCollectionUpdate()
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->update(
+                ['foo' => 'bar'],
+                []
+            );
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.update', 'mongo', 'mongodb', 'update')
+                ->withExactTags([
+                    'mongodb.query' => '{"foo":"bar"}',
+                ]),
+        ]);
+    }
+
+    /**
+     * @dataProvider collectionMethods
+     */
+    public function testCollectionMethods($method)
+    {
+        $traces = $this->isolateCollection(function (MongoCollection $collection) use ($method) {
+            $collection->{$method}();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('MongoCollection.' . $method, 'mongo', 'mongodb', $method),
+        ]);
+    }
+
+    public function collectionMethods()
+    {
+        return [
+            ['deleteIndexes'],
+            ['drop'],
+            ['getIndexInfo'],
+            ['getName'],
+            ['getReadPreference'],
+            ['getSlaveOkay'],
+            ['getWriteConcern'],
+            ['validate'],
+        ];
+    }
+
     private function isolateClient(\Closure $callback)
     {
         $mongo = self::getClient();
         $traces = $this->isolateTracer(function () use ($mongo, $callback) {
             $callback($mongo);
         });
+        $mongo->close(true);
+        return $traces;
+    }
+
+    private function isolateCollection(\Closure $callback)
+    {
+        $mongo = self::getClient();
+        $collection = $mongo->{self::DATABASE}->createCollection('foo_collection');
+        $traces = $this->isolateTracer(function () use ($collection, $callback) {
+            $callback($collection);
+        });
+        $collection->drop();
         $mongo->close(true);
         return $traces;
     }

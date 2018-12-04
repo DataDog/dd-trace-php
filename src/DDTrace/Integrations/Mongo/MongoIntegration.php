@@ -16,6 +16,7 @@ final class MongoIntegration
         }
         MongoClientIntegration::load();
         MongoDBIntegration::load();
+        MongoCollectionIntegration::load();
     }
 
     public static function setDefaultTags(Span $span, $method)

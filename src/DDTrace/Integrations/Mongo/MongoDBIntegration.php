@@ -25,10 +25,7 @@ final class MongoDBIntegration extends Integration
         self::traceMethod('createDBRef', function (Span $span, array $args) {
             $span->setTag(Tags\MONGODB_COLLECTION, $args[0]);
         }, function (Span $span, $ref) {
-            if (!is_array($ref)) {
-                return;
-            }
-            if (isset($ref['$id'])) {
+            if (is_array($ref) && isset($ref['$id'])) {
                 $span->setTag(Tags\MONGODB_BSON_ID, (string) $ref['$id']);
             }
         });
