@@ -16,7 +16,7 @@ final class MongoTest extends IntegrationTestCase
     const PORT = '27017';
     const USER = 'test';
     const PASSWORD = 'test';
-    const DATABASE = 'test';
+    const DATABASE = 'admin';
 
     public static function setUpBeforeClass()
     {
@@ -45,7 +45,7 @@ final class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
                 ->withExactTags([
                     'mongodb.server' => 'mongodb://mongodb_integration:27017',
-                    'mongodb.db' => 'test',
+                    'mongodb.db' => self::DATABASE,
                 ]),
         ]);
     }
@@ -72,7 +72,7 @@ final class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
                 ->withExactTags([
                     'mongodb.server' => 'mongodb://?:?@mongodb_integration:27017',
-                    'mongodb.db' => 'test',
+                    'mongodb.db' => self::DATABASE,
                 ]),
         ]);
     }
@@ -98,8 +98,8 @@ final class MongoTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
                 ->withExactTags([
-                    'mongodb.server' => 'mongodb://mongodb_integration:27017/test',
-                    'mongodb.db' => 'test',
+                    'mongodb.server' => 'mongodb://mongodb_integration:27017/' . self::DATABASE,
+                    'mongodb.db' => self::DATABASE,
                 ]),
         ]);
     }

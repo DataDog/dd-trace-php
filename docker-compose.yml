@@ -49,13 +49,12 @@ services:
     image: "elasticsearch:2"
 
   mongodb_integration:
-    image: "bitnami/mongodb:4.0"
+    image: "circleci/mongo:4.0"
     ports:
       - "27017:27017"
     environment:
-      - MONGODB_USERNAME=test
-      - MONGODB_PASSWORD=test
-      - MONGODB_DATABASE=test
+      - MONGO_INITDB_ROOT_USERNAME=test
+      - MONGO_INITDB_ROOT_PASSWORD=test
 
   redis_integration:
     image: "circleci/redis:4.0-alpine"

@@ -41,12 +41,11 @@ aliases:
       - MYSQL_DATABASE=test
 
   - &IMAGE_DOCKER_MONGODB
-    image: bitnami/mongodb:4.0
+    image: circleci/mongo:4.0
     name: mongodb_integration
     environment:
-      - MONGODB_USERNAME=test
-      - MONGODB_PASSWORD=test
-      - MONGODB_DATABASE=test
+      - MONGO_INITDB_ROOT_USERNAME=test
+      - MONGO_INITDB_ROOT_PASSWORD=test
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
