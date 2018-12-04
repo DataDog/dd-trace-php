@@ -72,7 +72,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     INIT_ZVAL(rv);
     rv_ptr = &rv;
 
-    zval **result_ptr = return_value_ptr ? return_value_ptr : &rv_ptr;
+    zval **result_ptr = return_value_ptr;// ? return_value_ptr : &rv_ptr;
     zval *this = NULL;
 
     zend_function *func;
@@ -117,11 +117,22 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     }
 
     ddtrace_setup_fcall(execute_data, &fci, result_ptr TSRMLS_CC);
+            DD_PRINTF("WTF");
+
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS) {
+
+            DD_PRINTF("WTF^3");
+
         if (!return_value_ptr) {
-            zval_dtor(&rv);
+            DD_PRINTF("WTF");
+            // zval_dtor(&rv);
         }
+    } else {
+            DD_PRINTF("WTF^2");
+
     }
+                DD_PRINTF("WTF^2");
+
 
 #if PHP_VERSION_ID < 70000
     if (fci.params) {
@@ -212,12 +223,19 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
 #define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
 #if PHP_VERSION_ID < 70000
-        zval *return_value = NULL;
-        execute_fcall(dispatch, execute_data, &return_value TSRMLS_CC);
+        zval **return_value = NULL;
+        DD_PRINTF("ehlo");
+        execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
+                            DD_PRINTF("OHSHIT");
+
         if (return_value != NULL) {
             // EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
-            EX_T(opline->result.var).var.ptr_ptr = return_value;
+            // EX_T(opline->result.var).var.ptr_ptr = return_value;
+                    DD_PRINTF("OHSHIT");
+
         }
+
+        EG(return_value_ptr_ptr) = return_value;
 
 #else
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
@@ -226,9 +244,9 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
         dispatch->flags ^= BUSY_FLAG;
 
-        if (!RETURN_VALUE_USED(opline)) {
-            zval_dtor(&rv);
-        }
+        // if (!RETURN_VALUE_USED(opline)) {
+        //     zval_dtor(&rv);
+        // }
 
         return 1;
     } else {

@@ -67,9 +67,11 @@ static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, 
     if (fci->param_count) {
         fci->params = (zval ***)safe_emalloc(sizeof(zval *), fci->param_count, 0);
         zend_get_parameters_array_ex(fci->param_count, fci->params);
-    }
 
+    }
     fci->retval_ptr_ptr = result;
+    DD_PRINTF("Eheee");
+
 }
 
 void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC) {
@@ -81,8 +83,12 @@ void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, 
         // call->num_additional_args = 0;
         // call->is_ctor_call = 0;
         // EX(call) = call;
+        // NUM_ADDITIONAL_ARGS() = 0;
+        FBC() = EX(function_state).function;
     }
-
+	EX(original_return_value) = EG(return_value_ptr_ptr);
+    EG(return_value_ptr_ptr) = result;
+    DD_PRINTF("Eh");
     setup_fcal_name(execute_data, fci, result TSRMLS_CC);
 }
 
