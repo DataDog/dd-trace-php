@@ -16,7 +16,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDistributedTracingEnabled()
     {
-        return $this->registry->boolValue('distributed.tracing', true);
+        return $this->boolValue('distributed.tracing', true);
     }
 
     /**
@@ -27,6 +27,6 @@ class Configuration extends AbstractConfiguration
     public function isPrioritySamplingEnabled()
     {
         return $this->isDistributedTracingEnabled()
-            && $this->registry->boolValue('priority.sampling', true);
+            && $this->boolValue('priority.sampling', true);
     }
 }
