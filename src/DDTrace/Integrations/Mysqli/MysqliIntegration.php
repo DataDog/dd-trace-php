@@ -9,14 +9,11 @@ use OpenTracing\GlobalTracer;
 
 class MysqliIntegration
 {
+    const NAME = 'mysqli';
+
     public static function load()
     {
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load mysqli integrations.', E_USER_WARNING);
-            return;
-        }
         if (!extension_loaded('mysqli')) {
-            trigger_error('mysqli is not loaded and cannot be instrumented', E_USER_WARNING);
             return;
         }
 

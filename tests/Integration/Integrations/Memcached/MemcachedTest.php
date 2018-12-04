@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Integration\Integrations\Memcached;
 
 use DDTrace\Obfuscation;
-use DDTrace\Integrations;
+use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 
@@ -20,7 +20,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
-        Integrations\Memcached\MemcachedIntegration::load();
+        MemcachedIntegration::load();
     }
 
     protected function setUp()

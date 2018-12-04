@@ -23,13 +23,23 @@ abstract class AbstractConfiguration implements Registry
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      *
      * Allows users to access configuration properties by name instead of calling explicit methods.
      */
     public function boolValue($key, $default)
     {
         return $this->registry->boolValue($key, $default);
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * Allows users to access configuration properties by name instead of calling explicit methods.
+     */
+    public function inArray($key, $name)
+    {
+        return $this->registry->inArray($key, $name);
     }
 
     /**

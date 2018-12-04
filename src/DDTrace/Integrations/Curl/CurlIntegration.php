@@ -17,20 +17,18 @@ use OpenTracing\GlobalTracer;
  */
 class CurlIntegration
 {
+    const NAME = 'curl';
+
     /**
      * Loads the integration.
      */
     public static function load()
     {
-        $globalConfig = Configuration::instance();
-
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('The ddtrace extension is required to instrument curl', E_USER_WARNING);
-            return;
-        }
         if (!function_exists('curl_exec')) {
             return;
         }
+
+        $globalConfig = Configuration::instance();
 
         dd_trace('curl_exec', function ($ch) {
             $tracer = GlobalTracer::get();

@@ -14,6 +14,7 @@ use GuzzleHttp\Message\ResponseInterface;
 
 class GuzzleIntegration extends Integration
 {
+    const NAME = 'guzzle';
     const CLASS_NAME = 'GuzzleHttp\Client';
 
     protected static function loadIntegration()

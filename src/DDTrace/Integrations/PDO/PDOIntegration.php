@@ -8,6 +8,8 @@ use OpenTracing\GlobalTracer;
 
 class PDOIntegration
 {
+    const NAME = 'pdo';
+
     /**
      * @var array
      */
@@ -23,12 +25,7 @@ class PDOIntegration
      */
     public static function load()
     {
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('The ddtrace extension is required to instrument PDO', E_USER_WARNING);
-            return;
-        }
         if (!extension_loaded('PDO')) {
-            trigger_error('PDO is not loaded and cannot be instrumented', E_USER_WARNING);
             return;
         }
 

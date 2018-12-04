@@ -4,12 +4,7 @@ namespace DDTrace\Integrations\Laravel\V5;
 
 use DDTrace;
 use DDTrace\Encoders\Json;
-use DDTrace\Integrations\Curl\CurlIntegration;
-use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
-use DDTrace\Integrations\Eloquent\EloquentIntegration;
-use DDTrace\Integrations\Memcached\MemcachedIntegration;
-use DDTrace\Integrations\PDO\PDOIntegration;
-use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tags;
 use DDTrace\Tracer;
@@ -162,17 +157,8 @@ class LaravelProvider extends ServiceProvider
             }
         });
 
-        // Enable extension integrations
-        CurlIntegration::load();
-        ElasticSearchIntegration::load();
-        EloquentIntegration::load();
-        if (class_exists('Memcached')) {
-            MemcachedIntegration::load();
-        }
-        PDOIntegration::load();
-        if (class_exists('Predis\Client')) {
-            PredisIntegration::load();
-        }
+        // Enable other integrations
+        IntegrationsLoader::load();
 
         // Flushes traces to agent.
         register_shutdown_function(function () use ($scope) {

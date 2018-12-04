@@ -10,6 +10,16 @@ use DDTrace\Configuration\AbstractConfiguration;
 class Configuration extends AbstractConfiguration
 {
     /**
+     * Whether or not tracing is enabled.
+     *
+     * @return bool
+     */
+    public function isEnabled()
+    {
+        return $this->boolValue('trace.enabled', true);
+    }
+
+    /**
      * Whether or not distributed tracing is enabled globally.
      *
      * @return bool
@@ -28,5 +38,16 @@ class Configuration extends AbstractConfiguration
     {
         return $this->isDistributedTracingEnabled()
             && $this->boolValue('priority.sampling', true);
+    }
+
+    /**
+     * Whether or not a specific integration is enabled.
+     *
+     * @param string $name
+     * @return bool
+     */
+    public function isIntegrationEnabled($name)
+    {
+        return !$this->inArray('integrations.disabled', $name);
     }
 }
