@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Integration\Integrations\PDO;
 
-use DDTrace\Integrations\PDO\PDOIntegration;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 
@@ -16,7 +16,7 @@ final class PDOTest extends IntegrationTestCase
 {
     public static function setUpBeforeClass()
     {
-        PDOIntegration::load();
+        IntegrationsLoader::load();
     }
 
     protected function setUp()

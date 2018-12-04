@@ -4,7 +4,7 @@ namespace DDTrace\Tests\Integration\Integrations\Curl;
 
 use DDTrace\Configuration;
 use DDTrace\Formats;
-use DDTrace\Integrations\Curl\CurlIntegration;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 use DDTrace\Util\ArrayKVStore;
@@ -18,7 +18,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
-        CurlIntegration::load();
+        IntegrationsLoader::load();
     }
 
     public function testLoad200UrlOnInit()

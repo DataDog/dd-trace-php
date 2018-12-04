@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Integration\Integrations\Mysqli;
 
-use DDTrace\Integrations\Mysqli\MysqliIntegration;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 
@@ -18,7 +18,7 @@ final class MysqliTest extends IntegrationTestCase
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
-        MysqliIntegration::load();
+        IntegrationsLoader::load();
     }
 
     protected function setUp()

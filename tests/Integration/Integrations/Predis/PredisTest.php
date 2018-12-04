@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Integration\Integrations\Predis;
 
-use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 use Predis\Response\Status;
@@ -15,7 +15,7 @@ final class PredisTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
-        PredisIntegration::load();
+        IntegrationsLoader::load();
     }
 
     protected function setUp()
