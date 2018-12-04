@@ -6,7 +6,6 @@ use OpenTracing\Reference;
 use OpenTracing\StartSpanOptions;
 use OpenTracing\Tracer as OTTracer;
 
-
 /**
  * A factory to create instances of StartSpanOptions.
  */
@@ -23,8 +22,10 @@ class StartSpanOptionsFactory
      */
     public static function createForWebRequest(OTTracer $tracer, array $options = [], array $headers = [])
     {
-        $spanContext = $tracer->extract(\OpenTracing\Formats\HTTP_HEADERS, $headers);
-        if ($spanContext) {
+        $globalConfiguration = Configuration::instance();
+
+        if ($globalConfiguration->isDistributedTracingEnabled()
+                && $spanContext = $tracer->extract(\OpenTracing\Formats\HTTP_HEADERS, $headers)) {
             $options[Reference::CHILD_OF] = $spanContext;
         }
 
