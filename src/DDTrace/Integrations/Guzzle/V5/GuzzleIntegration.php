@@ -14,6 +14,7 @@ use GuzzleHttp\Message\ResponseInterface;
 
 class GuzzleIntegration extends Integration
 {
+    const NAME = 'guzzle';
     const CLASS_NAME = 'GuzzleHttp\Client';
 
     protected static function loadIntegration()
@@ -44,7 +45,7 @@ class GuzzleIntegration extends Integration
      */
     public static function injectDistributedTracingHeaders($request, $span)
     {
-        if (!Configuration::instance()->isDistributedTracingEnabled()) {
+        if (!Configuration::get()->isDistributedTracingEnabled()) {
             return;
         }
 

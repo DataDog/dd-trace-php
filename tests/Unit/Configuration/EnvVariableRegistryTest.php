@@ -52,4 +52,37 @@ final class EnvVariableRegistryTest extends BaseTestCase
         putenv('DD_SOME_TEST_PARAMETER=0   ');
         $this->assertFalse($registry->boolValue('some.test.parameter', true));
     }
+
+    public function testInArrayNotSet()
+    {
+        $registry = new EnvVariableRegistry();
+        $this->assertFalse($registry->inArray('some.test.parameter', 'name'));
+    }
+
+    public function testInArraySet()
+    {
+        $registry = new EnvVariableRegistry();
+        putenv('DD_SOME_TEST_PARAMETER=value1,value2');
+        $this->assertTrue($registry->inArray('some.test.parameter', 'value1'));
+        $this->assertTrue($registry->inArray('some.test.parameter', 'value2'));
+        $this->assertFalse($registry->inArray('some.test.parameter', 'value3'));
+    }
+
+    public function testInArrayCaseInsensitive()
+    {
+        $registry = new EnvVariableRegistry();
+        putenv('DD_SOME_TEST_PARAMETER=vAlUe1,VaLuE2');
+        $this->assertTrue($registry->inArray('some.test.parameter', 'value1'));
+        $this->assertTrue($registry->inArray('some.test.parameter', 'value2'));
+        $this->assertFalse($registry->inArray('some.test.parameter', 'value3'));
+    }
+
+    public function testInArrayWhiteSpaceBetweenDefinitions()
+    {
+        $registry = new EnvVariableRegistry();
+        putenv('DD_SOME_TEST_PARAMETER= value1    ,     value2     ');
+        $this->assertTrue($registry->inArray('some.test.parameter', 'value1'));
+        $this->assertTrue($registry->inArray('some.test.parameter', 'value2'));
+        $this->assertFalse($registry->inArray('some.test.parameter', 'value3'));
+    }
 }

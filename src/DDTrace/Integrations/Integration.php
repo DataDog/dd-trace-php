@@ -12,16 +12,11 @@ abstract class Integration
 
     public static function load()
     {
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('The ddtrace extension is required to trace ' . static::CLASS_NAME, E_USER_WARNING);
-            return false;
-        }
         if (!class_exists(static::CLASS_NAME)) {
-            return false;
+            return;
         }
         // See comment on the commented out abstract function definition.
         static::loadIntegration();
-        return true;
     }
 
     /**

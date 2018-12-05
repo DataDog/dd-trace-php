@@ -23,7 +23,21 @@ abstract class AbstractConfiguration implements Registry
     }
 
     /**
-     * @inheritdoc
+     * Returns the singleton configuration instance.
+     *
+     * @return static
+     */
+    public static function get()
+    {
+        if (self::$instance === null) {
+            self::$instance = new static();
+        }
+
+        return self::$instance;
+    }
+
+    /**
+     * {@inheritdoc}
      *
      * Allows users to access configuration properties by name instead of calling explicit methods.
      */
@@ -33,17 +47,13 @@ abstract class AbstractConfiguration implements Registry
     }
 
     /**
-     * Returns the singleton configuration instance.
+     * {@inheritdoc}
      *
-     * @return static
+     * Allows users to access configuration properties by name instead of calling explicit methods.
      */
-    public static function instance()
+    public function inArray($key, $name)
     {
-        if (self::$instance === null) {
-            self::$instance = new static();
-        }
-
-        return self::$instance;
+        return $this->registry->inArray($key, $name);
     }
 
     /**

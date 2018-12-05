@@ -19,11 +19,7 @@ class EnvVariableRegistry implements Registry
     }
 
     /**
-     * Extract a boolean configuration value, fallback to the corresponding env variable to read the value.
-     *
-     * @param string $key
-     * @param bool $default
-     * @return bool
+     * {@inheritdoc}
      */
     public function boolValue($key, $default)
     {
@@ -40,6 +36,26 @@ class EnvVariableRegistry implements Registry
         }
 
         return $this->registry[$key];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function inArray($key, $name)
+    {
+        if (!isset($this->registry[$key])) {
+            $value = getenv($this->convertKeyToEnvVariableName($key));
+            if (is_string($value)) {
+                $disabledIntegrations = explode(',', $value);
+                $this->registry[$key] = array_map(function ($entry) {
+                    return trim(strtolower($entry));
+                }, $disabledIntegrations);
+            } else {
+                $this->registry[$key] = [];
+            }
+        }
+
+        return in_array(strtolower($name), $this->registry[$key]);
     }
 
     /**
