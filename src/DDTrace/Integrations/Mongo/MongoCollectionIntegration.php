@@ -103,6 +103,10 @@ final class MongoCollectionIntegration extends Integration
         self::traceMethod('validate');
     }
 
+    /**
+     * @param Span $span
+     * @param string $method
+     */
     public static function setDefaultTags(Span $span, $method)
     {
         MongoIntegration::setDefaultTags($span, $method);

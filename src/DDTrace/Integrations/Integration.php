@@ -75,6 +75,10 @@ abstract class Integration
         });
     }
 
+    /**
+     * @param Span $span
+     * @param string $method
+     */
     public static function setDefaultTags(Span $span, $method)
     {
         $span->setTag(Tags\RESOURCE_NAME, $method);

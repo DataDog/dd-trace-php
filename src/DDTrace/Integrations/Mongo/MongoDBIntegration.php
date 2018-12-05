@@ -68,6 +68,10 @@ final class MongoDBIntegration extends Integration
         self::traceMethod('setWriteConcern');
     }
 
+    /**
+     * @param Span $span
+     * @param string $method
+     */
     public static function setDefaultTags(Span $span, $method)
     {
         MongoIntegration::setDefaultTags($span, $method);

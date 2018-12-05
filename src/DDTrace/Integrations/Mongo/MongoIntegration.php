@@ -21,6 +21,10 @@ final class MongoIntegration
         MongoCollectionIntegration::load();
     }
 
+    /**
+     * @param Span $span
+     * @param string $method
+     */
     public static function setDefaultTags(Span $span, $method)
     {
         Integration::setDefaultTags($span, $method);

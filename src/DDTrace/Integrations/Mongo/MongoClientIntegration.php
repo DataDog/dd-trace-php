@@ -48,8 +48,13 @@ final class MongoClientIntegration extends Integration
         self::traceMethod('setWriteConcern');
     }
 
-    // If the `db` option isn't provided via the constructor, we extract
-    // the database name from the DSN string if it exists.
+    /**
+     * If the `db` option isn't provided via the constructor, we extract
+     * the database name from the DSN string if it exists.
+     *
+     * @param string $dsn
+     * @return string|null
+     */
     private static function extractDatabaseNameFromDsn($dsn)
     {
         $matches = [];
@@ -59,6 +64,10 @@ final class MongoClientIntegration extends Integration
         return isset($matches[1]) ? $matches[1] : null;
     }
 
+    /**
+     * @param Span $span
+     * @param string $method
+     */
     public static function setDefaultTags(Span $span, $method)
     {
         MongoIntegration::setDefaultTags($span, $method);
