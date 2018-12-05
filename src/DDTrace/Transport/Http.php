@@ -148,7 +148,7 @@ final class Http implements Transport
      */
     private function isPrioritySamplingEndpoint(array $traces)
     {
-        if (!Configuration::instance()->isPrioritySamplingEnabled()) {
+        if (!Configuration::get()->isPrioritySamplingEnabled()) {
             return false;
         }
 

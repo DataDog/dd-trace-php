@@ -87,7 +87,7 @@ final class Tracer implements OpenTracingTracer
         ];
         $this->scopeManager = new ScopeManager();
         $this->config = array_merge($this->config, $config);
-        $this->globalConfig = Configuration::instance();
+        $this->globalConfig = Configuration::get();
         $this->sampler = new AlwaysKeepSampler();
     }
 

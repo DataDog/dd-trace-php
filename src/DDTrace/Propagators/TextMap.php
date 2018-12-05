@@ -15,7 +15,7 @@ final class TextMap implements Propagator
 
     public function __construct()
     {
-        $this->globalConfig = Configuration::instance();
+        $this->globalConfig = Configuration::get();
     }
 
     /**
