@@ -18,6 +18,7 @@ final class CurlHeadersMapTest extends Framework\TestCase
         $expectedButFrameworks = array_diff($expected, $this->normalize(self::FRAMEWORKS));
         $autoLoaded = $this->normalize(array_keys(IntegrationsLoader::LIBRARIES));
 
+        // If this test fails you need to add an entry to IntegrationsLoader::LIBRARIES array.
         $this->assertEquals(array_values($expectedButFrameworks), array_values($autoLoaded));
     }
 
