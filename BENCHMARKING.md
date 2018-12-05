@@ -9,7 +9,7 @@ It's best to run the benchmarks inside one of the Docker containers. To run the 
 ```bash
 $ git checkout benchmarking \
   && docker-compose up -d \
-  && docker-compose run 7.2 bash
+  && docker-compose run --rm 7.2 bash
 ```
 
 Once inside the container, install the ddtrace extension and then update the Composer dependencies to make sure PhpBench is installed.
