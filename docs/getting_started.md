@@ -99,7 +99,7 @@ To enable Laravel integration we need to configure a new Provider in `config/app
 ```php
     'providers' => [
 # .....
-      'DDTrace\Integrations\Laravel\V5\LaravelProvider',
+      \DDTrace\Integrations\Laravel\V5\LaravelProvider::class,
 ```
 
 Copy the package config to your local config with the publish command:
