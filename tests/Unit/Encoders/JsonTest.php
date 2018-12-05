@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Unit\Encoders;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use PHPUnit\Framework;
@@ -62,5 +63,36 @@ JSON;
         $jsonEncoder = new Json($logger->reveal());
         $encodedTrace = $jsonEncoder->encodeTraces([[$span, $span]]);
         $this->assertEquals($expectedPayload, $encodedTrace);
+    }
+
+    public function testEncodeNoPrioritySampling()
+    {
+        $context = new SpanContext('tid', 'sid');
+        $span = new Span(
+            'test_name',
+            $context,
+            'test_service',
+            'test_resource',
+            1518038421211969
+        );
+
+        $jsonEncoder = new Json();
+        $this->assertNotContains('_sampling_priority_v1', $jsonEncoder->encodeTraces([[$span]]));
+    }
+
+    public function testEncodeWithPrioritySampling()
+    {
+        $context = new SpanContext('tid', 'sid');
+        $span = new Span(
+            'test_name',
+            $context,
+            'test_service',
+            'test_resource',
+            1518038421211969
+        );
+        $span->setPrioritySampling(PrioritySampling::USER_KEEP);
+
+        $jsonEncoder = new Json();
+        $this->assertContains('"_sampling_priority_v1":2', $jsonEncoder->encodeTraces([[$span]]));
     }
 }

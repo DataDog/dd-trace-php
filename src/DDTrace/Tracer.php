@@ -71,6 +71,8 @@ final class Tracer implements OpenTracingTracer
      */
     private $globalConfig;
 
+    private $prioritySampling;
+
     /**
      * @param Transport $transport
      * @param Propagator[] $propagators
@@ -314,11 +316,15 @@ final class Tracer implements OpenTracingTracer
             return;
         }
 
-        $propagated = $span->getContext()->getPropagatedPrioritySampling();
-        $parsed = PrioritySampling::parse($propagated);
-        if ($parsed === PrioritySampling::UNKNOWN) {
-            // Priority sampling was not propagated, let's determine the proper value.
-            $span->setPrioritySampling($this->sampler->getPrioritySampling($span));
-        }
+        $this->prioritySampling = $span->getContext()->getPropagatedPrioritySampling()
+            ?: $this->sampler->getPrioritySampling($span);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getPrioritySampling()
+    {
+        return $this->prioritySampling;
     }
 }

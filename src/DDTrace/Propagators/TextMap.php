@@ -4,7 +4,9 @@ namespace DDTrace\Propagators;
 
 use DDTrace\Configuration;
 use DDTrace\Propagator;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
+use DDTrace\Tracer;
 
 final class TextMap implements Propagator
 {
@@ -13,9 +15,18 @@ final class TextMap implements Propagator
      */
     private $globalConfig;
 
-    public function __construct()
+    /**
+     * @var Tracer
+     */
+    private $tracer;
+
+    /**
+     * @param Tracer $tracer
+     */
+    public function __construct(Tracer $tracer)
     {
         $this->globalConfig = Configuration::get();
+        $this->tracer = $tracer;
     }
 
     /**
@@ -28,6 +39,11 @@ final class TextMap implements Propagator
 
         foreach ($spanContext as $key => $value) {
             $carrier[Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX . $key] = $value;
+        }
+
+        $prioritySampling = $this->tracer->getPrioritySampling();
+        if (PrioritySampling::UNKNOWN !== $prioritySampling) {
+            $carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER] = $prioritySampling;
         }
     }
 

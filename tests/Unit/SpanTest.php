@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Unit;
 
 use DDTrace\Exceptions\InvalidSpanArgument;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tags;
@@ -178,6 +179,14 @@ final class SpanTest extends Framework\TestCase
         $this->expectExceptionMessage('Invalid key type in given span tags. Expected string, got integer.');
         $span = $this->createSpan();
         $span->setTag(1, self::TAG_VALUE);
+    }
+
+    public function testCanStorePrioritySampling()
+    {
+        $span = $this->createSpan();
+        $this->assertNotSame(PrioritySampling::AUTO_KEEP, $span->getPrioritySampling());
+        $span->setPrioritySampling(PrioritySampling::AUTO_KEEP);
+        $this->assertSame(PrioritySampling::AUTO_KEEP, $span->getPrioritySampling());
     }
 
     private function createSpan()

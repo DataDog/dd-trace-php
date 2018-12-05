@@ -3,7 +3,9 @@
 namespace DDTrace\Propagators;
 
 use DDTrace\Propagator;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
+use DDTrace\Tracer;
 
 /**
  * A propagator that inject distributed tracing context in curl like indexed headers arrays:
@@ -11,6 +13,19 @@ use DDTrace\SpanContext;
  */
 final class CurlHeadersMap implements Propagator
 {
+    /**
+     * @var Tracer
+     */
+    private $tracer;
+
+    /**
+     * @param Tracer $tracer
+     */
+    public function __construct(Tracer $tracer)
+    {
+        $this->tracer = $tracer;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -37,6 +52,11 @@ final class CurlHeadersMap implements Propagator
 
         foreach ($spanContext as $key => $value) {
             $carrier[] = Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX . $key . ': ' . $value;
+        }
+
+        $prioritySampling = $this->tracer->getPrioritySampling();
+        if (PrioritySampling::UNKNOWN !== $prioritySampling) {
+            $carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER] = $prioritySampling;
         }
     }
 
