@@ -48,6 +48,6 @@ class Configuration extends AbstractConfiguration
      */
     public function isIntegrationEnabled($name)
     {
-        return !$this->inArray('integrations.disabled', $name);
+        return $this->isEnabled() && !$this->inArray('integrations.disabled', $name);
     }
 }

@@ -55,7 +55,7 @@ class EnvVariableRegistry implements Registry
             }
         }
 
-        return array_key_exists(strtolower($name), $this->registry[$key]);
+        return in_array(strtolower($name), $this->registry[$key]);
     }
 
     /**
