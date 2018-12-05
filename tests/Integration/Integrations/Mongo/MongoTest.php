@@ -6,7 +6,7 @@ use MongoId;
 use MongoCode;
 use MongoClient;
 use MongoCollection;
-use DDTrace\Integrations\Mongo\MongoIntegration;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 
@@ -24,7 +24,7 @@ final class MongoTest extends IntegrationTestCase
             self::markTestSkipped('The mongo extension is required to run the MongoDB tests.');
         }
         parent::setUpBeforeClass();
-        MongoIntegration::load();
+        IntegrationsLoader::load();
     }
 
     protected function tearDown()

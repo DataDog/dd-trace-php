@@ -9,6 +9,8 @@ use DDTrace\Integrations\Integration;
 
 final class MongoIntegration
 {
+    const NAME = 'mongo';
+
     public static function load()
     {
         if (!extension_loaded('mongo')) {
