@@ -293,6 +293,8 @@ final class Tracer implements OpenTracingTracer
     }
 
     /**
+     * Handles the priority sampling for the current span.
+     *
      * @param Span $span
      */
     private function handlePrioritySampling(Span $span)

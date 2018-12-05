@@ -3,6 +3,7 @@
 namespace DDTrace\Encoders;
 
 use DDTrace\Encoder;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -105,6 +106,10 @@ final class Json implements Encoder
 
         if (!empty($span->getAllTags())) {
             $arraySpan['meta'] = $span->getAllTags();
+        }
+
+        if ($prioritySampling = $span->getPrioritySampling() !== PrioritySampling::UNKNOWN) {
+            $arraySpan['metrics']['_sampling_priority_v1'] = $prioritySampling;
         }
 
         return $arraySpan;

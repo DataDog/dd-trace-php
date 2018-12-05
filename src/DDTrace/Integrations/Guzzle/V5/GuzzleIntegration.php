@@ -59,10 +59,5 @@ class GuzzleIntegration extends Integration
         $tracer = GlobalTracer::get();
         $tracer->inject($context, Formats\HTTP_HEADERS, $headers);
         $request->setHeaders($headers);
-
-        $context = $span->getContext();
-        $tracer = GlobalTracer::get();
-        $tracer->inject($context, Formats\HTTP_HEADERS, $headers);
-        $request->addHeaders(Formats\$headers);
     }
 }

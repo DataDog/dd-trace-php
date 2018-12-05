@@ -2,7 +2,10 @@
 
 namespace DDTrace\Transport;
 
+use DDTrace\Configuration;
 use DDTrace\Encoder;
+use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Span;
 use DDTrace\Transport;
 use DDTrace\Version;
 use Psr\Log\LoggerInterface;
@@ -19,6 +22,7 @@ final class Http implements Transport
     const DEFAULT_AGENT_HOST = 'localhost';
     const DEFAULT_TRACE_AGENT_PORT = '8126';
     const DEFAULT_TRACE_AGENT_PATH = '/v0.3/traces';
+    const PRIORITY_SAMPLING_TRACE_AGENT_PATH = '/v0.4/traces';
 
     /**
      * @var Encoder
@@ -62,11 +66,12 @@ final class Http implements Transport
     {
         $host = getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
         $port = getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
-        $path = self::DEFAULT_TRACE_AGENT_PATH;
-        $endpoint = "http://${host}:${port}${path}";
+        $defaultEndpoint = "http://${host}:${port}" . self::DEFAULT_TRACE_AGENT_PATH;
+        $prioritySamlpingEndpoint = "http://${host}:${port}" . self::PRIORITY_SAMPLING_TRACE_AGENT_PATH;
 
         $this->config = array_merge([
-            'endpoint' => $endpoint,
+            'endpoint' => $defaultEndpoint,
+            'endpoint_priority_sampling' => $prioritySamlpingEndpoint,
         ], $config);
     }
 
@@ -74,7 +79,11 @@ final class Http implements Transport
     {
         $tracesPayload = $this->encoder->encodeTraces($traces);
 
-        $this->sendRequest($this->config['endpoint'], $this->headers, $tracesPayload);
+        $endpoint = $this->isPrioritySamplingEndpoint($traces)
+            ? $this->config['endpoint_priority_sampling']
+            : $this->config['endpoint'];
+
+        $this->sendRequest($endpoint, $this->headers, $tracesPayload);
     }
 
     public function setHeader($key, $value)
@@ -127,5 +136,31 @@ final class Http implements Transport
             );
             return;
         }
+    }
+
+    /**
+     * Returns whether or not we should send these traces to the priority sampling aware trace agent endpoint.
+     * This approach could be optimized in the future if we refactor how traces are organized in parent/child relations
+     * but this would be out of scope at the moment.
+     *
+     * @param array $traces
+     * @return bool
+     */
+    private function isPrioritySamplingEndpoint(array $traces)
+    {
+        if (!Configuration::instance()->isPrioritySamplingEnabled()) {
+            return false;
+        }
+
+        foreach ($traces as $traceSpans) {
+            /** @var Span $span */
+            foreach ($traceSpans as $span) {
+                if ($span->getPrioritySampling() !== PrioritySampling::UNKNOWN) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
