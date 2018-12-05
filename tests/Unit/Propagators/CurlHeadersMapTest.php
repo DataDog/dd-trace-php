@@ -4,6 +4,9 @@ namespace DDTrace\Tests\Unit\Propagators;
 
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\SpanContext;
+use DDTrace\Tests\DebugTransport;
+use DDTrace\Tracer;
+use OpenTracing\GlobalTracer;
 use PHPUnit\Framework;
 
 final class CurlHeadersMapTest extends Framework\TestCase
@@ -13,6 +16,18 @@ final class CurlHeadersMapTest extends Framework\TestCase
     const TRACE_ID = '1c42b4de015cc315';
     const SPAN_ID = '1c42b4de015cc316';
 
+    /**
+     * @var Tracer
+     */
+    private $tracer;
+
+    protected function setUp()
+    {
+        parent::setUp();
+        $this->tracer = new Tracer(new DebugTransport());
+        GlobalTracer::set($this->tracer);
+    }
+
     public function testInjectSpanContextIntoCarrier()
     {
 
@@ -21,7 +36,7 @@ final class CurlHeadersMapTest extends Framework\TestCase
 
         $carrier = [];
 
-        (new CurlHeadersMap())->inject($context, $carrier);
+        (new CurlHeadersMap($this->tracer))->inject($context, $carrier);
 
         $this->assertEquals([
             'x-datadog-trace-id: ' . $rootContext->getTraceId(),
@@ -40,7 +55,7 @@ final class CurlHeadersMapTest extends Framework\TestCase
             'existing: headers',
         ];
 
-        (new CurlHeadersMap())->inject($context, $carrier);
+        (new CurlHeadersMap($this->tracer))->inject($context, $carrier);
 
         $this->assertEquals([
             'existing: headers',
@@ -63,7 +78,7 @@ final class CurlHeadersMapTest extends Framework\TestCase
             'ot-baggage-' . self::BAGGAGE_ITEM_KEY . ': baggage',
         ];
 
-        (new CurlHeadersMap())->inject($context, $carrier);
+        (new CurlHeadersMap($this->tracer))->inject($context, $carrier);
 
         $this->assertEquals([
             'existing: headers',

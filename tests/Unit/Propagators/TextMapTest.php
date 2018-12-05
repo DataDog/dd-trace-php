@@ -2,8 +2,12 @@
 
 namespace DDTrace\Tests\Unit\Propagators;
 
+use DDTrace\Encoders\Json;
 use DDTrace\Propagators\TextMap;
 use DDTrace\SpanContext;
+use DDTrace\Tests\DebugTransport;
+use DDTrace\Tracer;
+use OpenTracing\GlobalTracer;
 use PHPUnit\Framework;
 
 final class TextMapTest extends Framework\TestCase
@@ -13,11 +17,23 @@ final class TextMapTest extends Framework\TestCase
     const TRACE_ID = '1c42b4de015cc315';
     const SPAN_ID = '1c42b4de015cc316';
 
+    /**
+     * @var Tracer
+     */
+    private $tracer;
+
+    protected function setUp()
+    {
+        parent::setUp();
+        $this->tracer = new Tracer(new DebugTransport());
+        GlobalTracer::set($this->tracer);
+    }
+
     public function testInjectSpanContextIntoCarrier()
     {
         $context = SpanContext::createAsRoot([self::BAGGAGE_ITEM_KEY => self::BAGGAGE_ITEM_VALUE]);
         $carrier = [];
-        $textMapPropagator = new TextMap();
+        $textMapPropagator = new TextMap($this->tracer);
         $textMapPropagator->inject($context, $carrier);
         $this->assertEquals([
             'x-datadog-trace-id' => $context->getTraceId(),
@@ -32,7 +48,7 @@ final class TextMapTest extends Framework\TestCase
             'x-datadog-parent-id' => self::SPAN_ID,
             'ot-baggage-' . self::BAGGAGE_ITEM_KEY => self::BAGGAGE_ITEM_VALUE,
         ];
-        $textMapPropagator = new TextMap();
+        $textMapPropagator = new TextMap($this->tracer);
         $context = $textMapPropagator->extract($carrier);
         $this->assertNull($context);
     }
@@ -43,7 +59,7 @@ final class TextMapTest extends Framework\TestCase
             'x-datadog-trace-id' => self::TRACE_ID,
             'ot-baggage-' . self::BAGGAGE_ITEM_KEY => self::BAGGAGE_ITEM_VALUE,
         ];
-        $textMapPropagator = new TextMap();
+        $textMapPropagator = new TextMap($this->tracer);
         $context = $textMapPropagator->extract($carrier);
         $this->assertNull($context);
     }
@@ -55,7 +71,7 @@ final class TextMapTest extends Framework\TestCase
             'x-datadog-parent-id' => self::SPAN_ID,
             'ot-baggage-' . self::BAGGAGE_ITEM_KEY => self::BAGGAGE_ITEM_VALUE,
         ];
-        $textMapPropagator = new TextMap();
+        $textMapPropagator = new TextMap($this->tracer);
         $context = $textMapPropagator->extract($carrier);
         $this->assertTrue(
             $context->isEqual(new SpanContext(
@@ -74,7 +90,7 @@ final class TextMapTest extends Framework\TestCase
             'x-datadog-parent-id' => self::SPAN_ID,
             'x-datadog-sampling-priority' => 2,
         ];
-        $textMapPropagator = new TextMap();
+        $textMapPropagator = new TextMap($this->tracer);
         $context = $textMapPropagator->extract($carrier);
         $this->assertSame(2, $context->getPropagatedPrioritySampling());
     }
@@ -85,7 +101,7 @@ final class TextMapTest extends Framework\TestCase
             'x-datadog-trace-id' => self::TRACE_ID,
             'x-datadog-parent-id' => self::SPAN_ID,
         ];
-        $textMapPropagator = new TextMap();
+        $textMapPropagator = new TextMap($this->tracer);
         $context = $textMapPropagator->extract($carrier);
         $this->assertSame(null, $context->getPropagatedPrioritySampling());
     }

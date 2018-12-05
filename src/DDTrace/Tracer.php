@@ -81,11 +81,11 @@ final class Tracer implements OpenTracingTracer
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
         $this->transport = $transport ?: new Http(new Json());
-        $textMapPropagator = new TextMap();
+        $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
             Formats\TEXT_MAP => $textMapPropagator,
             Formats\HTTP_HEADERS => $textMapPropagator,
-            Formats\CURL_HTTP_HEADERS => new CurlHeadersMap(),
+            Formats\CURL_HTTP_HEADERS => new CurlHeadersMap($this),
         ];
         $this->scopeManager = new ScopeManager();
         $this->config = array_merge($this->config, $config);
@@ -318,6 +318,14 @@ final class Tracer implements OpenTracingTracer
 
         $this->prioritySampling = $span->getContext()->getPropagatedPrioritySampling()
             ?: $this->sampler->getPrioritySampling($span);
+    }
+
+    /**
+     * @param mixed $prioritySampling
+     */
+    public function setPrioritySampling($prioritySampling)
+    {
+        $this->prioritySampling = $prioritySampling;
     }
 
     /**

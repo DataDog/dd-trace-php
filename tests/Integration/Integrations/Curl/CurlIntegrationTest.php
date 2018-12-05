@@ -5,8 +5,10 @@ namespace DDTrace\Tests\Integration\Integrations\Curl;
 use DDTrace\Configuration;
 use DDTrace\Formats;
 use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
+use DDTrace\Tracer;
 use DDTrace\Util\ArrayKVStore;
 use OpenTracing\GlobalTracer;
 
@@ -158,8 +160,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $found = [];
 
         $traces = $this->isolateTracer(function () use (&$found) {
-
+            /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
+            $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
             $span = $tracer->startActiveSpan('some_operation')->getSpan();
 
             $ch = curl_init(self::URL . '/headers');
@@ -176,6 +179,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertSame($traces[0][0]->getContext()->getSpanId(), $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec
         $this->assertSame($traces[0][1]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
+        $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
         $this->assertSame('preserved_value', $found['headers']['Honored']);
     }
@@ -184,12 +188,14 @@ final class CurlIntegrationTest extends IntegrationTestCase
     {
         $found = [];
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isDistributedTracingEnabled' => false
+            'isDistributedTracingEnabled' => false,
+            'isPrioritySamplingEnabled' => false,
         ]));
 
         $this->isolateTracer(function () use (&$found) {
-
+            /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
+            $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
             $span = $tracer->startActiveSpan('some_operation')->getSpan();
 
             $ch = curl_init(self::URL . '/headers');
@@ -201,5 +207,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertArrayNotHasKey('X-Datadog-Trace-Id', $found['headers']);
         $this->assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
+        $this->assertArrayNotHasKey('X-Datadog-Sampling-Priority', $found['headers']);
     }
 }

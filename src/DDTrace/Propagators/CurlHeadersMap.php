@@ -2,6 +2,7 @@
 
 namespace DDTrace\Propagators;
 
+use DDTrace\Configuration;
 use DDTrace\Propagator;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
@@ -44,6 +45,10 @@ final class CurlHeadersMap implements Propagator
                     === Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX
             ) {
                 unset($carrier[$index]);
+            } elseif (substr($value, 0, strlen(Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER))
+                === Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER
+            ) {
+                unset($carrier[$index]);
             }
         }
 
@@ -56,7 +61,7 @@ final class CurlHeadersMap implements Propagator
 
         $prioritySampling = $this->tracer->getPrioritySampling();
         if (PrioritySampling::UNKNOWN !== $prioritySampling) {
-            $carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER] = $prioritySampling;
+            $carrier[] = Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER . ': ' . $prioritySampling;
         }
     }
 

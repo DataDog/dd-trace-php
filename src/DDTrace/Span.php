@@ -375,20 +375,4 @@ final class Span implements SpanInterface
     {
         return $this->context->getBaggageItem($key);
     }
-
-    /**
-     * @return int
-     */
-    public function getPrioritySampling()
-    {
-        return $this->prioritySampling;
-    }
-
-    /**
-     * @param int $prioritySampling
-     */
-    public function setPrioritySampling($prioritySampling)
-    {
-        $this->prioritySampling = $prioritySampling;
-    }
 }

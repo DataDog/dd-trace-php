@@ -181,14 +181,6 @@ final class SpanTest extends Framework\TestCase
         $span->setTag(1, self::TAG_VALUE);
     }
 
-    public function testCanStorePrioritySampling()
-    {
-        $span = $this->createSpan();
-        $this->assertNotSame(PrioritySampling::AUTO_KEEP, $span->getPrioritySampling());
-        $span->setPrioritySampling(PrioritySampling::AUTO_KEEP);
-        $this->assertSame(PrioritySampling::AUTO_KEEP, $span->getPrioritySampling());
-    }
-
     private function createSpan()
     {
         $context = SpanContext::createAsRoot();

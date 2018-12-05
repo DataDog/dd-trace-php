@@ -6,12 +6,27 @@ use DDTrace\Encoders\Json;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\SpanContext;
+use DDTrace\Tests\DebugTransport;
+use DDTrace\Tracer;
+use OpenTracing\GlobalTracer;
 use PHPUnit\Framework;
 use Prophecy\Argument;
 use Psr\Log\LoggerInterface;
 
 final class JsonTest extends Framework\TestCase
 {
+    /**
+     * @var Tracer
+     */
+    private $tracer;
+
+    protected function setUp()
+    {
+        parent::setUp();
+        $this->tracer = new Tracer(new DebugTransport());
+        GlobalTracer::set($this->tracer);
+    }
+
     public function testEncodeTracesSuccess()
     {
         $expectedPayload = <<<JSON
@@ -90,7 +105,7 @@ JSON;
             'test_resource',
             1518038421211969
         );
-        $span->setPrioritySampling(PrioritySampling::USER_KEEP);
+        $this->tracer->setPrioritySampling(PrioritySampling::USER_KEEP);
 
         $jsonEncoder = new Json();
         $this->assertContains('"_sampling_priority_v1":2', $jsonEncoder->encodeTraces([[$span]]));

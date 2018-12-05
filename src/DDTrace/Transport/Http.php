@@ -6,8 +6,10 @@ use DDTrace\Configuration;
 use DDTrace\Encoder;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
+use DDTrace\Tracer;
 use DDTrace\Transport;
 use DDTrace\Version;
+use OpenTracing\GlobalTracer;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -66,12 +68,9 @@ final class Http implements Transport
     {
         $host = getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
         $port = getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
-        $defaultEndpoint = "http://${host}:${port}" . self::DEFAULT_TRACE_AGENT_PATH;
-        $prioritySamlpingEndpoint = "http://${host}:${port}" . self::PRIORITY_SAMPLING_TRACE_AGENT_PATH;
 
         $this->config = array_merge([
-            'endpoint' => $defaultEndpoint,
-            'endpoint_priority_sampling' => $prioritySamlpingEndpoint,
+            'base_url' => "http://${host}:${port}",
         ], $config);
     }
 
@@ -79,11 +78,11 @@ final class Http implements Transport
     {
         $tracesPayload = $this->encoder->encodeTraces($traces);
 
-        $endpoint = $this->isPrioritySamplingEndpoint($traces)
-            ? $this->config['endpoint_priority_sampling']
-            : $this->config['endpoint'];
+        $path = $this->isPrioritySamplingUsed()
+            ? self::PRIORITY_SAMPLING_TRACE_AGENT_PATH
+            : self::DEFAULT_TRACE_AGENT_PATH;
 
-        $this->sendRequest($endpoint, $this->headers, $tracesPayload);
+        $this->sendRequest($this->config['base_url'] . $path, $this->headers, $tracesPayload);
     }
 
     public function setHeader($key, $value)
@@ -143,24 +142,13 @@ final class Http implements Transport
      * This approach could be optimized in the future if we refactor how traces are organized in parent/child relations
      * but this would be out of scope at the moment.
      *
-     * @param array $traces
      * @return bool
      */
-    private function isPrioritySamplingEndpoint(array $traces)
+    private function isPrioritySamplingUsed()
     {
-        if (!Configuration::get()->isPrioritySamplingEnabled()) {
-            return false;
-        }
-
-        foreach ($traces as $traceSpans) {
-            /** @var Span $span */
-            foreach ($traceSpans as $span) {
-                if ($span->getPrioritySampling() !== PrioritySampling::UNKNOWN) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        /** @var Tracer $tracer */
+        $tracer = GlobalTracer::get();
+        return Configuration::get()->isPrioritySamplingEnabled()
+            && $tracer->getPrioritySampling() !== PrioritySampling::UNKNOWN;
     }
 }

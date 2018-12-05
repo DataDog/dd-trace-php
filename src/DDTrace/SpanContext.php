@@ -34,7 +34,9 @@ final class SpanContext implements OpenTracingSpanContext
     private $baggageItems;
 
     /**
-     * Whether or not this context represent
+     * Whether or not this SpanContext represent a distributed tracing remote context.
+     * When the Tracer::extract() extracts a span context because of distributed tracing then this property is true,
+     * otherwise is false.
      *
      * @var bool
      */
