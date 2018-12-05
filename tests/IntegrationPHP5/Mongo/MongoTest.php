@@ -20,9 +20,6 @@ final class MongoTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
-        if (!extension_loaded('mongo')) {
-            self::markTestSkipped('The mongo extension is required to run the MongoDB tests.');
-        }
         parent::setUpBeforeClass();
         IntegrationsLoader::load();
     }
