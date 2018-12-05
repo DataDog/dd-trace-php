@@ -22,14 +22,11 @@ use OpenTracing\GlobalTracer;
  */
 class MemcachedIntegration
 {
+    const NAME = 'memcached';
+
     public static function load()
     {
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('The ddtrace extension is required to instrument Memcached', E_USER_WARNING);
-            return;
-        }
         if (!class_exists('Memcached')) {
-            trigger_error('Memcached is not loaded and cannot be instrumented', E_USER_WARNING);
             return;
         }
 

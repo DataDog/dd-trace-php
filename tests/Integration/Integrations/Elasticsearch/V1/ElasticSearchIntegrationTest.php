@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Integration\Integrations\Curl;
 
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
 use Elasticsearch\Client;
@@ -19,7 +20,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
-        ElasticSearchIntegration::load();
+        IntegrationsLoader::load();
     }
 
     public function testNamespaceMethodNotExistsDoesNotCrashApps()

@@ -2,12 +2,9 @@
 
 namespace DDTrace\Integrations\Symfony\V4;
 
+use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
-use DDTrace\Integrations\Curl\CurlIntegration;
-use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
-use DDTrace\Integrations\Memcached\MemcachedIntegration;
-use DDTrace\Integrations\PDO\PDOIntegration;
-use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
@@ -31,9 +28,15 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
  */
 class SymfonyBundle extends Bundle
 {
+    const NAME = 'symfony';
+
     public function boot()
     {
         parent::boot();
+
+        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+            return;
+        }
 
         if (!extension_loaded('ddtrace')) {
             trigger_error('ddtrace extension required to load Symfony integration.', E_USER_WARNING);
@@ -120,16 +123,8 @@ class SymfonyBundle extends Bundle
             }
         );
 
-        // Enable extension integrations
-        CurlIntegration::load();
-        ElasticSearchIntegration::load();
-        PDOIntegration::load();
-        if (class_exists('Memcached')) {
-            MemcachedIntegration::load();
-        }
-        if (class_exists('Predis\Client')) {
-            PredisIntegration::load();
-        }
+        // Enable other integrations
+        IntegrationsLoader::load();
 
         // Flushes traces to agent.
         register_shutdown_function(function () use ($scope) {

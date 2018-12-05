@@ -12,15 +12,11 @@ use OpenTracing\GlobalTracer;
  */
 class ElasticSearchIntegration
 {
+    const NAME = 'elasticsearch';
     const DEFAULT_SERVICE_NAME = 'elasticsearch';
 
     public static function load()
     {
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('The ddtrace extension is required to instrument ElasticSearch', E_USER_WARNING);
-            return;
-        }
-
         if (!class_exists('Elasticsearch\Client')) {
             return;
         }

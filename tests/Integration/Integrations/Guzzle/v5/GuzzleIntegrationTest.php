@@ -3,12 +3,11 @@
 namespace DDTrace\Tests\Integration\Integrations\Guzzle\V5;
 
 use DDTrace\Configuration;
-use DDTrace\Integrations\Curl\CurlIntegration;
+use DDTrace\Integrations\IntegrationsLoader;
 use GuzzleHttp\Client;
 use GuzzleHttp\Message\Request;
 use GuzzleHttp\Ring\Client\MockHandler;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
-use DDTrace\Integrations\Guzzle\V5\GuzzleIntegration;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use OpenTracing\GlobalTracer;
 
@@ -21,8 +20,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
-        GuzzleIntegration::load();
-        CurlIntegration::load();
+        IntegrationsLoader::load();
     }
 
     protected function setUp()

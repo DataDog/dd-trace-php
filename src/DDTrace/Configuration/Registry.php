@@ -15,4 +15,14 @@ interface Registry
      * @return bool
      */
     public function boolValue($key, $default);
+
+
+    /**
+     * Returns whether or not a given case-insensitive name is contained in a configuration property.
+     *
+     * @param string $key
+     * @param string $name
+     * @return bool
+     */
+    public function inArray($key, $name);
 }

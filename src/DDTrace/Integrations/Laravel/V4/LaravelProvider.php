@@ -3,14 +3,9 @@
 namespace DDTrace\Integrations\Laravel\V4;
 
 use DDTrace;
+use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
-use DDTrace\Integrations\Curl\CurlIntegration;
-use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
-use DDTrace\Integrations\Eloquent\EloquentIntegration;
-use DDTrace\Integrations\Guzzle\V5\GuzzleIntegration;
-use DDTrace\Integrations\Memcached\MemcachedIntegration;
-use DDTrace\Integrations\PDO\PDOIntegration;
-use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tags;
 use DDTrace\Tracer;
@@ -36,9 +31,15 @@ use OpenTracing\GlobalTracer;
  */
 class LaravelProvider extends ServiceProvider
 {
+    const NAME = 'laravel';
+
     /** @inheritdoc */
     public function register()
     {
+        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+            return;
+        }
+
         if (!extension_loaded('ddtrace')) {
             trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
             return;
@@ -60,6 +61,10 @@ class LaravelProvider extends ServiceProvider
     /** @inheritdoc */
     public function boot()
     {
+        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+            return;
+        }
+
         $tracer = GlobalTracer::get();
 
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
@@ -89,20 +94,8 @@ class LaravelProvider extends ServiceProvider
             $span->setTag(Tags\HTTP_URL, $request->url());
         });
 
-        // Enable extension integrations
-        CurlIntegration::load();
-        EloquentIntegration::load();
-        if (class_exists('Memcached')) {
-            MemcachedIntegration::load();
-        }
-        GuzzleIntegration::load();
-
-        PDOIntegration::load();
-        ElasticSearchIntegration::load();
-
-        if (class_exists('Predis\Client')) {
-            PredisIntegration::load();
-        }
+        // Enable other integrations
+        IntegrationsLoader::load();
 
         // Flushes traces to agent.
         register_shutdown_function(function () use ($scope) {
