@@ -68,9 +68,12 @@ final class Http implements Transport
     {
         $host = getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
         $port = getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
+        $defaultEndpoint = "http://${host}:${port}" . self::DEFAULT_TRACE_AGENT_PATH;
+        $prioritySamlpingEndpoint = "http://${host}:${port}" . self::PRIORITY_SAMPLING_TRACE_AGENT_PATH;
 
         $this->config = array_merge([
-            'base_url' => "http://${host}:${port}",
+            'endpoint' => $defaultEndpoint,
+            'endpoint_priority_sampling' => $prioritySamlpingEndpoint,
         ], $config);
     }
 
@@ -78,11 +81,11 @@ final class Http implements Transport
     {
         $tracesPayload = $this->encoder->encodeTraces($traces);
 
-        $path = $this->isPrioritySamplingUsed()
-            ? self::PRIORITY_SAMPLING_TRACE_AGENT_PATH
-            : self::DEFAULT_TRACE_AGENT_PATH;
+        $endpoint = $this->isPrioritySamplingUsed()
+            ? $this->config['endpoint_priority_sampling']
+            : $this->config['endpoint'];
 
-        $this->sendRequest($this->config['base_url'] . $path, $this->headers, $tracesPayload);
+        $this->sendRequest($endpoint, $this->headers, $tracesPayload);
     }
 
     public function setHeader($key, $value)

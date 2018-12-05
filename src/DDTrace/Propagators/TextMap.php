@@ -103,9 +103,9 @@ final class TextMap implements Propagator
      */
     private function extractPrioritySampling(SpanContext $spanContext, $carrier)
     {
-        $value = isset($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER])
-            ? $carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]
-            : null;
-        $spanContext->setPropagatedPrioritySampling($value);
+        if (isset($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER])) {
+            $rawValue = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]);
+            $spanContext->setPropagatedPrioritySampling(PrioritySampling::parse($rawValue));
+        }
     }
 }

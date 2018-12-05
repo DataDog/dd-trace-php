@@ -88,7 +88,7 @@ final class TextMapTest extends Framework\TestCase
         $carrier = [
             'x-datadog-trace-id' => self::TRACE_ID,
             'x-datadog-parent-id' => self::SPAN_ID,
-            'x-datadog-sampling-priority' => 2,
+            'x-datadog-sampling-priority' => '2',
         ];
         $textMapPropagator = new TextMap($this->tracer);
         $context = $textMapPropagator->extract($carrier);
