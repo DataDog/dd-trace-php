@@ -4,10 +4,10 @@ namespace DDTrace\Integrations\Guzzle\V5;
 
 use DDTrace\Configuration;
 use DDTrace\Tags;
+use DDTrace\Span;
 use DDTrace\Types;
 use const OpenTracing\Formats\HTTP_HEADERS;
 use OpenTracing\GlobalTracer;
-use OpenTracing\Span;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
 use GuzzleHttp\Message\ResponseInterface;

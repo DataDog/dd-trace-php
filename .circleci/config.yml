@@ -40,6 +40,13 @@ aliases:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
+  - &IMAGE_DOCKER_MONGODB
+    image: circleci/mongo:4.0
+    name: mongodb_integration
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=test
+      - MONGO_INITDB_ROOT_PASSWORD=test
+
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
       at: ~/datadog
@@ -100,6 +107,11 @@ aliases:
     run:
       name: Waiting for Dockerized MySQL
       command: dockerize -wait tcp://mysql_integration:3306 -timeout 1m
+
+  - &STEP_WAIT_MONGODB
+    run:
+      name: Waiting for Dockerized MongoDB
+      command: dockerize -wait tcp://mongodb_integration:27017 -timeout 1m
 
   - &STEP_RUN_UNIT_TESTS
     run:
@@ -239,6 +251,7 @@ jobs:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_MONGODB
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
@@ -252,6 +265,7 @@ jobs:
       - <<: *STEP_RUN_EXTENSION_TESTS
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
@@ -270,6 +284,7 @@ jobs:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_MONGODB
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
@@ -283,6 +298,7 @@ jobs:
       - <<: *STEP_RUN_EXTENSION_TESTS
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
@@ -301,6 +317,7 @@ jobs:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_MONGODB
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
@@ -314,6 +331,7 @@ jobs:
       - <<: *STEP_RUN_EXTENSION_TESTS
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
@@ -334,6 +352,7 @@ jobs:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_MONGODB
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
@@ -347,6 +366,7 @@ jobs:
       - <<: *STEP_RUN_EXTENSION_TESTS
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
