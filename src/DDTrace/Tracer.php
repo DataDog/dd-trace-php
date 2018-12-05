@@ -3,17 +3,16 @@
 namespace DDTrace;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Formats;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
 use DDTrace\Sampling\AlwaysKeepSampler;
-use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Sampling\Sampler;
 use DDTrace\Tags;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
-use DDTrace\Formats;
 use OpenTracing\Reference;
 use OpenTracing\SpanContext as OpenTracingContext;
 use OpenTracing\StartSpanOptions;
@@ -307,7 +306,7 @@ final class Tracer implements OpenTracingTracer
 
         // This is a temporary guard that will go away once we complete the refactoring to entirely depend only on
         // DDTrace extensions of OpenTracing.
-        if (!is_subclass_of($span, '\DDTrace\Span')) {
+        if (!is_a($span, '\DDTrace\Span')) {
             return;
         }
 
