@@ -40,7 +40,10 @@ class IntegrationsLoader
         }
 
         if (!extension_loaded('ddtrace')) {
-            error_log('Missing ddtrace extension. To disable tracing set env variable DD_TRACE_ENABLED=false');
+            trigger_error(
+                'Missing ddtrace extension. To disable tracing set env variable DD_TRACE_ENABLED=false',
+                E_USER_WARNING
+            );
             return;
         }
 
