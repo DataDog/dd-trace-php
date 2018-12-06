@@ -3,14 +3,30 @@
 namespace DDTrace\Tests\Unit\Encoders;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\SpanContext;
+use DDTrace\Tests\DebugTransport;
+use DDTrace\Tracer;
+use OpenTracing\GlobalTracer;
 use PHPUnit\Framework;
 use Prophecy\Argument;
 use Psr\Log\LoggerInterface;
 
 final class JsonTest extends Framework\TestCase
 {
+    /**
+     * @var Tracer
+     */
+    private $tracer;
+
+    protected function setUp()
+    {
+        parent::setUp();
+        $this->tracer = new Tracer(new DebugTransport());
+        GlobalTracer::set($this->tracer);
+    }
+
     public function testEncodeTracesSuccess()
     {
         $expectedPayload = <<<JSON
@@ -62,5 +78,36 @@ JSON;
         $jsonEncoder = new Json($logger->reveal());
         $encodedTrace = $jsonEncoder->encodeTraces([[$span, $span]]);
         $this->assertEquals($expectedPayload, $encodedTrace);
+    }
+
+    public function testEncodeNoPrioritySampling()
+    {
+        $context = new SpanContext('tid', 'sid');
+        $span = new Span(
+            'test_name',
+            $context,
+            'test_service',
+            'test_resource',
+            1518038421211969
+        );
+
+        $jsonEncoder = new Json();
+        $this->assertNotContains('_sampling_priority_v1', $jsonEncoder->encodeTraces([[$span]]));
+    }
+
+    public function testEncodeWithPrioritySampling()
+    {
+        $context = new SpanContext('tid', 'sid');
+        $span = new Span(
+            'test_name',
+            $context,
+            'test_service',
+            'test_resource',
+            1518038421211969
+        );
+        $this->tracer->setPrioritySampling(PrioritySampling::USER_KEEP);
+
+        $jsonEncoder = new Json();
+        $this->assertContains('"_sampling_priority_v1":2', $jsonEncoder->encodeTraces([[$span]]));
     }
 }

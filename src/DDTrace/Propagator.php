@@ -11,6 +11,7 @@ interface Propagator
     const DEFAULT_BAGGAGE_HEADER_PREFIX = 'ot-baggage-';
     const DEFAULT_TRACE_ID_HEADER = 'x-datadog-trace-id';
     const DEFAULT_PARENT_ID_HEADER = 'x-datadog-parent-id';
+    const DEFAULT_SAMPLING_PRIORITY_HEADER = 'x-datadog-sampling-priority';
 
     /**
      * Inject takes the SpanContext and injects it into the carrier using

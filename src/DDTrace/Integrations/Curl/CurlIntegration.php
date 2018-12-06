@@ -11,7 +11,6 @@ use DDTrace\Types;
 use DDTrace\Util\ArrayKVStore;
 use OpenTracing\GlobalTracer;
 
-
 /**
  * Integration for curl php client.
  */

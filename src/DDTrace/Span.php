@@ -76,6 +76,11 @@ final class Span implements SpanInterface
     private $hasError = false;
 
     /**
+     * @var int
+     */
+    private $prioritySampling;
+
+    /**
      * Span constructor.
      * @param string $operationName
      * @param SpanContext $context

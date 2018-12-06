@@ -3,7 +3,10 @@
 namespace DDTrace\Encoders;
 
 use DDTrace\Encoder;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
+use DDTrace\Tracer;
+use OpenTracing\GlobalTracer;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -24,9 +27,11 @@ final class Json implements Encoder
      */
     public function encodeTraces(array $traces)
     {
-        return '[' . implode(',', array_map(function ($trace) {
-            return '[' . implode(',', array_filter(array_map(function ($span) {
-                return $this->encodeSpan($span);
+        /** @var Tracer $tracer */
+        $tracer = GlobalTracer::get();
+        return '[' . implode(',', array_map(function ($trace) use ($tracer) {
+            return '[' . implode(',', array_filter(array_map(function ($span) use ($tracer) {
+                return $this->encodeSpan($span, $tracer);
             }, $trace))) . ']';
         }, $traces))  . ']';
     }
@@ -41,11 +46,12 @@ final class Json implements Encoder
 
     /**
      * @param Span $span
+     * @param Tracer $tracer
      * @return string
      */
-    private function encodeSpan(Span $span)
+    private function encodeSpan(Span $span, Tracer $tracer)
     {
-        $json = json_encode($this->spanToArray($span));
+        $json = json_encode($this->spanToArray($span, $tracer));
         if (false === $json) {
             $this->logger->debug("Failed to json-encode span: " . json_last_error_msg());
             return "";
@@ -77,9 +83,10 @@ final class Json implements Encoder
 
     /**
      * @param Span $span
+     * @param Tracer $tracer
      * @return array
      */
-    private function spanToArray(Span $span)
+    private function spanToArray(Span $span, Tracer $tracer)
     {
         $arraySpan = [
             'trace_id_hex' => '-',
@@ -105,6 +112,11 @@ final class Json implements Encoder
 
         if (!empty($span->getAllTags())) {
             $arraySpan['meta'] = $span->getAllTags();
+        }
+
+        if ($span->getContext()->isHostRoot()
+                && ($prioritySampling = $tracer->getPrioritySampling()) !== PrioritySampling::UNKNOWN) {
+            $arraySpan['metrics']['_sampling_priority_v1'] = $prioritySampling;
         }
 
         return $arraySpan;

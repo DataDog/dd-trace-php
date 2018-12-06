@@ -2,9 +2,14 @@
 
 namespace DDTrace\Transport;
 
+use DDTrace\Configuration;
 use DDTrace\Encoder;
+use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Span;
+use DDTrace\Tracer;
 use DDTrace\Transport;
 use DDTrace\Version;
+use OpenTracing\GlobalTracer;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -19,6 +24,7 @@ final class Http implements Transport
     const DEFAULT_AGENT_HOST = 'localhost';
     const DEFAULT_TRACE_AGENT_PORT = '8126';
     const DEFAULT_TRACE_AGENT_PATH = '/v0.3/traces';
+    const PRIORITY_SAMPLING_TRACE_AGENT_PATH = '/v0.4/traces';
 
     /**
      * @var Encoder
@@ -74,7 +80,15 @@ final class Http implements Transport
     {
         $tracesPayload = $this->encoder->encodeTraces($traces);
 
-        $this->sendRequest($this->config['endpoint'], $this->headers, $tracesPayload);
+        // We keep the endpoint configuration option for backward compatibility instead of moving to an 'agent base url'
+        // concept, but this should be probably revisited in the future.
+        $endpoint = $this->isPrioritySamplingUsed() ? str_replace(
+            self::DEFAULT_TRACE_AGENT_PATH,
+            self::PRIORITY_SAMPLING_TRACE_AGENT_PATH,
+            $this->config['endpoint']
+        ) : $this->config['endpoint'];
+
+        $this->sendRequest($endpoint, $this->headers, $tracesPayload);
     }
 
     public function setHeader($key, $value)
@@ -127,5 +141,20 @@ final class Http implements Transport
             );
             return;
         }
+    }
+
+    /**
+     * Returns whether or not we should send these traces to the priority sampling aware trace agent endpoint.
+     * This approach could be optimized in the future if we refactor how traces are organized in parent/child relations
+     * but this would be out of scope at the moment.
+     *
+     * @return bool
+     */
+    private function isPrioritySamplingUsed()
+    {
+        /** @var Tracer $tracer */
+        $tracer = GlobalTracer::get();
+        return Configuration::get()->isPrioritySamplingEnabled()
+            && $tracer->getPrioritySampling() !== PrioritySampling::UNKNOWN;
     }
 }

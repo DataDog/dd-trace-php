@@ -12,12 +12,13 @@ trait TracerTestTrait
 {
     /**
      * @param $fn
+     * @param null $tracer
      * @return Span[][]
      */
-    public function isolateTracer($fn)
+    public function isolateTracer($fn, $tracer = null)
     {
         $transport = new DebugTransport();
-        $tracer = new Tracer($transport);
+        $tracer = $tracer ?: new Tracer($transport);
         GlobalTracer::set($tracer);
 
         $fn($tracer);

@@ -33,22 +33,51 @@ final class SpanContext implements OpenTracingSpanContext
 
     private $baggageItems;
 
-    public function __construct($traceId, $spanId, $parentId = null, array $baggageItems = [])
-    {
+    /**
+     * Whether or not this SpanContext represent a distributed tracing remote context.
+     * When the Tracer::extract() extracts a span context because of distributed tracing then this property is true,
+     * otherwise is false.
+     *
+     * @var bool
+     */
+    private $isDistributedTracingActivationContext;
+
+    /**
+     * @var int
+     */
+    private $propagatedPrioritySampling;
+
+    /**
+     * @var SpanContext
+     */
+    private $parentContext;
+
+    public function __construct(
+        $traceId,
+        $spanId,
+        $parentId = null,
+        array $baggageItems = [],
+        $isDistributedTracingActivationContext = false
+    ) {
         $this->traceId = $traceId;
         $this->spanId = $spanId;
         $this->parentId = $parentId;
         $this->baggageItems = $baggageItems;
+        $this->isDistributedTracingActivationContext = $isDistributedTracingActivationContext;
     }
 
     public static function createAsChild(SpanContext $parentContext)
     {
-        return new self(
+        $instance = new self(
             $parentContext->traceId,
             self::nextId(),
             $parentContext->spanId,
-            $parentContext->baggageItems
+            $parentContext->baggageItems,
+            false
         );
+        $instance->parentContext = $parentContext;
+        $instance->setPropagatedPrioritySampling($parentContext->propagatedPrioritySampling);
+        return $instance;
     }
 
     public static function createAsRoot(array $baggageItems = [])
@@ -59,7 +88,8 @@ final class SpanContext implements OpenTracingSpanContext
             $nextId,
             $nextId,
             null,
-            $baggageItems
+            $baggageItems,
+            false
         );
     }
 
@@ -81,6 +111,22 @@ final class SpanContext implements OpenTracingSpanContext
     public function getIterator()
     {
         return new ArrayIterator($this->baggageItems);
+    }
+
+    /**
+     * @return int
+     */
+    public function getPropagatedPrioritySampling()
+    {
+        return $this->propagatedPrioritySampling;
+    }
+
+    /**
+     * @param int $propagatedPrioritySampling
+     */
+    public function setPropagatedPrioritySampling($propagatedPrioritySampling)
+    {
+        $this->propagatedPrioritySampling = $propagatedPrioritySampling;
     }
 
     public function getBaggageItem($key)
@@ -112,5 +158,23 @@ final class SpanContext implements OpenTracingSpanContext
     private static function nextId()
     {
         return bin2hex(random_bytes(8));
+    }
+
+    /**
+     * @return bool
+     */
+    public function isDistributedTracingActivationContext()
+    {
+        return $this->isDistributedTracingActivationContext;
+    }
+
+    /**
+     * Returns whether or not this context represents the root span for a specific host.
+     *
+     * @return bool
+     */
+    public function isHostRoot()
+    {
+        return $this->parentContext === null || $this->parentContext->isDistributedTracingActivationContext();
     }
 }
