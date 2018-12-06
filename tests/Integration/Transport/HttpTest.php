@@ -19,9 +19,12 @@ final class HttpTest extends Framework\TestCase
         return 'http://' . ($_SERVER["DDAGENT_HOSTNAME"] ? $_SERVER["DDAGENT_HOSTNAME"] :  "localhost") . ':8126';
     }
 
-    public function agentTracesUrl()
+    public function agentEndpoints()
     {
-        return $this->agentUrl() . '/v0.3/traces';
+        return [
+            'endpoint' => $this->agentUrl() . '/v0.3/traces',
+            'endpoint_priority_sampling' => $this->agentUrl() . '/v0.4/traces',
+        ];
     }
 
     public function testSpanReportingFailsOnUnavailableAgent()
@@ -34,7 +37,8 @@ final class HttpTest extends Framework\TestCase
             ->shouldBeCalled();
 
         $httpTransport = new Http(new Json(), $logger->reveal(), [
-            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
+            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces',
+            'endpoint_priority_sampling' => 'http://0.0.0.0:8127/v0.4/traces',
         ]);
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
@@ -59,9 +63,7 @@ final class HttpTest extends Framework\TestCase
         $logger = $this->prophesize(LoggerInterface::class);
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
-        $httpTransport = new Http(new Json(), $logger->reveal(), [
-            'endpoint' => $this->agentTracesUrl()
-        ]);
+        $httpTransport = new Http(new Json(), $logger->reveal(), $this->agentEndpoints());
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
 
@@ -94,9 +96,7 @@ final class HttpTest extends Framework\TestCase
         $logger = $this->prophesize(LoggerInterface::class);
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
-        $httpTransport = new Http(new Json(), $logger->reveal(), [
-            'endpoint' => $this->agentTracesUrl()
-        ]);
+        $httpTransport = new Http(new Json(), $logger->reveal(), $this->agentEndpoints());
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
 
@@ -116,9 +116,7 @@ final class HttpTest extends Framework\TestCase
     {
         $replayer = new RequestReplayer();
 
-        $httpTransport = new Http(new Json(), null, [
-            'endpoint' => $replayer->getEndpoint(),
-        ]);
+        $httpTransport = new Http(new Json(), null, $this->agentEndpoints());
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
 
@@ -140,9 +138,7 @@ final class HttpTest extends Framework\TestCase
     {
         $replayer = new RequestReplayer();
 
-        $httpTransport = new Http(new Json(), null, [
-            'endpoint' => $replayer->getEndpoint(),
-        ]);
+        $httpTransport = new Http(new Json(), null, $this->agentEndpoints());
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
 
