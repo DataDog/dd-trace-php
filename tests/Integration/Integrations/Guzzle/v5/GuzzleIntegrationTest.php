@@ -130,7 +130,6 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-
         $this->assertArrayNotHasKey('X-Datadog-Trace-Id', $found['headers']);
         $this->assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
         $this->assertArrayNotHasKey('X-Datadog-Sampling-Priority', $found['headers']);

@@ -4,6 +4,9 @@ namespace DDTrace\Sampling;
 
 use DDTrace\Span;
 
+/**
+ * The simplest sampler, always providing a PrioritySampling::AUTO_KEEP option in any circumstance.
+ */
 class AlwaysKeepSampler implements Sampler
 {
     /**
