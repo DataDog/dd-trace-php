@@ -7,6 +7,7 @@ use DDTrace\Tests\RequestReplayer;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Version;
+use OpenTracing\GlobalTracer;
 use PHPUnit\Framework;
 use Prophecy\Argument;
 use Psr\Log\LoggerInterface;
@@ -36,6 +37,7 @@ final class HttpTest extends Framework\TestCase
             'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
         ]);
         $tracer = new Tracer($httpTransport);
+        GlobalTracer::set($tracer);
 
         $span = $tracer->startSpan('test', [
             'tags' => [
@@ -61,6 +63,7 @@ final class HttpTest extends Framework\TestCase
             'endpoint' => $this->agentTracesUrl()
         ]);
         $tracer = new Tracer($httpTransport);
+        GlobalTracer::set($tracer);
 
         $span = $tracer->startSpan('test', [
             'tags' => [
@@ -95,6 +98,7 @@ final class HttpTest extends Framework\TestCase
             'endpoint' => $this->agentTracesUrl()
         ]);
         $tracer = new Tracer($httpTransport);
+        GlobalTracer::set($tracer);
 
         $span = $tracer->startSpan('test');
         $span->finish();
@@ -116,6 +120,7 @@ final class HttpTest extends Framework\TestCase
             'endpoint' => $replayer->getEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
+        GlobalTracer::set($tracer);
 
         $span = $tracer->startSpan('test');
         $span->finish();
@@ -139,6 +144,7 @@ final class HttpTest extends Framework\TestCase
             'endpoint' => $replayer->getEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
+        GlobalTracer::set($tracer);
 
         $span = $tracer->startSpan('test');
         $span->finish();
