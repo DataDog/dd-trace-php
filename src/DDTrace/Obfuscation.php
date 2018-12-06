@@ -22,4 +22,22 @@ final class Obfuscation
         $obfuscatedKeys = str_repeat(self::REPLACEMENT . $glue, count($keys));
         return rtrim($obfuscatedKeys, $glue);
     }
+
+    /**
+     * Obfuscate secrets from a DSN string
+     *
+     * @param string $dsn
+     * @return string
+     */
+    public static function dsn($dsn)
+    {
+        if (false === strpos($dsn, '@')) {
+            return $dsn;
+        }
+        return preg_replace(
+            '/\/\/.+@/',
+            '//' . self::REPLACEMENT . ':' . self::REPLACEMENT . '@',
+            $dsn
+        );
+    }
 }
