@@ -76,6 +76,7 @@ final class SpanContext implements OpenTracingSpanContext
             false
         );
         $instance->parentContext = $parentContext;
+        $instance->setPropagatedPrioritySampling($parentContext->propagatedPrioritySampling);
         return $instance;
     }
 
