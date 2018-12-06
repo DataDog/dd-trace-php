@@ -68,12 +68,11 @@ final class Http implements Transport
     {
         $host = getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
         $port = getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
-        $defaultEndpoint = "http://${host}:${port}" . self::DEFAULT_TRACE_AGENT_PATH;
-        $prioritySamlpingEndpoint = "http://${host}:${port}" . self::PRIORITY_SAMPLING_TRACE_AGENT_PATH;
+        $path = self::DEFAULT_TRACE_AGENT_PATH;
+        $endpoint = "http://${host}:${port}${path}";
 
         $this->config = array_merge([
-            'endpoint' => $defaultEndpoint,
-            'endpoint_priority_sampling' => $prioritySamlpingEndpoint,
+            'endpoint' => $endpoint,
         ], $config);
     }
 
@@ -81,9 +80,13 @@ final class Http implements Transport
     {
         $tracesPayload = $this->encoder->encodeTraces($traces);
 
-        $endpoint = $this->isPrioritySamplingUsed()
-            ? $this->config['endpoint_priority_sampling']
-            : $this->config['endpoint'];
+        // We keep the endpoint configuration option for backward compatibility instead of moving to an 'agent base url'
+        // concept, but this should be probably revisited in the future.
+        $endpoint = $this->isPrioritySamplingUsed() ? str_replace(
+            self::DEFAULT_TRACE_AGENT_PATH,
+            self::PRIORITY_SAMPLING_TRACE_AGENT_PATH,
+            $this->config['endpoint']
+        ) : $this->config['endpoint'];
 
         $this->sendRequest($endpoint, $this->headers, $tracesPayload);
     }
