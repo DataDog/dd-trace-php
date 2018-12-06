@@ -9,58 +9,94 @@
 
 PHP Tracer
 
-This is Beta software. We do not recommend using it in production yet.
+> **This is Beta software.** We do not recommend using it in production yet.
 
 ## Getting Started
 
-For a basic product overview, check out our [setup documentation](https://docs.datadoghq.com/tracing/setup/php/).
+The Datadog PHP Tracer brings [APM and distributed tracing](https://docs.datadoghq.com/tracing/) to PHP.
 
-For installation, configuration, and and details about using the API, check out our [API documentation](docs/getting_started.md).
+### Prerequisites
 
-For descriptions of terminology used in APM, take a look at the [official documentation](https://docs.datadoghq.com/tracing/visualization/).
+If you haven't already, [sign up for a free Datadog account](https://www.datadoghq.com/) and [download and install the Datadog agent](https://docs.datadoghq.com/tracing/setup/?tab=agent630).
 
-## Installation
+> **Make sure that APM is enabled.** The agent does not have APM enabled by default so make sure [to enable it](https://docs.datadoghq.com/tracing/setup/?tab=agent630#agent-configuration).
 
+### Installation
+
+The PHP tracer is composed of a PHP extension and a Composer package. You'll need to install both in order to start tracing your PHP projects. First we'll install the Composer package.
+
+```bash
+$ composer require datadog/dd-trace opentracing/opentracing:@dev
 ```
-composer require datadog/dd-trace
+
+> **Note:** Since the [OpenTracing dependency](https://github.com/opentracing/opentracing-php) is still in beta, adding the `opentracing/opentracing:@dev` argument to the `composer require` command will ensure the library is installed without changing your Composer minimum stability settings.
+
+Next we'll install the `ddtrace` extension. The command we use to install it varies depending on your platform.
+
+```bash
+# using RPM package (RHEL/Centos 6+, Fedora 20+)
+$ rpm -ivh datadog-php-tracer.rpm
+
+# using DEB package (Debian Jessie+ , Ubuntu 14.04+)
+$ deb -i datadog-php-tracer.deb
+
+# using APK package (Alpine)
+$ apk add datadog-php-tracer.apk --allow-untrusted
+
+# using tar.gz archive (Other distributions using libc6)
+$ tar -xf datadog-php-tracer.tar.gz -C /
+  /opt/datadog-php/bin/post-install.sh
 ```
 
-## Requirements
+### Usage
 
-- PHP 5.6, 7.0 or later
-
-## Usage
-
-In order to be familiar with tracing elements it is recommended to read the [OpenTracing specification](https://github.com/opentracing/specification/blob/master/specification.md).
-
-### Using the tracer
-
-To start using the DataDog Tracer with the OpenTracing API, you should first initialize the tracer:
+Once the `ddtrace` extension and Composer package is installed, you can start tracing your PHP project by wrapping your application code with a [root span](https://docs.datadoghq.com/tracing/visualization/#spans) from the [tracer](https://docs.datadoghq.com/tracing/visualization/#trace).
 
 ```php
 use DDTrace\Tracer;
 use OpenTracing\GlobalTracer;
+use DDTrace\Integrations\IntegrationsLoader;
 
-// Creates a tracer with default transport and default propagators
+// Creates a tracer with default transport and propagators
 $tracer = new Tracer();
 
-// Sets a global tracer (singleton). Ideally tracer should be
-// injected as a dependency
+// Sets a global tracer (singleton)
 GlobalTracer::set($tracer);
-
-$application->run();
-
-// Flushes traces to agent.
+// Flushes traces to agent on script shutdown
 register_shutdown_function(function() {
     GlobalTracer::get()->flush();
 });
+
+// Enable the built-in integrations
+IntegrationsLoader::load();
+
+// Start a root span
+$scope = $tracer->startSpan('my_base_trace');
+
+// Run your application here
+// $myApplication->run();
+
+// Close the root span after the application code has finished
+$scope->close();
 ```
 
-PHP as a request scoped language has no simple means to pass the collected spans data to a background process without blocking the main request thread/process. It is mandatory to execute the `Tracer::flush()` after the response is served to the client by using [`register_shutdown_function`](http://php.net/manual/en/function.register-shutdown-function.php).
+Notice we didn't specify an [API key](https://app.datadoghq.com/account/settings#api) or any web endpoints. That's because the API key is set at the [agent layer](https://docs.datadoghq.com/agent/?tab=agentv6), so the PHP code just needs to know the hostname and port of the agent to send traces to Datadog. By default the PHP tracer will assume the agent hostname is `localhost` and the port is `8126`. If you need to change these values, check out the [configuration documentation](docs/getting_started.md#configuration).
+
+### Viewing the trace
+
+Assuming the agent is running with APM enabled and it is configured with our API key, and assuming we successfully installed the `ddtrace` extension and the `datadog/dd-trace` package with Composer, we should be able to head over to [the APM UI](https://app.datadoghq.com/apm/services) to see our trace.
+
+> **Note:** It might take a few minutes before your trace appears in the UI. Just refresh the page a few times until you see the screen change.
+
+### Digging deeper
+
+For more information about configuration and specific framework integrations, check out the [getting started docs](docs/getting_started.md).
 
 ### Advanced configuration
 
-Transport can be customized by the config parameters:
+In order to be familiar with tracing elements it is recommended to read the [OpenTracing specification](https://github.com/opentracing/specification/blob/master/specification.md).
+
+The transport can be customized by the config parameters:
 
 ```php
 use DDTrace\Encoders\Json;
@@ -75,7 +111,7 @@ $transport = new Http(
 );
 ```
 
-Tracer can be customized by the config settings:
+The tracer can be customized by the config settings:
 
 ```php
 use DDTrace\Tracer;
@@ -112,53 +148,12 @@ $tracer = new Tracer(
 
 ## Contributing
 
-Before contributing to this open source project, read our [CONTRIBUTING.md](https://github.com/DataDog/dd-trace-php/blob/master/CONTRIBUTING.md).
-
-### Run tests
-
-The recommended way to run tests is using the preconfigured docker images that we provide for the different PHP versions.
-
-  - PHP 5.6: `datadog/docker-library:ddtrace_php_5_6`
-  - PHP 7.0: `datadog/docker-library:ddtrace_php_7_0`
-  - PHP 7.1: `datadog/docker-library:ddtrace_php_7_1`
-  - PHP 7.2: `datadog/docker-library:ddtrace_php_7_2`
-
-In order to run tests open a `bash` in the proper image, e.g. for PHP 5.6;
-
-    $ docker-compose run 5.6 bash
-
-At the begin of you session, or at any time when you update the php extension, install it:
-
-    $ composer install-ext
-
-In order to run the tracer tests:
-
-    $ composer test
-
-
-Please note that the later is a wrapper around `phpunit`, so you can use all the common
-[options](https://phpunit.de/manual/5.7/en/textui.html#textui.clioptions) that you would with `phpunit`. Note, though,
-that you need prepend the options list with the additional `--` dashes that `composer` requires:
-
-    # Run a suite and a filter
-    $ composer test -- --testsuite=unit --filter=Predis
-
-In order to run tests for the php extension:
-
-    $ composer test-ext
-
-### Fix lint
-
-```bash
-composer fix-lint
-```
-
-### Static Analyzer
-
-The [PHPStan static analyzer](https://github.com/phpstan/phpstan) is part of the build checks when submitting a PR. To ensure your contribution passes the static analyzer, run the following:
-
-    $ composer static-analyze
+Before contributing to this open source project, read our [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Releasing
 
 See [RELEASING](RELEASING.md) for more information on releasing new versions.
+
+## Security Vulnerabilities
+
+If you have found a security issue, please contact the security team directly at [security@datadoghq.com](mailto:security@datadoghq.com).
