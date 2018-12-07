@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Added
+- Symfony 3.4 and 4.2 sample apps #171
 
 ## [0.7.0] - 2018-12-06
 ### Added
