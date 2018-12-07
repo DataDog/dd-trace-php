@@ -39,7 +39,7 @@ void ddtrace_dispatch_init() {
     zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_free, 0);
 }
 
-void ddtrace_dispatch_destroy(){
+void ddtrace_dispatch_destroy() {
     zend_hash_destroy(&DDTRACE_G(class_lookup));
     zend_hash_destroy(&DDTRACE_G(function_lookup));
 }

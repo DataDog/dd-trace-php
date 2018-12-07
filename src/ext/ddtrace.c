@@ -70,7 +70,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     return SUCCESS;
 }
 
-
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
