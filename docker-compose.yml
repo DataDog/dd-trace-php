@@ -22,6 +22,8 @@ x-aliases:
       environment:
         - REDIS_HOSTNAME=redis_integration
         - DDAGENT_HOSTNAME=ddagent_integration
+      cap_add:
+        - SYS_PTRACE
 
 services:
   '5.4-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-5.4' }
@@ -32,6 +34,7 @@ services:
   '7.0': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_0' }
   '7.1': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_1' }
   'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }
+  'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }
   '7.2': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_2' }
   '7.2-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-7.2' }
 

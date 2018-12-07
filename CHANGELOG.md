@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Added
 - Symfony 3.4 and 4.2 sample apps #171
 
+### Fixed
+- Compatibility with PCS and using uninitialized data in some edge cases resulting in a SEGFAULT #173
+
 ## [0.7.0] - 2018-12-06
 ### Added
 - Possibility to enable/disable distributed tracing and priority sampling #160
