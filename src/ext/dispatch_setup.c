@@ -28,7 +28,23 @@ static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
 }
 #endif
 
+static inline void dispatch_table_dtor(void *zv) {
+    HashTable *ht = *(HashTable **)zv;
+    zend_hash_destroy(ht);
+    efree(ht);
+}
+
 void ddtrace_dispatch_init() {
+    zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)dispatch_table_dtor, 0);
+    zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_free, 0);
+}
+
+void ddtrace_dispatch_destroy(){
+    zend_hash_destroy(&DDTRACE_G(class_lookup));
+    zend_hash_destroy(&DDTRACE_G(function_lookup));
+}
+
+void ddtrace_dispatch_inject() {
 /**
  * Replacing zend_execute_ex with anything other than original
  * changes some of the bevavior in PHP compilation and execution
