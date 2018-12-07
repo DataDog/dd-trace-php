@@ -81,7 +81,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-    ddtrace_dispatch_init();
+    ddtrace_dispatch_init(TSRMLS_C);
 
     return SUCCESS;
 }
@@ -93,7 +93,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-    ddtrace_dispatch_destroy();
+    ddtrace_dispatch_destroy(TSRMLS_C);
 
     return SUCCESS;
 }
