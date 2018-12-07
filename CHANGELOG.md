@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Fixed
+- Compatibility with PCS and using uninitialized data in some edge cases resulting in a SEGFAULT #173
 
 ## [0.7.0] - 2018-12-06
 ### Added
