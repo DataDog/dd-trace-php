@@ -23,7 +23,11 @@ If you haven't already, [sign up for a free Datadog account](https://www.datadog
 
 ### Installation
 
-The PHP tracer is composed of a PHP extension and a Composer package. You'll need to install both in order to start tracing your PHP projects. First we'll install the Composer package.
+The PHP tracer is composed of a PHP extension and a Composer package. You'll need to install both in order to start tracing your PHP projects.
+
+#### Composer installation
+
+First we'll install the Composer package.
 
 ```bash
 $ composer require datadog/dd-trace opentracing/opentracing:@dev
@@ -31,7 +35,11 @@ $ composer require datadog/dd-trace opentracing/opentracing:@dev
 
 > **Note:** Since the [OpenTracing dependency](https://github.com/opentracing/opentracing-php) is still in beta, adding the `opentracing/opentracing:@dev` argument to the `composer require` command will ensure the library is installed without changing your Composer minimum stability settings.
 
-Next we'll install the `ddtrace` extension. The command we use to install it varies depending on your platform.
+#### Installing the extension (from a package)
+
+Next we'll install the `ddtrace` extension.
+
+First [download the appropriate package](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then install the package with one of the commands below.
 
 ```bash
 # using RPM package (RHEL/Centos 6+, Fedora 20+)
@@ -46,6 +54,18 @@ $ apk add datadog-php-tracer.apk --allow-untrusted
 # using tar.gz archive (Other distributions using libc6)
 $ tar -xf datadog-php-tracer.tar.gz -C /
   /opt/datadog-php/bin/post-install.sh
+```
+
+#### Installing the extension (manually)
+
+The extension can also be installed manually from source. First [download the source code](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then compile and install the extension with the commands below.
+
+```bash
+$ cd /path/to/dd-trace-php
+$ phpize
+$ ./configure --enable-ddtrace
+$ make
+$ sudo make install
 ```
 
 ### Usage
