@@ -10,8 +10,6 @@ HashTable class_lookup;
 HashTable function_lookup;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 
-
-
 #ifdef ZTS
 #define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
 #else
