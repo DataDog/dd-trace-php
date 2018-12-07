@@ -34,12 +34,12 @@ static inline void dispatch_table_dtor(void *zv) {
     efree(ht);
 }
 
-void ddtrace_dispatch_init() {
+void ddtrace_dispatch_init(TSRMLS_D) {
     zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)dispatch_table_dtor, 0);
     zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_free, 0);
 }
 
-void ddtrace_dispatch_destroy() {
+void ddtrace_dispatch_destroy(TSRMLS_D) {
     zend_hash_destroy(&DDTRACE_G(class_lookup));
     zend_hash_destroy(&DDTRACE_G(function_lookup));
 }
