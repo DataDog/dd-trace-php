@@ -4,7 +4,7 @@ FROM ubuntu:18.04
 RUN apt-get update && apt-get install -y vim valgrind software-properties-common
 RUN LC_ALL=C.UTF-8 add-apt-repository ppa:ondrej/php \
   && echo deb http://ppa.launchpad.net/ondrej/php/ubuntu bionic main/debug | \
-     tee -a /etc/apt/sources.list.d/ondrej-ubuntu-php-bionic.list \
+    tee -a /etc/apt/sources.list.d/ondrej-ubuntu-php-bionic.list \
   && apt-get update
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get install php7.2-cli-dbgsym php7.2-dev -y
