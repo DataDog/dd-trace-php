@@ -101,6 +101,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (filename && ZSTR_LEN(filename) != 0) {
         run_a_file(filename);
     }
+    zend_string_release(filename);
     return SUCCESS;
 }
 
