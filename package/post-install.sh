@@ -4,7 +4,7 @@ EXTENSION_BASE_DIR=/opt/datadog-php
 EXTENSION_DIR=${EXTENSION_BASE_DIR}/extensions
 EXTENSION_CFG_DIR=${EXTENSION_BASE_DIR}/etc
 EXTENSION_LOGS_DIR=${EXTENSION_BASE_DIR}/log
-INI_FILE_NAME='ddtrace.ini'
+INI_FILE_NAME='99-ddtrace.ini'
 
 PATH="${PATH}:/usr/local/bin"
 
