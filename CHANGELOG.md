@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+
+## [0.7.1] - 2018-12-07
 ### Added
 - Symfony 3.4 and 4.2 sample apps #171
 
@@ -155,7 +157,8 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.7.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.7.1...HEAD
+[0.7.1]: https://github.com/DataDog/dd-trace-php/compare/0.7.0...0.7.1
 [0.7.0]: https://github.com/DataDog/dd-trace-php/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/DataDog/dd-trace-php/compare/0.5.1...0.6.0
 [0.5.1]: https://github.com/DataDog/dd-trace-php/compare/0.5.0...0.5.1
