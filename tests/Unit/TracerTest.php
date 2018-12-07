@@ -3,8 +3,10 @@
 namespace DDTrace\Tests\Unit;
 
 use DDTrace\Propagator;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
 use DDTrace\Tags;
+use DDTrace\Tests\DebugTransport;
 use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport;
@@ -143,5 +145,23 @@ final class TracerTest extends Framework\TestCase
         ])->shouldBeCalled();
 
         $tracer->flush();
+    }
+
+    public function testPrioritySamplingIsAssigned()
+    {
+        $tracer = new Tracer(new DebugTransport());
+        $tracer->startSpan(self::OPERATION_NAME);
+        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
+    }
+
+    public function testPrioritySamplingInheritedFromDistributedTracingContext()
+    {
+        $distributedTracingContext = new SpanContext('', '', '', [], true);
+        $distributedTracingContext->setPropagatedPrioritySampling(PrioritySampling::USER_REJECT);
+        $tracer = new Tracer(new DebugTransport());
+        $tracer->startSpan(self::OPERATION_NAME, [
+            'child_of' => $distributedTracingContext,
+        ]);
+        $this->assertSame(PrioritySampling::USER_REJECT, $tracer->getPrioritySampling());
     }
 }

@@ -2,11 +2,33 @@
 
 namespace DDTrace\Propagators;
 
+use DDTrace\Configuration;
 use DDTrace\Propagator;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
+use DDTrace\Tracer;
 
 final class TextMap implements Propagator
 {
+    /**
+     * @var Configuration
+     */
+    private $globalConfig;
+
+    /**
+     * @var Tracer
+     */
+    private $tracer;
+
+    /**
+     * @param Tracer $tracer
+     */
+    public function __construct(Tracer $tracer)
+    {
+        $this->globalConfig = Configuration::get();
+        $this->tracer = $tracer;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -18,6 +40,11 @@ final class TextMap implements Propagator
         foreach ($spanContext as $key => $value) {
             $carrier[Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX . $key] = $value;
         }
+
+        $prioritySampling = $this->tracer->getPrioritySampling();
+        if (PrioritySampling::UNKNOWN !== $prioritySampling) {
+            $carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER] = $prioritySampling;
+        }
     }
 
     /**
@@ -27,6 +54,7 @@ final class TextMap implements Propagator
     {
         $traceId = null;
         $spanId = null;
+        $prioritySampling = null;
         $baggageItems = [];
 
         foreach ($carrier as $key => $value) {
@@ -43,7 +71,9 @@ final class TextMap implements Propagator
             return null;
         }
 
-        return new SpanContext($traceId, $spanId, null, $baggageItems);
+        $spanContext = new SpanContext($traceId, $spanId, null, $baggageItems, true);
+        $this->extractPrioritySampling($spanContext, $carrier);
+        return $spanContext;
     }
 
     /**
@@ -63,5 +93,19 @@ final class TextMap implements Propagator
             return $value;
         }
         return null;
+    }
+
+    /**
+     * Extract from carrier the propagated priority sampling.
+     *
+     * @param SpanContext $spanContext
+     * @param array $carrier
+     */
+    private function extractPrioritySampling(SpanContext $spanContext, $carrier)
+    {
+        if (isset($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER])) {
+            $rawValue = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]);
+            $spanContext->setPropagatedPrioritySampling(PrioritySampling::parse($rawValue));
+        }
     }
 }

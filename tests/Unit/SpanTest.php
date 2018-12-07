@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Unit;
 
 use DDTrace\Exceptions\InvalidSpanArgument;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tags;

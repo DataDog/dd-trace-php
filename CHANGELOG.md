@@ -2,11 +2,14 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+
+## [0.7.0] - 2018-12-06
 ### Added
 - Possibility to enable/disable distributed tracing and priority sampling #160
 - Tracing for the [legacy MongoDB extension](http://php.net/manual/en/book.mongo.php) for PHP 5 #166
 - Injecting distributed tracing headers in guzzle and curl requests #167
 - Possibility to autoload all integrations and to disable specific ones #168
+- Priority Sampling handling #169
 
 ### Fixed
 - "Undefined offset: 0" errors in ElasticSearch integration #165
@@ -147,7 +150,8 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.6.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.7.0...HEAD
+[0.7.0]: https://github.com/DataDog/dd-trace-php/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/DataDog/dd-trace-php/compare/0.5.1...0.6.0
 [0.5.1]: https://github.com/DataDog/dd-trace-php/compare/0.5.0...0.5.1
 [0.5.0]: https://github.com/DataDog/dd-trace-php/compare/0.4.2...0.5.0
