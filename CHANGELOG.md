@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Added
+- Support for Lumen via the Laravel service provider #180
 
 ## [0.7.1] - 2018-12-07
 ### Added
