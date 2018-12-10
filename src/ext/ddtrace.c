@@ -62,6 +62,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
 static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
+    UNREGISTER_INI_ENTRIES();
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
