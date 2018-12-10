@@ -67,12 +67,11 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;
     char *error = NULL;
-    zval closure, rv, *rv_ptr;
+    zval closure, *rv_ptr;
     INIT_ZVAL(closure);
-    INIT_ZVAL(rv);
-    rv_ptr = &rv;
+    ALLOC_INIT_ZVAL(rv_ptr); //TODO: optimize
+    return_value_ptr = return_value_ptr ? return_value_ptr : &rv_ptr;
 
-    zval **result_ptr = return_value_ptr;// ? return_value_ptr : &rv_ptr;
     zval *this = NULL;
 
     zend_function *func;
@@ -90,12 +89,12 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         callable->common.fn_flags &= ~ZEND_ACC_STATIC;
     }
 
+
     zend_create_closure(&closure, callable, dispatch->clazz, this TSRMLS_CC);
 #else
     func = EX(func);
     this = Z_OBJ(EX(This)) ? &EX(This) : NULL;
-    zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable), dispatch->clazz,
-                        dispatch->clazz, this TSRMLS_CC);
+    zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable), dispatch->clazz, dispatch->clazz, this TSRMLS_CC);
 #endif
 
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
@@ -116,7 +115,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         goto _exit_cleanup;
     }
 
-    ddtrace_setup_fcall(execute_data, &fci, result_ptr TSRMLS_CC);
+    ddtrace_setup_fcall(execute_data, &fci, return_value_ptr TSRMLS_CC);
             DD_PRINTF("WTF");
 
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS) {
@@ -223,17 +222,37 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
 #define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
 #if PHP_VERSION_ID < 70000
-        zval **return_value = NULL;
-        DD_PRINTF("ehlo");
+        zval **return_value = &EX_T(opline->result.var).var.ptr;
+        // DD_PRINTF("ehlo");
         execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
                             DD_PRINTF("OHSHIT");
 
         if (return_value != NULL) {
             // EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
             // EX_T(opline->result.var).var.ptr_ptr = return_value;
-                    DD_PRINTF("OHSHIT");
+                    DD_PRINTF("OHSHITTT");
 
         }
+        if (!RETURN_VALUE_USED(opline)) {
+                // zval_ptr_dtor(&EX_T(opline->result.var).var.ptr);
+            } else {
+                // Z_UNSET_ISREF_P(EX_T(opline->result.var).var.ptr);
+                // Z_SET_REFCOUNT_P(EX_T(opline->result.var).var.ptr, 1);
+                EX_T(opline->result.var).var.fcall_returned_reference = 0;
+                EX_T(opline->result.var).var.ptr_ptr = &EX_T(opline->result.var).var.ptr;
+            }
+
+	// 	EG(scope) = EX(current_scope);
+	// 	EG(called_scope) = EX(current_called_scope);
+
+	// 	EX(current_this) = EG(This);
+	// 	EX(current_scope) = EG(scope);
+	// 	EX(current_called_scope) = EG(called_scope);
+	// 	EG(This) = EX(object);
+	// 	EG(scope) = (fbc->type == ZEND_USER_FUNCTION || !EX(object)) ? fbc->common.scope : NULL;
+	// 	EG(called_scope) = EX(called_scope);
+
+	// zend_arg_types_stack_3_pop(&EG(arg_types_stack), &EX(called_scope), &EX(current_object), &EX(fbc));
 
         EG(return_value_ptr_ptr) = return_value;
 

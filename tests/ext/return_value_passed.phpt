@@ -10,8 +10,7 @@ class Test {
 
 $no = 1;
 dd_trace("Test", "method", function() use ($no){
-    // $this->method();
-    return  "-override ". PHP_EOL;
+    return $this->method() . "-override ". $no . PHP_EOL;
 });
 
 $a = (new Test())->method();
