@@ -29,7 +29,7 @@ abstract class RequestSpec
      * @param string $name
      * @param string $path
      */
-    abstract public static function create($name, $path);
+    // abstract public static function create($name, $path);
 
     /**
      * @param $name

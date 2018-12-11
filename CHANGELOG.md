@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file - [docs/chan
 ## [Unreleased]
 ### Added
 - Support for Lumen via the Laravel service provider #180
+- Symfony 3.4 support #181
 
 ## [0.7.1] - 2018-12-07
 ### Added
