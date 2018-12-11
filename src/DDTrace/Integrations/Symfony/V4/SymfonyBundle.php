@@ -164,7 +164,13 @@ class SymfonyBundle extends Bundle
                 $scope->close();
             }
         };
-        dd_trace('Symfony\Component\Templating\EngineInterface', 'render', $renderTraceCallback);
+
+        // This can be replaced once and for all by EngineInterface tracing
+        dd_trace('\Symfony\Bridge\Twig\TwigEngine', 'render', $renderTraceCallback);
+        dd_trace('\Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $renderTraceCallback);
+        dd_trace('\Symfony\Bundle\TwigBundle\TwigEngine', 'render', $renderTraceCallback);
+        dd_trace('\Symfony\Component\Templating\DelegatingEngine', 'render', $renderTraceCallback);
+        dd_trace('\Symfony\Component\Templating\PhpEngine', 'render', $renderTraceCallback);
         dd_trace('Twig_Environment', 'render', $renderTraceCallback);
 
         // Enable other integrations

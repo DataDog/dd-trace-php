@@ -26,13 +26,13 @@ class HomeControllerTest extends WebTestCase
                 'symfony.request',
                 'symfony',
                 'web',
-                'simple_view'
+                'alternate_templating'
             )
                 ->withExactTags([
-                    'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleViewAction',
-                    'symfony.route.name' => 'simple_view',
+                    'symfony.route.action' => 'AppBundle\Controller\HomeController@indexAction',
+                    'symfony.route.name' => 'alternate_templating',
                     'http.method' => 'GET',
-                    'http.url' => 'http://localhost/simple_view',
+                    'http.url' => 'http://localhost/alternate_templating',
                     'http.status_code' => '200',
                 ]),
             SpanAssertion::exists('symfony.kernel.handle'),
@@ -43,7 +43,7 @@ class HomeControllerTest extends WebTestCase
                 'symfony.templating.render',
                 'symfony',
                 'web',
-                'Twig_Environment twig_template.html.twig'
+                'Symfony\Component\Templating\PhpEngine php_template.template.php'
             ),
             SpanAssertion::exists('symfony.kernel.response'),
             SpanAssertion::exists('symfony.kernel.finish_request'),
