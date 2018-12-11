@@ -17,7 +17,7 @@ class HomeControllerTest extends WebTestCase
         $traces = $this->simulateWebRequestTracer(function() use ($client) {
             $crawler = $client->request('GET', '/alternate_templating');
             $response = $client->getResponse();
-            error_log("Html: " . print_r($crawler->html(), 1));
+
             $this->assertSame(200, $response->getStatusCode());
         });
 

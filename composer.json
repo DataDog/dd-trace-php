@@ -90,7 +90,7 @@
         "laravel-42-test": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_4_2 test",
         "laravel-57-update": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_5_7 update",
         "laravel-57-test": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_5_7 test",
-        "symfony-34-update": "composer --working-dir=tests/Integration/Frameworks/Symfony/Version_3_4 update",
+        "symfony-34-update": "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Integration/Frameworks/Symfony/Version_3_4 update",
         "symfony-34-test": "composer --working-dir=tests/Integration/Frameworks/Symfony/Version_3_4 test"
     }
 }
