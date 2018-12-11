@@ -9,6 +9,7 @@ VERSION:=$(shell cat src/DDTrace/Version.php | grep VERSION | awk '{print $$NF}'
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
+Q := @
 
 src/ext/version.h:
 	@echo "Creating [src/ext/version.h]\n"
@@ -19,23 +20,23 @@ src/ext/version.h:
 	@cat $@ #| grep '#define'
 
 $(BUILD_DIR)/config.m4: config.m4
-	@mkdir -p $(BUILD_DIR)
-	@cp config.m4 $@
+	$(Q) mkdir -p $(BUILD_DIR)
+	$(Q) cp config.m4 $@
 
 $(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
-	@(cd $(BUILD_DIR); phpize)
+	$(Q) (cd $(BUILD_DIR); phpize)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	@(cd $(BUILD_DIR); ./configure --srcdir=$(ABS_SRC_DIR))
+	$(Q) @(cd $(BUILD_DIR); ./configure --srcdir=$(ABS_SRC_DIR))
 
 $(SO_FILE): $(BUILD_DIR)/Makefile src/ext/version.h
-	@$(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
+	$(Q) $(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
 
 install: $(SO_FILE)
-	@$(SUDO) $(MAKE) -C $(BUILD_DIR) install
+	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install
 
 $(INI_FILE):
-	echo "extension=ddtrace.so" | $(SUDO) tee $@
+	$(Q) echo "extension=ddtrace.so" | $(SUDO) tee -a $@
 
 install_ini: $(INI_FILE)
 
@@ -55,6 +56,9 @@ dist_clean:
 
 clean:
 	$(MAKE) -C $(BUILD_DIR) clean
+sudo:
+	$(eval SUDO:=sudo)
+
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
@@ -83,4 +87,4 @@ $(PACKAGES_BUILD_DIR):
 packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
-.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz src/ext/version.h
+.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz src/ext/version.h sudo
