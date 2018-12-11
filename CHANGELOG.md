@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+
+## [0.8.0] - 2018-12-11
 ### Added
 - Support for Lumen via the Laravel service provider #180
 - Symfony 3.4 support #181
@@ -160,7 +162,8 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.7.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...HEAD
+[0.8.0]: https://github.com/DataDog/dd-trace-php/compare/0.7.1...0.8.0
 [0.7.1]: https://github.com/DataDog/dd-trace-php/compare/0.7.0...0.7.1
 [0.7.0]: https://github.com/DataDog/dd-trace-php/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/DataDog/dd-trace-php/compare/0.5.1...0.6.0
