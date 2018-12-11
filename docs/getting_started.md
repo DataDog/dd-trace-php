@@ -94,15 +94,27 @@ composer update
 
 #### Laravel integration
 
-To enable Laravel integration we need to configure a new Provider in `config/app.php`
+To enable [Laravel](https://laravel.com/) integration we need to configure a new provider in `config/app.php`
 
 ```php
     'providers' => [
 # .....
-      'DDTrace\Integrations\LaravelProvider',
+      # Laravel 5
+      'DDTrace\Integrations\Laravel\V5\LaravelProvider',
+      # Laravel 4
+      'DDTrace\Integrations\Laravel\V4\LaravelProvider',
 ```
 
 Now your Laravel application should start sending traces to the Datadog agent running on localhost (in default configuration). The Datadog agent must have APM enabled; see https://docs.datadoghq.com/tracing/setup/ for instructions on installing and configuring the agent.
+
+#### Lumen integration
+
+To enable [Lumen](https://lumen.laravel.com/) integration we need to add a new provider in `bootstrap/app.php`.
+
+```php
+# Lumen 5
+$app->register('DDTrace\Integrations\Laravel\V5\LaravelProvider');
+```
 
 #### Symfony integration
 
