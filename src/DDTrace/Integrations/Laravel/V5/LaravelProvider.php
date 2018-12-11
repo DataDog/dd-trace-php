@@ -135,7 +135,7 @@ class LaravelProvider extends ServiceProvider
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
             $tracer,
             [
-                'start_time' => fromMicrotime(LARAVEL_START),
+                'start_time' => defined('LARAVEL_START') ? fromMicrotime(LARAVEL_START) : DDTrace\Time\now(),
             ],
             $this->app->make('request')->header()
         );
