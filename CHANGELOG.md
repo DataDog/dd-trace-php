@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Added
+- Symfony 3.4 support #181
 
 ## [0.7.1] - 2018-12-07
 ### Added
