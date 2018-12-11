@@ -113,6 +113,7 @@ class CommonScenariosTest extends WebTestCase
                     SpanAssertion::exists('symfony.kernel.controller_arguments'),
                     SpanAssertion::exists('symfony.kernel.handleException'),
                     SpanAssertion::exists('symfony.kernel.exception'),
+                    SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.response'),
                     SpanAssertion::exists('symfony.kernel.finish_request'),
                     SpanAssertion::exists('symfony.kernel.terminate'),
