@@ -9,8 +9,8 @@ aclocal.m4
 autom4te*
 build
 configure
-configure.*
-config.*
+/configure.*
+/config.*
 *.la
 *.lo
 *.o
