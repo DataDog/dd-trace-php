@@ -118,19 +118,33 @@ $app->register('DDTrace\Integrations\Laravel\V5\LaravelProvider');
 
 #### Symfony integration
 
-For Symfony applications, add the bundle in `app/AppKernel.php`
+For Symfony 3.x applications, add the bundle in `app/AppKernel.php`
 
 ```php
 public function registerBundles()
 {
     $bundles = array(
-      ...
-      new DDTrace\Integrations\SymfonyBundle(),
+        // ...
+        new DDTrace\Integrations\Symfony\V3\SymfonyBundle(),
+        // ...
     );
     
     ...
 
     return $bundles;
+}
+```
+
+For Symfony 4.x applications, add the bundle in `config/bundles.php`
+
+```php
+public function registerBundles()
+{
+    return [
+        // ...
+        DDTrace\Integrations\Symfony\V4\SymfonyBundle::class => ['all' => true],
+        // ...
+    ];
 }
 ```
 
@@ -142,7 +156,7 @@ For Symfony Flex applications, add the bundle in `config/bundles.php`:
 ```php
     return [
         // ...
-        DDTrace\Integrations\SymfonyBundle::class => ['all' => true],
+        DDTrace\Integrations\Symfony\V4\SymfonyBundle::class => ['all' => true],
         // ...
     ];
 ```
