@@ -59,7 +59,7 @@ class LaravelProvider extends ServiceProvider
         // Sets a global tracer (singleton). Also store it in the Laravel
         // container for easy Laravel-specific use.
         GlobalTracer::set($tracer);
-        $this->app->instance(Tracer::class, $tracer);
+        $this->app->instance('DDTrace\Tracer', $tracer);
     }
 
     /**  @inheritdoc */
@@ -118,7 +118,7 @@ class LaravelProvider extends ServiceProvider
 
         // Create a trace span for every template rendered
         // public function get($path, array $data = array())
-        dd_trace(CompilerEngine::class, 'get', function ($path, $data = array()) {
+        dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function ($path, $data = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
             $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 

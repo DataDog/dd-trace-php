@@ -30,7 +30,7 @@ class MysqliIntegration
 
             try {
                 // Depending on configuration, connections errors can both cause an exception and return false
-                $result = mysqli_connect(...$args);
+                $result = call_user_func_array('mysqli_connect', $args);
                 if ($result === false) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
                 } else {
@@ -60,7 +60,7 @@ class MysqliIntegration
             $span = $scope->getSpan();
 
             try {
-                $this->$mysqli_constructor(...$args);
+                call_user_func_array([$this, $mysqli_constructor], $args);
                 //Mysqli::storeConnectionParams($this, $args);
                 if (mysqli_connect_errno()) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
@@ -87,7 +87,7 @@ class MysqliIntegration
             MysqliIntegration::setConnectionInfo($span, $mysqli);
             MysqliIntegration::storeQuery($mysqli, $query);
 
-            $result = mysqli_query(...$args);
+            $result = call_user_func_array('mysqli_query', $args);
             MysqliIntegration::storeQuery($result, $query);
             ObjectKVStore::put($result, 'host_info', MysqliIntegration::extractHostInfo($mysqli));
 
@@ -127,7 +127,7 @@ class MysqliIntegration
                 $span->setTag('db.transaction_name', $args[2]);
             }
 
-            $result = mysqli_commit(...$args);
+            $result = call_user_func_array('mysqli_commit', $args);
 
             $scope->close();
 
@@ -168,7 +168,7 @@ class MysqliIntegration
             MysqliIntegration::storeQuery($this, $query);
 
             try {
-                $result = $this->query(...$args);
+                $result = call_user_func_array([$this, 'query'], $args);
                 $host_info = MysqliIntegration::extractHostInfo($this);
                 ObjectKVStore::put($result, 'host_info', $host_info);
                 ObjectKVStore::put($result, 'query', $query);
@@ -216,7 +216,7 @@ class MysqliIntegration
             }
 
             try {
-                return $this->commit(...$args);
+                return call_user_func_array([$this, 'commit'], $args);
             } catch (\Exception $e) {
                 $span->setError($e);
                 throw $e;
@@ -303,7 +303,7 @@ class MysqliIntegration
             }
 
             try {
-                return $this->$methodName(...$args);
+                return call_user_func_array([$this, $methodName], $args);
             } catch (\Exception $e) {
                 $span->setError($e);
                 throw $e;
@@ -333,7 +333,7 @@ class MysqliIntegration
             }
 
             try {
-                return $methodName(...$args);
+                return call_user_func_array($methodName, $args);
             } catch (\Exception $e) {
                 $span->setError($e);
                 throw $e;

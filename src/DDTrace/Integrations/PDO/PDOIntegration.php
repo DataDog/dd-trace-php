@@ -39,7 +39,7 @@ class PDOIntegration
             $span->setTag(Tags\RESOURCE_NAME, 'PDO.__construct');
 
             try {
-                $this->__construct(...$args);
+                call_user_func_array([$this, '__construct'], $args);
                 PDOIntegration::storeConnectionParams($this, $args);
                 PDOIntegration::detectError($span, $this);
                 return $this;
@@ -88,7 +88,7 @@ class PDOIntegration
             PDOIntegration::setConnectionTags($this, $span);
 
             try {
-                $result = $this->query(...$args);
+                $result =  call_user_func_array([$this, 'query'], $args);
                 PDOIntegration::detectError($span, $this);
                 PDOIntegration::storeStatementFromConnection($this, $result);
                 try {
@@ -135,7 +135,7 @@ class PDOIntegration
             PDOIntegration::setConnectionTags($this, $span);
 
             try {
-                $result = $this->prepare(...$args);
+                $result = call_user_func_array([$this, 'prepare'], $args);
                 PDOIntegration::storeStatementFromConnection($this, $result);
                 return $result;
             } catch (\Exception $e) {
@@ -157,7 +157,7 @@ class PDOIntegration
             PDOIntegration::setStatementTags($this, $span);
 
             try {
-                $result = $this->execute(...$params);
+                $result = call_user_func_array([$this, 'execute'], $params);
                 PDOIntegration::detectError($span, $this);
                 try {
                     $span->setTag('db.rowcount', $this->rowCount());

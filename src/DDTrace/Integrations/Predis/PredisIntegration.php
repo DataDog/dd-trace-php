@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\Predis;
 use DDTrace\Tags;
 use DDTrace\Types;
 use OpenTracing\GlobalTracer;
-use Predis\Pipeline\Pipeline;
 
 const VALUE_PLACEHOLDER = "?";
 const VALUE_MAX_LEN = 100;
@@ -124,7 +123,7 @@ class PredisIntegration
         // Predis < 1 has not this method
         if (method_exists('\Predis\Pipeline\Pipeline', 'executePipeline')) {
             // protected array Predis\Pipeline::executePipeline(ConnectionInterface $connection, \SplQueue $commands)
-            dd_trace(Pipeline::class, 'executePipeline', function ($connection, $commands) {
+            dd_trace('Predis\Pipeline\Pipeline', 'executePipeline', function ($connection, $commands) {
                 $scope = GlobalTracer::get()->startActiveSpan('Predis.Pipeline.executePipeline');
                 $span = $scope->getSpan();
                 $span->setTag(Tags\SPAN_TYPE, Types\CACHE);

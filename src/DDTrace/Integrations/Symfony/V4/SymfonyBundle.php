@@ -63,13 +63,15 @@ class SymfonyBundle extends Bundle
         dd_trace(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
-            function ($request, ...$args) use ($symfonyRequestSpan) {
+            function () use ($symfonyRequestSpan) {
+                $args = func_get_args();
+                $request = $args[0];
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
                 $symfonyRequestSpan->setTag(Tags\HTTP_METHOD, $request->getMethod());
                 $symfonyRequestSpan->setTag(Tags\HTTP_URL, $request->getUriForPath($request->getPathInfo()));
 
                 try {
-                    return $this->handle($request, ...$args);
+                    return call_user_func_array([$this, 'handle'], $args);
                 } catch (\Exception $e) {
                     $span = $scope->getSpan();
                     $span->setError($e);
@@ -108,11 +110,12 @@ class SymfonyBundle extends Bundle
         dd_trace(
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
-            function (...$args) {
+            function () {
+                $args = func_get_args();
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
 
                 try {
-                    return $this->dispatch(...$args);
+                    return call_user_func_array([$this, 'dispatch'], $args);
                 } catch (\Exception $e) {
                     $span = $scope->getSpan();
                     $span->setError($e);
