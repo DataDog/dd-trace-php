@@ -115,8 +115,6 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     }
 
     ddtrace_setup_fcall(execute_data, &fci, return_value_ptr TSRMLS_CC);
-
-
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS) {
         if (!return_value_ptr) {
             // zval_dtor(&rv);
@@ -163,14 +161,49 @@ static zend_always_inline zend_bool executing_method(zend_execute_data *execute_
 #endif
 }
 
+
+void zend_throw_exception_internal(zval *exception TSRMLS_DC) /* {{{ */
+{
+    DD_PRINTF("Hmm");
+	if (exception != NULL) {
+		zval *previous = EG(exception);
+		zend_exception_set_previous(exception, EG(exception) TSRMLS_CC);
+		EG(exception) = exception;
+		if (previous) {
+			return;
+		}
+	}
+	if (!EG(current_execute_data)) {
+		if(EG(exception)) {
+			zend_exception_error(EG(exception), E_ERROR TSRMLS_CC);
+		}
+		zend_error(E_ERROR, "Exception thrown without a stack frame");
+	}
+
+	if (zend_throw_exception_hook) {
+		zend_throw_exception_hook(exception TSRMLS_CC);
+	}
+
+	if (EG(current_execute_data)->opline == NULL ||
+	    (EG(current_execute_data)->opline+1)->opcode == ZEND_HANDLE_EXCEPTION) {
+		/* no need to rethrow the exception */
+		return;
+	}
+	EG(opline_before_exception) = EG(current_execute_data)->opline;
+	EG(current_execute_data)->opline = EG(exception_op);
+}
+
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, zend_function *fbc,
                                                  const char *function_name, uint32_t function_name_length TSRMLS_DC) {
     zval *object = NULL;
     const char *common_scope = NULL;
     uint32_t common_scope_length = 0;
 
+	zend_ptr_stack_3_push(&EG(arg_types_stack), EX(fbc), EX(object), EX(called_scope));
+
     if (fbc->common.scope) {
 #if PHP_VERSION_ID < 70000
+
         object = EG(This);
         // if (!object && EX(object)) {
         //     object = EX(call)->object;
@@ -178,15 +211,19 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         if (!object && OBJECT()) {
             object = OBJECT();
         }
+        EX(object) = object;
 
         common_scope = fbc->common.scope->name;
         common_scope_length = fbc->common.scope->name_length;
+
 #else
         object = &EX(This);
         common_scope = ZSTR_VAL(fbc->common.scope->name);
         common_scope_length = ZSTR_LEN(fbc->common.scope->name);
 #endif
     }
+        DD_PRINTF("ETF %0lx", EX(object));
+
 
     ddtrace_dispatch_t *dispatch;
 
@@ -196,14 +233,19 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     } else {
         dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), function_name, function_name_length);
     }
+        DD_PRINTF("ETF %0lx", EX(object));
+
 
     if (!dispatch) {
         DD_PRINTF("Handler for %s not found", function_name);
     } else if (dispatch->flags & BUSY_FLAG) {
         DD_PRINTF("Handler for %s is BUSY", function_name);
     }
+        DD_PRINTF("ETF %0lx", EX(object));
 
     if (dispatch && (dispatch->flags ^ BUSY_FLAG)) {
+        DD_PRINTF("ETF %0lx", EX(object));
+
         const zend_op *opline = EX(opline);
         zval rv;
         INIT_ZVAL(rv);
@@ -214,13 +256,17 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 #if PHP_VERSION_ID < 70000
         zval **return_value = &EX_T(opline->result.var).var.ptr;
         // DD_PRINTF("ehlo");
+        DD_PRINTF("ETF %0lx", EX(object));
+        DD_PRINTF("Starting handler for %s#%s", common_scope, function_name);
+
+
         execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
-                            DD_PRINTF("OHSHIT");
+        DD_PRINTF("ETF %0lx", EX(object));
 
         if (return_value != NULL) {
             // EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
             // EX_T(opline->result.var).var.ptr_ptr = return_value;
-                    DD_PRINTF("OHSHITTT");
+            DD_PRINTF("OHSHITTT");
 
         }
         if (!RETURN_VALUE_USED(opline)) {
@@ -232,17 +278,18 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
                 EX_T(opline->result.var).var.ptr_ptr = &EX_T(opline->result.var).var.ptr;
             }
 
-	// 	EG(scope) = EX(current_scope);
-	// 	EG(called_scope) = EX(current_called_scope);
+		// EG(scope) = EX(current_scope);
+		// EG(called_scope) = EX(current_called_scope);
 
-	// 	EX(current_this) = EG(This);
-	// 	EX(current_scope) = EG(scope);
-	// 	EX(current_called_scope) = EG(called_scope);
-	// 	EG(This) = EX(object);
-	// 	EG(scope) = (fbc->type == ZEND_USER_FUNCTION || !EX(object)) ? fbc->common.scope : NULL;
-	// 	EG(called_scope) = EX(called_scope);
+		// EX(current_this) = EG(This);
+		// EX(current_scope) = EG(scope);
+		// EX(current_called_scope) = EG(called_scope);
+		// EG(This) = EX(object);
+        // DD_PRINTF("ETF %0lx", EX(object));
+		// EG(scope) = (fbc->type == ZEND_USER_FUNCTION || !EX(object)) ? fbc->common.scope : NULL;
+		// EG(called_scope) = EX(called_scope);
 
-	// zend_arg_types_stack_3_pop(&EG(arg_types_stack), &EX(called_scope), &EX(current_object), &EX(fbc));
+	    // zend_arg_types_stack_3_pop(&EG(arg_types_stack), &EX(called_scope), &EX(current_object), &EX(fbc));
 
         EG(return_value_ptr_ptr) = return_value;
 
@@ -256,6 +303,13 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         // if (!RETURN_VALUE_USED(opline)) {
         //     zval_dtor(&rv);
         // }
+	    if (UNEXPECTED(EG(exception) != NULL)) {
+		    zend_throw_exception_internal(NULL TSRMLS_CC);
+        }
+
+
+        DD_PRINTF("Handler for %s#%s exiting", common_scope, function_name);
+
 
         return 1;
     } else {
