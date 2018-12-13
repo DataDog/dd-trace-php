@@ -89,7 +89,6 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         callable->common.fn_flags &= ~ZEND_ACC_STATIC;
     }
 
-
     zend_create_closure(&closure, callable, dispatch->clazz, this TSRMLS_CC);
 #else
     func = EX(func);
@@ -116,22 +115,13 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     }
 
     ddtrace_setup_fcall(execute_data, &fci, return_value_ptr TSRMLS_CC);
-            DD_PRINTF("WTF");
+
 
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS) {
-
-            DD_PRINTF("WTF^3");
-
         if (!return_value_ptr) {
-            DD_PRINTF("WTF");
             // zval_dtor(&rv);
         }
-    } else {
-            DD_PRINTF("WTF^2");
-
     }
-                DD_PRINTF("WTF^2");
-
 
 #if PHP_VERSION_ID < 70000
     if (fci.params) {

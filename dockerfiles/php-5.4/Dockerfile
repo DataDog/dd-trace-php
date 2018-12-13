@@ -72,7 +72,7 @@ RUN ./configure  \
     --disable-nls \
     --disable-debug
 
-RUN make -j 2
+RUN make -j 2 CFLAGS="-g -O0"
 
 RUN make install
 
