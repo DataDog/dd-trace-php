@@ -23,7 +23,7 @@ $(CENTOS7_PHP_VERSIONS): %.centos7:
 	@echo Building Centos 7 - PHP $*
 	@docker build -t centos_7:$* --build-arg php_version=$* -f dockerfiles/verify_packages/centos7/Dockerfile .
 
-$(CENTOS7_MANUAL_PHP_VERSIONS): %.centos7:
+$(CENTOS7_MANUAL_PHP_VERSIONS): %.centos7-compiled:
 	@echo Building Centos 7 - PHP $*
 	@docker build -t centos_7_compiled:$* -f dockerfiles/verify_packages/centos7-compiled/Dockerfile .
 
