@@ -2,8 +2,11 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+
+## [0.8.1]
 ### Fixed
-- Package installation on custom PHP setups lacking conf.d support
+- Update Symfony 3 and 4 docs #184
+- Package installation on custom PHP setups lacking conf.d support #188
 
 ## [0.8.0] - 2018-12-11
 ### Added
@@ -164,7 +167,8 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...HEAD
+[0.8.1]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/DataDog/dd-trace-php/compare/0.7.1...0.8.0
 [0.7.1]: https://github.com/DataDog/dd-trace-php/compare/0.7.0...0.7.1
 [0.7.0]: https://github.com/DataDog/dd-trace-php/compare/0.6.0...0.7.0
