@@ -8,7 +8,7 @@ use DDTrace\Log\LoggerInterface;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\Tracer;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 final class Json implements Encoder
 {

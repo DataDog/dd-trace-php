@@ -9,8 +9,7 @@ use DDTrace\Log\LoggerInterface;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;
 use DDTrace\Transport;
-use DDTrace\Version;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 final class Http implements Transport
 {

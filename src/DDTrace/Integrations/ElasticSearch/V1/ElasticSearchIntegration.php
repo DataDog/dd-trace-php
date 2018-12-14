@@ -6,7 +6,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 /**
  * ElasticSearch driver v1 Integration
