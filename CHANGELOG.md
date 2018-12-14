@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Fixed
+- Package installation on custom PHP setups lacking conf.d support
 
 ## [0.8.0] - 2018-12-11
 ### Added
