@@ -7,6 +7,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 zend_bool disable;
 HashTable class_lookup;
 HashTable function_lookup;
+uint32_t request_counter;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 
 #ifdef ZTS

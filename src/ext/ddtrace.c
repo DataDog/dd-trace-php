@@ -57,6 +57,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject();
 
+    DDTRACE_G(request_counter) = 0;
+
     return SUCCESS;
 }
 
@@ -82,6 +84,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    DDTRACE_G(request_counter)++;
     ddtrace_dispatch_init(TSRMLS_C);
 
     return SUCCESS;
@@ -126,6 +129,15 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     php_info_print_table_end();
 }
 
+#if PHP_VERSION_ID > 70000
+static PHP_FUNCTION(dd_request_counter){
+    UNUSED(execute_data);
+    zend_string *result = zend_strpprintf(100, "%ld", DDTRACE_G(request_counter));
+
+	RETURN_STR(result);
+}
+#endif
+
 static PHP_FUNCTION(dd_trace) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     STRING_T *function = NULL;
@@ -168,7 +180,11 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
+#if PHP_VERSION_ID > 70000
+static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_request_counter, NULL) ZEND_FE_END};
+#else
 static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) ZEND_FE_END};
+#endif
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
