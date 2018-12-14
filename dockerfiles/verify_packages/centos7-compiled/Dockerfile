@@ -11,7 +11,7 @@ RUN ./buildconf --force && ./configure --with-curl  --with-openssl
 RUN make && make install
 
 RUN php --ini
-RUN apt-get install -y vim valgrind
+RUN yum install -y vim valgrind
 
 
 ADD build/packages /packages
