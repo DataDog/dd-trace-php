@@ -2,10 +2,10 @@
 
 namespace DDTrace\Integrations\Predis;
 
+use DDTrace\GlobalTracer;
 use DDTrace\Tags;
 use DDTrace\Types;
 use DDTrace\Util\TryCatchFinally;
-use OpenTracing\GlobalTracer;
 use Predis\Configuration\OptionsInterface;
 use Predis\Pipeline\Pipeline;
 

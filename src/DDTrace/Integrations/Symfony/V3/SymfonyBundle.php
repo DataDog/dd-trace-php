@@ -11,7 +11,7 @@ use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Types;
 use DDTrace\Util\TryCatchFinally;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Symfony\Component\HttpKernel\KernelEvents;

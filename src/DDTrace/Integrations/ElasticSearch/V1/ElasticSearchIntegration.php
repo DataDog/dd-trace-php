@@ -5,7 +5,7 @@ namespace DDTrace\Integrations\ElasticSearch\V1;
 use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 /**
  * ElasticSearch driver v1 Integration

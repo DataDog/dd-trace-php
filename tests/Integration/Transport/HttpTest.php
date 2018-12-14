@@ -7,7 +7,7 @@ use DDTrace\Tests\RequestReplayer;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Version;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 use PHPUnit\Framework;
 use Prophecy\Argument;
 use Psr\Log\LoggerInterface;

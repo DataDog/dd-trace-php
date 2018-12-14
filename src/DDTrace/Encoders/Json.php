@@ -6,7 +6,7 @@ use DDTrace\Encoder;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\Tracer;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 

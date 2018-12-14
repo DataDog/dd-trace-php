@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Common;
 use DDTrace\Span;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 
 trait TracerTestTrait

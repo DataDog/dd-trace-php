@@ -9,7 +9,7 @@ use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
 use DDTrace\Util\ArrayKVStore;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 /**
  * Integration for curl php client.

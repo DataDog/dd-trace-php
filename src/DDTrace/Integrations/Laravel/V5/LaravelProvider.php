@@ -16,8 +16,8 @@ use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use OpenTracing\GlobalTracer;
-
+use Illuminate\View\Engines\CompilerEngine;
+use DDTrace\GlobalTracer;
 
 /**
  * DataDog Laravel tracing provider. Use by installing the dd-trace library:

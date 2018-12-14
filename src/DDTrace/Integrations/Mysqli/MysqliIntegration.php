@@ -6,7 +6,7 @@ use DDTrace\Tags;
 use DDTrace\Types;
 use DDTrace\Util\ObjectKVStore;
 use DDTrace\Util\TryCatchFinally;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 class MysqliIntegration
 {

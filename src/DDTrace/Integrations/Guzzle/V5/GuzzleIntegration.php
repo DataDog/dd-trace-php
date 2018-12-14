@@ -7,7 +7,7 @@ use DDTrace\Formats;
 use DDTrace\Tags;
 use DDTrace\Span;
 use DDTrace\Types;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
 use GuzzleHttp\Message\ResponseInterface;

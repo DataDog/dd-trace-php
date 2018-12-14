@@ -6,7 +6,7 @@ use DDTrace\Tags;
 use DDTrace\Types;
 use DDTrace\Obfuscation;
 use DDTrace\Util\TryCatchFinally;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 /**
  * Tracing of the Memcached library.
