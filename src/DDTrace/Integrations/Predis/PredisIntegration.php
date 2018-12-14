@@ -158,8 +158,11 @@ class PredisIntegration
 
         if (isset($args[1])) {
             $options = $args[1];
-            if (isset($options['parameters']) && isset($options['parameters']['database'])) {
-                $tags['out.redis_db'] = $options['parameters']['database'];
+
+            $parameters = $options->__get('parameters');
+
+            if (is_array($parameters) && isset($parameters['database'])) {
+                $tags['out.redis_db'] = $parameters['database'];
             }
         }
 
