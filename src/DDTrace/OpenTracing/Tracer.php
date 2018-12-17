@@ -7,10 +7,9 @@
 
 namespace DDTrace\OpenTracing;
 
-use DDTrace\OpenTracing\StartSpanOptions;
-use DDTrace\Exceptions\InvalidReferencesSet;
-use DDTrace\Exceptions\InvalidSpanOption;
-use DDTrace\Exceptions\UnsupportedFormat;
+use DDTrace\OpenTracing\Exceptions\InvalidReferencesSet;
+use DDTrace\OpenTracing\Exceptions\InvalidSpanOption;
+use DDTrace\OpenTracing\Exceptions\UnsupportedFormat;
 
 interface Tracer
 {
