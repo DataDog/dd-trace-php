@@ -37,6 +37,7 @@ services:
   'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }
   '7.2': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_2' }
   '7.2-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-7.2' }
+  '7.1-centos-compiled': { <<: *base_php_service, build: 'dockerfiles/verify_packages/centos7-compiled' }
 
   'fpm': { <<: *base_php_service, image: 'circleci/ruby:2.5', depends_on: [] }
 
