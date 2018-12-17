@@ -12,7 +12,7 @@ class TryCatchFinally
     /**
      * PHP 5.4 compatible try-catch-finally to execute instance methods.
      *
-     * @param Scope|\OpenTracing\Scope $scope
+     * @param Scope $scope
      * @param mixed $instance
      * @param string $method
      * @param array $args
@@ -46,7 +46,7 @@ class TryCatchFinally
     /**
      * PHP 5.4 compatible try-catch-finally to execute functions.
      *
-     * @param Scope|\OpenTracing\Scope $scope
+     * @param Scope $scope
      * @param string $function
      * @param array $args
      * @param \Closure $afterResult

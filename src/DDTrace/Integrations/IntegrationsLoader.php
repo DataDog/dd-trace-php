@@ -21,7 +21,7 @@ class IntegrationsLoader
     /**
      * @return array A list of supported library integrations. Web frameworks ARE NOT INCLUDED.
      */
-    private static function allLibraries()
+    public static function allLibraries()
     {
         return [
             CurlIntegration::NAME => '\DDTrace\Integrations\Curl\CurlIntegration',
