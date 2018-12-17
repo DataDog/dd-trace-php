@@ -2,16 +2,13 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Propagator;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
 use DDTrace\Tags;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Time;
 use DDTrace\Tracer;
-use DDTrace\Transport;
 use DDTrace\Transport\Noop as NoopTransport;
-use OpenTracing\Exceptions\UnsupportedFormat;
 use PHPUnit\Framework;
 
 final class TracerTest extends Framework\TestCase
@@ -84,7 +81,7 @@ final class TracerTest extends Framework\TestCase
 
     public function testInjectThrowsUnsupportedFormatException()
     {
-        $this->expectException(UnsupportedFormat::class);
+        $this->expectException('OpenTracing\Exceptions\UnsupportedFormat');
         $context = SpanContext::createAsRoot();
         $carrier = [];
 
@@ -97,7 +94,7 @@ final class TracerTest extends Framework\TestCase
         $context = SpanContext::createAsRoot();
         $carrier = [];
 
-        $propagator = $this->prophesize(Propagator::class);
+        $propagator = $this->prophesize('DDTrace\Propagator');
         $propagator->inject($context, $carrier)->shouldBeCalled();
         $tracer = new Tracer(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
         $tracer->inject($context, self::FORMAT, $carrier);
@@ -105,7 +102,7 @@ final class TracerTest extends Framework\TestCase
 
     public function testExtractThrowsUnsupportedFormatException()
     {
-        $this->expectException(UnsupportedFormat::class);
+        $this->expectException('OpenTracing\Exceptions\UnsupportedFormat');
         $carrier = [];
         $tracer = new Tracer(new NoopTransport());
         $tracer->extract(self::FORMAT, $carrier);
@@ -116,7 +113,7 @@ final class TracerTest extends Framework\TestCase
         $expectedContext = SpanContext::createAsRoot();
         $carrier = [];
 
-        $propagator = $this->prophesize(Propagator::class);
+        $propagator = $this->prophesize('DDTrace\Propagator');
         $propagator->extract($carrier)->shouldBeCalled()->willReturn($expectedContext);
         $tracer = new Tracer(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
         $actualContext = $tracer->extract(self::FORMAT, $carrier);
@@ -125,7 +122,7 @@ final class TracerTest extends Framework\TestCase
 
     public function testOnlyFinishedTracesAreBeingSent()
     {
-        $transport = $this->prophesize(Transport::class);
+        $transport = $this->prophesize('DDTrace\Transport');
         $tracer = new Tracer($transport->reveal());
         $span = $tracer->startSpan(self::OPERATION_NAME);
         $tracer->startSpan(self::ANOTHER_OPERATION_NAME, [

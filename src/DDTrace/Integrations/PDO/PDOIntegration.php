@@ -39,17 +39,23 @@ class PDOIntegration
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
             $span->setTag(Tags\RESOURCE_NAME, 'PDO.__construct');
 
+            // PHP 5.4 compatible try-catch-finally
+            $thrown = null;
             try {
                 call_user_func_array([$this, '__construct'], $args);
                 PDOIntegration::storeConnectionParams($this, $args);
                 PDOIntegration::detectError($span, $this);
-                return $this;
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
-                throw $e;
-            } finally {
-                $scope->close();
+                $thrown = $e;
             }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $this;
         });
 
         // public int PDO::exec(string $query)
@@ -61,17 +67,24 @@ class PDOIntegration
             $span->setTag(Tags\RESOURCE_NAME, $statement);
             PDOIntegration::setConnectionTags($this, $span);
 
+            // PHP 5.4 compatible try-catch-finally
+            $thrown = null;
+            $result = null;
             try {
                 $result = $this->exec($statement);
                 PDOIntegration::detectError($span, $this);
                 $span->setTag('db.rowcount', $result);
-                return $result;
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
-                throw $e;
-            } finally {
-                $scope->close();
+                $thrown = $e;
             }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $result;
         });
 
         // public PDOStatement PDO::query(string $query)
@@ -88,6 +101,9 @@ class PDOIntegration
             $span->setTag(Tags\RESOURCE_NAME, $args[0]);
             PDOIntegration::setConnectionTags($this, $span);
 
+            // PHP 5.4 compatible try-catch-finally
+            $thrown = null;
+            $result = null;
             try {
                 $result =  call_user_func_array([$this, 'query'], $args);
                 PDOIntegration::detectError($span, $this);
@@ -96,13 +112,17 @@ class PDOIntegration
                     $span->setTag('db.rowcount', $result !== false ? $result->rowCount() : '');
                 } catch (\Exception $e) {
                 }
-                return $result;
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
-                throw $e;
-            } finally {
-                $scope->close();
+                $thrown = $e;
             }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $result;
         });
 
         // public bool PDO::commit ( void )
@@ -113,16 +133,23 @@ class PDOIntegration
             $span->setTag(Tags\SERVICE_NAME, 'PDO');
             PDOIntegration::setConnectionTags($this, $span);
 
+            // PHP 5.4 compatible try-catch-finally
+            $thrown = null;
+            $result = null;
             try {
                 $result = $this->commit();
                 PDOIntegration::detectError($span, $this);
-                return $result;
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
-                throw $e;
-            } finally {
-                $scope->close();
+                $thrown = $e;
             }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $result;
         });
 
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
@@ -135,16 +162,23 @@ class PDOIntegration
             $span->setTag(Tags\RESOURCE_NAME, $args[0]);
             PDOIntegration::setConnectionTags($this, $span);
 
+            // PHP 5.4 compatible try-catch-finally
+            $thrown = null;
+            $result = null;
             try {
                 $result = call_user_func_array([$this, 'prepare'], $args);
                 PDOIntegration::storeStatementFromConnection($this, $result);
-                return $result;
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
-                throw $e;
-            } finally {
-                $scope->close();
+                $thrown = $e;
             }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $result;
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
@@ -157,6 +191,9 @@ class PDOIntegration
             $span->setTag(Tags\RESOURCE_NAME, $this->queryString);
             PDOIntegration::setStatementTags($this, $span);
 
+            // PHP 5.4 compatible try-catch-finally
+            $thrown = null;
+            $result = null;
             try {
                 $result = call_user_func_array([$this, 'execute'], $params);
                 PDOIntegration::detectError($span, $this);
@@ -164,13 +201,17 @@ class PDOIntegration
                     $span->setTag('db.rowcount', $this->rowCount());
                 } catch (\Exception $e) {
                 }
-                return $result;
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
-                throw $e;
-            } finally {
-                $scope->close();
+                $thrown = $e;
             }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $result;
         });
     }
 

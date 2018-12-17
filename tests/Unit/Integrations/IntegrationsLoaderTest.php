@@ -7,15 +7,11 @@ use PHPUnit\Framework;
 
 final class CurlHeadersMapTest extends Framework\TestCase
 {
-    const FRAMEWORKS = [
-        'laravel',
-        'symfony',
-    ];
 
     public function testWeDidNotForgetToRegisterALibraryForAutoLoading()
     {
         $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
-        $expectedButFrameworks = array_diff($expected, $this->normalize(self::FRAMEWORKS));
+        $expectedButFrameworks = array_diff($expected, $this->normalize(self::frameworks()));
         $autoLoaded = $this->normalize(array_keys(IntegrationsLoader::LIBRARIES));
 
         // If this test fails you need to add an entry to IntegrationsLoader::LIBRARIES array.
@@ -38,5 +34,18 @@ final class CurlHeadersMapTest extends Framework\TestCase
             }
             return strtolower($name);
         }, $array_map);
+    }
+
+    /**
+     * Returns the currently supported web frameworks.
+     *
+     * @return array
+     */
+    private static function frameworks()
+    {
+        return [
+            'laravel',
+            'symfony',
+        ];
     }
 }

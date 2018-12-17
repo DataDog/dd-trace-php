@@ -198,7 +198,7 @@ final class MysqliTest extends IntegrationTestCase
         $result = $mysqli->query('SELECT * from tests');
 
         $traces = $this->isolateTracer(function () use (&$fetched, $method, $args, $result) {
-            $fetched = $result->$method(...$args);
+            $fetched = call_user_func_array([$result, $method], $args);
         });
 
         $mysqli->close();
@@ -229,7 +229,7 @@ final class MysqliTest extends IntegrationTestCase
         $result = $stmt->get_result();
 
         $traces = $this->isolateTracer(function () use (&$fetched, $method, $args, $result) {
-            $fetched = $result->$method(...$args);
+            $fetched = call_user_func_array([$result, $method], $args);
         });
 
         $mysqli->close();
@@ -260,7 +260,7 @@ final class MysqliTest extends IntegrationTestCase
         $fetched = null;
 
         $traces = $this->isolateTracer(function () use (&$fetched, $methodName, $args, $result) {
-            $fetched = $methodName($result, ...$args);
+            $fetched = call_user_func_array($methodName, array_merge([$result], $args));
         });
 
         $mysqli->close();
@@ -293,7 +293,7 @@ final class MysqliTest extends IntegrationTestCase
         $fetched = null;
 
         $traces = $this->isolateTracer(function () use (&$fetched, $methodName, $args, $result) {
-            $fetched = $methodName($result, ...$args);
+            $fetched = call_user_func_array($methodName, array_merge([$result], $args));
         });
 
         $mysqli->close();

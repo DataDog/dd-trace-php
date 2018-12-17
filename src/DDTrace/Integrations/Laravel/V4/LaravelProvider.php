@@ -56,7 +56,7 @@ class LaravelProvider extends ServiceProvider
         // Sets a global tracer (singleton). Also store it in the Laravel
         // container for easy Laravel-specific use.
         GlobalTracer::set($tracer);
-        $this->app->instance(Tracer::class, $tracer);
+        $this->app->instance('DDTrace\Tracer', $tracer);
     }
 
     /** @inheritdoc */

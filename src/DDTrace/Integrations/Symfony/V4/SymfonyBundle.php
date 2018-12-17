@@ -71,20 +71,28 @@ class SymfonyBundle extends Bundle
                 $symfonyRequestSpan->setTag(Tags\HTTP_METHOD, $request->getMethod());
                 $symfonyRequestSpan->setTag(Tags\HTTP_URL, $request->getUriForPath($request->getPathInfo()));
 
+                $thrown = null;
+                $response = null;
+
                 try {
-                    return call_user_func_array([$this, 'handle'], $args);
+                    $response = call_user_func_array([$this, 'handle'], $args);
                 } catch (\Exception $e) {
                     $span = $scope->getSpan();
                     $span->setError($e);
-                    throw $e;
-                } finally {
-                    $route = $request->get('_route');
-
-                    if ($symfonyRequestSpan !== null && $route !== null) {
-                        $symfonyRequestSpan->setTag(Tags\RESOURCE_NAME, $route);
-                    }
-                    $scope->close();
+                    $thrown = $e;
                 }
+                $route = $request->get('_route');
+
+                if ($symfonyRequestSpan !== null && $route !== null) {
+                    $symfonyRequestSpan->setTag(Tags\RESOURCE_NAME, $route);
+                }
+                $scope->close();
+
+                if ($thrown) {
+                    throw $thrown;
+                }
+
+                return $response;
             }
         );
 

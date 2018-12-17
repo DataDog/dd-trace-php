@@ -19,7 +19,6 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\View\Engines\CompilerEngine;
 use OpenTracing\GlobalTracer;
 
-use function DDTrace\Time\fromMicrotime;
 
 /**
  * DataDog Laravel tracing provider. Use by installing the dd-trace library:
@@ -120,7 +119,9 @@ class LaravelProvider extends ServiceProvider
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
             $tracer,
             [
-                'start_time' => defined('LARAVEL_START') ? fromMicrotime(LARAVEL_START) : DDTrace\Time\now(),
+                'start_time' => defined('LARAVEL_START')
+                    ? DDTrace\Time\fromMicrotime(LARAVEL_START)
+                    : DDTrace\Time\now(),
             ],
             $this->app->make('request')->header()
         );
@@ -131,27 +132,33 @@ class LaravelProvider extends ServiceProvider
         $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
         // Name the scope when the route matches
-        $this->app['events']->listen(RouteMatched::class, function (RouteMatched $event) use ($scope) {
-            $span = $scope->getSpan();
-            $span->setTag(
-                Tags\RESOURCE_NAME,
-                $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
-            );
-            $span->setTag('laravel.route.name', Route::currentRouteName());
-            $span->setTag('laravel.route.action', $event->route->getActionName());
-            $span->setTag('http.method', $event->request->method());
-            $span->setTag('http.url', $event->request->url());
-        });
-
-        $this->app['events']->listen(RequestHandled::class, function (RequestHandled $event) use ($scope) {
-            $span = $scope->getSpan();
-            $span->setTag('http.status_code', $event->response->getStatusCode());
-            try {
-                $user = auth()->user()->id;
-                $span->setTag('laravel.user', strlen($user) ? $user : '-');
-            } catch (\Exception $e) {
+        $this->app['events']->listen(
+            'Illuminate\Routing\Events\RouteMatched',
+            function (RouteMatched $event) use ($scope) {
+                $span = $scope->getSpan();
+                $span->setTag(
+                    Tags\RESOURCE_NAME,
+                    $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
+                );
+                $span->setTag('laravel.route.name', Route::currentRouteName());
+                $span->setTag('laravel.route.action', $event->route->getActionName());
+                $span->setTag('http.method', $event->request->method());
+                $span->setTag('http.url', $event->request->url());
             }
-        });
+        );
+
+        $this->app['events']->listen(
+            'Illuminate\Foundation\Http\Events\RequestHandled',
+            function (RequestHandled $event) use ($scope) {
+                $span = $scope->getSpan();
+                $span->setTag('http.status_code', $event->response->getStatusCode());
+                try {
+                    $user = auth()->user()->id;
+                    $span->setTag('laravel.user', strlen($user) ? $user : '-');
+                } catch (\Exception $e) {
+                }
+            }
+        );
 
         // Enable other integrations
         IntegrationsLoader::load();

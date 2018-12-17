@@ -20,12 +20,12 @@ final class TraceOverrideMethodTest extends Framework\TestCase
 
     public function testMethodInvokesExpectedResults()
     {
-        dd_trace(Scope::class, "close", function (...$args) {
-            $this->close(...$args);
+        dd_trace('DDTrace\Scope', "close", function () {
+            call_user_func_array([$this, 'close'], func_get_args());
         });
         $val = 0;
 
-        $span = $this->prophesize(Span::class);
+        $span = $this->prophesize('OpenTracing\Span');
         $span->finish()->shouldBeCalled();
         $scope = new Scope(new ScopeManager(), $span->reveal(), true);
         $scope->close();
@@ -33,12 +33,12 @@ final class TraceOverrideMethodTest extends Framework\TestCase
 
     public function testMethodCanBeOverridenByTrace()
     {
-        dd_trace(Scope::class, "close", function (...$args) {
+        dd_trace('DDTrace\Scope', "close", function () {
             // Don't call close() to verify the method was successfully overwritten
         });
         $val = 0;
 
-        $span = $this->prophesize(Span::class);
+        $span = $this->prophesize('OpenTracing\Span');
         $span->finish()->shouldNotBeCalled();
         $scope = new Scope(new ScopeManager(), $span->reveal(), true);
         $scope->close();
