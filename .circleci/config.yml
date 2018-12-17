@@ -172,7 +172,7 @@ jobs:
 
   "Lint files": &lint_files
     docker:
-      - image: circleci/php:7-cli-node-browsers
+      - image: circleci/php:7.2-cli-node-browsers
     steps:
       - checkout
       - <<: *STEP_EXT_INSTALL
