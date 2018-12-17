@@ -7,7 +7,7 @@ use DDTrace\SpanContext;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tracer;
 use Mockery\MockInterface;
-use OpenTracing\Reference;
+use DDTrace\OpenTracing\Reference;
 
 final class StartSpanOptionsFactoryTest extends BaseTestCase
 {
@@ -19,7 +19,7 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
     protected function setUp()
     {
         parent::setUp();
-        $this->tracer = \Mockery::mock('OpenTracing\Tracer');
+        $this->tracer = \Mockery::mock('DDTrace\OpenTracing\Tracer');
     }
 
     public function testCreateForWebRequestNoExtractedContext()

@@ -2,8 +2,8 @@
 
 namespace DDTrace;
 
-use OpenTracing\Scope as OpenTracingScope;
-use OpenTracing\Span as OpenTracingSpan;
+use DDTrace\OpenTracing\Scope as OpenTracingScope;
+use DDTrace\OpenTracing\Span as OpenTracingSpan;
 
 final class Scope implements OpenTracingScope
 {

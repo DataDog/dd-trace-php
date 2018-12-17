@@ -53,7 +53,7 @@ interface Span
      *
      * If there is a pre-existing tag set for key, it is overwritten.
      *
-     * As an implementor, consider using "standard tags" listed in {@see \OpenTracing\Tags}
+     * As an implementor, consider using "standard tags" listed in {@see \DDTrace\Tags}
      *
      * If the span is already finished, a warning should be logged.
      *

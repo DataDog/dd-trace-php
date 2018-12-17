@@ -29,7 +29,7 @@ final class InvalidReferenceArgument extends InvalidArgumentException
     public static function forInvalidContext($context)
     {
         return new self(sprintf(
-            'Reference expects \OpenTracing\Span or \OpenTracing\SpanContext as context, got %s',
+            'Reference expects \DDTrace\OpenTracing\Span or \DDTrace\OpenTracing\SpanContext as context, got %s',
             is_object($context) ? get_class($context) : gettype($context)
         ));
     }
