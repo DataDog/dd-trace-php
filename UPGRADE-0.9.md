@@ -18,10 +18,28 @@ GlobalTracer::set($tracer);
 
 ## API changes
 
-| ddtrace 0.8 and below               | ddtrace 0.9
-| ----------------------------------- | --------------------------------
-| `OpenTracing\GlobalTracer`          | `DDTrace\GlobalTracer`
-| `OpenTracing\Formats`               | `DDTrace\Formats`
+| ddtrace 0.8 and below      | ddtrace 0.9
+| -------------------------- | ----------------------
+| `OpenTracing\GlobalTracer` | `DDTrace\GlobalTracer`
+| `OpenTracing\Formats`      | `DDTrace\Formats`
+| `OpenTracing\Exceptions\*` | `DDTrace\Exceptions\*`
+
+All of the remaining OpenTracing interfaces and classes we just moved under the `DDTrace` namespace.
+
+| ddtrace 0.8 and below          | ddtrace 0.9
+| ------------------------------ | --------------------------------------
+| `OpenTracing\Scope`            | `DDTrace\OpenTracing\Scope`
+| `OpenTracing\ScopeManager`     | `DDTrace\OpenTracing\ScopeManager`
+| `OpenTracing\Span`             | `DDTrace\OpenTracing\Span`
+| `OpenTracing\SpanContext`      | `DDTrace\OpenTracing\SpanContext`
+| `OpenTracing\Tracer`           | `DDTrace\OpenTracing\Tracer`
+| `OpenTracing\Reference`        | `DDTrace\OpenTracing\Reference`
+| `OpenTracing\StartSpanOptions` | `DDTrace\OpenTracing\StartSpanOptions`
+| `OpenTracing\NoopScope`        | `DDTrace\OpenTracing\NoopScope`
+| `OpenTracing\NoopScopeManager` | `DDTrace\OpenTracing\NoopScopeManager`
+| `OpenTracing\NoopSpan`         | `DDTrace\OpenTracing\NoopSpan`
+| `OpenTracing\NoopSpanContext`  | `DDTrace\OpenTracing\NoopSpanContext`
+| `OpenTracing\NoopTracer`       | `DDTrace\OpenTracing\NoopTracer`
 
 ## Removing the OpenTracing dependency
 
