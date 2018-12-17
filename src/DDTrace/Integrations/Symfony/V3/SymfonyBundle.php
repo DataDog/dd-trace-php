@@ -10,6 +10,7 @@ use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Types;
+use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
@@ -102,15 +103,7 @@ class SymfonyBundle extends Bundle
             function (\Exception $e, Request $request, $type) use ($symfonyRequestSpan) {
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
                 $symfonyRequestSpan->setError($e);
-
-                try {
-                    return $this->handleException($e, $request, $type);
-                } catch (\Exception $e) {
-                    $span = $scope->getSpan();
-                    $span->setError($e);
-                } finally {
-                    $scope->close();
-                }
+                return TryCatchFinally::executeMethod($scope, $this, 'handleException', [$e, $request, $type]);
             }
         );
 
@@ -121,18 +114,8 @@ class SymfonyBundle extends Bundle
             function () use ($symfonyRequestSpan, &$request) {
                 $args = func_get_args();
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
-
                 SymfonyBundle::injectRouteInfo($args, $request, $symfonyRequestSpan);
-
-                try {
-                    return call_user_func_array([$this, 'dispatch'], $args);
-                } catch (\Exception $e) {
-                    $span = $scope->getSpan();
-                    $span->setError($e);
-                    throw $e;
-                } finally {
-                    $scope->close();
-                }
+                return TryCatchFinally::executeMethod($scope, $this, 'dispatch', $args);
             }
         );
 
@@ -154,15 +137,7 @@ class SymfonyBundle extends Bundle
             $span->setTag(Tags\SERVICE_NAME, $appName);
             $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
             $span->setTag(Tags\RESOURCE_NAME, get_class($this) . ' ' . $args[0]);
-
-            try {
-                return call_user_func_array([$this, 'render'], $args);
-            } catch (\Exception $e) {
-                $span = $scope->getSpan();
-                $span->setError($e);
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, 'render', $args);
         };
 
         // This can be replaced once and for all by EngineInterface tracing

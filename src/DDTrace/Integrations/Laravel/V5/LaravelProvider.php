@@ -11,6 +11,7 @@ use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Types;
+use DDTrace\Util\TryCatchFinally;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Route;
@@ -99,16 +100,8 @@ class LaravelProvider extends ServiceProvider
                         $scope = GlobalTracer::get()->startActiveSpan('laravel.pipeline.pipe');
                         $span = $scope->getSpan();
                         $span->setTag(Tags\RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
-                        $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
-
-                        try {
-                            return call_user_func_array([$this, $handlerMethod], $args);
-                        } catch (\Exception $e) {
-                            $span->setError($e);
-                            throw $e;
-                        } finally {
-                            $scope->close();
-                        }
+                        $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+                        return TryCatchFinally::executeMethod($scope, $this, $handlerMethod, $args);
                     });
                 }
             }
@@ -121,15 +114,7 @@ class LaravelProvider extends ServiceProvider
         dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function ($path, $data = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
             $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
-
-            try {
-                return $this->get($path, $data);
-            } catch (\Exception $e) {
-                $scope->getSpan()->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, 'get', [$path, $data]);
         });
 
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(

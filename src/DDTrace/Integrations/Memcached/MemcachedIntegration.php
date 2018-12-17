@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Memcached;
 use DDTrace\Tags;
 use DDTrace\Types;
 use DDTrace\Obfuscation;
+use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 
 /**
@@ -115,14 +116,7 @@ class MemcachedIntegration
             $span->setTag('memcached.command', 'flush');
             $span->setTag(Tags\RESOURCE_NAME, 'flush');
 
-            try {
-                return call_user_func_array([$this, 'flush'], $args);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, 'flush', $args);
         });
 
         // mixed Memcached::get ( string $key [, callable $cache_cb [, int &$flags ]] )
@@ -238,14 +232,7 @@ class MemcachedIntegration
         $span->setTag('memcached.query', "$command " . Obfuscation::toObfuscatedString($args[0]));
         $span->setTag(Tags\RESOURCE_NAME, $command);
 
-        try {
-            return call_user_func_array([$memcached, $command], $args);
-        } catch (\Exception $e) {
-            $span->setError($e);
-            throw $e;
-        } finally {
-            $scope->close();
-        }
+        return TryCatchFinally::executeMethod($scope, $memcached, $command, $args);
     }
 
     public static function traceCommandByKey($memcached, $command, $args)
@@ -261,14 +248,7 @@ class MemcachedIntegration
         $span->setTag('memcached.query', "$command " . Obfuscation::toObfuscatedString($args[1]));
         $span->setTag(Tags\RESOURCE_NAME, $command);
 
-        try {
-            return call_user_func_array([$memcached, $command], $args);
-        } catch (\Exception $e) {
-            $span->setError($e);
-            throw $e;
-        } finally {
-            $scope->close();
-        }
+        return TryCatchFinally::executeMethod($scope, $memcached, $command, $args);
     }
 
     public static function traceCas($memcached, $args)
@@ -284,14 +264,7 @@ class MemcachedIntegration
         $span->setTag('memcached.query', 'cas ?');
         $span->setTag(Tags\RESOURCE_NAME, 'cas');
 
-        try {
-            return call_user_func_array([$memcached, 'cas'], $args);
-        } catch (\Exception $e) {
-            $span->setError($e);
-            throw $e;
-        } finally {
-            $scope->close();
-        }
+        return TryCatchFinally::executeMethod($scope, $memcached, 'cas', $args);
     }
 
     public static function traceCasByKey($memcached, $args)
@@ -309,14 +282,7 @@ class MemcachedIntegration
         $span->setTag(Tags\RESOURCE_NAME, 'casByKey');
         self::setServerTagsByKey($span, $memcached, $serverKey);
 
-        try {
-            return call_user_func_array([$memcached, 'casByKey'], $args);
-        } catch (\Exception $e) {
-            $span->setError($e);
-            throw $e;
-        } finally {
-            $scope->close();
-        }
+        return TryCatchFinally::executeMethod($scope, $memcached, 'casByKey', $args);
     }
 
     public static function traceMulti($memcached, $command, $args)
@@ -331,14 +297,7 @@ class MemcachedIntegration
         $span->setTag('memcached.query', $query);
         $span->setTag(Tags\RESOURCE_NAME, $command);
 
-        try {
-            return call_user_func_array([$memcached, $command], $args);
-        } catch (\Exception $e) {
-            $span->setError($e);
-            throw $e;
-        } finally {
-            $scope->close();
-        }
+        return TryCatchFinally::executeMethod($scope, $memcached, $command, $args);
     }
 
     public static function traceMultiByKey($memcached, $command, $args)
@@ -355,14 +314,7 @@ class MemcachedIntegration
         $span->setTag('memcached.query', $query);
         $span->setTag(Tags\RESOURCE_NAME, $command);
 
-        try {
-            return call_user_func_array([$memcached, $command], $args);
-        } catch (\Exception $e) {
-            $span->setError($e);
-            throw $e;
-        } finally {
-            $scope->close();
-        }
+        return TryCatchFinally::executeMethod($scope, $memcached, $command, $args);
     }
 
     /**

@@ -11,6 +11,7 @@ use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Types;
+use DDTrace\Util\TryCatchFinally;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use OpenTracing\GlobalTracer;
@@ -114,46 +115,18 @@ class LaravelProvider extends ServiceProvider
 
         dd_trace('Illuminate\Routing\Route', 'run', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.action', $this->uri);
-            $span = $scope->getSpan();
-
-            try {
-                return $this->run();
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, 'run', func_get_args());
         });
 
         dd_trace('Illuminate\View\View', 'render', function () {
-            $args = func_get_args();
             $scope = LaravelProvider::buildBaseScope('laravel.view.render', $this->view);
-            $span = $scope->getSpan();
-
-            try {
-                return call_user_func_array([$this, 'render'], $args);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, 'render', func_get_args());
         });
 
         dd_trace('Illuminate\Events\Dispatcher', 'fire', function () {
             $args = func_get_args();
             $scope = LaravelProvider::buildBaseScope('laravel.event.handle', $args[0]);
-            $span = $scope->getSpan();
-
-            try {
-                return call_user_func_array([$this, 'fire'], $args);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, 'fire', $args);
         });
     }
 

@@ -110,8 +110,9 @@ final class Json implements Encoder
             $arraySpan['parent_id_hex'] = '-';
         }
 
-        if (!empty($span->getAllTags())) {
-            $arraySpan['meta'] = $span->getAllTags();
+        $tags = $span->getAllTags();
+        if (!empty($tags)) {
+            $arraySpan['meta'] = $tags;
         }
 
         if ($span->getContext()->isHostRoot()

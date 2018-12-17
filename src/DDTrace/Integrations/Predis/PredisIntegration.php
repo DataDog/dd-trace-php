@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Predis;
 
 use DDTrace\Tags;
 use DDTrace\Types;
+use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 
 const VALUE_PLACEHOLDER = "?";
@@ -37,17 +38,23 @@ class PredisIntegration
             $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setTag(Tags\RESOURCE_NAME, 'Predis.Client.__construct');
+
+            $thrown = null;
             try {
                 call_user_func_array([$this, '__construct'], $args);
                 PredisIntegration::storeConnectionParams($this, $args);
                 PredisIntegration::setConnectionTags($this, $span);
-                return $this;
             } catch (\Exception $e) {
+                $thrown = $e;
                 $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
             }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $this;
         });
 
         // public void Predis\Client::connect()
@@ -59,14 +66,7 @@ class PredisIntegration
             $span->setTag(Tags\RESOURCE_NAME, 'Predis.Client.connect');
             PredisIntegration::setConnectionTags($this, $span);
 
-            try {
-                return $this->connect();
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, 'connect', []);
         });
 
         // public mixed Predis\Client::executeCommand(CommandInterface $command)
@@ -84,14 +84,7 @@ class PredisIntegration
             $span->setTag(Tags\RESOURCE_NAME, $query);
             PredisIntegration::setConnectionTags($this, $span);
 
-            try {
-                return $this->executeCommand($command);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, 'executeCommand', [$command]);
         });
 
         // Predis < 1 has not this method
@@ -109,14 +102,7 @@ class PredisIntegration
                 $span->setTag(Tags\RESOURCE_NAME, $query);
                 PredisIntegration::setConnectionTags($this, $span);
 
-                try {
-                    return $this->executeRaw($arguments, $error);
-                } catch (\Exception $e) {
-                    $span->setError($e);
-                    throw $e;
-                } finally {
-                    $scope->close();
-                }
+                return TryCatchFinally::executeMethod($scope, $this, 'executeRaw', [$arguments, $error]);
             });
         }
 
@@ -131,14 +117,12 @@ class PredisIntegration
                 $span->setTag('redis.pipeline_length', count($commands));
                 PredisIntegration::setConnectionTags($this, $span);
 
-                try {
-                    return $this->executePipeline($connection, $commands);
-                } catch (\Exception $e) {
-                    $span->setError($e);
-                    throw $e;
-                } finally {
-                    $scope->close();
-                }
+                return TryCatchFinally::executeMethod(
+                    $scope,
+                    $this,
+                    'executePipeline',
+                    [$connection, $commands]
+                );
             });
         }
     }

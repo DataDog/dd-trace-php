@@ -9,6 +9,7 @@ use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Types;
+use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
@@ -94,15 +95,7 @@ class SymfonyBundle extends Bundle
             function (\Exception $e, Request $request, $type) use ($symfonyRequestSpan) {
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
                 $symfonyRequestSpan->setError($e);
-
-                try {
-                    return $this->handleException($e, $request, $type);
-                } catch (\Exception $e) {
-                    $span = $scope->getSpan();
-                    $span->setError($e);
-                } finally {
-                    $scope->close();
-                }
+                return TryCatchFinally::executeMethod($scope, $this, 'handleException', [$e, $request, $type]);
             }
         );
 
@@ -113,16 +106,7 @@ class SymfonyBundle extends Bundle
             function () {
                 $args = func_get_args();
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
-
-                try {
-                    return call_user_func_array([$this, 'dispatch'], $args);
-                } catch (\Exception $e) {
-                    $span = $scope->getSpan();
-                    $span->setError($e);
-                    throw $e;
-                } finally {
-                    $scope->close();
-                }
+                return TryCatchFinally::executeMethod($scope, $this, 'dispatch', $args);
             }
         );
 

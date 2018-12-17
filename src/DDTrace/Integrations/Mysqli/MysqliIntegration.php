@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Mysqli;
 use DDTrace\Tags;
 use DDTrace\Types;
 use DDTrace\Util\ObjectKVStore;
+use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 
 class MysqliIntegration
@@ -28,6 +29,8 @@ class MysqliIntegration
             $scope = MysqliIntegration::initScope('mysqli_connect', 'mysqli_connect');
             $span = $scope->getSpan();
 
+            $thrown = null;
+            $result = null;
             try {
                 // Depending on configuration, connections errors can both cause an exception and return false
                 $result = call_user_func_array('mysqli_connect', $args);
@@ -39,8 +42,12 @@ class MysqliIntegration
                 $scope->close();
             } catch (\Exception $ex) {
                 $span->setError($ex);
-                $scope->close();
-                throw $ex;
+                $thrown = $ex;
+            }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
             }
 
             return $result;
@@ -59,6 +66,8 @@ class MysqliIntegration
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
 
+            // PHP 5.4 compatible try-catch-finally
+            $thrown = null;
             try {
                 call_user_func_array([$this, $mysqli_constructor], $args);
                 //Mysqli::storeConnectionParams($this, $args);
@@ -67,13 +76,17 @@ class MysqliIntegration
                 } else {
                     MysqliIntegration::setConnectionInfo($span, $this);
                 }
-                return $this;
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
+            } catch (\Exception $ex) {
+                $thrown = $ex;
+                $span->setError($ex);
             }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $this;
         });
 
         // mixed mysqli_query ( mysqli $link , string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
@@ -167,18 +180,17 @@ class MysqliIntegration
             MysqliIntegration::setConnectionInfo($span, $this);
             MysqliIntegration::storeQuery($this, $query);
 
-            try {
-                $result = call_user_func_array([$this, 'query'], $args);
-                $host_info = MysqliIntegration::extractHostInfo($this);
-                ObjectKVStore::put($result, 'host_info', $host_info);
-                ObjectKVStore::put($result, 'query', $query);
-                return $result;
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod(
+                $scope,
+                $this,
+                'query',
+                $args,
+                function ($result) use ($query) {
+                    $host_info = MysqliIntegration::extractHostInfo($this);
+                    ObjectKVStore::put($result, 'host_info', $host_info);
+                    ObjectKVStore::put($result, 'query', $query);
+                }
+            );
         });
 
         // mysqli_stmt mysqli::prepare ( string $query )
@@ -188,18 +200,17 @@ class MysqliIntegration
             $span = $scope->getSpan();
             MysqliIntegration::setConnectionInfo($span, $this);
 
-            try {
-                $statement = $this->prepare($query);
-                $host_info = MysqliIntegration::extractHostInfo($this);
-                ObjectKVStore::put($statement, 'host_info', $host_info);
-                MysqliIntegration::storeQuery($statement, $query);
-                return $statement;
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod(
+                $scope,
+                $this,
+                'prepare',
+                [$query],
+                function ($statement) use ($query) {
+                    $host_info = MysqliIntegration::extractHostInfo($this);
+                    ObjectKVStore::put($statement, 'host_info', $host_info);
+                    MysqliIntegration::storeQuery($statement, $query);
+                }
+            );
         });
 
         // bool mysqli::commit ([ int $flags [, string $name ]] )
@@ -215,51 +226,30 @@ class MysqliIntegration
                 $span->setTag('db.transaction_name', $args[1]);
             }
 
-            try {
-                return call_user_func_array([$this, 'commit'], $args);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, 'commit', $args);
         });
 
         // bool mysqli_stmt::execute ( void )
         dd_trace('mysqli_stmt', 'execute', function () {
             $resource = MysqliIntegration::retrieveQuery($this, 'mysqli_stmt.execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt.execute', $resource);
-            /** @var \DDTrace\Span $span */
-            $span = $scope->getSpan();
-
-            try {
-                return $this->execute();
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, 'execute', []);
         });
 
         // bool mysqli_stmt::execute ( void )
         dd_trace('mysqli_stmt', 'get_result', function () {
             $resource = MysqliIntegration::retrieveQuery($this, 'mysqli_stmt.get_result');
             $scope = MysqliIntegration::initScope('mysqli_stmt.get_result', $resource);
-            /** @var \DDTrace\Span $span */
-            $span = $scope->getSpan();
-
-            try {
-                $result = $this->get_result();
-                ObjectKVStore::propagate($this, $result, 'host_info');
-                ObjectKVStore::put($result, 'query', $resource);
-                return $result;
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod(
+                $scope,
+                $this,
+                'get_result',
+                [],
+                function ($result) use ($resource) {
+                    ObjectKVStore::propagate($this, $result, 'host_info');
+                    ObjectKVStore::put($result, 'query', $resource);
+                }
+            );
         });
 
         // Procedural fetch methods
@@ -302,14 +292,7 @@ class MysqliIntegration
                 $span->setTag($key, $value);
             }
 
-            try {
-                return call_user_func_array([$this, $methodName], $args);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeMethod($scope, $this, $methodName, $args);
         });
     }
 
@@ -332,14 +315,7 @@ class MysqliIntegration
                 $span->setTag($key, $value);
             }
 
-            try {
-                return call_user_func_array($methodName, $args);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executeFunction($scope, $methodName, $args);
         });
     }
 
