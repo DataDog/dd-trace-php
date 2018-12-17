@@ -103,7 +103,25 @@ class SymfonyBundle extends Bundle
             function (\Exception $e, Request $request, $type) use ($symfonyRequestSpan) {
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
                 $symfonyRequestSpan->setError($e);
-                return TryCatchFinally::executePublicMethod($scope, $this, 'handleException', [$e, $request, $type]);
+
+                // PHP 5.4 compliant try-catch-finally block.
+                // Note that 'handleException' is a private method.
+                $thrown = null;
+                $result = null;
+                $span = $scope->getSpan();
+                try {
+                    $result = $this->handleException($e, $request, $type);
+                } catch (\Exception $ex) {
+                    $thrown = $ex;
+                    $span->setError($ex);
+                }
+
+                $scope->close();
+                if ($thrown) {
+                    throw $thrown;
+                }
+
+                return $result;
             }
         );
 
