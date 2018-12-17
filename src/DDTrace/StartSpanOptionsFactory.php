@@ -2,9 +2,9 @@
 
 namespace DDTrace;
 
-use OpenTracing\Reference;
-use OpenTracing\StartSpanOptions;
-use OpenTracing\Tracer as OTTracer;
+use DDTrace\OpenTracing\Reference;
+use DDTrace\OpenTracing\StartSpanOptions;
+use DDTrace\OpenTracing\Tracer as OTTracer;
 
 /**
  * A factory to create instances of StartSpanOptions.
@@ -13,7 +13,7 @@ class StartSpanOptionsFactory
 {
     /**
      * Creates an instance of StartSpanOptions making sure that if DD specific distributed tracing headers exist,
-     * then the \OpenTracing\Span that is about to be started will get the proper reference to the remote Span.
+     * then the \DDTrace\OpenTracing\Span that is about to be started will get the proper reference to the remote Span.
      *
      * @param OTTracer $tracer
      * @param array $options

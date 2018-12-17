@@ -3,20 +3,19 @@
 namespace DDTrace;
 
 use DDTrace\Encoders\Json;
-use DDTrace\Format;
+use DDTrace\OpenTracing\NoopSpan;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
 use DDTrace\Sampling\AlwaysKeepSampler;
 use DDTrace\Sampling\Sampler;
-use DDTrace\Tag;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
-use OpenTracing\Exceptions\UnsupportedFormat;
-use OpenTracing\Reference;
-use OpenTracing\SpanContext as OpenTracingContext;
-use OpenTracing\StartSpanOptions;
-use OpenTracing\Tracer as OpenTracingTracer;
+use DDTrace\Exceptions\UnsupportedFormat;
+use DDTrace\OpenTracing\Reference;
+use DDTrace\OpenTracing\SpanContext as OpenTracingContext;
+use DDTrace\OpenTracing\StartSpanOptions;
+use DDTrace\OpenTracing\Tracer as OpenTracingTracer;
 
 final class Tracer implements OpenTracingTracer
 {

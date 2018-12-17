@@ -115,4 +115,16 @@ final class InvalidSpanOption extends InvalidArgumentException
             is_object($value) ? get_class($value) : gettype($value)
         ));
     }
+
+    /**
+     * @param mixed $value
+     * @return InvalidSpanOption
+     */
+    public static function forIgnoreActiveSpan($value)
+    {
+        return new self(sprintf(
+            'Invalid type for ignore_active_span. Expected bool, got %s',
+            is_object($value) ? get_class($value) : gettype($value)
+        ));
+    }
 }

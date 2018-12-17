@@ -4,7 +4,7 @@ namespace DDTrace\Tests\Unit;
 
 use DDTrace\Scope;
 use DDTrace\ScopeManager;
-use OpenTracing\Span;
+use DDTrace\OpenTracing\Span;
 use PHPUnit\Framework;
 
 final class TraceOverrideMethodTest extends Framework\TestCase

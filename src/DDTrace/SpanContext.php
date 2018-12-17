@@ -3,7 +3,7 @@
 namespace DDTrace;
 
 use ArrayIterator;
-use OpenTracing\SpanContext as OpenTracingSpanContext;
+use DDTrace\OpenTracing\SpanContext as OpenTracingSpanContext;
 
 final class SpanContext implements OpenTracingSpanContext
 {
