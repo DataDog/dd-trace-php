@@ -37,14 +37,20 @@ namespace DDTrace\Tests\Unit\Util {
         {
             $instance = new DummyClass();
             $scope = $this->tracer->startActiveSpan('my.operation');
-            $this->assertStringStartsWith('result ', TryCatchFinally::executePublicMethod($scope, $instance, 'someMethod', ['1', '2']));
+            $this->assertStringStartsWith(
+                'result ',
+                TryCatchFinally::executePublicMethod($scope, $instance, 'someMethod', ['1', '2'])
+            );
         }
 
         public function testExecutePublicMethodArgsAreCorrectlyPassed()
         {
             $instance = new DummyClass();
             $scope = $this->tracer->startActiveSpan('my.operation');
-            $this->assertStringEndsWith(' 1 2', TryCatchFinally::executePublicMethod($scope, $instance, 'someMethod', ['1', '2']));
+            $this->assertStringEndsWith(
+                ' 1 2',
+                TryCatchFinally::executePublicMethod($scope, $instance, 'someMethod', ['1', '2'])
+            );
         }
 
         public function testExecutePublicMethodAfterResultIsExecutedWithCorrectArgs()
@@ -71,7 +77,7 @@ namespace DDTrace\Tests\Unit\Util {
         public function testExecutePublicMethodScopeClosedOnSuccess()
         {
             $instance = new DummyClass();
-            $scope = $this->tracer->startActiveSpan('my.operation');
+            $scope = $this->tracer->startActiveSpan('my.operation', []);
             TryCatchFinally::executePublicMethod($scope, $instance, 'someMethod', ['1', '2']);
             $this->assertTrue($scope->getSpan()->isFinished());
         }
@@ -107,13 +113,19 @@ namespace DDTrace\Tests\Unit\Util {
         public function testExecuteFunctionReturnsResult()
         {
             $scope = $this->tracer->startActiveSpan('my.operation');
-            $this->assertStringStartsWith('function ', TryCatchFinally::executeFunction($scope, 'tryCatchFinallyGlobalCallback', ['1', '2']));
+            $this->assertStringStartsWith(
+                'function ',
+                TryCatchFinally::executeFunction($scope, 'tryCatchFinallyGlobalCallback', ['1', '2'])
+            );
         }
 
         public function testExecuteFunctionArgsAreCorrectlyPassed()
         {
             $scope = $this->tracer->startActiveSpan('my.operation');
-            $this->assertStringEndsWith(' 1 2', TryCatchFinally::executeFunction($scope, 'tryCatchFinallyGlobalCallback', ['1', '2']));
+            $this->assertStringEndsWith(
+                ' 1 2',
+                TryCatchFinally::executeFunction($scope, 'tryCatchFinallyGlobalCallback', ['1', '2'])
+            );
         }
 
         public function testExecuteFunctionAfterResultIsExecutedWithCorrectArgs()
