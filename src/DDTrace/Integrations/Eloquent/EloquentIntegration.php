@@ -28,7 +28,7 @@ class EloquentIntegration
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            return TryCatchFinally::executeMethod($scope, $this, 'getModels', $args);
+            return TryCatchFinally::executePublicMethod($scope, $this, 'getModels', $args);
         });
 
         // performInsert(Builder $query)
@@ -42,7 +42,7 @@ class EloquentIntegration
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            return TryCatchFinally::executeMethod($scope, $this, 'performInsert', $args);
+            return TryCatchFinally::executePublicMethod($scope, $this, 'performInsert', $args);
         });
 
         // performUpdate(Builder $query)
@@ -56,7 +56,7 @@ class EloquentIntegration
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            return TryCatchFinally::executeMethod($scope, $this, 'performUpdate', $args);
+            return TryCatchFinally::executePublicMethod($scope, $this, 'performUpdate', $args);
         });
 
         // public function delete()
@@ -64,7 +64,7 @@ class EloquentIntegration
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.delete');
             $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            return TryCatchFinally::executeMethod($scope, $this, 'delete', []);
+            return TryCatchFinally::executePublicMethod($scope, $this, 'delete', []);
         });
     }
 }

@@ -100,7 +100,7 @@ class LaravelProvider extends ServiceProvider
                         $span = $scope->getSpan();
                         $span->setTag(Tags\RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
                         $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
-                        return TryCatchFinally::executeMethod($scope, $this, $handlerMethod, $args);
+                        return TryCatchFinally::executePublicMethod($scope, $this, $handlerMethod, $args);
                     });
                 }
             }
@@ -113,7 +113,7 @@ class LaravelProvider extends ServiceProvider
         dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function ($path, $data = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
             $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
-            return TryCatchFinally::executeMethod($scope, $this, 'get', [$path, $data]);
+            return TryCatchFinally::executePublicMethod($scope, $this, 'get', [$path, $data]);
         });
 
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(

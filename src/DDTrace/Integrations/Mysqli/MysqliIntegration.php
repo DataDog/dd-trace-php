@@ -180,7 +180,7 @@ class MysqliIntegration
             MysqliIntegration::setConnectionInfo($span, $this);
             MysqliIntegration::storeQuery($this, $query);
 
-            return TryCatchFinally::executeMethod(
+            return TryCatchFinally::executePublicMethod(
                 $scope,
                 $this,
                 'query',
@@ -200,7 +200,7 @@ class MysqliIntegration
             $span = $scope->getSpan();
             MysqliIntegration::setConnectionInfo($span, $this);
 
-            return TryCatchFinally::executeMethod(
+            return TryCatchFinally::executePublicMethod(
                 $scope,
                 $this,
                 'prepare',
@@ -226,21 +226,21 @@ class MysqliIntegration
                 $span->setTag('db.transaction_name', $args[1]);
             }
 
-            return TryCatchFinally::executeMethod($scope, $this, 'commit', $args);
+            return TryCatchFinally::executePublicMethod($scope, $this, 'commit', $args);
         });
 
         // bool mysqli_stmt::execute ( void )
         dd_trace('mysqli_stmt', 'execute', function () {
             $resource = MysqliIntegration::retrieveQuery($this, 'mysqli_stmt.execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt.execute', $resource);
-            return TryCatchFinally::executeMethod($scope, $this, 'execute', []);
+            return TryCatchFinally::executePublicMethod($scope, $this, 'execute', []);
         });
 
         // bool mysqli_stmt::execute ( void )
         dd_trace('mysqli_stmt', 'get_result', function () {
             $resource = MysqliIntegration::retrieveQuery($this, 'mysqli_stmt.get_result');
             $scope = MysqliIntegration::initScope('mysqli_stmt.get_result', $resource);
-            return TryCatchFinally::executeMethod(
+            return TryCatchFinally::executePublicMethod(
                 $scope,
                 $this,
                 'get_result',
@@ -292,7 +292,7 @@ class MysqliIntegration
                 $span->setTag($key, $value);
             }
 
-            return TryCatchFinally::executeMethod($scope, $this, $methodName, $args);
+            return TryCatchFinally::executePublicMethod($scope, $this, $methodName, $args);
         });
     }
 

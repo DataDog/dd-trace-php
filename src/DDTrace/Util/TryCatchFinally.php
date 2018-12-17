@@ -20,7 +20,7 @@ class TryCatchFinally
      * @return mixed|null
      * @throws \Exception
      */
-    public static function executeMethod(Scope $scope, $instance, $method, $args, $afterResult = null)
+    public static function executePublicMethod(Scope $scope, $instance, $method, array $args = [], $afterResult = null)
     {
         $thrown = null;
         $result = null;
@@ -53,7 +53,7 @@ class TryCatchFinally
      * @return mixed|null
      * @throws \Exception
      */
-    public static function executeFunction(Scope $scope, $function, $args, $afterResult = null)
+    public static function executeFunction(Scope $scope, $function, array $args = [], $afterResult = null)
     {
         $thrown = null;
         $result = null;

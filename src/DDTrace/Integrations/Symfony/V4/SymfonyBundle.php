@@ -103,7 +103,7 @@ class SymfonyBundle extends Bundle
             function (\Exception $e, Request $request, $type) use ($symfonyRequestSpan) {
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
                 $symfonyRequestSpan->setError($e);
-                return TryCatchFinally::executeMethod($scope, $this, 'handleException', [$e, $request, $type]);
+                return TryCatchFinally::executePublicMethod($scope, $this, 'handleException', [$e, $request, $type]);
             }
         );
 
@@ -114,7 +114,7 @@ class SymfonyBundle extends Bundle
             function () {
                 $args = func_get_args();
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
-                return TryCatchFinally::executeMethod($scope, $this, 'dispatch', $args);
+                return TryCatchFinally::executePublicMethod($scope, $this, 'dispatch', $args);
             }
         );
 

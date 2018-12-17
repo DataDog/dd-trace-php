@@ -115,18 +115,18 @@ class LaravelProvider extends ServiceProvider
 
         dd_trace('Illuminate\Routing\Route', 'run', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.action', $this->uri);
-            return TryCatchFinally::executeMethod($scope, $this, 'run', func_get_args());
+            return TryCatchFinally::executePublicMethod($scope, $this, 'run', func_get_args());
         });
 
         dd_trace('Illuminate\View\View', 'render', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.view.render', $this->view);
-            return TryCatchFinally::executeMethod($scope, $this, 'render', func_get_args());
+            return TryCatchFinally::executePublicMethod($scope, $this, 'render', func_get_args());
         });
 
         dd_trace('Illuminate\Events\Dispatcher', 'fire', function () {
             $args = func_get_args();
             $scope = LaravelProvider::buildBaseScope('laravel.event.handle', $args[0]);
-            return TryCatchFinally::executeMethod($scope, $this, 'fire', $args);
+            return TryCatchFinally::executePublicMethod($scope, $this, 'fire', $args);
         });
     }
 

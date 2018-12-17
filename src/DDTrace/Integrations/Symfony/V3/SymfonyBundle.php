@@ -111,7 +111,7 @@ class SymfonyBundle extends Bundle
             function (\Exception $e, Request $request, $type) use ($symfonyRequestSpan) {
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
                 $symfonyRequestSpan->setError($e);
-                return TryCatchFinally::executeMethod($scope, $this, 'handleException', [$e, $request, $type]);
+                return TryCatchFinally::executePublicMethod($scope, $this, 'handleException', [$e, $request, $type]);
             }
         );
 
@@ -123,7 +123,7 @@ class SymfonyBundle extends Bundle
                 $args = func_get_args();
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
                 SymfonyBundle::injectRouteInfo($args, $request, $symfonyRequestSpan);
-                return TryCatchFinally::executeMethod($scope, $this, 'dispatch', $args);
+                return TryCatchFinally::executePublicMethod($scope, $this, 'dispatch', $args);
             }
         );
 
@@ -145,7 +145,7 @@ class SymfonyBundle extends Bundle
             $span->setTag(Tags\SERVICE_NAME, $appName);
             $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
             $span->setTag(Tags\RESOURCE_NAME, get_class($this) . ' ' . $args[0]);
-            return TryCatchFinally::executeMethod($scope, $this, 'render', $args);
+            return TryCatchFinally::executePublicMethod($scope, $this, 'render', $args);
         };
 
         // This can be replaced once and for all by EngineInterface tracing
