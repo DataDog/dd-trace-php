@@ -7,6 +7,8 @@
 
 namespace DDTrace;
 
+use DDTrace\OpenTracing\NoopTracer;
+
 final class GlobalTracer
 {
     /** @var Tracer */
@@ -39,14 +41,12 @@ final class GlobalTracer
             return self::$instance;
         }
         if (!class_exists('\OpenTracing\GlobalTracer')) {
-            // @TODO Switch with DDTrace version
-            return self::$instance = \OpenTracing\NoopTracer::create();
+            return self::$instance = NoopTracer::create();
         }
         $tracer = \OpenTracing\GlobalTracer::get();
         if (!$tracer instanceof \OpenTracing\NoopTracer) {
             return self::$instance = $tracer;
         }
-        // @TODO Switch with DDTrace version
-        return self::$instance = \OpenTracing\NoopTracer::create();
+        return self::$instance = NoopTracer::create();
     }
 }
