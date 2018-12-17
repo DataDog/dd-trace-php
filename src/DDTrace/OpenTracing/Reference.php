@@ -7,7 +7,7 @@
 
 namespace DDTrace\OpenTracing;
 
-use DDTrace\Exceptions\InvalidReferenceArgument;
+use DDTrace\OpenTracing\Exceptions\InvalidReferenceArgument;
 
 final class Reference
 {
