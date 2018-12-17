@@ -43,6 +43,8 @@ final class Scope implements OpenTracingScope
 
     /**
      * {@inheritdoc}
+     *
+     * @return Span
      */
     public function getSpan()
     {

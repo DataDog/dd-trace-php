@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\PDO;
 
 use DDTrace\Tags;
 use DDTrace\Types;
-use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 
 class PDOIntegration
