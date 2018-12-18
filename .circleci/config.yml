@@ -172,7 +172,7 @@ jobs:
 
   "Lint files": &lint_files
     docker:
-      - image: circleci/php:7-cli-node-browsers
+      - image: circleci/php:7.2-cli-node-browsers
     steps:
       - checkout
       - <<: *STEP_EXT_INSTALL
@@ -216,24 +216,6 @@ jobs:
       - run:
           name: Check linting failure
           command: test -e .failure && exit 1 || true
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
-
-  "Check 5.4 compatibility (only changed files)":
-    <<: *lint_files
-    steps:
-      - checkout
-      - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL_LEGACY
-      - <<: *STEP_COMPOSER_CACHE_SAVE
-      - run:
-          name: Creating directory for phpcs results
-          command: mkdir -p test-results/phpcs
-      - run:
-          name: Running phpcs
-          command: (git diff --name-status origin/master...HEAD | egrep "^[ACMR].*\.php$" | cut -c 3- || true) | xargs -r composer lint-5.4 -- --report=junit | tee test-results/phpcs/results.xml
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
@@ -492,7 +474,6 @@ workflows:
   build:
     jobs:
       - "Lint files"
-      - "Check 5.4 compatibility (only changed files)"
       - "Static Analysis"
       - "php-5.6"
       - "php-7.0"

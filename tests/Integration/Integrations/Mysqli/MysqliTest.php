@@ -198,7 +198,18 @@ final class MysqliTest extends IntegrationTestCase
         $result = $mysqli->query('SELECT * from tests');
 
         $traces = $this->isolateTracer(function () use (&$fetched, $method, $args, $result) {
-            $fetched = $result->$method(...$args);
+            // At the moment we have a bug that we are not able to correctly trace when a traced function is called
+            // through call_user_function* functions. This can be removed once we fix this limitation.
+            $argsCount = count($args);
+            if ($argsCount == 0) {
+                $fetched = $result->$method();
+            } elseif ($argsCount == 1) {
+                $fetched = $result->$method($args[0]);
+            } elseif ($argsCount == 2) {
+                $fetched = $result->$method($args[0], $args[1]);
+            } else {
+                $this->fail('You should add here the case for args count: ' . $argsCount);
+            }
         });
 
         $mysqli->close();
@@ -229,7 +240,18 @@ final class MysqliTest extends IntegrationTestCase
         $result = $stmt->get_result();
 
         $traces = $this->isolateTracer(function () use (&$fetched, $method, $args, $result) {
-            $fetched = $result->$method(...$args);
+            // At the moment we have a bug that we are not able to correctly trace when a traced function is called
+            // through call_user_function* functions. This can be removed once we fix this limitation.
+            $argsCount = count($args);
+            if ($argsCount == 0) {
+                $fetched = $result->$method();
+            } elseif ($argsCount == 1) {
+                $fetched = $result->$method($args[0]);
+            } elseif ($argsCount == 2) {
+                $fetched = $result->$method($args[0], $args[1]);
+            } else {
+                $this->fail('You should add here the case for args count: ' . $argsCount);
+            }
         });
 
         $mysqli->close();
@@ -260,7 +282,18 @@ final class MysqliTest extends IntegrationTestCase
         $fetched = null;
 
         $traces = $this->isolateTracer(function () use (&$fetched, $methodName, $args, $result) {
-            $fetched = $methodName($result, ...$args);
+            // At the moment we have a bug that we are not able to correctly trace when a traced function is called
+            // through call_user_function* functions. This can be removed once we fix this limitation.
+            $argsCount = count($args);
+            if ($argsCount == 0) {
+                $fetched = $methodName($result);
+            } elseif ($argsCount == 1) {
+                $fetched = $methodName($result, $args[0]);
+            } elseif ($argsCount == 2) {
+                $fetched = $methodName($result, $args[0], $args[1]);
+            } else {
+                $this->fail('You should add here the case for args count: ' . $argsCount);
+            }
         });
 
         $mysqli->close();
@@ -293,7 +326,18 @@ final class MysqliTest extends IntegrationTestCase
         $fetched = null;
 
         $traces = $this->isolateTracer(function () use (&$fetched, $methodName, $args, $result) {
-            $fetched = $methodName($result, ...$args);
+            // At the moment we have a bug that we are not able to correctly trace when a traced function is called
+            // through call_user_function* functions. This can be removed once we fix this limitation.
+            $argsCount = count($args);
+            if ($argsCount == 0) {
+                $fetched = $methodName($result);
+            } elseif ($argsCount == 1) {
+                $fetched = $methodName($result, $args[0]);
+            } elseif ($argsCount == 2) {
+                $fetched = $methodName($result, $args[0], $args[1]);
+            } else {
+                $this->fail('You should add here the case for args count: ' . $argsCount);
+            }
         });
 
         $mysqli->close();

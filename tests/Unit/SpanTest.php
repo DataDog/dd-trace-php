@@ -2,8 +2,6 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Exceptions\InvalidSpanArgument;
-use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tags;
@@ -58,7 +56,7 @@ final class SpanTest extends Framework\TestCase
 
         $this->assertTrue($span->hasError());
         $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
-        $this->assertEquals($span->getTag(Tags\ERROR_TYPE), Exception::class);
+        $this->assertEquals($span->getTag(Tags\ERROR_TYPE), 'Exception');
     }
 
     public function testSpanTagWithErrorBoolProperlyMarksError()
@@ -111,7 +109,7 @@ final class SpanTest extends Framework\TestCase
 
             $this->assertTrue($span->hasError());
             $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
-            $this->assertEquals($span->getTag(Tags\ERROR_TYPE), Exception::class);
+            $this->assertEquals($span->getTag(Tags\ERROR_TYPE), 'Exception');
         }
     }
 
@@ -141,7 +139,7 @@ final class SpanTest extends Framework\TestCase
         $this->assertTrue($span->hasError());
         $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
         $this->assertNotEmpty($span->getTag(Tags\ERROR_STACK));
-        $this->assertEquals($span->getTag(Tags\ERROR_TYPE), Exception::class);
+        $this->assertEquals($span->getTag(Tags\ERROR_TYPE), 'Exception');
     }
 
     public function testSpanErrorRemainsImmutableAfterFinishing()
@@ -155,7 +153,7 @@ final class SpanTest extends Framework\TestCase
 
     public function testSpanErrorFailsForInvalidError()
     {
-        $this->expectException(InvalidSpanArgument::class);
+        $this->expectException('DDTrace\Exceptions\InvalidSpanArgument');
         $this->expectExceptionMessage('Error should be either Exception or Throwable, got integer.');
         $span = $this->createSpan();
         $span->setError(1);
@@ -175,7 +173,7 @@ final class SpanTest extends Framework\TestCase
 
     public function testAddTagsFailsForInvalidTagKey()
     {
-        $this->expectException(InvalidSpanArgument::class);
+        $this->expectException('DDTrace\Exceptions\InvalidSpanArgument');
         $this->expectExceptionMessage('Invalid key type in given span tags. Expected string, got integer.');
         $span = $this->createSpan();
         $span->setTag(1, self::TAG_VALUE);

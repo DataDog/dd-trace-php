@@ -5,8 +5,6 @@ namespace DDTrace\Tests\Integration\Integrations\Predis;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
-use Predis\Response\Status;
-
 
 final class PredisTest extends IntegrationTestCase
 {
@@ -129,8 +127,8 @@ final class PredisTest extends IntegrationTestCase
                 $pipe->ping();
                 $pipe->flushdb();
             });
-            $this->assertInstanceOf(Status::class, $responsePing);
-            $this->assertInstanceOf(Status::class, $responseFlush);
+            $this->assertInstanceOf('Predis\Response\Status', $responsePing);
+            $this->assertInstanceOf('Predis\Response\Status', $responseFlush);
         });
 
         $this->assertSpans($traces, [

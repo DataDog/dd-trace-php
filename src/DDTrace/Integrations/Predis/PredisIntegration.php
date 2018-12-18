@@ -4,8 +4,8 @@ namespace DDTrace\Integrations\Predis;
 
 use DDTrace\Tags;
 use DDTrace\Types;
+use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
-use Predis\Pipeline\Pipeline;
 
 const VALUE_PLACEHOLDER = "?";
 const VALUE_MAX_LEN = 100;
@@ -38,17 +38,23 @@ class PredisIntegration
             $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
             $span->setTag(Tags\SERVICE_NAME, 'redis');
             $span->setTag(Tags\RESOURCE_NAME, 'Predis.Client.__construct');
+
+            $thrown = null;
             try {
                 call_user_func_array([$this, '__construct'], $args);
                 PredisIntegration::storeConnectionParams($this, $args);
                 PredisIntegration::setConnectionTags($this, $span);
-                return $this;
             } catch (\Exception $e) {
+                $thrown = $e;
                 $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
             }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $this;
         });
 
         // public void Predis\Client::connect()
@@ -60,14 +66,7 @@ class PredisIntegration
             $span->setTag(Tags\RESOURCE_NAME, 'Predis.Client.connect');
             PredisIntegration::setConnectionTags($this, $span);
 
-            try {
-                return $this->connect();
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executePublicMethod($scope, $this, 'connect', []);
         });
 
         // public mixed Predis\Client::executeCommand(CommandInterface $command)
@@ -85,14 +84,7 @@ class PredisIntegration
             $span->setTag(Tags\RESOURCE_NAME, $query);
             PredisIntegration::setConnectionTags($this, $span);
 
-            try {
-                return $this->executeCommand($command);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executePublicMethod($scope, $this, 'executeCommand', [$command]);
         });
 
         // Predis < 1 has not this method
@@ -110,21 +102,31 @@ class PredisIntegration
                 $span->setTag(Tags\RESOURCE_NAME, $query);
                 PredisIntegration::setConnectionTags($this, $span);
 
+                // PHP 5.4 compatible try-catch-finally block.
+                // Note that we do not use the TryCatchFinally helper class because $error is a reference here which
+                // causes problems with call_user_func_array, used internally.
+                $thrown = null;
+                $result = null;
                 try {
-                    return $this->executeRaw($arguments, $error);
-                } catch (\Exception $e) {
-                    $span->setError($e);
-                    throw $e;
-                } finally {
-                    $scope->close();
+                    $result = $this->executeRaw($arguments, $error);
+                } catch (\Exception $ex) {
+                    $thrown = $ex;
+                    $span->setError($ex);
                 }
+
+                $scope->close();
+                if ($thrown) {
+                    throw $thrown;
+                }
+
+                return $result;
             });
         }
 
         // Predis < 1 has not this method
         if (method_exists('\Predis\Pipeline\Pipeline', 'executePipeline')) {
             // protected array Predis\Pipeline::executePipeline(ConnectionInterface $connection, \SplQueue $commands)
-            dd_trace(Pipeline::class, 'executePipeline', function ($connection, $commands) {
+            dd_trace('\Predis\Pipeline\Pipeline', 'executePipeline', function ($connection, $commands) {
                 $scope = GlobalTracer::get()->startActiveSpan('Predis.Pipeline.executePipeline');
                 $span = $scope->getSpan();
                 $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
@@ -132,14 +134,25 @@ class PredisIntegration
                 $span->setTag('redis.pipeline_length', count($commands));
                 PredisIntegration::setConnectionTags($this, $span);
 
+                // PHP 5.4 compatible try-catch-finally block.
+                // Note that we are not using the TryCatchFinally::executePublicMethod because this method
+                // is protected.
+                $thrown = null;
+                $result = null;
+                $span = $scope->getSpan();
                 try {
-                    return $this->executePipeline($connection, $commands);
-                } catch (\Exception $e) {
-                    $span->setError($e);
-                    throw $e;
-                } finally {
-                    $scope->close();
+                    $result = $this->executePipeline($connection, $commands);
+                } catch (\Exception $ex) {
+                    $thrown = $ex;
+                    $span->setError($ex);
                 }
+
+                $scope->close();
+                if ($thrown) {
+                    throw $thrown;
+                }
+
+                return $result;
             });
         }
     }
