@@ -7,8 +7,8 @@
 
 namespace DDTrace\OpenTracing;
 
-use DDTrace\OpenTracing\Exceptions\InvalidReferencesSet;
-use DDTrace\OpenTracing\Exceptions\InvalidSpanOption;
+use DDTrace\Exceptions\InvalidReferencesSet;
+use DDTrace\Exceptions\InvalidSpanOption;
 
 final class StartSpanOptions
 {

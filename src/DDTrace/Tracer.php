@@ -13,7 +13,7 @@ use DDTrace\Sampling\Sampler;
 use DDTrace\Tags;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
-use DDTrace\OpenTracing\Exceptions\UnsupportedFormat;
+use DDTrace\Exceptions\UnsupportedFormat;
 use DDTrace\OpenTracing\Reference;
 use DDTrace\OpenTracing\SpanContext as OpenTracingContext;
 use DDTrace\OpenTracing\StartSpanOptions;
