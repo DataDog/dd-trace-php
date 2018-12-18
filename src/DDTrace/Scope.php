@@ -3,12 +3,11 @@
 namespace DDTrace;
 
 use DDTrace\OpenTracing\Scope as OpenTracingScope;
-use DDTrace\OpenTracing\Span as OpenTracingSpan;
 
 final class Scope implements OpenTracingScope
 {
     /**
-     * @var Span
+     * @var SpanInterface
      */
     private $span;
 
@@ -22,7 +21,7 @@ final class Scope implements OpenTracingScope
      */
     private $finishSpanOnClose;
 
-    public function __construct(ScopeManager $scopeManager, OpenTracingSpan $span, $finishSpanOnClose)
+    public function __construct(ScopeManager $scopeManager, SpanInterface $span, $finishSpanOnClose)
     {
         $this->scopeManager = $scopeManager;
         $this->span = $span;
@@ -44,7 +43,7 @@ final class Scope implements OpenTracingScope
     /**
      * {@inheritdoc}
      *
-     * @return Span
+     * @return SpanInterface
      */
     public function getSpan()
     {
