@@ -64,8 +64,8 @@ static ddtrace_dispatch_t *find_dispatch(const char *scope_name, uint32_t scope_
 
 static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execute_data,
                           zval **return_value_ptr TSRMLS_DC) {
-    zend_fcall_info fci;
-    zend_fcall_info_cache fcc;
+    zend_fcall_info fci = { 0 };
+    zend_fcall_info_cache fcc = { 0 };
     char *error = NULL;
     zval closure, *rv_ptr;
     INIT_ZVAL(closure);
@@ -200,6 +200,9 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     uint32_t common_scope_length = 0;
 
 	zend_ptr_stack_3_push(&EG(arg_types_stack), EX(fbc), EX(object), EX(called_scope));
+    if (EX(object)) {
+        Z_ADDREF_P(EX(object));
+    }
 
     if (fbc->common.scope) {
 #if PHP_VERSION_ID < 70000
