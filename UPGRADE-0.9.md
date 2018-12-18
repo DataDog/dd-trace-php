@@ -23,6 +23,7 @@ GlobalTracer::set($tracer);
 | `OpenTracing\GlobalTracer` | `DDTrace\GlobalTracer`
 | `OpenTracing\Formats`      | `DDTrace\Formats`
 | `DDTrace\NoopSpan`         | `DDTrace\OpenTracing\NoopSpan`
+| `OpenTracing\Exceptions\*` | `DDTrace\Exceptions\*`
 
 All of the remaining OpenTracing interfaces and classes were moved under the `DDTrace` namespace.
 
@@ -40,7 +41,6 @@ All of the remaining OpenTracing interfaces and classes were moved under the `DD
 | `OpenTracing\NoopSpan`         | `DDTrace\OpenTracing\NoopSpan`
 | `OpenTracing\NoopSpanContext`  | `DDTrace\OpenTracing\NoopSpanContext`
 | `OpenTracing\NoopTracer`       | `DDTrace\OpenTracing\NoopTracer`
-| `OpenTracing\Exceptions\*`     | `DDTrace\OpenTracing\Exceptions\*`
 
 ## Removing the OpenTracing dependency
 

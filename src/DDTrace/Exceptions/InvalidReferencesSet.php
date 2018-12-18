@@ -5,7 +5,7 @@
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Exceptions/InvalidReferencesSet.php
  */
 
-namespace DDTrace\OpenTracing\Exceptions;
+namespace DDTrace\Exceptions;
 
 use DomainException;
 

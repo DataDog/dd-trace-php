@@ -5,7 +5,7 @@
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Exceptions/InvalidReferenceArgument.php
  */
 
-namespace DDTrace\OpenTracing\Exceptions;
+namespace DDTrace\Exceptions;
 
 use InvalidArgumentException;
 
