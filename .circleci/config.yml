@@ -219,24 +219,6 @@ jobs:
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
-  "Check 5.4 compatibility":
-    <<: *lint_files
-    steps:
-      - checkout
-      - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL_LEGACY
-      - <<: *STEP_COMPOSER_CACHE_SAVE
-      - run:
-          name: Creating directory for phpcs results
-          command: mkdir -p test-results/phpcs
-      - run:
-          name: Running phpcs
-          command: composer lint-5.4 -- --report=junit | tee test-results/phpcs/results.xml
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
-
   "Static Analysis":
     docker:
       - image: circleci/php:7.2
@@ -492,7 +474,6 @@ workflows:
   build:
     jobs:
       - "Lint files"
-      - "Check 5.4 compatibility"
       - "Static Analysis"
       - "php-5.6"
       - "php-7.0"

@@ -88,7 +88,8 @@ namespace DDTrace\Tests\Unit\Util {
             $scope = $this->tracer->startActiveSpan('my.operation');
             try {
                 TryCatchFinally::executePublicMethod($scope, $instance, 'throwsException');
-            } catch (CustomException $e) {}
+            } catch (CustomException $e) {
+            }
             $this->assertTrue($scope->getSpan()->isFinished());
         }
 
@@ -106,7 +107,8 @@ namespace DDTrace\Tests\Unit\Util {
             $scope = $this->tracer->startActiveSpan('my.operation');
             try {
                 TryCatchFinally::executePublicMethod($scope, $instance, 'throwsException');
-            } catch (CustomException $e) {}
+            } catch (CustomException $e) {
+            }
             $this->assertTrue($scope->getSpan()->hasError());
         }
 
@@ -159,7 +161,8 @@ namespace DDTrace\Tests\Unit\Util {
             $scope = $this->tracer->startActiveSpan('my.operation');
             try {
                 TryCatchFinally::executeFunction($scope, 'tryCatchFinallyGlobalCallbackException');
-            } catch (CustomException $e) {}
+            } catch (CustomException $e) {
+            }
             $this->assertTrue($scope->getSpan()->isFinished());
         }
 
@@ -175,12 +178,15 @@ namespace DDTrace\Tests\Unit\Util {
             $scope = $this->tracer->startActiveSpan('my.operation');
             try {
                 TryCatchFinally::executeFunction($scope, 'tryCatchFinallyGlobalCallbackException');
-            } catch (CustomException $e) {}
+            } catch (CustomException $e) {
+            }
             $this->assertTrue($scope->getSpan()->hasError());
         }
     }
 
-    class CustomException extends \Exception {}
+    class CustomException extends \Exception
+    {
+    }
 
     class DummyClass
     {
