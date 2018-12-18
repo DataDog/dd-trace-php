@@ -9,13 +9,17 @@ use PHPUnit\Framework;
 
 final class TraceOverrideMethodTest extends Framework\TestCase
 {
-    protected function setUp()
+    protected function tearDown()
     {
-        if (!extension_loaded('ddtrace')) {
-            $this->markTestSkipped(
-                'The ddtrace extension is not loaded.'
-            );
-        }
+        // Why this?
+        // Test 'testMethodCanBeOverridenByTrace' trace this method and prevent it from being called, as it adds an
+        // empty hook. This causes other tests they relies on Scope::close executed after this test to fail.
+        // The proper way to fix is is probably to add a dd_trace_clear() the drops entirely the lookup table.
+        // In the meantime we can propose this workaround.
+        dd_trace('DDTrace\Scope', "close", function () {
+            call_user_func_array([$this, 'close'], func_get_args());
+        });
+        parent::tearDown();
     }
 
     public function testMethodInvokesExpectedResults()
