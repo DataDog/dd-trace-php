@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
 
 ## [Unreleased]
+### Added
+- PHP code compatibility with PHP 5.4 #194
 
 ## [0.8.1]
 ### Fixed
