@@ -13,7 +13,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 // #define FBC() EX(call)->fbc
 #define FBC() EX(fbc)
 #define OBJECT() EX(object)
-// #define NUM_ADDITIONAL_ARGS() EX(call)->num_additional_args
+// #define NUM_ADDITIONAL_ARGS() (EX(call)->num_additional_args)
 #define NUM_ADDITIONAL_ARGS() (0)
 
 

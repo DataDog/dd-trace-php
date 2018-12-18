@@ -199,8 +199,8 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     const char *common_scope = NULL;
     uint32_t common_scope_length = 0;
 
-	zend_ptr_stack_3_push(&EG(arg_types_stack), EX(fbc), EX(object), EX(called_scope));
     if (EX(object)) {
+	    zend_ptr_stack_3_push(&EG(arg_types_stack), EX(fbc), EX(object), EX(called_scope));
         Z_ADDREF_P(EX(object));
     }
 
@@ -292,7 +292,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 		// EG(scope) = (fbc->type == ZEND_USER_FUNCTION || !EX(object)) ? fbc->common.scope : NULL;
 		// EG(called_scope) = EX(called_scope);
 
-	    // zend_arg_types_stack_3_pop(&EG(arg_types_stack), &EX(called_scope), &EX(current_object), &EX(fbc));
+	    //
 
         EG(return_value_ptr_ptr) = return_value;
 
@@ -303,9 +303,9 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
         dispatch->flags ^= BUSY_FLAG;
 
-        // if (!RETURN_VALUE_USED(opline)) {
-        //     zval_dtor(&rv);
-        // }
+        if (!RETURN_VALUE_USED(opline)) {
+            // zval_dtor(&rv);
+        }
 	    if (UNEXPECTED(EG(exception) != NULL)) {
 		    zend_throw_exception_internal(NULL TSRMLS_CC);
         }
