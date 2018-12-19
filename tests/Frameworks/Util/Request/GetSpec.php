@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Frameworks\Util\Request;
+namespace DDTrace\Tests\Frameworks\Util\Request;
 
 
 class GetSpec extends RequestSpec

@@ -3,8 +3,8 @@
 namespace DDTrace\Tests\Integration\Integrations\PDO;
 
 use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Tests\Integration\Common\IntegrationTestCase;
-use DDTrace\Tests\Integration\Common\SpanAssertion;
+use DDTrace\Tests\Common\IntegrationTestCase;
+use DDTrace\Tests\Common\SpanAssertion;
 
 define('MYSQL_DATABASE', 'test');
 define('MYSQL_USER', 'test');

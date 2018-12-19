@@ -4,8 +4,8 @@ namespace DDTrace\Tests\Integration\Integrations\Curl;
 
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Tests\Integration\Common\IntegrationTestCase;
-use DDTrace\Tests\Integration\Common\SpanAssertion;
+use DDTrace\Tests\Common\IntegrationTestCase;
+use DDTrace\Tests\Common\SpanAssertion;
 use Elasticsearch\Client;
 
 /**

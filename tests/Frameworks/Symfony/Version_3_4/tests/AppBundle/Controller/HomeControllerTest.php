@@ -2,9 +2,9 @@
 
 namespace Tests\AppBundle\Controller;
 
-use DDTrace\Tests\Integration\Common\SpanAssertion;
-use DDTrace\Tests\Integration\Common\SpanAssertionTrait;
-use DDTrace\Tests\Integration\Common\TracerTestTrait;
+use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanAssertionTrait;
+use DDTrace\Tests\Common\TracerTestTrait;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class HomeControllerTest extends WebTestCase

@@ -9,8 +9,8 @@ use DDTrace\Tracer;
 use GuzzleHttp\Client;
 use GuzzleHttp\Message\Request;
 use GuzzleHttp\Ring\Client\MockHandler;
-use DDTrace\Tests\Integration\Common\SpanAssertion;
-use DDTrace\Tests\Integration\Common\IntegrationTestCase;
+use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\IntegrationTestCase;
 use OpenTracing\GlobalTracer;
 
 final class GuzzleIntegrationTest extends IntegrationTestCase

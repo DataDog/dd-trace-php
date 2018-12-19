@@ -3,8 +3,8 @@
 namespace DDTrace\Tests\Integration\Integrations\Predis;
 
 use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Tests\Integration\Common\IntegrationTestCase;
-use DDTrace\Tests\Integration\Common\SpanAssertion;
+use DDTrace\Tests\Common\IntegrationTestCase;
+use DDTrace\Tests\Common\SpanAssertion;
 
 final class PredisTest extends IntegrationTestCase
 {

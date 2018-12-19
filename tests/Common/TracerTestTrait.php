@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Common;
+namespace DDTrace\Tests\Common;
 
 use DDTrace\Span;
 use DDTrace\Tests\DebugTransport;

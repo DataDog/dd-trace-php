@@ -1,9 +1,9 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Frameworks\Util;
+namespace DDTrace\Tests\Frameworks\Util;
 
-use DDTrace\Tests\Integration\Frameworks\TestScenarios;
-use DDTrace\Tests\Integration\Frameworks\Util\Request\RequestSpec;
+use DDTrace\Tests\Frameworks\TestScenarios;
+use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use PHPUnit\Framework\ExpectationFailedException;
 
 

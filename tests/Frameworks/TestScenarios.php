@@ -1,8 +1,8 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Frameworks;
+namespace DDTrace\Tests\Frameworks;
 
-use DDTrace\Tests\Integration\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 
 class TestScenarios

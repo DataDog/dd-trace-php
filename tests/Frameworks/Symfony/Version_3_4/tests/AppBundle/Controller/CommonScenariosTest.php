@@ -2,12 +2,12 @@
 
 namespace Tests\AppBundle\Controller;
 
-use DDTrace\Tests\Integration\Common\SpanAssertion;
-use DDTrace\Tests\Integration\Common\SpanAssertionTrait;
-use DDTrace\Tests\Integration\Common\TracerTestTrait;
-use DDTrace\Tests\Integration\Frameworks\Util\CommonScenariosDataProviderTrait;
-use DDTrace\Tests\Integration\Frameworks\Util\Request\GetSpec;
-use DDTrace\Tests\Integration\Frameworks\Util\Request\RequestSpec;
+use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanAssertionTrait;
+use DDTrace\Tests\Common\TracerTestTrait;
+use DDTrace\Tests\Frameworks\Util\CommonScenariosDataProviderTrait;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class CommonScenariosTest extends WebTestCase
