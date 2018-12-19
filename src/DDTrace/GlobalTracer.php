@@ -7,11 +7,11 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Tracer;
+use DDTrace\Contracts\Tracer as TracerInterface;
 
 final class GlobalTracer
 {
-    /** @var Tracer */
+    /** @var TracerInterface */
     private static $instance;
 
     /**
@@ -21,9 +21,9 @@ final class GlobalTracer
      * start a new span. Prior to calling GlobalTracer::set, any Spans started
      * via the `Tracer::startActiveSpan` (etc) globals are noops.
      *
-     * @param Tracer $tracer
+     * @param TracerInterface $tracer
      */
-    public static function set(Tracer $tracer)
+    public static function set(TracerInterface $tracer)
     {
         self::$instance = $tracer;
     }
@@ -33,7 +33,7 @@ final class GlobalTracer
      * Before `GlobalTracer::set` is called, the `GlobalTracer::get` is a noop
      * implementation that drops all data handed to it.
      *
-     * @return Tracer
+     * @return TracerInterface
      */
     public static function get()
     {
