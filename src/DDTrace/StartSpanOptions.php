@@ -5,14 +5,13 @@
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/StartSpanOptions.php
  */
 
-namespace DDTrace\OpenTracing;
+namespace DDTrace;
 
 use DDTrace\Contracts\ScopeManager;
 use DDTrace\Contracts\Span;
 use DDTrace\Contracts\SpanContext;
 use DDTrace\Exceptions\InvalidReferencesSet;
 use DDTrace\Exceptions\InvalidSpanOption;
-use DDTrace\Reference;
 
 final class StartSpanOptions
 {

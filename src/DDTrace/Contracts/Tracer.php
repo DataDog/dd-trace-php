@@ -10,7 +10,7 @@ namespace DDTrace\Contracts;
 use DDTrace\Exceptions\InvalidReferencesSet;
 use DDTrace\Exceptions\InvalidSpanOption;
 use DDTrace\Exceptions\UnsupportedFormat;
-use DDTrace\OpenTracing\StartSpanOptions;
+use DDTrace\StartSpanOptions;
 
 interface Tracer
 {
@@ -73,7 +73,7 @@ interface Tracer
      *         'child_of' => $parentSpan,
      *     ]);
      *
-     * @see \DDTrace\OpenTracing\StartSpanOptions
+     * @see \DDTrace\StartSpanOptions
      *
      * @param string $operationName
      * @param array|StartSpanOptions $options See StartSpanOptions for
