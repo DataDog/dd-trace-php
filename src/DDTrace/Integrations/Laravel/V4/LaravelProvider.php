@@ -138,7 +138,7 @@ class LaravelProvider extends ServiceProvider
      *
      * @param string $operation
      * @param string $resource
-     * @return \DDTrace\OpenTracing\Scope
+     * @return \DDTrace\Contracts\Scope
      */
     public static function buildBaseScope($operation, $resource)
     {

@@ -15,9 +15,9 @@ use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use DDTrace\Exceptions\UnsupportedFormat;
 use DDTrace\OpenTracing\Reference;
-use DDTrace\OpenTracing\SpanContext as OpenTracingContext;
+use DDTrace\Contracts\SpanContext as OpenTracingContext;
 use DDTrace\OpenTracing\StartSpanOptions;
-use DDTrace\OpenTracing\Tracer as OpenTracingTracer;
+use DDTrace\Contracts\Tracer as OpenTracingTracer;
 
 final class Tracer implements OpenTracingTracer
 {

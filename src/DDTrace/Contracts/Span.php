@@ -5,7 +5,7 @@
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Span.php
  */
 
-namespace DDTrace\OpenTracing;
+namespace DDTrace\Contracts;
 
 interface Span
 {

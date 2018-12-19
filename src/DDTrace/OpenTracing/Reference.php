@@ -7,6 +7,8 @@
 
 namespace DDTrace\OpenTracing;
 
+use DDTrace\Contracts\Span;
+use DDTrace\Contracts\SpanContext;
 use DDTrace\Exceptions\InvalidReferenceArgument;
 
 final class Reference

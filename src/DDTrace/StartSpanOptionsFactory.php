@@ -5,7 +5,7 @@ namespace DDTrace;
 use DDTrace\Formats;
 use DDTrace\OpenTracing\Reference;
 use DDTrace\OpenTracing\StartSpanOptions;
-use DDTrace\OpenTracing\Tracer as OTTracer;
+use DDTrace\Contracts\Tracer as OTTracer;
 
 /**
  * A factory to create instances of StartSpanOptions.

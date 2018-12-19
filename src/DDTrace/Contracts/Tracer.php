@@ -5,11 +5,12 @@
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/Tracer.php
  */
 
-namespace DDTrace\OpenTracing;
+namespace DDTrace\Contracts;
 
 use DDTrace\Exceptions\InvalidReferencesSet;
 use DDTrace\Exceptions\InvalidSpanOption;
 use DDTrace\Exceptions\UnsupportedFormat;
+use DDTrace\OpenTracing\StartSpanOptions;
 
 interface Tracer
 {

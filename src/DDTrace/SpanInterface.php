@@ -2,7 +2,7 @@
 
 namespace DDTrace;
 
-use DDTrace\OpenTracing\Span as OpenTracingSpan;
+use DDTrace\Contracts\Span as OpenTracingSpan;
 
 /**
  * An interface that defines the public operations of a Datadog Span, which enhances the OpenTracing Span api.

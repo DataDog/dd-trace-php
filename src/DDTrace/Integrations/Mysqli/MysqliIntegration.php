@@ -343,7 +343,7 @@ class MysqliIntegration
      *
      * @param string $operationName
      * @param string $resource
-     * @return \DDTrace\OpenTracing\Scope
+     * @return \DDTrace\Contracts\Scope
      */
     public static function initScope($operationName, $resource)
     {
@@ -359,7 +359,7 @@ class MysqliIntegration
     /**
      * Set connection info into an existing span.
      *
-     * @param \DDTrace\OpenTracing\Span $span
+     * @param \DDTrace\Contracts\Span $span
      * @param $mysqli
      */
     public static function setConnectionInfo($span, $mysqli)

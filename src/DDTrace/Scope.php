@@ -2,7 +2,7 @@
 
 namespace DDTrace;
 
-use DDTrace\OpenTracing\Scope as OpenTracingScope;
+use DDTrace\Contracts\Scope as OpenTracingScope;
 
 final class Scope implements OpenTracingScope
 {

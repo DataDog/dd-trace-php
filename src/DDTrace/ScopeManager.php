@@ -2,9 +2,9 @@
 
 namespace DDTrace;
 
-use DDTrace\OpenTracing\Scope as OpenTracingScope;
-use DDTrace\OpenTracing\ScopeManager as OpenTracingScopeManager;
-use DDTrace\OpenTracing\Span as OpenTracingSpan;
+use DDTrace\Contracts\Scope as OpenTracingScope;
+use DDTrace\Contracts\ScopeManager as OpenTracingScopeManager;
+use DDTrace\Contracts\Span as OpenTracingSpan;
 
 final class ScopeManager implements OpenTracingScopeManager
 {

@@ -7,6 +7,8 @@
 
 namespace DDTrace\OpenTracing;
 
+use DDTrace\Contracts\Span;
+
 final class NoopSpan implements Span
 {
     public static function create()

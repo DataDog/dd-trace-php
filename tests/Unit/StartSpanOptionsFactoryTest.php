@@ -19,7 +19,7 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
     protected function setUp()
     {
         parent::setUp();
-        $this->tracer = \Mockery::mock('DDTrace\OpenTracing\Tracer');
+        $this->tracer = \Mockery::mock('DDTrace\Contracts\Tracer');
     }
 
     public function testCreateForWebRequestNoExtractedContext()
