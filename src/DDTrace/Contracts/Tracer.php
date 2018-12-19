@@ -33,8 +33,8 @@ interface Tracer
     /**
      * Starts a new span that is activated on a scope manager.
      *
-     * It's also possible to not finish the {@see \DDTrace\OpenTracing\Span} when
-     * {@see \DDTrace\OpenTracing\Scope} context expires:
+     * It's also possible to not finish the {@see \DDTrace\Contracts\Span} when
+     * {@see \DDTrace\Contracts\Scope} context expires:
      *
      *     $scope = $tracer->startActiveSpan('...', [
      *         'finish_span_on_close' => false,
@@ -63,7 +63,7 @@ interface Tracer
      * Starts and returns a new span representing a unit of work.
      *
      * Whenever `child_of` reference is not passed then
-     * {@see \DDTrace\OpenTracing\ScopeManager::getActive()} span is used as `child_of`
+     * {@see \DDTrace\Contracts\ScopeManager::getActive()} span is used as `child_of`
      * reference. In order to ignore implicit parent span pass in
      * `ignore_active_span` option set to true.
      *
