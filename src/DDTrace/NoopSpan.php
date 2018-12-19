@@ -5,7 +5,7 @@
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/NoopSpan.php
  */
 
-namespace DDTrace\OpenTracing;
+namespace DDTrace;
 
 use DDTrace\Contracts\Span;
 
