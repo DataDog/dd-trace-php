@@ -13,10 +13,10 @@ use DDTrace\Tags;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use DDTrace\Exceptions\UnsupportedFormat;
-use DDTrace\Contracts\SpanContext as OpenTracingContext;
-use DDTrace\Contracts\Tracer as OpenTracingTracer;
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
+use DDTrace\Contracts\Tracer as TracerInterface;
 
-final class Tracer implements OpenTracingTracer
+final class Tracer implements TracerInterface
 {
     /**
      * @var Span[][]
@@ -196,7 +196,7 @@ final class Tracer implements OpenTracingTracer
     /**
      * {@inheritdoc}
      */
-    public function inject(OpenTracingContext $spanContext, $format, &$carrier)
+    public function inject(SpanContextInterface $spanContext, $format, &$carrier)
     {
         if (array_key_exists($format, $this->propagators)) {
             $this->propagators[$format]->inject($spanContext, $carrier);

@@ -29,7 +29,7 @@ final class InvalidSpanOption extends InvalidArgumentException
     public static function forInvalidReference($reference)
     {
         return new self(sprintf(
-            'Invalid reference. Expected OpenTracing\Reference, got %s.',
+            'Invalid reference. Expected \DDTrace\Reference, got %s.',
             is_object($reference) ? get_class($reference) : gettype($reference)
         ));
     }

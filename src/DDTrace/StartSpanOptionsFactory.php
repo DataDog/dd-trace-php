@@ -12,7 +12,7 @@ class StartSpanOptionsFactory
 {
     /**
      * Creates an instance of StartSpanOptions making sure that if DD specific distributed tracing headers exist,
-     * then the \DDTrace\OpenTracing\Span that is about to be started will get the proper reference to the remote Span.
+     * then the \DDTrace\Contracts\Span that is about to be started will get the proper reference to the remote Span.
      *
      * @param OTTracer $tracer
      * @param array $options

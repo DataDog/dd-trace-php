@@ -3,9 +3,9 @@
 namespace DDTrace;
 
 use ArrayIterator;
-use DDTrace\Contracts\SpanContext as OpenTracingSpanContext;
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
 
-final class SpanContext implements OpenTracingSpanContext
+final class SpanContext implements SpanContextInterface
 {
     /**
      * The unique integer (64-bit unsigned) ID of the trace containing this span.

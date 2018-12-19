@@ -7,6 +7,8 @@
 
 namespace DDTrace;
 
+use DDTrace\Contracts\Tracer;
+
 final class GlobalTracer
 {
     /** @var Tracer */

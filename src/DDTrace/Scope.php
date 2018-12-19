@@ -2,9 +2,9 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Scope as OpenTracingScope;
+use DDTrace\Contracts\Scope as ScopeInterface;
 
-final class Scope implements OpenTracingScope
+final class Scope implements ScopeInterface
 {
     /**
      * @var SpanInterface
