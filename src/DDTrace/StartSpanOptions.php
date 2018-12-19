@@ -7,7 +7,7 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\ScopeManager;
+use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
 use DDTrace\Contracts\Span;
 use DDTrace\Contracts\SpanContext;
 use DDTrace\Exceptions\InvalidReferencesSet;
@@ -35,7 +35,7 @@ final class StartSpanOptions
      *
      * @var bool
      */
-    private $finishSpanOnClose = ScopeManager::DEFAULT_FINISH_SPAN_ON_CLOSE;
+    private $finishSpanOnClose = ScopeManagerInterface::DEFAULT_FINISH_SPAN_ON_CLOSE;
 
     /**
      * @var bool
