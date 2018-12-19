@@ -91,13 +91,13 @@ register_shutdown_function(function() {
 IntegrationsLoader::load();
 
 // Start a root span
-$scope = $tracer->startSpan('my_base_trace');
+$span = $tracer->startSpan('my_base_trace');
 
 // Run your application here
 // $myApplication->run();
 
 // Close the root span after the application code has finished
-$scope->close();
+$span->finish();
 ```
 
 Notice we didn't specify an [API key](https://app.datadoghq.com/account/settings#api) or any web endpoints. That's because the API key is set at the [agent layer](https://docs.datadoghq.com/agent/?tab=agentv6), so the PHP code just needs to know the hostname and port of the agent to send traces to Datadog. By default the PHP tracer will assume the agent hostname is `localhost` and the port is `8126`. If you need to change these values, check out the [configuration documentation](docs/getting_started.md#configuration).
