@@ -104,7 +104,7 @@ class LaravelProvider extends ServiceProvider
             GlobalTracer::get()->flush();
         });
 
-        dd_trace('Illuminate\Foundation\Application', 'handle', function () use ($requestSpan) {
+        dd_trace('\Illuminate\Routing\Router', 'dispatch', function () use ($requestSpan) {
             $args = func_get_args();
 
             $response = call_user_func_array([$this, 'handle'], $args);
