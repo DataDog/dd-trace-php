@@ -114,7 +114,7 @@ final class SpanContext implements SpanContextInterface
     }
 
     /**
-     * @return int
+     * {@inheritdoc}
      */
     public function getPropagatedPrioritySampling()
     {
@@ -177,9 +177,7 @@ final class SpanContext implements SpanContextInterface
     }
 
     /**
-     * Returns whether or not this context represents the root span for a specific host.
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function isHostRoot()
     {
