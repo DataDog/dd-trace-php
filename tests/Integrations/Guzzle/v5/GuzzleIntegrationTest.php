@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Integrations\Guzzle\V5;
+namespace DDTrace\Tests\Integrations\Guzzle\V5;
 
 use DDTrace\Configuration;
 use DDTrace\Integrations\IntegrationsLoader;
