@@ -74,4 +74,26 @@ final class NoopSpan implements Span
     {
         return null;
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setError($error)
+    {
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setRawError($message, $type)
+    {
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function hasError()
+    {
+        return false;
+    }
 }

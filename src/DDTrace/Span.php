@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use Exception;
 use InvalidArgumentException;

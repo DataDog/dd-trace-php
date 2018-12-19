@@ -3,6 +3,7 @@
 namespace DDTrace;
 
 use DDTrace\Contracts\Scope as ScopeInterface;
+use DDTrace\Contracts\Span as SpanInterface;
 
 final class Scope implements ScopeInterface
 {
