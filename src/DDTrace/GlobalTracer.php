@@ -38,13 +38,6 @@ final class GlobalTracer
         if (null !== self::$instance) {
             return self::$instance;
         }
-        if (!class_exists('\OpenTracing\GlobalTracer')) {
-            return self::$instance = NoopTracer::create();
-        }
-        $tracer = \OpenTracing\GlobalTracer::get();
-        if (!$tracer instanceof \OpenTracing\NoopTracer) {
-            return self::$instance = $tracer;
-        }
         return self::$instance = NoopTracer::create();
     }
 }
