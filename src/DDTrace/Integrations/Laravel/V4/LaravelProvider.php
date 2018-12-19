@@ -104,14 +104,17 @@ class LaravelProvider extends ServiceProvider
             GlobalTracer::get()->flush();
         });
 
-        dd_trace('\Illuminate\Routing\Router', 'dispatch', function () use ($requestSpan) {
+        // Properly handle status code tag names in both exception and success calls
+        $handler = function () use ($requestSpan) {
             $args = func_get_args();
 
             $response = call_user_func_array([$this, 'handle'], $args);
             $requestSpan->setTag(Tags\HTTP_STATUS_CODE, $response->getStatusCode());
 
             return $response;
-        });
+        };
+        dd_trace('Illuminate\Foundation\Application', 'handle', $handler);
+        dd_trace('\Illuminate\Routing\Router', 'dispatch', $handler);
 
         dd_trace('Illuminate\Routing\Route', 'run', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.action', $this->uri);

@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Added
 - PHP code compatibility with PHP 5.4 #194
 
+### Fixed
+- Properly set http status code tag in Laravel 4 integration #195
+
 ## [0.8.1]
 ### Fixed
 - Update Symfony 3 and 4 docs #184
