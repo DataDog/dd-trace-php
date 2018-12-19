@@ -20,8 +20,10 @@ final class NoopScopeManager implements ScopeManagerInterface
     /**
      * {@inheritdoc}
      */
-    public function activate(SpanInterface $span, $finishSpanOnClose = ScopeManagerInterface::DEFAULT_FINISH_SPAN_ON_CLOSE)
-    {
+    public function activate(
+        SpanInterface $span,
+        $finishSpanOnClose = ScopeManagerInterface::DEFAULT_FINISH_SPAN_ON_CLOSE
+    ) {
     }
 
     /**
