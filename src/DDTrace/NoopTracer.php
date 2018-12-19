@@ -7,10 +7,10 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\SpanContext;
-use DDTrace\Contracts\Tracer;
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
+use DDTrace\Contracts\Tracer as TracerInterface;
 
-final class NoopTracer implements Tracer
+final class NoopTracer implements TracerInterface
 {
     /**
      * {@inheritdoc}
@@ -53,7 +53,7 @@ final class NoopTracer implements Tracer
     /**
      * {@inheritdoc}
      */
-    public function inject(SpanContext $spanContext, $format, &$carrier)
+    public function inject(SpanContextInterface $spanContext, $format, &$carrier)
     {
     }
 

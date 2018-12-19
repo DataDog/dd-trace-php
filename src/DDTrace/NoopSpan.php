@@ -7,9 +7,9 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Span;
+use DDTrace\Contracts\Span as SpanInterface;
 
-final class NoopSpan implements Span
+final class NoopSpan implements SpanInterface
 {
     public static function create()
     {

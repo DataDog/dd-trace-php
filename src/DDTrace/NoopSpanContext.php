@@ -7,10 +7,10 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\SpanContext;
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use EmptyIterator;
 
-final class NoopSpanContext implements SpanContext
+final class NoopSpanContext implements SpanContextInterface
 {
     public static function create()
     {

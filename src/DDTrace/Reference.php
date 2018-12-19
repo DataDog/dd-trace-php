@@ -7,8 +7,8 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Span;
-use DDTrace\Contracts\SpanContext;
+use DDTrace\Contracts\Span as SpanInterface;
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Exceptions\InvalidReferenceArgument;
 
 final class Reference
@@ -32,22 +32,22 @@ final class Reference
     private $type;
 
     /**
-     * @var SpanContext
+     * @var SpanContextInterface
      */
     private $context;
 
     /**
      * @param string $type
-     * @param SpanContext $context
+     * @param SpanContextInterface $context
      */
-    private function __construct($type, SpanContext $context)
+    private function __construct($type, SpanContextInterface $context)
     {
         $this->type = $type;
         $this->context = $context;
     }
 
     /**
-     * @param SpanContext|Span $context
+     * @param SpanContextInterface|SpanInterface $context
      * @param string $type
      * @throws InvalidReferenceArgument on empty type
      * @return Reference when context is invalid
@@ -62,7 +62,7 @@ final class Reference
     }
 
     /**
-     * @return SpanContext
+     * @return SpanContextInterface
      */
     public function getContext()
     {
@@ -82,11 +82,11 @@ final class Reference
 
     private static function extractContext($context)
     {
-        if ($context instanceof SpanContext) {
+        if ($context instanceof SpanContextInterface) {
             return $context;
         }
 
-        if ($context instanceof Span) {
+        if ($context instanceof SpanInterface) {
             return $context->getContext();
         }
 
