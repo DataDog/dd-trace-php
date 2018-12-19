@@ -5,7 +5,7 @@
  * @see https://github.com/opentracing/opentracing-php/blob/master/src/OpenTracing/SpanContext.php
  */
 
-namespace DDTrace\OpenTracing;
+namespace DDTrace\Contracts;
 
 use IteratorAggregate;
 

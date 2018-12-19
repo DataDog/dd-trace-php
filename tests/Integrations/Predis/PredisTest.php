@@ -38,7 +38,7 @@ final class PredisTest extends IntegrationTestCase
         $this->assertCount(1, $traces);
         $trace = $traces[0];
 
-        $this->assertContainsOnlyInstancesOf("\DDTrace\OpenTracing\Span", $trace);
+        $this->assertContainsOnlyInstancesOf("\DDTrace\Contracts\Span", $trace);
         $this->assertGreaterThan(2, count($trace)); # two Redis operations -> at least 2 spans
     }
 

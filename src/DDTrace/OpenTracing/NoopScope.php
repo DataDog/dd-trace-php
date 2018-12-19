@@ -7,6 +7,8 @@
 
 namespace DDTrace\OpenTracing;
 
+use DDTrace\Contracts\Scope;
+
 final class NoopScope implements Scope
 {
     public static function create()

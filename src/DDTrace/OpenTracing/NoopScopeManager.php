@@ -7,6 +7,9 @@
 
 namespace DDTrace\OpenTracing;
 
+use DDTrace\Contracts\ScopeManager;
+use DDTrace\Contracts\Span;
+
 final class NoopScopeManager implements ScopeManager
 {
     public static function create()

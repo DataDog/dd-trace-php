@@ -7,6 +7,9 @@
 
 namespace DDTrace\OpenTracing;
 
+use DDTrace\Contracts\ScopeManager;
+use DDTrace\Contracts\Span;
+use DDTrace\Contracts\SpanContext;
 use DDTrace\Exceptions\InvalidReferencesSet;
 use DDTrace\Exceptions\InvalidSpanOption;
 

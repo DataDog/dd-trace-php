@@ -7,6 +7,9 @@
 
 namespace DDTrace\OpenTracing;
 
+use DDTrace\Contracts\SpanContext;
+use DDTrace\Contracts\Tracer;
+
 final class NoopTracer implements Tracer
 {
     /**

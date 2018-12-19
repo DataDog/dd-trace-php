@@ -7,6 +7,7 @@
 
 namespace DDTrace\OpenTracing;
 
+use DDTrace\Contracts\SpanContext;
 use EmptyIterator;
 
 final class NoopSpanContext implements SpanContext
