@@ -12,6 +12,7 @@ use DDTrace\Contracts\Span;
 use DDTrace\Contracts\SpanContext;
 use DDTrace\Exceptions\InvalidReferencesSet;
 use DDTrace\Exceptions\InvalidSpanOption;
+use DDTrace\Reference;
 
 final class StartSpanOptions
 {
