@@ -7,7 +7,7 @@ use DDTrace\SpanContext;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tracer;
 use Mockery\MockInterface;
-use DDTrace\OpenTracing\Reference;
+use DDTrace\Reference;
 
 final class StartSpanOptionsFactoryTest extends BaseTestCase
 {

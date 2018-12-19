@@ -3,7 +3,6 @@
 namespace DDTrace;
 
 use DDTrace\Formats;
-use DDTrace\OpenTracing\Reference;
 use DDTrace\OpenTracing\StartSpanOptions;
 use DDTrace\Contracts\Tracer as OTTracer;
 
