@@ -2,7 +2,6 @@
 
 namespace DDTrace;
 
-use DDTrace\OpenTracing\StartSpanOptions;
 use DDTrace\Contracts\Tracer as OTTracer;
 
 /**
