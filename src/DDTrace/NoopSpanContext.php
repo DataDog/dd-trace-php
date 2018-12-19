@@ -40,4 +40,20 @@ final class NoopSpanContext implements SpanContext
     {
         return new self();
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPropagatedPrioritySampling()
+    {
+        return 0;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isHostRoot()
+    {
+        return false;
+    }
 }

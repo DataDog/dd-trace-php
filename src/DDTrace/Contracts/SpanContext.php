@@ -37,4 +37,16 @@ interface SpanContext extends IteratorAggregate
      * @return SpanContext
      */
     public function withBaggageItem($key, $value);
+
+    /**
+     * @return int
+     */
+    public function getPropagatedPrioritySampling();
+
+    /**
+     * Returns whether or not this context represents the root span for a specific host.
+     *
+     * @return bool
+     */
+    public function isHostRoot();
 }
