@@ -4,7 +4,7 @@ namespace DDTrace\Propagators;
 
 use DDTrace\Propagator;
 use DDTrace\SpanContext;
-use DDTrace\OpenTracing\NoopSpanContext;
+use DDTrace\NoopSpanContext;
 
 final class Noop implements Propagator
 {

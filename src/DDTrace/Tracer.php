@@ -4,7 +4,6 @@ namespace DDTrace;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Formats;
-use DDTrace\OpenTracing\NoopSpan;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;

@@ -23,7 +23,7 @@ final class TracerTest extends Framework\TestCase
     {
         $tracer = Tracer::noop();
         $span = $tracer->startSpan(self::OPERATION_NAME);
-        $this->assertInstanceOf('DDTrace\OpenTracing\NoopSpan', $span);
+        $this->assertInstanceOf('DDTrace\NoopSpan', $span);
     }
 
     public function testCreateSpanSuccessWithExpectedValues()

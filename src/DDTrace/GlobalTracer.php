@@ -7,8 +7,6 @@
 
 namespace DDTrace;
 
-use DDTrace\OpenTracing\NoopTracer;
-
 final class GlobalTracer
 {
     /** @var Tracer */
