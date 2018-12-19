@@ -7,10 +7,10 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\ScopeManager;
-use DDTrace\Contracts\Span;
+use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
+use DDTrace\Contracts\Span as SpanInterface;
 
-final class NoopScopeManager implements ScopeManager
+final class NoopScopeManager implements ScopeManagerInterface
 {
     public static function create()
     {
@@ -20,7 +20,7 @@ final class NoopScopeManager implements ScopeManager
     /**
      * {@inheritdoc}
      */
-    public function activate(Span $span, $finishSpanOnClose = ScopeManager::DEFAULT_FINISH_SPAN_ON_CLOSE)
+    public function activate(SpanInterface $span, $finishSpanOnClose = ScopeManagerInterface::DEFAULT_FINISH_SPAN_ON_CLOSE)
     {
     }
 

@@ -8,8 +8,8 @@
 namespace DDTrace;
 
 use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
-use DDTrace\Contracts\Span;
-use DDTrace\Contracts\SpanContext;
+use DDTrace\Contracts\Span as SpanInterface;
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Exceptions\InvalidReferencesSet;
 use DDTrace\Exceptions\InvalidSpanOption;
 
@@ -125,7 +125,7 @@ final class StartSpanOptions
     }
 
     /**
-     * @param Span|SpanContext $parent
+     * @param SpanInterface|SpanContextInterface $parent
      * @return StartSpanOptions
      */
     public function withParent($parent)
@@ -183,11 +183,11 @@ final class StartSpanOptions
 
     private static function buildChildOf($value)
     {
-        if ($value instanceof Span) {
+        if ($value instanceof SpanInterface) {
             return Reference::create(Reference::CHILD_OF, $value->getContext());
         }
 
-        if ($value instanceof SpanContext) {
+        if ($value instanceof SpanContextInterface) {
             return Reference::create(Reference::CHILD_OF, $value);
         }
 

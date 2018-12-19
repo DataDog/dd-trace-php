@@ -7,9 +7,9 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Scope;
+use DDTrace\Contracts\Scope as ScopeInterface;
 
-final class NoopScope implements Scope
+final class NoopScope implements ScopeInterface
 {
     public static function create()
     {
