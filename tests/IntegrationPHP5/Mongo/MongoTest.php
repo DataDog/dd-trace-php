@@ -7,8 +7,8 @@ use MongoCode;
 use MongoClient;
 use MongoCollection;
 use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Tests\Integration\Common\SpanAssertion;
-use DDTrace\Tests\Integration\Common\IntegrationTestCase;
+use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\IntegrationTestCase;
 
 final class MongoTest extends IntegrationTestCase
 {
