@@ -34,15 +34,13 @@
         "opentracing/opentracing": "1.0.0-beta5"
     },
     "require-dev": {
-        "elasticsearch/elasticsearch": "1.2.*",
-        "guzzlehttp/guzzle": "^5.0",
+        "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
         "phpcompatibility/php-compatibility": "^9.0",
         "phpcompatibility/phpcompatibility-passwordcompat": "^1.0",
         "phpcompatibility/phpcompatibility-symfony": "*",
         "phpstan/phpstan": "^0.10.5",
         "phpunit/phpunit": "^5.7.19",
-        "predis/predis": "^1.1",
         "squizlabs/php_codesniffer": "^3.3.0",
         "symfony/process": "*"
     },
@@ -92,5 +90,24 @@
         "laravel-57-test": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 test",
         "symfony-34-update": "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
         "symfony-34-test": "composer --working-dir=tests/Frameworks/Symfony/Version_3_4 test"
+    },
+    "extra": {
+        "scenarios": {
+            "elasticsearch1": {
+                "require": {
+                    "elasticsearch/elasticsearch": "1.2.*"
+                }
+            },
+            "guzzle5": {
+                "require": {
+                    "guzzlehttp/guzzle": "~5.0"
+                }
+            },
+            "predis1": {
+                "require": {
+                    "predis/predis": "^1.1"
+                }
+            }
+        }
     }
 }

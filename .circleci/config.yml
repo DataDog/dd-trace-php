@@ -168,6 +168,64 @@ aliases:
     store_test_results:
       path: test-results
 
+# Integrations tests scenarios
+
+  - &STEP_UPDATE_SCENARIOS
+    run:
+      name: Update all the scenarios
+      command: composer scenario:update
+
+  - &STEP_ACTIVATE_SCENARIO_DEFAULT
+    run:
+      command: composer scenario default
+
+  - &STEP_ACTIVATE_SCENARIO_GUZZLE_5
+    run:
+      command: composer scenario guzzle5
+
+  - &STEP_ACTIVATE_SCENARIO_ELASTICSEARCH_1
+    run:
+      command: composer scenario elasticsearch1
+
+  - &STEP_ACTIVATE_SCENARIO_PREDIS_1
+    run:
+      command: composer scenario predis1
+
+# Integrations tests execution
+
+  - &STEP_EXECUTE_CURL
+    run:
+      command: composer test -- tests/Integrations/Curl
+
+  - &STEP_EXECUTE_ELASTICSEARCH
+    run:
+      command: composer test -- tests/Integrations/Elasticsearch
+
+  - &STEP_EXECUTE_GUZZLE
+    run:
+      command: composer test -- tests/Integrations/Guzzle
+
+  - &STEP_EXECUTE_MEMCACHED
+    run:
+      command: composer test -- tests/Integrations/Memcached
+
+  - &STEP_EXECUTE_MONGO
+    run:
+      command: composer test -- tests/Integrations/Mongo
+
+  - &STEP_EXECUTE_MYSQLI
+    run:
+      command: composer test -- tests/Integrations/Mysqli
+
+  - &STEP_EXECUTE_PDO
+    run:
+      command: composer test -- tests/Integrations/PDO
+
+  - &STEP_EXECUTE_PREDIS
+    run:
+      command: composer test -- tests/Integrations/Predis
+
+
 jobs:
 
   "Lint files": &lint_files
@@ -260,6 +318,19 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_SCENARIOS
+      - <<: *STEP_ACTIVATE_SCENARIO_DEFAULT
+      - <<: *STEP_EXECUTE_CURL
+      - <<: *STEP_EXECUTE_MEMCACHED
+      - <<: *STEP_EXECUTE_MONGO
+      - <<: *STEP_EXECUTE_MYSQLI
+      - <<: *STEP_EXECUTE_PDO
+      - <<: *STEP_ACTIVATE_SCENARIO_ELASTICSEARCH_1
+      - <<: *STEP_EXECUTE_ELASTICSEARCH
+      - <<: *STEP_ACTIVATE_SCENARIO_GUZZLE_5
+      - <<: *STEP_EXECUTE_GUZZLE
+      - <<: *STEP_ACTIVATE_SCENARIO_PREDIS_1
+      - <<: *STEP_EXECUTE_PREDIS
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_SYMFONY_34_ENV
@@ -295,6 +366,18 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_SCENARIOS
+      - <<: *STEP_ACTIVATE_SCENARIO_DEFAULT
+      - <<: *STEP_EXECUTE_CURL
+      - <<: *STEP_EXECUTE_MEMCACHED
+      - <<: *STEP_EXECUTE_MYSQLI
+      - <<: *STEP_EXECUTE_PDO
+      - <<: *STEP_ACTIVATE_SCENARIO_ELASTICSEARCH_1
+      - <<: *STEP_EXECUTE_ELASTICSEARCH
+      - <<: *STEP_ACTIVATE_SCENARIO_GUZZLE_5
+      - <<: *STEP_EXECUTE_GUZZLE
+      - <<: *STEP_ACTIVATE_SCENARIO_PREDIS_1
+      - <<: *STEP_EXECUTE_PREDIS
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_SYMFONY_34_ENV
@@ -330,6 +413,18 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_SCENARIOS
+      - <<: *STEP_ACTIVATE_SCENARIO_DEFAULT
+      - <<: *STEP_EXECUTE_CURL
+      - <<: *STEP_EXECUTE_MEMCACHED
+      - <<: *STEP_EXECUTE_MYSQLI
+      - <<: *STEP_EXECUTE_PDO
+      - <<: *STEP_ACTIVATE_SCENARIO_ELASTICSEARCH_1
+      - <<: *STEP_EXECUTE_ELASTICSEARCH
+      - <<: *STEP_ACTIVATE_SCENARIO_GUZZLE_5
+      - <<: *STEP_EXECUTE_GUZZLE
+      - <<: *STEP_ACTIVATE_SCENARIO_PREDIS_1
+      - <<: *STEP_EXECUTE_PREDIS
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_LARAVEL_57_ENV
@@ -367,6 +462,18 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_UPDATE_SCENARIOS
+      - <<: *STEP_ACTIVATE_SCENARIO_DEFAULT
+      - <<: *STEP_EXECUTE_CURL
+      - <<: *STEP_EXECUTE_MEMCACHED
+      - <<: *STEP_EXECUTE_MYSQLI
+      - <<: *STEP_EXECUTE_PDO
+      - <<: *STEP_ACTIVATE_SCENARIO_ELASTICSEARCH_1
+      - <<: *STEP_EXECUTE_ELASTICSEARCH
+      - <<: *STEP_ACTIVATE_SCENARIO_GUZZLE_5
+      - <<: *STEP_EXECUTE_GUZZLE
+      - <<: *STEP_ACTIVATE_SCENARIO_PREDIS_1
+      - <<: *STEP_EXECUTE_PREDIS
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_LARAVEL_57_ENV
