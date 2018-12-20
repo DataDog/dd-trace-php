@@ -68,9 +68,17 @@ $ make
 $ sudo make install
 ```
 
-### Usage
+### Instrumentation
 
-Once the `ddtrace` extension and Composer package is installed, you can start tracing your PHP project by wrapping your application code with a [root span](https://docs.datadoghq.com/tracing/visualization/#spans) from the [tracer](https://docs.datadoghq.com/tracing/visualization/#trace).
+Once the `ddtrace` extension and Composer package is installed, you can start tracing your PHP project. There are a few framework instrumentations available out of the box.
+
+* [Laravel 4 & 5 instrumentation](docs/getting_started.md#laravel-integration)
+* [Lumen 5 instrumentation](docs/getting_started.md#lumen-integration)
+* [Symfony 3 & 4 instrumentation](docs/getting_started.md#symfony-integration)
+
+### Manual instrumentation
+
+If you are using another framework or CMS that is not listed above, you can manually instrument the tracer by wrapping your application code with a [root span](https://docs.datadoghq.com/tracing/visualization/#spans) from the [tracer](https://docs.datadoghq.com/tracing/visualization/#trace).
 
 ```php
 use DDTrace\Tracer;
