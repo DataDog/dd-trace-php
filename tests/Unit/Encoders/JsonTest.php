@@ -35,7 +35,7 @@ JSON
 "service":"test_service","start":1518038421211969000,"error":0}]]
 JSON;
 
-        $context = new SpanContext('160e7072ff7bd5f1', '160e7072ff7bd5f2');
+        $context = new SpanContext('1589331357723252209', '1589331357723252210');
         $span = new Span(
             'test_name',
             $context,
