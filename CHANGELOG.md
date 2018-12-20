@@ -4,9 +4,11 @@ All notable changes to this project will be documented in this file - [docs/chan
 ## [Unreleased]
 ### Added
 - PHP code compatibility with PHP 5.4 #194
+- Move framework tests to tests root folder #198
 
 ### Fixed
 - Properly set http status code tag in Laravel 4 integration #195
+- Agent calls traced when using Symfony 3 integration #197
 
 ## [0.8.1]
 ### Fixed
