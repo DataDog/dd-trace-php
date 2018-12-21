@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Integrations\Curl;
+namespace DDTrace\Tests\Integrations\Curl;
 
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\IntegrationsLoader;

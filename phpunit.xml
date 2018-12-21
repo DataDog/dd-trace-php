@@ -15,8 +15,11 @@
     <testsuites>
         <testsuite name="integration">
             <directory>tests/Integration/</directory>
-            <directory phpVersion="7.0.0" phpVersionOperator="lt">tests/IntegrationPHP5/</directory>
-            <exclude>tests/Integration/Frameworks</exclude>
+        </testsuite>
+        <testsuite name="integrations">
+            <directory>tests/Integrations/</directory>
+            <exclude>tests/Integrations/Mongo</exclude>
+            <directory phpVersion="7.0.0" phpVersionOperator="lt">tests/Integrations/Mongo</directory>
         </testsuite>
         <testsuite name="unit">
             <directory>tests/Unit/</directory>

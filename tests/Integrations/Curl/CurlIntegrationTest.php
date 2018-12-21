@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Integrations\Curl;
+namespace DDTrace\Tests\Integrations\Curl;
 
 use DDTrace\Configuration;
 use DDTrace\Formats;

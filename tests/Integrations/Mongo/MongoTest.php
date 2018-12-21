@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\IntegrationPHP5\Mongo;
+namespace DDTrace\Tests\Integrations\Mongo;
 
 use MongoId;
 use MongoCode;

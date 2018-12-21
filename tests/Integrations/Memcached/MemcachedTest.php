@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integration\Integrations\Memcached;
+namespace DDTrace\Tests\Integrations\Memcached;
 
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Obfuscation;
