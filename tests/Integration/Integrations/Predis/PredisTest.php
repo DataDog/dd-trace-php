@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Integration\Integrations\Predis;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Integration\Common\IntegrationTestCase;
 use DDTrace\Tests\Integration\Common\SpanAssertion;
+use Predis\Configuration\Options;
 use Predis\Response\Status;
 
 
@@ -47,6 +48,19 @@ final class PredisTest extends IntegrationTestCase
             $client = new \Predis\Client([ "host" => $this->host ]);
             $this->assertNotNull($client);
         });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Predis.Client.__construct', 'redis', 'cache', 'Predis.Client.__construct')
+                ->withExactTags($this->baseTags()),
+        ]);
+
+        $options = new Options();
+
+        $traces = $this->isolateTracer(function () use ($options) {
+            $client = new \Predis\Client([ "host" => $this->host ],$options);
+            $this->assertNotNull($client);
+        });
+
 
         $this->assertSpans($traces, [
             SpanAssertion::build('Predis.Client.__construct', 'redis', 'cache', 'Predis.Client.__construct')
