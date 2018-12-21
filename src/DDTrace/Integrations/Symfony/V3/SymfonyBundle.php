@@ -148,12 +148,6 @@ class SymfonyBundle extends Bundle
         // Enable other integrations
         IntegrationsLoader::load();
 
-        // Flushes traces to agent.
-        register_shutdown_function(function () use ($scope) {
-            $scope->close();
-            GlobalTracer::get()->flush();
-        });
-
         // Tracing templating engines
         $renderTraceCallback = function () use ($appName) {
             $args = func_get_args();
