@@ -1,5 +1,5 @@
 # Changelog
-All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
+All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
 ### Added
