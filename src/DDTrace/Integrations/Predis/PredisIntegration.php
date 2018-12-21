@@ -6,6 +6,7 @@ use DDTrace\Tags;
 use DDTrace\Types;
 use OpenTracing\GlobalTracer;
 use Predis\Pipeline\Pipeline;
+use Predis\Configuration\OptionsInterface;
 
 const VALUE_PLACEHOLDER = "?";
 const VALUE_MAX_LEN = 100;
@@ -159,7 +160,11 @@ class PredisIntegration
         if (isset($args[1])) {
             $options = $args[1];
 
-            $parameters = $options->__get('parameters');
+            if (is_array($options)) {
+                $parameters = isset($options['parameters']) ? $options['parameters'] : [];
+            } elseif ($options instanceof OptionsInterface) {
+                $parameters = $options->__get('parameters') ?: [];
+            }
 
             if (is_array($parameters) && isset($parameters['database'])) {
                 $tags['out.redis_db'] = $parameters['database'];
