@@ -75,12 +75,12 @@ $ composer test
 
 ```bash
 # Run only unit tests
-$ composer test -- --testsuite=unit --filter=Predis
+$ composer test -- --testsuite=unit
 ```
 
 ```bash
 # Run only integration tests
-$ composer test -- --testsuite=integration --filter=Predis
+$ composer test -- --testsuite=integration
 ```
 
 Testing integrations with libraries requires an additional step, as there are different scenarios where you want to test
