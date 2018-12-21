@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Fixed
 - Properly set http status code tag in Laravel 4 integration #195
 - Agent calls traced when using Symfony 3 integration #197
+- Fix for trace and span ID's that were improperly serialized on the wire in distributed tracing contexts #204
 
 ## [0.8.1]
 ### Fixed
