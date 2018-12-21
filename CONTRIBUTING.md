@@ -74,9 +74,27 @@ $ composer test
 > **Note:** The `composer test` command is a wrapper around `phpunit`, so you can use all the common [options](https://phpunit.de/manual/5.7/en/textui.html#textui.clioptions) that you would with `phpunit`. However you need prepend the options list with the additional `--` dashes that `composer` requires:
 
 ```bash
-# Run a suite and a filter
+# Run only unit tests
 $ composer test -- --testsuite=unit --filter=Predis
 ```
+
+```bash
+# Run only integration tests
+$ composer test -- --testsuite=integration --filter=Predis
+```
+
+Testing integrations with libraries requires an additional step, as there are different scenarios where you want to test
+a specific integration. You can find available scenarios in `composer.json` at key `extras.scenarios`.
+
+As an example, in order to run Guzzle tests with Guzzle v5 library, run:
+
+    # Only the first time, to create all the different scenarios
+    $ composer scenario:update
+
+    # Activate the specific scenario
+    $ composer scenario guzzle5
+    # Run only guzzle tests
+    $ composer test -- tests/Integrations/Guzzle/
 
 In order to run the `phpt` tests for the php extension:
 
