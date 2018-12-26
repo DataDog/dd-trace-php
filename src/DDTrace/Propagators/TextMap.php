@@ -2,19 +2,14 @@
 
 namespace DDTrace\Propagators;
 
-use DDTrace\Configuration;
 use DDTrace\Propagator;
 use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
+use DDTrace\Contracts\Tracer;
 use DDTrace\SpanContext;
-use DDTrace\Tracer;
 
 final class TextMap implements Propagator
 {
-    /**
-     * @var Configuration
-     */
-    private $globalConfig;
-
     /**
      * @var Tracer
      */
@@ -25,14 +20,13 @@ final class TextMap implements Propagator
      */
     public function __construct(Tracer $tracer)
     {
-        $this->globalConfig = Configuration::get();
         $this->tracer = $tracer;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function inject(SpanContext $spanContext, &$carrier)
+    public function inject(SpanContextInterface $spanContext, &$carrier)
     {
         $carrier[Propagator::DEFAULT_TRACE_ID_HEADER] = $spanContext->getTraceId();
         $carrier[Propagator::DEFAULT_PARENT_ID_HEADER] = $spanContext->getSpanId();
@@ -98,10 +92,10 @@ final class TextMap implements Propagator
     /**
      * Extract from carrier the propagated priority sampling.
      *
-     * @param SpanContext $spanContext
+     * @param SpanContextInterface $spanContext
      * @param array $carrier
      */
-    private function extractPrioritySampling(SpanContext $spanContext, $carrier)
+    private function extractPrioritySampling(SpanContextInterface $spanContext, $carrier)
     {
         if (isset($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER])) {
             $rawValue = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]);

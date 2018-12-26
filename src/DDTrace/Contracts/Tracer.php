@@ -122,4 +122,9 @@ interface Tracer
      * to the client.
      */
     public function flush();
+
+    /**
+     * @return mixed
+     */
+    public function getPrioritySampling();
 }

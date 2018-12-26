@@ -6,8 +6,8 @@ use DDTrace\Encoder;
 use DDTrace\Log\Logger;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\Span;
-use DDTrace\Tracer;
+use DDTrace\Contracts\Span;
+use DDTrace\Contracts\Tracer;
 use DDTrace\GlobalTracer;
 
 final class Json implements Encoder
