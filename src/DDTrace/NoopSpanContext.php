@@ -95,4 +95,12 @@ final class NoopSpanContext implements SpanContextInterface
     {
         return null;
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isDistributedTracingActivationContext()
+    {
+        return false;
+    }
 }
