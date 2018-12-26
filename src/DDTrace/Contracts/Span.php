@@ -64,6 +64,12 @@ interface Span
     public function setTag($key, $value);
 
     /**
+     * @param string $key
+     * @return string|null
+     */
+    public function getTag($key);
+
+    /**
      * Adds a log record to the span in key => value format, key must be a string and tag must be either
      * a string, a boolean value, or a numeric type.
      *
@@ -94,6 +100,11 @@ interface Span
     public function getBaggageItem($key);
 
     /**
+     * @return array
+     */
+    public function getAllBaggageItems();
+
+    /**
      * Stores a Throwable object within the span tags. The error status is
      * updated and the error.Error() string is included with a default tag key.
      * If the Span has been finished, it will not be modified by this method.
@@ -117,4 +128,54 @@ interface Span
      * @return bool
      */
     public function hasError();
+
+    /**
+     * @return int
+     */
+    public function getStartTime();
+
+    /**
+     * @return int
+     */
+    public function getDuration();
+
+    /**
+     * @return string
+     */
+    public function getTraceId();
+
+    /**
+     * @return string
+     */
+    public function getSpanId();
+
+    /**
+     * @return null|string
+     */
+    public function getParentId();
+
+    /**
+     * @return string
+     */
+    public function getResource();
+
+    /**
+     * @return string
+     */
+    public function getService();
+
+    /**
+     * @return string|null
+     */
+    public function getType();
+
+    /**
+     * @return bool
+     */
+    public function isFinished();
+
+    /**
+     * @return array
+     */
+    public function getAllTags();
 }

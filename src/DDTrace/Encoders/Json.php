@@ -4,8 +4,8 @@ namespace DDTrace\Encoders;
 
 use DDTrace\Encoder;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\Span;
-use DDTrace\Tracer;
+use DDTrace\Contracts\Span;
+use DDTrace\Contracts\Tracer;
 use DDTrace\GlobalTracer;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;

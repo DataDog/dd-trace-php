@@ -44,6 +44,14 @@ final class NoopSpanContext implements SpanContextInterface
     /**
      * {@inheritdoc}
      */
+    public function getAllBaggageItems()
+    {
+        return [];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function getPropagatedPrioritySampling()
     {
         return 0;
@@ -52,8 +60,39 @@ final class NoopSpanContext implements SpanContextInterface
     /**
      * {@inheritdoc}
      */
+    public function setPropagatedPrioritySampling($propagatedPrioritySampling)
+    {
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isHostRoot()
     {
         return false;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTraceId()
+    {
+        return '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getSpanId()
+    {
+        return '';
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getParentId()
+    {
+        return null;
     }
 }

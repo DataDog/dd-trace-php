@@ -48,7 +48,7 @@ final class SpanContext implements SpanContextInterface
     private $propagatedPrioritySampling;
 
     /**
-     * @var SpanContext
+     * @var SpanContextInterface
      */
     private $parentContext;
 
@@ -66,17 +66,17 @@ final class SpanContext implements SpanContextInterface
         $this->isDistributedTracingActivationContext = $isDistributedTracingActivationContext;
     }
 
-    public static function createAsChild(SpanContext $parentContext)
+    public static function createAsChild(SpanContextInterface $parentContext)
     {
         $instance = new self(
-            $parentContext->traceId,
+            $parentContext->getTraceId(),
             self::nextId(),
-            $parentContext->spanId,
-            $parentContext->baggageItems,
+            $parentContext->getSpanId(),
+            $parentContext->getAllBaggageItems(),
             false
         );
         $instance->parentContext = $parentContext;
-        $instance->setPropagatedPrioritySampling($parentContext->propagatedPrioritySampling);
+        $instance->setPropagatedPrioritySampling($parentContext->getPropagatedPrioritySampling());
         return $instance;
     }
 
@@ -93,21 +93,33 @@ final class SpanContext implements SpanContextInterface
         );
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getTraceId()
     {
         return $this->traceId;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getSpanId()
     {
         return $this->spanId;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getParentId()
     {
         return $this->parentId;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getIterator()
     {
         return new ArrayIterator($this->baggageItems);
@@ -122,13 +134,16 @@ final class SpanContext implements SpanContextInterface
     }
 
     /**
-     * @param int $propagatedPrioritySampling
+     * {@inheritdoc}
      */
     public function setPropagatedPrioritySampling($propagatedPrioritySampling)
     {
         $this->propagatedPrioritySampling = $propagatedPrioritySampling;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getBaggageItem($key)
     {
         return array_key_exists($key, $this->baggageItems)
@@ -136,6 +151,9 @@ final class SpanContext implements SpanContextInterface
             : null;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function withBaggageItem($key, $value)
     {
         return new self(
@@ -146,13 +164,21 @@ final class SpanContext implements SpanContextInterface
         );
     }
 
-    public function isEqual(SpanContext $spanContext)
+    /**
+     * {@inheritdoc}
+     */
+    public function getAllBaggageItems()
+    {
+        return $this->baggageItems;
+    }
+
+    public function isEqual(SpanContextInterface $spanContext)
     {
         return
-            $this->traceId === $spanContext->traceId
-            && $this->spanId === $spanContext->spanId
-            && $this->parentId === $spanContext->parentId
-            && $this->baggageItems === $spanContext->baggageItems;
+            $this->traceId === $spanContext->getTraceId()
+            && $this->spanId === $spanContext->getSpanId()
+            && $this->parentId === $spanContext->getParentId()
+            && $this->baggageItems === $spanContext->getAllBaggageItems();
     }
 
     private static function nextId()
@@ -169,7 +195,7 @@ final class SpanContext implements SpanContextInterface
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isDistributedTracingActivationContext()
     {

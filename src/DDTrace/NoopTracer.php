@@ -71,4 +71,12 @@ final class NoopTracer implements TracerInterface
     public function flush()
     {
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPrioritySampling()
+    {
+        return null;
+    }
 }

@@ -302,12 +302,6 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        // This is a temporary guard that will go away once we complete the refactoring to entirely depend only on
-        // DDTrace extensions of OpenTracing.
-        if (!is_a($span, '\DDTrace\Span')) {
-            return;
-        }
-
         if (!$span->getContext()->isHostRoot()) {
             // Only root spans for each host must have the sampling priority value set.
             return;
@@ -326,7 +320,7 @@ final class Tracer implements TracerInterface
     }
 
     /**
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getPrioritySampling()
     {

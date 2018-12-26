@@ -39,9 +39,19 @@ interface SpanContext extends IteratorAggregate
     public function withBaggageItem($key, $value);
 
     /**
+     * @return array
+     */
+    public function getAllBaggageItems();
+
+    /**
      * @return int
      */
     public function getPropagatedPrioritySampling();
+
+    /**
+     * @param int $propagatedPrioritySampling
+     */
+    public function setPropagatedPrioritySampling($propagatedPrioritySampling);
 
     /**
      * Returns whether or not this context represents the root span for a specific host.
@@ -49,4 +59,24 @@ interface SpanContext extends IteratorAggregate
      * @return bool
      */
     public function isHostRoot();
+
+    /**
+     * @return string
+     */
+    public function getTraceId();
+
+    /**
+     * @return string
+     */
+    public function getSpanId();
+
+    /**
+     * @return string|null
+     */
+    public function getParentId();
+
+    /**
+     * @return bool
+     */
+    public function isDistributedTracingActivationContext();
 }
