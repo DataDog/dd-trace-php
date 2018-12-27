@@ -83,8 +83,10 @@ void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, 
         // call->num_additional_args = 0;
         // call->is_ctor_call = 0;
         // EX(call) = call;
-        // NUM_ADDITIONAL_ARGS() = 0;
+        // EX(opline)->num = 0;
         FBC() = EX(function_state).function;
+        EX(object) = NULL;
+        EX(called_scope) = NULL;
     }
 	EX(original_return_value) = EG(return_value_ptr_ptr);
     EG(return_value_ptr_ptr) = result;

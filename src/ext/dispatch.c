@@ -51,7 +51,6 @@ static ddtrace_dispatch_t *find_dispatch(const char *scope_name, uint32_t scope_
         return NULL;
     }
     HashTable *class_lookup = NULL;
-
     class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), scope_name, scope_name_length);
 
     if (!class_lookup) {
@@ -69,8 +68,10 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     char *error = NULL;
     zval closure, *rv_ptr;
     INIT_ZVAL(closure);
-    ALLOC_INIT_ZVAL(rv_ptr); //TODO: optimize
-    return_value_ptr = return_value_ptr ? return_value_ptr : &rv_ptr;
+    if (!*return_value_ptr) {
+        ALLOC_INIT_ZVAL(rv_ptr);
+        *return_value_ptr = rv_ptr;
+    }
 
     zval *this = NULL;
 
@@ -116,9 +117,9 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 
     ddtrace_setup_fcall(execute_data, &fci, return_value_ptr TSRMLS_CC);
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS) {
-        if (!return_value_ptr) {
-            // zval_dtor(&rv);
-        }
+        // if (!*return_value_ptr) {
+        //     Z_DELREF_P(return_value_ptr);
+        // }
     }
 
 #if PHP_VERSION_ID < 70000
@@ -130,7 +131,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 _exit_cleanup:
 #if PHP_VERSION_ID < 70000
     if (this) {
-        Z_DELREF_P(this);
+        // Z_DELREF_P(this);
     }
 #endif
 
@@ -193,15 +194,15 @@ void zend_throw_exception_internal(zval *exception TSRMLS_DC) /* {{{ */
 	EG(current_execute_data)->opline = EG(exception_op);
 }
 
+#include <assert.h>
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, zend_function *fbc,
                                                  const char *function_name, uint32_t function_name_length TSRMLS_DC) {
-    zval *object = NULL;
+    zval *object = NULL, *original_object = EX(object);
     const char *common_scope = NULL;
     uint32_t common_scope_length = 0;
-
-    if (EX(object)) {
-	    zend_ptr_stack_3_push(&EG(arg_types_stack), EX(fbc), EX(object), EX(called_scope));
-        Z_ADDREF_P(EX(object));
+    DD_PRINTF("ETF %0lx", EX(object));
+    if (EX(object) == 0x200){
+        assert(0);
     }
 
     if (fbc->common.scope) {
@@ -214,7 +215,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         if (!object && OBJECT()) {
             object = OBJECT();
         }
-        EX(object) = object;
 
         common_scope = fbc->common.scope->name;
         common_scope_length = fbc->common.scope->name_length;
@@ -225,8 +225,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         common_scope_length = ZSTR_LEN(fbc->common.scope->name);
 #endif
     }
-        DD_PRINTF("ETF %0lx", EX(object));
-
+    DD_PRINTF("ETF %0lx", EX(object));
 
     ddtrace_dispatch_t *dispatch;
 
@@ -236,7 +235,9 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     } else {
         dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), function_name, function_name_length);
     }
-        DD_PRINTF("ETF %0lx", EX(object));
+    DD_PRINTF("ETF %0lx", EX(object));
+
+
 
 
     if (!dispatch) {
@@ -244,9 +245,52 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     } else if (dispatch->flags & BUSY_FLAG) {
         DD_PRINTF("Handler for %s is BUSY", function_name);
     }
-        DD_PRINTF("ETF %0lx", EX(object));
+
+    // if (original_object != object && object) {
+    //         zend_ptr_stack_3_push(&EG(arg_types_stack), fbc, object, EX(called_scope));
+
+    // }
+    // if (EX(opline)->opcode != ZEND_DO_FCALL_BY_NAME) {
+    //     if (original_object) {
+    //         zend_ptr_stack_3_push(&EG(arg_types_stack), fbc, original_object, EX(called_scope));
+    //     } else if (object) {
+    //         zend_ptr_stack_3_push(&EG(arg_types_stack), fbc, object, EX(called_scope));
+    //     }
+    // } else {
+    //     DD_PRINTF("Should push ");
+    // }
+
+    if (original_object){
+        // Z_ADDREF_P(original_object);
+    }
+
 
     if (dispatch && (dispatch->flags ^ BUSY_FLAG)) {
+            {
+        zend_op *opline = EX(opline);
+        zval *fname = opline->op1.zv;
+
+        zend_free_op free_op1;
+
+        zend_ptr_stack_3_push(&EG(arg_types_stack), EX(fbc), EX(object), EX(called_scope));
+
+        // if (CACHED_PTR(opline->op1.literal->cache_slot)) {
+        //     EX(function_state).function = CACHED_PTR(opline->op1.literal->cache_slot);
+        // } else if (UNEXPECTED(zend_hash_quick_find(EG(function_table), Z_STRVAL_P(fname), Z_STRLEN_P(fname)+1, Z_HASH_P(fname), (void **) &EX(function_state).function)==FAILURE)) {
+        //     SAVE_OPLINE();
+        //     zend_error_noreturn(E_ERROR, "Call to undefined function %s()", fname->value.str.val);
+        // } else {
+        //     CACHE_PTR(opline->op1.literal->cache_slot, EX(function_state).function);
+        // }
+        EX(object) = NULL;
+
+        // FREE_OP(free_op1);
+    }
+
+        if (fbc->common.scope && object) {
+            EX(object) = object;
+        }
+
         DD_PRINTF("ETF %0lx", EX(object));
 
         const zend_op *opline = EX(opline);
@@ -262,8 +306,9 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         DD_PRINTF("ETF %0lx", EX(object));
         DD_PRINTF("Starting handler for %s#%s", common_scope, function_name);
 
-
         execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
+
+
         DD_PRINTF("ETF %0lx", EX(object));
 
         if (return_value != NULL) {
@@ -307,18 +352,34 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             // zval_dtor(&rv);
         }
 	    if (UNEXPECTED(EG(exception) != NULL)) {
-		    zend_throw_exception_internal(NULL TSRMLS_CC);
+            // if (original_object) {
+            //     Z_DELREF_P(original_object);
+            // }
+            Z_DELREF_P(EG(exception));
+            if (*return_value){
+                Z_DELREF_PP(return_value);
+            }
+            //
+		    // zend_throw_exception_internal(NULL TSRMLS_CC);
         }
-
 
         DD_PRINTF("Handler for %s#%s exiting", common_scope, function_name);
 
-
         return 1;
     } else {
+
         return 0;
     }
 }
+
+#define FREE_OP(should_free) \
+	if (should_free.var) { \
+		if ((zend_uintptr_t)should_free.var & 1L) { \
+			zval_dtor((zval*)((zend_uintptr_t)should_free.var & ~1L)); \
+		} else { \
+			zval_ptr_dtor(&should_free.var); \
+		} \
+	}
 
 static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *execute_data, zend_function **fbc_p,
                                                            char const **function_name_p,
@@ -330,12 +391,17 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 #if PHP_VERSION_ID < 70000
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         fbc = FBC();
-        function_name = fbc->common.function_name;
         function_name_length = 0;
+        if (fbc) {
+                function_name = fbc->common.function_name;
+        }
     } else {
+        zend_op *opline = EX(opline);
+        zval *fname = opline->op1.zv;
+
         fbc = EX(function_state).function;
-        function_name = Z_STRVAL_P(EX(opline)->op1.zv);
-        function_name_length = Z_STRLEN_P(EX(opline)->op1.zv);
+        function_name = Z_STRVAL_P(opline->op1.zv);
+        function_name_length = Z_STRLEN_P(opline->op1.zv);
     }
 #else
     fbc = FBC();
@@ -369,12 +435,28 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 
 static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 #if PHP_VERSION_ID < 70000
+	EX(function_state).function = (zend_function *) EX(op_array);
+    EX(function_state).arguments = NULL;
+    EG(opline_ptr) = &EX(opline);
+	EG(active_op_array) = EX(op_array);
+	EG(return_value_ptr_ptr) = EX(original_return_value);
+    			EG(active_symbol_table) = EX(symbol_table);
+
+
+    EG(This) = EX(current_this);
+	EG(scope) = EX(current_scope);
+	EG(called_scope) = EX(current_called_scope);
+
+	EX(object) = EX(current_object);
+	// EX(called_scope) = DECODE_CTOR(EX(called_scope));
+
     zend_vm_stack_clear_multiple(TSRMLS_CC);
     // EX(call)--;
 #else
     EX(call) = EX(call)->prev_execute_data;
 #endif
     EX(opline) = EX(opline) + 1;
+    // EG(opline_ptr) = & EX(opline);
 
     return ZEND_USER_OPCODE_LEAVE;
 }

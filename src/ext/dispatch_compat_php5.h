@@ -6,6 +6,7 @@
 #include "debug.h"
 #include "dispatch.h"
 
+#define FBC_F() (EX(fbc) ? EX(fbc) : EX(function_state).function)
 #define FBC() EX(fbc)
 #define OBJECT() EX(object)
 // #define NUM_ADDITIONAL_ARGS() EX(call)->num_additional_args
