@@ -66,11 +66,15 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     zend_fcall_info fci = { 0 };
     zend_fcall_info_cache fcc = { 0 };
     char *error = NULL;
-    zval closure, *rv_ptr;
+    zval closure;
     INIT_ZVAL(closure);
-    if (!*return_value_ptr) {
-        ALLOC_INIT_ZVAL(rv_ptr);
-        *return_value_ptr = rv_ptr;
+
+    if (return_value_ptr){
+        if (*return_value_ptr == NULL){
+            zval *tmp_ptr = NULL;
+            ALLOC_INIT_ZVAL(tmp_ptr);
+            *return_value_ptr = tmp_ptr;
+        }
     }
 
     zval *this = NULL;
@@ -117,8 +121,8 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 
     ddtrace_setup_fcall(execute_data, &fci, return_value_ptr TSRMLS_CC);
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS) {
-        if (!*return_value_ptr) {
-            Z_DELREF_P(return_value_ptr);
+        if (return_value_ptr && !*return_value_ptr) {
+            Z_DELREF_PP(return_value_ptr);
         }
     }
 
@@ -312,9 +316,11 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         dispatch->flags ^= BUSY_FLAG;  // guard against recursion, catching only topmost execution
 
 #define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
+
 #if PHP_VERSION_ID < 70000
+        EX_T(opline->result.var).var.ptr = NULL;
         zval **return_value = &EX_T(opline->result.var).var.ptr;
-        // DD_PRINTF("ehlo");
+
         DD_PRINTF("ETF %0lx", EX(object));
         DD_PRINTF("Starting handler for %s#%s", common_scope, function_name);
 
@@ -444,7 +450,7 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     EX(function_state).arguments = NULL;
     EG(opline_ptr) = &EX(opline);
 	EG(active_op_array) = EX(op_array);
-	EG(return_value_ptr_ptr) = EX(original_return_value);
+	EG(return_value_ptr_ptr) = &EX(original_return_value);
     EG(active_symbol_table) = EX(symbol_table);
 
 
