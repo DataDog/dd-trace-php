@@ -67,13 +67,14 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     zend_fcall_info_cache fcc = { 0 };
     char *error = NULL;
     zval closure;
+    zend_op *opline = EX(opline);
     INIT_ZVAL(closure);
 
     if (return_value_ptr){
         if (*return_value_ptr == NULL){
             zval *tmp_ptr = NULL;
-            ALLOC_INIT_ZVAL(tmp_ptr);
-            *return_value_ptr = tmp_ptr;
+            // ALLOC_INIT_ZVAL(tmp_ptr);
+            // *return_value_ptr = tmp_ptr;
         }
     }
 
@@ -118,13 +119,19 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         }
         goto _exit_cleanup;
     }
+       if (return_value_ptr && *return_value_ptr) {
+            Z_DELREF_P(*return_value_ptr);
+        }
 
     ddtrace_setup_fcall(execute_data, &fci, return_value_ptr TSRMLS_CC);
+
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS) {
-        if (return_value_ptr && !*return_value_ptr) {
-            Z_DELREF_PP(return_value_ptr);
-        }
     }
+    if (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) {
+        zval_ptr_dtor(EG(return_value_ptr_ptr));
+        EG(return_value_ptr_ptr) = NULL;
+    }
+
 
 #if PHP_VERSION_ID < 70000
     if (fci.params) {
@@ -137,8 +144,8 @@ _exit_cleanup:
     if (this) {
         Z_DELREF_P(this);
     }
-#endif
 
+#endif
     zval_dtor(&closure);
 }
 
@@ -194,6 +201,7 @@ void zend_throw_exception_internal(zval *exception TSRMLS_DC) /* {{{ */
 		/* no need to rethrow the exception */
 		return;
 	}
+
 	EG(opline_before_exception) = EG(current_execute_data)->opline;
 	EG(current_execute_data)->opline = EG(exception_op);
 }
@@ -215,10 +223,10 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     zval *object = NULL, *original_object = EX(object);
     const char *common_scope = NULL;
     uint32_t common_scope_length = 0;
-    DD_PRINTF("ETF %0lx", EX(object));
-    if (EX(object) == 0x200){
-        assert(0);
-    }
+    // DD_PRINTF("ETF %0lx", EX(object));
+    // if (EX(object) == 0x200){
+    //     assert(0);
+    // }
 
     if (fbc->common.scope) {
 #if PHP_VERSION_ID < 70000
@@ -326,7 +334,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
         execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
 
-
         DD_PRINTF("ETF %0lx", EX(object));
 
         if (return_value != NULL) {
@@ -368,6 +375,9 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
         if (!RETURN_VALUE_USED(opline)) {
             // zval_dtor(return_value);
+            zval_ptr_dtor(EG(return_value_ptr_ptr));
+
+            EG(return_value_ptr_ptr) = NULL;
         }
 	    if (UNEXPECTED(EG(exception) != NULL)) {
             // if (original_object) {
@@ -385,7 +395,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
         return 1;
     } else {
-
         return 0;
     }
 }
@@ -444,22 +453,33 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
     return 1;
 }
 
+#define CTOR_CALL_BIT    0x1
+#define CTOR_USED_BIT    0x2
+#define DECODE_CTOR(ce) \
+	((zend_class_entry*)(((zend_uintptr_t)(ce)) & ~(CTOR_CALL_BIT|CTOR_USED_BIT)))
+
 static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 #if PHP_VERSION_ID < 70000
 	EX(function_state).function = (zend_function *) EX(op_array);
     EX(function_state).arguments = NULL;
     EG(opline_ptr) = &EX(opline);
 	EG(active_op_array) = EX(op_array);
-	EG(return_value_ptr_ptr) = &EX(original_return_value);
-    EG(active_symbol_table) = EX(symbol_table);
 
+    if (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) {
+        zval_ptr_dtor(EG(return_value_ptr_ptr));
+    }
+	// EG(return_value_ptr_ptr) = &EX(original_return_value);
+    EX(original_return_value) = NULL;
+    EG(return_value_ptr_ptr) = NULL;
+
+    EG(active_symbol_table) = EX(symbol_table);
 
     // EG(This) = EX(current_this);
 	EG(scope) = EX(current_scope);
 	EG(called_scope) = EX(current_called_scope);
 	EX(object) = EX(current_object);
 
-    // EX(called_scope) = DECODE_CTOR(EX(called_scope));
+    EX(called_scope) = DECODE_CTOR(EX(called_scope));
 
     zend_vm_stack_clear_multiple(TSRMLS_CC);
     // EX(call)--;
@@ -472,18 +492,7 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     return ZEND_USER_OPCODE_LEAVE;
 }
 
-int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
-    const char *function_name = NULL;
-    uint32_t function_name_length = 0;
-    zend_function *fbc = NULL;
-
-    DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
-
-    if (get_wrappable_function(execute_data, &fbc, &function_name, &function_name_length) &&
-        wrap_and_run(execute_data, fbc, function_name, function_name_length TSRMLS_CC)) {
-        return update_opcode_leave(execute_data TSRMLS_CC);
-    }
-
+int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         if (ddtrace_old_fcall_by_name_handler) {
             return ddtrace_old_fcall_by_name_handler(execute_data TSRMLS_CC);
@@ -495,4 +504,22 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
+}
+
+int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
+    const char *function_name = NULL;
+    uint32_t function_name_length = 0;
+    zend_function *fbc = NULL;
+
+    DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
+
+    if (!get_wrappable_function(execute_data, &fbc, &function_name, &function_name_length)) {
+        return default_dispatch(execute_data TSRMLS_CC);
+    }
+
+    if (wrap_and_run(execute_data, fbc, function_name, function_name_length TSRMLS_CC)) {
+        return update_opcode_leave(execute_data TSRMLS_CC);
+    }
+
+    return default_dispatch(execute_data TSRMLS_CC);
 }
