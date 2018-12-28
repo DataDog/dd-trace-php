@@ -85,12 +85,11 @@ void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, 
         // EX(call) = call;
         // EX(opline)->num = 0;
         FBC() = EX(function_state).function;
-        EX(object) = NULL;
-        EX(called_scope) = NULL;
+        // EX(object) = NULL;
+        // EX(called_scope) = NULL;
     }
 	EX(original_return_value) = EG(return_value_ptr_ptr);
     EG(return_value_ptr_ptr) = result;
-    DD_PRINTF("Eh");
     setup_fcal_name(execute_data, fci, result TSRMLS_CC);
 }
 
