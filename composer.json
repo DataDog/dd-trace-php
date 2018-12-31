@@ -108,6 +108,9 @@
                     "predis/predis": "^1.1"
                 }
             }
+        },
+        "scenario-options": {
+            "dependency-licenses": false
         }
     }
 }
