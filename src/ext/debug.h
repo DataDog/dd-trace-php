@@ -2,17 +2,23 @@
 #define DD_DEBUG_H
 
 #define __DD_FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define __DD_PRINTF(fmt, ...)                                                                           \
-    do {                                                                                                \
-        fprintf(stderr, "%s:%d #%s " fmt "\n", __DD_FILENAME__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
-        fflush(stderr);                                                                                 \
+#define __DD_PRINTF(fmt, ...)                                                        \
+    do {                                                                             \
+        const char* blacklist = getenv("DEBUG_BLACKLIST");                           \
+        char file_line[100];                                                         \
+        snprintf(file_line, sizeof(file_line), "%s:%d", __DD_FILENAME__, __LINE__);   \
+        if (blacklist && strstr(blacklist, file_line) != NULL) {                      \
+            continue;                                                                \
+        }                                                                            \
+        fprintf(stderr, "%s #%s " fmt "\n", file_line, __FUNCTION__, ##__VA_ARGS__); \
+        fflush(stderr);                                                              \
     } while (0)
 
 #ifdef DEBUG
 #define DD_PRINTF(fmt, ...) __DD_PRINTF(fmt, ##__VA_ARGS__)
 #define DD_PRINT_HASH(ht)                                                              \
     do {                                                                               \
-        Bucket *p;                                                                     \
+        Bucket* p;                                                                     \
         uint i;                                                                        \
         if (ht->nNumOfElements == 0) {                                                 \
             DD_PRINTF("The hash is empty");                                            \

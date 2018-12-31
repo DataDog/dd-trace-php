@@ -16,8 +16,6 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 // #define NUM_ADDITIONAL_ARGS() (EX(call)->num_additional_args)
 #define NUM_ADDITIONAL_ARGS() (0)
 
-
-
 static zend_always_inline void **vm_stack_push_args_with_copy(int count TSRMLS_DC) /* {{{ */
 {
     zend_vm_stack p = EG(argument_stack);
@@ -67,11 +65,9 @@ static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, 
     if (fci->param_count) {
         fci->params = (zval ***)safe_emalloc(sizeof(zval *), fci->param_count, 0);
         zend_get_parameters_array_ex(fci->param_count, fci->params);
-
     }
     fci->retval_ptr_ptr = result;
     DD_PRINTF("Eheee");
-
 }
 
 void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC) {
@@ -88,7 +84,7 @@ void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, 
         // EX(object) = NULL;
         // EX(called_scope) = NULL;
     }
-	EX(original_return_value) = EG(return_value_ptr_ptr);
+    EX(original_return_value) = EG(return_value_ptr_ptr);
     EG(return_value_ptr_ptr) = result;
     setup_fcal_name(execute_data, fci, result TSRMLS_CC);
 }
