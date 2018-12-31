@@ -78,9 +78,90 @@
         "install-ext": "make -f DDMakefile install_ini install SUDO=sudo $*",
         "test-ext": "make -f DDMakefile test_c",
         "test": "phpunit --colors=always --configuration=phpunit.xml",
+        "test-all-56": [
+            "@test-unit",
+            "@test-integration",
+            "@test-integrations-56"
+        ],
+        "test-all-70": [
+            "@test-unit",
+            "@test-integration",
+            "@test-integrations-70"
+        ],
+        "test-all-71": [
+            "@test-unit",
+            "@test-integration",
+            "@test-integrations-71"
+        ],
+        "test-all-72": [
+            "@test-unit",
+            "@test-integration",
+            "@test-integrations-72"
+        ],
         "test-integration": [
             "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
-            "phpunit --colors=always --configuration=phpunit.xml --testsuite=integration"
+            "@composer test -- --testsuite=integration"
+        ],
+        "test-integrations-56": [
+            "@composer scenario:update",
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Curl",
+            "@composer test -- tests/Integrations/Memcached",
+            "@composer test -- tests/Integrations/Mongo",
+            "@composer test -- tests/Integrations/Mysqli",
+            "@composer test -- tests/Integrations/PDO",
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch",
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle",
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis",
+            "@composer scenario default"
+        ],
+        "test-integrations-70": [
+            "@composer scenario:update",
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Curl",
+            "@composer test -- tests/Integrations/Memcached",
+            "@composer test -- tests/Integrations/Mysqli",
+            "@composer test -- tests/Integrations/PDO",
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch",
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle",
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis",
+            "@composer scenario default"
+        ],
+        "test-integrations-71": [
+            "@composer scenario:update",
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Curl",
+            "@composer test -- tests/Integrations/Memcached",
+            "@composer test -- tests/Integrations/Mysqli",
+            "@composer test -- tests/Integrations/PDO",
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch",
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle",
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis",
+            "@composer scenario default"
+        ],
+        "test-integrations-72": [
+            "@composer scenario:update",
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Curl",
+            "@composer test -- tests/Integrations/Memcached",
+            "@composer test -- tests/Integrations/Mysqli",
+            "@composer test -- tests/Integrations/PDO",
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch",
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle",
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis",
+            "@composer scenario default"
         ],
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
 

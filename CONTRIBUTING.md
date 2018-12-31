@@ -67,23 +67,39 @@ $ docker-compose down
 
 In order to run all the tracer tests:
 
-```bash
-$ composer test
-```
+    # Run all tests for for php 5.6
+    $ composer test-all-56
 
-> **Note:** The `composer test` command is a wrapper around `phpunit`, so you can use all the common [options](https://phpunit.de/manual/5.7/en/textui.html#textui.clioptions) that you would with `phpunit`. However you need prepend the options list with the additional `--` dashes that `composer` requires:
+    # Run all tests for for php 7.0
+    $ composer test-all-70
 
-```bash
-# Run only unit tests
-$ composer test -- --testsuite=unit
-```
+    # Run all tests for for php 7.1
+    $ composer test-all-71
 
-```bash
-# Run only integration tests
-$ composer test -- --testsuite=integration
-```
+    # Run all tests for for php 7.2
+    $ composer test-all-72
 
-Testing integrations with libraries requires an additional step, as there are different scenarios where you want to test
+> **Note:** The `composer test` command is a wrapper around `phpunit`, so you can use all the common [options](https://phpunit.de/manual/5.7/en/textui.html#textui.clioptions) that you would with `phpunit`. However you need to prepend the options list with the additional `--` dashes that `composer` requires:
+
+    # Run only unit tests
+    $ composer test -- --testsuite=unit
+
+    # Run only integration tests
+    $ composer test -- --testsuite=integration
+
+    # Run only library integrations tests for php 5.6
+    $ composer test-integrations-56
+
+    # Run only library integrations tests for php 7.0
+    $ composer test-integrations-70
+
+    # Run only library integrations tests for php 7.1
+    $ composer test-integrations-71
+
+    # Run only library integrations tests for php 7.2
+    $ composer test-integrations-72
+
+Testing individual integrations with libraries requires an additional step, as there are different scenarios where you want to test
 a specific integration. You can find available scenarios in `composer.json` at key `extras.scenarios`.
 
 As an example, in order to run Guzzle tests with Guzzle v5 library, run:
@@ -93,6 +109,7 @@ As an example, in order to run Guzzle tests with Guzzle v5 library, run:
 
     # Activate the specific scenario
     $ composer scenario guzzle5
+
     # Run only guzzle tests
     $ composer test -- tests/Integrations/Guzzle/
 
