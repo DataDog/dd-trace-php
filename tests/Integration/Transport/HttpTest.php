@@ -10,7 +10,6 @@ use DDTrace\Version;
 use OpenTracing\GlobalTracer;
 use PHPUnit\Framework;
 use Prophecy\Argument;
-use Psr\Log\LoggerInterface;
 
 final class HttpTest extends Framework\TestCase
 {
@@ -26,7 +25,7 @@ final class HttpTest extends Framework\TestCase
 
     public function testSpanReportingFailsOnUnavailableAgent()
     {
-        $logger = $this->prophesize('Psr\Log\LoggerInterface');
+        $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
         $logger
             ->debug(
                 'Reporting of spans failed: Failed to connect to 0.0.0.0 port 8127: Connection refused, error code 7'
@@ -56,7 +55,7 @@ final class HttpTest extends Framework\TestCase
 
     public function testSpanReportingSuccess()
     {
-        $logger = $this->prophesize('Psr\Log\LoggerInterface');
+        $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
         $httpTransport = new Http(new Json(), $logger->reveal(), [
@@ -91,7 +90,7 @@ final class HttpTest extends Framework\TestCase
 
     public function testSilentlySendTraces()
     {
-        $logger = $this->prophesize('Psr\Log\LoggerInterface');
+        $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
         $httpTransport = new Http(new Json(), $logger->reveal(), [
