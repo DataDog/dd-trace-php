@@ -16,6 +16,5 @@ class PsrLoggerTest extends BaseTestCase
 
         $logger = new PsrLogger($psrLogger);
         $logger->debug($message, $context);
-
     }
 }
