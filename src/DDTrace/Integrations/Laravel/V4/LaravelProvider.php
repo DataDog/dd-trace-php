@@ -2,12 +2,12 @@
 
 namespace DDTrace\Integrations\Laravel\V4;
 
-use DDTrace;
 use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tag;
+use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Type;
@@ -71,7 +71,7 @@ class LaravelProvider extends ServiceProvider
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
             $tracer,
             [
-                'start_time' => DDTrace\Time\now(),
+                'start_time' => Time::now(),
             ],
             $this->app->make('request')->header()
         );
