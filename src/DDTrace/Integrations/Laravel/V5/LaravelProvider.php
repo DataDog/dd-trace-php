@@ -2,12 +2,12 @@
 
 namespace DDTrace\Integrations\Laravel\V5;
 
-use DDTrace;
 use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tags;
+use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Types;
@@ -119,8 +119,8 @@ class LaravelProvider extends ServiceProvider
             $tracer,
             [
                 'start_time' => defined('LARAVEL_START')
-                    ? DDTrace\Time\fromMicrotime(LARAVEL_START)
-                    : DDTrace\Time\now(),
+                    ? Time::fromMicrotime(LARAVEL_START)
+                    : Time::now(),
             ],
             $this->app->make('request')->header()
         );
