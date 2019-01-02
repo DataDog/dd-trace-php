@@ -3,7 +3,7 @@
 namespace DDTrace\Log;
 
 /**
- * A implementation of the DDTrace\LoggerInterface that uses Psr\Log under the hood.
+ * An implementation of the DDTrace\LoggerInterface that uses Psr\Log under the hood.
  */
 class PsrLogger implements LoggerInterface
 {

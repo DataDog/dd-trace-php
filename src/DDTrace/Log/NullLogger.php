@@ -3,7 +3,7 @@
 namespace DDTrace\Log;
 
 /**
- * A implementation of the DDTrace\LoggerInterface that logs nothing.
+ * An implementation of the DDTrace\LoggerInterface that logs nothing.
  */
 class NullLogger implements LoggerInterface
 {

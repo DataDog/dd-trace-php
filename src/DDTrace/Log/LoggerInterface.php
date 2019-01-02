@@ -2,6 +2,9 @@
 
 namespace DDTrace\Log;
 
+/**
+ * Defines logging methods as used in DDTrace code.
+ */
 interface LoggerInterface
 {
     /**
