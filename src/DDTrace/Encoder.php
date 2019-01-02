@@ -6,7 +6,7 @@ interface Encoder
 {
     /**
      * @param Span[][]|array $traces
-     * @return string|\Psr\Http\Message\StreamInterface
+     * @return string
      */
     public function encodeTraces(array $traces);
 
