@@ -52,14 +52,7 @@
     "autoload": {
         "psr-4": {
             "DDTrace\\": "./src/DDTrace/"
-        },
-        "files": [
-            "./src/DDTrace/Formats.php",
-            "./src/DDTrace/Tags.php",
-            "./src/DDTrace/Time.php",
-            "./src/DDTrace/Types.php",
-            "./src/DDTrace/Version.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {
