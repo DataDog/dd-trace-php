@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file - [read more
 - PHP code compatibility with PHP 5.4 #194
 - Move framework tests to tests root folder #198
 - Move integrations tests to tests root folder #200
+- Removal of external dependencies to support auto-instrumentation #206
 
 ### Fixed
 - Properly set http status code tag in Laravel 4 integration #195
