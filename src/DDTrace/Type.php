@@ -1,8 +1,8 @@
 <?php
 
-namespace DDTrace\Types;
+namespace DDTrace;
 
-class Ext
+class Type
 {
     const CACHE = 'cache';
     const HTTP_CLIENT = 'http';

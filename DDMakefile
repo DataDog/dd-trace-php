@@ -12,7 +12,7 @@ all: configure $(SO_FILE)
 src/ext/version.h:
 	@echo "Creating [src/ext/version.h]\n"
 	@echo -n "PHP: "
-	@cat src/DDTrace/Version.php | grep VERSION
+	@cat src/DDTrace/Tracer.php | grep 'const VERSION'
 	@(echo '#ifndef PHP_DDTRACE_VERSION\n#define PHP_DDTRACE_VERSION "$(VERSION)"\n#endif' ) > $@
 	@echo "C: "
 	@cat $@ #| grep '#define'

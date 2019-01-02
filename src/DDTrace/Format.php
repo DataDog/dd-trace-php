@@ -1,8 +1,8 @@
 <?php
 
-namespace DDTrace\Formats;
+namespace DDTrace;
 
-class Ext
+class Format
 {
     /**
      * Used a (single) arbitrary binary blob representing a SpanContext

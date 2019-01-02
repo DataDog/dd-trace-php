@@ -6,10 +6,10 @@ use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Span;
-use DDTrace\Tags;
+use DDTrace\Tag;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-use DDTrace\Types;
+use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 use Symfony\Component\HttpFoundation\Request;
@@ -60,8 +60,8 @@ class SymfonyBundle extends Bundle
         $scope = $tracer->startActiveSpan('symfony.request');
         $appName = $this->getAppName();
         $symfonyRequestSpan = $scope->getSpan();
-        $symfonyRequestSpan->setTag(Tags\Ext::SERVICE_NAME, $appName);
-        $symfonyRequestSpan->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::WEB_SERVLET);
+        $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $appName);
+        $symfonyRequestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
         $request = null;
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
@@ -74,15 +74,15 @@ class SymfonyBundle extends Bundle
                 $request = $args[0];
 
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
-                $symfonyRequestSpan->setTag(Tags\Ext::HTTP_METHOD, $request->getMethod());
-                $symfonyRequestSpan->setTag(Tags\Ext::HTTP_URL, $request->getUriForPath($request->getPathInfo()));
+                $symfonyRequestSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
+                $symfonyRequestSpan->setTag(Tag::HTTP_URL, $request->getUriForPath($request->getPathInfo()));
 
                 $thrown = null;
                 $response = null;
 
                 try {
                     $response = call_user_func_array([$this, 'handle'], $args);
-                    $symfonyRequestSpan->setTag(Tags\Ext::HTTP_STATUS_CODE, $response->getStatusCode());
+                    $symfonyRequestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
                 } catch (\Exception $e) {
                     $span = $scope->getSpan();
                     $span->setError($e);
@@ -92,7 +92,7 @@ class SymfonyBundle extends Bundle
                 $route = $request->get('_route');
 
                 if ($symfonyRequestSpan !== null && $route !== null) {
-                    $symfonyRequestSpan->setTag(Tags\Ext::RESOURCE_NAME, $route);
+                    $symfonyRequestSpan->setTag(Tag::RESOURCE_NAME, $route);
                 }
                 $scope->close();
 
@@ -154,9 +154,9 @@ class SymfonyBundle extends Bundle
 
             $scope = GlobalTracer::get()->startActiveSpan('symfony.templating.render');
             $span = $scope->getSpan();
-            $span->setTag(Tags\Ext::SERVICE_NAME, $appName);
-            $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::WEB_SERVLET);
-            $span->setTag(Tags\Ext::RESOURCE_NAME, get_class($this) . ' ' . $args[0]);
+            $span->setTag(Tag::SERVICE_NAME, $appName);
+            $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
+            $span->setTag(Tag::RESOURCE_NAME, get_class($this) . ' ' . $args[0]);
             return TryCatchFinally::executePublicMethod($scope, $this, 'render', $args);
         };
 

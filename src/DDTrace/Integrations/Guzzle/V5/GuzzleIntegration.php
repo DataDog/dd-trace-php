@@ -3,10 +3,10 @@
 namespace DDTrace\Integrations\Guzzle\V5;
 
 use DDTrace\Configuration;
-use DDTrace\Formats;
-use DDTrace\Tags;
+use DDTrace\Format;
+use DDTrace\Tag;
 use DDTrace\Span;
-use DDTrace\Types;
+use DDTrace\Type;
 use OpenTracing\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
@@ -35,8 +35,8 @@ class GuzzleIntegration extends Integration
     public static function setDefaultTags(Span $span, $method)
     {
         parent::setDefaultTags($span, $method);
-        $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::HTTP_CLIENT);
-        $span->setTag(Tags\Ext::SERVICE_NAME, 'guzzle');
+        $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
+        $span->setTag(Tag::SERVICE_NAME, 'guzzle');
     }
 
     /**
@@ -58,7 +58,7 @@ class GuzzleIntegration extends Integration
 
         $context = $span->getContext();
         $tracer = GlobalTracer::get();
-        $tracer->inject($context, Formats\Ext::HTTP_HEADERS, $headers);
+        $tracer->inject($context, Format::HTTP_HEADERS, $headers);
         $request->setHeaders($headers);
     }
 }

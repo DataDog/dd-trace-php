@@ -1,8 +1,8 @@
 <?php
 
-namespace DDTrace\Tags;
+namespace DDTrace;
 
-class Ext
+class Tag
 {
     // Generic
     const ENV = 'env';

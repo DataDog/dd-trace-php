@@ -2,8 +2,8 @@
 
 namespace DDTrace\Integrations\Mysqli;
 
-use DDTrace\Tags;
-use DDTrace\Types;
+use DDTrace\Tag;
+use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
@@ -350,9 +350,9 @@ class MysqliIntegration
         $scope = GlobalTracer::get()->startActiveSpan($operationName);
         /** @var \DDTrace\Span $span */
         $span = $scope->getSpan();
-        $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::SQL);
-        $span->setTag(Tags\Ext::SERVICE_NAME, 'mysqli');
-        $span->setTag(Tags\Ext::RESOURCE_NAME, $resource);
+        $span->setTag(Tag::SPAN_TYPE, Type::SQL);
+        $span->setTag(Tag::SERVICE_NAME, 'mysqli');
+        $span->setTag(Tag::RESOURCE_NAME, $resource);
         return $scope;
     }
 

@@ -3,8 +3,8 @@
 namespace DDTrace\Integrations\ElasticSearch\V1;
 
 use DDTrace\Span;
-use DDTrace\Tags;
-use DDTrace\Types;
+use DDTrace\Tag;
+use DDTrace\Type;
 use OpenTracing\GlobalTracer;
 
 /**
@@ -126,8 +126,8 @@ class ElasticSearchIntegration
             $scope = $tracer->startActiveSpan("Elasticsearch.Endpoint.performRequest");
             $span = $scope->getSpan();
 
-            $span->setTag(Tags\Ext::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
-            $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::ELASTICSEARCH);
+            $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
+            $span->setTag(Tag::SPAN_TYPE, Type::ELASTICSEARCH);
 
             // PHP 5.4 compatible try-catch-finally
             $thrown = null;
@@ -135,14 +135,14 @@ class ElasticSearchIntegration
             try {
                 // Some endpoints can throw exception during getURI() if some parameters are missing, so
                 // make sure that the uri is read within the try-catch-finally block.
-                $span->setTag(Tags\Ext::RESOURCE_NAME, 'performRequest');
-                $span->setTag(Tags\Ext::ELASTICSEARCH_URL, $this->getURI());
-                $span->setTag(Tags\Ext::ELASTICSEARCH_METHOD, $this->getMethod());
+                $span->setTag(Tag::RESOURCE_NAME, 'performRequest');
+                $span->setTag(Tag::ELASTICSEARCH_URL, $this->getURI());
+                $span->setTag(Tag::ELASTICSEARCH_METHOD, $this->getMethod());
                 if (is_array($this->params)) {
-                    $span->setTag(Tags\Ext::ELASTICSEARCH_PARAMS, json_encode($this->params));
+                    $span->setTag(Tag::ELASTICSEARCH_PARAMS, json_encode($this->params));
                 }
                 if ($this->getMethod() === 'GET' && $body = $this->getBody()) {
-                    $span->setTag(Tags\Ext::ELASTICSEARCH_BODY, json_encode($this->getBody()));
+                    $span->setTag(Tag::ELASTICSEARCH_BODY, json_encode($this->getBody()));
                 }
                 $result = call_user_func_array([$this, 'performRequest'], $args);
             } catch (\Exception $ex) {
@@ -180,9 +180,9 @@ class ElasticSearchIntegration
             $scope = $tracer->startActiveSpan("Elasticsearch.Client.$name");
             $span = $scope->getSpan();
 
-            $span->setTag(Tags\Ext::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
-            $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::ELASTICSEARCH);
-            $span->setTag(Tags\Ext::RESOURCE_NAME, ElasticSearchIntegration::buildResourceName($name, $params));
+            $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
+            $span->setTag(Tag::SPAN_TYPE, Type::ELASTICSEARCH);
+            $span->setTag(Tag::RESOURCE_NAME, ElasticSearchIntegration::buildResourceName($name, $params));
 
             // PHP 5.4 compatible try-catch-finally
             $thrown = null;
@@ -233,9 +233,9 @@ class ElasticSearchIntegration
             $scope = $tracer->startActiveSpan($operationName);
             $span = $scope->getSpan();
 
-            $span->setTag(Tags\Ext::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
-            $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::ELASTICSEARCH);
-            $span->setTag(Tags\Ext::RESOURCE_NAME, $operationName);
+            $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
+            $span->setTag(Tag::SPAN_TYPE, Type::ELASTICSEARCH);
+            $span->setTag(Tag::RESOURCE_NAME, $operationName);
 
             // PHP 5.4 compatible try-catch-finally
             $thrown = null;
@@ -278,9 +278,9 @@ class ElasticSearchIntegration
             $scope = $tracer->startActiveSpan("Elasticsearch.$namespace.$name");
             $span = $scope->getSpan();
 
-            $span->setTag(Tags\Ext::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
-            $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::ELASTICSEARCH);
-            $span->setTag(Tags\Ext::RESOURCE_NAME, ElasticSearchIntegration::buildResourceName($name, $params));
+            $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
+            $span->setTag(Tag::SPAN_TYPE, Type::ELASTICSEARCH);
+            $span->setTag(Tag::RESOURCE_NAME, ElasticSearchIntegration::buildResourceName($name, $params));
 
             // PHP 5.4 compatible try-catch-finally
             $thrown = null;
