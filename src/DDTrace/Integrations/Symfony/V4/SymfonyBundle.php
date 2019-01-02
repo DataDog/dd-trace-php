@@ -57,8 +57,8 @@ class SymfonyBundle extends Bundle
         // Create a span that starts from when Symfony first boots
         $scope = $tracer->startActiveSpan('symfony.request');
         $symfonyRequestSpan = $scope->getSpan();
-        $symfonyRequestSpan->setTag(Tags\SERVICE_NAME, $this->getAppName());
-        $symfonyRequestSpan->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+        $symfonyRequestSpan->setTag(Tags\Ext::SERVICE_NAME, $this->getAppName());
+        $symfonyRequestSpan->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::WEB_SERVLET);
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
         dd_trace(
@@ -68,8 +68,8 @@ class SymfonyBundle extends Bundle
                 $args = func_get_args();
                 $request = $args[0];
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
-                $symfonyRequestSpan->setTag(Tags\HTTP_METHOD, $request->getMethod());
-                $symfonyRequestSpan->setTag(Tags\HTTP_URL, $request->getUriForPath($request->getPathInfo()));
+                $symfonyRequestSpan->setTag(Tags\Ext::HTTP_METHOD, $request->getMethod());
+                $symfonyRequestSpan->setTag(Tags\Ext::HTTP_URL, $request->getUriForPath($request->getPathInfo()));
 
                 $thrown = null;
                 $response = null;
@@ -84,7 +84,7 @@ class SymfonyBundle extends Bundle
                 $route = $request->get('_route');
 
                 if ($symfonyRequestSpan !== null && $route !== null) {
-                    $symfonyRequestSpan->setTag(Tags\RESOURCE_NAME, $route);
+                    $symfonyRequestSpan->setTag(Tags\Ext::RESOURCE_NAME, $route);
                 }
                 $scope->close();
 

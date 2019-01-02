@@ -33,8 +33,8 @@ class CurlIntegration
             $tracer = GlobalTracer::get();
             $scope = $tracer->startActiveSpan('curl_exec');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SERVICE_NAME, 'curl');
-            $span->setTag(Tags\SPAN_TYPE, Types\HTTP_CLIENT);
+            $span->setTag(Tags\Ext::SERVICE_NAME, 'curl');
+            $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::HTTP_CLIENT);
 
             CurlIntegration::injectDistributedTracingHeaders($ch);
 
@@ -45,9 +45,9 @@ class CurlIntegration
 
             $info = curl_getinfo($ch);
             $sanitizedUrl = Urls::sanitize($info['url']);
-            $span->setTag(Tags\RESOURCE_NAME, $sanitizedUrl);
-            $span->setTag(Tags\HTTP_URL, $sanitizedUrl);
-            $span->setTag(Tags\HTTP_STATUS_CODE, $info['http_code']);
+            $span->setTag(Tags\Ext::RESOURCE_NAME, $sanitizedUrl);
+            $span->setTag(Tags\Ext::HTTP_URL, $sanitizedUrl);
+            $span->setTag(Tags\Ext::HTTP_STATUS_CODE, $info['http_code']);
 
             $scope->close();
             return $result;
@@ -61,7 +61,7 @@ class CurlIntegration
                     && is_array($value)
             ) {
                 // Storing data to be used during exec as it cannot be retrieved at then.
-                ArrayKVStore::putForResource($ch, Formats\CURL_HTTP_HEADERS, $value);
+                ArrayKVStore::putForResource($ch, Formats\Ext::CURL_HTTP_HEADERS, $value);
             }
 
             return curl_setopt($ch, $option, $value);
@@ -74,7 +74,7 @@ class CurlIntegration
                     && array_key_exists(CURLOPT_HTTPHEADER, $options)
             ) {
                 // Storing data to be used during exec as it cannot be retrieved at then.
-                ArrayKVStore::putForResource($ch, Formats\CURL_HTTP_HEADERS, $options[CURLOPT_HTTPHEADER]);
+                ArrayKVStore::putForResource($ch, Formats\Ext::CURL_HTTP_HEADERS, $options[CURLOPT_HTTPHEADER]);
             }
 
             return curl_setopt_array($ch, $options);
@@ -95,11 +95,11 @@ class CurlIntegration
             return;
         }
 
-        $httpHeaders = ArrayKVStore::getForResource($ch, Formats\CURL_HTTP_HEADERS, []);
+        $httpHeaders = ArrayKVStore::getForResource($ch, Formats\Ext::CURL_HTTP_HEADERS, []);
         if (is_array($httpHeaders)) {
             $tracer = GlobalTracer::get();
             $context = $tracer->getActiveSpan()->getContext();
-            $tracer->inject($context, Formats\CURL_HTTP_HEADERS, $httpHeaders);
+            $tracer->inject($context, Formats\Ext::CURL_HTTP_HEADERS, $httpHeaders);
 
             curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeaders);
         }

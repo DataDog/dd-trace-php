@@ -79,8 +79,8 @@ class LaravelProvider extends ServiceProvider
         // Create a span that starts from when Laravel first boots (public/index.php)
         $scope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
         $requestSpan = $scope->getSpan();
-        $requestSpan->setTag(Tags\SERVICE_NAME, $this->getAppName());
-        $requestSpan->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+        $requestSpan->setTag(Tags\Ext::SERVICE_NAME, $this->getAppName());
+        $requestSpan->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::WEB_SERVLET);
 
         // Name the scope when the route matches
         $this->app['events']->listen('router.matched', function () use ($scope) {
@@ -88,11 +88,11 @@ class LaravelProvider extends ServiceProvider
             list($route, $request) = $args;
             $span = $scope->getSpan();
 
-            $span->setTag(Tags\RESOURCE_NAME, $route->getActionName() . ' ' . Route::currentRouteName());
+            $span->setTag(Tags\Ext::RESOURCE_NAME, $route->getActionName() . ' ' . Route::currentRouteName());
             $span->setTag('laravel.route.name', $route->getName());
             $span->setTag('laravel.route.action', $route->getActionName());
-            $span->setTag(Tags\HTTP_METHOD, $request->method());
-            $span->setTag(Tags\HTTP_URL, $request->url());
+            $span->setTag(Tags\Ext::HTTP_METHOD, $request->method());
+            $span->setTag(Tags\Ext::HTTP_URL, $request->url());
         });
 
         // Enable other integrations
@@ -109,7 +109,7 @@ class LaravelProvider extends ServiceProvider
             $args = func_get_args();
 
             $response = call_user_func_array([$this, 'handle'], $args);
-            $requestSpan->setTag(Tags\HTTP_STATUS_CODE, $response->getStatusCode());
+            $requestSpan->setTag(Tags\Ext::HTTP_STATUS_CODE, $response->getStatusCode());
 
             return $response;
         };
@@ -144,9 +144,9 @@ class LaravelProvider extends ServiceProvider
     {
         $scope = GlobalTracer::get()->startActiveSpan($operation);
         $span = $scope->getSpan();
-        $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
-        $span->setTag(Tags\SERVICE_NAME, self::getAppName());
-        $span->setTag(Tags\RESOURCE_NAME, $resource);
+        $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::WEB_SERVLET);
+        $span->setTag(Tags\Ext::SERVICE_NAME, self::getAppName());
+        $span->setTag(Tags\Ext::RESOURCE_NAME, $resource);
 
         return $scope;
     }

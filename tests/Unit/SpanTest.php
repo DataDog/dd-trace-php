@@ -52,21 +52,21 @@ final class SpanTest extends Framework\TestCase
     public function testSpanTagWithErrorCreatesExpectedTags()
     {
         $span = $this->createSpan();
-        $span->setTag(Tags\ERROR, new Exception(self::EXCEPTION_MESSAGE));
+        $span->setTag(Tags\Ext::ERROR, new Exception(self::EXCEPTION_MESSAGE));
 
         $this->assertTrue($span->hasError());
-        $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
-        $this->assertEquals($span->getTag(Tags\ERROR_TYPE), 'Exception');
+        $this->assertEquals($span->getTag(Tags\Ext::ERROR_MSG), self::EXCEPTION_MESSAGE);
+        $this->assertEquals($span->getTag(Tags\Ext::ERROR_TYPE), 'Exception');
     }
 
     public function testSpanTagWithErrorBoolProperlyMarksError()
     {
         $span = $this->createSpan();
 
-        $span->setTag(Tags\ERROR, true);
+        $span->setTag(Tags\Ext::ERROR, true);
         $this->assertTrue($span->hasError());
 
-        $span->setTag(Tags\ERROR, false);
+        $span->setTag(Tags\Ext::ERROR, false);
         $this->assertFalse($span->hasError());
     }
 
@@ -74,10 +74,10 @@ final class SpanTest extends Framework\TestCase
     {
         $span = $this->createSpan();
 
-        $span->log([Tags\LOG_ERROR => true]);
+        $span->log([Tags\Ext::LOG_ERROR => true]);
         $this->assertTrue($span->hasError());
 
-        $span->log([Tags\LOG_ERROR => false]);
+        $span->log([Tags\Ext::LOG_ERROR => false]);
         $this->assertFalse($span->hasError());
     }
 
@@ -85,7 +85,7 @@ final class SpanTest extends Framework\TestCase
     {
         $span = $this->createSpan();
 
-        $span->log([Tags\LOG_EVENT => 'error']);
+        $span->log([Tags\Ext::LOG_EVENT => 'error']);
         $this->assertTrue($span->hasError());
     }
 
@@ -93,42 +93,42 @@ final class SpanTest extends Framework\TestCase
     {
         $span = $this->createSpan();
 
-        $span->log([Tags\LOG_EVENT => 'some other event']);
+        $span->log([Tags\Ext::LOG_EVENT => 'some other event']);
         $this->assertFalse($span->hasError());
 
-        $span->log([Tags\LOG_ERROR => false]);
+        $span->log([Tags\Ext::LOG_ERROR => false]);
         $this->assertFalse($span->hasError());
     }
 
 
     public function testSpanLogWithErrorCreatesExpectedTags()
     {
-        foreach ([Tags\LOG_ERROR, Tags\LOG_ERROR_OBJECT] as $key) {
+        foreach ([Tags\Ext::LOG_ERROR, Tags\Ext::LOG_ERROR_OBJECT] as $key) {
             $span = $this->createSpan();
             $span->log([$key => new Exception(self::EXCEPTION_MESSAGE)]);
 
             $this->assertTrue($span->hasError());
-            $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
-            $this->assertEquals($span->getTag(Tags\ERROR_TYPE), 'Exception');
+            $this->assertEquals($span->getTag(Tags\Ext::ERROR_MSG), self::EXCEPTION_MESSAGE);
+            $this->assertEquals($span->getTag(Tags\Ext::ERROR_TYPE), 'Exception');
         }
     }
 
     public function testSpanLogStackAddsExpectedTag()
     {
         $span = $this->createSpan();
-        $span->log([Tags\LOG_STACK => self::DUMMY_STACK_TRACE]);
+        $span->log([Tags\Ext::LOG_STACK => self::DUMMY_STACK_TRACE]);
 
         $this->assertFalse($span->hasError());
-        $this->assertEquals($span->getTag(Tags\ERROR_STACK), self::DUMMY_STACK_TRACE);
+        $this->assertEquals($span->getTag(Tags\Ext::ERROR_STACK), self::DUMMY_STACK_TRACE);
     }
 
     public function testSpanLogMessageAddsExpectedTag()
     {
         $span = $this->createSpan();
-        $span->log([Tags\LOG_MESSAGE => self::EXCEPTION_MESSAGE]);
+        $span->log([Tags\Ext::LOG_MESSAGE => self::EXCEPTION_MESSAGE]);
 
         $this->assertFalse($span->hasError());
-        $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
+        $this->assertEquals($span->getTag(Tags\Ext::ERROR_MSG), self::EXCEPTION_MESSAGE);
     }
 
     public function testSpanErrorAddsExpectedTags()
@@ -137,9 +137,9 @@ final class SpanTest extends Framework\TestCase
         $span->setError(new Exception(self::EXCEPTION_MESSAGE));
 
         $this->assertTrue($span->hasError());
-        $this->assertEquals($span->getTag(Tags\ERROR_MSG), self::EXCEPTION_MESSAGE);
-        $this->assertNotEmpty($span->getTag(Tags\ERROR_STACK));
-        $this->assertEquals($span->getTag(Tags\ERROR_TYPE), 'Exception');
+        $this->assertEquals($span->getTag(Tags\Ext::ERROR_MSG), self::EXCEPTION_MESSAGE);
+        $this->assertNotEmpty($span->getTag(Tags\Ext::ERROR_STACK));
+        $this->assertEquals($span->getTag(Tags\Ext::ERROR_TYPE), 'Exception');
     }
 
     public function testSpanErrorRemainsImmutableAfterFinishing()
@@ -162,9 +162,9 @@ final class SpanTest extends Framework\TestCase
     public function testAddCustomTagsSuccess()
     {
         $span = $this->createSpan();
-        $span->setTag(Tags\SERVICE_NAME, self::ANOTHER_SERVICE);
-        $span->setTag(Tags\RESOURCE_NAME, self::ANOTHER_RESOURCE);
-        $span->setTag(Tags\SPAN_TYPE, self::ANOTHER_TYPE);
+        $span->setTag(Tags\Ext::SERVICE_NAME, self::ANOTHER_SERVICE);
+        $span->setTag(Tags\Ext::RESOURCE_NAME, self::ANOTHER_RESOURCE);
+        $span->setTag(Tags\Ext::SPAN_TYPE, self::ANOTHER_TYPE);
 
         $this->assertEquals(self::ANOTHER_SERVICE, $span->getService());
         $this->assertEquals(self::ANOTHER_RESOURCE, $span->getResource());

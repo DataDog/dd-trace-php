@@ -81,6 +81,6 @@ abstract class Integration
      */
     public static function setDefaultTags(Span $span, $method)
     {
-        $span->setTag(Tags\RESOURCE_NAME, $method);
+        $span->setTag(Tags\Ext::RESOURCE_NAME, $method);
     }
 }

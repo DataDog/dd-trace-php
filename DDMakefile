@@ -3,7 +3,7 @@ BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Werror -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
-VERSION:=$(shell cat src/DDTrace/Version.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2)
+VERSION:=$(shell cat src/DDTrace/Tracer.php | grep 'const VERSION' | awk '{print $$NF}' | cut -d\' -f2)
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 

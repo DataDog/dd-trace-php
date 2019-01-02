@@ -97,8 +97,8 @@ class LaravelProvider extends ServiceProvider
                         $args = func_get_args();
                         $scope = GlobalTracer::get()->startActiveSpan('laravel.pipeline.pipe');
                         $span = $scope->getSpan();
-                        $span->setTag(Tags\RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
-                        $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+                        $span->setTag(Tags\Ext::RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
+                        $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::WEB_SERVLET);
                         return TryCatchFinally::executePublicMethod($scope, $this, $handlerMethod, $args);
                     });
                 }
@@ -111,7 +111,7 @@ class LaravelProvider extends ServiceProvider
         // public function get($path, array $data = array())
         dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function ($path, $data = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
-            $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+            $scope->getSpan()->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::WEB_SERVLET);
             return TryCatchFinally::executePublicMethod($scope, $this, 'get', [$path, $data]);
         });
 
@@ -127,8 +127,8 @@ class LaravelProvider extends ServiceProvider
 
         // Create a span that starts from when Laravel first boots (public/index.php)
         $scope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
-        $scope->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
-        $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+        $scope->getSpan()->setTag(Tags\Ext::SERVICE_NAME, $this->getAppName());
+        $scope->getSpan()->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::WEB_SERVLET);
 
         // Name the scope when the route matches
         $this->app['events']->listen(
@@ -136,7 +136,7 @@ class LaravelProvider extends ServiceProvider
             function (RouteMatched $event) use ($scope) {
                 $span = $scope->getSpan();
                 $span->setTag(
-                    Tags\RESOURCE_NAME,
+                    Tags\Ext::RESOURCE_NAME,
                     $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
                 );
                 $span->setTag('laravel.route.name', Route::currentRouteName());

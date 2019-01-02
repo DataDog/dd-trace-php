@@ -28,7 +28,7 @@ final class MongoIntegration
     public static function setDefaultTags(Span $span, $method)
     {
         Integration::setDefaultTags($span, $method);
-        $span->setTag(Tags\SPAN_TYPE, Types\MONGO);
-        $span->setTag(Tags\SERVICE_NAME, 'mongo');
+        $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::MONGO);
+        $span->setTag(Tags\Ext::SERVICE_NAME, 'mongo');
     }
 }

@@ -350,9 +350,9 @@ class MysqliIntegration
         $scope = GlobalTracer::get()->startActiveSpan($operationName);
         /** @var \DDTrace\Span $span */
         $span = $scope->getSpan();
-        $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-        $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-        $span->setTag(Tags\RESOURCE_NAME, $resource);
+        $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::SQL);
+        $span->setTag(Tags\Ext::SERVICE_NAME, 'mysqli');
+        $span->setTag(Tags\Ext::RESOURCE_NAME, $resource);
         return $scope;
     }
 

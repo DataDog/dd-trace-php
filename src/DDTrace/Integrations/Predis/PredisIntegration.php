@@ -35,9 +35,9 @@ class PredisIntegration
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.__construct');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
-            $span->setTag(Tags\SERVICE_NAME, 'redis');
-            $span->setTag(Tags\RESOURCE_NAME, 'Predis.Client.__construct');
+            $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::CACHE);
+            $span->setTag(Tags\Ext::SERVICE_NAME, 'redis');
+            $span->setTag(Tags\Ext::RESOURCE_NAME, 'Predis.Client.__construct');
 
             $thrown = null;
             try {
@@ -61,9 +61,9 @@ class PredisIntegration
         dd_trace('\Predis\Client', 'connect', function () {
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.connect');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
-            $span->setTag(Tags\SERVICE_NAME, 'redis');
-            $span->setTag(Tags\RESOURCE_NAME, 'Predis.Client.connect');
+            $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::CACHE);
+            $span->setTag(Tags\Ext::SERVICE_NAME, 'redis');
+            $span->setTag(Tags\Ext::RESOURCE_NAME, 'Predis.Client.connect');
             PredisIntegration::setConnectionTags($this, $span);
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'connect', []);
@@ -77,11 +77,11 @@ class PredisIntegration
 
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeCommand');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
-            $span->setTag(Tags\SERVICE_NAME, 'redis');
+            $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::CACHE);
+            $span->setTag(Tags\Ext::SERVICE_NAME, 'redis');
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
-            $span->setTag(Tags\RESOURCE_NAME, $query);
+            $span->setTag(Tags\Ext::RESOURCE_NAME, $query);
             PredisIntegration::setConnectionTags($this, $span);
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'executeCommand', [$command]);
@@ -95,11 +95,11 @@ class PredisIntegration
 
                 $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeRaw');
                 $span = $scope->getSpan();
-                $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
-                $span->setTag(Tags\SERVICE_NAME, 'redis');
+                $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::CACHE);
+                $span->setTag(Tags\Ext::SERVICE_NAME, 'redis');
                 $span->setTag('redis.raw_command', $query);
                 $span->setTag('redis.args_length', count($arguments));
-                $span->setTag(Tags\RESOURCE_NAME, $query);
+                $span->setTag(Tags\Ext::RESOURCE_NAME, $query);
                 PredisIntegration::setConnectionTags($this, $span);
 
                 // PHP 5.4 compatible try-catch-finally block.
@@ -129,8 +129,8 @@ class PredisIntegration
             dd_trace('\Predis\Pipeline\Pipeline', 'executePipeline', function ($connection, $commands) {
                 $scope = GlobalTracer::get()->startActiveSpan('Predis.Pipeline.executePipeline');
                 $span = $scope->getSpan();
-                $span->setTag(Tags\SPAN_TYPE, Types\CACHE);
-                $span->setTag(Tags\SERVICE_NAME, 'redis');
+                $span->setTag(Tags\Ext::SPAN_TYPE, Types\Ext::CACHE);
+                $span->setTag(Tags\Ext::SERVICE_NAME, 'redis');
                 $span->setTag('redis.pipeline_length', count($commands));
                 PredisIntegration::setConnectionTags($this, $span);
 
@@ -164,8 +164,8 @@ class PredisIntegration
         try {
             $identifier = (string)$predis->getConnection();
             list($host, $port) = explode(':', $identifier);
-            $tags[Tags\TARGET_HOST] = $host;
-            $tags[Tags\TARGET_PORT] = $port;
+            $tags[Tags\Ext::TARGET_HOST] = $host;
+            $tags[Tags\Ext::TARGET_PORT] = $port;
         } catch (\Exception $e) {
         }
 

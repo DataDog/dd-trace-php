@@ -7,7 +7,6 @@ use Exception;
 use InvalidArgumentException;
 use Throwable;
 
-
 final class Span implements SpanInterface
 {
     /**
@@ -99,7 +98,7 @@ final class Span implements SpanInterface
         $this->operationName = (string)$operationName;
         $this->service = (string)$service;
         $this->resource = (string)$resource;
-        $this->startTime = $startTime ?: Time\now();
+        $this->startTime = $startTime ?: Time::now();
     }
 
     /**
@@ -187,22 +186,22 @@ final class Span implements SpanInterface
             throw InvalidSpanArgument::forTagKey($key);
         }
 
-        if ($key === Tags\ERROR) {
+        if ($key === Tags\Ext::ERROR) {
             $this->setError($value);
             return;
         }
 
-        if ($key === Tags\SERVICE_NAME) {
+        if ($key === Tags\Ext::SERVICE_NAME) {
             $this->service = $value;
             return;
         }
 
-        if ($key === Tags\RESOURCE_NAME) {
+        if ($key === Tags\Ext::RESOURCE_NAME) {
             $this->resource = (string)$value;
             return;
         }
 
-        if ($key === Tags\SPAN_TYPE) {
+        if ($key === Tags\Ext::SPAN_TYPE) {
             $this->type = $value;
             return;
         }
@@ -238,8 +237,8 @@ final class Span implements SpanInterface
     public function setResource($resource)
     {
         error_log('DEPRECATED: Method "DDTrace\Span\setResource" will be removed soon, '
-            . 'you should use DDTrace\Span::setTag(Tags\RESOURCE_NAME, $value) instead.');
-        $this->setTag(Tags\RESOURCE_NAME, $resource);
+            . 'you should use DDTrace\Span::setTag(Tags\Ext::RESOURCE_NAME, $value) instead.');
+        $this->setTag(Tags\Ext::RESOURCE_NAME, $resource);
     }
 
     /**
@@ -258,9 +257,9 @@ final class Span implements SpanInterface
 
         if (($error instanceof Exception) || ($error instanceof Throwable)) {
             $this->hasError = true;
-            $this->tags[Tags\ERROR_MSG] = $error->getMessage();
-            $this->tags[Tags\ERROR_TYPE] = get_class($error);
-            $this->tags[Tags\ERROR_STACK] = $error->getTraceAsString();
+            $this->tags[Tags\Ext::ERROR_MSG] = $error->getMessage();
+            $this->tags[Tags\Ext::ERROR_TYPE] = get_class($error);
+            $this->tags[Tags\Ext::ERROR_STACK] = $error->getTraceAsString();
             return;
         }
 
@@ -287,8 +286,8 @@ final class Span implements SpanInterface
         }
 
         $this->hasError = true;
-        $this->tags[Tags\ERROR_MSG] = $message;
-        $this->tags[Tags\ERROR_TYPE] = $type;
+        $this->tags[Tags\Ext::ERROR_MSG] = $message;
+        $this->tags[Tags\Ext::ERROR_TYPE] = $type;
     }
 
     public function hasError()
@@ -305,7 +304,7 @@ final class Span implements SpanInterface
             return;
         }
 
-        $this->duration = ($finishTime ?: Time\now()) - $this->startTime;
+        $this->duration = ($finishTime ?: Time::now()) - $this->startTime;
     }
 
     /**
@@ -348,14 +347,14 @@ final class Span implements SpanInterface
     public function log(array $fields = [], $timestamp = null)
     {
         foreach ($fields as $key => $value) {
-            if ($key === Tags\LOG_EVENT && $value === Tags\ERROR) {
+            if ($key === Tags\Ext::LOG_EVENT && $value === Tags\Ext::ERROR) {
                 $this->setError(true);
-            } elseif ($key === Tags\LOG_ERROR || $key === Tags\LOG_ERROR_OBJECT) {
+            } elseif ($key === Tags\Ext::LOG_ERROR || $key === Tags\Ext::LOG_ERROR_OBJECT) {
                 $this->setError($value);
-            } elseif ($key === Tags\LOG_MESSAGE) {
-                $this->setTag(Tags\ERROR_MSG, $value);
-            } elseif ($key === Tags\LOG_STACK) {
-                $this->setTag(Tags\ERROR_STACK, $value);
+            } elseif ($key === Tags\Ext::LOG_MESSAGE) {
+                $this->setTag(Tags\Ext::ERROR_MSG, $value);
+            } elseif ($key === Tags\Ext::LOG_STACK) {
+                $this->setTag(Tags\Ext::ERROR_STACK, $value);
             }
         }
     }
