@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file - [read more
 - Move framework tests to tests root folder #198
 - Move integrations tests to tests root folder #200
 - Allow testing of multiple library versions #203
+- Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
 
 ### Fixed
 - Properly set http status code tag in Laravel 4 integration #195
