@@ -95,7 +95,6 @@ namespace DDTrace\Tests\Unit\Util {
 
         /**
          * @expectedException \DDTrace\Tests\Unit\Util\CustomException
-         * @throws \Exception
          */
         public function testExecutePublicMethodExceptionReThrown()
         {
@@ -171,7 +170,6 @@ namespace DDTrace\Tests\Unit\Util {
 
         /**
          * @expectedException \DDTrace\Tests\Unit\Util\CustomException
-         * @throws \Exception
          */
         public function testExecuteFunctionExceptionReThrown()
         {

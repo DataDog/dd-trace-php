@@ -81,7 +81,6 @@ final class TracerTest extends Framework\TestCase
 
     /**
      * @expectedException \OpenTracing\Exceptions\UnsupportedFormat
-
      */
     public function testInjectThrowsUnsupportedFormatException()
     {
