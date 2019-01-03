@@ -42,7 +42,7 @@ final class PredisTest extends IntegrationTestCase
         $this->assertGreaterThan(2, count($trace)); # two Redis operations -> at least 2 spans
     }
 
-    public function testPredisConstruct()
+    public function testPredisConstructOptionsAsArray()
     {
         $traces = $this->isolateTracer(function () {
             $client = new \Predis\Client([ "host" => $this->host ]);
@@ -53,7 +53,10 @@ final class PredisTest extends IntegrationTestCase
             SpanAssertion::build('Predis.Client.__construct', 'redis', 'cache', 'Predis.Client.__construct')
                 ->withExactTags($this->baseTags()),
         ]);
+    }
 
+    public function testPredisConstructOptionsAsObject()
+    {
         $options = new Options();
 
         $traces = $this->isolateTracer(function () use ($options) {
