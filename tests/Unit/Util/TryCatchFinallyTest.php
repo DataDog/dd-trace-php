@@ -93,11 +93,14 @@ namespace DDTrace\Tests\Unit\Util {
             $this->assertTrue($scope->getSpan()->isFinished());
         }
 
+        /**
+         * @expectedException \DDTrace\Tests\Unit\Util\CustomException
+         * @throws \Exception
+         */
         public function testExecutePublicMethodExceptionReThrown()
         {
             $instance = new DummyClass();
             $scope = $this->tracer->startActiveSpan('my.operation');
-            $this->expectException('DDTrace\Tests\Unit\Util\CustomException');
             TryCatchFinally::executePublicMethod($scope, $instance, 'throwsException');
         }
 
@@ -166,10 +169,13 @@ namespace DDTrace\Tests\Unit\Util {
             $this->assertTrue($scope->getSpan()->isFinished());
         }
 
+        /**
+         * @expectedException \DDTrace\Tests\Unit\Util\CustomException
+         * @throws \Exception
+         */
         public function testExecuteFunctionExceptionReThrown()
         {
             $scope = $this->tracer->startActiveSpan('my.operation');
-            $this->expectException('DDTrace\Tests\Unit\Util\CustomException');
             TryCatchFinally::executeFunction($scope, 'tryCatchFinallyGlobalCallbackException');
         }
 
