@@ -3,6 +3,7 @@
 namespace DDTrace\Util;
 
 use DDTrace\Scope;
+use DDTrace\SpanInterface;
 
 /**
  * PHP 5.4 compatible methods to workaround the missing try-catch-finally block.
@@ -24,6 +25,7 @@ class TryCatchFinally
     {
         $thrown = null;
         $result = null;
+        /** @var SpanInterface $span */
         $span = $scope->getSpan();
         try {
             $result = call_user_func_array([$instance, $method], $args);
@@ -57,6 +59,7 @@ class TryCatchFinally
     {
         $thrown = null;
         $result = null;
+        /** @var SpanInterface $span */
         $span = $scope->getSpan();
         try {
             $result = call_user_func_array($function, $args);
