@@ -168,6 +168,25 @@ aliases:
     store_test_results:
       path: test-results
 
+# Integrations tests execution
+
+  - &STEP_RUN_INTEGRATIONS_TESTS_56
+    run:
+      command: composer test-integrations-56
+
+  - &STEP_RUN_INTEGRATIONS_TESTS_70
+    run:
+      command: composer test-integrations-70
+
+  - &STEP_RUN_INTEGRATIONS_TESTS_71
+    run:
+      command: composer test-integrations-71
+
+  - &STEP_RUN_INTEGRATIONS_TESTS_72
+    run:
+      command: composer test-integrations-72
+
+
 jobs:
 
   "Lint files": &lint_files
@@ -260,6 +279,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_RUN_INTEGRATIONS_TESTS_56
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_SYMFONY_34_ENV
@@ -295,6 +315,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_RUN_INTEGRATIONS_TESTS_70
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_SYMFONY_34_ENV
@@ -330,6 +351,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_RUN_INTEGRATIONS_TESTS_71
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_LARAVEL_57_ENV
@@ -367,6 +389,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_RUN_INTEGRATIONS_TESTS_72
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_LARAVEL_57_ENV
