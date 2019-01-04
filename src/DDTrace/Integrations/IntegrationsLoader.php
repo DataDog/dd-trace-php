@@ -19,6 +19,11 @@ use DDTrace\Integrations\Predis\PredisIntegration;
 class IntegrationsLoader
 {
     /**
+     * @var array Registry to keep track of integrations loading status.
+     */
+    private static $loadings = [];
+
+    /**
      * @return array A list of supported library integrations. Web frameworks ARE NOT INCLUDED.
      */
     public static function allLibraries()
@@ -56,9 +61,20 @@ class IntegrationsLoader
         }
 
         foreach (self::allLibraries() as $name => $class) {
-            if ($globalConfig->isIntegrationEnabled($name)) {
-                call_user_func([$class, 'load']);
+            if (!$globalConfig->isIntegrationEnabled($name)) {
+                continue;
             }
+
+            // If the integration has already been loaded, we don't need to reload it. On the other hand, with
+            // auto-instrumentation this method may be called many times as the hook is the autoloader callback.
+            // So we want to make sure that we do not load the same integration twice if not required.
+            if (isset(self::$loadings[$name])
+                    && in_array(self::$loadings[$name], [Integration::LOADED, Integration::NOT_AVAILABLE])
+            ) {
+                continue;
+            }
+
+            self::$loadings[$name] = call_user_func([$class, 'load']);
         }
     }
 }

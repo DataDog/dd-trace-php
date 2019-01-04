@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Predis;
 
+use DDTrace\Integrations\Integration;
 use DDTrace\Tags;
 use DDTrace\Types;
 use DDTrace\Util\TryCatchFinally;
@@ -29,7 +30,7 @@ class PredisIntegration
     public static function load()
     {
         if (!class_exists('\Predis\Client')) {
-            return;
+            return Integration::NOT_LOADED;
         }
 
         // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
@@ -157,6 +158,8 @@ class PredisIntegration
                 return $result;
             });
         }
+
+        return Integration::LOADED;
     }
 
     public static function storeConnectionParams($predis, $args)

@@ -8,15 +8,22 @@ use OpenTracing\GlobalTracer;
 
 abstract class Integration
 {
+    // Possible statuses for the concrete
+    const NOT_LOADED = 0;
+    const LOADED = 1;
+    const NOT_AVAILABLE = 2;
+
     const CLASS_NAME = '';
 
     public static function load()
     {
         if (!class_exists(static::CLASS_NAME)) {
-            return;
+            return Integration::NOT_LOADED;
         }
         // See comment on the commented out abstract function definition.
         static::loadIntegration();
+
+        return Integration::LOADED;
     }
 
     /**
