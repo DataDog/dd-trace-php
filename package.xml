@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<package version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+    <name>datadog_trace</name>
+    <channel>pear.php.net</channel>
+    <summary>APM and distributed tracing for PHP</summary>
+    <description>The Datadog PHP Tracer brings APM and distributed tracing to PHP.</description>
+    <lead>
+        <name>Sammy Kaye Powers</name>
+        <user>sammyk</user>
+        <email>sammyk@php.net</email>
+        <active>yes</active>
+    </lead>
+    <date>2019-01-04</date>
+    <version>
+        <release>0.8.1</release>
+        <api>0.8.1</api>
+    </version>
+    <stability>
+        <release>beta</release>
+        <api>beta</api>
+    </stability>
+    <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
+    <notes>
+-
+    </notes>
+    <contents>
+        <dir name="/">
+            <file name="config.m4" role="src" />
+        </dir>
+    </contents>
+    <dependencies>
+        <required>
+            <php>
+                <min>5.4</min>
+            </php>
+            <pearinstaller>
+                <min>1.10</min>
+            </pearinstaller>
+            <extension>
+                <name>json</name>
+            </extension>
+        </required>
+    </dependencies>
+    <providesextension>ddtrace</providesextension>
+    <extsrcrelease>
+        <configureoption name="enable-ddtrace-debug" default="no" prompt="Enable internal debugging in ddtrace" />
+    </extsrcrelease>
+    <changelog>
+        <release>
+            <version>
+                <release>0.8.1</release>
+                <api>0.8.1</api>
+            </version>
+            <stability>
+                <release>beta</release>
+                <api>beta</api>
+            </stability>
+            <date>2018-12-14</date>
+            <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
+            <notes>
+                * Update Symfony 3 and 4 docs #184
+                * Package installation on custom PHP setups lacking conf.d support #188
+
+            </notes>
+        </release>
+    </changelog>
+</package>
