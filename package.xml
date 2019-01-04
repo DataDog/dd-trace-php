@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package packagerversion="1.9.4" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
     <name>datadog_trace</name>
-    <channel>pear.php.net</channel>
+    <channel>pecl.php.net</channel>
     <summary>APM and distributed tracing for PHP</summary>
     <description>The Datadog PHP Tracer brings APM and distributed tracing to PHP.</description>
     <lead>
