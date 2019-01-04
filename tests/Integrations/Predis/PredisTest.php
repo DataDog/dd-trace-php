@@ -60,7 +60,7 @@ final class PredisTest extends IntegrationTestCase
         $options = new Options();
 
         $traces = $this->isolateTracer(function () use ($options) {
-            $client = new \Predis\Client([ "host" => $this->host ],$options);
+            $client = new \Predis\Client([ "host" => $this->host ], $options);
             $this->assertNotNull($client);
         });
 
