@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file - [read more
 - Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
 
 ### Fixed
+- Predis integration supporting constructor options as an object #187 - thanks @raffaellopaletta
 - Properly set http status code tag in Laravel 4 integration #195
 - Agent calls traced when using Symfony 3 integration #197
 - Fix for trace and span ID's that were improperly serialized on the wire in distributed tracing contexts #204
