@@ -3,7 +3,6 @@
 namespace DDTrace\Util;
 
 use DDTrace\Scope;
-use DDTrace\Span;
 use DDTrace\SpanInterface;
 
 /**

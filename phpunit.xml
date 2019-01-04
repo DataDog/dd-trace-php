@@ -16,11 +16,6 @@
         <testsuite name="integration">
             <directory>tests/Integration/</directory>
         </testsuite>
-        <testsuite name="integrations">
-            <directory>tests/Integrations/</directory>
-            <directory phpVersion="7.0.0" phpVersionOperator="lt">tests/Integrations/Mongo</directory>
-            <exclude>tests/Integrations/Mongo</exclude>
-        </testsuite>
         <testsuite name="unit">
             <directory>tests/Unit/</directory>
         </testsuite>
