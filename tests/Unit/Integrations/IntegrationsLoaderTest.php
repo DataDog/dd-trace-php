@@ -5,18 +5,14 @@ namespace DDTrace\Tests\Unit\Integrations;
 use DDTrace\Integrations\IntegrationsLoader;
 use PHPUnit\Framework;
 
-final class CurlHeadersMapTest extends Framework\TestCase
+final class IntegrationsLoaderTest extends Framework\TestCase
 {
-    const FRAMEWORKS = [
-        'laravel',
-        'symfony',
-    ];
 
     public function testWeDidNotForgetToRegisterALibraryForAutoLoading()
     {
         $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
-        $expectedButFrameworks = array_diff($expected, $this->normalize(self::FRAMEWORKS));
-        $autoLoaded = $this->normalize(array_keys(IntegrationsLoader::LIBRARIES));
+        $expectedButFrameworks = array_diff($expected, $this->normalize(self::frameworks()));
+        $autoLoaded = $this->normalize(array_keys(IntegrationsLoader::allLibraries()));
 
         // If this test fails you need to add an entry to IntegrationsLoader::LIBRARIES array.
         $this->assertEquals(array_values($expectedButFrameworks), array_values($autoLoaded));
@@ -38,5 +34,18 @@ final class CurlHeadersMapTest extends Framework\TestCase
             }
             return strtolower($name);
         }, $array_map);
+    }
+
+    /**
+     * Returns the currently supported web frameworks.
+     *
+     * @return array
+     */
+    private static function frameworks()
+    {
+        return [
+            'laravel',
+            'symfony',
+        ];
     }
 }

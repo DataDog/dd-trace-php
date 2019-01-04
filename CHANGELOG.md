@@ -1,7 +1,23 @@
 # Changelog
-All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
+All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+### Added
+- PHP code compatibility with PHP 5.4 #194
+- Move framework tests to tests root folder #198
+- Move integrations tests to tests root folder #200
+- Allow testing of multiple library versions #203
+- Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
+
+### Fixed
+- Properly set http status code tag in Laravel 4 integration #195
+- Agent calls traced when using Symfony 3 integration #197
+- Fix for trace and span ID's that were improperly serialized on the wire in distributed tracing contexts #204
+
+## [0.8.1]
+### Fixed
+- Update Symfony 3 and 4 docs #184
+- Package installation on custom PHP setups lacking conf.d support #188
 
 ## [0.8.0] - 2018-12-11
 ### Added
@@ -162,7 +178,8 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...HEAD
+[0.8.1]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/DataDog/dd-trace-php/compare/0.7.1...0.8.0
 [0.7.1]: https://github.com/DataDog/dd-trace-php/compare/0.7.0...0.7.1
 [0.7.0]: https://github.com/DataDog/dd-trace-php/compare/0.6.0...0.7.0

@@ -9,6 +9,7 @@ use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Types;
+use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
@@ -63,25 +64,35 @@ class SymfonyBundle extends Bundle
         dd_trace(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
-            function ($request, ...$args) use ($symfonyRequestSpan) {
+            function () use ($symfonyRequestSpan) {
+                $args = func_get_args();
+                $request = $args[0];
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
                 $symfonyRequestSpan->setTag(Tags\HTTP_METHOD, $request->getMethod());
                 $symfonyRequestSpan->setTag(Tags\HTTP_URL, $request->getUriForPath($request->getPathInfo()));
 
+                $thrown = null;
+                $response = null;
+
                 try {
-                    return $this->handle($request, ...$args);
+                    $response = call_user_func_array([$this, 'handle'], $args);
                 } catch (\Exception $e) {
                     $span = $scope->getSpan();
                     $span->setError($e);
-                    throw $e;
-                } finally {
-                    $route = $request->get('_route');
-
-                    if ($symfonyRequestSpan !== null && $route !== null) {
-                        $symfonyRequestSpan->setTag(Tags\RESOURCE_NAME, $route);
-                    }
-                    $scope->close();
+                    $thrown = $e;
                 }
+                $route = $request->get('_route');
+
+                if ($symfonyRequestSpan !== null && $route !== null) {
+                    $symfonyRequestSpan->setTag(Tags\RESOURCE_NAME, $route);
+                }
+                $scope->close();
+
+                if ($thrown) {
+                    throw $thrown;
+                }
+
+                return $response;
             }
         );
 
@@ -93,14 +104,24 @@ class SymfonyBundle extends Bundle
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
                 $symfonyRequestSpan->setError($e);
 
+                // PHP 5.4 compliant try-catch-finally block.
+                // Note that 'handleException' is a private method.
+                $thrown = null;
+                $result = null;
+                $span = $scope->getSpan();
                 try {
-                    return $this->handleException($e, $request, $type);
-                } catch (\Exception $e) {
-                    $span = $scope->getSpan();
-                    $span->setError($e);
-                } finally {
-                    $scope->close();
+                    $result = $this->handleException($e, $request, $type);
+                } catch (\Exception $ex) {
+                    $thrown = $ex;
+                    $span->setError($ex);
                 }
+
+                $scope->close();
+                if ($thrown) {
+                    throw $thrown;
+                }
+
+                return $result;
             }
         );
 
@@ -108,18 +129,10 @@ class SymfonyBundle extends Bundle
         dd_trace(
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
-            function (...$args) {
+            function () {
+                $args = func_get_args();
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
-
-                try {
-                    return $this->dispatch(...$args);
-                } catch (\Exception $e) {
-                    $span = $scope->getSpan();
-                    $span->setError($e);
-                    throw $e;
-                } finally {
-                    $scope->close();
-                }
+                return TryCatchFinally::executePublicMethod($scope, $this, 'dispatch', $args);
             }
         );
 

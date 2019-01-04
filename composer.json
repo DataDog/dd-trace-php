@@ -34,15 +34,13 @@
         "opentracing/opentracing": "1.0.0-beta5"
     },
     "require-dev": {
-        "elasticsearch/elasticsearch": "1.2.*",
-        "guzzlehttp/guzzle": "^5.0",
+        "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
         "phpcompatibility/php-compatibility": "^9.0",
         "phpcompatibility/phpcompatibility-passwordcompat": "^1.0",
         "phpcompatibility/phpcompatibility-symfony": "*",
         "phpstan/phpstan": "^0.10.5",
-        "phpunit/phpunit": "^5.7.19",
-        "predis/predis": "^1.1",
+        "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
         "symfony/process": "*"
     },
@@ -80,17 +78,120 @@
         "install-ext": "make -f DDMakefile install_ini install SUDO=sudo $*",
         "test-ext": "make -f DDMakefile test_c",
         "test": "phpunit --colors=always --configuration=phpunit.xml",
+        "test-all-56": [
+            "@test-unit",
+            "@test-integration",
+            "@test-integrations-56"
+        ],
+        "test-all-70": [
+            "@test-unit",
+            "@test-integration",
+            "@test-integrations-70"
+        ],
+        "test-all-71": [
+            "@test-unit",
+            "@test-integration",
+            "@test-integrations-71"
+        ],
+        "test-all-72": [
+            "@test-unit",
+            "@test-integration",
+            "@test-integrations-72"
+        ],
         "test-integration": [
             "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
-            "phpunit --colors=always --configuration=phpunit.xml --testsuite=integration"
+            "@composer test -- --testsuite=integration"
+        ],
+        "test-integrations-56": [
+            "@composer scenario:update",
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Curl",
+            "@composer test -- tests/Integrations/Memcached",
+            "@composer test -- tests/Integrations/Mongo",
+            "@composer test -- tests/Integrations/Mysqli",
+            "@composer test -- tests/Integrations/PDO",
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch",
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle",
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis",
+            "@composer scenario default"
+        ],
+        "test-integrations-70": [
+            "@composer scenario:update",
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Curl",
+            "@composer test -- tests/Integrations/Memcached",
+            "@composer test -- tests/Integrations/Mysqli",
+            "@composer test -- tests/Integrations/PDO",
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch",
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle",
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis",
+            "@composer scenario default"
+        ],
+        "test-integrations-71": [
+            "@composer scenario:update",
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Curl",
+            "@composer test -- tests/Integrations/Memcached",
+            "@composer test -- tests/Integrations/Mysqli",
+            "@composer test -- tests/Integrations/PDO",
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch",
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle",
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis",
+            "@composer scenario default"
+        ],
+        "test-integrations-72": [
+            "@composer scenario:update",
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Curl",
+            "@composer test -- tests/Integrations/Memcached",
+            "@composer test -- tests/Integrations/Mysqli",
+            "@composer test -- tests/Integrations/PDO",
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch",
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle",
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis",
+            "@composer scenario default"
         ],
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
 
-        "laravel-42-update": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_4_2 update",
-        "laravel-42-test": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_4_2 test",
-        "laravel-57-update": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_5_7 update",
-        "laravel-57-test": "composer --working-dir=tests/Integration/Frameworks/Laravel/Version_5_7 test",
-        "symfony-34-update": "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Integration/Frameworks/Symfony/Version_3_4 update",
-        "symfony-34-test": "composer --working-dir=tests/Integration/Frameworks/Symfony/Version_3_4 test"
+        "laravel-42-update": "composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
+        "laravel-42-test": "composer --working-dir=tests/Frameworks/Laravel/Version_4_2 test",
+        "laravel-57-update": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",
+        "laravel-57-test": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 test",
+        "symfony-34-update": "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
+        "symfony-34-test": "composer --working-dir=tests/Frameworks/Symfony/Version_3_4 test"
+    },
+    "extra": {
+        "scenarios": {
+            "elasticsearch1": {
+                "require": {
+                    "elasticsearch/elasticsearch": "1.2.*"
+                }
+            },
+            "guzzle5": {
+                "require": {
+                    "guzzlehttp/guzzle": "~5.0"
+                }
+            },
+            "predis1": {
+                "require": {
+                    "predis/predis": "^1.1"
+                }
+            }
+        },
+        "scenario-options": {
+            "dependency-licenses": false
+        }
     }
 }

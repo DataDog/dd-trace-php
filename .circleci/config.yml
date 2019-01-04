@@ -168,11 +168,30 @@ aliases:
     store_test_results:
       path: test-results
 
+# Integrations tests execution
+
+  - &STEP_RUN_INTEGRATIONS_TESTS_56
+    run:
+      command: composer test-integrations-56
+
+  - &STEP_RUN_INTEGRATIONS_TESTS_70
+    run:
+      command: composer test-integrations-70
+
+  - &STEP_RUN_INTEGRATIONS_TESTS_71
+    run:
+      command: composer test-integrations-71
+
+  - &STEP_RUN_INTEGRATIONS_TESTS_72
+    run:
+      command: composer test-integrations-72
+
+
 jobs:
 
   "Lint files": &lint_files
     docker:
-      - image: circleci/php:7-cli-node-browsers
+      - image: circleci/php:7.2-cli-node-browsers
     steps:
       - checkout
       - <<: *STEP_EXT_INSTALL
@@ -194,7 +213,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!config.*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon' '!tests/Integration/Frameworks/*/Version_*/**' || touch .failure
+          command: node_modules/.bin/eclint check '**/*' '!config.*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon' '!tests/Frameworks/*/Version_*/**' || touch .failure
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
@@ -216,24 +235,6 @@ jobs:
       - run:
           name: Check linting failure
           command: test -e .failure && exit 1 || true
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
-
-  "Check 5.4 compatibility (only changed files)":
-    <<: *lint_files
-    steps:
-      - checkout
-      - <<: *STEP_EXT_INSTALL
-      - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL_LEGACY
-      - <<: *STEP_COMPOSER_CACHE_SAVE
-      - run:
-          name: Creating directory for phpcs results
-          command: mkdir -p test-results/phpcs
-      - run:
-          name: Running phpcs
-          command: (git diff --name-status origin/master...HEAD | egrep "^[ACMR].*\.php$" | cut -c 3- || true) | xargs -r composer lint-5.4 -- --report=junit | tee test-results/phpcs/results.xml
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
@@ -278,6 +279,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_RUN_INTEGRATIONS_TESTS_56
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_SYMFONY_34_ENV
@@ -313,6 +315,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_RUN_INTEGRATIONS_TESTS_70
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_SYMFONY_34_ENV
@@ -348,6 +351,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_RUN_INTEGRATIONS_TESTS_71
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_LARAVEL_57_ENV
@@ -385,6 +389,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_RUN_INTEGRATIONS_TESTS_72
       - <<: *STEP_UPDATE_LARAVEL_42_ENV
       - <<: *STEP_RUN_LARAVEL_42_TESTS
       - <<: *STEP_UPDATE_LARAVEL_57_ENV
@@ -459,7 +464,7 @@ jobs:
       - setup_remote_docker
       - run:
           name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile
+          command: make -j 2 -f dockerfiles/verify_packages/Makefile
 
 workflows:
   version: 2
@@ -492,7 +497,6 @@ workflows:
   build:
     jobs:
       - "Lint files"
-      - "Check 5.4 compatibility (only changed files)"
       - "Static Analysis"
       - "php-5.6"
       - "php-7.0"

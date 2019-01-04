@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Eloquent;
 
 use DDTrace\Tags;
 use DDTrace\Types;
+use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 
 
@@ -27,14 +28,7 @@ class EloquentIntegration
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            try {
-                return call_user_func_array([$this, 'getModels'], $args);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executePublicMethod($scope, $this, 'getModels', $args);
         });
 
         // performInsert(Builder $query)
@@ -48,15 +42,7 @@ class EloquentIntegration
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            try {
-                // Eloquent for 4.2 can receive $options
-                return call_user_func_array([$this, 'performInsert'], $args);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executePublicMethod($scope, $this, 'performInsert', $args);
         });
 
         // performUpdate(Builder $query)
@@ -70,14 +56,7 @@ class EloquentIntegration
             $span->setTag(Tags\DB_STATEMENT, $sql);
             $span->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            try {
-                return call_user_func_array([$this, 'performUpdate'], $args);
-            } catch (\Exception $e) {
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executePublicMethod($scope, $this, 'performUpdate', $args);
         });
 
         // public function delete()
@@ -85,15 +64,7 @@ class EloquentIntegration
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.delete');
             $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\SQL);
 
-            try {
-                return $this->delete();
-            } catch (\Exception $e) {
-                $span = $scope->getSpan();
-                $span->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executePublicMethod($scope, $this, 'delete', []);
         });
     }
 }
