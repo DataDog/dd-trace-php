@@ -8,7 +8,10 @@ use OpenTracing\GlobalTracer;
 
 abstract class Integration
 {
-    // Possible statuses for the concrete
+    // Possible statuses for the concrete:
+    //   - NOT_LOADED   : It has not been loaded, but it may be loaded at a future time if the preconditions match
+    //   - LOADED       : It has been loaded, no more work required.
+    //   - NOT_AVAILABLE: Prerequisites are not matched and won't be matched in the future.
     const NOT_LOADED = 0;
     const LOADED = 1;
     const NOT_AVAILABLE = 2;
