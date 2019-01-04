@@ -10,6 +10,7 @@ x-aliases:
       volumes:
         - .:/home/circleci/app
         - .composer:/home/circleci/.composer
+        - .scenarios.lock:/home/circleci/app/.scenarios.lock
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
         - ddagent_integration
