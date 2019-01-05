@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Symfony\V4;
 
 use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Tag;
 use DDTrace\Tracer;
@@ -141,15 +140,6 @@ class SymfonyBundle extends Bundle
                 return TryCatchFinally::executePublicMethod($scope, $this, 'dispatch', $args);
             }
         );
-
-        // Enable other integrations
-        IntegrationsLoader::load();
-
-        // Flushes traces to agent.
-        register_shutdown_function(function () use ($scope) {
-            $scope->close();
-            GlobalTracer::get()->flush();
-        });
     }
 
     private function getAppName()

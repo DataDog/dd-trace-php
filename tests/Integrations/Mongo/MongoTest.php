@@ -18,12 +18,6 @@ final class MongoTest extends IntegrationTestCase
     const PASSWORD = 'test';
     const DATABASE = 'admin';
 
-    public static function setUpBeforeClass()
-    {
-        parent::setUpBeforeClass();
-        IntegrationsLoader::load();
-    }
-
     protected function tearDown()
     {
         $this->clearDatabase();

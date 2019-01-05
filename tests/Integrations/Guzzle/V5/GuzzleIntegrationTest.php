@@ -20,11 +20,6 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
     /** @var Client */
     private $client;
 
-    public static function setUpBeforeClass()
-    {
-        IntegrationsLoader::load();
-    }
-
     protected function setUp()
     {
         parent::setUp();

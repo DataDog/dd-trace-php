@@ -14,11 +14,6 @@ final class PredisTest extends IntegrationTestCase
     private $host = 'redis_integration';
     private $port = '6379';
 
-    public static function setUpBeforeClass()
-    {
-        IntegrationsLoader::load();
-    }
-
     protected function setUp()
     {
         parent::setUp();

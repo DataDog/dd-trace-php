@@ -17,11 +17,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
     const URL = 'http://httpbin_integration';
     const URL_NOT_EXISTS = '__i_am_not_real__.invalid';
 
-    public static function setUpBeforeClass()
-    {
-        IntegrationsLoader::load();
-    }
-
     public function testLoad200UrlOnInit()
     {
         $traces = $this->isolateTracer(function () {

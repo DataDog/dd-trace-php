@@ -60,25 +60,51 @@
         "install-ext": "make -f DDMakefile install_ini install SUDO=sudo $*",
         "test-ext": "make -f DDMakefile test_c",
         "test": "phpunit --colors=always --configuration=phpunit.xml",
+        "test-all": [
+          "@test-all-56",
+          "@test-all-70",
+          "@test-all-71",
+          "@test-all-72"
+        ],
         "test-all-56": [
             "@test-unit",
             "@test-integration",
-            "@test-integrations-56"
+            "@test-integrations-56",
+            "@laravel-42-update",
+            "@laravel-42-test",
+            "@symfony-34-update",
+            "@symfony-34-test"
         ],
         "test-all-70": [
             "@test-unit",
             "@test-integration",
-            "@test-integrations-70"
+            "@test-integrations-70",
+            "@laravel-42-update",
+            "@laravel-42-test",
+            "@symfony-34-update",
+            "@symfony-34-test"
         ],
         "test-all-71": [
             "@test-unit",
             "@test-integration",
-            "@test-integrations-71"
+            "@test-integrations-71",
+            "@laravel-42-update",
+            "@laravel-42-test",
+            "@laravel-57-update",
+            "@laravel-57-test",
+            "@symfony-34-update",
+            "@symfony-34-test"
         ],
         "test-all-72": [
             "@test-unit",
             "@test-integration",
-            "@test-integrations-72"
+            "@test-integrations-72",
+            "@laravel-42-update",
+            "@laravel-42-test",
+            "@laravel-57-update",
+            "@laravel-57-test",
+            "@symfony-34-update",
+            "@symfony-34-test"
         ],
         "test-integration": [
             "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
@@ -145,12 +171,15 @@
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
         ],
+
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
 
         "laravel-42-update": "composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
         "laravel-42-test": "composer --working-dir=tests/Frameworks/Laravel/Version_4_2 test",
+
         "laravel-57-update": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",
         "laravel-57-test": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 test",
+
         "symfony-34-update": "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
         "symfony-34-test": "composer --working-dir=tests/Frameworks/Symfony/Version_3_4 test"
     },

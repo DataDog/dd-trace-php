@@ -15,12 +15,6 @@ final class MysqliTest extends IntegrationTestCase
     private static $user = 'test';
     private static $password = 'test';
 
-    public static function setUpBeforeClass()
-    {
-        parent::setUpBeforeClass();
-        IntegrationsLoader::load();
-    }
-
     protected function setUp()
     {
         parent::setUp();

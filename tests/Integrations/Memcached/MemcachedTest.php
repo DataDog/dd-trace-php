@@ -18,11 +18,6 @@ final class MemcachedTest extends IntegrationTestCase
     private static $host = 'memcached_integration';
     private static $port = '11211';
 
-    public static function setUpBeforeClass()
-    {
-        IntegrationsLoader::load();
-    }
-
     protected function setUp()
     {
         parent::setUp();

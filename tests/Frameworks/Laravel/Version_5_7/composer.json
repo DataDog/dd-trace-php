@@ -25,8 +25,7 @@
             "database/factories"
         ],
         "psr-4": {
-            "App\\": "app/",
-            "DDTrace\\": "../../../../src/DDTrace/"
+            "App\\": "app/"
         }
     },
     "autoload-dev": {
