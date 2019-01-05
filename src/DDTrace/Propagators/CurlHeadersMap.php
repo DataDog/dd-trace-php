@@ -2,11 +2,10 @@
 
 namespace DDTrace\Propagators;
 
-use DDTrace\Configuration;
 use DDTrace\Propagator;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\SpanContext;
-use DDTrace\Tracer;
+use DDTrace\Contracts\SpanContext;
+use DDTrace\Contracts\Tracer;
 
 /**
  * A propagator that inject distributed tracing context in curl like indexed headers arrays:

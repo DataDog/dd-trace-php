@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use Exception;
 use InvalidArgumentException;
@@ -75,11 +76,6 @@ final class Span implements SpanInterface
     private $hasError = false;
 
     /**
-     * @var int
-     */
-    private $prioritySampling;
-
-    /**
      * Span constructor.
      * @param string $operationName
      * @param SpanContext $context
@@ -102,7 +98,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getTraceId()
     {
@@ -110,7 +106,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getSpanId()
     {
@@ -118,7 +114,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @return null|string
+     * {@inheritdoc}
      */
     public function getParentId()
     {
@@ -134,7 +130,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getResource()
     {
@@ -142,7 +138,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getService()
     {
@@ -150,7 +146,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @return string|null
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -158,7 +154,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @return int
+     * {@inheritdoc}
      */
     public function getStartTime()
     {
@@ -166,7 +162,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @return int
+     * {@inheritdoc}
      */
     public function getDuration()
     {
@@ -210,8 +206,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @param string $key
-     * @return string|null
+     * {@inheritdoc}
      */
     public function getTag($key)
     {
@@ -223,7 +218,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function getAllTags()
     {
@@ -318,7 +313,7 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isFinished()
     {
@@ -373,5 +368,13 @@ final class Span implements SpanInterface
     public function getBaggageItem($key)
     {
         return $this->context->getBaggageItem($key);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getAllBaggageItems()
+    {
+        return $this->context->getAllBaggageItems();
     }
 }

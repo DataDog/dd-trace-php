@@ -2,13 +2,13 @@
 
 namespace DDTrace\Encoders;
 
+use DDTrace\Contracts\Span;
+use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
+use DDTrace\GlobalTracer;
 use DDTrace\Log\Logger;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\Span;
-use DDTrace\Tracer;
-use OpenTracing\GlobalTracer;
 
 final class Json implements Encoder
 {

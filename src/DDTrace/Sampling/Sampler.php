@@ -2,7 +2,7 @@
 
 namespace DDTrace\Sampling;
 
-use DDTrace\Span;
+use DDTrace\Contracts\Span;
 
 /**
  * Defines a priority sampling value provider.

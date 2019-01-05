@@ -12,13 +12,11 @@ use DDTrace\Sampling\Sampler;
 use DDTrace\Tag;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
-use OpenTracing\Exceptions\UnsupportedFormat;
-use OpenTracing\Reference;
-use OpenTracing\SpanContext as OpenTracingContext;
-use OpenTracing\StartSpanOptions;
-use OpenTracing\Tracer as OpenTracingTracer;
+use DDTrace\Exceptions\UnsupportedFormat;
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
+use DDTrace\Contracts\Tracer as TracerInterface;
 
-final class Tracer implements OpenTracingTracer
+final class Tracer implements TracerInterface
 {
     const VERSION = '0.8.1-beta';
 
@@ -200,7 +198,7 @@ final class Tracer implements OpenTracingTracer
     /**
      * {@inheritdoc}
      */
-    public function inject(OpenTracingContext $spanContext, $format, &$carrier)
+    public function inject(SpanContextInterface $spanContext, $format, &$carrier)
     {
         if (array_key_exists($format, $this->propagators)) {
             $this->propagators[$format]->inject($spanContext, $carrier);
@@ -306,12 +304,6 @@ final class Tracer implements OpenTracingTracer
             return;
         }
 
-        // This is a temporary guard that will go away once we complete the refactoring to entirely depend only on
-        // DDTrace extensions of OpenTracing.
-        if (!is_a($span, '\DDTrace\Span')) {
-            return;
-        }
-
         if (!$span->getContext()->isHostRoot()) {
             // Only root spans for each host must have the sampling priority value set.
             return;
@@ -330,7 +322,7 @@ final class Tracer implements OpenTracingTracer
     }
 
     /**
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getPrioritySampling()
     {
