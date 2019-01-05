@@ -8,8 +8,10 @@ All notable changes to this project will be documented in this file - [read more
 - Move integrations tests to tests root folder #200
 - Allow testing of multiple library versions #203
 - Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
+- Track integration loading to avoid re-loading unnecessary ones #211
 
 ### Fixed
+- Predis integration supporting constructor options as an object #187 - thanks @raffaellopaletta
 - Properly set http status code tag in Laravel 4 integration #195
 - Agent calls traced when using Symfony 3 integration #197
 - Fix for trace and span ID's that were improperly serialized on the wire in distributed tracing contexts #204

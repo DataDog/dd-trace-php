@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Curl;
 use DDTrace\Configuration;
 use DDTrace\Formats;
 use DDTrace\Http\Urls;
+use DDTrace\Integrations\Integration;
 use DDTrace\Span;
 use DDTrace\Tags;
 use DDTrace\Types;
@@ -24,7 +25,9 @@ class CurlIntegration
     public static function load()
     {
         if (!function_exists('curl_exec')) {
-            return;
+            // `curl_exec` doesn't come from an autoloader, if it does not exists we can return this integration as
+            // not available.
+            return Integration::NOT_AVAILABLE;
         }
 
         $globalConfig = Configuration::get();
@@ -84,6 +87,8 @@ class CurlIntegration
             ArrayKVStore::deleteResource($ch);
             return curl_close($ch);
         });
+
+        return Integration::LOADED;
     }
 
     /**
