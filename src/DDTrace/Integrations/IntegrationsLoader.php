@@ -19,35 +19,63 @@ use DDTrace\Integrations\Predis\PredisIntegration;
 class IntegrationsLoader
 {
     /**
-     * @var array Registry to keep track of integrations loading status.
+     * @var IntegrationsLoader
      */
-    private static $loadings = [];
+    private static $instance;
 
     /**
-     * @return array A list of supported library integrations. Web frameworks ARE NOT INCLUDED.
+     * @var array
      */
-    public static function allLibraries()
+    private $integrations = [];
+
+    /**
+     * @var array
+     */
+    public static $officiallySupportedIntegrations = [
+        CurlIntegration::NAME => '\DDTrace\Integrations\Curl\CurlIntegration',
+        ElasticSearchIntegration::NAME => '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
+        EloquentIntegration::NAME => '\DDTrace\Integrations\Eloquent\EloquentIntegration',
+        GuzzleIntegration::NAME => '\DDTrace\Integrations\Guzzle\V5\GuzzleIntegration',
+        MemcachedIntegration::NAME => '\DDTrace\Integrations\Memcached\MemcachedIntegration',
+        MongoIntegration::NAME => '\DDTrace\Integrations\Mongo\MongoIntegration',
+        MysqliIntegration::NAME => '\DDTrace\Integrations\Mysqli\MysqliIntegration',
+        PDOIntegration::NAME => '\DDTrace\Integrations\PDO\PDOIntegration',
+        PredisIntegration::NAME => '\DDTrace\Integrations\Predis\PredisIntegration',
+    ];
+
+    /**
+     * @var array Registry to keep track of integrations loading status.
+     */
+    private $loadings = [];
+
+    /**
+     * @param array|null $integrations
+     */
+    public function __construct(array $integrations)
     {
-        return [
-            CurlIntegration::NAME => '\DDTrace\Integrations\Curl\CurlIntegration',
-            ElasticSearchIntegration::NAME => '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
-            EloquentIntegration::NAME => '\DDTrace\Integrations\Eloquent\EloquentIntegration',
-            GuzzleIntegration::NAME => '\DDTrace\Integrations\Guzzle\V5\GuzzleIntegration',
-            MemcachedIntegration::NAME => '\DDTrace\Integrations\Memcached\MemcachedIntegration',
-            MongoIntegration::NAME => '\DDTrace\Integrations\Mongo\MongoIntegration',
-            MysqliIntegration::NAME => '\DDTrace\Integrations\Mysqli\MysqliIntegration',
-            PDOIntegration::NAME => '\DDTrace\Integrations\PDO\PDOIntegration',
-            PredisIntegration::NAME => '\DDTrace\Integrations\Predis\PredisIntegration',
-        ];
+        $this->integrations = $integrations;
     }
 
     /**
-     * Loads all the enabled library integrations.
+     * Returns the singleton integration loader.
+     *
+     * @return IntegrationsLoader
      */
-    public static function load()
+    public static function get()
+    {
+        if (null === self::$instance) {
+            self::$instance = new IntegrationsLoader(self::$officiallySupportedIntegrations);
+        }
+
+        return self::$instance;
+    }
+
+    /**
+     * Loads all the integrations registered with this loader instance.
+     */
+    public function loadAll()
     {
         $globalConfig = Configuration::get();
-
         if (!$globalConfig->isEnabled()) {
             return;
         }
@@ -60,7 +88,7 @@ class IntegrationsLoader
             return;
         }
 
-        foreach (self::allLibraries() as $name => $class) {
+        foreach ($this->integrations as $name => $class) {
             if (!$globalConfig->isIntegrationEnabled($name)) {
                 continue;
             }
@@ -68,13 +96,41 @@ class IntegrationsLoader
             // If the integration has already been loaded, we don't need to reload it. On the other hand, with
             // auto-instrumentation this method may be called many times as the hook is the autoloader callback.
             // So we want to make sure that we do not load the same integration twice if not required.
-            if (isset(self::$loadings[$name])
-                    && in_array(self::$loadings[$name], [Integration::LOADED, Integration::NOT_AVAILABLE])
-            ) {
+            if (in_array($this->getLoadingStatus($name), [Integration::LOADED, Integration::NOT_AVAILABLE])) {
                 continue;
             }
 
-            self::$loadings[$name] = call_user_func([$class, 'load']);
+            $this->loadings[$name] = call_user_func([$class, 'load']);
         }
+    }
+
+    /**
+     * Returns the registered integrations.
+     *
+     * @return array
+     */
+    public function getIntegrations()
+    {
+        return $this->integrations;
+    }
+
+    /**
+     * Returns the provide integration current loading status.
+     *
+     * @param string $integrationName
+     * @return int
+     */
+    public function getLoadingStatus($integrationName)
+    {
+        return isset($this->loadings[$integrationName]) ? $this->loadings[$integrationName] : Integration::NOT_LOADED;
+    }
+
+    /**
+     * Loads all the enabled library integrations using the global singleton integrations loader which in charge
+     * only of the officially supported integrations.
+     */
+    public static function load()
+    {
+        self::get()->loadAll();
     }
 }
