@@ -6,15 +6,15 @@
 #include <Zend/zend_exceptions.h>
 #include <php.h>
 #include <php_ini.h>
+#include <php_main.h>
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
 #include "compat_zend_string.h"
 #include "ddtrace.h"
+#include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
-
-#include "debug.h"
 
 #define UNUSED_1(x) (void)(x)
 #define UNUSED_2(x, y) \
@@ -41,7 +41,15 @@ ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
+STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "some.php", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
+                  zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
+
+static inline void table_dtor(void *zv) {
+    HashTable *ht = *(HashTable **)zv;
+    zend_hash_destroy(ht);
+    efree(ht);
+}
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
@@ -53,6 +61,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+    zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)table_dtor, 0);
+    zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_free, 0);
 
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject();
@@ -71,6 +82,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     return SUCCESS;
 }
 
+static int run_a_file(zend_string *filename_val);
+
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
@@ -84,7 +97,101 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     ddtrace_dispatch_init(TSRMLS_C);
 
+    zend_string *filename = zend_string_init(DDTRACE_G(request_init_hook), strlen(DDTRACE_G(request_init_hook)), 0);
+
+    if (filename && ZSTR_LEN(filename) != 0) {
+        run_a_file(filename);
+    }
+    zend_string_release(filename);
     return SUCCESS;
+}
+
+// static int run_a_file_php5(const char *filename TSRMLS_DC)
+// {
+// 	int filename_len = strlen(filename);
+// 	int dummy = 1;
+// 	zend_file_handle file_handle;
+// 	zend_op_array *new_op_array;
+// 	zval *result = NULL;
+// 	int ret;
+
+// 	ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH|STREAM_OPEN_FOR_INCLUDE TSRMLS_CC);
+
+// 	if (ret == SUCCESS) {
+// 		if (!file_handle.opened_path) {
+// 			// file_handle.opened_path = estrndup(filename, filename_len);
+
+// 		}
+// 		if (zend_hash_add(&EG(included_files), file_handle.opened_path, strlen(file_handle.opened_path)+1, (void
+// *)&dummy, sizeof(int), NULL)==SUCCESS) { 			new_op_array = zend_compile_file(&file_handle, ZEND_REQUIRE TSRMLS_CC);
+// 			zend_destroy_file_handle(&file_handle TSRMLS_CC);
+// 		} else {
+// 			new_op_array = NULL;
+// 			zend_file_handle_dtor(&file_handle TSRMLS_CC);
+// 		}
+// 		if (new_op_array) {
+// 			EG(return_value_ptr_ptr) = &result;
+// 			EG(active_op_array) = new_op_array;
+// 			if (!EG(active_symbol_table)) {
+// 				zend_rebuild_symbol_table(TSRMLS_C);
+// 			}
+
+// 			zend_execute(new_op_array TSRMLS_CC);
+
+// 			destroy_op_array(new_op_array TSRMLS_CC);
+// 			efree(new_op_array);
+// 			if (!EG(exception)) {
+// 				if (EG(return_value_ptr_ptr)) {
+// 					zval_ptr_dtor(EG(return_value_ptr_ptr));
+// 				}
+// 			}
+
+// 			return 1;
+// 		}
+// 	}
+// 	return 0;
+// }
+
+static int run_a_file(zend_string *filename_val) {
+    char *filename = ZSTR_VAL(filename_val);
+    int filename_len = ZSTR_LEN(filename_val);
+    zval dummy;
+    zend_file_handle file_handle;
+    zend_op_array *new_op_array;
+    zval result;
+    int ret;
+
+    ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
+
+    if (ret == SUCCESS) {
+        zend_string *opened_path;
+        if (!file_handle.opened_path) {
+            file_handle.opened_path = zend_string_init(filename, filename_len, 0);
+        }
+        opened_path = zend_string_copy(file_handle.opened_path);
+        ZVAL_NULL(&dummy);
+        if (zend_hash_add(&EG(included_files), opened_path, &dummy)) {
+            new_op_array = zend_compile_file(&file_handle, ZEND_REQUIRE);
+            zend_destroy_file_handle(&file_handle);
+        } else {
+            new_op_array = NULL;
+            zend_file_handle_dtor(&file_handle);
+        }
+        zend_string_release(opened_path);
+        if (new_op_array) {
+            ZVAL_UNDEF(&result);
+            zend_execute(new_op_array, &result);
+
+            destroy_op_array(new_op_array);
+            efree(new_op_array);
+            if (!EG(exception)) {
+                zval_ptr_dtor(&result);
+            }
+
+            return 1;
+        }
+    }
+    return 0;
 }
 
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
