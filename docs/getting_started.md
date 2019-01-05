@@ -19,7 +19,7 @@ At this moment it is only distributed in source code form, and requires manual c
 ```bash
 mkdir dd-trace
 cd dd-trace
-curl -L https://github.com/DataDog/dd-trace-php/archive/v0.2.5.tar.gz | tar x --strip-components=1
+curl -L https://github.com/DataDog/dd-trace-php/archive/master.tar.gz | tar x --strip-components=1
 phpize # generate files needed to build PHP extension
 ./configure
 make
@@ -29,7 +29,7 @@ sudo make install
 #### Bash one-liner
 
 ```bash
-(cd $(mktemp -d); curl -L https://github.com/DataDog/dd-trace-php/archive/v0.2.5.tar.gz | tar x --strip-components=1 && phpize && ./configure && make && sudo make install )
+(cd $(mktemp -d); curl -L https://github.com/DataDog/dd-trace-php/archive/master.tar.gz | tar x --strip-components=1 && phpize && ./configure && make && sudo make install )
 ```
 
 ### Enabling the extension
@@ -68,26 +68,7 @@ Once the C extension is installed, we need to install the PHP package that provi
 ### Install `datadog/dd-trace` package
 
 ```bash
-
-composer config minimum-stability beta # required to install opentracing 1.0.0-beta5
-composer require opentracing/opentracing
 composer require datadog/dd-trace
-```
-
-#### Alternative: Install `datadog/dd-trace` package without changing `minimum-stability`
-
-```bash
-composer require datadog/dd-trace # first add dd-trace require
-# then manually add following entry to your `composer.json` ”require” entry
-#  "opentracing/opentracing": "@dev"
-
-#  Example end result should look like:
-#  "require": {
-#   "datadog/dd-trace": "^0.2.2",
-#    "opentracing/opentracing": "@dev"
-#  }
-# Next run:
-composer update
 ```
 
 ### Enabling tracing
@@ -105,7 +86,7 @@ To enable [Laravel](https://laravel.com/) integration we need to configure a new
       'DDTrace\Integrations\Laravel\V4\LaravelProvider',
 ```
 
-Now your Laravel application should start sending traces to the Datadog agent running on localhost (in default configuration). The Datadog agent must have APM enabled; see https://docs.datadoghq.com/tracing/setup/ for instructions on installing and configuring the agent.
+Now your Laravel application should start sending traces to the Datadog agent running on localhost (in default configuration). The Datadog agent must have APM enabled; see [the APM documentation](https://docs.datadoghq.com/tracing/setup/) for instructions on installing and configuring the agent.
 
 #### Lumen integration
 

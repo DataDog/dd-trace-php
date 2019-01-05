@@ -53,7 +53,6 @@ class CommonScenariosTest extends TestCase
                     SpanAssertion::exists('laravel.event.handle'),
                 ],
                 'A simple GET request with a view' => [
-                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.request'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
@@ -64,7 +63,6 @@ class CommonScenariosTest extends TestCase
                     SpanAssertion::exists('laravel.event.handle'),
                 ],
                 'A GET request with an exception' => [
-                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@error error')
                         ->withExactTags([
                             'laravel.route.name' => 'error',

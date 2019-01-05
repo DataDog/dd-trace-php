@@ -3,21 +3,17 @@
 namespace DDTrace\Integrations\Laravel\V5;
 
 use DDTrace\Configuration;
-use DDTrace\Encoders\Json;
-use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\GlobalTracer;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tag;
 use DDTrace\Time;
-use DDTrace\Tracer;
-use DDTrace\Transport\Http;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use OpenTracing\GlobalTracer;
-
+use Illuminate\View\Engines\CompilerEngine;
 
 /**
  * DataDog Laravel tracing provider. Use by installing the dd-trace library:
@@ -53,12 +49,7 @@ class LaravelProvider extends ServiceProvider
             return;
         }
 
-        // Creates a tracer with default transport and default encoders
-        $tracer = new Tracer(new Http(new Json()));
-        // Sets a global tracer (singleton). Also store it in the Laravel
-        // container for easy Laravel-specific use.
-        GlobalTracer::set($tracer);
-        $this->app->instance('DDTrace\Tracer', $tracer);
+        $this->app->instance('DDTrace\Tracer', GlobalTracer::get());
     }
 
     /**  @inheritdoc */
@@ -68,7 +59,35 @@ class LaravelProvider extends ServiceProvider
             return;
         }
 
+        $appName = $this->getAppName();
         $tracer = GlobalTracer::get();
+        $rootScope = null;
+
+        dd_trace('Illuminate\Foundation\Http\Kernel', 'handle', function() use ($appName, $tracer, &$rootScope) {
+            $args = func_get_args();
+            $request = $args[0];
+
+            $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
+                $tracer,
+                [
+                    'start_time' => defined('LARAVEL_START')
+                        ? Time::fromMicrotime(LARAVEL_START)
+                        : Time::now(),
+                ],
+                $request->header()
+            );
+
+            // Create a span that starts from when Laravel first boots (public/index.php)
+            $rootScope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
+            $requestSpan = $rootScope->getSpan();
+            $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
+            $requestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
+
+            $response = call_user_func_array([$this, 'handle'], $args);
+            $requestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
+
+            return $response;
+        });
 
         // Trace middleware
         dd_trace('Illuminate\Pipeline\Pipeline', 'then', function () {
@@ -115,26 +134,11 @@ class LaravelProvider extends ServiceProvider
             return TryCatchFinally::executePublicMethod($scope, $this, 'get', [$path, $data]);
         });
 
-        $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
-            $tracer,
-            [
-                'start_time' => defined('LARAVEL_START')
-                    ? Time::fromMicrotime(LARAVEL_START)
-                    : Time::now(),
-            ],
-            $this->app->make('request')->header()
-        );
-
-        // Create a span that starts from when Laravel first boots (public/index.php)
-        $scope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
-        $scope->getSpan()->setTag(Tag::SERVICE_NAME, $this->getAppName());
-        $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
-
         // Name the scope when the route matches
         $this->app['events']->listen(
             'Illuminate\Routing\Events\RouteMatched',
-            function (RouteMatched $event) use ($scope) {
-                $span = $scope->getSpan();
+            function (RouteMatched $event) use (&$rootScope) {
+                $span = $rootScope->getSpan();
                 $span->setTag(
                     Tag::RESOURCE_NAME,
                     $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
@@ -148,9 +152,8 @@ class LaravelProvider extends ServiceProvider
 
         $this->app['events']->listen(
             'Illuminate\Foundation\Http\Events\RequestHandled',
-            function (RequestHandled $event) use ($scope) {
-                $span = $scope->getSpan();
-                $span->setTag('http.status_code', $event->response->getStatusCode());
+            function (RequestHandled $event) use (&$rootScope) {
+                $span = $rootScope->getSpan();
                 try {
                     $user = auth()->user()->id;
                     $span->setTag('laravel.user', strlen($user) ? $user : '-');
@@ -158,15 +161,6 @@ class LaravelProvider extends ServiceProvider
                 }
             }
         );
-
-        // Enable other integrations
-        IntegrationsLoader::load();
-
-        // Flushes traces to agent.
-        register_shutdown_function(function () use ($scope) {
-            $scope->close();
-            GlobalTracer::get()->flush();
-        });
     }
 
     private function getAppName()

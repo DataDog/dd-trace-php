@@ -4,12 +4,12 @@ namespace DDTrace\Integrations\Guzzle\V5;
 
 use DDTrace\Configuration;
 use DDTrace\Format;
-use DDTrace\Tag;
-use DDTrace\Span;
-use DDTrace\Type;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
+use DDTrace\Span;
+use DDTrace\Tag;
+use DDTrace\Type;
 use GuzzleHttp\Message\ResponseInterface;
 
 class GuzzleIntegration extends Integration

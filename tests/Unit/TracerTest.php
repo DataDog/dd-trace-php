@@ -2,6 +2,8 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Contracts\Tracer as TracerInterface;
+use DDTrace\OpenTracer\Tracer as OpenTracer;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
 use DDTrace\Tag;
@@ -9,6 +11,7 @@ use DDTrace\Tests\DebugTransport;
 use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
+use OpenTracing\Mock\MockTracer;
 use PHPUnit\Framework;
 
 final class TracerTest extends Framework\TestCase
@@ -19,16 +22,27 @@ final class TracerTest extends Framework\TestCase
     const TAG_VALUE = 'test_value';
     const FORMAT = 'test_format';
 
+    public function tracerImplementations()
+    {
+        return [
+            [new Tracer(new NoopTransport())],
+            [new OpenTracer(new MockTracer())],
+        ];
+    }
+
     public function testStartSpanAsNoop()
     {
         $tracer = Tracer::noop();
         $span = $tracer->startSpan(self::OPERATION_NAME);
-        $this->assertInstanceOf('\DDTrace\NoopSpan', $span);
+        $this->assertInstanceOf('DDTrace\NoopSpan', $span);
     }
 
-    public function testCreateSpanSuccessWithExpectedValues()
+    /**
+     * @dataProvider tracerImplementations
+     * @param TracerInterface $tracer
+     */
+    public function testCreateSpanSuccessWithExpectedValues(TracerInterface $tracer)
     {
-        $tracer = new Tracer(new NoopTransport());
         $startTime = Time::now();
         $span = $tracer->startSpan(self::OPERATION_NAME, [
             'tags' => [
@@ -80,7 +94,7 @@ final class TracerTest extends Framework\TestCase
     }
 
     /**
-     * @expectedException \OpenTracing\Exceptions\UnsupportedFormat
+     * @expectedException \DDTrace\Exceptions\UnsupportedFormat
      */
     public function testInjectThrowsUnsupportedFormatException()
     {
@@ -103,7 +117,7 @@ final class TracerTest extends Framework\TestCase
     }
 
     /**
-     * @expectedException \OpenTracing\Exceptions\UnsupportedFormat
+     * @expectedException \DDTrace\Exceptions\UnsupportedFormat
      */
     public function testExtractThrowsUnsupportedFormatException()
     {

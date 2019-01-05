@@ -5,12 +5,13 @@ namespace DDTrace\Integrations\Symfony\V4;
 use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
 use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Tag;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
@@ -30,6 +31,11 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 class SymfonyBundle extends Bundle
 {
     const NAME = 'symfony';
+
+    /**
+     * @var string Used by Bundle::getName() to identify this bundle among registered ones.
+     */
+    protected $name = SymfonyIntegration::BUNDLE_NAME;
 
     public function boot()
     {

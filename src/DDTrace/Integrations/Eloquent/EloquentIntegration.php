@@ -6,8 +6,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
-use OpenTracing\GlobalTracer;
-
+use DDTrace\GlobalTracer;
 
 class EloquentIntegration
 {

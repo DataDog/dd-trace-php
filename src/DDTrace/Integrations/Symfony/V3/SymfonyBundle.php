@@ -5,13 +5,14 @@ namespace DDTrace\Integrations\Symfony\V3;
 use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
 use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -33,6 +34,11 @@ class SymfonyBundle extends Bundle
 {
     const NAME = 'symfony';
 
+    /**
+     * @var string Used by Bundle::getName() to identify this bundle among registered ones.
+     */
+    protected $name = SymfonyIntegration::BUNDLE_NAME;
+
     public function boot()
     {
         parent::boot();
@@ -50,11 +56,7 @@ class SymfonyBundle extends Bundle
             return;
         }
 
-        // Creates a tracer with default transport and default propagators
-        $tracer = new Tracer(new Http(new Json()));
-
-        // Sets a global tracer (singleton).
-        GlobalTracer::set($tracer);
+        $tracer = GlobalTracer::get();
 
         // Create a span that starts from when Symfony first boots
         $scope = $tracer->startActiveSpan('symfony.request');
@@ -145,9 +147,6 @@ class SymfonyBundle extends Bundle
             }
         );
 
-        // Enable other integrations
-        IntegrationsLoader::load();
-
         // Tracing templating engines
         $renderTraceCallback = function () use ($appName) {
             $args = func_get_args();
@@ -167,15 +166,6 @@ class SymfonyBundle extends Bundle
         dd_trace('\Symfony\Component\Templating\DelegatingEngine', 'render', $renderTraceCallback);
         dd_trace('\Symfony\Component\Templating\PhpEngine', 'render', $renderTraceCallback);
         dd_trace('Twig_Environment', 'render', $renderTraceCallback);
-
-        // Enable other integrations
-        IntegrationsLoader::load();
-
-        // Flushes traces to agent.
-        register_shutdown_function(function () use ($scope) {
-            $scope->close();
-            GlobalTracer::get()->flush();
-        });
     }
 
     /**

@@ -26,8 +26,7 @@ class PipelineTracingTest extends TestCase
             $this->assertSame('done', $result);
         });
         $this->assertExpectedSpans($this, $traces, [
-            SpanAssertion::exists('laravel.request'),
-            SpanAssertion::build('laravel.pipeline.pipe', 'laravel_test_app', 'web', 'Tests\Integration\DummyPipe::someHandler'),
+            SpanAssertion::build('laravel.pipeline.pipe', 'cli', 'web', 'Tests\Integration\DummyPipe::someHandler'),
         ]);
     }
 
@@ -53,9 +52,8 @@ class PipelineTracingTest extends TestCase
             $this->assertSame('done2', $result2);
         });
         $this->assertExpectedSpans($this, $traces, [
-            SpanAssertion::exists('laravel.request'),
-            SpanAssertion::build('laravel.pipeline.pipe', 'laravel_test_app', 'web', 'Tests\Integration\DummyPipe::someHandler'),
-            SpanAssertion::build('laravel.pipeline.pipe', 'laravel_test_app', 'web', 'Tests\Integration\DummyPipe::someHandler'),
+            SpanAssertion::build('laravel.pipeline.pipe', 'cli', 'web', 'Tests\Integration\DummyPipe::someHandler'),
+            SpanAssertion::build('laravel.pipeline.pipe', 'cli', 'web', 'Tests\Integration\DummyPipe::someHandler'),
         ]);
     }
 }

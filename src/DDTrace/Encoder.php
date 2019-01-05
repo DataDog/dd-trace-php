@@ -2,6 +2,8 @@
 
 namespace DDTrace;
 
+use \DDTrace\Contracts\Span;
+
 interface Encoder
 {
     /**

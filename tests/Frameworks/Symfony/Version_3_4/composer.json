@@ -49,7 +49,7 @@
         "post-update-cmd": [
             "@symfony-scripts"
         ],
-        "test": "vendor/bin/simple-phpunit"
+        "test": "@php vendor/bin/simple-phpunit"
     },
     "config": {
         "platform": {

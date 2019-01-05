@@ -2,10 +2,10 @@
 
 namespace DDTrace\Integrations\PDO;
 
+use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use OpenTracing\GlobalTracer;
 
 class PDOIntegration
 {

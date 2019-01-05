@@ -2,25 +2,37 @@
 
 namespace DDTrace;
 
-use OpenTracing\Scope as OpenTracingScope;
-use OpenTracing\ScopeManager as OpenTracingScopeManager;
-use OpenTracing\Span as OpenTracingSpan;
+use DDTrace\Contracts\Scope as ScopeInterface;
+use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
+use DDTrace\Contracts\Span as SpanInterface;
 
-final class ScopeManager implements OpenTracingScopeManager
+final class ScopeManager implements ScopeManagerInterface
 {
     /**
-     * @var array|OpenTracingScope[]
+     * @var array|ScopeInterface[]
      */
     private $scopes = [];
 
     /**
-     * {@inheritdoc}
-     * @param Span|OpenTracingSpan $span
+     * Represents the current request root span. In case of distributed tracing, this represents the request root span.
+     *
+     * @var ScopeInterface[]
      */
-    public function activate(OpenTracingSpan $span, $finishSpanOnClose)
+    private $hostRootScopes = [];
+
+    /**
+     * {@inheritdoc}
+     * @param Span|SpanInterface $span
+     */
+    public function activate(SpanInterface $span, $finishSpanOnClose = self::DEFAULT_FINISH_SPAN_ON_CLOSE)
     {
         $scope = new Scope($this, $span, $finishSpanOnClose);
         $this->scopes[] = $scope;
+
+        if ($span->getContext()->isHostRoot()) {
+            $this->hostRootScopes[] = $scope;
+        }
+
         return $scope;
     }
 
@@ -45,5 +57,15 @@ final class ScopeManager implements OpenTracingScopeManager
         }
 
         array_splice($this->scopes, $i, 1);
+    }
+
+    /**
+     * Closes all the current request root spans. Typically there only will be one.
+     */
+    public function close()
+    {
+        foreach ($this->hostRootScopes as $scope) {
+            $scope->close();
+        }
     }
 }

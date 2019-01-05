@@ -2,7 +2,8 @@
 
 namespace DDTrace\Bridge;
 
-class Autoloader {
+class Autoloader
+{
     public static function load($class)
     {
         // project-specific namespace prefix

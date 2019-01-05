@@ -6,7 +6,7 @@ use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 use PHPUnit\Framework;
 
 final class CurlHeadersMapTest extends Framework\TestCase

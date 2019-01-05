@@ -21,6 +21,8 @@ class CommonScenariosTest extends WebTestCase
      */
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
+        $functions = spl_autoload_functions();
+
         $client = static::createClient();
         $traces = $this->simulateWebRequestTracer(function() use ($spec, $client) {
             if ($spec instanceof GetSpec) {
