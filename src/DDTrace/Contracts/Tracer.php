@@ -14,8 +14,6 @@ use DDTrace\StartSpanOptions;
 
 interface Tracer
 {
-    const VERSION = '0.8.1-beta';
-
     /**
      * Returns the current {@link ScopeManager}, which may be a noop but may not be null.
      *
