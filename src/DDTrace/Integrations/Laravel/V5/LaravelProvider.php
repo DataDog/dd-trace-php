@@ -2,15 +2,15 @@
 
 namespace DDTrace\Integrations\Laravel\V5;
 
-use DDTrace;
 use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\StartSpanOptionsFactory;
-use DDTrace\Tags;
+use DDTrace\Tag;
+use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-use DDTrace\Types;
+use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Routing\Events\RouteMatched;
@@ -97,8 +97,8 @@ class LaravelProvider extends ServiceProvider
                         $args = func_get_args();
                         $scope = GlobalTracer::get()->startActiveSpan('laravel.pipeline.pipe');
                         $span = $scope->getSpan();
-                        $span->setTag(Tags\RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
-                        $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+                        $span->setTag(Tag::RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
+                        $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
                         return TryCatchFinally::executePublicMethod($scope, $this, $handlerMethod, $args);
                     });
                 }
@@ -111,7 +111,7 @@ class LaravelProvider extends ServiceProvider
         // public function get($path, array $data = array())
         dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function ($path, $data = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
-            $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+            $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
             return TryCatchFinally::executePublicMethod($scope, $this, 'get', [$path, $data]);
         });
 
@@ -119,16 +119,16 @@ class LaravelProvider extends ServiceProvider
             $tracer,
             [
                 'start_time' => defined('LARAVEL_START')
-                    ? DDTrace\Time\fromMicrotime(LARAVEL_START)
-                    : DDTrace\Time\now(),
+                    ? Time::fromMicrotime(LARAVEL_START)
+                    : Time::now(),
             ],
             $this->app->make('request')->header()
         );
 
         // Create a span that starts from when Laravel first boots (public/index.php)
         $scope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
-        $scope->getSpan()->setTag(Tags\SERVICE_NAME, $this->getAppName());
-        $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+        $scope->getSpan()->setTag(Tag::SERVICE_NAME, $this->getAppName());
+        $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
 
         // Name the scope when the route matches
         $this->app['events']->listen(
@@ -136,7 +136,7 @@ class LaravelProvider extends ServiceProvider
             function (RouteMatched $event) use ($scope) {
                 $span = $scope->getSpan();
                 $span->setTag(
-                    Tags\RESOURCE_NAME,
+                    Tag::RESOURCE_NAME,
                     $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
                 );
                 $span->setTag('laravel.route.name', Route::currentRouteName());

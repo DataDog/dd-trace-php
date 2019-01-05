@@ -8,15 +8,7 @@
             "AppBundle\\": "src/AppBundle",
             "DDTrace\\": "../../../../src/DDTrace/"
         },
-        "classmap": [ "app/AppKernel.php", "app/AppCache.php" ],
-        "files": [
-            "../../../../src/DDTrace/Formats.php",
-            "../../../../src/DDTrace/Tags.php",
-            "../../../../src/DDTrace/Time.php",
-
-            "../../../../src/DDTrace/Types.php",
-            "../../../../src/DDTrace/Version.php"
-        ]
+        "classmap": [ "app/AppKernel.php", "app/AppCache.php" ]
     },
     "autoload-dev": {
         "psr-4": {

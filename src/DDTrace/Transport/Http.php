@@ -56,7 +56,7 @@ final class Http implements Transport
         $this->setHeader('Datadog-Meta-Lang', 'php');
         $this->setHeader('Datadog-Meta-Lang-Version', \PHP_VERSION);
         $this->setHeader('Datadog-Meta-Lang-Interpreter', \PHP_SAPI);
-        $this->setHeader('Datadog-Meta-Tracer-Version', Version\VERSION);
+        $this->setHeader('Datadog-Meta-Tracer-Version', Tracer::VERSION);
     }
 
     /**
