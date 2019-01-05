@@ -1,0 +1,6 @@
+{
+    "name": "root/composer_app",
+    "require": {
+        "elasticsearch/elasticsearch": "1.2.*"
+    }
+}
