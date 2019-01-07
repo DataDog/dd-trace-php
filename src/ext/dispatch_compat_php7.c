@@ -43,7 +43,11 @@ HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz) {
 }
 
 zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch_orig) {
+#if PHP_VERSION_ID < 70300
     ddtrace_dispatch_t *dispatch = pemalloc(sizeof(ddtrace_dispatch_t), lookup->u.flags & HASH_FLAG_PERSISTENT);
+#else
+    ddtrace_dispatch_t *dispatch = pemalloc(sizeof(ddtrace_dispatch_t), GC_FLAGS(lookup) & IS_ARRAY_PERSISTENT);
+#endif
 
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
     return zend_hash_update_ptr(lookup, dispatch->function, dispatch) != NULL;
