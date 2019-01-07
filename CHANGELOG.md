@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 ### Added
+
+### Fixed
+
+## [0.9.0]
+### Added
 - PHP code compatibility with PHP 5.4 #194
 - Move framework tests to tests root folder #198
 - Move integrations tests to tests root folder #200
@@ -181,7 +186,8 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.9.0...HEAD
+[0.9.0]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/DataDog/dd-trace-php/compare/0.7.1...0.8.0
 [0.7.1]: https://github.com/DataDog/dd-trace-php/compare/0.7.0...0.7.1
