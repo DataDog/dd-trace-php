@@ -163,7 +163,7 @@ return [
         /*
          * 3rd parties
          */
-        DDTrace\Integrations\LaravelProvider::class,
+        DDTrace\Integrations\Laravel\v5\LaravelProvider::class,
     ],
 
     /*
