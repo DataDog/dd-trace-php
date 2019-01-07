@@ -42,12 +42,16 @@ class Configuration extends AbstractConfiguration
 
     /**
      * Whether or not also unfinished spans should be finished (and thus sent) when tracer is flushed.
+     * Motivation: We had users reporting that in some cases they have manual end-points that `echo` some content
+     * and than just `exit(0)` at the end of action's method. While the shutdown hook that flushes traces would still
+     * be called, most of the spans would be unfinished and thus discarded. With this option enabled spans are
+     * automatically finished (if not finished yet) when the tracer is flushed.
      *
      * @return bool
      */
     public function isAutofinishSpansEnabled()
     {
-        return $this->boolValue('autofinish.span', false);
+        return $this->boolValue('autofinish.spans', false);
     }
 
     /**
