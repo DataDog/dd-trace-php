@@ -33,8 +33,10 @@
 
 #if PHP_VERSION_ID < 70000
 #define PHP5_UNUSED(...) UNUSED(__VA_ARGS__)
+#define PHP7_UNUSED(...) /* unused unused */
 #else
 #define PHP5_UNUSED(...) /* unused unused */
+#define PHP7_UNUSED(...) UNUSED(__VA_ARGS__)
 #endif
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
@@ -176,8 +178,8 @@ static PHP_FUNCTION(dd_trace) {
 }
 
 static PHP_FUNCTION(dd_trace_reset) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
-    UNUSED(execute_data);
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
 
     if (DDTRACE_G(disable)) {
         RETURN_BOOL(0);
