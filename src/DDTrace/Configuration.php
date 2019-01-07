@@ -41,6 +41,16 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Whether or not also unfinished spans should be finished (and thus sent) when tracer is flushed.
+     *
+     * @return bool
+     */
+    public function isAutofinishSpansEnabled()
+    {
+        return $this->boolValue('autofinish.span', false);
+    }
+
+    /**
      * Whether or not a specific integration is enabled.
      *
      * @param string $name

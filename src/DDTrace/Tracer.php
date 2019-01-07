@@ -262,13 +262,18 @@ final class Tracer implements OpenTracingTracer
     {
         $tracesToBeSent = [];
 
+        $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
+
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
 
             foreach ($trace as $span) {
                 if (!$span->isFinished()) {
-                    $traceToBeSent = null;
-                    break;
+                    if (!$autoFinishSpans) {
+                        $traceToBeSent = null;
+                        break;
+                    }
+                    $span->finish();
                 }
                 $traceToBeSent[] = $span;
             }
