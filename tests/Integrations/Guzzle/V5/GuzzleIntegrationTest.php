@@ -114,6 +114,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         $client = new Client();
         $found = [];
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+            'isAutofinishSpansEnabled' => false,
             'isDistributedTracingEnabled' => false,
             'isPrioritySamplingEnabled' => false,
         ]));
