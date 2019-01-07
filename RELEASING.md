@@ -6,7 +6,9 @@
 1. Make sure that there is a 1-to-1 correlation between commits and PRs. This is easy thanks to the squash merge strategy that we adopted.
 1. Create the version bump commit:
     1. Make sure that the changelog is up to date, if not fix it. Make sure bottom links are up to date.
-    1. Update the version number in `Version.php`.
+    1. Update the version number in `src/DDTrace/Version.php`.
+    1. Update the version number in `src/ext/version.h`.
+    1. Update the version number in `package.xml`.
     1. Create the PR and ask for code review.
 1. Create the release named after the release number, e.g. `0.9.0`, (initially as a draft) and copy there the changelog
    for the current release. Most of the times you will have two sections: `Added` and `Fixed`.
