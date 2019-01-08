@@ -14,9 +14,9 @@
 1. Create the release named after the release number, e.g. `0.9.0`, (initially as a draft) and copy there the changelog
    for the current release. Most of the times you will have two sections: `Added` and `Fixed`.
 1. Head to CircleCi workflow's page for the master branch and from the job `build_packages --> packages` downloads the
-   artifacts `datadog-php-tracer-<VERSION>-beta.x86_64.tar.gz`, `datadog-php-tracer-<VERSION>_beta-1.x86_64.rpm`,
-   `datadog-php-tracer_<VERSION>-beta_amd64.deb`, `datadog-php-tracer_<VERSION>-beta_noarch.apk` and upload them to
-   the release. Make sure the version number matches.
+    artifacts `datadog-php-tracer-<VERSION>-beta.x86_64.tar.gz`, `datadog-php-tracer-<VERSION>_beta-1.x86_64.rpm`,
+    `datadog-php-tracer_<VERSION>-beta_amd64.deb`, `datadog-php-tracer_<VERSION>-beta_noarch.apk` and upload them to
+    the release. Make sure the version number matches.
 1. Check the release page and share it with the team to make sure big mistakes are avoided :smile:.
 1. Publish it!
 1. Run `pear package` & upload release to PECL: https://pecl.php.net/release-upload.php
