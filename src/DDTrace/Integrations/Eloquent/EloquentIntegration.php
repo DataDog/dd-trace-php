@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Eloquent;
 
+use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
@@ -15,7 +16,7 @@ class EloquentIntegration
     public static function load()
     {
         if (!class_exists('Illuminate\Database\Eloquent\Builder')) {
-            return;
+            return Integration::NOT_LOADED;
         }
 
         // getModels($columns = ['*'])
@@ -66,5 +67,7 @@ class EloquentIntegration
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'delete', []);
         });
+
+        return Integration::LOADED;
     }
 }

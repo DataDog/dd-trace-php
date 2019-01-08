@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\ElasticSearch\V1;
 
+use DDTrace\Integrations\Integration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -18,7 +19,7 @@ class ElasticSearchIntegration
     public static function load()
     {
         if (!class_exists('Elasticsearch\Client')) {
-            return;
+            return Integration::NOT_LOADED;
         }
 
         // Client operations
@@ -158,6 +159,8 @@ class ElasticSearchIntegration
 
             return $result;
         });
+
+        return Integration::LOADED;
     }
 
     /**

@@ -2,9 +2,10 @@
 
 namespace DDTrace\Integrations\Memcached;
 
+use DDTrace\Integrations\Integration;
+use DDTrace\Obfuscation;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Obfuscation;
 use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 
@@ -28,7 +29,8 @@ class MemcachedIntegration
     public static function load()
     {
         if (!class_exists('Memcached')) {
-            return;
+            // Memcached is provided through an extension and not through a class loader.
+            return Integration::NOT_AVAILABLE;
         }
 
         // bool Memcached::add ( string $key , mixed $value [, int $expiration ] )
@@ -216,6 +218,8 @@ class MemcachedIntegration
             $args = func_get_args();
             return MemcachedIntegration::traceCommandByKey($this, 'touchByKey', $args);
         });
+
+        return Integration::LOADED;
     }
 
     public static function traceCommand($memcached, $command, $args)

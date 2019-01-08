@@ -14,11 +14,14 @@ final class MongoIntegration
     public static function load()
     {
         if (!extension_loaded('mongo')) {
-            return;
+            // Mongodb integration is provided through an extension and not through a class loader.
+            return Integration::NOT_AVAILABLE;
         }
         MongoClientIntegration::load();
         MongoDBIntegration::load();
         MongoCollectionIntegration::load();
+
+        return Integration::LOADED;
     }
 
     /**

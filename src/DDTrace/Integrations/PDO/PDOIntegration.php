@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\PDO;
 
+use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use OpenTracing\GlobalTracer;
@@ -26,7 +27,8 @@ class PDOIntegration
     public static function load()
     {
         if (!extension_loaded('PDO')) {
-            return;
+            // PDO is provided through an extension and not through a class loader.
+            return Integration::NOT_AVAILABLE;
         }
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
@@ -212,6 +214,8 @@ class PDOIntegration
 
             return $result;
         });
+
+        Integration::LOADED;
     }
 
     /**

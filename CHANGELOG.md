@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file - [read more
 ## [Unreleased]
 ### Added
 - Migration from namespace based constants to class based constants for tags, formats and types #207
+- Track integration loading to avoid re-loading unnecessary ones #211
 
 ### Fixed
 
