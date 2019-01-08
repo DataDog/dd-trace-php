@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 ### Added
-- Documenting of releasing steps #223
+- Documenting the release steps #223
 
 ### Fixed
 
