@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 ### Added
+- Ability to reset all overrides via `dd_trace_reset`
+- Track integration loading to avoid re-loading unnecessary ones #211
+
+### Changed
+- By default do not throw an exception when method or function doesn't exist
+
+### Fixed
+
+## [0.9.0]
+### Added
 - PHP code compatibility with PHP 5.4 #194
 - Move framework tests to tests root folder #198
 - Move integrations tests to tests root folder #200
@@ -10,13 +20,14 @@ All notable changes to this project will be documented in this file - [read more
 - Allow testing of multiple library versions #203
 - Migration from namespace based constants to class based constants for tags, formats and types #207
 - Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
-- Track integration loading to avoid re-loading unnecessary ones #211
+- Configurable autofinishing of unfinished spans on tracer flush #217
 
 ### Fixed
 - Predis integration supporting constructor options as an object #187 - thanks @raffaellopaletta
 - Properly set http status code tag in Laravel 4 integration #195
 - Agent calls traced when using Symfony 3 integration #197
 - Fix for trace and span ID's that were improperly serialized on the wire in distributed tracing contexts #204
+- Fix noop tracer issues with Laravel integration #220
 
 ## [0.8.1]
 ### Fixed
@@ -182,7 +193,8 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.9.0...HEAD
+[0.9.0]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/DataDog/dd-trace-php/compare/0.7.1...0.8.0
 [0.7.1]: https://github.com/DataDog/dd-trace-php/compare/0.7.0...0.7.1

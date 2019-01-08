@@ -4,7 +4,6 @@ namespace DDTrace\Tests\Integrations\Guzzle\V5;
 
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -109,6 +108,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         $client = new Client();
         $found = [];
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+            'isAutofinishSpansEnabled' => false,
             'isDistributedTracingEnabled' => false,
             'isPrioritySamplingEnabled' => false,
         ]));

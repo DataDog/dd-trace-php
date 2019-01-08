@@ -183,6 +183,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
     {
         $found = [];
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+            'isAutofinishSpansEnabled' => false,
             'isDistributedTracingEnabled' => false,
             'isPrioritySamplingEnabled' => false,
         ]));

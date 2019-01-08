@@ -2,7 +2,7 @@
 
 namespace DDTrace;
 
-use \DDTrace\Contracts\Span;
+use DDTrace\Contracts\Span;
 
 interface Encoder
 {
