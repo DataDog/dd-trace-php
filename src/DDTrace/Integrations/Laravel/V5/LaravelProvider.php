@@ -40,16 +40,7 @@ class LaravelProvider extends ServiceProvider
     /**  @inheritdoc */
     public function register()
     {
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
-            return;
-        }
-
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
-            return;
-        }
-
-        if (getenv('APP_ENV') != 'dd_testing' && php_sapi_name() == 'cli') {
+        if (!$this->shouldLoad()) {
             return;
         }
 
@@ -64,7 +55,7 @@ class LaravelProvider extends ServiceProvider
     /**  @inheritdoc */
     public function boot()
     {
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+        if (!$this->shouldLoad()) {
             return;
         }
 
@@ -167,6 +158,25 @@ class LaravelProvider extends ServiceProvider
             $scope->close();
             GlobalTracer::get()->flush();
         });
+    }
+
+    /**
+     * @return bool
+     */
+    private function shouldLoad()
+    {
+        if ('cli' === PHP_SAPI && 'dd_testing' !== getenv('APP_ENV')) {
+            return false;
+        }
+        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+            return false;
+        }
+        if (!extension_loaded('ddtrace')) {
+            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
+            return false;
+        }
+
+        return true;
     }
 
     private function getAppName()

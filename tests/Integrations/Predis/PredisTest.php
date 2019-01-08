@@ -5,6 +5,9 @@ namespace DDTrace\Tests\Integrations\Predis;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use Predis\Configuration\Options;
+use Predis\Response\Status;
+
 
 final class PredisTest extends IntegrationTestCase
 {
@@ -39,12 +42,28 @@ final class PredisTest extends IntegrationTestCase
         $this->assertGreaterThan(2, count($trace)); # two Redis operations -> at least 2 spans
     }
 
-    public function testPredisConstruct()
+    public function testPredisConstructOptionsAsArray()
     {
         $traces = $this->isolateTracer(function () {
             $client = new \Predis\Client([ "host" => $this->host ]);
             $this->assertNotNull($client);
         });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Predis.Client.__construct', 'redis', 'cache', 'Predis.Client.__construct')
+                ->withExactTags($this->baseTags()),
+        ]);
+    }
+
+    public function testPredisConstructOptionsAsObject()
+    {
+        $options = new Options();
+
+        $traces = $this->isolateTracer(function () use ($options) {
+            $client = new \Predis\Client([ "host" => $this->host ], $options);
+            $this->assertNotNull($client);
+        });
+
 
         $this->assertSpans($traces, [
             SpanAssertion::build('Predis.Client.__construct', 'redis', 'cache', 'Predis.Client.__construct')

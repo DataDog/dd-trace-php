@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Configuration;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
 use DDTrace\Tag;
@@ -9,9 +10,8 @@ use DDTrace\Tests\DebugTransport;
 use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
-use PHPUnit\Framework;
 
-final class TracerTest extends Framework\TestCase
+final class TracerTest extends BaseTestCase
 {
     const OPERATION_NAME = 'test_span';
     const ANOTHER_OPERATION_NAME = 'test_span2';
@@ -164,5 +164,35 @@ final class TracerTest extends Framework\TestCase
             'child_of' => $distributedTracingContext,
         ]);
         $this->assertSame(PrioritySampling::USER_REJECT, $tracer->getPrioritySampling());
+    }
+
+    public function testUnfinishedSpansAreNotSentOnFlush()
+    {
+        $transport = new DebugTransport();
+        $tracer = new Tracer($transport);
+        $tracer->startActiveSpan('root');
+        $tracer->startActiveSpan('child');
+
+        $tracer->flush();
+
+        $this->assertEmpty($transport->getTraces());
+    }
+
+    public function testUnfinishedSpansCanBeFinishedOnFlush()
+    {
+        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+            'isAutofinishSpansEnabled' => true,
+            'isPrioritySamplingEnabled' => false,
+        ]));
+
+        $transport = new DebugTransport();
+        $tracer = new Tracer($transport);
+        $tracer->startActiveSpan('root');
+        $tracer->startActiveSpan('child');
+
+        $tracer->flush();
+        $sent = $transport->getTraces();
+        $this->assertSame('root', $sent[0][0]->getOperationName());
+        $this->assertSame('child', $sent[0][1]->getOperationName());
     }
 }
