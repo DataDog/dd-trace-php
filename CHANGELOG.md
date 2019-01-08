@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 ### Added
+- Migration from namespace based constants to class based constants for tags, formats and types #207
 
 ### Fixed
 
@@ -12,7 +13,6 @@ All notable changes to this project will be documented in this file - [read more
 - Move framework tests to tests root folder #198
 - Move integrations tests to tests root folder #200
 - Allow testing of multiple library versions #203
-- Migration from namespace based constants to class based constants for tags, formats and types #207
 - Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
 - Configurable autofinishing of unfinished spans on tracer flush #217
 
