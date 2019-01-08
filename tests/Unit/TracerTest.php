@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Unit;
 use DDTrace\Configuration;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
-use DDTrace\Tags;
+use DDTrace\Tag;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Time;
 use DDTrace\Tracer;
@@ -29,7 +29,7 @@ final class TracerTest extends BaseTestCase
     public function testCreateSpanSuccessWithExpectedValues()
     {
         $tracer = new Tracer(new NoopTransport());
-        $startTime = Time\now();
+        $startTime = Time::now();
         $span = $tracer->startSpan(self::OPERATION_NAME, [
             'tags' => [
                 self::TAG_KEY => self::TAG_VALUE
@@ -50,14 +50,14 @@ final class TracerTest extends BaseTestCase
             'child_of' => $context,
         ]);
         $this->assertEquals($context->getSpanId(), $span->getParentId());
-        $this->assertNull($span->getTag(Tags\PID));
+        $this->assertNull($span->getTag(Tag::PID));
     }
 
     public function testStartSpanAsRootWithPid()
     {
         $tracer = new Tracer(new NoopTransport());
         $span = $tracer->startSpan(self::OPERATION_NAME);
-        $this->assertEquals(getmypid(), $span->getTag(Tags\PID));
+        $this->assertEquals(getmypid(), $span->getTag(Tag::PID));
     }
 
     public function testStartActiveSpan()
@@ -72,7 +72,7 @@ final class TracerTest extends BaseTestCase
         $tracer = new Tracer(new NoopTransport());
         $parentScope = $tracer->startActiveSpan(self::OPERATION_NAME);
         $parentSpan = $parentScope->getSpan();
-        $parentSpan->setTag(Tags\SERVICE_NAME, 'parent_service');
+        $parentSpan->setTag(Tag::SERVICE_NAME, 'parent_service');
         $childScope = $tracer->startActiveSpan(self::ANOTHER_OPERATION_NAME);
         $this->assertEquals($childScope, $tracer->getScopeManager()->getActive());
         $this->assertEquals($parentScope->getSpan()->getSpanId(), $childScope->getSpan()->getParentId());
