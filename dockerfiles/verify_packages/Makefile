@@ -1,15 +1,21 @@
-JESSIE_PHP_VERSIONS:=5.6.jessie 7.0.jessie 7.1.jessie 7.2.jessie
-STRETCH_PHP_VERSIONS:=5.6.stretch 7.0.stretch 7.1.stretch 7.2.stretch
-CENTOS6_PHP_VERSIONS=56.centos6 71.centos6 # 70.centos6 - 7.0 is no longer provided by the repository used in tests
-CENTOS7_PHP_VERSIONS=56.centos7 71.centos7 72.centos7 # 70.centos7
+JESSIE_PHP_VERSIONS:=7.0.jessie 7.1.jessie 7.2.jessie
+STRETCH_PHP_VERSIONS:=7.0.stretch 7.1.stretch 7.2.stretch
+#JESSIE_PHP_VERSIONS:=5.6.jessie 7.0.jessie 7.1.jessie 7.2.jessie
+#STRETCH_PHP_VERSIONS:=5.6.stretch 7.0.stretch 7.1.stretch 7.2.stretch
+CENTOS6_PHP_VERSIONS=71.centos6 # 70.centos6 - 7.0 is no longer provided by the repository used in tests
+CENTOS7_PHP_VERSIONS=71.centos7 72.centos7 # 70.centos7
+#CENTOS6_PHP_VERSIONS=56.centos6 71.centos6 # 70.centos6 - 7.0 is no longer provided by the repository used in tests
+#CENTOS7_PHP_VERSIONS=56.centos7 71.centos7 72.centos7 # 70.centos7
 CENTOS7_MANUAL_PHP_VERSIONS=71.centos7-compiled
-ALPINE_PHP_VERSIONS=5.6.alpine 7.0.alpine 7.1.alpine 7.2.alpine 5.6-zts.alpine 7.0-zts.alpine 7.1-zts.alpine 7.2-zts.alpine
+ALPINE_PHP_VERSIONS=7.0.alpine 7.1.alpine 7.2.alpine 7.0-zts.alpine 7.1-zts.alpine 7.2-zts.alpine
+#ALPINE_PHP_VERSIONS=5.6.alpine 7.0.alpine 7.1.alpine 7.2.alpine 5.6-zts.alpine 7.0-zts.alpine 7.1-zts.alpine 7.2-zts.alpine
 
 .PHONY: $(JESSIE_PHP_VERSIONS) $(STRETCH_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) $(CENTOS7_MANUAL_PHP_VERSIONS) all
 
-all: $(JESSIE_PHP_VERSIONS) $(CENTOS6_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS)
+all: $(JESSIE_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS)
+#all: $(JESSIE_PHP_VERSIONS) $(CENTOS6_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS)
 
-5.6: 56.centos6 56.centos7 5.6.stretch 5.6.jessie 5.6.alpine 5.6-zts.alpine
+#5.6: 56.centos6 56.centos7 5.6.stretch 5.6.jessie 5.6.alpine 5.6-zts.alpine
 
 $(JESSIE_PHP_VERSIONS): %.jessie:
 	@echo Building Debian Jessie - PHP $*
