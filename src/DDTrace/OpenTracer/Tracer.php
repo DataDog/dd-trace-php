@@ -62,7 +62,9 @@ final class Tracer implements OTTracer
     public function inject(OTSpanContext $spanContext, $format, &$carrier)
     {
         $this->tracer->inject(
-            SpanContext::toDDSpanContext($spanContext),
+            $spanContext instanceof SpanContext
+                ? $spanContext->unwrapped()
+                : SpanContext::toDDSpanContext($spanContext),
             $format,
             $carrier
         );
