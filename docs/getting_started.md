@@ -12,7 +12,28 @@ To provide a great out-of-the-box experience that automatically instruments comm
 
 Datadog’s PHP extension (`ddtrace`) allows introspection of arbitrary PHP code.
 
-At this moment it is only distributed in source code form, and requires manual compilation.
+The easiest way to install the extension is from [PECL](https://pecl.php.net/package/datadog_trace).
+
+```bash
+$ sudo pecl install datadog_trace-beta
+```
+
+If you don't have `pecl` installed, you can install the extension from a package download. First [download the appropriate package](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then install the package with one of the commands below.
+
+```bash
+# using RPM package (RHEL/Centos 6+, Fedora 20+)
+$ rpm -ivh datadog-php-tracer.rpm
+
+# using DEB package (Debian Jessie+ , Ubuntu 14.04+)
+$ deb -i datadog-php-tracer.deb
+
+# using APK package (Alpine)
+$ apk add datadog-php-tracer.apk --allow-untrusted
+
+# using tar.gz archive (Other distributions using libc6)
+$ tar -xf datadog-php-tracer.tar.gz -C /
+  /opt/datadog-php/bin/post-install.sh
+```
 
 ### Compiling and installing the extension manually
 
@@ -193,9 +214,10 @@ dd_trace("CustomDriver", "doWork", function (...$args) {
 
 It is possible to configure the agent connections parameters by means of env variables.
 
-| Env variable               | Default     | Note                                                |
-|----------------------------|-------------|-----------------------------------------------------|
-| `DD_TRACE_ENABLED`         | `true`      | Globally enables the tracer                         |
-| `DD_INTEGRATIONS_DISABLED` |             | CSV list of disabled extensions, e.g. `curl,mysqli` |
-| `DD_AGENT_HOST`            | `localhost` | The agent host name                                 |
-| `DD_TRACE_AGENT_PORT`      | `8126`      | The trace agent port number                         |
+| Env variable               | Default     | Note                                                                   |
+|----------------------------|-------------|------------------------------------------------------------------------|
+| `DD_TRACE_ENABLED`         | `true`      | Globally enables the tracer                                            |
+| `DD_INTEGRATIONS_DISABLED` |             | CSV list of disabled extensions, e.g. `curl,mysqli`                    |
+| `DD_AGENT_HOST`            | `localhost` | The agent host name                                                    |
+| `DD_TRACE_AGENT_PORT`      | `8126`      | The trace agent port number                                            |
+| `DD_AUTOFINISH_SPANS`      | `false`     | Whether or not spans are automatically finished when tracer is flushed |
