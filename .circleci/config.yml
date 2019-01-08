@@ -402,6 +402,8 @@ jobs:
 
   "artifact_build_base": &ARTIFACT_BUILD
     working_directory: ~/datadog
+    # This will be overridden
+    docker: [ image: 'circleci/php:7.2' ]
     steps:
       - checkout
       - attach_workspace:
