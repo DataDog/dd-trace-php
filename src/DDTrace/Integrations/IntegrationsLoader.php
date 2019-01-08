@@ -100,7 +100,8 @@ class IntegrationsLoader
             // If the integration has already been loaded, we don't need to reload it. On the other hand, with
             // auto-instrumentation this method may be called many times as the hook is the autoloader callback.
             // So we want to make sure that we do not load the same integration twice if not required.
-            if (in_array($this->getLoadingStatus($name), [Integration::LOADED, Integration::NOT_AVAILABLE])) {
+            $integrationLoadingStatus = $this->getLoadingStatus($name);
+            if (in_array($integrationLoadingStatus, [Integration::LOADED, Integration::NOT_AVAILABLE])) {
                 continue;
             }
 

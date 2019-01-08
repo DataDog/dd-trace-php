@@ -59,7 +59,8 @@
         ],
         "install-ext": "make -f DDMakefile install_ini install SUDO=sudo $*",
         "test-ext": "make -f DDMakefile test_c",
-        "test": "phpunit --colors=always --configuration=phpunit.xml",
+        "phpunit": "php -dddtrace.request_init_hook=/home/circleci/app/bridge/dd_wrap_autoloader.php vendor/bin/phpunit",
+        "test": "@phpunit --colors=always --configuration=phpunit.xml",
         "test-all": [
           "@test-all-56",
           "@test-all-70",

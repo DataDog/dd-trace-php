@@ -6,6 +6,11 @@ if (php_sapi_name() == 'cli' && getenv('APP_ENV') != 'dd_testing') {
 
 $dd_autoload_called = false;
 
+// Instead of tracing autoloaders statically, we should trace them dynamically. This can be done at the moment because
+// of https://github.com/DataDog/dd-trace-php/issues/224 and the fact that in some cases, e.g. Symfony's
+// `Symfony\Component\Config\Resource\ClassExistenceResource::throwOnRequiredClass` loaders are private.
+// As soon as this is fixed we can trace `spl_autoload_register` function and use it as a hook instead of
+// statically hooking into a limited number of class loaders.
 dd_trace('spl_autoload_register', function() use (&$dd_autoload_called) {
     $args = func_get_args();
 
