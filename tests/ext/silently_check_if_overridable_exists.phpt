@@ -1,5 +1,5 @@
 --TEST--
-Do not throw exceptions when veryfying if class/method and function existst.
+Do not throw exceptions when veryfying if class/method and function exists.
 --FILE--
 <?php
 
