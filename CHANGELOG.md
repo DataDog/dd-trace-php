@@ -3,7 +3,11 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 ### Added
+- Ability to reset all overrides via `dd_trace_reset`
 - Track integration loading to avoid re-loading unnecessary ones #211
+
+### Changed
+- By default do not throw an exception when method or function doesn't exist
 
 ### Fixed
 

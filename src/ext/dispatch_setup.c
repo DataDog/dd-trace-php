@@ -44,6 +44,11 @@ void ddtrace_dispatch_destroy(TSRMLS_D) {
     zend_hash_destroy(&DDTRACE_G(function_lookup));
 }
 
+void ddtrace_dispatch_reset(TSRMLS_D) {
+    zend_hash_clean(&DDTRACE_G(class_lookup));
+    zend_hash_clean(&DDTRACE_G(function_lookup));
+}
+
 void ddtrace_dispatch_inject() {
 /**
  * Replacing zend_execute_ex with anything other than original

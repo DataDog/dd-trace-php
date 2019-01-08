@@ -464,7 +464,7 @@ jobs:
       - setup_remote_docker
       - run:
           name: Test installing packages on target systems
-          command: make -j 2 -f dockerfiles/verify_packages/Makefile
+          command: make -f dockerfiles/verify_packages/Makefile
 
 workflows:
   version: 2
