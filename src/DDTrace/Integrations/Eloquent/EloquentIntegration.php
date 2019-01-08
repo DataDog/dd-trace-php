@@ -2,8 +2,9 @@
 
 namespace DDTrace\Integrations\Eloquent;
 
-use DDTrace\Tags;
-use DDTrace\Types;
+use DDTrace\Integrations\Integration;
+use DDTrace\Tag;
+use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 
@@ -15,7 +16,7 @@ class EloquentIntegration
     public static function load()
     {
         if (!class_exists('Illuminate\Database\Eloquent\Builder')) {
-            return;
+            return Integration::NOT_LOADED;
         }
 
         // getModels($columns = ['*'])
@@ -24,9 +25,9 @@ class EloquentIntegration
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.get');
             $span = $scope->getSpan();
             $sql = $this->getQuery()->toSql();
-            $span->setTag(Tags\RESOURCE_NAME, $sql);
-            $span->setTag(Tags\DB_STATEMENT, $sql);
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tag::RESOURCE_NAME, $sql);
+            $span->setTag(Tag::DB_STATEMENT, $sql);
+            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'getModels', $args);
         });
@@ -38,9 +39,9 @@ class EloquentIntegration
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.insert');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
-            $span->setTag(Tags\RESOURCE_NAME, $sql);
-            $span->setTag(Tags\DB_STATEMENT, $sql);
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tag::RESOURCE_NAME, $sql);
+            $span->setTag(Tag::DB_STATEMENT, $sql);
+            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'performInsert', $args);
         });
@@ -52,9 +53,9 @@ class EloquentIntegration
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.update');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
-            $span->setTag(Tags\RESOURCE_NAME, $sql);
-            $span->setTag(Tags\DB_STATEMENT, $sql);
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $span->setTag(Tag::RESOURCE_NAME, $sql);
+            $span->setTag(Tag::DB_STATEMENT, $sql);
+            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'performUpdate', $args);
         });
@@ -62,9 +63,11 @@ class EloquentIntegration
         // public function delete()
         dd_trace('Illuminate\Database\Eloquent\Model', 'delete', function () {
             $scope = GlobalTracer::get()->startActiveSpan('eloquent.delete');
-            $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\SQL);
+            $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::SQL);
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'delete', []);
         });
+
+        return Integration::LOADED;
     }
 }

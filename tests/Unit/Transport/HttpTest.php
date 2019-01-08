@@ -3,10 +3,10 @@
 namespace DDTrace\Tests\Unit\Transport;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Log\NullLogger;
 use DDTrace\Tests\Unit\CleanEnvTrait;
 use DDTrace\Transport\Http;
 use PHPUnit\Framework;
-use Psr\Log\NullLogger;
 
 final class HttpTest extends Framework\TestCase
 {

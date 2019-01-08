@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Integrations\Curl;
 
 use DDTrace\Configuration;
-use DDTrace\Formats;
+use DDTrace\Format;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -150,9 +150,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
     {
         $ch = curl_init(self::URL . '/status/200');
         curl_setopt($ch, CURLOPT_HTTPHEADER, []);
-        $this->assertNotSame('default', ArrayKVStore::getForResource($ch, Formats\CURL_HTTP_HEADERS, 'default'));
+        $this->assertNotSame('default', ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, 'default'));
         curl_close($ch);
-        $this->assertSame('default', ArrayKVStore::getForResource($ch, Formats\CURL_HTTP_HEADERS, 'default'));
+        $this->assertSame('default', ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, 'default'));
     }
 
     public function testDistributedTracingIsPropagated()

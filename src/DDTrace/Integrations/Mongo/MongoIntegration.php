@@ -3,8 +3,8 @@
 namespace DDTrace\Integrations\Mongo;
 
 use DDTrace\Span;
-use DDTrace\Tags;
-use DDTrace\Types;
+use DDTrace\Tag;
+use DDTrace\Type;
 use DDTrace\Integrations\Integration;
 
 final class MongoIntegration
@@ -14,11 +14,14 @@ final class MongoIntegration
     public static function load()
     {
         if (!extension_loaded('mongo')) {
-            return;
+            // Mongodb integration is provided through an extension and not through a class loader.
+            return Integration::NOT_AVAILABLE;
         }
         MongoClientIntegration::load();
         MongoDBIntegration::load();
         MongoCollectionIntegration::load();
+
+        return Integration::LOADED;
     }
 
     /**
@@ -28,7 +31,7 @@ final class MongoIntegration
     public static function setDefaultTags(Span $span, $method)
     {
         Integration::setDefaultTags($span, $method);
-        $span->setTag(Tags\SPAN_TYPE, Types\MONGO);
-        $span->setTag(Tags\SERVICE_NAME, 'mongo');
+        $span->setTag(Tag::SPAN_TYPE, Type::MONGO);
+        $span->setTag(Tag::SERVICE_NAME, 'mongo');
     }
 }

@@ -2,8 +2,9 @@
 
 namespace DDTrace\Integrations\Mysqli;
 
-use DDTrace\Tags;
-use DDTrace\Types;
+use DDTrace\Integrations\Integration;
+use DDTrace\Tag;
+use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
@@ -15,7 +16,8 @@ class MysqliIntegration
     public static function load()
     {
         if (!extension_loaded('mysqli')) {
-            return;
+            // Memcached is provided through an extension and not through a class loader.
+            return Integration::NOT_AVAILABLE;
         }
 
         // mysqli mysqli_connect ([ string $host = ini_get("mysqli.default_host")
@@ -271,6 +273,8 @@ class MysqliIntegration
         self::traceConstructorFetchMethod('fetch_fields');
         self::traceConstructorFetchMethod('fetch_object');
         self::traceConstructorFetchMethod('fetch_row');
+
+        return Integration::LOADED;
     }
 
     /**
@@ -350,9 +354,9 @@ class MysqliIntegration
         $scope = GlobalTracer::get()->startActiveSpan($operationName);
         /** @var \DDTrace\Span $span */
         $span = $scope->getSpan();
-        $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-        $span->setTag(Tags\SERVICE_NAME, 'mysqli');
-        $span->setTag(Tags\RESOURCE_NAME, $resource);
+        $span->setTag(Tag::SPAN_TYPE, Type::SQL);
+        $span->setTag(Tag::SERVICE_NAME, 'mysqli');
+        $span->setTag(Tag::RESOURCE_NAME, $resource);
         return $scope;
     }
 
