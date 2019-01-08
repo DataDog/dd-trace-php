@@ -2,7 +2,7 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Tags;
+use DDTrace\Tag;
 use DDTrace\Span;
 use OpenTracing\GlobalTracer;
 
@@ -91,6 +91,6 @@ abstract class Integration
      */
     public static function setDefaultTags(Span $span, $method)
     {
-        $span->setTag(Tags\RESOURCE_NAME, $method);
+        $span->setTag(Tag::RESOURCE_NAME, $method);
     }
 }

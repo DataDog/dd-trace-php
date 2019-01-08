@@ -5,10 +5,10 @@ namespace DDTrace\Integrations\Symfony\V4;
 use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
 use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Tags;
+use DDTrace\Tag;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-use DDTrace\Types;
+use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 use Symfony\Component\HttpFoundation\Request;
@@ -57,8 +57,8 @@ class SymfonyBundle extends Bundle
         // Create a span that starts from when Symfony first boots
         $scope = $tracer->startActiveSpan('symfony.request');
         $symfonyRequestSpan = $scope->getSpan();
-        $symfonyRequestSpan->setTag(Tags\SERVICE_NAME, $this->getAppName());
-        $symfonyRequestSpan->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+        $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $this->getAppName());
+        $symfonyRequestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
         dd_trace(
@@ -68,8 +68,8 @@ class SymfonyBundle extends Bundle
                 $args = func_get_args();
                 $request = $args[0];
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
-                $symfonyRequestSpan->setTag(Tags\HTTP_METHOD, $request->getMethod());
-                $symfonyRequestSpan->setTag(Tags\HTTP_URL, $request->getUriForPath($request->getPathInfo()));
+                $symfonyRequestSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
+                $symfonyRequestSpan->setTag(Tag::HTTP_URL, $request->getUriForPath($request->getPathInfo()));
 
                 $thrown = null;
                 $response = null;
@@ -84,7 +84,7 @@ class SymfonyBundle extends Bundle
                 $route = $request->get('_route');
 
                 if ($symfonyRequestSpan !== null && $route !== null) {
-                    $symfonyRequestSpan->setTag(Tags\RESOURCE_NAME, $route);
+                    $symfonyRequestSpan->setTag(Tag::RESOURCE_NAME, $route);
                 }
                 $scope->close();
 

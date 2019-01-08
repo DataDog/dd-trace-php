@@ -3,9 +3,9 @@
 namespace DDTrace\Integrations\Memcached;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Tags;
-use DDTrace\Types;
 use DDTrace\Obfuscation;
+use DDTrace\Tag;
+use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use OpenTracing\GlobalTracer;
 
@@ -113,10 +113,10 @@ class MemcachedIntegration
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan('Memcached.flush');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\MEMCACHED);
-            $span->setTag(Tags\SERVICE_NAME, 'memcached');
+            $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
+            $span->setTag(Tag::SERVICE_NAME, 'memcached');
             $span->setTag('memcached.command', 'flush');
-            $span->setTag(Tags\RESOURCE_NAME, 'flush');
+            $span->setTag(Tag::RESOURCE_NAME, 'flush');
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'flush', $args);
         });
@@ -226,15 +226,15 @@ class MemcachedIntegration
     {
         $scope = GlobalTracer::get()->startActiveSpan("Memcached.$command");
         $span = $scope->getSpan();
-        $span->setTag(Tags\SPAN_TYPE, Types\MEMCACHED);
-        $span->setTag(Tags\SERVICE_NAME, 'memcached');
+        $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
+        $span->setTag(Tag::SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', $command);
 
         if (!is_array($args[0])) {
             self::setServerTagsByKey($span, $memcached, $args[0]);
         }
         $span->setTag('memcached.query', "$command " . Obfuscation::toObfuscatedString($args[0]));
-        $span->setTag(Tags\RESOURCE_NAME, $command);
+        $span->setTag(Tag::RESOURCE_NAME, $command);
 
         return TryCatchFinally::executePublicMethod($scope, $memcached, $command, $args);
     }
@@ -243,14 +243,14 @@ class MemcachedIntegration
     {
         $scope = GlobalTracer::get()->startActiveSpan("Memcached.$command");
         $span = $scope->getSpan();
-        $span->setTag(Tags\SPAN_TYPE, Types\MEMCACHED);
-        $span->setTag(Tags\SERVICE_NAME, 'memcached');
+        $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
+        $span->setTag(Tag::SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', $command);
         $span->setTag('memcached.server_key', $args[0]);
         self::setServerTagsByKey($span, $memcached, $args[0]);
 
         $span->setTag('memcached.query', "$command " . Obfuscation::toObfuscatedString($args[1]));
-        $span->setTag(Tags\RESOURCE_NAME, $command);
+        $span->setTag(Tag::RESOURCE_NAME, $command);
 
         return TryCatchFinally::executePublicMethod($scope, $memcached, $command, $args);
     }
@@ -259,14 +259,14 @@ class MemcachedIntegration
     {
         $scope = GlobalTracer::get()->startActiveSpan('Memcached.cas');
         $span = $scope->getSpan();
-        $span->setTag(Tags\SPAN_TYPE, Types\MEMCACHED);
-        $span->setTag(Tags\SERVICE_NAME, 'memcached');
+        $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
+        $span->setTag(Tag::SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', 'cas');
         $span->setTag('memcached.cas_token', $args[0]);
 
         self::setServerTagsByKey($span, $memcached, $args[1]);
         $span->setTag('memcached.query', 'cas ?');
-        $span->setTag(Tags\RESOURCE_NAME, 'cas');
+        $span->setTag(Tag::RESOURCE_NAME, 'cas');
 
         return TryCatchFinally::executePublicMethod($scope, $memcached, 'cas', $args);
     }
@@ -275,15 +275,15 @@ class MemcachedIntegration
     {
         $scope = GlobalTracer::get()->startActiveSpan('Memcached.casByKey');
         $span = $scope->getSpan();
-        $span->setTag(Tags\SPAN_TYPE, Types\MEMCACHED);
-        $span->setTag(Tags\SERVICE_NAME, 'memcached');
+        $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
+        $span->setTag(Tag::SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', 'casByKey');
         $span->setTag('memcached.cas_token', $args[0]);
 
         $serverKey = $args[1];
         $span->setTag('memcached.server_key', $serverKey);
         $span->setTag('memcached.query', 'casByKey ?');
-        $span->setTag(Tags\RESOURCE_NAME, 'casByKey');
+        $span->setTag(Tag::RESOURCE_NAME, 'casByKey');
         self::setServerTagsByKey($span, $memcached, $serverKey);
 
         return TryCatchFinally::executePublicMethod($scope, $memcached, 'casByKey', $args);
@@ -293,13 +293,13 @@ class MemcachedIntegration
     {
         $scope = GlobalTracer::get()->startActiveSpan("Memcached.$command");
         $span = $scope->getSpan();
-        $span->setTag(Tags\SPAN_TYPE, Types\MEMCACHED);
-        $span->setTag(Tags\SERVICE_NAME, 'memcached');
+        $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
+        $span->setTag(Tag::SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', $command);
 
         $query = "$command " . Obfuscation::toObfuscatedString($args[0], ',');
         $span->setTag('memcached.query', $query);
-        $span->setTag(Tags\RESOURCE_NAME, $command);
+        $span->setTag(Tag::RESOURCE_NAME, $command);
 
         return TryCatchFinally::executePublicMethod($scope, $memcached, $command, $args);
     }
@@ -308,15 +308,15 @@ class MemcachedIntegration
     {
         $scope = GlobalTracer::get()->startActiveSpan("Memcached.$command");
         $span = $scope->getSpan();
-        $span->setTag(Tags\SPAN_TYPE, Types\MEMCACHED);
-        $span->setTag(Tags\SERVICE_NAME, 'memcached');
+        $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
+        $span->setTag(Tag::SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', $command);
         $span->setTag('memcached.server_key', $args[0]);
         self::setServerTagsByKey($span, $memcached, $args[0]);
 
         $query = "$command " . Obfuscation::toObfuscatedString($args[1], ',');
         $span->setTag('memcached.query', $query);
-        $span->setTag(Tags\RESOURCE_NAME, $command);
+        $span->setTag(Tag::RESOURCE_NAME, $command);
 
         return TryCatchFinally::executePublicMethod($scope, $memcached, $command, $args);
     }
@@ -333,7 +333,7 @@ class MemcachedIntegration
     private static function setServerTagsByKey($span, $memcached, $key)
     {
         $server = $memcached->getServerByKey($key);
-        $span->setTag(Tags\TARGET_HOST, $server['host']);
-        $span->setTag(Tags\TARGET_PORT, $server['port']);
+        $span->setTag(Tag::TARGET_HOST, $server['host']);
+        $span->setTag(Tag::TARGET_PORT, $server['port']);
     }
 }
