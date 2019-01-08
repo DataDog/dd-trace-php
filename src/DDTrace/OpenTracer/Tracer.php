@@ -2,7 +2,7 @@
 
 namespace DDTrace\OpenTracer;
 
-use DDTrace\Propagator;
+use DDTrace\Contracts\Tracer as TracerInterface;
 use DDTrace\Tracer as DDTracer;
 use DDTrace\Transport;
 use OpenTracing\ScopeManager as OTScopeManager;
@@ -12,7 +12,7 @@ use OpenTracing\Tracer as OTTracer;
 final class Tracer implements OTTracer
 {
     /**
-     * @var DDTracer
+     * @var TracerInterface
      */
     private $tracer;
 
@@ -22,13 +22,18 @@ final class Tracer implements OTTracer
     private $scopeManager;
 
     /**
-     * @param Transport $transport
-     * @param Propagator[] $propagators
-     * @param array $config
+     * @param TracerInterface|null $tracer
      */
-    public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
+    public function __construct(TracerInterface $tracer = null)
     {
-        $this->tracer = new DDTracer($transport, $propagators, $config);
+        $this->tracer = $tracer ?: self::make();
+    }
+
+    public static function make(Transport $transport = null, array $propagators = null, array $config = [])
+    {
+        return new self(
+            new DDTracer($transport, $propagators, $config)
+        );
     }
 
     /**

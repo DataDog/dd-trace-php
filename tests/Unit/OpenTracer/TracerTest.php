@@ -12,7 +12,7 @@ final class TracerTest extends TestCase
 
     public function testCreateSpanWithExpectedValues()
     {
-        $tracer = new Tracer(new Noop());
+        $tracer = Tracer::make(new Noop());
         $span = $tracer->startSpan(self::OPERATION_NAME);
 
         $this->assertEquals(self::OPERATION_NAME, $span->getOperationName());
