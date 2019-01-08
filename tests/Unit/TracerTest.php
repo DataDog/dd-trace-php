@@ -26,7 +26,7 @@ final class TracerTest extends BaseTestCase
     {
         return [
             [new Tracer(new NoopTransport())],
-            [new OpenTracer(new MockTracer())],
+//            [new OpenTracer(new MockTracer())],
         ];
     }
 
