@@ -39,4 +39,12 @@ final class ScopeManager implements OTScopeManager
     {
         return $this->scopeManager->getActive();
     }
+
+    /**
+     * @return ScopeManagerInterface
+     */
+    public function unwrapped()
+    {
+        return $this->scopeManager;
+    }
 }

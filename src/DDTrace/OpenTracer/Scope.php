@@ -43,4 +43,12 @@ final class Scope implements OTScope
         }
         return $this->span = new Span($this->scope->getSpan());
     }
+
+    /**
+     * @return ScopeInterface
+     */
+    public function unwrapped()
+    {
+        return $this->scope;
+    }
 }

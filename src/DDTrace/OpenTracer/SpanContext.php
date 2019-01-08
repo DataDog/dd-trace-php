@@ -47,6 +47,14 @@ final class SpanContext implements OTSpanContext
     }
 
     /**
+     * @return SpanContextInterface
+     */
+    public function unwrapped()
+    {
+        return $this->context;
+    }
+
+    /**
      * Converts an OpenTracing SpanContext instance to a DD one
      *
      * @param OTSpanContext $otContext

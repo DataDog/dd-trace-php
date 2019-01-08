@@ -104,4 +104,12 @@ final class Tracer implements OTTracer
     {
         return $this->tracer->getActiveSpan();
     }
+
+    /**
+     * @return TracerInterface
+     */
+    public function unwrapped()
+    {
+        return $this->tracer;
+    }
 }

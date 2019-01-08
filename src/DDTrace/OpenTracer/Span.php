@@ -96,6 +96,14 @@ final class Span implements OTSpan
     }
 
     /**
+     * @return SpanInterface
+     */
+    public function unwrapped()
+    {
+        return $this->span;
+    }
+
+    /**
      * Converts an OpenTracing Span instance to a DD one
      *
      * @param OTSpan $otSpan
