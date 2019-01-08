@@ -28,19 +28,30 @@
         UNUSED_1(y);      \
         UNUSED_1(z);      \
     } while (0)
-#define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, ARITY, ...) UNUSED_##ARITY
-#define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 3, 2, 1)(__VA_ARGS__)
+#define UNUSED_4(x, y, z, q) \
+    do {                     \
+        UNUSED_1(x);         \
+        UNUSED_1(y);         \
+        UNUSED_1(z);         \
+        UNUSED_1(q);         \
+    } while (0)
+#define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, _4, ARITY, ...) UNUSED_##ARITY
+#define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 4, 3, 2, 1)(__VA_ARGS__)
 
 #if PHP_VERSION_ID < 70000
 #define PHP5_UNUSED(...) UNUSED(__VA_ARGS__)
+#define PHP7_UNUSED(...) /* unused unused */
 #else
 #define PHP5_UNUSED(...) /* unused unused */
+#define PHP7_UNUSED(...) UNUSED(__VA_ARGS__)
 #endif
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
+STD_PHP_INI_ENTRY("ddtrace.ignore_missing_overridables", "1", PHP_INI_SYSTEM, OnUpdateBool, ignore_missing_overridables,
+                  zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
@@ -143,10 +154,13 @@ static PHP_FUNCTION(dd_trace) {
                                  &Z_STRVAL_P(function), &Z_STRLEN_P(function), &callable) != SUCCESS &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "sz", &Z_STRVAL_P(function),
                                  &Z_STRLEN_P(function), &callable) != SUCCESS) {
-        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                "unexpected parameter combination, expected (class, function, closure) "
-                                "or (function, closure)");
-        return;
+        if (!DDTRACE_G(ignore_missing_overridables)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "unexpected parameter combination, expected (class, function, closure) "
+                                    "or (function, closure)");
+        }
+
+        RETURN_BOOL(0);
     }
     DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
 
@@ -154,10 +168,12 @@ static PHP_FUNCTION(dd_trace) {
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "CSz", &clazz, &function, &callable) !=
             SUCCESS &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "Sz", &function, &callable) != SUCCESS) {
-        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0,
-                                "unexpected parameter combination, expected (class, function, closure) "
-                                "or (function, closure)");
-        return;
+        if (!DDTRACE_G(ignore_missing_overridables)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0,
+                                    "unexpected parameter combination, expected (class, function, closure) "
+                                    "or (function, closure)");
+        }
+        RETURN_BOOL(0);
     }
 #endif
     zend_bool rv = ddtrace_trace(clazz, function, callable TSRMLS_CC);
@@ -168,7 +184,20 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
-static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) ZEND_FE_END};
+static PHP_FUNCTION(dd_trace_reset) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
+
+    ddtrace_dispatch_reset();
+    RETURN_BOOL(1);
+}
+
+static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL)
+                                                            ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
