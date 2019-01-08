@@ -80,7 +80,7 @@ final class TracerTest extends BaseTestCase
     }
 
     /**
-     * @expectedException \OpenTracing\Exceptions\UnsupportedFormat
+     * @expectedException \DDTrace\Exceptions\UnsupportedFormat
      */
     public function testInjectThrowsUnsupportedFormatException()
     {
@@ -103,7 +103,7 @@ final class TracerTest extends BaseTestCase
     }
 
     /**
-     * @expectedException \OpenTracing\Exceptions\UnsupportedFormat
+     * @expectedException \DDTrace\Exceptions\UnsupportedFormat
      */
     public function testExtractThrowsUnsupportedFormatException()
     {

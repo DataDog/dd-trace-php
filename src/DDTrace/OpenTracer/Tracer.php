@@ -2,28 +2,33 @@
 
 namespace DDTrace\OpenTracer;
 
-use DDTrace\Contracts\SpanContext as SpanContextInterface;
-use DDTrace\Contracts\Tracer as TracerInterface;
-use OpenTracing\Tracer as OpenTracingTracer;
+use DDTrace\Propagator;
+use DDTrace\Tracer as DDTracer;
+use DDTrace\Transport;
+use OpenTracing\ScopeManager as OTScopeManager;
+use OpenTracing\SpanContext as OTSpanContext;
+use OpenTracing\Tracer as OTTracer;
 
-final class Tracer implements TracerInterface
+final class Tracer implements OTTracer
 {
     /**
-     * @var OpenTracingTracer
+     * @var DDTracer
      */
     private $tracer;
 
     /**
-     * @var ScopeManager
+     * @var OTScopeManager
      */
     private $scopeManager;
 
     /**
-     * @param OpenTracingTracer $tracer
+     * @param Transport $transport
+     * @param Propagator[] $propagators
+     * @param array $config
      */
-    public function __construct(OpenTracingTracer $tracer)
+    public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
-        $this->tracer = $tracer;
+        $this->tracer = new DDTracer($transport, $propagators, $config);
     }
 
     /**
@@ -49,10 +54,13 @@ final class Tracer implements TracerInterface
     /**
      * {@inheritdoc}
      */
-    public function inject(SpanContextInterface $spanContext, $format, &$carrier)
+    public function inject(OTSpanContext $spanContext, $format, &$carrier)
     {
-        // @TODO Wrap or implement this
-        $this->tracer->inject($spanContext, $format, $carrier);
+        $this->tracer->inject(
+            SpanContext::toDDSpanContext($spanContext),
+            $format,
+            $carrier
+        );
     }
 
     /**
@@ -90,14 +98,5 @@ final class Tracer implements TracerInterface
     public function getActiveSpan()
     {
         return $this->tracer->getActiveSpan();
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getPrioritySampling()
-    {
-        // @TODO Add support for priority sampling
-        return null;
     }
 }

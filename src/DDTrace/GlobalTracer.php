@@ -35,13 +35,14 @@ final class GlobalTracer
             self::$instance = $tracer;
             return;
         }
-        if ($tracer instanceof \OpenTracing\Tracer) {
-            self::$instance = new OpenTracer($tracer);
+        if ($tracer instanceof OpenTracer) {
+            self::$instance = null;
+            \OpenTracing\GlobalTracer::set($tracer);
             return;
         }
         throw new InvalidArgumentException(
             'Unable to set tracer singleton. Tracer must be an instance of '
-            . '"\DDTrace\Contracts\Tracer" or "\OpenTracing\Tracer".'
+            . '"\DDTrace\Contracts\Tracer" or "\DDTrace\OpenTracer\Tracer".'
         );
     }
 
