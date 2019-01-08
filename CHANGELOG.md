@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file - [read more
 - PHP code compatibility with PHP 5.4 #194
 - Move framework tests to tests root folder #198
 - Move integrations tests to tests root folder #200
+- Removal of external dependencies to support auto-instrumentation #206
 - Allow testing of multiple library versions #203
 - Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
 - Configurable autofinishing of unfinished spans on tracer flush #217
