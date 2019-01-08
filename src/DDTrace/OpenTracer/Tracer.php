@@ -75,7 +75,9 @@ final class Tracer implements OTTracer
      */
     public function extract($format, $carrier)
     {
-        return $this->tracer->extract($format, $carrier);
+        return new SpanContext(
+            $this->tracer->extract($format, $carrier)
+        );
     }
 
     /**
