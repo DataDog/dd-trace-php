@@ -17,8 +17,7 @@
    artifacts `datadog-php-tracer-<VERSION>-beta.x86_64.tar.gz`, `datadog-php-tracer-<VERSION>_beta-1.x86_64.rpm`,
    `datadog-php-tracer_<VERSION>-beta_amd64.deb`, `datadog-php-tracer_<VERSION>-beta_noarch.apk` and upload them to
    the release. Make sure the version number matches.
-1. Click `Update` from the admin view of the [datadog/dd-trace][packagist] package.
+1. Check the release page and share it with the team to make sure big mistakes are avoided :smile:.
+1. Publish it!
 1. Run `pear package` & upload release to PECL: https://pecl.php.net/release-upload.php
 1. Once the process is completed, close the milestone.
-
-[packagist]: https://packagist.org/packages/datadog/dd-trace
