@@ -18,7 +18,7 @@ use DDTrace\Contracts\Tracer as TracerInterface;
 
 final class Tracer implements TracerInterface
 {
-    const VERSION = '0.8.1-beta';
+    const VERSION = '0.9.0-beta';
 
     /**
      * @var Span[][]
@@ -262,13 +262,18 @@ final class Tracer implements TracerInterface
     {
         $tracesToBeSent = [];
 
+        $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
+
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
 
             foreach ($trace as $span) {
                 if (!$span->isFinished()) {
-                    $traceToBeSent = null;
-                    break;
+                    if (!$autoFinishSpans) {
+                        $traceToBeSent = null;
+                        break;
+                    }
+                    $span->finish();
                 }
                 $traceToBeSent[] = $span;
             }
