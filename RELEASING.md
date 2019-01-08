@@ -18,7 +18,7 @@
    `datadog-php-tracer_<VERSION>-beta_amd64.deb`, `datadog-php-tracer_<VERSION>-beta_noarch.apk` and upload them to
    the release. Make sure the version number matches.
 1. Click `Update` from the admin view of the [datadog/dd-trace][packagist] package.
-1. Once the process is completed, close the milestone.
 1. Run `pear package` & upload release to PECL: https://pecl.php.net/release-upload.php
+1. Once the process is completed, close the milestone.
 
 [packagist]: https://packagist.org/packages/datadog/dd-trace
