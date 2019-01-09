@@ -99,7 +99,7 @@ For more information about configuration and specific framework integrations, ch
 
 ### Advanced configuration
 
-> **Note:** As ddtrace is modeled off of [OpenTracing](https://opentracing.io/), it is recommended to read the [OpenTracing specification](https://github.com/opentracing/specification/blob/master/specification.md) to familiarize yourself with distributed tracing concepts.
+> **Note:** As ddtrace is modeled off of [OpenTracing](https://opentracing.io/), it is recommended to read the [OpenTracing specification](https://github.com/opentracing/specification/blob/master/specification.md) to familiarize yourself with distributed tracing concepts. The ddtrace package also provides an [OpenTracing-compatible tracer](docs/open_tracing.md).
 
 The transport can be customized by the config parameters:
 
@@ -138,22 +138,7 @@ $tracer = new Tracer(
 
 ### OpenTracing
 
-The following documentation is specific to the OpenTracing package, but many of the concepts work the same for the ddtrace extension.
-
-#### Creating Spans
-
-- [Starting a root span](https://github.com/opentracing/opentracing-php#starting-an-empty-trace-by-creating-a-root-span)
-- [Starting a span for a given request](https://github.com/opentracing/opentracing-php#creating-a-span-given-an-existing-request)
-- [Active span and scope manager](https://github.com/opentracing/opentracing-php#active-spans-and-scope-manager)
-  - [Creating a child span assigning parent manually](https://github.com/opentracing/opentracing-php#creating-a-child-span-assigning-parent-manually)
-  - [Creating a child span using automatic active span management](https://github.com/opentracing/opentracing-php#creating-a-child-span-using-automatic-active-span-management)
-- [Using span options](https://github.com/opentracing/opentracing-php#using-span-options)
-
-#### Propagation of context
-
-- [Serializing context to the wire](https://github.com/opentracing/opentracing-php#serializing-to-the-wire)
-- [Deserializing context from the wire](https://github.com/opentracing/opentracing-php#deserializing-from-the-wire)
-- [Propagation formats](https://github.com/opentracing/opentracing-php#propagation-formats)
+The ddtrace package provides an [OpenTracing-compatible tracer](docs/open_tracing.md).
 
 ## Contributing
 
