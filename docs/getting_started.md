@@ -187,7 +187,7 @@ For Symfony Flex applications, add the bundle in `config/bundles.php`:
 If you are using another framework or CMS that is not listed above, you can manually instrument the tracer with one line in early script execution.
 
 ```php
-\DDTrace\Tracer::init('my_base_trace');
+\DDTrace\Tracer::init('My Application');
 ```
 
 Amongst other things, this method sets a global singleton instance of the tracer which can be accessed at any time via `\DDTrace\GlobalTracer::get()`.
@@ -202,7 +202,6 @@ The `DDTrace\Tracer::init()` method takes an array as the second parameter which
 
 | Name           | Type                      | Value                                       | Default
 | -------------- | ------------------------- | ------------------------------------------- | -------------------------------------------------------
-| `service_name` | `string`                  | The name of the application                 | `PHP_SAPI`
 | `global_tags`  | `array`                   | Tags that will be added to every span       | `[]`
 | `debug`        | `bool`                    | Toggle debug mode                           | `false`
 | `logger`       | `Psr\Log\LoggerInterface` | An instance of a [PSR-3] logger.            | `null`
@@ -214,10 +213,10 @@ The `DDTrace\Tracer::init()` method takes an array as the second parameter which
 
 ```php
 \DDTrace\Tracer::init(
-    'my_base_trace',
+    'My Application',
     [
-        'service_name' => 'My Application',
         'global_tags' => ['foo' => 'bar'],
+        'debug' => true,
         'transport' => new DDTrace\Stream(new DDTrace\Json()),
     ]
 );
