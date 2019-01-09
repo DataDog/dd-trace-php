@@ -4,6 +4,7 @@ namespace DDTrace;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Formats;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
@@ -13,6 +14,7 @@ use DDTrace\Tags;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
+use OpenTracing\GlobalTracer;
 use OpenTracing\Reference;
 use OpenTracing\SpanContext as OpenTracingContext;
 use OpenTracing\StartSpanOptions;
@@ -90,6 +92,35 @@ final class Tracer implements OpenTracingTracer
         $this->config = array_merge($this->config, $config);
         $this->globalConfig = Configuration::get();
         $this->sampler = new AlwaysKeepSampler();
+    }
+
+    /**
+     * @param string $serviceName The application name
+     * @param array $config An array of config values
+     * @return void
+     */
+    public static function init($serviceName, array $config = [])
+    {
+        $transport = null;
+        if (isset($config['transport'])) {
+            $transport = $config['transport'];
+            unset($config['transport']);
+        }
+        $propagators = null;
+        if (isset($config['propagators'])) {
+            $propagators = $config['propagators'];
+            unset($config['propagators']);
+        }
+        $config['service_name'] = $serviceName;
+        $tracer = new self($transport, $propagators, $config);
+        GlobalTracer::set($tracer);
+        // @TODO StartSpanOptionsFactory::createFor{WebRequest|CLI}
+        // @TODO startActiveSpan('web.request|cli.command', $startSpanOptions);
+        IntegrationsLoader::load();
+        register_shutdown_function(function () {
+            // @TODO $scope->close();
+            GlobalTracer::get()->flush();
+        });
     }
 
     /**
