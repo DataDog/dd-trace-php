@@ -113,7 +113,11 @@ final class Tracer implements OTTracer
      */
     public function getActiveSpan()
     {
-        return $this->tracer->getActiveSpan();
+        $activeSpan = $this->tracer->getActiveSpan();
+        if (null === $activeSpan) {
+            return null;
+        }
+        return new Span($activeSpan);
     }
 
     /**
