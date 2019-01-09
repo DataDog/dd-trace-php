@@ -3,20 +3,20 @@
 namespace DDTrace\OpenTracer;
 
 use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
-use DDTrace\Contracts\Span as SpanInterface;
-use OpenTracing\ScopeManager as OpenTracingScopeManager;
+use OpenTracing\ScopeManager as OTScopeManager;
+use OpenTracing\Span as OTSpan;
 
-final class ScopeManager implements ScopeManagerInterface
+final class ScopeManager implements OTScopeManager
 {
     /**
-     * @var OpenTracingScopeManager
+     * @var ScopeManagerInterface
      */
     private $scopeManager;
 
     /**
-     * @param OpenTracingScopeManager $scopeManager
+     * @param ScopeManagerInterface $scopeManager
      */
-    public function __construct(OpenTracingScopeManager $scopeManager)
+    public function __construct(ScopeManagerInterface $scopeManager)
     {
         $this->scopeManager = $scopeManager;
     }
@@ -24,10 +24,12 @@ final class ScopeManager implements ScopeManagerInterface
     /**
      * {@inheritdoc}
      */
-    public function activate(SpanInterface $span, $finishSpanOnClose = self::DEFAULT_FINISH_SPAN_ON_CLOSE)
+    public function activate(OTSpan $span, $finishSpanOnClose = true)
     {
-        // @TODO Wrap this or implement here
-        return $this->scopeManager->activate($span, $finishSpanOnClose);
+        return $this->scopeManager->activate(
+            Span::toDDSpan($span),
+            $finishSpanOnClose
+        );
     }
 
     /**
@@ -35,6 +37,16 @@ final class ScopeManager implements ScopeManagerInterface
      */
     public function getActive()
     {
-        return $this->scopeManager->getActive();
+        return new Scope(
+            $this->scopeManager->getActive()
+        );
+    }
+
+    /**
+     * @return ScopeManagerInterface
+     */
+    public function unwrapped()
+    {
+        return $this->scopeManager;
     }
 }

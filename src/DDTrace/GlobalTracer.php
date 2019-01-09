@@ -9,7 +9,6 @@ namespace DDTrace;
 
 use DDTrace\Contracts\Tracer as TracerInterface;
 use DDTrace\OpenTracer\Tracer as OpenTracer;
-use InvalidArgumentException;
 
 final class GlobalTracer
 {
@@ -25,24 +24,16 @@ final class GlobalTracer
      * start a new span. Prior to calling GlobalTracer::set, any Spans started
      * via the `Tracer::startActiveSpan` (etc) globals are noops.
      *
-     * @param TracerInterface|\OpenTracing\Tracer $tracer
-     *
-     * @throws InvalidArgumentException
+     * @param TracerInterface $tracer
      */
-    public static function set($tracer)
+    public static function set(TracerInterface $tracer)
     {
-        if ($tracer instanceof TracerInterface) {
-            self::$instance = $tracer;
-            return;
+        self::$instance = $tracer;
+        if (class_exists('\OpenTracing\GlobalTracer')) {
+            \OpenTracing\GlobalTracer::set(
+                new OpenTracer($tracer)
+            );
         }
-        if ($tracer instanceof \OpenTracing\Tracer) {
-            self::$instance = new OpenTracer($tracer);
-            return;
-        }
-        throw new InvalidArgumentException(
-            'Unable to set tracer singleton. Tracer must be an instance of '
-            . '"\DDTrace\Contracts\Tracer" or "\OpenTracing\Tracer".'
-        );
     }
 
     /**

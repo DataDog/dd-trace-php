@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Changed
 - By default do not throw an exception when method or function doesn't exist
+- Migration from namespace based constants to class based constants for tags, formats and types #207
+- Track integration loading to avoid re-loading unnecessary ones #211
+- Documenting release steps #223
 
 ### Fixed
 

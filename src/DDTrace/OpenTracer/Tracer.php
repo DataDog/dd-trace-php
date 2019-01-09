@@ -2,28 +2,38 @@
 
 namespace DDTrace\OpenTracer;
 
-use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Contracts\Tracer as TracerInterface;
-use OpenTracing\Tracer as OpenTracingTracer;
+use DDTrace\Tracer as DDTracer;
+use DDTrace\Transport;
+use OpenTracing\ScopeManager as OTScopeManager;
+use OpenTracing\SpanContext as OTSpanContext;
+use OpenTracing\Tracer as OTTracer;
 
-final class Tracer implements TracerInterface
+final class Tracer implements OTTracer
 {
     /**
-     * @var OpenTracingTracer
+     * @var TracerInterface
      */
     private $tracer;
 
     /**
-     * @var ScopeManager
+     * @var OTScopeManager
      */
     private $scopeManager;
 
     /**
-     * @param OpenTracingTracer $tracer
+     * @param TracerInterface|null $tracer
      */
-    public function __construct(OpenTracingTracer $tracer)
+    public function __construct(TracerInterface $tracer = null)
     {
-        $this->tracer = $tracer;
+        $this->tracer = $tracer ?: self::make();
+    }
+
+    public static function make(Transport $transport = null, array $propagators = null, array $config = [])
+    {
+        return new self(
+            new DDTracer($transport, $propagators, $config)
+        );
     }
 
     /**
@@ -49,10 +59,15 @@ final class Tracer implements TracerInterface
     /**
      * {@inheritdoc}
      */
-    public function inject(SpanContextInterface $spanContext, $format, &$carrier)
+    public function inject(OTSpanContext $spanContext, $format, &$carrier)
     {
-        // @TODO Wrap or implement this
-        $this->tracer->inject($spanContext, $format, $carrier);
+        $this->tracer->inject(
+            $spanContext instanceof SpanContext
+                ? $spanContext->unwrapped()
+                : SpanContext::toDDSpanContext($spanContext),
+            $format,
+            $carrier
+        );
     }
 
     /**
@@ -60,7 +75,9 @@ final class Tracer implements TracerInterface
      */
     public function extract($format, $carrier)
     {
-        $this->tracer->extract($format, $carrier);
+        return new SpanContext(
+            $this->tracer->extract($format, $carrier)
+        );
     }
 
     /**
@@ -93,11 +110,10 @@ final class Tracer implements TracerInterface
     }
 
     /**
-     * @return mixed
+     * @return TracerInterface
      */
-    public function getPrioritySampling()
+    public function unwrapped()
     {
-        // @TODO Add support for priority sampling
-        return null;
+        return $this->tracer;
     }
 }

@@ -3,14 +3,14 @@
 namespace DDTrace\Tests\Integrations\Guzzle\V5;
 
 use DDTrace\Configuration;
-use DDTrace\GlobalTracer;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\Tests\Common\IntegrationTestCase;
-use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tracer;
 use GuzzleHttp\Client;
 use GuzzleHttp\Message\Request;
 use GuzzleHttp\Ring\Client\MockHandler;
+use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\IntegrationTestCase;
+use DDTrace\GlobalTracer;
 
 final class GuzzleIntegrationTest extends IntegrationTestCase
 {

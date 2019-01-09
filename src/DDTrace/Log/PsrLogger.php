@@ -2,23 +2,26 @@
 
 namespace DDTrace\Log;
 
-use Psr\Log\LoggerInterface as PsrLoggerInterface;
-
 /**
  * An implementation of the DDTrace\LoggerInterface that uses Psr\Log under the hood.
  */
 class PsrLogger implements LoggerInterface
 {
     /**
-     * @var PsrLoggerInterface
+     * @var \Psr\Log\LoggerInterface
      */
     private $psrLogger = null;
 
     /**
-     * @param PsrLoggerInterface $psrLogger
+     * @param \Psr\Log\LoggerInterface $psrLogger
      */
-    public function __construct(PsrLoggerInterface $psrLogger)
+    public function __construct($psrLogger)
     {
+        if (!is_a($psrLogger, '\Psr\Log\LoggerInterface')) {
+            throw new \InvalidArgumentException(
+                '\DDTrace\Log\PsrLogger constructor arg must implement \Psr\Log\LoggerInterface'
+            );
+        }
         $this->psrLogger = $psrLogger;
     }
 

@@ -7,6 +7,8 @@ use DDTrace\GlobalTracer;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tag;
 use DDTrace\Time;
+use DDTrace\Tracer;
+use DDTrace\Transport\Http;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use Illuminate\Support\Facades\Route;

@@ -3,6 +3,7 @@
 namespace DDTrace;
 
 use DDTrace\Contracts\Span as SpanInterface;
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use Exception;
 use InvalidArgumentException;
@@ -20,7 +21,7 @@ final class Span implements SpanInterface
     private $operationName;
 
     /**
-     * @var SpanContext
+     * @var SpanContextInterface
      */
     private $context;
 
@@ -78,14 +79,14 @@ final class Span implements SpanInterface
     /**
      * Span constructor.
      * @param string $operationName
-     * @param SpanContext $context
+     * @param SpanContextInterface $context
      * @param string $service
      * @param string $resource
      * @param int|null $startTime
      */
     public function __construct(
         $operationName,
-        SpanContext $context,
+        SpanContextInterface $context,
         $service,
         $resource,
         $startTime = null

@@ -3,12 +3,12 @@
 namespace DDTrace\OpenTracer;
 
 use DDTrace\Contracts\Scope as ScopeInterface;
-use OpenTracing\Scope as OpenTracingScope;
+use OpenTracing\Scope as OTScope;
 
-final class Scope implements ScopeInterface
+final class Scope implements OTScope
 {
     /**
-     * @var OpenTracingScope
+     * @var ScopeInterface
      */
     private $scope;
 
@@ -18,9 +18,9 @@ final class Scope implements ScopeInterface
     private $span;
 
     /**
-     * @param OpenTracingScope $scope
+     * @param ScopeInterface $scope
      */
-    public function __construct(OpenTracingScope $scope)
+    public function __construct(ScopeInterface $scope)
     {
         $this->scope = $scope;
     }
@@ -42,5 +42,13 @@ final class Scope implements ScopeInterface
             return $this->span;
         }
         return $this->span = new Span($this->scope->getSpan());
+    }
+
+    /**
+     * @return ScopeInterface
+     */
+    public function unwrapped()
+    {
+        return $this->scope;
     }
 }

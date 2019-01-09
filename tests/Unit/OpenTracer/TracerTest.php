@@ -1,20 +1,19 @@
 <?php
 
-namespace DDTrace\Tests\Unit;
+namespace DDTrace\Tests\Unit\OpenTracer;
 
 use DDTrace\Configuration;
-use DDTrace\Contracts\Tracer as TracerInterface;
-use DDTrace\OpenTracer\Tracer as OpenTracer;
+use DDTrace\OpenTracer\SpanContext;
+use DDTrace\OpenTracer\Tracer;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\SpanContext;
+use DDTrace\SpanContext as DDSpanContext;
 use DDTrace\Tag;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Time;
-use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
-use OpenTracing\Mock\MockTracer;
+use PHPUnit\Framework\TestCase;
 
-final class TracerTest extends BaseTestCase
+final class TracerTest extends TestCase
 {
     const OPERATION_NAME = 'test_span';
     const ANOTHER_OPERATION_NAME = 'test_span2';
@@ -22,76 +21,73 @@ final class TracerTest extends BaseTestCase
     const TAG_VALUE = 'test_value';
     const FORMAT = 'test_format';
 
-    public function tracerImplementations()
+    public function testCreateSpanWithExpectedValues()
     {
-        return [
-            [new Tracer(new NoopTransport())],
-            [new OpenTracer(new MockTracer())],
-        ];
-    }
-
-    public function testStartSpanAsNoop()
-    {
-        $tracer = Tracer::noop();
-        $span = $tracer->startSpan(self::OPERATION_NAME);
-        $this->assertInstanceOf('DDTrace\NoopSpan', $span);
-    }
-
-    /**
-     * @dataProvider tracerImplementations
-     * @param TracerInterface $tracer
-     */
-    public function testCreateSpanSuccessWithExpectedValues(TracerInterface $tracer)
-    {
-        $tracer = new Tracer(new NoopTransport());
+        $tracer = Tracer::make(new NoopTransport());
         $startTime = Time::now();
-        $span = $tracer->startSpan(self::OPERATION_NAME, [
-            'tags' => [
-                self::TAG_KEY => self::TAG_VALUE
-            ],
-            'start_time' => $startTime,
-        ]);
+        $span = $tracer
+            ->startSpan(self::OPERATION_NAME, [
+                'tags' => [
+                    self::TAG_KEY => self::TAG_VALUE
+                ],
+                'start_time' => $startTime,
+            ])
+            ->unwrapped();
 
-        $this->assertEquals(self::OPERATION_NAME, $span->getOperationName());
-        $this->assertEquals(self::TAG_VALUE, $span->getTag(self::TAG_KEY));
-        $this->assertEquals($startTime, $span->getStartTime());
+        $this->assertSame(self::OPERATION_NAME, $span->getOperationName());
+        $this->assertSame(self::TAG_VALUE, $span->getTag(self::TAG_KEY));
+        $this->assertSame($startTime, $span->getStartTime());
     }
 
     public function testStartSpanAsChild()
     {
-        $context = SpanContext::createAsRoot();
-        $tracer = new Tracer(new NoopTransport());
-        $span = $tracer->startSpan(self::OPERATION_NAME, [
-            'child_of' => $context,
-        ]);
-        $this->assertEquals($context->getSpanId(), $span->getParentId());
+        $context = DDSpanContext::createAsRoot();
+        $tracer = Tracer::make(new NoopTransport());
+        $span = $tracer
+            ->startSpan(self::OPERATION_NAME, [
+                'child_of' => $context,
+            ])
+            ->unwrapped();
+        $this->assertSame($context->getSpanId(), $span->getParentId());
         $this->assertNull($span->getTag(Tag::PID));
     }
 
     public function testStartSpanAsRootWithPid()
     {
-        $tracer = new Tracer(new NoopTransport());
-        $span = $tracer->startSpan(self::OPERATION_NAME);
-        $this->assertEquals(getmypid(), $span->getTag(Tag::PID));
+        $tracer = Tracer::make(new NoopTransport());
+        $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
+        $this->assertSame((string) getmypid(), $span->getTag(Tag::PID));
     }
 
     public function testStartActiveSpan()
     {
-        $tracer = new Tracer(new NoopTransport());
+        $tracer = Tracer::make(new NoopTransport());
         $scope = $tracer->startActiveSpan(self::OPERATION_NAME);
-        $this->assertEquals($scope, $tracer->getScopeManager()->getActive());
+        $this->assertSame(
+            $scope->unwrapped(),
+            $tracer->getScopeManager()->getActive()->unwrapped()
+        );
     }
 
     public function testStartActiveSpanAsChild()
     {
-        $tracer = new Tracer(new NoopTransport());
+        $tracer = Tracer::make(new NoopTransport());
         $parentScope = $tracer->startActiveSpan(self::OPERATION_NAME);
         $parentSpan = $parentScope->getSpan();
         $parentSpan->setTag(Tag::SERVICE_NAME, 'parent_service');
         $childScope = $tracer->startActiveSpan(self::ANOTHER_OPERATION_NAME);
-        $this->assertEquals($childScope, $tracer->getScopeManager()->getActive());
-        $this->assertEquals($parentScope->getSpan()->getSpanId(), $childScope->getSpan()->getParentId());
-        $this->assertEquals($parentScope->getSpan()->getService(), $childScope->getSpan()->getService());
+        $this->assertSame(
+            $childScope->unwrapped(),
+            $tracer->getScopeManager()->getActive()->unwrapped()
+        );
+        $this->assertSame(
+            $parentScope->getSpan()->unwrapped()->getSpanId(),
+            $childScope->getSpan()->unwrapped()->getParentId()
+        );
+        $this->assertSame(
+            $parentScope->getSpan()->unwrapped()->getService(),
+            $childScope->getSpan()->unwrapped()->getService()
+        );
     }
 
     /**
@@ -99,21 +95,24 @@ final class TracerTest extends BaseTestCase
      */
     public function testInjectThrowsUnsupportedFormatException()
     {
-        $context = SpanContext::createAsRoot();
         $carrier = [];
 
-        $tracer = new Tracer(new NoopTransport());
-        $tracer->inject($context, self::FORMAT, $carrier);
+        $tracer = Tracer::make(new NoopTransport());
+        $tracer->inject(
+            new SpanContext(DDSpanContext::createAsRoot()),
+            self::FORMAT,
+            $carrier
+        );
     }
 
     public function testInjectCallsTheRightInjector()
     {
-        $context = SpanContext::createAsRoot();
+        $context = new SpanContext(DDSpanContext::createAsRoot());
         $carrier = [];
 
         $propagator = $this->prophesize('DDTrace\Propagator');
-        $propagator->inject($context, $carrier)->shouldBeCalled();
-        $tracer = new Tracer(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
+        $propagator->inject($context->unwrapped(), $carrier)->shouldBeCalled();
+        $tracer = Tracer::make(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
         $tracer->inject($context, self::FORMAT, $carrier);
     }
 
@@ -123,41 +122,41 @@ final class TracerTest extends BaseTestCase
     public function testExtractThrowsUnsupportedFormatException()
     {
         $carrier = [];
-        $tracer = new Tracer(new NoopTransport());
+        $tracer = Tracer::make(new NoopTransport());
         $tracer->extract(self::FORMAT, $carrier);
     }
 
     public function testExtractCallsTheRightExtractor()
     {
-        $expectedContext = SpanContext::createAsRoot();
+        $expectedContext = DDSpanContext::createAsRoot();
         $carrier = [];
 
         $propagator = $this->prophesize('DDTrace\Propagator');
         $propagator->extract($carrier)->shouldBeCalled()->willReturn($expectedContext);
-        $tracer = new Tracer(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
+        $tracer = Tracer::make(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
         $actualContext = $tracer->extract(self::FORMAT, $carrier);
-        $this->assertEquals($expectedContext, $actualContext);
+        $this->assertSame($expectedContext, $actualContext->unwrapped());
     }
 
     public function testOnlyFinishedTracesAreBeingSent()
     {
         $transport = $this->prophesize('DDTrace\Transport');
-        $tracer = new Tracer($transport->reveal());
+        $tracer = Tracer::make($transport->reveal());
         $span = $tracer->startSpan(self::OPERATION_NAME);
         $tracer->startSpan(self::ANOTHER_OPERATION_NAME, [
-            'child_of' => $span,
+            'child_of' => $span->unwrapped(),
         ]);
         $span->finish();
 
         $span2 = $tracer->startSpan(self::OPERATION_NAME);
         $span3 = $tracer->startSpan(self::ANOTHER_OPERATION_NAME, [
-            'child_of' => $span2,
+            'child_of' => $span2->unwrapped(),
         ]);
         $span2->finish();
         $span3->finish();
 
         $transport->send([
-            [$span2, $span3],
+            [$span2->unwrapped(), $span3->unwrapped()],
         ])->shouldBeCalled();
 
         $tracer->flush();
@@ -165,26 +164,32 @@ final class TracerTest extends BaseTestCase
 
     public function testPrioritySamplingIsAssigned()
     {
-        $tracer = new Tracer(new DebugTransport());
+        $tracer = Tracer::make(new DebugTransport());
         $tracer->startSpan(self::OPERATION_NAME);
-        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
+        $this->assertSame(
+            PrioritySampling::AUTO_KEEP,
+            $tracer->unwrapped()->getPrioritySampling()
+        );
     }
 
     public function testPrioritySamplingInheritedFromDistributedTracingContext()
     {
-        $distributedTracingContext = new SpanContext('', '', '', [], true);
+        $distributedTracingContext = new DDSpanContext('', '', '', [], true);
         $distributedTracingContext->setPropagatedPrioritySampling(PrioritySampling::USER_REJECT);
-        $tracer = new Tracer(new DebugTransport());
+        $tracer = Tracer::make(new DebugTransport());
         $tracer->startSpan(self::OPERATION_NAME, [
             'child_of' => $distributedTracingContext,
         ]);
-        $this->assertSame(PrioritySampling::USER_REJECT, $tracer->getPrioritySampling());
+        $this->assertSame(
+            PrioritySampling::USER_REJECT,
+            $tracer->unwrapped()->getPrioritySampling()
+        );
     }
 
     public function testUnfinishedSpansAreNotSentOnFlush()
     {
         $transport = new DebugTransport();
-        $tracer = new Tracer($transport);
+        $tracer = Tracer::make($transport);
         $tracer->startActiveSpan('root');
         $tracer->startActiveSpan('child');
 
@@ -201,7 +206,7 @@ final class TracerTest extends BaseTestCase
         ]));
 
         $transport = new DebugTransport();
-        $tracer = new Tracer($transport);
+        $tracer = Tracer::make($transport);
         $tracer->startActiveSpan('root');
         $tracer->startActiveSpan('child');
 

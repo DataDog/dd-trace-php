@@ -21,12 +21,12 @@ abstract class Integration
     public static function load()
     {
         if (!class_exists(static::CLASS_NAME)) {
-            return Integration::NOT_LOADED;
+            return self::NOT_LOADED;
         }
         // See comment on the commented out abstract function definition.
         static::loadIntegration();
 
-        return Integration::LOADED;
+        return self::LOADED;
     }
 
     /**
