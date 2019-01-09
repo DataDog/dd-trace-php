@@ -1,17 +1,17 @@
-# Upgrade to 0.9
+# Upgrade to 0.10
 
-Before `0.9.0`, ddtrace required the `opentracing/opentracing` dependency but this requirement as been removed. In order to remove the dependency completely, you'll need to update all references to the OpenTracing API's.
+Before `0.10.0`, ddtrace required the `opentracing/opentracing` dependency but this requirement has been removed. In order to remove the dependency completely, you'll need to update all references to the OpenTracing API's.
 
 ## Setting the singleton
 
 The main change that will affect most people is getting and setting the tracer singleton. This is now done with `DDTrace\GlobalTracer` instead of `OpenTracing\GlobalTracer`.
 
 ```php
-# ddtrace 0.8 and below
+# ddtrace 0.9 and below
 use OpenTracing\GlobalTracer;
 GlobalTracer::set($tracer);
 
-# ddtrace 0.9 and above
+# ddtrace 0.10 and above
 use DDTrace\GlobalTracer;
 GlobalTracer::set($tracer);
 ```
@@ -20,7 +20,7 @@ GlobalTracer::set($tracer);
 
 All of the OpenTracing interfaces and classes were moved under the `DDTrace` namespace.
 
-| ddtrace 0.8 and below          | ddtrace 0.9
+| ddtrace 0.9 and below          | ddtrace 0.10
 | ------------------------------ | ------------------------------
 | `OpenTracing\GlobalTracer`     | `DDTrace\GlobalTracer`
 | `OpenTracing\Formats`          | `DDTrace\Formats`
