@@ -138,4 +138,9 @@ class IntegrationsLoader
     {
         self::get()->loadAll();
     }
+
+    public function reset()
+    {
+        $this->integrations = [];
+    }
 }

@@ -7,15 +7,15 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 class TestCase extends BaseTestCase {
 
-	/**
-	 * Creates the application.
-	 *
-	 * @return \Symfony\Component\HttpKernel\HttpKernelInterface
-	 */
-	public function createApplication()
-	{
-		$testEnvironment = 'dd_testing';
+    /**
+     * Creates the application.
+     *
+     * @return \Symfony\Component\HttpKernel\HttpKernelInterface
+     */
+    public function createApplication()
+    {
+        $testEnvironment = 'dd_testing';
 
-		return require __DIR__.'/../../bootstrap/start.php';
-	}
+        return require __DIR__.'/../../bootstrap/start.php';
+    }
 }

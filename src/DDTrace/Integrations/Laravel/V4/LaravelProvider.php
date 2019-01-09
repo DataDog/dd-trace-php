@@ -32,6 +32,8 @@ class LaravelProvider extends ServiceProvider
 {
     const NAME = 'laravel';
 
+    public $rootScope;
+
     /** @inheritdoc */
     public function register()
     {
@@ -40,21 +42,13 @@ class LaravelProvider extends ServiceProvider
         }
 
         $this->app->instance('DDTrace\Tracer', GlobalTracer::get());
-    }
-
-    /** @inheritdoc */
-    public function boot()
-    {
-        if (!$this->shouldLoad()) {
-            return;
-        }
 
         $appName = $this->getAppName();
         $tracer = GlobalTracer::get();
-        $rootScope = null;
+        $self = $this;
 
         // Root request span
-        dd_trace('Illuminate\Foundation\Application', 'handle', function () use ($appName, $tracer, &$rootScope) {
+        dd_trace('\Illuminate\Foundation\Application', 'handle', function () use ($appName, $tracer, $self) {
             $args = func_get_args();
             $request = $args[0];
             $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
@@ -66,9 +60,9 @@ class LaravelProvider extends ServiceProvider
             );
 
             // Create a span that starts from when Laravel first boots (public/index.php)
-            $rootScope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
+            $self->rootScope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
 
-            $requestSpan = $rootScope->getSpan();
+            $requestSpan = $self->rootScope->getSpan();
             $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
             $requestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
 
@@ -77,12 +71,22 @@ class LaravelProvider extends ServiceProvider
 
             return $response;
         });
+    }
+
+    /** @inheritdoc */
+    public function boot()
+    {
+        if (!$this->shouldLoad()) {
+            return;
+        }
+
+        $self = $this;
 
         // Name the scope when the route matches
-        $this->app['events']->listen('router.matched', function () use (&$rootScope) {
+        $this->app['events']->listen('router.matched', function () use ($self) {
             $args = func_get_args();
             list($route, $request) = $args;
-            $span = $rootScope->getSpan();
+            $span = $self->rootScope->getSpan();
 
             $span->setTag(Tag::RESOURCE_NAME, $route->getActionName() . ' ' . Route::currentRouteName());
             $span->setTag('laravel.route.name', $route->getName());

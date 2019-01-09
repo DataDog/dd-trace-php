@@ -16,14 +16,19 @@ class Bootstrap
         }
 
         self::$bootstrapped = true;
+        self::resetTracer();
 
-        $tracer = new Tracer(new Http(new Json()));
-        GlobalTracer::set($tracer);
-
-        register_shutdown_function(function() use ($tracer) {
+        register_shutdown_function(function() {
+            $tracer = GlobalTracer::get();
             $scopeManager = $tracer->getScopeManager();
             $scopeManager->close();
             $tracer->flush();
         });
+    }
+
+    public static function resetTracer()
+    {
+        $tracer = new Tracer(new Http(new Json()));
+        GlobalTracer::set($tracer);
     }
 }
