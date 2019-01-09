@@ -182,6 +182,79 @@ For Symfony Flex applications, add the bundle in `config/bundles.php`:
     ];
 ```
 
+#### Manual instrumentation
+
+If you are using another framework or CMS that is not listed above, you can manually instrument the tracer with one line in early script execution.
+
+```php
+\DDTrace\Tracer::init('my_base_trace');
+```
+
+Amongst other things, this method sets a global singleton instance of the tracer which can be accessed at any time via `\DDTrace\GlobalTracer::get()`.
+
+```php
+$tracer = \DDTrace\GlobalTracer::get();
+```
+
+##### Configuration settings
+
+The `DDTrace\Tracer::init()` method takes an array as the second parameter which accepts a number of config values.
+
+| Name           | Type                      | Value                                       | Default
+| -------------- | ------------------------- | ------------------------------------------- | -------------------------------------------------------
+| `service_name` | `string`                  | The name of the application                 | `PHP_SAPI`
+| `global_tags`  | `array`                   | Tags that will be added to every span       | `[]`
+| `debug`        | `bool`                    | Toggle debug mode                           | `false`
+| `logger`       | `Psr\Log\LoggerInterface` | An instance of a [PSR-3] logger.            | `null`
+| `enabled`      | `bool`                    | If `false`, use a no-op tracer              | `true`
+| `transport`    | `DDTrace\Transport`       | The `Transport` instance to use             | `new DDTrace\Http(new DDTrace\Json())`
+| `propagators`  | `DDTrace\Propagator[]`    | An array of `Propagator` instances          | The text-map, HTTP-headers, and curl-headers propagators
+
+[PSR-3]: https://www.php-fig.org/psr/psr-3/
+
+```php
+\DDTrace\Tracer::init(
+    'my_base_trace',
+    [
+        'service_name' => 'My Application',
+        'global_tags' => ['foo' => 'bar'],
+        'transport' => new DDTrace\Stream(new DDTrace\Json()),
+    ]
+);
+```
+
+#### Manual instrumentation (wrapping)
+
+If you need more flexibility, you can manually instantiate a tracer and wrap your application code with a [root span](https://docs.datadoghq.com/tracing/visualization/#spans) from the [tracer](https://docs.datadoghq.com/tracing/visualization/#trace).
+
+```php
+use DDTrace\Tracer;
+use OpenTracing\GlobalTracer;
+use DDTrace\Integrations\IntegrationsLoader;
+
+// Creates a tracer with default transport and propagators
+$tracer = new Tracer();
+
+// Sets a global tracer (singleton)
+GlobalTracer::set($tracer);
+// Flushes traces to agent on script shutdown
+register_shutdown_function(function() {
+    GlobalTracer::get()->flush();
+});
+
+// Enable the built-in integrations
+IntegrationsLoader::load();
+
+// Start a root span
+$span = $tracer->startSpan('my_base_trace');
+
+// Run your application here
+// $myApplication->run();
+
+// Close the root span after the application code has finished
+$span->finish();
+```
+
 #### Adding tracing to a custom function or method
 
 To add spans for another function or method, you can use `dd_trace` to open a span before the code executes, close it when it’s done, set additional tags or errors on the span, and for more advanced usage, modify either the arguments or the return value.

@@ -82,35 +82,21 @@ Once the `ddtrace` extension and Composer package is installed, you can start tr
 
 ### Manual instrumentation
 
-If you are using another framework or CMS that is not listed above, you can manually instrument the tracer by wrapping your application code with a [root span](https://docs.datadoghq.com/tracing/visualization/#spans) from the [tracer](https://docs.datadoghq.com/tracing/visualization/#trace).
+If you are using another framework or CMS that is not listed above, you can manually instrument the tracer with one line in early script execution.
 
 ```php
-use DDTrace\Tracer;
-use OpenTracing\GlobalTracer;
-use DDTrace\Integrations\IntegrationsLoader;
-
-// Creates a tracer with default transport and propagators
-$tracer = new Tracer();
-
-// Sets a global tracer (singleton)
-GlobalTracer::set($tracer);
-// Flushes traces to agent on script shutdown
-register_shutdown_function(function() {
-    GlobalTracer::get()->flush();
-});
-
-// Enable the built-in integrations
-IntegrationsLoader::load();
-
-// Start a root span
-$span = $tracer->startSpan('my_base_trace');
-
-// Run your application here
-// $myApplication->run();
-
-// Close the root span after the application code has finished
-$span->finish();
+\DDTrace\Tracer::init('my_base_trace');
 ```
+
+The `Tracer::init()` method has an optional second parameter of [configuration settings](docs/getting_started.md#configuration-settings).
+
+Amongst other things, this method sets a global singleton instance of the tracer which can be accessed at any time via `\DDTrace\GlobalTracer::get()`.
+
+```php
+$tracer = \DDTrace\GlobalTracer::get();
+```
+
+### Setting the API key
 
 Notice we didn't specify an [API key](https://app.datadoghq.com/account/settings#api) or any web endpoints. That's because the API key is set at the [agent layer](https://docs.datadoghq.com/agent/?tab=agentv6), so the PHP code just needs to know the hostname and port of the agent to send traces to Datadog. By default the PHP tracer will assume the agent hostname is `localhost` and the port is `8126`. If you need to change these values, check out the [configuration documentation](docs/getting_started.md#configuration).
 
