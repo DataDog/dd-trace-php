@@ -27,7 +27,9 @@ final class ScopeManager implements OTScopeManager
     public function activate(OTSpan $span, $finishSpanOnClose = true)
     {
         return $this->scopeManager->activate(
-            Span::toDDSpan($span),
+            $span instanceof Span ?
+                $span->unwrapped()
+                : Span::toDDSpan($span),
             $finishSpanOnClose
         );
     }
