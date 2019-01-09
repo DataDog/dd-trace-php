@@ -145,7 +145,7 @@ The tracer can be customized by the config settings:
 
 ```php
 use DDTrace\Tracer;
-use DDTrace\Formats;
+use DDTrace\Format;
 
 // Config for tracer
 $config = [
@@ -156,7 +156,7 @@ $config = [
 
 $tracer = new Tracer(
     $transport,
-    [ Formats\TEXT_MAP => $textMap ],
+    [ Format::TEXT_MAP => $textMap ],
     $config
 );
 ```
