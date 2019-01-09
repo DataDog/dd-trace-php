@@ -37,9 +37,11 @@ final class ScopeManager implements OTScopeManager
      */
     public function getActive()
     {
-        return new Scope(
-            $this->scopeManager->getActive()
-        );
+        $activeScope = $this->scopeManager->getActive();
+        if (null === $activeScope) {
+            return null;
+        }
+        return new Scope($activeScope);
     }
 
     /**
