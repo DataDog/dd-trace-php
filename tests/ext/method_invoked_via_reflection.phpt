@@ -1,5 +1,5 @@
 --TEST--
-Check if we can override method from a parent class in a descendant class
+Method invoked via refloction correctly returning created object
 --FILE--
 <?php
 class Test {
@@ -15,15 +15,12 @@ class Test {
     public function create($append = ""){
         return new Test($append);
     }
-
 }
 
 dd_trace("Test", "__construct", function ($append = "") {
     $this->__construct($append);
     echo "HOOK CONSTRUCT" . $this->append . PHP_EOL;
 });
-
-
 
 $reflectionMethod = new ReflectionMethod('Test', 'method');
 $reflectionCreate = new ReflectionMethod('Test', 'create');
@@ -33,7 +30,7 @@ echo $a->method();
 echo $reflectionMethod->invoke($a, " called via reflection");
 
 $obj = $reflectionCreate->invoke($a, " created via reflection");
-$obj->method();
+echo $obj->method();
 
 ?>
 --EXPECT--

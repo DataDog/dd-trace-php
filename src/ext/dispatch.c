@@ -119,9 +119,9 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         }
         goto _exit_cleanup;
     }
-       if (return_value_ptr && *return_value_ptr) {
-            Z_DELREF_P(*return_value_ptr);
-        }
+    // if (return_value_ptr && *return_value_ptr) {
+    //     Z_DELREF_P(*return_value_ptr);
+    // }
 
     ddtrace_setup_fcall(execute_data, &fci, return_value_ptr TSRMLS_CC);
 
@@ -129,7 +129,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     }
     if (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) {
         // zval_ptr_dtor(EG(return_value_ptr_ptr));
-        EG(return_value_ptr_ptr) = NULL;
+        // EG(return_value_ptr_ptr) = NULL;
     }
 
 
@@ -361,6 +361,23 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         DD_PRINTF("ETF %0lx", EX(object));
         DD_PRINTF("Starting handler for %s#%s", common_scope, function_name);
 
+
+		if (RETURN_VALUE_USED(opline)) {
+			temp_variable *ret = &EX_T(opline->result.var);
+
+            if (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)){
+                ret->var.ptr = *EG(return_value_ptr_ptr);
+			    ret->var.ptr_ptr = EG(return_value_ptr_ptr);
+            } else {
+    			ret->var.ptr = NULL;
+	    		ALLOC_INIT_ZVAL(ret->var.ptr);
+			    ret->var.ptr_ptr = &ret->var.ptr;
+            }
+
+			ret->var.fcall_returned_reference = (fbc->common.fn_flags & ZEND_ACC_RETURN_REFERENCE) != 0;
+			return_value = ret->var.ptr_ptr;
+		}
+
         execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
 
         DD_PRINTF("ETF %0lx", EX(object));
@@ -369,14 +386,16 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             // EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
             // EX_T(opline->result.var).var.ptr_ptr = return_value;
         }
-        if (!RETURN_VALUE_USED(opline)) {
-                // zval_ptr_dtor(&EX_T(opline->result.var).var.ptr);
-            } else {
-                // Z_UNSET_ISREF_P(EX_T(opline->result.var).var.ptr);
-                // Z_SET_REFCOUNT_P(EX_T(opline->result.var).var.ptr, 1);
-                EX_T(opline->result.var).var.fcall_returned_reference = 0;
-                EX_T(opline->result.var).var.ptr_ptr = &EX_T(opline->result.var).var.ptr;
-            }
+
+
+        // if (!RETURN_VALUE_USED(opline)) {
+        //         // zval_ptr_dtor(&EX_T(opline->result.var).var.ptr);
+        //     } else {
+        //         // Z_UNSET_ISREF_P(EX_T(opline->result.var).var.ptr);
+        //         // Z_SET_REFCOUNT_P(EX_T(opline->result.var).var.ptr, 1);
+        //         EX_T(opline->result.var).var.fcall_returned_reference = 0;
+        //         EX_T(opline->result.var).var.ptr_ptr = &EX_T(opline->result.var).var.ptr;
+        //     }
 
 		// EG(scope) = EX(current_scope);
 		// EG(called_scope) = EX(current_called_scope);
@@ -391,9 +410,10 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
 	    //
 
-        EG(return_value_ptr_ptr) = return_value;
+        // EG(return_value_ptr_ptr) = return_value;
 
 #else
+
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
         execute_fcall(dispatch, EX(call), &return_value TSRMLS_CC);
 #endif
@@ -402,11 +422,11 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
         if (!RETURN_VALUE_USED(opline)) {
             // zval_dtor(return_value);
-            if (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)){
-                zval_ptr_dtor(EG(return_value_ptr_ptr));
-            }
+            // if (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)){
+            //     zval_ptr_dtor(EG(return_value_ptr_ptr));
+            // }
 
-            EG(return_value_ptr_ptr) = NULL;
+            // EG(return_value_ptr_ptr) = NULL;
         }
 	    if (UNEXPECTED(EG(exception) != NULL)) {
         }
@@ -506,7 +526,7 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 	EG(active_op_array) = EX(op_array);
 
     EX(original_return_value) = NULL;
-    EG(return_value_ptr_ptr) = NULL;
+    // EG(return_value_ptr_ptr) = NULL;
 
     EG(active_symbol_table) = EX(symbol_table);
 
