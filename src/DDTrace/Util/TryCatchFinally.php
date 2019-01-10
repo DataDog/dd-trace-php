@@ -62,9 +62,12 @@ class TryCatchFinally
         $result = null;
         /** @var SpanInterface $span */
         $span = $scope->getSpan();
-        $instance_call_user_func_array = (function ($fn, $args) {
+        $call_user_func_array = function ($fn, $args) {
             return call_user_func_array($fn, $args);
-        })->bindTo($instance, $callingScope);
+        };
+
+        $instance_call_user_func_array->bindTo($instance, $callingScope);
+
         try {
             $result = $instance_call_user_func_array([$instance, $method], $args);
             if ($afterResult) {
