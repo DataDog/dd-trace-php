@@ -14,6 +14,7 @@ x-aliases:
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
         - ddagent_integration
+        - request_dumper
         - elasticsearch2_integration
         - httpbin_integration
         - redis_integration
@@ -83,3 +84,13 @@ services:
       - DD_API_KEY=invalid_key_but_its_ok
     ports:
       - "8126:8126"
+
+  request_dumper:
+    image: php:7.2
+    volumes:
+      - ./tests/request_dumper:/var/www
+      - ./.request_dumper_data:/tmp/dump
+    working_dir: /var/www
+    ports:
+      - 9000:80
+    command: php -S 0.0.0.0:80 -t /var/www
