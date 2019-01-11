@@ -13,6 +13,7 @@ use OpenTracing\GlobalTracer;
 
 trait TracerTestTrait
 {
+    protected static $agentRequestDumperUrl = 'http://request_dumper';
     private $dumpFilePath = __DIR__ . '/../../.request_dumper_data/dump.json';
 
     /**
@@ -42,7 +43,7 @@ trait TracerTestTrait
     {
         // TODO: delete file before request
         // file_delete($this->dumpFilePath);
-        $transport = new Http(new Json(), null, ['endpoint' => 'request_dumper']);
+        $transport = new Http(new Json(), null, ['endpoint' => self::$agentRequestDumperUrl]);
         $tracer = $tracer ?: new Tracer($transport);
         GlobalTracer::set($tracer);
 
@@ -62,6 +63,10 @@ trait TracerTestTrait
      */
     private function parseTracesFromDumpedData()
     {
+        if (!file_exists($this->dumpFilePath)) {
+            return [];
+        }
+
         $loaded = json_decode(file_get_contents($this->dumpFilePath), true);
         $rawTraces = json_decode($loaded['body'], true);
         $traces = [];
