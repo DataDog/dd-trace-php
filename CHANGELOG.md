@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file - [read more
 - By default do not throw an exception when method or function doesn't exist
 
 ### Fixed
+- Eloquent integration calling protected `performInsert` method
 
 ## [0.9.0]
 ### Added
