@@ -3,6 +3,7 @@
 $requestLog = '/tmp/dump/dump.json';
 
 $requests = file_exists($requestLog) ? json_decode(file_get_contents($requestLog), true) : [];
+
 $requests[] = [
     'uri' => $_SERVER['REQUEST_URI'],
     'headers' => getallheaders(),

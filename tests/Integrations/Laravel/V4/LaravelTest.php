@@ -37,17 +37,19 @@ final class LaravelTest extends WebFrameworkTestCase
                             'laravel.route.name' => 'simple_route',
                             'laravel.route.action' => 'HomeController@simple',
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost/simple',
+                            'http.url' => 'http://localhost:9999/simple',
                             'http.status_code' => '200',
                         ]),
+                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple'),
                     SpanAssertion::exists('laravel.event.handle'),
                 ],
                 'A simple GET request with a view' => [
-                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.request'),
+                    SpanAssertion::exists('laravel.event.handle'),
+                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.action'),
@@ -57,15 +59,15 @@ final class LaravelTest extends WebFrameworkTestCase
                     SpanAssertion::exists('laravel.event.handle'),
                 ],
                 'A GET request with an exception' => [
-                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@error error')
                         ->withExactTags([
                             'laravel.route.name' => 'error',
                             'laravel.route.action' => 'HomeController@error',
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost/error',
+                            'http.url' => 'http://localhost:9999/error',
                             'http.status_code' => '500'
                         ]),
+                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::build('laravel.action', 'laravel', 'web', 'error')

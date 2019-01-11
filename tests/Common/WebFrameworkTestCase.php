@@ -6,7 +6,6 @@ use DDTrace\Tests\Frameworks\Util\CommonScenariosDataProviderTrait;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use DDTrace\Tests\WebServer;
-use Symfony\Component\Process\Process;
 
 /**
  * A basic class to be extended when testing web frameworks integrations.
@@ -16,11 +15,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     use CommonScenariosDataProviderTrait;
 
     const PORT = 9999;
-
-//    /**
-//     * @var Process
-//     */
-//    private static $fakeAgent;
 
     /**
      * @var WebServer|null
@@ -47,11 +41,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     protected static function setUpWebServer()
     {
         $rootPath = static::getAppRootPath();
-        error_log("Root path....$rootPath");
         if ($rootPath) {
-            self::$appServer = new WebServer($rootPath, 'localhost', self::PORT);
+            self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT);
             self::$appServer->start();
-            error_log("Server started....");
         }
     }
 
@@ -64,13 +56,12 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
     protected function call(RequestSpec $spec)
     {
-        $url = 'localhost:' . self::PORT . $spec->getPath();
+        $url = 'http://127.0.0.1:' . self::PORT . $spec->getPath();
+        error_log("Url: " . print_r($url, 1));
         if ($spec instanceof GetSpec) {
-            error_log("Url: $url");
             $response = $this->sendRequest('GET', $url);
-            error_log("Done: $url");
-            // TODO: restore ....
-            // $this->assertSame($spec->getStatusCode(), $response->getStatusCode());
+            sleep(1);
+            return $response;
         } else {
             $this->fail('Unhandled request spec type');
         }
@@ -78,19 +69,23 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
     protected function sendRequest($method, $url)
     {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
+        $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($ch);
 
         if ($response === false) {
-            $this->fail(sprintf(
+            $message = sprintf(
                 'Failed web request to \'%s\': %s, error code %s',
                 $url,
                 curl_error($ch),
                 curl_errno($ch)
-            ));
+            );
+            curl_close($ch);
+            $this->fail($message);
+            return null;
         }
+
+        curl_close($ch);
 
         return $response;
     }

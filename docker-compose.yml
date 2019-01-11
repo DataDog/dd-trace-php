@@ -93,4 +93,4 @@ services:
     working_dir: /var/www
     ports:
       - 9000:80
-    command: php -S 0.0.0.0:80 -t /var/www
+    command: php -S 0.0.0.0:80 /var/www/index.php

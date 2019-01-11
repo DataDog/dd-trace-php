@@ -16,6 +16,14 @@ trait TracerTestTrait
     protected static $agentRequestDumperUrl = 'http://request_dumper';
     private $dumpFilePath = __DIR__ . '/../../.request_dumper_data/dump.json';
 
+    protected function setUp()
+    {
+        parent::setUp();
+        if (file_exists($this->dumpFilePath)) {
+            unlink($this->dumpFilePath);
+        }
+    }
+
     /**
      * @param $fn
      * @param null $tracer
@@ -67,15 +75,25 @@ trait TracerTestTrait
             return [];
         }
 
+        // For now we only support asserting traces against one dump at a time.
+        // TODO: understand why we get
         $loaded = json_decode(file_get_contents($this->dumpFilePath), true);
-        $rawTraces = json_decode($loaded['body'], true);
+        if (count($loaded) == 1) {
+            $rawTraces = json_decode($loaded[0]['body'], true);
+        } elseif (count($loaded) == 2) {
+            $rawTraces = json_decode($loaded[1]['body'], true);
+        } else {
+            throw new \Exception('Spans dumps of more than one trace not handled at the moment.');
+        }
+
         $traces = [];
         foreach ($rawTraces as $spansInTrace) {
             $spans = [];
             foreach ($spansInTrace as $rawSpan) {
                 $spanContext = new SpanContext(
                     $rawSpan['trace_id'],
-                    $rawSpan['span_id']
+                    $rawSpan['span_id'],
+                    isset($rawSpan['parent_id']) ? $rawSpan['parent_id'] : null
                 );
                 $span = new Span(
                     $rawSpan['name'],
@@ -115,6 +133,11 @@ trait TracerTestTrait
     private function setRawPropertyFromArray($obj, array $data, $property, $field = null, $converter = null)
     {
         $field = $field ?: $property;
+
+        if (!isset($data[$field])) {
+            return;
+        }
+
         $reflection = new \ReflectionObject($obj);
         $property = $reflection->getProperty($property);
         $convertedValue = $converter ? call_user_func($converter, $data[$field]) : $data[$field];
