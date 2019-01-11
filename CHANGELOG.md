@@ -6,8 +6,13 @@ All notable changes to this project will be documented in this file - [read more
 - Migration from namespace based constants to class based constants for tags, formats and types #207
 - Track integration loading to avoid re-loading unnecessary ones #211
 - Documenting release steps #223
+- Ability to reset all overrides via `dd_trace_reset`
+
+### Changed
+- By default do not throw an exception when method or function doesn't exist
 
 ### Fixed
+- Eloquent integration calling protected `performInsert` method
 
 ## [0.9.0]
 ### Added

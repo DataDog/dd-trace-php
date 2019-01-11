@@ -16,4 +16,6 @@ int ddtrace_wrap_fcall(zend_execute_data *TSRMLS_DC);
 void ddtrace_dispatch_init();
 void ddtrace_dispatch_inject();
 void ddtrace_dispatch_destroy();
+void ddtrace_dispatch_reset();
+
 #endif  // DISPATCH_H

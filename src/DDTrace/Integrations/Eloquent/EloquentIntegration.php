@@ -42,7 +42,7 @@ class EloquentIntegration
             $span->setTag(Tag::DB_STATEMENT, $sql);
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
-            return TryCatchFinally::executePublicMethod($scope, $this, 'performInsert', $args);
+            return TryCatchFinally::executeAnyMethod($scope, $this, 'performInsert', $args);
         });
 
         // performUpdate(Builder $query)
@@ -56,7 +56,7 @@ class EloquentIntegration
             $span->setTag(Tag::DB_STATEMENT, $sql);
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
-            return TryCatchFinally::executePublicMethod($scope, $this, 'performUpdate', $args);
+            return TryCatchFinally::executeAnyMethod($scope, $this, 'performUpdate', $args);
         });
 
         // public function delete()
