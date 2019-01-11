@@ -60,7 +60,7 @@ class TryCatchFinally
     {
         $thrown = null;
         $result = null;
-        /** @var SpanInterface $span */
+        /** @var Span $span */
         $span = $scope->getSpan();
 
         try {
