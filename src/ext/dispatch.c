@@ -99,15 +99,17 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 #endif
 
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
-        if (func->common.scope) {
-            zend_throw_exception_ex(
-                spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "cannot use return value set for %s::%s as function: %s",
-                STRING_VAL(func->common.scope->name), STRING_VAL(func->common.function_name), error);
-        } else {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "cannot use return value set for %s as function: %s",
-                                    STRING_VAL(func->common.function_name), error);
+        if (!DDTRACE_G(ignore_missing_overridables)) {
+            if (func->common.scope) {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                        "cannot set override for %s::%s - %s", STRING_VAL(func->common.scope->name),
+                                        STRING_VAL(func->common.function_name), error);
+            } else {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "cannot set override for %s - %s",
+                                        STRING_VAL(func->common.function_name), error);
+            }
         }
+
         if (error) {
             efree(error);
         }

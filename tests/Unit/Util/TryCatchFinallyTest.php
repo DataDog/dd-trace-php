@@ -186,8 +186,17 @@ namespace DDTrace\Tests\Unit\Util {
             }
             $this->assertTrue($scope->getSpan()->hasError());
         }
-    }
 
+        public function testExecuteProtectedMethod()
+        {
+            $instance = new DummyClass();
+            $scope = $this->tracer->startActiveSpan('my.operation');
+            $this->assertStringStartsWith(
+                'protected result ',
+                TryCatchFinally::executeAnyMethod($scope, $instance, 'protectedMethod', ['1', '2'])
+            );
+        }
+    }
     class CustomException extends \Exception
     {
     }
@@ -202,6 +211,16 @@ namespace DDTrace\Tests\Unit\Util {
         public function throwsException()
         {
             throw new CustomException('an exception');
+        }
+
+        protected function protectedMethod($arg1, $arg2)
+        {
+            return 'protected result ' . $arg1 . ' ' . $arg2;
+        }
+
+        public function __call($name, $args)
+        {
+            return 'catch all';
         }
     }
 }
