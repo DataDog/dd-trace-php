@@ -56,20 +56,18 @@ class TryCatchFinally
      * @return mixed|null
      * @throws \Exception
      */
-    public static function executeAnyMethod(Scope $scope, $instance, $callingScope, $method, array $args = [], $afterResult = null)
+    public static function executeAnyMethod(Scope $scope, $instance, $method, array $args = [], $afterResult = null)
     {
         $thrown = null;
         $result = null;
         /** @var SpanInterface $span */
         $span = $scope->getSpan();
-        $call_user_func_array = function ($fn, $args) {
-            return call_user_func_array($fn, $args);
-        };
-
-        $instance_call_user_func_array->bindTo($instance, $callingScope);
 
         try {
-            $result = $instance_call_user_func_array([$instance, $method], $args);
+            $result = call_user_func(\Closure::bind(function () use ($instance, $method, $args) {
+                return call_user_func_array([$instance, $method], $args);
+            }, null, $instance));
+
             if ($afterResult) {
                 $afterResult($result, $span, $scope);
             }

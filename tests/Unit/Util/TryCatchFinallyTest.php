@@ -193,7 +193,7 @@ namespace DDTrace\Tests\Unit\Util {
             $scope = $this->tracer->startActiveSpan('my.operation');
             $this->assertStringStartsWith(
                 'protected result ',
-                TryCatchFinally::executeAnyMethod($scope, $instance, 'DDTrace\Tests\Unit\Util\DummyClass', 'protectedMethod', ['1', '2'])
+                TryCatchFinally::executeAnyMethod($scope, $instance, 'protectedMethod', ['1', '2'])
             );
         }
     }
