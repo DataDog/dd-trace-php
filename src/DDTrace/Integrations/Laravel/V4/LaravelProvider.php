@@ -14,7 +14,7 @@ use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 /**
  * DataDog Laravel 4.2 tracing provider. Use by installing the dd-trace library:
@@ -129,7 +129,7 @@ class LaravelProvider extends ServiceProvider
      *
      * @param string $operation
      * @param string $resource
-     * @return \OpenTracing\Scope
+     * @return \DDTrace\Contracts\Scope
      */
     public static function buildBaseScope($operation, $resource)
     {

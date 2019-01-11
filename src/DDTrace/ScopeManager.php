@@ -2,22 +2,22 @@
 
 namespace DDTrace;
 
-use OpenTracing\Scope as OpenTracingScope;
-use OpenTracing\ScopeManager as OpenTracingScopeManager;
-use OpenTracing\Span as OpenTracingSpan;
+use DDTrace\Contracts\Scope as ScopeInterface;
+use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
+use DDTrace\Contracts\Span as SpanInterface;
 
-final class ScopeManager implements OpenTracingScopeManager
+final class ScopeManager implements ScopeManagerInterface
 {
     /**
-     * @var array|OpenTracingScope[]
+     * @var array|ScopeInterface[]
      */
     private $scopes = [];
 
     /**
      * {@inheritdoc}
-     * @param Span|OpenTracingSpan $span
+     * @param Span|SpanInterface $span
      */
-    public function activate(OpenTracingSpan $span, $finishSpanOnClose)
+    public function activate(SpanInterface $span, $finishSpanOnClose = self::DEFAULT_FINISH_SPAN_ON_CLOSE)
     {
         $scope = new Scope($this, $span, $finishSpanOnClose);
         $this->scopes[] = $scope;

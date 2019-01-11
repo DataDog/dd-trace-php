@@ -5,7 +5,7 @@ namespace DDTrace\Integrations\PDO;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 class PDOIntegration
 {

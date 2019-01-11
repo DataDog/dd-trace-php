@@ -30,12 +30,10 @@ The PHP tracer is composed of a PHP extension and a Composer package. You'll nee
 First we'll install the Composer package.
 
 ```bash
-$ composer require datadog/dd-trace opentracing/opentracing:@dev
+$ composer require datadog/dd-trace
 ```
 
-> **Note:** Since the [OpenTracing dependency](https://github.com/opentracing/opentracing-php) is still in beta, adding the `opentracing/opentracing:@dev` argument to the `composer require` command will ensure the library is installed without changing your Composer minimum stability settings.
-
-#### Installing the extension (from a package)
+#### Installing the extension
 
 Next we'll install the `ddtrace` extension. The easiest way to install the extension is from [PECL](https://pecl.php.net/package/datadog_trace).
 
@@ -43,34 +41,9 @@ Next we'll install the `ddtrace` extension. The easiest way to install the exten
 $ sudo pecl install datadog_trace-beta
 ```
 
-If you don't have `pecl` installed, you can install the extension from a package download. First [download the appropriate package](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then install the package with one of the commands below.
+After the installation is complete, you'll need to [enable the extension](docs/getting_started.md#enabling-the-extension).
 
-```bash
-# using RPM package (RHEL/Centos 6+, Fedora 20+)
-$ rpm -ivh datadog-php-tracer.rpm
-
-# using DEB package (Debian Jessie+ , Ubuntu 14.04+)
-$ deb -i datadog-php-tracer.deb
-
-# using APK package (Alpine)
-$ apk add datadog-php-tracer.apk --allow-untrusted
-
-# using tar.gz archive (Other distributions using libc6)
-$ tar -xf datadog-php-tracer.tar.gz -C /
-  /opt/datadog-php/bin/post-install.sh
-```
-
-#### Installing the extension (manually)
-
-The extension can also be installed manually from source. First [download the source code](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then compile and install the extension with the commands below.
-
-```bash
-$ cd /path/to/dd-trace-php
-$ phpize
-$ ./configure --enable-ddtrace
-$ make
-$ sudo make install
-```
+If you don't have `pecl` installed, you can [install the extension manually](docs/getting_started.md#installing-the-extension-manually).
 
 ### Instrumentation
 
@@ -86,7 +59,7 @@ If you are using another framework or CMS that is not listed above, you can manu
 
 ```php
 use DDTrace\Tracer;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 use DDTrace\Integrations\IntegrationsLoader;
 
 // Creates a tracer with default transport and propagators
@@ -126,7 +99,7 @@ For more information about configuration and specific framework integrations, ch
 
 ### Advanced configuration
 
-In order to be familiar with tracing elements it is recommended to read the [OpenTracing specification](https://github.com/opentracing/specification/blob/master/specification.md).
+> **Note:** As ddtrace is modeled off of [OpenTracing](https://opentracing.io/), it is recommended to read the [OpenTracing specification](https://github.com/opentracing/specification/blob/master/specification.md) to familiarize yourself with distributed tracing concepts. The ddtrace package also provides an [OpenTracing-compatible tracer](docs/open_tracing.md).
 
 The transport can be customized by the config parameters:
 
@@ -147,7 +120,7 @@ The tracer can be customized by the config settings:
 
 ```php
 use DDTrace\Tracer;
-use OpenTracing\Formats;
+use DDTrace\Format;
 
 // Config for tracer
 $config = [
@@ -158,25 +131,14 @@ $config = [
 
 $tracer = new Tracer(
     $transport,
-    [ Formats\TEXT_MAP => $textMap ],
+    [ Format::TEXT_MAP => $textMap ],
     $config
 );
 ```
 
-### Creating Spans
+### OpenTracing
 
-- [Starting a root span](https://github.com/opentracing/opentracing-php#starting-an-empty-trace-by-creating-a-root-span)
-- [Starting a span for a given request](https://github.com/opentracing/opentracing-php#creating-a-span-given-an-existing-request)
-- [Active span and scope manager](https://github.com/opentracing/opentracing-php#active-spans-and-scope-manager)
-  - [Creating a child span assigning parent manually](https://github.com/opentracing/opentracing-php#creating-a-child-span-assigning-parent-manually)
-  - [Creating a child span using automatic active span management](https://github.com/opentracing/opentracing-php#creating-a-child-span-using-automatic-active-span-management)
-- [Using span options](https://github.com/opentracing/opentracing-php#using-span-options)
-
-### Propagation of context
-
-- [Serializing context to the wire](https://github.com/opentracing/opentracing-php#serializing-to-the-wire)
-- [Deserializing context from the wire](https://github.com/opentracing/opentracing-php#deserializing-from-the-wire)
-- [Propagation formats](https://github.com/opentracing/opentracing-php#propagation-formats)
+The ddtrace package provides an [OpenTracing-compatible tracer](docs/open_tracing.md).
 
 ## Contributing
 

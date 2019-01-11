@@ -5,8 +5,8 @@ namespace DDTrace\Integrations\Predis;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\GlobalTracer;
 use DDTrace\Util\TryCatchFinally;
-use OpenTracing\GlobalTracer;
 use Predis\Configuration\OptionsInterface;
 use Predis\Pipeline\Pipeline;
 
