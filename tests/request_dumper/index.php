@@ -1,6 +1,6 @@
 <?php
 
-$requestLog = '/tmp/dump/dump.json';
+$requestLog = '/dump/dump.json';
 
 $requests = file_exists($requestLog) ? json_decode(file_get_contents($requestLog), true) : [];
 

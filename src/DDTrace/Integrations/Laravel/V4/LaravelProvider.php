@@ -91,21 +91,17 @@ class LaravelProvider extends ServiceProvider
 
         // Flushes traces to agent.
         register_shutdown_function(function () use ($scope) {
+            var_dump(1);
             $scope->close();
             GlobalTracer::get()->flush();
         });
 
-        // Properly handle status code tag names in both exception and success calls
-        $handler = function () use ($requestSpan) {
+        dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function() use ($requestSpan) {
             $args = func_get_args();
+            $requestSpan->setTag(Tags\HTTP_STATUS_CODE, $args[0]);
+            return call_user_func_array([$this, 'setStatusCode'], $args);
+        });
 
-            $response = call_user_func_array([$this, 'handle'], $args);
-            $requestSpan->setTag(Tags\HTTP_STATUS_CODE, $response->getStatusCode());
-
-            return $response;
-        };
-        dd_trace('Illuminate\Foundation\Application', 'handle', $handler);
-        dd_trace('\Illuminate\Routing\Router', 'dispatch', $handler);
 
         dd_trace('Illuminate\Routing\Route', 'run', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.action', $this->uri);

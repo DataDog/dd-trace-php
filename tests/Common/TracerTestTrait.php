@@ -16,14 +16,6 @@ trait TracerTestTrait
     protected static $agentRequestDumperUrl = 'http://request_dumper';
     private $dumpFilePath = __DIR__ . '/../../.request_dumper_data/dump.json';
 
-    protected function setUp()
-    {
-        parent::setUp();
-        if (file_exists($this->dumpFilePath)) {
-            unlink($this->dumpFilePath);
-        }
-    }
-
     /**
      * @param $fn
      * @param null $tracer
@@ -46,6 +38,7 @@ trait TracerTestTrait
      * @param $fn
      * @param null $tracer
      * @return Span[][]
+     * @throws \Exception
      */
     public function simulateAgent($fn, $tracer = null)
     {
@@ -65,9 +58,25 @@ trait TracerTestTrait
     }
 
     /**
+     * This method can be used to request data to a real request dumper and to rebuild the traces
+     * based on the dumped data.
+     *
+     * @param $fn
+     * @param null $tracer
+     * @return Span[][]
+     * @throws \Exception
+     */
+    public function tracesFromWebRequest($fn, $tracer = null)
+    {
+        $fn($tracer);
+        return $this->parseTracesFromDumpedData();
+    }
+
+    /**
      * Parses the data dumped by the fake agent and returns the parsed traces.
      *
      * @return array
+     * @throws \Exception
      */
     private function parseTracesFromDumpedData()
     {

@@ -16,6 +16,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
     const PORT = 9999;
 
+    private $dumpFilePath = __DIR__ . '/../../.request_dumper_data/dump.json';
+
     /**
      * @var WebServer|null
      */
@@ -38,6 +40,14 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         return null;
     }
 
+    protected function setUp()
+    {
+        parent::setUp();
+        if (file_exists($this->dumpFilePath)) {
+            unlink($this->dumpFilePath);
+        }
+    }
+
     protected static function setUpWebServer()
     {
         $rootPath = static::getAppRootPath();
@@ -57,10 +67,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     protected function call(RequestSpec $spec)
     {
         $url = 'http://127.0.0.1:' . self::PORT . $spec->getPath();
-        error_log("Url: " . print_r($url, 1));
         if ($spec instanceof GetSpec) {
             $response = $this->sendRequest('GET', $url);
-            sleep(1);
             return $response;
         } else {
             $this->fail('Unhandled request spec type');

@@ -89,7 +89,7 @@ services:
     image: php:7.2
     volumes:
       - ./tests/request_dumper:/var/www
-      - ./.request_dumper_data:/tmp/dump
+      - ./.request_dumper_data:/dump
     working_dir: /var/www
     ports:
       - 9000:80

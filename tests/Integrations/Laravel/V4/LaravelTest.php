@@ -10,7 +10,7 @@ final class LaravelTest extends WebFrameworkTestCase
 {
     protected static function getAppRootPath()
     {
-        return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public';
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
     }
 
     /**
@@ -20,7 +20,7 @@ final class LaravelTest extends WebFrameworkTestCase
      */
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
-        $traces = $this->simulateAgent(function() use ($spec) {
+        $traces = $this->tracesFromWebRequest(function() use ($spec) {
             $this->call($spec);
         });
 
@@ -37,7 +37,7 @@ final class LaravelTest extends WebFrameworkTestCase
                             'laravel.route.name' => 'simple_route',
                             'laravel.route.action' => 'HomeController@simple',
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost:9999/simple',
+                            'http.url' => 'http://127.0.0.1:9999/simple',
                             'http.status_code' => '200',
                         ]),
                     SpanAssertion::exists('laravel.event.handle'),
@@ -48,7 +48,6 @@ final class LaravelTest extends WebFrameworkTestCase
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::exists('laravel.request'),
-                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
@@ -64,7 +63,7 @@ final class LaravelTest extends WebFrameworkTestCase
                             'laravel.route.name' => 'error',
                             'laravel.route.action' => 'HomeController@error',
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost:9999/error',
+                            'http.url' => 'http://127.0.0.1:9999/error',
                             'http.status_code' => '500'
                         ]),
                     SpanAssertion::exists('laravel.event.handle'),

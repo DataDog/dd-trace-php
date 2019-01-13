@@ -23,13 +23,15 @@ class WebServer
      */
     public function __construct($routerFile, $host = '0.0.0.0', $port = 80)
     {
-        $this->process = new Process("DD_AGENT_HOST=request_dumper exec php -dlog_errors=on -derror_log='error.log' -S $host:$port $routerFile");
+
+        $cmd = "php -dlog_errors=on -derror_log='error.log' -S $host:$port $routerFile";
+        $this->process = new Process("DD_TRACE_AGENT_PORT=80 DD_AGENT_HOST=request_dumper exec $cmd");
     }
 
     public function start()
     {
         $this->process->start();
-        usleep(500000);
+        usleep(100000);
     }
 
     /**
@@ -39,7 +41,6 @@ class WebServer
     {
         if ($this->process) {
             // because traces have to be dumped to the file, we wait some time before exiting.
-            usleep(500000);
             $this->process->stop(0);
         }
     }
