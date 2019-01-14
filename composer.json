@@ -147,8 +147,6 @@
             "@composer test -- tests/Integrations/Elasticsearch",
             "@composer scenario guzzle5",
             "@composer test -- tests/Integrations/Guzzle",
-            "@composer scenario laravel57",
-            "@composer test -- tests/Integrations/Laravel/V5/PipelineTracingTest.php",
             "@composer scenario predis1",
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
@@ -202,11 +200,6 @@
             "guzzle5": {
                 "require": {
                     "guzzlehttp/guzzle": "~5.0"
-                }
-            },
-            "laravel57": {
-                "require": {
-                    "laravel/framework": "5.7.*"
                 }
             },
             "predis1": {
