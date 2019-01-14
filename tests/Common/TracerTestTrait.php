@@ -8,7 +8,7 @@ use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 
 trait TracerTestTrait

@@ -3,14 +3,23 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 ### Added
+- Migration from namespace based constants to class based constants for tags, formats and types #207
+- Track integration loading to avoid re-loading unnecessary ones #211
+- Documenting release steps #223
+- Ability to reset all overrides via `dd_trace_reset`
+
+### Changed
+- By default do not throw an exception when method or function doesn't exist
 
 ### Fixed
+- Eloquent integration calling protected `performInsert` method
 
 ## [0.9.0]
 ### Added
 - PHP code compatibility with PHP 5.4 #194
 - Move framework tests to tests root folder #198
 - Move integrations tests to tests root folder #200
+- Removal of external dependencies to support auto-instrumentation #206
 - Allow testing of multiple library versions #203
 - Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
 - Configurable autofinishing of unfinished spans on tracer flush #217

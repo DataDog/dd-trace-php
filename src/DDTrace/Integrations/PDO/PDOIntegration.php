@@ -2,9 +2,10 @@
 
 namespace DDTrace\Integrations\PDO;
 
-use DDTrace\Tags;
-use DDTrace\Types;
-use OpenTracing\GlobalTracer;
+use DDTrace\Integrations\Integration;
+use DDTrace\Tag;
+use DDTrace\Type;
+use DDTrace\GlobalTracer;
 
 class PDOIntegration
 {
@@ -26,7 +27,8 @@ class PDOIntegration
     public static function load()
     {
         if (!extension_loaded('PDO')) {
-            return;
+            // PDO is provided through an extension and not through a class loader.
+            return Integration::NOT_AVAILABLE;
         }
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
@@ -34,9 +36,9 @@ class PDOIntegration
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan('PDO.__construct');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setTag(Tags\RESOURCE_NAME, 'PDO.__construct');
+            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
+            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::RESOURCE_NAME, 'PDO.__construct');
 
             // PHP 5.4 compatible try-catch-finally
             $thrown = null;
@@ -61,9 +63,9 @@ class PDOIntegration
         dd_trace('PDO', 'exec', function ($statement) {
             $scope = GlobalTracer::get()->startActiveSpan('PDO.exec');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setTag(Tags\RESOURCE_NAME, $statement);
+            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
+            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::RESOURCE_NAME, $statement);
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -95,9 +97,9 @@ class PDOIntegration
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan('PDO.query');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setTag(Tags\RESOURCE_NAME, $args[0]);
+            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
+            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::RESOURCE_NAME, $args[0]);
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -128,8 +130,8 @@ class PDOIntegration
         dd_trace('PDO', 'commit', function () {
             $scope = GlobalTracer::get()->startActiveSpan('PDO.commit');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
+            $span->setTag(Tag::SERVICE_NAME, 'PDO');
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -156,9 +158,9 @@ class PDOIntegration
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan('PDO.prepare');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setTag(Tags\RESOURCE_NAME, $args[0]);
+            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
+            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::RESOURCE_NAME, $args[0]);
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -185,9 +187,9 @@ class PDOIntegration
             $params = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan('PDOStatement.execute');
             $span = $scope->getSpan();
-            $span->setTag(Tags\SPAN_TYPE, Types\SQL);
-            $span->setTag(Tags\SERVICE_NAME, 'PDO');
-            $span->setTag(Tags\RESOURCE_NAME, $this->queryString);
+            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
+            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::RESOURCE_NAME, $this->queryString);
             PDOIntegration::setStatementTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -212,6 +214,8 @@ class PDOIntegration
 
             return $result;
         });
+
+        Integration::LOADED;
     }
 
     /**
@@ -280,10 +284,10 @@ class PDOIntegration
                     $tags['db.name'] = $value;
                     break;
                 case 'host':
-                    $tags[Tags\TARGET_HOST] = $value;
+                    $tags[Tag::TARGET_HOST] = $value;
                     break;
                 case 'port':
-                    $tags[Tags\TARGET_PORT] = $value;
+                    $tags[Tag::TARGET_PORT] = $value;
                     break;
             }
         }
