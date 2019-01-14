@@ -61,9 +61,11 @@ class WebServer
         $host = $this->host;
         $port = $this->port;
         $indexFile = $this->indexFile;
-        $cmd = "php -dlog_errors=on -derror_log='error.log' -S $host:$port $indexFile";
+        $indexFileDir = dirname($indexFile);
+        $cmd = "php -dlog_errors=on -derror_log='$indexFileDir/error.log' -S $host:$port $indexFile";
         $envs = $this->getSerializedEnvsForCli();
-        $this->process = new Process("$envs exec $cmd");
+        $processCmd = "$envs exec $cmd";
+        $this->process = new Process($processCmd);
         $this->process->start();
         usleep(100000);
     }

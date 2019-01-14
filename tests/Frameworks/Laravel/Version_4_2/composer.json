@@ -24,11 +24,6 @@
 			"DDTrace\\": "../../../../src/DDTrace/"
 		}
 	},
-	"autoload-dev": {
-		"psr-4": {
-			"DDTrace\\Tests\\": "../../../../tests/"
-		}
-	},
 	"scripts": {
 		"post-install-cmd": [
 			"php artisan clear-compiled",

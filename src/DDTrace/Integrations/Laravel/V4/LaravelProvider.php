@@ -97,7 +97,7 @@ class LaravelProvider extends ServiceProvider
 
         dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($requestSpan) {
             $args = func_get_args();
-            $requestSpan->setTag(Tags\HTTP_STATUS_CODE, $args[0]);
+            $requestSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
             return call_user_func_array([$this, 'setStatusCode'], $args);
         });
 
