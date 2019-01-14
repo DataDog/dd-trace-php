@@ -1,14 +1,14 @@
 <?php
 
-namespace Tests\Integration;
+namespace DDTrace\Tests\Integrations\Laravel\V5;
 
+use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
 use DDTrace\Tests\Common\TracerTestTrait;
 use Illuminate\Pipeline\Pipeline;
-use Tests\TestCase;
 
-class PipelineTracingTest extends TestCase
+class PipelineTracingTest extends IntegrationTestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
 

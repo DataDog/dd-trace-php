@@ -35,9 +35,14 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         static::tearDownWebServer();
     }
 
-    protected static function getAppRootPath()
+    protected static function getAppIndexScript()
     {
         return null;
+    }
+
+    protected static function getEnvs()
+    {
+        return [];
     }
 
     protected function setUp()
@@ -50,9 +55,10 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
     protected static function setUpWebServer()
     {
-        $rootPath = static::getAppRootPath();
+        $rootPath = static::getAppIndexScript();
         if ($rootPath) {
             self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT);
+            self::$appServer->setEnvs(static::getEnvs());
             self::$appServer->start();
         }
     }
