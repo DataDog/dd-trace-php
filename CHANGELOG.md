@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [0.9.1]
 ### Added
+- Request init hook configuration allowing running arbitrary code before actual request execution #175
 - Ability to reset all overrides via `dd_trace_reset`
 
 ### Changed
