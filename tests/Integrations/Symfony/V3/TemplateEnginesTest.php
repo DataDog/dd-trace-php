@@ -1,27 +1,25 @@
 <?php
 
-namespace Tests\AppBundle\Controller;
+namespace DDTrace\Tests\Integrations\Symfony\V3;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use DDTrace\Tests\Common\WebFrameworkTestCase;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-class HomeControllerTest extends WebTestCase
+final class TemplateEnginesTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait, SpanAssertionTrait;
+    protected static function getAppIndexScript()
+    {
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app.php';
+    }
 
     public function testAlternateTemplatingEngine()
     {
-        $client = static::createClient();
-        $traces = $this->simulateWebRequestTracer(function() use ($client) {
-            $crawler = $client->request('GET', '/alternate_templating');
-            $response = $client->getResponse();
-
-            $this->assertSame(200, $response->getStatusCode());
+        $traces = $this->tracesFromWebRequest(function() {
+            $this->call(GetSpec::create('Test alternate templating', '/alternate_templating'));
         });
 
-        $this->assertExpectedSpans($this, $traces, [
+        $this->assertSpans($traces, [
             SpanAssertion::build(
                 'symfony.request',
                 'symfony',
@@ -32,7 +30,7 @@ class HomeControllerTest extends WebTestCase
                     'symfony.route.action' => 'AppBundle\Controller\HomeController@indexAction',
                     'symfony.route.name' => 'alternate_templating',
                     'http.method' => 'GET',
-                    'http.url' => 'http://localhost/alternate_templating',
+                    'http.url' => 'http://127.0.0.1:9999/alternate_templating',
                     'http.status_code' => '200',
                 ]),
             SpanAssertion::exists('symfony.kernel.handle'),

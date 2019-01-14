@@ -17,6 +17,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
      * @param array $spanExpectations
+     * @throws \Exception
      */
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
@@ -31,7 +32,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     {
         return $this->buildDataProvider(
             [
-                    'A simple GET request returning a string' => [
+                'A simple GET request returning a string' => [
                     SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@simple simple_route')
                         ->withExactTags([
                             'laravel.route.name' => 'simple_route',
