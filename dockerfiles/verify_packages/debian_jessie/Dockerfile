@@ -8,7 +8,7 @@ RUN apt-get update
 ADD build/packages /packages
 
 ARG php_version
-RUN apt-get -y install php${php_version}
+RUN apt-get -y --force-yes install php${php_version}
 
 RUN dpkg -i /packages/*.deb
 RUN php -m | grep ddtrace

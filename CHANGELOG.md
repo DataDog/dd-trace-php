@@ -1,7 +1,56 @@
 # Changelog
-All notable changes to this project will be documented in this file - [docs/changelog.md](read more).
+All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+
+### Added
+
+### Changed
+
+### Fixed
+
+## [0.9.1]
+### Added
+- Ability to reset all overrides via `dd_trace_reset`
+
+### Changed
+- By default do not throw an exception when method or function doesn't exist
+
+### Fixed
+- Eloquent integration calling protected `performInsert` method
+
+## [0.9.0]
+### Added
+- PHP code compatibility with PHP 5.4 #194
+- Move framework tests to tests root folder #198
+- Move integrations tests to tests root folder #200
+- Allow testing of multiple library versions #203
+- Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
+- Configurable autofinishing of unfinished spans on tracer flush #217
+
+### Fixed
+- Predis integration supporting constructor options as an object #187 - thanks @raffaellopaletta
+- Properly set http status code tag in Laravel 4 integration #195
+- Agent calls traced when using Symfony 3 integration #197
+- Fix for trace and span ID's that were improperly serialized on the wire in distributed tracing contexts #204
+- Fix noop tracer issues with Laravel integration #220
+
+## [0.8.1]
+### Fixed
+- Update Symfony 3 and 4 docs #184
+- Package installation on custom PHP setups lacking conf.d support #188
+
+## [0.8.0] - 2018-12-11
+### Added
+- Support for Lumen via the Laravel service provider #180
+- Symfony 3.4 support #181
+
+## [0.7.1] - 2018-12-07
+### Added
+- Symfony 3.4 and 4.2 sample apps #171
+
+### Fixed
+- Compatibility with PCS and using uninitialized data in some edge cases resulting in a SEGFAULT #173
 
 ## [0.7.0] - 2018-12-06
 ### Added
@@ -150,7 +199,12 @@ All notable changes to this project will be documented in this file - [docs/chan
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.7.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.9.1...HEAD
+[0.9.1]: https://github.com/DataDog/dd-trace-php/compare/0.9.0...0.9.1
+[0.9.0]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...0.9.0
+[0.8.1]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...0.8.1
+[0.8.0]: https://github.com/DataDog/dd-trace-php/compare/0.7.1...0.8.0
+[0.7.1]: https://github.com/DataDog/dd-trace-php/compare/0.7.0...0.7.1
 [0.7.0]: https://github.com/DataDog/dd-trace-php/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/DataDog/dd-trace-php/compare/0.5.1...0.6.0
 [0.5.1]: https://github.com/DataDog/dd-trace-php/compare/0.5.0...0.5.1

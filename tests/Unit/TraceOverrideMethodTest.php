@@ -9,23 +9,27 @@ use PHPUnit\Framework;
 
 final class TraceOverrideMethodTest extends Framework\TestCase
 {
-    protected function setUp()
+    protected function tearDown()
     {
-        if (!extension_loaded('ddtrace')) {
-            $this->markTestSkipped(
-                'The ddtrace extension is not loaded.'
-            );
-        }
+        // Why this?
+        // Test 'testMethodCanBeOverridenByTrace' trace this method and prevent it from being called, as it adds an
+        // empty hook. This causes other tests they relies on Scope::close executed after this test to fail.
+        // The proper way to fix is is probably to add a dd_trace_clear() the drops entirely the lookup table.
+        // In the meantime we can propose this workaround.
+        dd_trace('DDTrace\Scope', "close", function () {
+            call_user_func_array([$this, 'close'], func_get_args());
+        });
+        parent::tearDown();
     }
 
     public function testMethodInvokesExpectedResults()
     {
-        dd_trace(Scope::class, "close", function (...$args) {
-            $this->close(...$args);
+        dd_trace('DDTrace\Scope', "close", function () {
+            call_user_func_array([$this, 'close'], func_get_args());
         });
         $val = 0;
 
-        $span = $this->prophesize(Span::class);
+        $span = $this->prophesize('OpenTracing\Span');
         $span->finish()->shouldBeCalled();
         $scope = new Scope(new ScopeManager(), $span->reveal(), true);
         $scope->close();
@@ -33,12 +37,12 @@ final class TraceOverrideMethodTest extends Framework\TestCase
 
     public function testMethodCanBeOverridenByTrace()
     {
-        dd_trace(Scope::class, "close", function (...$args) {
+        dd_trace('DDTrace\Scope', "close", function () {
             // Don't call close() to verify the method was successfully overwritten
         });
         $val = 0;
 
-        $span = $this->prophesize(Span::class);
+        $span = $this->prophesize('OpenTracing\Span');
         $span->finish()->shouldNotBeCalled();
         $scope = new Scope(new ScopeManager(), $span->reveal(), true);
         $scope->close();

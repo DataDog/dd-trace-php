@@ -66,19 +66,10 @@ final class Json implements Encoder
         ], [
             '"start":' . $span->getStartTime() . '000',
             '"duration":' . $span->getDuration() . '000',
-            '"trace_id":' . $this->hex2dec($span->getTraceId()),
-            '"span_id":' . $this->hex2dec($span->getSpanId()),
-            '"parent_id":' . $this->hex2dec($span->getParentId()),
+            '"trace_id":' . $span->getTraceId(),
+            '"span_id":' . $span->getSpanId(),
+            '"parent_id":' . $span->getParentId(),
         ], $json);
-    }
-
-    /**
-     * @param string $hex
-     * @return string
-     */
-    private function hex2dec($hex)
-    {
-        return base_convert($hex, 16, 10);
     }
 
     /**
@@ -110,8 +101,9 @@ final class Json implements Encoder
             $arraySpan['parent_id_hex'] = '-';
         }
 
-        if (!empty($span->getAllTags())) {
-            $arraySpan['meta'] = $span->getAllTags();
+        $tags = $span->getAllTags();
+        if (!empty($tags)) {
+            $arraySpan['meta'] = $tags;
         }
 
         if ($span->getContext()->isHostRoot()

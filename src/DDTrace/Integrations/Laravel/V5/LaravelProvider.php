@@ -11,14 +11,13 @@ use DDTrace\Tags;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Types;
+use DDTrace\Util\TryCatchFinally;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\View\Engines\CompilerEngine;
 use OpenTracing\GlobalTracer;
 
-use function DDTrace\Time\fromMicrotime;
 
 /**
  * DataDog Laravel tracing provider. Use by installing the dd-trace library:
@@ -41,16 +40,7 @@ class LaravelProvider extends ServiceProvider
     /**  @inheritdoc */
     public function register()
     {
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
-            return;
-        }
-
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
-            return;
-        }
-
-        if (getenv('APP_ENV') != 'dd_testing' && php_sapi_name() == 'cli') {
+        if (!$this->shouldLoad()) {
             return;
         }
 
@@ -59,13 +49,13 @@ class LaravelProvider extends ServiceProvider
         // Sets a global tracer (singleton). Also store it in the Laravel
         // container for easy Laravel-specific use.
         GlobalTracer::set($tracer);
-        $this->app->instance(Tracer::class, $tracer);
+        $this->app->instance('DDTrace\Tracer', $tracer);
     }
 
     /**  @inheritdoc */
     public function boot()
     {
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+        if (!$this->shouldLoad()) {
             return;
         }
 
@@ -99,16 +89,8 @@ class LaravelProvider extends ServiceProvider
                         $scope = GlobalTracer::get()->startActiveSpan('laravel.pipeline.pipe');
                         $span = $scope->getSpan();
                         $span->setTag(Tags\RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
-                        $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
-
-                        try {
-                            return call_user_func_array([$this, $handlerMethod], $args);
-                        } catch (\Exception $e) {
-                            $span->setError($e);
-                            throw $e;
-                        } finally {
-                            $scope->close();
-                        }
+                        $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+                        return TryCatchFinally::executePublicMethod($scope, $this, $handlerMethod, $args);
                     });
                 }
             }
@@ -118,24 +100,18 @@ class LaravelProvider extends ServiceProvider
 
         // Create a trace span for every template rendered
         // public function get($path, array $data = array())
-        dd_trace(CompilerEngine::class, 'get', function ($path, $data = array()) {
+        dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function ($path, $data = array()) {
             $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
             $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
-
-            try {
-                return $this->get($path, $data);
-            } catch (\Exception $e) {
-                $scope->getSpan()->setError($e);
-                throw $e;
-            } finally {
-                $scope->close();
-            }
+            return TryCatchFinally::executePublicMethod($scope, $this, 'get', [$path, $data]);
         });
 
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
             $tracer,
             [
-                'start_time' => fromMicrotime(LARAVEL_START),
+                'start_time' => defined('LARAVEL_START')
+                    ? DDTrace\Time\fromMicrotime(LARAVEL_START)
+                    : DDTrace\Time\now(),
             ],
             $this->app->make('request')->header()
         );
@@ -146,27 +122,33 @@ class LaravelProvider extends ServiceProvider
         $scope->getSpan()->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
 
         // Name the scope when the route matches
-        $this->app['events']->listen(RouteMatched::class, function (RouteMatched $event) use ($scope) {
-            $span = $scope->getSpan();
-            $span->setTag(
-                Tags\RESOURCE_NAME,
-                $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
-            );
-            $span->setTag('laravel.route.name', Route::currentRouteName());
-            $span->setTag('laravel.route.action', $event->route->getActionName());
-            $span->setTag('http.method', $event->request->method());
-            $span->setTag('http.url', $event->request->url());
-        });
-
-        $this->app['events']->listen(RequestHandled::class, function (RequestHandled $event) use ($scope) {
-            $span = $scope->getSpan();
-            $span->setTag('http.status_code', $event->response->getStatusCode());
-            try {
-                $user = auth()->user()->id;
-                $span->setTag('laravel.user', strlen($user) ? $user : '-');
-            } catch (\Exception $e) {
+        $this->app['events']->listen(
+            'Illuminate\Routing\Events\RouteMatched',
+            function (RouteMatched $event) use ($scope) {
+                $span = $scope->getSpan();
+                $span->setTag(
+                    Tags\RESOURCE_NAME,
+                    $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
+                );
+                $span->setTag('laravel.route.name', Route::currentRouteName());
+                $span->setTag('laravel.route.action', $event->route->getActionName());
+                $span->setTag('http.method', $event->request->method());
+                $span->setTag('http.url', $event->request->url());
             }
-        });
+        );
+
+        $this->app['events']->listen(
+            'Illuminate\Foundation\Http\Events\RequestHandled',
+            function (RequestHandled $event) use ($scope) {
+                $span = $scope->getSpan();
+                $span->setTag('http.status_code', $event->response->getStatusCode());
+                try {
+                    $user = auth()->user()->id;
+                    $span->setTag('laravel.user', strlen($user) ? $user : '-');
+                } catch (\Exception $e) {
+                }
+            }
+        );
 
         // Enable other integrations
         IntegrationsLoader::load();
@@ -176,6 +158,25 @@ class LaravelProvider extends ServiceProvider
             $scope->close();
             GlobalTracer::get()->flush();
         });
+    }
+
+    /**
+     * @return bool
+     */
+    private function shouldLoad()
+    {
+        if ('cli' === PHP_SAPI && 'dd_testing' !== getenv('APP_ENV')) {
+            return false;
+        }
+        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+            return false;
+        }
+        if (!extension_loaded('ddtrace')) {
+            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
+            return false;
+        }
+
+        return true;
     }
 
     private function getAppName()

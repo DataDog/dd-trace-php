@@ -11,7 +11,6 @@ use DDTrace\Tracer;
 use OpenTracing\GlobalTracer;
 use PHPUnit\Framework;
 use Prophecy\Argument;
-use Psr\Log\LoggerInterface;
 
 final class JsonTest extends Framework\TestCase
 {
@@ -36,7 +35,7 @@ JSON
 "service":"test_service","start":1518038421211969000,"error":0}]]
 JSON;
 
-        $context = new SpanContext('160e7072ff7bd5f1', '160e7072ff7bd5f2');
+        $context = new SpanContext('1589331357723252209', '1589331357723252210');
         $span = new Span(
             'test_name',
             $context,
@@ -45,7 +44,7 @@ JSON;
             1518038421211969
         );
 
-        $logger = $this->prophesize(LoggerInterface::class);
+        $logger = $this->prophesize('Psr\Log\LoggerInterface');
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
         $jsonEncoder = new Json($logger->reveal());
@@ -68,7 +67,7 @@ JSON;
         // this will generate a malformed UTF-8 string
         $span->setTag('invalid', hex2bin('37f2bef0ab085308'));
 
-        $logger = $this->prophesize(LoggerInterface::class);
+        $logger = $this->prophesize('Psr\Log\LoggerInterface');
         $logger
             ->debug(
                 'Failed to json-encode span: Malformed UTF-8 characters, possibly incorrectly encoded'

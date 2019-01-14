@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Unit\Propagators;
 
-use DDTrace\Encoders\Json;
 use DDTrace\Propagators\TextMap;
 use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
@@ -14,8 +13,8 @@ final class TextMapTest extends Framework\TestCase
 {
     const BAGGAGE_ITEM_KEY = 'test_key';
     const BAGGAGE_ITEM_VALUE = 'test_value';
-    const TRACE_ID = '1c42b4de015cc315';
-    const SPAN_ID = '1c42b4de015cc316';
+    const TRACE_ID = '1589331357723252209';
+    const SPAN_ID = '1589331357723252210';
 
     /**
      * @var Tracer

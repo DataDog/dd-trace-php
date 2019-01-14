@@ -23,7 +23,11 @@ If you haven't already, [sign up for a free Datadog account](https://www.datadog
 
 ### Installation
 
-The PHP tracer is composed of a PHP extension and a Composer package. You'll need to install both in order to start tracing your PHP projects. First we'll install the Composer package.
+The PHP tracer is composed of a PHP extension and a Composer package. You'll need to install both in order to start tracing your PHP projects.
+
+#### Composer installation
+
+First we'll install the Composer package.
 
 ```bash
 $ composer require datadog/dd-trace opentracing/opentracing:@dev
@@ -31,7 +35,15 @@ $ composer require datadog/dd-trace opentracing/opentracing:@dev
 
 > **Note:** Since the [OpenTracing dependency](https://github.com/opentracing/opentracing-php) is still in beta, adding the `opentracing/opentracing:@dev` argument to the `composer require` command will ensure the library is installed without changing your Composer minimum stability settings.
 
-Next we'll install the `ddtrace` extension. The command we use to install it varies depending on your platform.
+#### Installing the extension (from a package)
+
+Next we'll install the `ddtrace` extension. The easiest way to install the extension is from [PECL](https://pecl.php.net/package/datadog_trace).
+
+```bash
+$ sudo pecl install datadog_trace-beta
+```
+
+If you don't have `pecl` installed, you can install the extension from a package download. First [download the appropriate package](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then install the package with one of the commands below.
 
 ```bash
 # using RPM package (RHEL/Centos 6+, Fedora 20+)
@@ -48,9 +60,29 @@ $ tar -xf datadog-php-tracer.tar.gz -C /
   /opt/datadog-php/bin/post-install.sh
 ```
 
-### Usage
+#### Installing the extension (manually)
 
-Once the `ddtrace` extension and Composer package is installed, you can start tracing your PHP project by wrapping your application code with a [root span](https://docs.datadoghq.com/tracing/visualization/#spans) from the [tracer](https://docs.datadoghq.com/tracing/visualization/#trace).
+The extension can also be installed manually from source. First [download the source code](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then compile and install the extension with the commands below.
+
+```bash
+$ cd /path/to/dd-trace-php
+$ phpize
+$ ./configure --enable-ddtrace
+$ make
+$ sudo make install
+```
+
+### Instrumentation
+
+Once the `ddtrace` extension and Composer package is installed, you can start tracing your PHP project. There are a few framework instrumentations available out of the box.
+
+* [Laravel 4 & 5 instrumentation](docs/getting_started.md#laravel-integration)
+* [Lumen 5 instrumentation](docs/getting_started.md#lumen-integration)
+* [Symfony 3 & 4 instrumentation](docs/getting_started.md#symfony-integration)
+
+### Manual instrumentation
+
+If you are using another framework or CMS that is not listed above, you can manually instrument the tracer by wrapping your application code with a [root span](https://docs.datadoghq.com/tracing/visualization/#spans) from the [tracer](https://docs.datadoghq.com/tracing/visualization/#trace).
 
 ```php
 use DDTrace\Tracer;
@@ -71,13 +103,13 @@ register_shutdown_function(function() {
 IntegrationsLoader::load();
 
 // Start a root span
-$scope = $tracer->startSpan('my_base_trace');
+$span = $tracer->startSpan('my_base_trace');
 
 // Run your application here
 // $myApplication->run();
 
 // Close the root span after the application code has finished
-$scope->close();
+$span->finish();
 ```
 
 Notice we didn't specify an [API key](https://app.datadoghq.com/account/settings#api) or any web endpoints. That's because the API key is set at the [agent layer](https://docs.datadoghq.com/agent/?tab=agentv6), so the PHP code just needs to know the hostname and port of the agent to send traces to Datadog. By default the PHP tracer will assume the agent hostname is `localhost` and the port is `8126`. If you need to change these values, check out the [configuration documentation](docs/getting_started.md#configuration).
