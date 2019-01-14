@@ -16,8 +16,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
     const PORT = 9999;
 
-    private $dumpFilePath = __DIR__ . '/../../.request_dumper_data/dump.json';
-
     /**
      * @var WebServer|null
      */
@@ -35,11 +33,20 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         static::tearDownWebServer();
     }
 
+    /**
+     * Returns the application index.php file full path.
+     *
+     * @return string|null
+     */
     protected static function getAppIndexScript()
     {
         return null;
     }
 
+    /**
+     * Get additional envs to be set in the web server.
+     * @return array
+     */
     protected static function getEnvs()
     {
         return [];
@@ -48,11 +55,14 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     protected function setUp()
     {
         parent::setUp();
-        if (file_exists($this->dumpFilePath)) {
-            unlink($this->dumpFilePath);
+        if (file_exists($this->getDumpedFilePath())) {
+            unlink($this->getDumpedFilePath());
         }
     }
 
+    /**
+     * Sets up a web server.
+     */
     protected static function setUpWebServer()
     {
         $rootPath = static::getAppIndexScript();
@@ -63,6 +73,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         }
     }
 
+    /**
+     * Tear down the  web server.
+     */
     private static function tearDownWebServer()
     {
         if (self::$appServer) {
@@ -70,6 +83,12 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         }
     }
 
+    /**
+     * Executed a call to the test web server.
+     *
+     * @param RequestSpec $spec
+     * @return mixed|null
+     */
     protected function call(RequestSpec $spec)
     {
         $url = 'http://127.0.0.1:' . self::PORT . $spec->getPath();
@@ -81,6 +100,13 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         }
     }
 
+    /**
+     * Sends an actual requests to the test web server.
+     *
+     * @param string $method
+     * @param string $url
+     * @return mixed|null
+     */
     protected function sendRequest($method, $url)
     {
         $ch = curl_init($url);

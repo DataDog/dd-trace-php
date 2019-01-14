@@ -21,7 +21,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
      */
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
-        $traces = $this->tracesFromWebRequest(function() use ($spec) {
+        $traces = $this->tracesFromWebRequest(function () use ($spec) {
             $this->call($spec);
         });
 

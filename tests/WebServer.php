@@ -42,7 +42,7 @@ class WebServer
     ];
 
     /**
-     * @param $indexFile
+     * @param string $indexFile
      * @param string $host
      * @param int $port
      */
@@ -74,7 +74,6 @@ class WebServer
     public function stop()
     {
         if ($this->process) {
-            // because traces have to be dumped to the file, we wait some time before exiting.
             $this->process->stop(0);
         }
     }
@@ -89,6 +88,11 @@ class WebServer
         return $this;
     }
 
+    /**
+     * Returns the CLI compatible version of an associative array representing env variables.
+     *
+     * @return string
+     */
     private function getSerializedEnvsForCli()
     {
         $all = array_merge($this->defaultEnvs, $this->envs);

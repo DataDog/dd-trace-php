@@ -88,9 +88,11 @@ services:
   request_dumper:
     image: php:7.2
     volumes:
-      - ./tests/request_dumper:/var/www
+      - ./tests/request_replayer:/var/www
       - ./.request_dumper_data:/dump
     working_dir: /var/www
+    environment:
+      DD_REQUEST_DUMPER_FILE: /dump/dump.json
     ports:
       - 9000:80
     command: php -S 0.0.0.0:80 /var/www/index.php

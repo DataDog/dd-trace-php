@@ -14,7 +14,7 @@ class PipelineTracingTest extends IntegrationTestCase
 
     public function testPipeline()
     {
-        $traces = $this->simulateWebRequestTracer(function() {
+        $traces = $this->simulateWebRequestTracer(function () {
             $pipeline = new Pipeline();
             $result = $pipeline
                 ->send(1)
@@ -27,13 +27,18 @@ class PipelineTracingTest extends IntegrationTestCase
         });
         $this->assertExpectedSpans($this, $traces, [
             SpanAssertion::exists('laravel.request'),
-            SpanAssertion::build('laravel.pipeline.pipe', 'laravel_test_app', 'web', 'Tests\Integration\DummyPipe::someHandler'),
+            SpanAssertion::build(
+                'laravel.pipeline.pipe',
+                'laravel_test_app',
+                'web',
+                'Tests\Integration\DummyPipe::someHandler'
+            ),
         ]);
     }
 
     public function testPipelineCalledTwiceProperlyTraced()
     {
-        $traces = $this->simulateWebRequestTracer(function() {
+        $traces = $this->simulateWebRequestTracer(function () {
             $pipeline = new Pipeline();
             $result1 = $pipeline
                 ->send(1)
@@ -54,8 +59,18 @@ class PipelineTracingTest extends IntegrationTestCase
         });
         $this->assertExpectedSpans($this, $traces, [
             SpanAssertion::exists('laravel.request'),
-            SpanAssertion::build('laravel.pipeline.pipe', 'laravel_test_app', 'web', 'Tests\Integration\DummyPipe::someHandler'),
-            SpanAssertion::build('laravel.pipeline.pipe', 'laravel_test_app', 'web', 'Tests\Integration\DummyPipe::someHandler'),
+            SpanAssertion::build(
+                'laravel.pipeline.pipe',
+                'laravel_test_app',
+                'web',
+                'Tests\Integration\DummyPipe::someHandler'
+            ),
+            SpanAssertion::build(
+                'laravel.pipeline.pipe',
+                'laravel_test_app',
+                'web',
+                'Tests\Integration\DummyPipe::someHandler'
+            ),
         ]);
     }
 }

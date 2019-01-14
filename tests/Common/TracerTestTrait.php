@@ -14,7 +14,16 @@ use OpenTracing\GlobalTracer;
 trait TracerTestTrait
 {
     protected static $agentRequestDumperUrl = 'http://request_dumper';
-    private $dumpFilePath = __DIR__ . '/../../.request_dumper_data/dump.json';
+
+    /**
+     * Returns the file path for the fake agent that dumps all received tracer spans.
+     *
+     * @return string
+     */
+    protected function getDumpedFilePath()
+    {
+        return __DIR__ . '/../../.request_dumper_data/dump.json';
+    }
 
     /**
      * @param $fn
@@ -42,8 +51,11 @@ trait TracerTestTrait
      */
     public function simulateAgent($fn, $tracer = null)
     {
-        // TODO: delete file before request
-        // file_delete($this->dumpFilePath);
+        // Removing previous file if it already exists.
+        if (file_exists($this->getDumpedFilePath())) {
+            unlink($this->getDumpedFilePath());
+        }
+
         $transport = new Http(new Json(), null, ['endpoint' => self::$agentRequestDumperUrl]);
         $tracer = $tracer ?: new Tracer($transport);
         GlobalTracer::set($tracer);
@@ -68,6 +80,7 @@ trait TracerTestTrait
      */
     public function tracesFromWebRequest($fn, $tracer = null)
     {
+        // The we server has to be configured to send traces to the provided requests dumper.
         $fn($tracer);
         return $this->parseTracesFromDumpedData();
     }
@@ -80,20 +93,13 @@ trait TracerTestTrait
      */
     private function parseTracesFromDumpedData()
     {
-        if (!file_exists($this->dumpFilePath)) {
+        if (!file_exists($this->getDumpedFilePath())) {
             return [];
         }
 
         // For now we only support asserting traces against one dump at a time.
-        // TODO: understand why we get
-        $loaded = json_decode(file_get_contents($this->dumpFilePath), true);
-        if (count($loaded) == 1) {
-            $rawTraces = json_decode($loaded[0]['body'], true);
-        } elseif (count($loaded) == 2) {
-            $rawTraces = json_decode($loaded[1]['body'], true);
-        } else {
-            throw new \Exception('Spans dumps of more than one trace not handled at the moment.');
-        }
+        $loaded = json_decode(file_get_contents($this->getDumpedFilePath()), true);
+        $rawTraces = json_decode($loaded['body'], true);
 
         $traces = [];
         foreach ($rawTraces as $spansInTrace) {

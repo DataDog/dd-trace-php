@@ -91,12 +91,11 @@ class LaravelProvider extends ServiceProvider
 
         // Flushes traces to agent.
         register_shutdown_function(function () use ($scope) {
-            var_dump(1);
             $scope->close();
             GlobalTracer::get()->flush();
         });
 
-        dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function() use ($requestSpan) {
+        dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($requestSpan) {
             $args = func_get_args();
             $requestSpan->setTag(Tags\HTTP_STATUS_CODE, $args[0]);
             return call_user_func_array([$this, 'setStatusCode'], $args);

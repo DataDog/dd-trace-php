@@ -15,7 +15,7 @@ final class TemplateEnginesTest extends WebFrameworkTestCase
 
     public function testAlternateTemplatingEngine()
     {
-        $traces = $this->tracesFromWebRequest(function() {
+        $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('Test alternate templating', '/alternate_templating'));
         });
 
