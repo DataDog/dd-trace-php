@@ -109,7 +109,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     if (DDTRACE_G(request_init_hook)) {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));
-        dd_execute_php_file(DDTRACE_G(request_init_hook));
+        dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
     }
 
     return SUCCESS;
