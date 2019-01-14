@@ -50,7 +50,7 @@ ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "some.php", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
+STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                 zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.ignore_missing_overridables", "1", PHP_INI_SYSTEM, OnUpdateBool, ignore_missing_overridables,
                   zend_ddtrace_globals, ddtrace_globals)
@@ -116,6 +116,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     //     run_a_file(filename);
     // }
     if (DDTRACE_G(request_init_hook)){
+        DD_PRINTF("%s", DDTRACE_G(request_init_hook));
         run_a_file_php5(DDTRACE_G(request_init_hook));
     }
 
@@ -126,6 +127,9 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 static int run_a_file_php5(const char *filename TSRMLS_DC)
 {
 	int filename_len = strlen(filename);
+    if (filename_len == 0) {
+        return FAILURE;
+    }
 	int dummy = 1;
 	zend_file_handle file_handle;
 	zend_op_array *new_op_array;
@@ -139,7 +143,7 @@ static int run_a_file_php5(const char *filename TSRMLS_DC)
 			file_handle.opened_path = estrndup(filename, filename_len);
 
 		}
-		if (zend_hash_add(&EG(included_files), file_handle.opened_path, strlen(file_handle.opened_path)+1, (void
+		if (zend_hash_add(&EG(included_files), file_handle.opened_path, strlen(file_handle.opened_path) + 1, (void
 *)&dummy, sizeof(int), NULL)==SUCCESS) { 			new_op_array = zend_compile_file(&file_handle, ZEND_REQUIRE TSRMLS_CC);
 			zend_destroy_file_handle(&file_handle TSRMLS_CC);
 		} else {
