@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file - [read more
 - Track integration loading to avoid re-loading unnecessary ones #211
 - Documenting release steps #223
 - Ability to reset all overrides via `dd_trace_reset`
+- Ability to run web framework tests in external web server #232
 
 ### Changed
 - By default do not throw an exception when method or function doesn't exist
