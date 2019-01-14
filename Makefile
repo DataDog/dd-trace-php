@@ -4,7 +4,7 @@ ABS_SRC_DIR := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
 CFLAGS := -O0 -g $(WALL_FLAGS)
-VERSION:=$(shell cat src/DDTrace/Version.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2)
+VERSION:=$(shell cat src/DDTrace/Tracer.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2)
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 
@@ -13,8 +13,7 @@ Q := @
 
 src/ext/version.h:
 	@echo "Creating [src/ext/version.h]\n"
-	@echo "PHP: "
-	@cat src/DDTrace/Version.php | grep VERSION
+	@echo "PHP: $(VERSION)"
 	@(echo '#ifndef PHP_DDTRACE_VERSION\n#define PHP_DDTRACE_VERSION "$(VERSION)"\n#endif' ) > $@
 	@echo "C: "
 	@cat $@ #| grep '#define'
