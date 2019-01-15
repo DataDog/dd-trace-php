@@ -95,9 +95,12 @@ zend_bool ddtrace_trace(zend_class_entry *clazz, STRING_T *name, zval *callable 
 
     if (clazz) {
         if (find_method(clazz, name, &function) != SUCCESS) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "failed to set return for %s::%s, the method does not exist",
-                                    STRING_VAL(clazz->name), STRING_VAL_CHAR(name));
+            if (!DDTRACE_G(ignore_missing_overridables)) {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                        "Failed to override %s::%s - the method does not exist",
+                                        STRING_VAL(clazz->name), STRING_VAL_CHAR(name));
+            }
+
             return 0;
         }
 
@@ -107,21 +110,31 @@ zend_bool ddtrace_trace(zend_class_entry *clazz, STRING_T *name, zval *callable 
         }
     }
 
-    HashTable *class_lookup = NULL;
+    HashTable *overridable_lookup = NULL;
     if (clazz) {
 #if PHP_VERSION_ID < 70000
-        class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length);
+        overridable_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length);
 #else
-        class_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), clazz->name);
+        overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), clazz->name);
 #endif
-        if (!class_lookup) {
-            class_lookup = ddtrace_new_class_lookup(clazz TSRMLS_CC);
+        if (!overridable_lookup) {
+            overridable_lookup = ddtrace_new_class_lookup(clazz TSRMLS_CC);
         }
     } else {
-        class_lookup = &DDTRACE_G(function_lookup);
+        if (find_function(EG(function_table), name, &function) != SUCCESS) {
+            if (!DDTRACE_G(ignore_missing_overridables)) {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                        "Failed to override function %s - the function does not exist",
+                                        STRING_VAL_CHAR(name));
+            }
+
+            return 0;
+        }
+
+        overridable_lookup = &DDTRACE_G(function_lookup);
     }
 
-    if (!class_lookup) {
+    if (!overridable_lookup) {
         return 0;
     }
 
@@ -134,7 +147,7 @@ zend_bool ddtrace_trace(zend_class_entry *clazz, STRING_T *name, zval *callable 
     dispatch.callable = *callable;
     zval_copy_ctor(&dispatch.callable);
 
-    if (ddtrace_dispatch_store(class_lookup, &dispatch)) {
+    if (ddtrace_dispatch_store(overridable_lookup, &dispatch)) {
         return 1;
     } else {
         ddtrace_dispatch_free_owned_data(&dispatch);

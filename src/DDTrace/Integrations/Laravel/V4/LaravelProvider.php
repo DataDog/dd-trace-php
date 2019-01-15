@@ -95,6 +95,12 @@ class LaravelProvider extends ServiceProvider
             $span->setTag(Tag::HTTP_URL, $request->url());
         });
 
+        dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($requestSpan) {
+            $args = func_get_args();
+            $requestSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
+            return call_user_func_array([$this, 'setStatusCode'], $args);
+        });
+
         dd_trace('Illuminate\Routing\Route', 'run', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.action', $this->uri);
             return TryCatchFinally::executePublicMethod($scope, $this, 'run', func_get_args());

@@ -33,7 +33,7 @@ First we'll install the Composer package.
 $ composer require datadog/dd-trace
 ```
 
-#### Installing the extension (from a package)
+#### Installing the extension
 
 Next we'll install the `ddtrace` extension. The easiest way to install the extension is from [PECL](https://pecl.php.net/package/datadog_trace).
 
@@ -41,34 +41,10 @@ Next we'll install the `ddtrace` extension. The easiest way to install the exten
 $ sudo pecl install datadog_trace-beta
 ```
 
-If you don't have `pecl` installed, you can install the extension from a package download. First [download the appropriate package](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then install the package with one of the commands below.
+After the installation is complete, you'll need to [enable the extension](docs/getting_started.md#enabling-the-extension).
 
-```bash
-# using RPM package (RHEL/Centos 6+, Fedora 20+)
-$ rpm -ivh datadog-php-tracer.rpm
-
-# using DEB package (Debian Jessie+ , Ubuntu 14.04+)
-$ deb -i datadog-php-tracer.deb
-
-# using APK package (Alpine)
-$ apk add datadog-php-tracer.apk --allow-untrusted
-
-# using tar.gz archive (Other distributions using libc6)
-$ tar -xf datadog-php-tracer.tar.gz -C /
-  /opt/datadog-php/bin/post-install.sh
-```
-
-#### Installing the extension (manually)
-
-The extension can also be installed manually from source. First [download the source code](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then compile and install the extension with the commands below.
-
-```bash
-$ cd /path/to/dd-trace-php
-$ phpize
-$ ./configure --enable-ddtrace
-$ make
-$ sudo make install
-```
+#### Installing the extension (from a package)
+If you don't have `pecl` installed, you can [install the extension manually](docs/getting_started.md#installing-the-extension-manually).
 
 ### Instrumentation
 
@@ -124,7 +100,7 @@ For more information about configuration and specific framework integrations, ch
 
 ### Advanced configuration
 
-> **Note:** As ddtrace is modeled off of [OpenTracing](https://opentracing.io/), it is recommended to read the [OpenTracing specification](https://github.com/opentracing/specification/blob/master/specification.md) to familiarize yourself with distributed tracing concepts.
+> **Note:** As ddtrace is modeled off of [OpenTracing](https://opentracing.io/), it is recommended to read the [OpenTracing specification](https://github.com/opentracing/specification/blob/master/specification.md) to familiarize yourself with distributed tracing concepts. The ddtrace package also provides an [OpenTracing-compatible tracer](docs/open_tracing.md).
 
 The transport can be customized by the config parameters:
 
@@ -145,7 +121,7 @@ The tracer can be customized by the config settings:
 
 ```php
 use DDTrace\Tracer;
-use DDTrace\Formats;
+use DDTrace\Format;
 
 // Config for tracer
 $config = [
@@ -156,7 +132,7 @@ $config = [
 
 $tracer = new Tracer(
     $transport,
-    [ Formats\TEXT_MAP => $textMap ],
+    [ Format::TEXT_MAP => $textMap ],
     $config
 );
 ```
@@ -176,9 +152,7 @@ The following documentation is specific to the OpenTracing package, but many of 
 
 #### Propagation of context
 
-- [Serializing context to the wire](https://github.com/opentracing/opentracing-php#serializing-to-the-wire)
-- [Deserializing context from the wire](https://github.com/opentracing/opentracing-php#deserializing-from-the-wire)
-- [Propagation formats](https://github.com/opentracing/opentracing-php#propagation-formats)
+The ddtrace package provides an [OpenTracing-compatible tracer](docs/open_tracing.md).
 
 ## Contributing
 

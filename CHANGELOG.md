@@ -2,17 +2,30 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+
 ### Added
-- Ability to reset all overrides via `dd_trace_reset`
 - Track integration loading to avoid re-loading unnecessary ones #211
+- Ability to run web framework tests in external web server #232
 
 ### Changed
-- By default do not throw an exception when method or function doesn't exist
+- Request init hook configuration allowing running arbitrary code before actual request execution #175
+
+### Changed
+
+### Fixed
+
+## [0.9.1]
+### Added
 - Migration from namespace based constants to class based constants for tags, formats and types #207
 - Track integration loading to avoid re-loading unnecessary ones #211
 - Documenting release steps #223
+- Ability to reset all overrides via `dd_trace_reset`
+
+### Changed
+- By default do not throw an exception when method or function doesn't exist
 
 ### Fixed
+- Eloquent integration calling protected `performInsert` method
 
 ## [0.9.0]
 ### Added
@@ -196,7 +209,8 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.9.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.9.1...HEAD
+[0.9.1]: https://github.com/DataDog/dd-trace-php/compare/0.9.0...0.9.1
 [0.9.0]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/DataDog/dd-trace-php/compare/0.7.1...0.8.0

@@ -16,17 +16,10 @@
 			"app/controllers",
 			"app/models",
 			"app/database/migrations",
-			"app/database/seeds",
-			"app/tests/TestCase.php"
+			"app/database/seeds"
 		],
 		"psr-4": {
 			"App\\": "app/"
-		}
-	},
-	"autoload-dev": {
-		"psr-4": {
-			"Tests\\": "./app/tests/",
-			"DDTrace\\Tests\\": "../../../../tests/"
 		}
 	},
 	"scripts": {

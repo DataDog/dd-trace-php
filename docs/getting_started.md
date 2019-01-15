@@ -18,6 +18,10 @@ The easiest way to install the extension is from [PECL](https://pecl.php.net/pac
 $ sudo pecl install datadog_trace-beta
 ```
 
+After the installation is complete, you'll need to [enable the extension](#enabling-the-extension).
+
+### Installing the extension (manually)
+
 If you don't have `pecl` installed, you can install the extension from a package download. First [download the appropriate package](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then install the package with one of the commands below.
 
 ```bash
@@ -35,22 +39,22 @@ $ tar -xf datadog-php-tracer.tar.gz -C /
   /opt/datadog-php/bin/post-install.sh
 ```
 
-### Compiling and installing the extension manually
+### Compiling the extension from source
+
+The extension can also be installed by compiling it from source. First [download the source code](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then compile and install the extension with the commands below.
 
 ```bash
-mkdir dd-trace
-cd dd-trace
-curl -L https://github.com/DataDog/dd-trace-php/archive/master.tar.gz | tar x --strip-components=1
-phpize # generate files needed to build PHP extension
-./configure
-make
-sudo make install
+$ cd /path/to/dd-trace-php
+$ phpize
+$ ./configure --enable-ddtrace
+$ make
+$ sudo make install
 ```
 
 #### Bash one-liner
 
 ```bash
-(cd $(mktemp -d); curl -L https://github.com/DataDog/dd-trace-php/archive/master.tar.gz | tar x --strip-components=1 && phpize && ./configure && make && sudo make install )
+$ (cd $(mktemp -d); curl -L https://github.com/DataDog/dd-trace-php/archive/master.tar.gz | tar x --strip-components=1 && phpize && ./configure && make && sudo make install )
 ```
 
 ### Enabling the extension

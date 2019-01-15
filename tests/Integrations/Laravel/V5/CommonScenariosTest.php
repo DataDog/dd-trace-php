@@ -1,35 +1,37 @@
 <?php
 
-namespace Tests\Integration;
+namespace DDTrace\Tests\Integrations\Laravel\V5;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
-use DDTrace\Tests\Frameworks\Util\CommonScenariosDataProviderTrait;
-use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
-use Tests\TestCase;
 
-
-class CommonScenariosTest extends TestCase
+final class CommonScenariosTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait, SpanAssertionTrait, CommonScenariosDataProviderTrait;
+    protected static function getAppIndexScript()
+    {
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
+    }
+
+    protected static function getEnvs()
+    {
+        return [
+            'APP_NAME' => 'laravel_test_app',
+        ];
+    }
 
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
      * @param array $spanExpectations
+     * @throws \Exception
      */
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
-        $traces = $this->simulateWebRequestTracer(function() use ($spec) {
-            if ($spec instanceof GetSpec) {
-                $response = $this->get($spec->getPath());
-                $response->assertStatus($spec->getStatusCode());
-            } else {
-                $this->fail('Unhandled request spec type');
-            }
+        $traces = $this->tracesFromWebRequest(function () use ($spec) {
+            $this->call($spec);
         });
+
         $this->assertExpectedSpans($this, $traces, $spanExpectations);
     }
 
@@ -47,7 +49,7 @@ class CommonScenariosTest extends TestCase
                         'laravel.route.name' => 'simple_route',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost/simple',
+                        'http.url' => 'http://127.0.0.1:9999/simple',
                         'http.status_code' => '200',
                     ]),
                 ],
@@ -60,7 +62,7 @@ class CommonScenariosTest extends TestCase
                     )->withExactTags([
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple_view',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost/simple_view',
+                        'http.url' => 'http://127.0.0.1:9999/simple_view',
                         'http.status_code' => '200',
                     ])->withExistingTagsNames(['laravel.route.name']),
                     SpanAssertion::build(
@@ -80,7 +82,7 @@ class CommonScenariosTest extends TestCase
                         'laravel.route.name' => '',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@error',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost/error',
+                        'http.url' => 'http://127.0.0.1:9999/error',
                         'http.status_code' => '500',
                     ]),
                 ],

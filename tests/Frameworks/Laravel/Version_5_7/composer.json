@@ -29,7 +29,6 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\": "./tests/",
             "DDTrace\\Tests\\": "../../../../tests/"
         }
     },

@@ -71,41 +71,25 @@
             "@test-unit",
             "@test-integration",
             "@test-integrations-56",
-            "@laravel-42-update",
-            "@laravel-42-test",
-            "@symfony-34-update",
-            "@symfony-34-test"
+            "@test-web-56"
         ],
         "test-all-70": [
             "@test-unit",
             "@test-integration",
             "@test-integrations-70",
-            "@laravel-42-update",
-            "@laravel-42-test",
-            "@symfony-34-update",
-            "@symfony-34-test"
+            "@test-web-70"
         ],
         "test-all-71": [
             "@test-unit",
             "@test-integration",
             "@test-integrations-71",
-            "@laravel-42-update",
-            "@laravel-42-test",
-            "@laravel-57-update",
-            "@laravel-57-test",
-            "@symfony-34-update",
-            "@symfony-34-test"
+            "@test-web-71"
         ],
         "test-all-72": [
             "@test-unit",
             "@test-integration",
             "@test-integrations-72",
-            "@laravel-42-update",
-            "@laravel-42-test",
-            "@laravel-57-update",
-            "@laravel-57-test",
-            "@symfony-34-update",
-            "@symfony-34-test"
+            "@test-web-72"
         ],
         "test-integration": [
             "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
@@ -173,16 +157,43 @@
             "@composer scenario default"
         ],
 
+        "test-web-56": [
+            "@laravel-42-update",
+            "@laravel-42-test",
+            "@symfony-34-update",
+            "@symfony-34-test"
+        ],
+        "test-web-70": [
+            "@laravel-42-update",
+            "@laravel-42-test",
+            "@symfony-34-update",
+            "@symfony-34-test"
+        ],
+        "test-web-71": [
+            "@laravel-42-update",
+            "@laravel-42-test",
+            "@laravel-57-update",
+            "@laravel-57-test",
+            "@symfony-34-update",
+            "@symfony-34-test"
+        ],
+        "test-web-72": [
+            "@laravel-42-update",
+            "@laravel-42-test",
+            "@laravel-57-update",
+            "@laravel-57-test",
+            "@symfony-34-update",
+            "@symfony-34-test"
+        ],
+
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
 
         "laravel-42-update": "composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
-        "laravel-42-test": "composer --working-dir=tests/Frameworks/Laravel/Version_4_2 test",
-
+        "laravel-42-test": "@composer test -- tests/Integrations/Laravel/V4",
         "laravel-57-update": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",
-        "laravel-57-test": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 test",
-
+        "laravel-57-test": "@composer test -- tests/Integrations/Laravel/V5/CommonScenariosTest.php",
         "symfony-34-update": "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
-        "symfony-34-test": "composer --working-dir=tests/Frameworks/Symfony/Version_3_4 test"
+        "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3"
     },
     "extra": {
         "scenarios": {
