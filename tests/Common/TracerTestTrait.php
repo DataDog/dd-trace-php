@@ -16,16 +16,6 @@ trait TracerTestTrait
     protected static $agentRequestDumperUrl = 'http://request_replayer';
 
     /**
-     * Returns the file path for the fake agent that dumps all received tracer spans.
-     *
-     * @return string
-     */
-    protected function getDumpedFilePath()
-    {
-        return __DIR__ . '/../../.request_replayer_data/dump.json';
-    }
-
-    /**
      * @param $fn
      * @param null $tracer
      * @return Span[][]

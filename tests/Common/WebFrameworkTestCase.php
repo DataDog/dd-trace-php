@@ -52,14 +52,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         return [];
     }
 
-    protected function setUp()
-    {
-        parent::setUp();
-        if (file_exists($this->getDumpedFilePath())) {
-            unlink($this->getDumpedFilePath());
-        }
-    }
-
     /**
      * Sets up a web server.
      */
