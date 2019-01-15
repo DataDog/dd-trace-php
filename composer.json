@@ -22,23 +22,12 @@
     "require": {
         "php": "^5.6 || ^7.0",
         "ext-curl": "*",
-        "ext-json": "*",
-        "opentracing/opentracing": "1.0.0-beta5@dev",
-        "psr/http-message": "^1.0",
-        "psr/log": "^1.0.0",
-        "symfony/polyfill-php55": "^1.9",
-        "symfony/polyfill-php56": "^1.9",
-        "symfony/polyfill-php70": "^1.8.0"
-    },
-    "provide": {
-        "opentracing/opentracing": "1.0.0-beta5"
+        "ext-json": "*"
     },
     "require-dev": {
         "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
-        "phpcompatibility/php-compatibility": "^9.0",
-        "phpcompatibility/phpcompatibility-passwordcompat": "^1.0",
-        "phpcompatibility/phpcompatibility-symfony": "*",
+        "opentracing/opentracing": "1.0.0-beta5",
         "phpstan/phpstan": "^0.10.5",
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
@@ -50,14 +39,7 @@
     "autoload": {
         "psr-4": {
             "DDTrace\\": "./src/DDTrace/"
-        },
-        "files": [
-            "./src/DDTrace/Formats.php",
-            "./src/DDTrace/Tags.php",
-            "./src/DDTrace/Time.php",
-            "./src/DDTrace/Types.php",
-            "./src/DDTrace/Version.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {
