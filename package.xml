@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-01-07</date>
+    <date>2019-01-11</date>
     <version>
-        <release>0.9.0</release>
-        <api>0.9.0</api>
+        <release>0.9.1</release>
+        <api>0.9.1</api>
     </version>
     <stability>
         <release>beta</release>
@@ -22,19 +22,13 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         ### Added
-        - PHP code compatibility with PHP 5.4 #194
-        - Move framework tests to tests root folder #198
-        - Move integrations tests to tests root folder #200
-        - Allow testing of multiple library versions #203
-        - Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
-        - Configurable autofinishing of unfinished spans on tracer flush #217
+        - Ability to reset all overrides via `dd_trace_reset`
+
+        ### Changed
+        - By default do not throw an exception when method or function doesn't exist
 
         ### Fixed
-        - Predis integration supporting constructor options as an object #187 - thanks @raffaellopaletta
-        - Properly set http status code tag in Laravel 4 integration #195
-        - Agent calls traced when using Symfony 3 integration #197
-        - Fix for trace and span ID's that were improperly serialized on the wire in distributed tracing contexts #204
-        - Fix noop tracer issues with Laravel integration #220
+        - Eloquent integration calling protected `performInsert` method
     </notes>
     <contents>
         <dir name="/">

@@ -1,7 +1,7 @@
 <?php
 
-$defaultRequestLog = '/tmp/php_request_replayer_' . getmypid() . '.json';
-$requestLog = getenv('DD_REQUEST_DUMPER_FILE') ? : $defaultRequestLog;
+$filename = basename(getenv('DD_REQUEST_DUMPER_FILE') ?: 'php_request_replayer_' . getmypid() . '.json');
+$requestLog = sys_get_temp_dir() . '/' . $filename;
 
 if (php_sapi_name() == 'cli-server') {
     if ($_SERVER['REQUEST_URI'] == '/replay') {
