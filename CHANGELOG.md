@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+
+### Added
+
+### Changed
+
+### Fixed
+
+## [0.9.1]
 ### Added
 - Migration from namespace based constants to class based constants for tags, formats and types #207
 - Track integration loading to avoid re-loading unnecessary ones #211
@@ -195,7 +203,8 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.9.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.9.1...HEAD
+[0.9.1]: https://github.com/DataDog/dd-trace-php/compare/0.9.0...0.9.1
 [0.9.0]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/DataDog/dd-trace-php/compare/0.7.1...0.8.0
