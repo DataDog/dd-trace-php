@@ -50,7 +50,7 @@ aliases:
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: php:7.2
     name: request_replayer
-    command: sh -c "curl --output index.php https://github.com/DataDog/dd-trace-php/blob/dev/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
+    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/dev/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
@@ -116,7 +116,7 @@ aliases:
   - &STEP_WAIT_REQUEST_REPLAYER
     run:
       name: Waiting for Dockerized request replayer
-      command: dockerize -wait tcp://request_replayer:80 -timeout 2m
+      command: dockerize -wait tcp://request_replayer:80/clear-dumped-data -timeout 2m
 
   - &STEP_WAIT_MONGODB
     run:

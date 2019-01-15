@@ -87,12 +87,7 @@ services:
 
   request_replayer:
     image: php:7.2
-    volumes:
-      - ./tests/request_replayer:/var/www
-      - ./.request_replayer_data:/dump
     working_dir: /var/www
-    environment:
-      DD_REQUEST_DUMPER_FILE: /dump/dump.json
     ports:
       - 9000:80
-    command: php -S 0.0.0.0:80 /var/www/index.php
+    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/dev/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
