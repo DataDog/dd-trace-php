@@ -16,6 +16,7 @@ configure
 *.lo
 *.o
 *.so
+error.log
 install-sh
 libtool
 ltmain.sh
