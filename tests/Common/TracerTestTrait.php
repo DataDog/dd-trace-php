@@ -51,10 +51,8 @@ trait TracerTestTrait
      */
     public function simulateAgent($fn, $tracer = null)
     {
-        // Removing previous file if it already exists.
-        if (file_exists($this->getDumpedFilePath())) {
-            unlink($this->getDumpedFilePath());
-        }
+        // Clearing existing dumped file
+        $this->resetRequestDumper();
 
         $transport = new Http(new Json(), null, ['endpoint' => self::$agentRequestDumperUrl]);
         $tracer = $tracer ?: new Tracer($transport);
@@ -70,6 +68,15 @@ trait TracerTestTrait
     }
 
     /**
+     * Reset the request dumper removing all the dumped  data file.
+     */
+    private function resetRequestDumper()
+    {
+        $curl =  curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
+        curl_exec($curl);
+    }
+
+    /**
      * This method can be used to request data to a real request dumper and to rebuild the traces
      * based on the dumped data.
      *
@@ -80,8 +87,12 @@ trait TracerTestTrait
      */
     public function tracesFromWebRequest($fn, $tracer = null)
     {
+        // Clearing existing dumped file
+        $this->resetRequestDumper();
+
         // The we server has to be configured to send traces to the provided requests dumper.
         $fn($tracer);
+
         return $this->parseTracesFromDumpedData();
     }
 
@@ -93,12 +104,13 @@ trait TracerTestTrait
      */
     private function parseTracesFromDumpedData()
     {
-        if (!file_exists($this->getDumpedFilePath())) {
-            return [];
-        }
+        // Retrieving data
+        $curl =  curl_init(self::$agentRequestDumperUrl . '/replay');
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        $response = curl_exec($curl);
 
         // For now we only support asserting traces against one dump at a time.
-        $loaded = json_decode(file_get_contents($this->getDumpedFilePath()), true);
+        $loaded = json_decode($response, true);
         $rawTraces = json_decode($loaded['body'], true);
 
         $traces = [];
