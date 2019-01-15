@@ -85,12 +85,10 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         $url = 'http://127.0.0.1:' . self::PORT . $spec->getPath();
         if ($spec instanceof GetSpec) {
-            $response = $this->sendRequest('GET', $url);
             return $this->sendRequest('GET', $url);
-        } else {
-            $this->fail('Unhandled request spec type');
-            return null;
         }
+
+        $this->fail('Unhandled request spec type');
     }
 
     /**
