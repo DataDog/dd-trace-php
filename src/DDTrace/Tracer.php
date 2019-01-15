@@ -16,7 +16,7 @@ use DDTrace\Contracts\Tracer as TracerInterface;
 
 final class Tracer implements TracerInterface
 {
-    const VERSION = '0.9.0-beta';
+    const VERSION = '0.9.1-beta';
 
     /**
      * @var Span[][]
