@@ -3,8 +3,6 @@
 namespace DDTrace\Tests\Unit;
 
 use DDTrace\Configuration;
-use DDTrace\Contracts\Tracer as TracerInterface;
-use DDTrace\OpenTracer\Tracer as OpenTracer;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
 use DDTrace\Tag;
@@ -12,7 +10,6 @@ use DDTrace\Tests\DebugTransport;
 use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
-use OpenTracing\Mock\MockTracer;
 
 final class TracerTest extends BaseTestCase
 {
@@ -22,14 +19,6 @@ final class TracerTest extends BaseTestCase
     const TAG_VALUE = 'test_value';
     const FORMAT = 'test_format';
 
-    public function tracerImplementations()
-    {
-        return [
-            [new Tracer(new NoopTransport())],
-            [new OpenTracer(new MockTracer())],
-        ];
-    }
-
     public function testStartSpanAsNoop()
     {
         $tracer = Tracer::noop();
@@ -37,11 +26,7 @@ final class TracerTest extends BaseTestCase
         $this->assertInstanceOf('DDTrace\NoopSpan', $span);
     }
 
-    /**
-     * @dataProvider tracerImplementations
-     * @param TracerInterface $tracer
-     */
-    public function testCreateSpanSuccessWithExpectedValues(TracerInterface $tracer)
+    public function testCreateSpanSuccessWithExpectedValues()
     {
         $tracer = new Tracer(new NoopTransport());
         $startTime = Time::now();

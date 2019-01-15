@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\Curl;
 
 use DDTrace\Configuration;
 use DDTrace\Format;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -15,6 +16,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';
     const URL_NOT_EXISTS = '__i_am_not_real__.invalid';
+
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+        IntegrationsLoader::load();
+    }
 
     public function testLoad200UrlOnInit()
     {

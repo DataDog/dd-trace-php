@@ -174,7 +174,6 @@ trait TracerTestTrait
     public function simulateWebRequestTracer($fn)
     {
         $tracer = GlobalTracer::get();
-        $tracer->reset();
         $transport = new DebugTransport();
 
         // Replacing the transport in the current tracer
@@ -189,7 +188,7 @@ trait TracerTestTrait
         // `register_shutdown_function`.
         // We need yet to find a strategy, though, to make sure that the `register_shutdown_function` is actually there
         // and that do not magically disappear. Here we are faking things.
-        $tracer->getScopeManager()->close();
+        $tracer->getActiveSpan()->finish();
 
         return $this->flushAndGetTraces($transport);
     }

@@ -14,6 +14,12 @@ define('MYSQL_HOST', 'mysql_integration');
 
 final class PDOTest extends IntegrationTestCase
 {
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+        IntegrationsLoader::load();
+    }
+
     protected function setUp()
     {
         parent::setUp();
