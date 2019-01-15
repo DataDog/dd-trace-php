@@ -4,10 +4,6 @@ All notable changes to this project will be documented in this file - [read more
 ## [Unreleased]
 
 ### Added
-- Track integration loading to avoid re-loading unnecessary ones #211
-- Ability to run web framework tests in external web server #232
-
-### Changed
 - Request init hook configuration allowing running arbitrary code before actual request execution #175
 
 ### Changed
@@ -34,7 +30,6 @@ All notable changes to this project will be documented in this file - [read more
 - Move integrations tests to tests root folder #200
 - Removal of external dependencies to support auto-instrumentation #206
 - Allow testing of multiple library versions #203
-- Migration from namespace based constants to class based constants for tags, formats and types #207
 - Downgrade of phpunit to 4.* in order to prepare for php 5.4 #208
 - Configurable autofinishing of unfinished spans on tracer flush #217
 

@@ -135,7 +135,7 @@ $tracer = new Tracer(
     $config
 );
 ```
-        
+
 ### OpenTracing
 
 The ddtrace package provides an [OpenTracing-compatible tracer](docs/open_tracing.md).
