@@ -61,10 +61,10 @@
         "test-ext": "make -f DDMakefile test_c",
         "test": "phpunit --colors=always --configuration=phpunit.xml",
         "test-all": [
-          "@test-all-56",
-          "@test-all-70",
-          "@test-all-71",
-          "@test-all-72"
+            "@test-all-56",
+            "@test-all-70",
+            "@test-all-71",
+            "@test-all-72"
         ],
         "test-all-56": [
             "@test-unit",
