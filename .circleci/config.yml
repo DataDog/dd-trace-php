@@ -1,4 +1,4 @@
-version: 2.1
+version: 2.0
 
 aliases:
 
@@ -50,8 +50,7 @@ aliases:
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: php:7.2
     name: request_replayer
-    command: echo "${CIRCLE_BRANCH}"
-#    command: apt update && apt install -y git && git clone -b ${CIRCLE_BRANCH} --depth 1 --single-branch git@github.com:DataDog/dd-trace-php.git . && php -S 0.0.0.0:9876 tests/request_replayer/index.php
+    command: sh -c "curl --output index.php https://github.com/DataDog/dd-trace-php/blob/dev/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
@@ -117,7 +116,7 @@ aliases:
   - &STEP_WAIT_REQUEST_REPLAYER
     run:
       name: Waiting for Dockerized request replayer
-      command: dockerize -wait tcp://request_replayer -timeout 2m
+      command: dockerize -wait tcp://request_replayer:80 -timeout 2m
 
   - &STEP_WAIT_MONGODB
     run:
