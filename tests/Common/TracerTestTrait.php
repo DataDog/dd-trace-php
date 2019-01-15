@@ -13,7 +13,7 @@ use DDTrace\GlobalTracer;
 
 trait TracerTestTrait
 {
-    protected static $agentRequestDumperUrl = 'http://request_dumper';
+    protected static $agentRequestDumperUrl = 'http://request_replayer';
 
     /**
      * Returns the file path for the fake agent that dumps all received tracer spans.
@@ -22,7 +22,7 @@ trait TracerTestTrait
      */
     protected function getDumpedFilePath()
     {
-        return __DIR__ . '/../../.request_dumper_data/dump.json';
+        return __DIR__ . '/../../.request_replayer_data/dump.json';
     }
 
     /**

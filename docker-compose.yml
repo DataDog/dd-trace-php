@@ -14,7 +14,7 @@ x-aliases:
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
         - ddagent_integration
-        - request_dumper
+        - request_replayer
         - elasticsearch2_integration
         - httpbin_integration
         - redis_integration
@@ -85,11 +85,11 @@ services:
     ports:
       - "8126:8126"
 
-  request_dumper:
+  request_replayer:
     image: php:7.2
     volumes:
       - ./tests/request_replayer:/var/www
-      - ./.request_dumper_data:/dump
+      - ./.request_replayer_data:/dump
     working_dir: /var/www
     environment:
       DD_REQUEST_DUMPER_FILE: /dump/dump.json
