@@ -157,7 +157,7 @@ trait TracerTestTrait
 
         $reflection = new \ReflectionObject($obj);
         $property = $reflection->getProperty($property);
-        $convertedValue = $converter ? call_user_func($converter, $data[$field]) : $data[$field];
+        $convertedValue = $converter ? $converter($data[$field]) : $data[$field];
         if ($property->isPrivate() || $property->isProtected()) {
             $property->setAccessible(true);
             $property->setValue($obj, $convertedValue);

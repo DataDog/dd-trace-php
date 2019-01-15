@@ -100,7 +100,7 @@ class WebServer
         $all = array_merge($this->defaultEnvs, $this->envs);
         $forCli = [];
         foreach ($all as $name => $value) {
-            $forCli[] = "$name='$value'";
+            $forCli[] = escapeshellarg($name) . "='" . escapeshellarg($value) . "'";
         }
         return implode(' ', $forCli);
     }
