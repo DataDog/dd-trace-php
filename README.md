@@ -43,7 +43,6 @@ $ sudo pecl install datadog_trace-beta
 
 After the installation is complete, you'll need to [enable the extension](docs/getting_started.md#enabling-the-extension).
 
-#### Installing the extension (from a package)
 If you don't have `pecl` installed, you can [install the extension manually](docs/getting_started.md#installing-the-extension-manually).
 
 ### Instrumentation
@@ -136,21 +135,8 @@ $tracer = new Tracer(
     $config
 );
 ```
-
+        
 ### OpenTracing
-
-The following documentation is specific to the OpenTracing package, but many of the concepts work the same for the ddtrace extension.
-
-#### Creating Spans
-
-- [Starting a root span](https://github.com/opentracing/opentracing-php#starting-an-empty-trace-by-creating-a-root-span)
-- [Starting a span for a given request](https://github.com/opentracing/opentracing-php#creating-a-span-given-an-existing-request)
-- [Active span and scope manager](https://github.com/opentracing/opentracing-php#active-spans-and-scope-manager)
-  - [Creating a child span assigning parent manually](https://github.com/opentracing/opentracing-php#creating-a-child-span-assigning-parent-manually)
-  - [Creating a child span using automatic active span management](https://github.com/opentracing/opentracing-php#creating-a-child-span-using-automatic-active-span-management)
-- [Using span options](https://github.com/opentracing/opentracing-php#using-span-options)
-
-#### Propagation of context
 
 The ddtrace package provides an [OpenTracing-compatible tracer](docs/open_tracing.md).
 
