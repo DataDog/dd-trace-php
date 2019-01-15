@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file - [read more
 ## [Unreleased]
 
 ### Added
+- Request init hook configuration allowing running arbitrary code before actual request execution #175
 
 ### Changed
 

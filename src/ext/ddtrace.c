@@ -6,15 +6,16 @@
 #include <Zend/zend_exceptions.h>
 #include <php.h>
 #include <php_ini.h>
+#include <php_main.h>
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
 #include "compat_zend_string.h"
 #include "ddtrace.h"
+#include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
-
-#include "debug.h"
+#include "request_hooks.h"
 
 #define UNUSED_1(x) (void)(x)
 #define UNUSED_2(x, y) \
@@ -50,9 +51,17 @@ ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
+STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
+                  zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.ignore_missing_overridables", "1", PHP_INI_SYSTEM, OnUpdateBool, ignore_missing_overridables,
                   zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
+
+static inline void table_dtor(void *zv) {
+    HashTable *ht = *(HashTable **)zv;
+    zend_hash_destroy(ht);
+    efree(ht);
+}
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
@@ -64,6 +73,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+    zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)table_dtor, 0);
+    zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_free, 0);
 
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject();
@@ -94,6 +106,11 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_dispatch_init(TSRMLS_C);
+
+    if (DDTRACE_G(request_init_hook)) {
+        DD_PRINTF("%s", DDTRACE_G(request_init_hook));
+        dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
+    }
 
     return SUCCESS;
 }
