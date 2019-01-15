@@ -1,34 +1,28 @@
 <?php
 
-namespace Tests\Integration;
+namespace DDTrace\Tests\Integrations\Laravel\V4;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
-use DDTrace\Tests\Frameworks\Util\CommonScenariosDataProviderTrait;
-use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
-use Tests\TestCase;
 
-
-class CommonScenariosTest extends TestCase
+final class CommonScenariosTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait, SpanAssertionTrait, CommonScenariosDataProviderTrait;
+    protected static function getAppIndexScript()
+    {
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
+    }
 
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
      * @param array $spanExpectations
+     * @throws \Exception
      */
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
-        $traces = $this->simulateWebRequestTracer(function() use ($spec) {
-            if ($spec instanceof GetSpec) {
-                $response = $this->call('GET', $spec->getPath());
-                $this->assertSame($spec->getStatusCode(), $response->getStatusCode());
-            } else {
-                $this->fail('Unhandled request spec type');
-            }
+        $traces = $this->tracesFromWebRequest(function () use ($spec) {
+            $this->call($spec);
         });
 
         $this->assertExpectedSpans($this, $traces, $spanExpectations);
@@ -44,17 +38,18 @@ class CommonScenariosTest extends TestCase
                             'laravel.route.name' => 'simple_route',
                             'laravel.route.action' => 'HomeController@simple',
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost/simple',
+                            'http.url' => 'http://127.0.0.1:9999/simple',
                             'http.status_code' => '200',
                         ]),
+                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple'),
                     SpanAssertion::exists('laravel.event.handle'),
                 ],
                 'A simple GET request with a view' => [
-                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.request'),
+                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.action'),
@@ -64,15 +59,15 @@ class CommonScenariosTest extends TestCase
                     SpanAssertion::exists('laravel.event.handle'),
                 ],
                 'A GET request with an exception' => [
-                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@error error')
                         ->withExactTags([
                             'laravel.route.name' => 'error',
                             'laravel.route.action' => 'HomeController@error',
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost/error',
+                            'http.url' => 'http://127.0.0.1:9999/error',
                             'http.status_code' => '500'
                         ]),
+                    SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::build('laravel.action', 'laravel', 'web', 'error')

@@ -41,6 +41,25 @@ final class CurlIntegrationTest extends IntegrationTestCase
         ]);
     }
 
+    public function testSampleExternalAgent()
+    {
+        $traces = $this->simulateAgent(function () {
+            $ch = curl_init(self::URL . '/status/200');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            $this->assertSame('', $response);
+            curl_close($ch);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
+                ->withExactTags([
+                    'http.url' => self::URL . '/status/200',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
     public function testLoad200UrlAsOpt()
     {
         $traces = $this->isolateTracer(function () {

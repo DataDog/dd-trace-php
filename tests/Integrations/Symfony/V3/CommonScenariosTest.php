@@ -1,35 +1,28 @@
 <?php
 
-namespace Tests\AppBundle\Controller;
+namespace DDTrace\Tests\Integrations\Symfony\V3;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
-use DDTrace\Tests\Frameworks\Util\CommonScenariosDataProviderTrait;
-use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
-class CommonScenariosTest extends WebTestCase
+final class CommonScenariosTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait, SpanAssertionTrait, CommonScenariosDataProviderTrait;
+    protected static function getAppIndexScript()
+    {
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app.php';
+    }
 
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
      * @param array $spanExpectations
+     * @throws \Exception
      */
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
-        $client = static::createClient();
-        $traces = $this->simulateWebRequestTracer(function() use ($spec, $client) {
-            if ($spec instanceof GetSpec) {
-                $client->request('GET', $spec->getPath());
-                $response = $client->getResponse();
-                $this->assertSame($spec->getStatusCode(), $response->getStatusCode());
-            } else {
-                $this->fail('Unhandled request spec type');
-            }
+        $traces = $this->tracesFromWebRequest(function () use ($spec) {
+            $this->call($spec);
         });
 
         $this->assertExpectedSpans($this, $traces, $spanExpectations);
@@ -50,7 +43,7 @@ class CommonScenariosTest extends WebTestCase
                             'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleAction',
                             'symfony.route.name' => 'simple',
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost/simple',
+                            'http.url' => 'http://127.0.0.1:9999/simple',
                             'http.status_code' => '200',
                         ]),
                     SpanAssertion::exists('symfony.kernel.handle'),
@@ -72,7 +65,7 @@ class CommonScenariosTest extends WebTestCase
                             'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleViewAction',
                             'symfony.route.name' => 'simple_view',
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost/simple_view',
+                            'http.url' => 'http://127.0.0.1:9999/simple_view',
                             'http.status_code' => '200',
                         ]),
                     SpanAssertion::exists('symfony.kernel.handle'),
@@ -101,7 +94,7 @@ class CommonScenariosTest extends WebTestCase
                             'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@errorAction',
                             'symfony.route.name' => 'error',
                             'http.method' => 'GET',
-                            'http.url' => 'http://localhost/error',
+                            'http.url' => 'http://127.0.0.1:9999/error',
                             'error.msg' => 'An exception occurred',
                             'error.type' => 'Exception',
                             'http.status_code' => '500',

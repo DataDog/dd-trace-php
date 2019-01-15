@@ -47,6 +47,11 @@ aliases:
       - MONGO_INITDB_ROOT_USERNAME=test
       - MONGO_INITDB_ROOT_PASSWORD=test
 
+  - &IMAGE_DOCKER_REQUEST_REPLAYER
+    image: php:7.2
+    name: request_replayer
+    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/dev/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
+
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
       at: ~/datadog
@@ -108,6 +113,11 @@ aliases:
       name: Waiting for Dockerized MySQL
       command: dockerize -wait tcp://mysql_integration:3306 -timeout 1m
 
+  - &STEP_WAIT_REQUEST_REPLAYER
+    run:
+      name: Waiting for Dockerized request replayer
+      command: dockerize -wait tcp://request_replayer:80/clear-dumped-data -timeout 2m
+
   - &STEP_WAIT_MONGODB
     run:
       name: Waiting for Dockerized MongoDB
@@ -122,36 +132,6 @@ aliases:
     run:
       name: Run integration tests
       command: composer test-integration -- --log-junit test-results/php-integration/results.xml
-
-  - &STEP_UPDATE_LARAVEL_42_ENV
-    run:
-      name: Update the Laravel 4.2 test environment
-      command: composer laravel-42-update
-
-  - &STEP_UPDATE_LARAVEL_57_ENV
-    run:
-      name: Update the Laravel 5.7 test environment
-      command: composer laravel-57-update
-
-  - &STEP_UPDATE_SYMFONY_34_ENV
-    run:
-      name: Update the Symfony 3.4 test environment
-      command: composer symfony-34-update
-
-  - &STEP_RUN_LARAVEL_42_TESTS
-    run:
-      name: Run the Laravel 4.2 test suite
-      command: composer laravel-42-test
-
-  - &STEP_RUN_LARAVEL_57_TESTS
-    run:
-      name: Run the Laravel 5.7 test suite
-      command: composer laravel-57-test
-
-  - &STEP_RUN_SYMFONY_34_TESTS
-    run:
-      name: Run the Symfony 3.4 test suite
-      command: composer symfony-34-test
 
   - &STEP_PERSIST_TO_WORKSPACE
     persist_to_workspace:
@@ -185,6 +165,22 @@ aliases:
   - &STEP_RUN_INTEGRATIONS_TESTS_72
     run:
       command: composer test-integrations-72
+
+  - &STEP_RUN_WEB_TESTS_56
+    run:
+      command: composer test-web-56
+
+  - &STEP_RUN_WEB_TESTS_70
+    run:
+      command: composer test-web-70
+
+  - &STEP_RUN_WEB_TESTS_71
+    run:
+      command: composer test-web-71
+
+  - &STEP_RUN_WEB_TESTS_72
+    run:
+      command: composer test-web-72
 
 
 jobs:
@@ -263,6 +259,7 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_MONGODB
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
@@ -277,13 +274,11 @@ jobs:
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_MONGODB
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_RUN_INTEGRATIONS_TESTS_56
-      - <<: *STEP_UPDATE_LARAVEL_42_ENV
-      - <<: *STEP_RUN_LARAVEL_42_TESTS
-      - <<: *STEP_UPDATE_SYMFONY_34_ENV
-      - <<: *STEP_RUN_SYMFONY_34_TESTS
+      - <<: *STEP_RUN_WEB_TESTS_56
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
@@ -299,6 +294,7 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_MONGODB
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
@@ -313,13 +309,11 @@ jobs:
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_MONGODB
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_RUN_INTEGRATIONS_TESTS_70
-      - <<: *STEP_UPDATE_LARAVEL_42_ENV
-      - <<: *STEP_RUN_LARAVEL_42_TESTS
-      - <<: *STEP_UPDATE_SYMFONY_34_ENV
-      - <<: *STEP_RUN_SYMFONY_34_TESTS
+      - <<: *STEP_RUN_WEB_TESTS_70
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
@@ -335,6 +329,7 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_MONGODB
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
@@ -349,15 +344,11 @@ jobs:
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_MONGODB
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_RUN_INTEGRATIONS_TESTS_71
-      - <<: *STEP_UPDATE_LARAVEL_42_ENV
-      - <<: *STEP_RUN_LARAVEL_42_TESTS
-      - <<: *STEP_UPDATE_LARAVEL_57_ENV
-      - <<: *STEP_RUN_LARAVEL_57_TESTS
-      - <<: *STEP_UPDATE_SYMFONY_34_ENV
-      - <<: *STEP_RUN_SYMFONY_34_TESTS
+      - <<: *STEP_RUN_WEB_TESTS_71
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
@@ -373,6 +364,7 @@ jobs:
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
       - <<: *IMAGE_DOCKER_MONGODB
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
@@ -387,15 +379,11 @@ jobs:
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_MONGODB
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_RUN_INTEGRATIONS_TESTS_72
-      - <<: *STEP_UPDATE_LARAVEL_42_ENV
-      - <<: *STEP_RUN_LARAVEL_42_TESTS
-      - <<: *STEP_UPDATE_LARAVEL_57_ENV
-      - <<: *STEP_RUN_LARAVEL_57_TESTS
-      - <<: *STEP_UPDATE_SYMFONY_34_ENV
-      - <<: *STEP_RUN_SYMFONY_34_TESTS
+      - <<: *STEP_RUN_WEB_TESTS_72
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS

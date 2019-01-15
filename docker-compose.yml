@@ -14,6 +14,7 @@ x-aliases:
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
         - ddagent_integration
+        - request_replayer
         - elasticsearch2_integration
         - httpbin_integration
         - redis_integration
@@ -83,3 +84,10 @@ services:
       - DD_API_KEY=invalid_key_but_its_ok
     ports:
       - "8126:8126"
+
+  request_replayer:
+    image: php:7.2
+    working_dir: /var/www
+    ports:
+      - 9000:80
+    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/dev/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
