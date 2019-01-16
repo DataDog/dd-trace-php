@@ -98,9 +98,15 @@ trait TracerTestTrait
         $curl =  curl_init(self::$agentRequestDumperUrl . '/replay');
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($curl);
+        if (!$response) {
+            return [];
+        }
 
         // For now we only support asserting traces against one dump at a time.
         $loaded = json_decode($response, true);
+        if (!isset($loaded['body'])) {
+            return [];
+        }
         $rawTraces = json_decode($loaded['body'], true);
 
         $traces = [];
