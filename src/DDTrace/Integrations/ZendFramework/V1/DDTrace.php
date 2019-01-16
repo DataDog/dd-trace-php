@@ -5,8 +5,8 @@ require __DIR__ . '/../../../../autoload.php';
 use DDTrace\Configuration;
 use DDTrace\Contracts\Scope;
 use DDTrace\GlobalTracer;
-use DDTrace\Http\Request;
 use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\Integrations\ZendFramework\V1\TraceRequest;
 use DDTrace\StartSpanOptions;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tag;
@@ -28,19 +28,21 @@ class DDTrace_DDTrace extends Zend_Application_Resource_ResourceAbstract
         if (!$this->shouldLoad()) {
             return false;
         }
+        $front = Zend_Controller_Front::getInstance();
+        $front->registerPlugin(new TraceRequest());
 
         // Init tracer with default options
         $this->tracer = new Tracer();
         GlobalTracer::set($this->tracer);
 
-        $scope = $this->initRootSpan();
+        $this->initRootSpan();
 
         // Enable other integrations
         IntegrationsLoader::load();
         // Flushes traces to agent.
-        register_shutdown_function(function () use ($scope) {
-            $scope->close();
-            GlobalTracer::get()->flush();
+        register_shutdown_function(function () {
+            $this->tracer->getRootSpan()->close();
+            $this->tracer->flush();
         });
 
         return $this->tracer;
@@ -62,7 +64,7 @@ class DDTrace_DDTrace extends Zend_Application_Resource_ResourceAbstract
     }
 
     /**
-     * @return Scope
+     * @return void
      */
     private function initRootSpan()
     {
@@ -74,25 +76,21 @@ class DDTrace_DDTrace extends Zend_Application_Resource_ResourceAbstract
                 $options,
                 self::getRequestHeaders()
             );
-        return $this->startActiveSpan($startSpanOptions);
+        $this->startRootSpan($startSpanOptions);
     }
 
     /**
      * @param StartSpanOptions $startSpanOptions
      * @return Scope
      */
-    private function startActiveSpan(StartSpanOptions $startSpanOptions)
+    private function startRootSpan(StartSpanOptions $startSpanOptions)
     {
-        $scope = $this->tracer->startActiveSpan(
+        $scope = $this->tracer->startRootSpan(
             self::getOperationName(),
             $startSpanOptions
         );
         $scope->getSpan()->setTag(Tag::SERVICE_NAME, $this->getAppName());
         $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
-        if ('cli' !== PHP_SAPI) {
-            $scope->getSpan()->setTag('http.method', Request::getMethod());
-            $scope->getSpan()->setTag('http.url', Request::getUrl());
-        }
         return $scope;
     }
 

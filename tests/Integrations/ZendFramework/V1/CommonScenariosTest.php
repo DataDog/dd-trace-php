@@ -35,18 +35,34 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 'A simple GET request returning a string' => [
                     SpanAssertion::build('zf1.request', 'zf1', 'web', 'zf1.request')
                         ->withExactTags([
+                            'zf1.controller' => 'simple',
+                            'zf1.action' => 'index',
+                            'zf1.route_name' => 'default',
                             'http.method' => 'GET',
                             'http.url' => 'http://127.0.0.1:9999/simple',
+                            'http.status_code' => '200',
                         ]),
                 ],
                 'A simple GET request with a view' => [
-                    SpanAssertion::exists('zf1.request'),
+                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'zf1.request')
+                        ->withExactTags([
+                            'zf1.controller' => 'simple',
+                            'zf1.action' => 'view',
+                            'zf1.route_name' => 'my_simple_view_route',
+                            'http.method' => 'GET',
+                            'http.url' => 'http://127.0.0.1:9999/simple_view',
+                            'http.status_code' => '200',
+                        ]),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build('zf1.request', 'zf1', 'web', 'zf1.request')
                         ->withExactTags([
+                            'zf1.controller' => 'error',
+                            'zf1.action' => 'error',
+                            'zf1.route_name' => 'default',
                             'http.method' => 'GET',
                             'http.url' => 'http://127.0.0.1:9999/error',
+                            'http.status_code' => '500',
                         ]),
                 ],
             ]
