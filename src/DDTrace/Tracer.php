@@ -11,6 +11,7 @@ use DDTrace\Sampling\Sampler;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use DDTrace\Exceptions\UnsupportedFormat;
+use DDTrace\Contracts\Scope as ScopeInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Contracts\Tracer as TracerInterface;
 
@@ -62,6 +63,11 @@ final class Tracer implements TracerInterface
      * @var ScopeManager
      */
     private $scopeManager;
+
+    /**
+     * @var ScopeInterface
+     */
+    private $rootSpan;
 
     /**
      * @var Configuration
@@ -149,6 +155,24 @@ final class Tracer implements TracerInterface
         $this->record($span);
 
         return $span;
+    }
+
+    /**
+     * @param string $operationName
+     * @param array $options
+     * @return ScopeInterface
+     */
+    public function startRootSpan($operationName, $options = [])
+    {
+        return $this->rootSpan = $this->startActiveSpan($operationName, $options);
+    }
+
+    /**
+     * @return ScopeInterface
+     */
+    public function getRootSpan()
+    {
+        return $this->rootSpan;
     }
 
     /**

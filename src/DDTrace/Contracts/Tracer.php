@@ -127,4 +127,9 @@ interface Tracer
      * @return mixed
      */
     public function getPrioritySampling();
+
+    /**
+     * @return Scope
+     */
+    public function getRootSpan();
 }
