@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Laravel\V4;
 
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
+use DDTrace\Span;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tag;
 use DDTrace\Time;
@@ -32,6 +33,9 @@ class LaravelProvider extends ServiceProvider
 {
     const NAME = 'laravel';
 
+    /**
+     * @var Span|null
+     */
     public $rootScope;
 
     /** @inheritdoc */
@@ -41,13 +45,11 @@ class LaravelProvider extends ServiceProvider
             return;
         }
 
-        $this->app->instance('DDTrace\Tracer', GlobalTracer::get());
-
         $appName = $this->getAppName();
         $tracer = GlobalTracer::get();
+        $this->app->instance('DDTrace\Tracer', $tracer);
         $self = $this;
 
-        // Root request span
         dd_trace('\Illuminate\Foundation\Application', 'handle', function () use ($appName, $tracer, $self) {
             $args = func_get_args();
             $request = $args[0];
@@ -95,9 +97,9 @@ class LaravelProvider extends ServiceProvider
             $span->setTag(Tag::HTTP_URL, $request->url());
         });
 
-        dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($requestSpan) {
+        dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($self) {
             $args = func_get_args();
-            $requestSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
+            $self->rootScope->getSpan()->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
             return call_user_func_array([$this, 'setStatusCode'], $args);
         });
 

@@ -61,6 +61,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         if ($rootPath) {
             self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT);
             self::$appServer->setEnvs(static::getEnvs());
+            self::$appServer->setInis([
+                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+            ]);
             self::$appServer->start();
         }
     }

@@ -101,7 +101,7 @@ trait TracerTestTrait
 
         // For now we only support asserting traces against one dump at a time.
         $loaded = json_decode($response, true);
-        $rawTraces = json_decode($loaded['body'], true);
+        $rawTraces = json_decode($loaded['body'], true) ?: [];
 
         $traces = [];
         foreach ($rawTraces as $spansInTrace) {
