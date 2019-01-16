@@ -40,4 +40,9 @@ interface ScopeManager
      * @return Scope|null
      */
     public function getActive();
+
+    /**
+     * Closes all the current request root spans. Typically there only will be one.
+     */
+    public function close();
 }
