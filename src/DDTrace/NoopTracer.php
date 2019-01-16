@@ -46,7 +46,6 @@ final class NoopTracer implements TracerInterface
      */
     public function startActiveSpan($operationName, $finishSpanOnClose = true, $options = [])
     {
-
         return NoopScope::create();
     }
 
@@ -78,5 +77,13 @@ final class NoopTracer implements TracerInterface
     public function getPrioritySampling()
     {
         return null;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getRootSpan()
+    {
+        return NoopScope::create();
     }
 }
