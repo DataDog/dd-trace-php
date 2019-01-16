@@ -176,8 +176,10 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsPropagated()
     {
+        if (strpos(PHP_VERSION, '5.4.') === 0) {
+            return; // Skipped because of a bug in PHP 5.4 extension
+        }
         $found = [];
-
         $traces = $this->isolateTracer(function () use (&$found) {
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
@@ -205,6 +207,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
+        if (strpos(PHP_VERSION, '5.4.') === 0) {
+            return; // Skipped because of a bug in PHP 5.4 extension
+        }
         $found = [];
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isAutofinishSpansEnabled' => false,
@@ -220,8 +225,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
             $ch = curl_init(self::URL . '/headers');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            $found = json_decode(curl_exec($ch), 1);
 
+            $found = json_decode(curl_exec($ch), 1);
             $span->finish();
         });
 

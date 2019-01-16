@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Unit;
+namespace DDTrace\Tests\OpenTracerUnit;
 
 use DDTrace\GlobalTracer;
 use DDTrace\Tracer;
@@ -9,10 +9,13 @@ use PHPUnit\Framework;
 
 final class GlobalTracerTest extends Framework\TestCase
 {
-    public function testDDTracerIsSetAsIs()
+    public function testOpenTracingTracerIsSetWithWrapper()
     {
         $tracer = new Tracer(new Noop());
         GlobalTracer::set($tracer);
-        $this->assertSame($tracer, GlobalTracer::get());
+        $this->assertInstanceOf(
+            '\DDTrace\OpenTracer\Tracer',
+            \OpenTracing\GlobalTracer::get()
+        );
     }
 }

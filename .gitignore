@@ -1,4 +1,5 @@
 **/vendor/
+tmp/build_extension/
 composer.lock
 .scenarios.lock/
 .vscode/
@@ -34,3 +35,4 @@ tests/ext/*.log
 tests/ext/*.mem
 tmp-php.ini
 tmp/opcache*
+*.orig
