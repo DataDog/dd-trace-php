@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Laravel;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\Laravel\V5\LaravelIntegrationLoader;
 
 class LaravelIntegration
 {
@@ -20,8 +21,8 @@ class LaravelIntegration
             \DDTrace\Integrations\Laravel\V4\LaravelIntegration::load();
             return Integration::LOADED;;
         } elseif (substr( $version, 0, 2 ) === "5.") {
-            \DDTrace\Integrations\Laravel\V5\LaravelIntegration::load();
-            return Integration::LOADED;;
+            $loader = new LaravelIntegrationLoader();
+            return $loader->load();
         }
 
         return Integration::NOT_AVAILABLE;
