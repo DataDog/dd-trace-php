@@ -5,10 +5,19 @@ namespace DDTrace;
 use DDTrace\Encoders\Json;
 use DDTrace\Transport\Http;
 
+/**
+ * Bootstrap the the datadog tracer.
+ */
 class Bootstrap
 {
+    /**
+     * @var bool
+     */
     private static $bootstrapped = false;
 
+    /**
+     * Idempotent method to bootstrap the datadog tracer once.
+     */
     public static function once()
     {
         if (self::$bootstrapped) {
@@ -18,7 +27,7 @@ class Bootstrap
         self::$bootstrapped = true;
         self::resetTracer();
 
-        register_shutdown_function(function() {
+        register_shutdown_function(function () {
             $tracer = GlobalTracer::get();
             $scopeManager = $tracer->getScopeManager();
             $scopeManager->close();
@@ -26,6 +35,9 @@ class Bootstrap
         });
     }
 
+    /**
+     * Reset the singleton tracer providing a brand new instance.
+     */
     public static function resetTracer()
     {
         $tracer = new Tracer(new Http(new Json()));

@@ -36,7 +36,7 @@ class LaravelIntegrationLoader
         $kernelClass = null;
         $self = $this;
 
-        dd_trace('Illuminate\Foundation\Application', 'bind', function() use (&$kernelClass, $self) {
+        dd_trace('Illuminate\Foundation\Application', 'bind', function () use (&$kernelClass, $self) {
 
             $args = func_get_args();
             /** @var Application $laravelApp */
@@ -73,7 +73,7 @@ class LaravelIntegrationLoader
             return $result;
         });
 
-        dd_trace('Illuminate\Foundation\ProviderRepository', 'load', function(array $providers) use ($self) {
+        dd_trace('Illuminate\Foundation\ProviderRepository', 'load', function (array $providers) use ($self) {
             $response = $this->load($providers);
             $self->traceRelevantMethods();
             return $response;
@@ -153,9 +153,9 @@ class LaravelIntegrationLoader
             return TryCatchFinally::executePublicMethod($scope, $this, 'get', [$path, $data]);
         });
 
-        dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function() use ($self) {
+        dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($self) {
             $args = func_get_args();
-            $self->rootScope->getSpan()->setTag(Tag::HTTP_STATUS_CODE,  $args[0]);
+            $self->rootScope->getSpan()->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
             return call_user_func_array([$this, 'setStatusCode'], $args);
         });
     }

@@ -17,10 +17,10 @@ class LaravelIntegration
 
         $version = \Illuminate\Foundation\Application::VERSION;
 
-        if (substr( $version, 0, 3 ) === "4.2") {
+        if (substr($version, 0, 3) === "4.2") {
             \DDTrace\Integrations\Laravel\V4\LaravelIntegration::load();
-            return Integration::LOADED;;
-        } elseif (substr( $version, 0, 2 ) === "5.") {
+            return Integration::LOADED;
+        } elseif (substr($version, 0, 2) === "5.") {
             $loader = new LaravelIntegrationLoader();
             return $loader->load();
         }

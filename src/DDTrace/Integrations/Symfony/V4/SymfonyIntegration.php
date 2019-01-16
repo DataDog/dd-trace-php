@@ -8,12 +8,12 @@ class SymfonyIntegration
 {
     public static function load()
     {
-        dd_trace('Symfony\Component\HttpKernel\Kernel', 'initializeBundles', function() {
+        dd_trace('Symfony\Component\HttpKernel\Kernel', 'initializeBundles', function () {
             $this->initializeBundles();
             $name = DDSymfonyIntegration::BUNDLE_NAME;
 
             // If the user has already registered the bundle, we do not register it again.
-            if (isset($this->bundles[$name])){
+            if (isset($this->bundles[$name])) {
                 return;
             }
 

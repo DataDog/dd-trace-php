@@ -11,7 +11,7 @@ $dd_autoload_called = false;
 // `Symfony\Component\Config\Resource\ClassExistenceResource::throwOnRequiredClass` loaders are private.
 // As soon as this is fixed we can trace `spl_autoload_register` function and use it as a hook instead of
 // statically hooking into a limited number of class loaders.
-dd_trace('spl_autoload_register', function() use (&$dd_autoload_called) {
+dd_trace('spl_autoload_register', function () use (&$dd_autoload_called) {
     $args = func_get_args();
 
     $originalAutoloaderRegistered = call_user_func_array('spl_autoload_register', $args);
