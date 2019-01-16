@@ -154,13 +154,15 @@
             "@laravel-42-update",
             "@laravel-42-test",
             "@symfony-34-update",
-            "@symfony-34-test"
+            "@symfony-34-test",
+            "@zend-framework-1-test"
         ],
         "test-web-70": [
             "@laravel-42-update",
             "@laravel-42-test",
             "@symfony-34-update",
-            "@symfony-34-test"
+            "@symfony-34-test",
+            "@zend-framework-1-test"
         ],
         "test-web-71": [
             "@laravel-42-update",
@@ -168,7 +170,8 @@
             "@laravel-57-update",
             "@laravel-57-test",
             "@symfony-34-update",
-            "@symfony-34-test"
+            "@symfony-34-test",
+            "@zend-framework-1-test"
         ],
         "test-web-72": [
             "@laravel-42-update",
@@ -176,7 +179,8 @@
             "@laravel-57-update",
             "@laravel-57-test",
             "@symfony-34-update",
-            "@symfony-34-test"
+            "@symfony-34-test",
+            "@zend-framework-1-test"
         ],
 
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
@@ -186,7 +190,8 @@
         "laravel-57-update": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",
         "laravel-57-test": "@composer test -- tests/Integrations/Laravel/V5/CommonScenariosTest.php",
         "symfony-34-update": "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
-        "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3"
+        "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3",
+        "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1"
     },
     "extra": {
         "scenarios": {
