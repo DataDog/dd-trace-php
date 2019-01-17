@@ -65,9 +65,9 @@ final class Tracer implements TracerInterface
     private $scopeManager;
 
     /**
-     * @var ScopeInterface
+     * @var ScopeInterface|null
      */
-    private $rootSpan;
+    private $rootScope;
 
     /**
      * @var Configuration
@@ -158,21 +158,19 @@ final class Tracer implements TracerInterface
     }
 
     /**
-     * @param string $operationName
-     * @param array $options
-     * @return ScopeInterface
+     * {@inheritdoc}
      */
-    public function startRootSpan($operationName, $options = [])
+    public function startRootScope($operationName, $options = [])
     {
-        return $this->rootSpan = $this->startActiveSpan($operationName, $options);
+        return $this->rootScope = $this->startActiveSpan($operationName, $options);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getRootSpan()
+    public function getRootScope()
     {
-        return $this->rootSpan;
+        return $this->rootScope;
     }
 
     /**

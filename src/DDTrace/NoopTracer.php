@@ -82,7 +82,15 @@ final class NoopTracer implements TracerInterface
     /**
      * {@inheritdoc}
      */
-    public function getRootSpan()
+    public function startRootScope($operationName, $options = [])
+    {
+        return NoopScope::create();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getRootScope()
     {
         return NoopScope::create();
     }

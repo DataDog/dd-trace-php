@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Added
 - Request init hook configuration allowing running arbitrary code before actual request execution #175
-- `Tracer::startRootSpan()` to track the root `Scope` instance which can be accessed with `Tracer::getRootSpan()` #241
+- `Tracer::startRootScope()` to track the root `Scope` instance which can be accessed with `Tracer::getRootScope()` #241
 
 ### Changed
 

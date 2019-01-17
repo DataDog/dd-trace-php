@@ -129,7 +129,14 @@ interface Tracer
     public function getPrioritySampling();
 
     /**
+     * @param string $operationName
+     * @param array $options
+     * @return Scope
+     */
+    public function startRootScope($operationName, $options = []);
+
+    /**
      * @return Scope|null
      */
-    public function getRootSpan();
+    public function getRootScope();
 }
