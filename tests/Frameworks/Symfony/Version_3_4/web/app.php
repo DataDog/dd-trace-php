@@ -9,7 +9,6 @@ if (PHP_VERSION_ID < 70000) {
 }
 
 \DDTrace\Bootstrap::once();
-\DDTrace\Integrations\IntegrationsLoader::load();
 
 $kernel = new AppKernel('prod', false);
 if (PHP_VERSION_ID < 70000) {

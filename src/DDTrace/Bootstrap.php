@@ -3,6 +3,7 @@
 namespace DDTrace;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Transport\Http;
 
 /**
@@ -33,6 +34,8 @@ class Bootstrap
             $scopeManager->close();
             $tracer->flush();
         });
+
+        IntegrationsLoader::load();
     }
 
     /**
