@@ -3,7 +3,7 @@ BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
 ABS_SRC_DIR := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
-CFLAGS := -O0 -g $(WALL_FLAGS)
+CFLAGS := -O2 $(WALL_FLAGS)
 VERSION:=$(shell cat src/DDTrace/Tracer.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2)
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
@@ -55,8 +55,12 @@ dist_clean:
 
 clean:
 	$(MAKE) -C $(BUILD_DIR) clean
+
 sudo:
 	$(eval SUDO:=sudo)
+
+debug:
+	$(eval CFLAGS="-g")
 
 
 EXT_DIR:=/opt/datadog-php
