@@ -209,7 +209,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             zend_op *opline = EX(opline);
             zval *fname = opline->op1.zv;
 
-            zend_ptr_stack_3_push(&EG(arg_types_stack), EX(fbc), EX(object), EX(called_scope));
+            zend_ptr_stack_3_push(&EG(arg_types_stack), FBC(), EX(object), EX(called_scope));
 
             if (CACHED_PTR(opline->op1.literal->cache_slot)) {
                 EX(function_state).function = CACHED_PTR(opline->op1.literal->cache_slot);
