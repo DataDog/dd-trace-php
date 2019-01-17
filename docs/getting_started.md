@@ -156,11 +156,11 @@ public function registerBundles()
 
 #### Zend Framework 1 integration
 
-To enable the tracer in Zend Framework 1, edit your `application/configs/application.ini` file and add the following. Make sure to update the path for the `pluginPaths.DDTrace` setting.
+To enable the tracer in Zend Framework 1, [download the latest source code from the releases page](https://github.com/DataDog/dd-trace-php/releases). Extract the zip file and copy the `src/DDTrace` folder to your application's `library` folder. Then add the following to your `application/configs/application.ini` file.
 
 ```ini
 autoloaderNamespaces[] = "DDTrace_"
-pluginPaths.DDTrace = APPLICATION_PATH "/path/to/ddtrace/src/DDTrace/Integrations/ZendFramework/V1"
+pluginPaths.DDTrace = APPLICATION_PATH "/../library/DDTrace/Integrations/ZendFramework/V1"
 resources.ddtrace = true
 ```
 
