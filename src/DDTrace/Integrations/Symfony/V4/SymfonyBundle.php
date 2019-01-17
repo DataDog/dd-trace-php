@@ -4,7 +4,7 @@ namespace DDTrace\Integrations\Symfony\V4;
 
 use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
-use DDTrace\Integrations\Symfony\SymfonyIntegration;
+use DDTrace\Integrations\Symfony\SymfonyIntegration as DDSymfonyIntegration;
 use DDTrace\Tag;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
@@ -34,7 +34,7 @@ class SymfonyBundle extends Bundle
     /**
      * @var string Used by Bundle::getName() to identify this bundle among registered ones.
      */
-    protected $name = SymfonyIntegration::BUNDLE_NAME;
+    protected $name = DDSymfonyIntegration::BUNDLE_NAME;
 
     public function boot()
     {
