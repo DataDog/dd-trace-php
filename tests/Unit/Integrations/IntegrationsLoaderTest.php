@@ -177,6 +177,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
         return [
             'laravel',
             'symfony',
+            'zendframework',
         ];
     }
 }

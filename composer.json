@@ -50,8 +50,8 @@
     "prefer-stable": true,
     "scripts": {
         "fix-lint": "phpcbf",
-        "lint": "phpcs -s",
-        "lint-5.4": "phpcs -s --runtime-set testVersion 5.4-7.3",
+        "lint": "phpcs -s --ignore=src/DDTrace/Integrations/ZendFramework/V1/DDTrace.php",
+        "lint-5.4": "phpcs -s --runtime-set testVersion 5.4-7.3 --ignore=src/DDTrace/Integrations/ZendFramework/V1/DDTrace.php",
         "static-analyze": "phpstan analyse --level=2 src",
         "run-agent": [
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
@@ -154,13 +154,15 @@
             "@laravel-42-update",
             "@laravel-42-test",
             "@symfony-34-update",
-            "@symfony-34-test"
+            "@symfony-34-test",
+            "@zend-framework-1-test"
         ],
         "test-web-70": [
             "@laravel-42-update",
             "@laravel-42-test",
             "@symfony-34-update",
-            "@symfony-34-test"
+            "@symfony-34-test",
+            "@zend-framework-1-test"
         ],
         "test-web-71": [
             "@laravel-42-update",
@@ -168,7 +170,8 @@
             "@laravel-57-update",
             "@laravel-57-test",
             "@symfony-34-update",
-            "@symfony-34-test"
+            "@symfony-34-test",
+            "@zend-framework-1-test"
         ],
         "test-web-72": [
             "@laravel-42-update",
@@ -176,7 +179,8 @@
             "@laravel-57-update",
             "@laravel-57-test",
             "@symfony-34-update",
-            "@symfony-34-test"
+            "@symfony-34-test",
+            "@zend-framework-1-test"
         ],
 
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
@@ -186,7 +190,8 @@
         "laravel-57-update": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",
         "laravel-57-test": "@composer test -- tests/Integrations/Laravel/V5/CommonScenariosTest.php",
         "symfony-34-update": "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
-        "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3"
+        "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3",
+        "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1"
     },
     "extra": {
         "scenarios": {

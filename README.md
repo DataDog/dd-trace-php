@@ -52,6 +52,7 @@ Once the `ddtrace` extension and Composer package is installed, you can start tr
 * [Laravel 4 & 5 instrumentation](docs/getting_started.md#laravel-integration)
 * [Lumen 5 instrumentation](docs/getting_started.md#lumen-integration)
 * [Symfony 3 & 4 instrumentation](docs/getting_started.md#symfony-integration)
+* [Zend Framework 1 instrumentation](docs/getting_started.md#zend-framework-1-integration)
 
 ### Manual instrumentation
 
