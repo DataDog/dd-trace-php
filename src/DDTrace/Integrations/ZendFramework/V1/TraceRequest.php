@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\ZendFramework\V1;
 
 use DDTrace\GlobalTracer;
+use DDTrace\Tag;
 use Zend_Controller_Front;
 use Zend_Controller_Plugin_Abstract;
 use Zend_Controller_Request_Abstract;
@@ -26,9 +27,9 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
             'zf1.route_name',
             Zend_Controller_Front::getInstance()->getRouter()->getCurrentRouteName()
         );
-        $span->setTag('http.method', $request->getMethod());
+        $span->setTag(Tag::HTTP_METHOD, $request->getMethod());
         $span->setTag(
-            'http.url',
+            Tag::HTTP_URL,
             $request->getScheme() . '://' .
             $request->getHttpHost() .
             $request->getRequestUri()
@@ -44,6 +45,6 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
         if (null === $scope) {
             return;
         }
-        $scope->getSpan()->setTag('http.status_code', $this->getResponse()->getHttpResponseCode());
+        $scope->getSpan()->setTag(Tag::HTTP_STATUS_CODE, $this->getResponse()->getHttpResponseCode());
     }
 }
