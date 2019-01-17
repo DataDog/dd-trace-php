@@ -33,7 +33,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         return $this->buildDataProvider(
             [
                 'A simple GET request returning a string' => [
-                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'zf1.request')
+                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'simple@index default')
                         ->withExactTags([
                             'zf1.controller' => 'simple',
                             'zf1.action' => 'index',
@@ -44,7 +44,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         ]),
                 ],
                 'A simple GET request with a view' => [
-                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'zf1.request')
+                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'simple@view my_simple_view_route')
                         ->withExactTags([
                             'zf1.controller' => 'simple',
                             'zf1.action' => 'view',
@@ -55,7 +55,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         ]),
                 ],
                 'A GET request with an exception' => [
-                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'zf1.request')
+                    SpanAssertion::build('zf1.request', 'zf1', 'web', 'error@error default')
                         ->withExactTags([
                             'zf1.controller' => 'error',
                             'zf1.action' => 'error',
