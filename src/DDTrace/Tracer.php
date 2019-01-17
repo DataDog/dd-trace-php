@@ -168,7 +168,7 @@ final class Tracer implements TracerInterface
     }
 
     /**
-     * @return ScopeInterface
+     * {@inheritdoc}
      */
     public function getRootSpan()
     {

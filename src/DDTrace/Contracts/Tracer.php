@@ -129,7 +129,7 @@ interface Tracer
     public function getPrioritySampling();
 
     /**
-     * @return Scope
+     * @return Scope|null
      */
     public function getRootSpan();
 }

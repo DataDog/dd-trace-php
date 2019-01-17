@@ -202,4 +202,10 @@ final class TracerTest extends BaseTestCase
         $span = $tracer->startRootSpan(self::OPERATION_NAME);
         $this->assertSame($span, $tracer->getRootSpan());
     }
+
+    public function testIfNoRootSpanExistsItWillBeNull()
+    {
+        $tracer = new Tracer(new NoopTransport());
+        $this->assertNull($tracer->getRootSpan());
+    }
 }
