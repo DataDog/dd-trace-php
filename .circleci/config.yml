@@ -51,6 +51,8 @@ aliases:
     image: php:7.2
     name: request_replayer
     command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/dev/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
+    environment:
+      DD_REQUEST_DUMPER_FILE: dump.json
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
