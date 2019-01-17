@@ -67,7 +67,6 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     zend_fcall_info_cache fcc = { 0 };
     char *error = NULL;
     zval closure;
-    zend_op *opline = EX(opline);
     INIT_ZVAL(closure);
 
     zval *this = NULL;
@@ -198,10 +197,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     } else {
         dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), function_name, function_name_length);
     }
-    DD_PRINTF("ETF %0lx", EX(object));
-
-
-
 
     if (!dispatch) {
         DD_PRINTF("Handler for %s not found", function_name);
@@ -209,20 +204,16 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         DD_PRINTF("Handler for %s is BUSY", function_name);
     }
 
-
     if (dispatch && (dispatch->flags ^ BUSY_FLAG)) {
         if (EX(opline)->opcode == ZEND_DO_FCALL) {
             zend_op *opline = EX(opline);
             zval *fname = opline->op1.zv;
-
-            zend_free_op free_op1;
 
             zend_ptr_stack_3_push(&EG(arg_types_stack), EX(fbc), EX(object), EX(called_scope));
 
             if (CACHED_PTR(opline->op1.literal->cache_slot)) {
                 EX(function_state).function = CACHED_PTR(opline->op1.literal->cache_slot);
             } else if (UNEXPECTED(zend_hash_quick_find(EG(function_table), Z_STRVAL_P(fname), Z_STRLEN_P(fname)+1, Z_HASH_P(fname), (void **) &EX(function_state).function)==FAILURE)) {
-                SAVE_OPLINE();
                 zend_error_noreturn(E_ERROR, "Call to undefined function %s()", fname->value.str.val);
             } else {
                 CACHE_PTR(opline->op1.literal->cache_slot, EX(function_state).function);
@@ -363,7 +354,6 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("Update opcode leave");
 #if PHP_VERSION_ID < 70000
-    // EG(current_execute_data) = EX(prev_execute_data);
 
 	EX(function_state).function = (zend_function *) EX(op_array);
     EX(function_state).arguments = NULL;
@@ -371,21 +361,17 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 	EG(active_op_array) = EX(op_array);
 
     EX(original_return_value) = NULL;
-    // EG(return_value_ptr_ptr) = NULL;
 
     EG(active_symbol_table) = EX(symbol_table);
 
-    // EG(scope) = EX(current_scope);
     EX(object) = EX(current_object);
     EX(called_scope) = DECODE_CTOR(EX(called_scope));
 
     zend_vm_stack_clear_multiple(TSRMLS_CC);
-    // EX(call)--;
 #else
     EX(call) = EX(call)->prev_execute_data;
 #endif
     EX(opline) = EX(opline) + 1;
-    // EG(opline_ptr) = & EX(opline);
 
     return ZEND_USER_OPCODE_LEAVE;
 }
