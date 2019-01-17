@@ -154,6 +154,16 @@ public function registerBundles()
 }
 ```
 
+#### Zend Framework 1 integration
+
+To enable the tracer in Zend Framework 1, edit your `application/configs/application.ini` file and add the following. Make sure to update the path for the `pluginPaths.DDTrace` setting.
+
+```ini
+autoloaderNamespaces[] = "DDTrace_"
+pluginPaths.DDTrace = APPLICATION_PATH "/path/to/ddtrace/src/DDTrace/Integrations/ZendFramework/V1"
+resources.ddtrace = true
+```
+
 ## Flex
 
 For Symfony Flex applications, add the bundle in `config/bundles.php`:
