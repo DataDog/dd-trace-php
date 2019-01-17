@@ -7,7 +7,7 @@ spl_autoload_register(function ($class) {
         return;
     }
     $relativeClass = substr($class, $len);
-    $file = __DIR__ . '/DDTrace/' . str_replace('\\', '/', $relativeClass) . '.php';
+    $file = __DIR__ . '/' . str_replace('\\', '/', $relativeClass) . '.php';
     if (file_exists($file)) {
         $loader = function ($ddTraceAutoloadFile) {
             require $ddTraceAutoloadFile;
