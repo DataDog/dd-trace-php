@@ -129,11 +129,14 @@ interface Tracer
     public function getPrioritySampling();
 
     /**
+     * This behaves just like Tracer::startActiveSpan(), but it saves the Scope instance
+     * on the tracer to be accessed later by Tracer::getRootScope().
+     *
      * @param string $operationName
      * @param array $options
      * @return Scope
      */
-    public function startRootScope($operationName, $options = []);
+    public function startRootSpan($operationName, $options = []);
 
     /**
      * @return Scope|null

@@ -199,7 +199,7 @@ final class TracerTest extends BaseTestCase
     public function testSpanStartedAtRootCanBeAccessedLater()
     {
         $tracer = new Tracer(new NoopTransport());
-        $scope = $tracer->startRootScope(self::OPERATION_NAME);
+        $scope = $tracer->startRootSpan(self::OPERATION_NAME);
         $this->assertSame($scope, $tracer->getRootScope());
     }
 

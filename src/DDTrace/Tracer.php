@@ -160,7 +160,7 @@ final class Tracer implements TracerInterface
     /**
      * {@inheritdoc}
      */
-    public function startRootScope($operationName, $options = [])
+    public function startRootSpan($operationName, $options = [])
     {
         return $this->rootScope = $this->startActiveSpan($operationName, $options);
     }
