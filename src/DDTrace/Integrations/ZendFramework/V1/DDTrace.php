@@ -41,7 +41,10 @@ class DDTrace_DDTrace extends Zend_Application_Resource_ResourceAbstract
         IntegrationsLoader::load();
         // Flushes traces to agent.
         register_shutdown_function(function () {
-            $this->tracer->getRootSpan()->close();
+            $scope = $this->tracer->getRootScope();
+            if ($scope) {
+                $scope->close();
+            }
             $this->tracer->flush();
         });
 
@@ -95,6 +98,8 @@ class DDTrace_DDTrace extends Zend_Application_Resource_ResourceAbstract
     }
 
     /**
+     * This should be refactored out into a helper of sorts
+     *
      * @return array
      */
     private static function getRequestHeaders()
