@@ -33,4 +33,11 @@ final class NoopScopeManager implements ScopeManagerInterface
     {
         return NoopScope::create();
     }
+
+    /**
+     * Closes all the current request root spans. Typically there only will be one.
+     */
+    public function close()
+    {
+    }
 }
