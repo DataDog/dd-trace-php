@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Added
 - Request init hook configuration allowing running arbitrary code before actual request execution #175
+- Support for auto-instrumentation #237
 
 ### Changed
 
