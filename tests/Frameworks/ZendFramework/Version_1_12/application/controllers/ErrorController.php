@@ -2,6 +2,10 @@
 
 class ErrorController extends Zend_Controller_Action
 {
+    public function indexAction()
+    {
+        throw new \Exception('Controller error');
+    }
 
     public function errorAction()
     {
