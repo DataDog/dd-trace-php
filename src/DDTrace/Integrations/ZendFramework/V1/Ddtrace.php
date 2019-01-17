@@ -14,7 +14,7 @@ use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Type;
 
-class DDTrace_DDTrace extends Zend_Application_Resource_ResourceAbstract
+class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
 {
     const NAME = 'zf1';
 
