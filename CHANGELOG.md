@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - Request init hook configuration allowing running arbitrary code before actual request execution #175
 - `Tracer::startRootSpan()` to track the root `Scope` instance which can be accessed with `Tracer::getRootScope()` #241
+- Support for Zend Framework 1 #238
 
 ### Changed
 
