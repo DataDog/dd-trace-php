@@ -9,7 +9,7 @@ use DDTrace\Transport\Http;
 /**
  * Bootstrap the the datadog tracer.
  */
-class Bootstrap
+final class Bootstrap
 {
     /**
      * @var bool
@@ -34,7 +34,14 @@ class Bootstrap
             $scopeManager->close();
             $tracer->flush();
         });
+    }
 
+    /**
+     * Bootstrap the tracer and load all the integrations.
+     */
+    public static function tracer()
+    {
+        self::once();
         IntegrationsLoader::load();
     }
 
