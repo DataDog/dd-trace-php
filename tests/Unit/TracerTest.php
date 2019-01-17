@@ -195,4 +195,17 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('root', $sent[0][0]->getOperationName());
         $this->assertSame('child', $sent[0][1]->getOperationName());
     }
+
+    public function testSpanStartedAtRootCanBeAccessedLater()
+    {
+        $tracer = new Tracer(new NoopTransport());
+        $scope = $tracer->startRootSpan(self::OPERATION_NAME);
+        $this->assertSame($scope, $tracer->getRootScope());
+    }
+
+    public function testIfNoRootScopeExistsItWillBeNull()
+    {
+        $tracer = new Tracer(new NoopTransport());
+        $this->assertNull($tracer->getRootScope());
+    }
 }
