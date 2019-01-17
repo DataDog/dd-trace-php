@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file - [read more
 ### Changed
 
 ### Fixed
+- The INI settings now appear in `phpinfo()` and when running `$ php -i` #242
 
 ## [0.9.1]
 ### Added
