@@ -142,11 +142,10 @@ final class IntegrationsLoaderTest extends BaseTestCase
     public function testWeDidNotForgetToRegisterALibraryForAutoLoading()
     {
         $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
-        $expectedButFrameworks = array_diff($expected, $this->normalize(self::frameworks()));
         $loaded = $this->normalize(array_keys(IntegrationsLoader::get()->getIntegrations()));
 
         // If this test fails you need to add an entry to IntegrationsLoader::LIBRARIES array.
-        $this->assertEquals(array_values($expectedButFrameworks), array_values($loaded));
+        $this->assertEquals(array_values($expected), array_values($loaded));
     }
 
     /**
@@ -165,18 +164,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
             }
             return strtolower($name);
         }, $array_map);
-    }
-
-    /**
-     * Returns the currently supported web frameworks.
-     *
-     * @return array
-     */
-    private static function frameworks()
-    {
-        return [
-            'zendframework',
-        ];
     }
 }
 

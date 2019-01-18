@@ -19,8 +19,13 @@ $dd_autoload_called = false;
 // statically hooking into a limited number of class loaders.
 dd_trace('spl_autoload_register', function () use (&$dd_autoload_called) {
     $args = func_get_args();
-
     $originalAutoloaderRegistered = call_user_func_array('spl_autoload_register', $args);
+
+    $loader = $args[0];
+
+    if (is_array($loader) && $loader[0] === 'Composer\Autoload\ClassLoader' && $loader[1] === 'loadClass') {
+        dd_trace_reset();
+    }
 
     if (!$dd_autoload_called) {
         $dd_autoload_called = true;

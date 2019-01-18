@@ -45,8 +45,8 @@ void ddtrace_dispatch_destroy(TSRMLS_D) {
 }
 
 void ddtrace_dispatch_reset(TSRMLS_D) {
-    zend_hash_clean(&DDTRACE_G(class_lookup));
-    zend_hash_clean(&DDTRACE_G(function_lookup));
+    //zend_hash_clean(&DDTRACE_G(class_lookup));
+    zend_hash_del(&DDTRACE_G(function_lookup), zend_string_init("spl_autoload_register", strlen("spl_autoload_register"), 0));
 }
 
 void ddtrace_dispatch_inject() {
