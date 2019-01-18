@@ -175,6 +175,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
     private static function frameworks()
     {
         return [
+            'zendframework',
         ];
     }
 }

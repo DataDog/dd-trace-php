@@ -152,6 +152,8 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     php_info_print_table_row(2, "Datadog tracing support", DDTRACE_G(disable) ? "disabled" : "enabled");
     php_info_print_table_row(2, "Version", PHP_DDTRACE_VERSION);
     php_info_print_table_end();
+
+    DISPLAY_INI_ENTRIES();
 }
 
 static PHP_FUNCTION(dd_trace) {

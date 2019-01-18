@@ -6,10 +6,13 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - Request init hook configuration allowing running arbitrary code before actual request execution #175
 - Support for auto-instrumentation #237
+- Support for Zend Framework 1 #238
+- `Tracer::startRootSpan()` to track the root `Scope` instance which can be accessed with `Tracer::getRootScope()` #241
 
 ### Changed
 
 ### Fixed
+- The INI settings now appear in `phpinfo()` and when running `$ php -i` #242
 
 ## [0.9.1]
 ### Added
