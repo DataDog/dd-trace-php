@@ -50,8 +50,7 @@ static zend_always_inline zval *datadog_this(zend_function *current_function, ze
         return NULL;
     }
 
-    // return EX(call) ? EX(call)->object : NULL;
-    return EX(object);
+    return OBJECT();
 }
 
 #undef EX

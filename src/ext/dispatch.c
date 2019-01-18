@@ -201,6 +201,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     }
 
     if (dispatch && (dispatch->flags ^ BUSY_FLAG)) {
+        #if PHP_VERSION_ID < 50600
         if (EX(opline)->opcode == ZEND_DO_FCALL) {
             zend_op *opline = EX(opline);
             zval *fname = opline->op1.zv;
@@ -217,6 +218,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
             EX(object) = NULL;
         }
+        #endif
 
         if (fbc->common.scope && object) {
             EX(object) = original_object;
@@ -314,7 +316,6 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
     }
 #else
     fbc = FBC();
-    // fbc = EX(call)->func;
     if (fbc->common.function_name) {
         function_name = ZSTR_VAL(fbc->common.function_name);
         function_name_length = ZSTR_LEN(fbc->common.function_name);
@@ -349,9 +350,8 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 
 static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("Update opcode leave");
-#if PHP_VERSION_ID < 70000
-
-	EX(function_state).function = (zend_function *) EX(op_array);
+#if PHP_VERSION_ID < 50600
+    EX(function_state).function = (zend_function *) EX(op_array);
     EX(function_state).arguments = NULL;
     EG(opline_ptr) = &EX(opline);
 	EG(active_op_array) = EX(op_array);
@@ -364,6 +364,10 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     EX(called_scope) = DECODE_CTOR(EX(called_scope));
 
     zend_vm_stack_clear_multiple(TSRMLS_CC);
+#elif PHP_VERSION_ID < 70000
+    EX(call)--;
+
+    zend_vm_stack_clear_multiple(0 TSRMLS_CC);
 #else
     EX(call) = EX(call)->prev_execute_data;
 #endif
