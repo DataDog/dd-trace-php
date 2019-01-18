@@ -25,6 +25,8 @@ $(BUILD_DIR)/config.m4: config.m4
 $(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
 	$(Q) (cd $(BUILD_DIR); phpize)
 
+
+
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) @(cd $(BUILD_DIR); ./configure --srcdir=$(ABS_SRC_DIR))
 
@@ -41,10 +43,12 @@ install_ini: $(INI_FILE)
 
 install_all: install install_ini
 
-test_c: $(SO_FILE)
+run-tests.php: $(BUILD_DIR)/Makefile
+	$(Q) cp $(BUILD_DIR)/run-tests.php ./
+test_c: $(SO_FILE) run-tests.php
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)"
 
-test_c_mem: $(SO_FILE)
+test_c_mem: $(SO_FILE) run-tests.php
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS)"
 
 test_integration: install_ini
@@ -61,7 +65,6 @@ sudo:
 
 debug:
 	$(eval CFLAGS="-g")
-
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
@@ -90,4 +93,4 @@ $(PACKAGES_BUILD_DIR):
 packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
-.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz src/ext/version.h sudo debug
+.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz src/ext/version.h sudo debug run-tests.php
