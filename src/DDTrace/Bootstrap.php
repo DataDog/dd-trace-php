@@ -19,7 +19,7 @@ final class Bootstrap
     /**
      * Idempotent method to bootstrap the datadog tracer once.
      */
-    public static function once()
+    public static function tracerOnce()
     {
         if (self::$bootstrapped) {
             return;
@@ -39,9 +39,9 @@ final class Bootstrap
     /**
      * Bootstrap the tracer and load all the integrations.
      */
-    public static function tracer()
+    public static function tracerAndIntegrations()
     {
-        self::once();
+        self::tracerOnce();
         IntegrationsLoader::load();
     }
 

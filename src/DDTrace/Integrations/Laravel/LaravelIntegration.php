@@ -5,10 +5,18 @@ namespace DDTrace\Integrations\Laravel;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Laravel\V5\LaravelIntegrationLoader;
 
+/**
+ * The base Laravel integration which delegates loading to the appropriate integration version.
+ */
 class LaravelIntegration
 {
     const NAME = 'laravel';
 
+    /**
+     * Loads the integration.
+     *
+     * @return int
+     */
     public static function load()
     {
         if (!defined('Illuminate\Foundation\Application::VERSION')) {
