@@ -215,7 +215,7 @@ static PHP_FUNCTION(dd_trace_reset) {
     RETURN_BOOL(1);
 }
 
-// method used to be abel to easily breakpoint the execution at specific PHP line in GDB
+// method used to be able to easily breakpoint the execution at specific PHP line in GDB
 static PHP_FUNCTION(dd_trace_noop) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
