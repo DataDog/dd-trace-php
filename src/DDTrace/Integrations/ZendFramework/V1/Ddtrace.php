@@ -5,7 +5,6 @@ require __DIR__ . '/../../../autoload.php';
 use DDTrace\Configuration;
 use DDTrace\Contracts\Scope;
 use DDTrace\GlobalTracer;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\ZendFramework\V1\TraceRequest;
 use DDTrace\StartSpanOptions;
 use DDTrace\StartSpanOptionsFactory;
@@ -31,22 +30,8 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
         $front = Zend_Controller_Front::getInstance();
         $front->registerPlugin(new TraceRequest());
 
-        // Init tracer with default options
-        $this->tracer = new Tracer();
-        GlobalTracer::set($this->tracer);
-
+        $this->tracer = GlobalTracer::get();
         $this->initRootSpan();
-
-        // Enable other integrations
-        IntegrationsLoader::load();
-        // Flushes traces to agent.
-        register_shutdown_function(function () {
-            $scope = $this->tracer->getRootScope();
-            if ($scope) {
-                $scope->close();
-            }
-            $this->tracer->flush();
-        });
 
         return $this->tracer;
     }
