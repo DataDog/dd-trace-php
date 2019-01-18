@@ -10,8 +10,14 @@
 #define FBC_F() (FBC() ? FBC() : EX(function_state).function)
 #define FBC() EX(fbc)
 #define NUM_ADDITIONAL_ARGS() (0)
+
+#define OBJECT() EX(object)
+// #define NUM_ADDITIONAL_ARGS() (EX(call)->num_additional_args)
+
 #else
 #define FBC() (EX(call)->fbc)
+#define OBJECT() (EX(call) ? EX(call)->object : NULL)
+
 #define NUM_ADDITIONAL_ARGS() EX(call)->num_additional_args
 #endif
 

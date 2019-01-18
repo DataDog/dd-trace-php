@@ -172,11 +172,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
     if (fbc->common.scope) {
 #if PHP_VERSION_ID < 70000
-
-        object = EG(This);
-        if (!object && OBJECT()) {
-            object = OBJECT();
-        }
+        object = EG(This) ? EG(This) : OBJECT();
 
         common_scope = fbc->common.scope->name;
         common_scope_length = fbc->common.scope->name_length;
@@ -187,7 +183,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         common_scope_length = ZSTR_LEN(fbc->common.scope->name);
 #endif
     }
-    DD_PRINTF("ETF %0lx", EX(object));
+    DD_PRINTF("Loaded object id: %0lx", EX(object));
 
     ddtrace_dispatch_t *dispatch;
 

@@ -10,11 +10,6 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 #undef EX  // php7 style EX
 #define EX(x) ((execute_data)->x)
-// #define FBC() EX(call)->fbc
-#define FBC() EX(fbc)
-#define OBJECT() EX(object)
-// #define NUM_ADDITIONAL_ARGS() (EX(call)->num_additional_args)
-#define NUM_ADDITIONAL_ARGS() (0)
 
 static zend_always_inline void **vm_stack_push_args_with_copy(int count TSRMLS_DC) /* {{{ */
 {
