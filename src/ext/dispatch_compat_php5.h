@@ -7,21 +7,14 @@
 #include "dispatch.h"
 
 #if PHP_VERSION_ID < 50600
-#define FBC_F() (FBC() ? FBC() : EX(function_state).function)
 #define FBC() EX(fbc)
 #define NUM_ADDITIONAL_ARGS() (0)
-
 #define OBJECT() EX(object)
-// #define NUM_ADDITIONAL_ARGS() (EX(call)->num_additional_args)
-
 #else
 #define FBC() (EX(call)->fbc)
-#define OBJECT() (EX(call) ? EX(call)->object : NULL)
-
 #define NUM_ADDITIONAL_ARGS() EX(call)->num_additional_args
+#define OBJECT() (EX(call) ? EX(call)->object : NULL)
 #endif
-
-#define OBJECT() EX(object)
 
 static zend_always_inline void *zend_hash_str_find_ptr(const HashTable *ht, const char *key, size_t length) {
     void **rv = NULL;

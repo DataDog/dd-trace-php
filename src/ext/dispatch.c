@@ -225,14 +225,14 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         }
 
         const zend_op *opline = EX(opline);
+        dispatch->flags ^= BUSY_FLAG;  // guard against recursion, catching only topmost execution
+
+
+#if PHP_VERSION_ID < 50600
+#define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
         zval rv;
         INIT_ZVAL(rv);
 
-        dispatch->flags ^= BUSY_FLAG;  // guard against recursion, catching only topmost execution
-
-#define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
-
-#if PHP_VERSION_ID < 70000
         zval **return_value = NULL;
         zval *rv_ptr = &rv;
 
@@ -262,8 +262,14 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 		}
 
         execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
-#else
+#elif PHP_VERSION_ID < 70000
+        zval *return_value = NULL;
+        execute_fcall(dispatch, execute_data, &return_value TSRMLS_CC);
 
+        if (return_value != NULL) {
+            EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
+        }
+#else
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
         execute_fcall(dispatch, EX(call), &return_value TSRMLS_CC);
 #endif
