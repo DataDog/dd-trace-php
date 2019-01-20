@@ -5,6 +5,7 @@ extern zend_module_entry ddtrace_module_entry;
 
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 zend_bool disable;
+zend_bool ignore_missing_overridables;
 HashTable class_lookup;
 HashTable function_lookup;
 ZEND_END_MODULE_GLOBALS(ddtrace)
@@ -19,4 +20,5 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #ifndef PHP_DDTRACE_VERSION
 #define PHP_DDTRACE_VERSION "0.0.0-unknown"
 #endif
+
 #endif  // DDTRACE_H

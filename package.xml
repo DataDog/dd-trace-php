@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<package packagerversion="1.9.4" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+    <name>datadog_trace</name>
+    <channel>pecl.php.net</channel>
+    <summary>APM and distributed tracing for PHP</summary>
+    <description>The Datadog PHP Tracer brings APM and distributed tracing to PHP.</description>
+    <lead>
+        <name>Sammy Kaye Powers</name>
+        <user>sammyk</user>
+        <email>sammyk@php.net</email>
+        <active>yes</active>
+    </lead>
+    <date>2019-01-11</date>
+    <version>
+        <release>0.9.1</release>
+        <api>0.9.1</api>
+    </version>
+    <stability>
+        <release>beta</release>
+        <api>beta</api>
+    </stability>
+    <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
+    <notes>
+        ### Added
+        - Ability to reset all overrides via `dd_trace_reset`
+
+        ### Changed
+        - By default do not throw an exception when method or function doesn't exist
+
+        ### Fixed
+        - Eloquent integration calling protected `performInsert` method
+    </notes>
+    <contents>
+        <dir name="/">
+            <dir name="src">
+                <dir name="ext">
+                    <file name="compat_zend_string.c" role="src" />
+                    <file name="compat_zend_string.h" role="src" />
+                    <file name="ddtrace.c" role="src" />
+                    <file name="ddtrace.h" role="src" />
+                    <file name="debug.h" role="src" />
+                    <file name="dispatch.c" role="src" />
+                    <file name="dispatch.h" role="src" />
+                    <file name="dispatch_compat.h" role="src" />
+                    <file name="dispatch_compat_php5.c" role="src" />
+                    <file name="dispatch_compat_php5.h" role="src" />
+                    <file name="dispatch_compat_php7.c" role="src" />
+                    <file name="dispatch_setup.c" role="src" />
+                    <file name="version.h" role="src" />
+                </dir>
+            </dir>
+            <dir name="tests">
+                <dir name="ext">
+                    <file name="access_modifier_method_access_hook.phpt" role="test" />
+                    <file name="access_modifier_property_access_hook.phpt" role="test" />
+                    <file name="case_insensitive_method_hook.phpt" role="test" />
+                    <file name="closure_accessing_outside_variables.phpt" role="test" />
+                    <file name="closure_set_inside_object_methods.phpt" role="test" />
+                    <file name="method_returning_array.phpt" role="test" />
+                    <file name="multiple_instrumentations.phpt" role="test" />
+                    <file name="namespaces.phpt" role="test" />
+                    <file name="overriding_construct.phpt" role="test" />
+                    <file name="overriding_method_defined_in_parent.phpt" role="test" />
+                    <file name="private_method_hook.phpt" role="test" />
+                    <file name="protected_method_hook.phpt" role="test" />
+                    <file name="recursion.phpt" role="test" />
+                    <file name="return_value_passed.phpt" role="test" />
+                    <file name="simple_function_hook.phpt" role="test" />
+                    <file name="simple_method_hook.phpt" role="test" />
+                    <file name="throw_exception.phpt" role="test" />
+                    <file name="variable_length_parameter_list.phpt" role="test" />
+                    <file name="with_params_function_hook.phpt" role="test" />
+                    <file name="with_params_method_hook.phpt" role="test" />
+                </dir>
+            </dir>
+            <file name="CHANGELOG.md" role="doc" />
+            <file name="config.m4" role="src" />
+            <file name="LICENSE" role="doc" />
+            <file name="README.md" role="doc" />
+        </dir>
+    </contents>
+    <dependencies>
+        <required>
+            <php>
+                <min>5.6</min>
+                <max>7.2.99</max>
+            </php>
+            <pearinstaller>
+                <min>1.4.0</min>
+            </pearinstaller>
+            <extension>
+                <name>json</name>
+            </extension>
+        </required>
+    </dependencies>
+    <providesextension>ddtrace</providesextension>
+    <extsrcrelease>
+        <configureoption name="enable-ddtrace-debug" default="no" prompt="Enable internal debugging in ddtrace" />
+    </extsrcrelease>
+</package>

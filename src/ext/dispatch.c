@@ -28,6 +28,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 extern user_opcode_handler_t ddtrace_old_fcall_handler;
+extern user_opcode_handler_t ddtrace_old_icall_handler;
 extern user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
 static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, const char *function_name,
@@ -77,7 +78,10 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     zend_function *func;
 #if PHP_VERSION_ID < 70000
     func = datadog_current_function(execute_data);
-    this = datadog_this(func, execute_data);
+
+    if (dispatch->clazz) {
+        this = datadog_this(func, execute_data);
+    }
 
     zend_function *callable = (zend_function *)zend_get_closure_method_def(&dispatch->callable TSRMLS_CC);
 
@@ -95,15 +99,17 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 #endif
 
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
-        if (func->common.scope) {
-            zend_throw_exception_ex(
-                spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "cannot use return value set for %s::%s as function: %s",
-                STRING_VAL(func->common.scope->name), STRING_VAL(func->common.function_name), error);
-        } else {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "cannot use return value set for %s as function: %s",
-                                    STRING_VAL(func->common.function_name), error);
+        if (!DDTRACE_G(ignore_missing_overridables)) {
+            if (func->common.scope) {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                        "cannot set override for %s::%s - %s", STRING_VAL(func->common.scope->name),
+                                        STRING_VAL(func->common.function_name), error);
+            } else {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "cannot set override for %s - %s",
+                                        STRING_VAL(func->common.function_name), error);
+            }
         }
+
         if (error) {
             efree(error);
         }
@@ -270,11 +276,10 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
     return 1;
 }
 
-static int update_opcode_leave(zend_execute_data *execute_data) {
+static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 #if PHP_VERSION_ID < 70000
-    if (EG(exception)) {
-        zend_vm_stack_pop();  // clear param data if FN has thrown an exception
-    }
+    zend_vm_stack_clear_multiple(0 TSRMLS_CC);
+    EX(call)--;
 #else
     EX(call) = EX(call)->prev_execute_data;
 #endif
@@ -292,7 +297,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
 
     if (get_wrappable_function(execute_data, &fbc, &function_name, &function_name_length) &&
         wrap_and_run(execute_data, fbc, function_name, function_name_length TSRMLS_CC)) {
-        return update_opcode_leave(execute_data);
+        return update_opcode_leave(execute_data TSRMLS_CC);
     }
 
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {

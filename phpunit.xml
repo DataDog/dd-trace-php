@@ -7,7 +7,7 @@
     beStrictAboutResourceUsageDuringSmallTests="true"
     beStrictAboutTestsThatDoNotTestAnything="true"
     beStrictAboutTodoAnnotatedTests="true"
-    bootstrap="vendor/autoload.php"
+    bootstrap="tests/bootstrap.php"
     colors="true"
     columns="max"
     verbose="true"
@@ -15,7 +15,6 @@
     <testsuites>
         <testsuite name="integration">
             <directory>tests/Integration/</directory>
-            <exclude>tests/Integration/Frameworks</exclude>
         </testsuite>
         <testsuite name="unit">
             <directory>tests/Unit/</directory>
@@ -26,4 +25,7 @@
             <directory suffix=".php">src</directory>
         </whitelist>
     </filter>
+    <listeners>
+        <listener class="DDTrace\Tests\DDTestListener"/>
+    </listeners>
 </phpunit>

@@ -3,14 +3,16 @@
 namespace DDTrace;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Formats;
+use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
+use DDTrace\Sampling\AlwaysKeepSampler;
+use DDTrace\Sampling\Sampler;
 use DDTrace\Tags;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\Exceptions\UnsupportedFormat;
-use OpenTracing\Formats;
-use OpenTracing\NoopSpan;
 use OpenTracing\Reference;
 use OpenTracing\SpanContext as OpenTracingContext;
 use OpenTracing\StartSpanOptions;
@@ -29,6 +31,11 @@ final class Tracer implements OpenTracingTracer
      * @var Transport
      */
     private $transport;
+
+    /**
+     * @var Sampler
+     */
+    private $sampler;
 
     /**
      * @var Propagator[]
@@ -59,6 +66,13 @@ final class Tracer implements OpenTracingTracer
     private $scopeManager;
 
     /**
+     * @var Configuration
+     */
+    private $globalConfig;
+
+    private $prioritySampling;
+
+    /**
      * @param Transport $transport
      * @param Propagator[] $propagators
      * @param array $config
@@ -66,11 +80,16 @@ final class Tracer implements OpenTracingTracer
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
         $this->transport = $transport ?: new Http(new Json());
+        $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
-            Formats\TEXT_MAP => new TextMap(),
+            Formats\TEXT_MAP => $textMapPropagator,
+            Formats\HTTP_HEADERS => $textMapPropagator,
+            Formats\CURL_HTTP_HEADERS => new CurlHeadersMap($this),
         ];
         $this->scopeManager = new ScopeManager();
         $this->config = array_merge($this->config, $config);
+        $this->globalConfig = Configuration::get();
+        $this->sampler = new AlwaysKeepSampler();
     }
 
     /**
@@ -117,6 +136,8 @@ final class Tracer implements OpenTracingTracer
             array_key_exists('resource', $this->config) ? $this->config['resource'] : $operationName,
             $options->getStartTime()
         );
+
+        $this->handlePrioritySampling($span);
 
         $tags = $options->getTags() + $this->config['global_tags'];
         if ($reference === null) {
@@ -241,13 +262,18 @@ final class Tracer implements OpenTracingTracer
     {
         $tracesToBeSent = [];
 
+        $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
+
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
 
             foreach ($trace as $span) {
                 if (!$span->isFinished()) {
-                    $traceToBeSent = null;
-                    break;
+                    if (!$autoFinishSpans) {
+                        $traceToBeSent = null;
+                        break;
+                    }
+                    $span->finish();
                 }
                 $traceToBeSent[] = $span;
             }
@@ -270,5 +296,47 @@ final class Tracer implements OpenTracingTracer
         }
 
         $this->traces[$span->getTraceId()][$span->getSpanId()] = $span;
+    }
+
+    /**
+     * Handles the priority sampling for the current span.
+     *
+     * @param Span $span
+     */
+    private function handlePrioritySampling(Span $span)
+    {
+        if (!$this->globalConfig->isPrioritySamplingEnabled()) {
+            return;
+        }
+
+        // This is a temporary guard that will go away once we complete the refactoring to entirely depend only on
+        // DDTrace extensions of OpenTracing.
+        if (!is_a($span, '\DDTrace\Span')) {
+            return;
+        }
+
+        if (!$span->getContext()->isHostRoot()) {
+            // Only root spans for each host must have the sampling priority value set.
+            return;
+        }
+
+        $this->prioritySampling = $span->getContext()->getPropagatedPrioritySampling()
+            ?: $this->sampler->getPrioritySampling($span);
+    }
+
+    /**
+     * @param mixed $prioritySampling
+     */
+    public function setPrioritySampling($prioritySampling)
+    {
+        $this->prioritySampling = $prioritySampling;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getPrioritySampling()
+    {
+        return $this->prioritySampling;
     }
 }

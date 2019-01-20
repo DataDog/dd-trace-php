@@ -5,11 +5,10 @@ namespace DDTrace;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use Exception;
 use InvalidArgumentException;
-use OpenTracing\Span as OpenTracingSpan;
-use OpenTracing\SpanContext as OpenTracingContext;
 use Throwable;
 
-final class Span implements OpenTracingSpan
+
+final class Span implements SpanInterface
 {
     /**
      * Operation Name is the name of the operation being measured. Some examples
@@ -75,6 +74,11 @@ final class Span implements OpenTracingSpan
      * @var bool
      */
     private $hasError = false;
+
+    /**
+     * @var int
+     */
+    private $prioritySampling;
 
     /**
      * Span constructor.
@@ -194,7 +198,7 @@ final class Span implements OpenTracingSpan
         }
 
         if ($key === Tags\RESOURCE_NAME) {
-            $this->resource = $value;
+            $this->resource = (string)$value;
             return;
         }
 
@@ -227,9 +231,15 @@ final class Span implements OpenTracingSpan
         return $this->tags;
     }
 
+    /**
+     * @deprecated
+     * @param string $resource
+     */
     public function setResource($resource)
     {
-        $this->resource = (string)$resource;
+        error_log('DEPRECATED: Method "DDTrace\Span\setResource" will be removed soon, '
+            . 'you should use DDTrace\Span::setTag(Tags\RESOURCE_NAME, $value) instead.');
+        $this->setTag(Tags\RESOURCE_NAME, $resource);
     }
 
     /**

@@ -2,18 +2,16 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Propagator;
+use DDTrace\Configuration;
+use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
 use DDTrace\Tags;
+use DDTrace\Tests\DebugTransport;
 use DDTrace\Time;
 use DDTrace\Tracer;
-use DDTrace\Transport;
 use DDTrace\Transport\Noop as NoopTransport;
-use OpenTracing\Exceptions\UnsupportedFormat;
-use OpenTracing\NoopSpan;
-use PHPUnit\Framework;
 
-final class TracerTest extends Framework\TestCase
+final class TracerTest extends BaseTestCase
 {
     const OPERATION_NAME = 'test_span';
     const ANOTHER_OPERATION_NAME = 'test_span2';
@@ -25,7 +23,7 @@ final class TracerTest extends Framework\TestCase
     {
         $tracer = Tracer::noop();
         $span = $tracer->startSpan(self::OPERATION_NAME);
-        $this->assertInstanceOf(NoopSpan::class, $span);
+        $this->assertInstanceOf('\DDTrace\NoopSpan', $span);
     }
 
     public function testCreateSpanSuccessWithExpectedValues()
@@ -81,9 +79,11 @@ final class TracerTest extends Framework\TestCase
         $this->assertEquals($parentScope->getSpan()->getService(), $childScope->getSpan()->getService());
     }
 
+    /**
+     * @expectedException \OpenTracing\Exceptions\UnsupportedFormat
+     */
     public function testInjectThrowsUnsupportedFormatException()
     {
-        $this->expectException(UnsupportedFormat::class);
         $context = SpanContext::createAsRoot();
         $carrier = [];
 
@@ -96,15 +96,17 @@ final class TracerTest extends Framework\TestCase
         $context = SpanContext::createAsRoot();
         $carrier = [];
 
-        $propagator = $this->prophesize(Propagator::class);
+        $propagator = $this->prophesize('DDTrace\Propagator');
         $propagator->inject($context, $carrier)->shouldBeCalled();
         $tracer = new Tracer(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
         $tracer->inject($context, self::FORMAT, $carrier);
     }
 
+    /**
+     * @expectedException \OpenTracing\Exceptions\UnsupportedFormat
+     */
     public function testExtractThrowsUnsupportedFormatException()
     {
-        $this->expectException(UnsupportedFormat::class);
         $carrier = [];
         $tracer = new Tracer(new NoopTransport());
         $tracer->extract(self::FORMAT, $carrier);
@@ -115,7 +117,7 @@ final class TracerTest extends Framework\TestCase
         $expectedContext = SpanContext::createAsRoot();
         $carrier = [];
 
-        $propagator = $this->prophesize(Propagator::class);
+        $propagator = $this->prophesize('DDTrace\Propagator');
         $propagator->extract($carrier)->shouldBeCalled()->willReturn($expectedContext);
         $tracer = new Tracer(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
         $actualContext = $tracer->extract(self::FORMAT, $carrier);
@@ -124,7 +126,7 @@ final class TracerTest extends Framework\TestCase
 
     public function testOnlyFinishedTracesAreBeingSent()
     {
-        $transport = $this->prophesize(Transport::class);
+        $transport = $this->prophesize('DDTrace\Transport');
         $tracer = new Tracer($transport->reveal());
         $span = $tracer->startSpan(self::OPERATION_NAME);
         $tracer->startSpan(self::ANOTHER_OPERATION_NAME, [
@@ -144,5 +146,53 @@ final class TracerTest extends Framework\TestCase
         ])->shouldBeCalled();
 
         $tracer->flush();
+    }
+
+    public function testPrioritySamplingIsAssigned()
+    {
+        $tracer = new Tracer(new DebugTransport());
+        $tracer->startSpan(self::OPERATION_NAME);
+        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
+    }
+
+    public function testPrioritySamplingInheritedFromDistributedTracingContext()
+    {
+        $distributedTracingContext = new SpanContext('', '', '', [], true);
+        $distributedTracingContext->setPropagatedPrioritySampling(PrioritySampling::USER_REJECT);
+        $tracer = new Tracer(new DebugTransport());
+        $tracer->startSpan(self::OPERATION_NAME, [
+            'child_of' => $distributedTracingContext,
+        ]);
+        $this->assertSame(PrioritySampling::USER_REJECT, $tracer->getPrioritySampling());
+    }
+
+    public function testUnfinishedSpansAreNotSentOnFlush()
+    {
+        $transport = new DebugTransport();
+        $tracer = new Tracer($transport);
+        $tracer->startActiveSpan('root');
+        $tracer->startActiveSpan('child');
+
+        $tracer->flush();
+
+        $this->assertEmpty($transport->getTraces());
+    }
+
+    public function testUnfinishedSpansCanBeFinishedOnFlush()
+    {
+        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+            'isAutofinishSpansEnabled' => true,
+            'isPrioritySamplingEnabled' => false,
+        ]));
+
+        $transport = new DebugTransport();
+        $tracer = new Tracer($transport);
+        $tracer->startActiveSpan('root');
+        $tracer->startActiveSpan('child');
+
+        $tracer->flush();
+        $sent = $transport->getTraces();
+        $this->assertSame('root', $sent[0][0]->getOperationName());
+        $this->assertSame('child', $sent[0][1]->getOperationName());
     }
 }

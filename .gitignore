@@ -1,5 +1,6 @@
 **/vendor/
 composer.lock
+.scenarios.lock/
 .vscode/
 .libs
 .deps
@@ -9,8 +10,8 @@ aclocal.m4
 autom4te*
 build
 configure
-configure.*
-config.*
+/configure.*
+/config.*
 *.la
 *.lo
 *.o

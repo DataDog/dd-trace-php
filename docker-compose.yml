@@ -1,45 +1,74 @@
 version: '3.6'
 
+x-aliases:
+  - &base_php_service
+      ulimits:
+        core: 99999999999
+      working_dir: '/home/circleci/app'
+      stdin_open: true
+      tty: true
+      volumes:
+        - .:/home/circleci/app
+        - .composer:/home/circleci/.composer
+        - .scenarios.lock:/home/circleci/app/.scenarios.lock
+      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
+      depends_on:
+        - ddagent_integration
+        - elasticsearch2_integration
+        - httpbin_integration
+        - redis_integration
+        - mongodb_integration
+        - mysql_integration
+        - memcached_integration
+      environment:
+        - REDIS_HOSTNAME=redis_integration
+        - DDAGENT_HOSTNAME=ddagent_integration
+      cap_add:
+        - SYS_PTRACE
+
 services:
+  '5.4-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-5.4' }
+  '5.6': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_5_6' }
+  '5.6-zts': { <<: *base_php_service, image: 'circleci/php:5.6-zts' }
+  '5.6-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-5.6' }
 
-  '7.2': &base
-    image: "datadog/docker-library:ddtrace_php_7_2"
-    ulimits:
-      core: 99999999999
-    working_dir: '/home/circleci/app'
-    stdin_open: true
-    tty: true
-    volumes: [ '.:/home/circleci/app' ]
-    tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
-    depends_on:
-      - memcached_integration
-      - redis_integration
-      - ddagent_integration
-    environment:
-      - REDIS_HOSTNAME=redis_integration
-      - DDAGENT_HOSTNAME=ddagent_integration
+  '7.0': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_0' }
+  '7.1': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_1' }
+  'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }
+  'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }
+  '7.2': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_2' }
+  '7.2-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-7.2' }
+  '7.1-centos-compiled': { <<: *base_php_service, build: 'dockerfiles/verify_packages/centos7-compiled' }
 
-  '5.6': { <<: *base, image: 'datadog/docker-library:ddtrace_php_5_6' }
-
-  '7.0': { <<: *base, image: 'datadog/docker-library:ddtrace_php_7_0' }
-
-  '7.1': { <<: *base, image: 'datadog/docker-library:ddtrace_php_7_1' }
-
-  'fpm': { <<: *base, image: 'circleci/ruby:2.5', depends_on: [] }
+  'fpm': { <<: *base_php_service, image: 'circleci/ruby:2.5', depends_on: [] }
 
   mysql_integration:
     image: mysql:5.6
     environment:
-    - MYSQL_ROOT_PASSWORD=test
-    - MYSQL_PASSWORD=test
-    - MYSQL_USER=test
-    - MYSQL_DATABASE=test
+      - MYSQL_ROOT_PASSWORD=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_USER=test
+      - MYSQL_DATABASE=test
+
+  elasticsearch2_integration:
+    image: "elasticsearch:2"
+
+  mongodb_integration:
+    image: "circleci/mongo:4.0"
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=test
+      - MONGO_INITDB_ROOT_PASSWORD=test
 
   redis_integration:
     image: "circleci/redis:4.0-alpine"
 
   memcached_integration:
     image: "memcached:1.5-alpine"
+
+  httpbin_integration:
+    image: kennethreitz/httpbin
 
   ddagent_integration:
     image: datadog/agent:latest

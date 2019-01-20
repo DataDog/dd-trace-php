@@ -12,7 +12,28 @@ To provide a great out-of-the-box experience that automatically instruments comm
 
 Datadog’s PHP extension (`ddtrace`) allows introspection of arbitrary PHP code.
 
-At this moment it is only distributed in source code form, and requires manual compilation.
+The easiest way to install the extension is from [PECL](https://pecl.php.net/package/datadog_trace).
+
+```bash
+$ sudo pecl install datadog_trace-beta
+```
+
+If you don't have `pecl` installed, you can install the extension from a package download. First [download the appropriate package](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then install the package with one of the commands below.
+
+```bash
+# using RPM package (RHEL/Centos 6+, Fedora 20+)
+$ rpm -ivh datadog-php-tracer.rpm
+
+# using DEB package (Debian Jessie+ , Ubuntu 14.04+)
+$ deb -i datadog-php-tracer.deb
+
+# using APK package (Alpine)
+$ apk add datadog-php-tracer.apk --allow-untrusted
+
+# using tar.gz archive (Other distributions using libc6)
+$ tar -xf datadog-php-tracer.tar.gz -C /
+  /opt/datadog-php/bin/post-install.sh
+```
 
 ### Compiling and installing the extension manually
 
@@ -94,25 +115,69 @@ composer update
 
 #### Laravel integration
 
-To enable Laravel integration we need to configure a new Provider in `config/app.php`
+To enable [Laravel](https://laravel.com/) integration we need to configure a new provider in `config/app.php`
 
 ```php
     'providers' => [
 # .....
-      'DDTrace\Integrations\LaravelProvider',
+      # Laravel 5
+      'DDTrace\Integrations\Laravel\V5\LaravelProvider',
+      # Laravel 4
+      'DDTrace\Integrations\Laravel\V4\LaravelProvider',
 ```
 
 Now your Laravel application should start sending traces to the Datadog agent running on localhost (in default configuration). The Datadog agent must have APM enabled; see https://docs.datadoghq.com/tracing/setup/ for instructions on installing and configuring the agent.
 
+#### Lumen integration
+
+To enable [Lumen](https://lumen.laravel.com/) integration we need to add a new provider in `bootstrap/app.php`.
+
+```php
+# Lumen 5
+$app->register('DDTrace\Integrations\Laravel\V5\LaravelProvider');
+```
+
 #### Symfony integration
 
-For Symfony applications, add the bundle in `config/bundles.php`:
+For Symfony 3.x applications, add the bundle in `app/AppKernel.php`
+
+```php
+public function registerBundles()
+{
+    $bundles = array(
+        // ...
+        new DDTrace\Integrations\Symfony\V3\SymfonyBundle(),
+        // ...
+    );
+    
+    ...
+
+    return $bundles;
+}
+```
+
+For Symfony 4.x applications, add the bundle in `config/bundles.php`
+
+```php
+public function registerBundles()
+{
+    return [
+        // ...
+        DDTrace\Integrations\Symfony\V4\SymfonyBundle::class => ['all' => true],
+        // ...
+    ];
+}
+```
+
+## Flex
+
+For Symfony Flex applications, add the bundle in `config/bundles.php`:
 
 
 ```php
     return [
         // ...
-        DDTrace\Integrations\SymfonyBundle::class => ['all' => true],
+        DDTrace\Integrations\Symfony\V4\SymfonyBundle::class => ['all' => true],
         // ...
     ];
 ```
@@ -130,7 +195,7 @@ dd_trace("CustomDriver", "doWork", function (...$args) {
 
     // we can access object data via $this, and also execute 
     // the original method the same way 
-    $span->setResource($this->workToDo);
+    $span->setTag(Tags\RESOURCE_NAME, $this->workToDo);
     
     try {
         $result = $this->doWork(...$args);
@@ -144,3 +209,15 @@ dd_trace("CustomDriver", "doWork", function (...$args) {
     }
 });
 ```
+
+## Configuration
+
+It is possible to configure the agent connections parameters by means of env variables.
+
+| Env variable               | Default     | Note                                                                   |
+|----------------------------|-------------|------------------------------------------------------------------------|
+| `DD_TRACE_ENABLED`         | `true`      | Globally enables the tracer                                            |
+| `DD_INTEGRATIONS_DISABLED` |             | CSV list of disabled extensions, e.g. `curl,mysqli`                    |
+| `DD_AGENT_HOST`            | `localhost` | The agent host name                                                    |
+| `DD_TRACE_AGENT_PORT`      | `8126`      | The trace agent port number                                            |
+| `DD_AUTOFINISH_SPANS`      | `false`     | Whether or not spans are automatically finished when tracer is flushed |

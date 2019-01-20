@@ -14,7 +14,6 @@ class DebugTransport implements Transport
      */
     private $traces = array();
 
-
     /***
      * Holds set headers
      *

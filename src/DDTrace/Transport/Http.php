@@ -2,15 +2,29 @@
 
 namespace DDTrace\Transport;
 
+use DDTrace\Configuration;
 use DDTrace\Encoder;
+use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Span;
+use DDTrace\Tracer;
 use DDTrace\Transport;
 use DDTrace\Version;
+use OpenTracing\GlobalTracer;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
+
 final class Http implements Transport
 {
-    const DEFAULT_ENDPOINT = 'http://localhost:8126/v0.3/traces';
+    // Env variables to configure trace agent. They will be moved to a configuration class once we implement it.
+    const AGENT_HOST_ENV = 'DD_AGENT_HOST';
+    const TRACE_AGENT_PORT_ENV = 'DD_TRACE_AGENT_PORT';
+
+    // Default values for trace agent configuration
+    const DEFAULT_AGENT_HOST = 'localhost';
+    const DEFAULT_TRACE_AGENT_PORT = '8126';
+    const DEFAULT_TRACE_AGENT_PATH = '/v0.3/traces';
+    const PRIORITY_SAMPLING_TRACE_AGENT_PATH = '/v0.4/traces';
 
     /**
      * @var Encoder
@@ -34,11 +48,10 @@ final class Http implements Transport
 
     public function __construct(Encoder $encoder, LoggerInterface $logger = null, array $config = [])
     {
+        $this->configure($config);
+
         $this->encoder = $encoder;
         $this->logger = $logger ?: new NullLogger();
-        $this->config = array_merge([
-            'endpoint' => self::DEFAULT_ENDPOINT,
-        ], $config);
 
         $this->setHeader('Datadog-Meta-Lang', 'php');
         $this->setHeader('Datadog-Meta-Lang-Version', \PHP_VERSION);
@@ -46,11 +59,36 @@ final class Http implements Transport
         $this->setHeader('Datadog-Meta-Tracer-Version', Version\VERSION);
     }
 
+    /**
+     * Configures this http transport.
+     *
+     * @param array $config
+     */
+    private function configure($config)
+    {
+        $host = getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
+        $port = getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
+        $path = self::DEFAULT_TRACE_AGENT_PATH;
+        $endpoint = "http://${host}:${port}${path}";
+
+        $this->config = array_merge([
+            'endpoint' => $endpoint,
+        ], $config);
+    }
+
     public function send(array $traces)
     {
         $tracesPayload = $this->encoder->encodeTraces($traces);
 
-        $this->sendRequest($this->config['endpoint'], $this->headers, $tracesPayload);
+        // We keep the endpoint configuration option for backward compatibility instead of moving to an 'agent base url'
+        // concept, but this should be probably revisited in the future.
+        $endpoint = $this->isPrioritySamplingUsed() ? str_replace(
+            self::DEFAULT_TRACE_AGENT_PATH,
+            self::PRIORITY_SAMPLING_TRACE_AGENT_PATH,
+            $this->config['endpoint']
+        ) : $this->config['endpoint'];
+
+        $this->sendRequest($endpoint, $this->headers, $tracesPayload);
     }
 
     public function setHeader($key, $value)
@@ -103,5 +141,20 @@ final class Http implements Transport
             );
             return;
         }
+    }
+
+    /**
+     * Returns whether or not we should send these traces to the priority sampling aware trace agent endpoint.
+     * This approach could be optimized in the future if we refactor how traces are organized in parent/child relations
+     * but this would be out of scope at the moment.
+     *
+     * @return bool
+     */
+    private function isPrioritySamplingUsed()
+    {
+        /** @var Tracer $tracer */
+        $tracer = GlobalTracer::get();
+        return Configuration::get()->isPrioritySamplingEnabled()
+            && $tracer->getPrioritySampling() !== PrioritySampling::UNKNOWN;
     }
 }
