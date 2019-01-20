@@ -129,7 +129,7 @@ return array(
 		/*
 		 * 3rd parties
 		 */
-		DDTrace\Integrations\Laravel\V4\LaravelProvider::class,
+		'DDTrace\Integrations\Laravel\V4\LaravelProvider',
 	),
 
 	/*

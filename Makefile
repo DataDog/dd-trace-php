@@ -2,7 +2,7 @@ BUILD_SUFFIX := extension
 BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
 ABS_SRC_DIR := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
-WALL_FLAGS := -Wall -Wextra -Werror
+WALL_FLAGS := -Wall -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
 VERSION:=$(shell cat src/DDTrace/Tracer.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2)
 

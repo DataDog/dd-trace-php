@@ -132,7 +132,9 @@ trait TracerTestTrait
                 $this->setRawPropertyFromArray($span, $rawSpan, 'service');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'resource');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'startTime', 'start');
-                $this->setRawPropertyFromArray($span, $rawSpan, 'hasError', 'error', 'boolval');
+                $this->setRawPropertyFromArray($span, $rawSpan, 'hasError', 'error', function ($value) {
+                    return $value == 1 || $value == true;
+                });
                 $this->setRawPropertyFromArray($span, $rawSpan, 'type');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'duration');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'tags', 'meta');

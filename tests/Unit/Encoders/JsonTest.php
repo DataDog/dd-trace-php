@@ -7,12 +7,12 @@ use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
+use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\GlobalTracer;
-use PHPUnit\Framework;
 use Prophecy\Argument;
 
-final class JsonTest extends Framework\TestCase
+final class JsonTest extends BaseTestCase
 {
     /**
      * @var Tracer
@@ -54,6 +54,13 @@ JSON;
 
     public function testEncodeIgnoreSpanWhenEncodingFails()
     {
+        if (self::matchesPhpVersion('5.4')) {
+            $this->markTestSkipped(
+                'json_encode in php < 5.6 does not fail because of malformed string. It sets null on specific key'
+            );
+            return;
+        }
+
         $expectedPayload = '[[]]';
 
         $context = new SpanContext('160e7072ff7bd5f1', '160e7072ff7bd5f2');
