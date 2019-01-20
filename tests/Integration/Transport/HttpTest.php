@@ -4,7 +4,6 @@ namespace DDTrace\Tests\Integration\Transport;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Tests\Common\AgentReplayerTrait;
-use DDTrace\Tests\RequestReplayer;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Version;
