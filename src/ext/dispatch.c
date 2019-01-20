@@ -61,6 +61,22 @@ static ddtrace_dispatch_t *find_dispatch(const char *scope_name, uint32_t scope_
     return lookup_dispatch(class_lookup, function_name, function_name_length);
 }
 
+#if PHP_VERSION_ID < 50600
+zend_function *fcall_fbc(zend_execute_data *execute_data){
+    zend_op *opline = EX(opline);
+    zend_function *fbc = NULL;
+    zval *fname = opline->op1.zv;
+
+    if (CACHED_PTR(opline->op1.literal->cache_slot)) {
+		return CACHED_PTR(opline->op1.literal->cache_slot);
+	} else if (EXPECTED(zend_hash_quick_find(EG(function_table), Z_STRVAL_P(fname), Z_STRLEN_P(fname)+1, Z_HASH_P(fname), (void **) &fbc)==SUCCESS)) {
+	   return fbc;
+	} else {
+		return NULL;
+	}
+}
+#endif
+
 static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execute_data,
                           zval **return_value_ptr TSRMLS_DC) {
     zend_fcall_info fci = { 0 };
@@ -166,7 +182,10 @@ static zend_always_inline zend_bool executing_method(zend_execute_data *execute_
 #include <assert.h>
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, zend_function *fbc,
                                                  const char *function_name, uint32_t function_name_length TSRMLS_DC) {
-    zval *object = NULL, *original_object = EX(object);
+#if PHP_VERSION_ID < 50600
+    zval *original_object = EX(object);
+#endif
+    zval *object = NULL;
     const char *common_scope = NULL;
     uint32_t common_scope_length = 0;
 
@@ -183,7 +202,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         common_scope_length = ZSTR_LEN(fbc->common.scope->name);
 #endif
     }
-    DD_PRINTF("Loaded object id: %0lx", EX(object));
+    DD_PRINTF("Loaded object id: %0lx", object);
 
     ddtrace_dispatch_t *dispatch;
 
@@ -204,35 +223,31 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         #if PHP_VERSION_ID < 50600
         if (EX(opline)->opcode == ZEND_DO_FCALL) {
             zend_op *opline = EX(opline);
-            zval *fname = opline->op1.zv;
-
             zend_ptr_stack_3_push(&EG(arg_types_stack), FBC(), EX(object), EX(called_scope));
 
             if (CACHED_PTR(opline->op1.literal->cache_slot)) {
                 EX(function_state).function = CACHED_PTR(opline->op1.literal->cache_slot);
-            } else if (UNEXPECTED(zend_hash_quick_find(EG(function_table), Z_STRVAL_P(fname), Z_STRLEN_P(fname)+1, Z_HASH_P(fname), (void **) &EX(function_state).function)==FAILURE)) {
-                zend_error_noreturn(E_ERROR, "Call to undefined function %s()", fname->value.str.val);
             } else {
+                EX(function_state).function = fcall_fbc(execute_data);
                 CACHE_PTR(opline->op1.literal->cache_slot, EX(function_state).function);
             }
 
             EX(object) = NULL;
         }
-        #endif
-
         if (fbc->common.scope && object) {
             EX(object) = original_object;
         }
+        #endif
 
         const zend_op *opline = EX(opline);
+        dispatch->flags ^= BUSY_FLAG;  // guard against recursion, catching only topmost execution
+
+
+#if PHP_VERSION_ID < 50600
+#define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
         zval rv;
         INIT_ZVAL(rv);
 
-        dispatch->flags ^= BUSY_FLAG;  // guard against recursion, catching only topmost execution
-
-#define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
-
-#if PHP_VERSION_ID < 70000
         zval **return_value = NULL;
         zval *rv_ptr = &rv;
 
@@ -262,7 +277,16 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 		}
 
         execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
+#elif PHP_VERSION_ID < 70000
+        zval *return_value = NULL;
+        execute_fcall(dispatch, execute_data, &return_value TSRMLS_CC);
+
+        if (return_value != NULL) {
+            EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
+        }
 #else
+        zval rv;
+        INIT_ZVAL(rv);
 
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
         execute_fcall(dispatch, EX(call), &return_value TSRMLS_CC);
@@ -276,21 +300,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         return 0;
     }
 }
-
-zend_function *fcall_fbc(zend_execute_data *execute_data){
-    zend_op *opline = EX(opline);
-    zend_function *fbc = NULL;
-    zval *fname = opline->op1.zv;
-
-    if (CACHED_PTR(opline->op1.literal->cache_slot)) {
-		return CACHED_PTR(opline->op1.literal->cache_slot);
-	} else if (EXPECTED(zend_hash_quick_find(EG(function_table), Z_STRVAL_P(fname), Z_STRLEN_P(fname)+1, Z_HASH_P(fname), (void **) &fbc)==SUCCESS)) {
-	   return fbc;
-	} else {
-		return NULL;
-	}
-}
-
 
 static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *execute_data, zend_function **fbc_p,
                                                            char const **function_name_p,
@@ -315,7 +324,8 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
         function_name_length = Z_STRLEN_P(fname);
     }
 #else
-    fbc = FBC();
+    (void)(execute_data);
+    fbc = EX(call)->func;
     if (fbc->common.function_name) {
         function_name = ZSTR_VAL(fbc->common.function_name);
         function_name_length = ZSTR_LEN(fbc->common.function_name);
