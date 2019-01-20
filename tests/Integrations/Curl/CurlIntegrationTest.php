@@ -183,9 +183,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsPropagated()
     {
-        if (strpos(PHP_VERSION, '5.4.') === 0) {
-            return; // Skipped because of a bug in PHP 5.4 extension
-        }
         $found = [];
         $traces = $this->isolateTracer(function () use (&$found) {
             /** @var Tracer $tracer */
@@ -214,9 +211,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
-        if (strpos(PHP_VERSION, '5.4.') === 0) {
-            return; // Skipped because of a bug in PHP 5.4 extension
-        }
         $found = [];
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isAutofinishSpansEnabled' => false,
