@@ -31,7 +31,6 @@
         "phpcompatibility/phpcompatibility-passwordcompat": "^1.0",
         "phpcompatibility/phpcompatibility-symfony": "*",
         "phpunit/phpunit": "^4",
-        "predis/predis": "^1.1",
         "squizlabs/php_codesniffer": "^3.3.0",
         "symfony/process": "*"
     },
@@ -60,7 +59,7 @@
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
         ],
         "install-ext": "make sudo install_ini install $*",
-        "test-ext": "make test_c",
+        "test-ext": "make test_c TESTS=tests/ext",
         "test": "phpunit --colors=always --configuration=phpunit.xml",
         "test-all-54": [
             "@test-unit",
