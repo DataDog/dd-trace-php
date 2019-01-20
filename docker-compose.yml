@@ -105,4 +105,6 @@ services:
     working_dir: /var/www
     ports:
       - 9000:80
-    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/dev/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
+    environment:
+      DD_REQUEST_DUMPER_FILE: dump.json
+    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/labbati/fix-54-tests/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
