@@ -1,12 +1,21 @@
 BUILD_SUFFIX := extension
 BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
-ABS_SRC_DIR := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
 VERSION:=$(shell cat src/DDTrace/Tracer.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2)
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
+
+C_FILES := $(shell find src/ext -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_FILES := $(shell find tests/ext -name '*.phpt' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+
+ALL_FILES := $(C_FILES) $(TEST_FILES) $(BUILD_DIR)/config.m4
+
+$(BUILD_DIR)/%: %
+	$(Q) echo Copying $* to build dir
+	$(Q) mkdir -p $(dir $@)
+	$(Q) cp -a $* $@
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 Q := @
@@ -18,19 +27,13 @@ src/ext/version.h:
 	@echo "C: "
 	@cat $@ #| grep '#define'
 
-$(BUILD_DIR)/config.m4: config.m4
-	$(Q) mkdir -p $(BUILD_DIR)
-	$(Q) cp config.m4 $@
-
 $(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
 	$(Q) (cd $(BUILD_DIR); phpize)
 
-
-
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	$(Q) @(cd $(BUILD_DIR); ./configure --srcdir=$(ABS_SRC_DIR))
+	$(Q) (cd $(BUILD_DIR); ./configure)
 
-$(SO_FILE): $(BUILD_DIR)/Makefile src/ext/version.h
+$(SO_FILE): $(ALL_FILES) $(BUILD_DIR)/Makefile src/ext/version.h
 	$(Q) $(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
 
 install: $(SO_FILE)
@@ -43,12 +46,10 @@ install_ini: $(INI_FILE)
 
 install_all: install install_ini
 
-run-tests.php: $(BUILD_DIR)/Makefile
-	$(Q) cp $(BUILD_DIR)/run-tests.php ./
-test_c: $(SO_FILE) run-tests.php
+test_c: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)"
 
-test_c_mem: $(SO_FILE) run-tests.php
+test_c_mem: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS)"
 
 test_integration: install_ini
