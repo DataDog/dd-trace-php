@@ -78,7 +78,7 @@ class WebServer
         $processCmd = "$envs exec $cmd";
         $this->process = new Process($processCmd);
         $this->process->start();
-        usleep(100000);
+        usleep(500000);
     }
 
     /**

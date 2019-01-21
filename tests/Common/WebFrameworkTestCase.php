@@ -95,7 +95,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected function call(RequestSpec $spec)
     {
-        $url = 'http://127.0.0.1:' . self::PORT . $spec->getPath();
+        $url = 'http://localhost:' . self::PORT . $spec->getPath();
         if ($spec instanceof GetSpec) {
             return $this->sendRequest('GET', $url);
         }
