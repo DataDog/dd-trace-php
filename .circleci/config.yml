@@ -245,10 +245,10 @@ jobs:
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_CACHE_SAVE
       - run:
           name: Install phpstan
           command: composer global require phpstan/phpstan
-      - <<: *STEP_COMPOSER_CACHE_SAVE
       - run:
           name: Running phpstan
           command: composer static-analyze
