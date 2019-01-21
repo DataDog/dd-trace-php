@@ -16,8 +16,7 @@
 			"app/database/seeds"
 		],
 		"psr-4": {
-			"App\\": "app/",
-			"DDTrace\\": "../../../../src/DDTrace/"
+			"App\\": "app/"
 		}
 	},
 	"scripts": {

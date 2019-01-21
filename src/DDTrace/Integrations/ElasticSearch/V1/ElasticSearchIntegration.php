@@ -2,11 +2,11 @@
 
 namespace DDTrace\Integrations\ElasticSearch\V1;
 
+use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\GlobalTracer;
 use DDTrace\Util\Environment;
 
 /**

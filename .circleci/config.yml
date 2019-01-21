@@ -51,6 +51,8 @@ aliases:
     image: php:7.2
     name: request_replayer
     command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/dev/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
+    environment:
+      DD_REQUEST_DUMPER_FILE: dump.json
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
@@ -59,7 +61,7 @@ aliases:
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
-      command: make sudo install_all BUILD_DIR=tmp/build_extension
+      command: make sudo install install_ini BUILD_DIR=tmp/build_extension
 
   - &STEP_COMPOSER_SELF_UPDATE
     run:
@@ -270,6 +272,8 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_RUN_EXTENSION_TESTS
@@ -440,6 +444,10 @@ jobs:
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions']
+
+  "5.6 20131106":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:5.6' ]
 
   "7.0 20151012":
     <<: *ARTIFACT_BUILD

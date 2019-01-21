@@ -90,10 +90,19 @@ final class Tracer implements TracerInterface
             Format::HTTP_HEADERS => $textMapPropagator,
             Format::CURL_HTTP_HEADERS => new CurlHeadersMap($this),
         ];
-        $this->scopeManager = new ScopeManager();
         $this->config = array_merge($this->config, $config);
+        $this->reset();
+    }
+
+    /**
+     * Resets this tracer to its original state.
+     */
+    public function reset()
+    {
+        $this->scopeManager = new ScopeManager();
         $this->globalConfig = Configuration::get();
         $this->sampler = new AlwaysKeepSampler();
+        $this->traces = [];
     }
 
     /**
@@ -253,6 +262,13 @@ final class Tracer implements TracerInterface
 
         if (empty($tracesToBeSent)) {
             return;
+        }
+
+        $numberOfTraces = 0;
+        foreach ($tracesToBeSent as $trace) {
+            foreach ($trace as $span) {
+                $numberOfTraces = $numberOfTraces + 1;
+            }
         }
 
         $this->transport->send($tracesToBeSent);

@@ -53,6 +53,17 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     }
 
     /**
+     * Get additional inis to be set in the web server.
+     * @return array
+     */
+    protected static function getInis()
+    {
+        return [
+            'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+        ];
+    }
+
+    /**
      * Sets up a web server.
      */
     protected static function setUpWebServer()
@@ -61,6 +72,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         if ($rootPath) {
             self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT);
             self::$appServer->setEnvs(static::getEnvs());
+            self::$appServer->setInis(static::getInis());
             self::$appServer->start();
         }
     }

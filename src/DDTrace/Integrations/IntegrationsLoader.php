@@ -7,11 +7,14 @@ use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Guzzle\V5\GuzzleIntegration;
+use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\Symfony\SymfonyIntegration;
+use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 
 /**
  * Loader for all integrations currently enabled.
@@ -36,11 +39,14 @@ class IntegrationsLoader
         ElasticSearchIntegration::NAME => '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
         EloquentIntegration::NAME => '\DDTrace\Integrations\Eloquent\EloquentIntegration',
         GuzzleIntegration::NAME => '\DDTrace\Integrations\Guzzle\V5\GuzzleIntegration',
+        LaravelIntegration::NAME => '\DDTrace\Integrations\Laravel\LaravelIntegration',
         MemcachedIntegration::NAME => '\DDTrace\Integrations\Memcached\MemcachedIntegration',
         MongoIntegration::NAME => '\DDTrace\Integrations\Mongo\MongoIntegration',
         MysqliIntegration::NAME => '\DDTrace\Integrations\Mysqli\MysqliIntegration',
         PDOIntegration::NAME => '\DDTrace\Integrations\PDO\PDOIntegration',
         PredisIntegration::NAME => '\DDTrace\Integrations\Predis\PredisIntegration',
+        SymfonyIntegration::NAME => '\DDTrace\Integrations\Symfony\SymfonyIntegration',
+        ZendFrameworkIntegration::NAME => '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration',
     ];
 
     /**
@@ -96,7 +102,8 @@ class IntegrationsLoader
             // If the integration has already been loaded, we don't need to reload it. On the other hand, with
             // auto-instrumentation this method may be called many times as the hook is the autoloader callback.
             // So we want to make sure that we do not load the same integration twice if not required.
-            if (in_array($this->getLoadingStatus($name), [Integration::LOADED, Integration::NOT_AVAILABLE])) {
+            $integrationLoadingStatus = $this->getLoadingStatus($name);
+            if (in_array($integrationLoadingStatus, [Integration::LOADED, Integration::NOT_AVAILABLE])) {
                 continue;
             }
 
@@ -132,5 +139,10 @@ class IntegrationsLoader
     public static function load()
     {
         self::get()->loadAll();
+    }
+
+    public function reset()
+    {
+        $this->integrations = [];
     }
 }

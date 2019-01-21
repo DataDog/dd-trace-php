@@ -4,7 +4,7 @@ namespace DDTrace\Integrations\Symfony\V4;
 
 use DDTrace\Configuration;
 use DDTrace\Encoders\Json;
-use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\Integrations\Symfony\SymfonyIntegration as DDSymfonyIntegration;
 use DDTrace\Tag;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
@@ -30,6 +30,11 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 class SymfonyBundle extends Bundle
 {
     const NAME = 'symfony';
+
+    /**
+     * @var string Used by Bundle::getName() to identify this bundle among registered ones.
+     */
+    protected $name = DDSymfonyIntegration::BUNDLE_NAME;
 
     public function boot()
     {
@@ -135,15 +140,6 @@ class SymfonyBundle extends Bundle
                 return TryCatchFinally::executePublicMethod($scope, $this, 'dispatch', $args);
             }
         );
-
-        // Enable other integrations
-        IntegrationsLoader::load();
-
-        // Flushes traces to agent.
-        register_shutdown_function(function () use ($scope) {
-            $scope->close();
-            GlobalTracer::get()->flush();
-        });
     }
 
     private function getAppName()
