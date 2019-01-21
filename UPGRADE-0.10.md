@@ -41,7 +41,7 @@ moving away from bundle based instrumentation.
 
 If auto-instrumentation does not work well for you:
 1. Disable auto-instrumentation setting the following ini value to an empty string: `ddtrace.request_init_hook=''`
-1. Immediately after you register the composer autoloader: `DDTrace\Bootstrap::tracer()`
+1. Immediately after you register the composer autoloader: `DDTrace\Bootstrap::tracerAndIntegrations()`
 
 ## Setting the singleton
 
