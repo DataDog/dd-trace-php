@@ -76,11 +76,6 @@ aliases:
       paths:
         - vendor/
 
-  - &STEP_COMPOSER_INSTALL_LEGACY
-    run:
-      name: Installing composer dependencies without PHPStan
-      command: composer remove phpstan/phpstan --no-interaction --no-plugins --dev
-
   - &STEP_COMPOSER_INSTALL
     run:
       name: Installing dependencies with composer
@@ -250,6 +245,9 @@ jobs:
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_INSTALL
+      - run:
+          name: Install phpstan
+          command: composer global require phpstan/phpstan
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - run:
           name: Running phpstan
@@ -273,7 +271,6 @@ jobs:
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL_LEGACY
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
@@ -308,7 +305,6 @@ jobs:
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL_LEGACY
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
@@ -343,7 +339,6 @@ jobs:
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL_LEGACY
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
