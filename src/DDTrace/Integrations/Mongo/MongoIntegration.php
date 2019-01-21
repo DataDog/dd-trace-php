@@ -6,6 +6,7 @@ use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Integrations\Integration;
+use DDTrace\Util\Environment;
 
 final class MongoIntegration
 {
@@ -13,10 +14,11 @@ final class MongoIntegration
 
     public static function load()
     {
-        if (!extension_loaded('mongo')) {
+        if (!extension_loaded('mongo') || Environment::matchesPhpVersion('5.4')) {
             // Mongodb integration is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }
+
         MongoClientIntegration::load();
         MongoDBIntegration::load();
         MongoCollectionIntegration::load();

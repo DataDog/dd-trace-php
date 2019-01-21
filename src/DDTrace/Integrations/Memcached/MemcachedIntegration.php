@@ -6,6 +6,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Obfuscation;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\Environment;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
@@ -28,7 +29,7 @@ class MemcachedIntegration
 
     public static function load()
     {
-        if (!class_exists('Memcached')) {
+        if (!class_exists('Memcached') || Environment::matchesPhpVersion('5.4')) {
             // Memcached is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }

@@ -6,6 +6,7 @@ use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Obfuscation;
 use DDTrace\Integrations\Integration;
+use DDTrace\Util\Environment;
 
 final class MongoClientIntegration extends Integration
 {
@@ -13,6 +14,10 @@ final class MongoClientIntegration extends Integration
 
     protected static function loadIntegration()
     {
+        if (Environment::matchesPhpVersion('5.4')) {
+            return;
+        }
+
         // MongoClient::__construct ([ string $server = "mongodb://localhost:27017"
         // [, array $options = array("connect" => TRUE) [, array $driver_options ]]] )
         self::traceMethod('__construct', function (Span $span, array $args) {
