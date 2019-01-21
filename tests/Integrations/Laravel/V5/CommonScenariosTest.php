@@ -49,7 +49,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'laravel.route.name' => 'simple_route',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple',
                         'http.method' => 'GET',
-                        'http.url' => 'http://127.0.0.1:9999/simple',
+                        'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
                     ]),
                 ],
@@ -62,7 +62,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple_view',
                         'http.method' => 'GET',
-                        'http.url' => 'http://127.0.0.1:9999/simple_view',
+                        'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
                     ])->withExistingTagsNames(['laravel.route.name']),
                     SpanAssertion::build(
@@ -82,7 +82,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'laravel.route.name' => '',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@error',
                         'http.method' => 'GET',
-                        'http.url' => 'http://127.0.0.1:9999/error',
+                        'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
                     ]),
                 ],

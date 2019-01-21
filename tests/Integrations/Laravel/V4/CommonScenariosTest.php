@@ -38,7 +38,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'laravel.route.name' => 'simple_route',
                             'laravel.route.action' => 'HomeController@simple',
                             'http.method' => 'GET',
-                            'http.url' => 'http://127.0.0.1:9999/simple',
+                            'http.url' => 'http://localhost:9999/simple',
                             'http.status_code' => '200',
                         ]),
                     SpanAssertion::exists('laravel.event.handle'),
@@ -64,7 +64,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'laravel.route.name' => 'error',
                             'laravel.route.action' => 'HomeController@error',
                             'http.method' => 'GET',
-                            'http.url' => 'http://127.0.0.1:9999/error',
+                            'http.url' => 'http://localhost:9999/error',
                             'http.status_code' => '500'
                         ]),
                     SpanAssertion::exists('laravel.event.handle'),
