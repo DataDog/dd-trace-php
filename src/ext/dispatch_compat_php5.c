@@ -61,11 +61,15 @@ static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, 
         fci->params = (zval ***)safe_emalloc(sizeof(zval *), fci->param_count, 0);
         zend_get_parameters_array_ex(fci->param_count, fci->params);
     }
+#if PHP_VERSION_ID < 50600
     if (EG(return_value_ptr_ptr)) {
         fci->retval_ptr_ptr = EG(return_value_ptr_ptr);
     } else {
         fci->retval_ptr_ptr = result;
     }
+#else
+    fci->retval_ptr_ptr = result;
+#endif
 }
 
 void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC) {

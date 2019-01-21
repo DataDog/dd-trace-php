@@ -291,6 +291,10 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
         execute_fcall(dispatch, EX(call), &return_value TSRMLS_CC);
+
+        if (!RETURN_VALUE_USED(opline)) {
+            zval_dtor(&rv);
+        }
 #endif
 
         dispatch->flags ^= BUSY_FLAG;
@@ -378,9 +382,8 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 
     zend_vm_stack_clear_multiple(TSRMLS_CC);
 #elif PHP_VERSION_ID < 70000
-    EX(call)--;
-
     zend_vm_stack_clear_multiple(0 TSRMLS_CC);
+    EX(call)--;
 #else
     EX(call) = EX(call)->prev_execute_data;
 #endif
