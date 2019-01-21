@@ -21,7 +21,7 @@ class GuzzleIntegration extends Integration
     protected static function loadIntegration()
     {
         if (Environment::matchesPhpVersion('5.4')) {
-         return;
+            return;
         }
 
         self::traceMethod('send', function (Span $span, array $args) {
