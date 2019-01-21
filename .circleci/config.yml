@@ -86,7 +86,6 @@ aliases:
       name: Installing dependencies with composer
       command: composer install --no-interaction
 
-
   - &STEP_PREPARE_TEST_RESULTS_DIR
     run:
       name: testresults dir
@@ -101,7 +100,7 @@ aliases:
   - &STEP_RUN_EXTENSION_TESTS
     run:
       name: Run extension tests with leak detection
-      command: TEST_PHP_JUNIT=test-results/leak_test.xml REPORT_EXIT_STATUS=1 make test_c_mem
+      command: TEST_PHP_JUNIT=$(pwd)/test-results/leak_test.xml REPORT_EXIT_STATUS=1 make test_c_mem
 
   - &STEP_WAIT_AGENT
     run:
