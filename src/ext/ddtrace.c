@@ -203,6 +203,48 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
+// This function allows untracing a function.
+static PHP_FUNCTION(dd_untrace) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
+
+    STRING_T *function = NULL;
+
+#if PHP_VERSION_ID < 70000
+    ALLOC_INIT_ZVAL(function);
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "s", &Z_STRVAL_P(function),
+                                 &Z_STRLEN_P(function)) != SUCCESS) {
+        if (!DDTRACE_G(ignore_missing_overridables)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "unexpected parameter. the function name must be provided");
+        }
+
+        RETURN_BOOL(0);
+    }
+    DD_PRINTF("Untracing function: %s", Z_STRVAL_P(function));
+#else
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "S", &function) != SUCCESS) {
+        if (!DDTRACE_G(ignore_missing_overridables)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0,
+                                    "unexpected parameter. the function name must be provided");
+        }
+        RETURN_BOOL(0);
+    }
+#endif
+
+    // Remove the traced function from the global lookup
+    zend_hash_del(&DDTRACE_G(function_lookup), function);
+
+#if PHP_VERSION_ID < 70000
+    FREE_ZVAL(function);
+#endif
+    RETURN_BOOL(1);
+}
+
 static PHP_FUNCTION(dd_trace_reset) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
@@ -228,7 +270,7 @@ static PHP_FUNCTION(dd_trace_noop) {
 }
 
 
-static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
+static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
                                                             ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
