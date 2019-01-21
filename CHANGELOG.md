@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [0.10.0]
 
-**WARNING: THIS IS  A BREKING CHANGE RELEASE**
+**WARNING: THIS IS  A BREAKING CHANGE RELEASE**
 
 Refer to the [Migration Guide](UPGRADE-0.10.md)
 
