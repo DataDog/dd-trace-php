@@ -384,8 +384,6 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 #elif PHP_VERSION_ID < 70000
     zend_vm_stack_clear_multiple(0 TSRMLS_CC);
     EX(call)--;
-
-    zend_vm_stack_clear_multiple(0 TSRMLS_CC);
 #else
     EX(call) = EX(call)->prev_execute_data;
 #endif
