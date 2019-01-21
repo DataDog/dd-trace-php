@@ -445,6 +445,10 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
+  "5.6 20131106":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:5.6' ]
+
   "7.0 20151012":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.0' ]
