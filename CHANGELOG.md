@@ -1,10 +1,23 @@
 # Changelog
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
-## [Unreleased]
+## [UNRELEASED]
+
+## [0.10.0]
+
+**WARNING: THIS IS  A BREKING CHANGE RELEASE**
+
+Refer to the [Migration Guide](UPGRADE-0.10.md)
 
 ### Added
 - Request init hook configuration allowing running arbitrary code before actual request execution #175
+- Support OpenTracing without depending on it #193
+- Initial C extension PHP 5.4 support #205
+- Removal of external dependencies to support auto-instrumentation #206
+- Migration from namespace based constants to class based constants for tags, formats and types #207
+- Track integration loading to avoid re-loading unnecessary ones #211
+- Documenting release steps #223
+- Ability to run web framework tests in external web server #232
 - Support for auto-instrumentation #237
 - Support for Zend Framework 1 #238
 - `Tracer::startRootSpan()` to track the root `Scope` instance which can be accessed with `Tracer::getRootScope()` #241
@@ -16,11 +29,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [0.9.1]
 ### Added
-- Migration from namespace based constants to class based constants for tags, formats and types #207
-- Track integration loading to avoid re-loading unnecessary ones #211
-- Documenting release steps #223
 - Ability to reset all overrides via `dd_trace_reset`
-- Ability to run web framework tests in external web server #232
 
 ### Changed
 - By default do not throw an exception when method or function doesn't exist
@@ -209,7 +218,8 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.9.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.10.0...HEAD
+[0.10.0]: https://github.com/DataDog/dd-trace-php/compare/0.9.1...0.10.0
 [0.9.1]: https://github.com/DataDog/dd-trace-php/compare/0.9.0...0.9.1
 [0.9.0]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/DataDog/dd-trace-php/compare/0.8.0...0.8.1
