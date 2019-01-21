@@ -5,7 +5,8 @@
     "description": "The \"Symfony Standard Edition\" distribution",
     "autoload": {
         "psr-4": {
-            "AppBundle\\": "src/AppBundle"
+            "AppBundle\\": "src/AppBundle",
+            "DDTrace\\": "../../../../src/DDTrace/"
         },
         "classmap": [ "app/AppKernel.php", "app/AppCache.php" ]
     },
