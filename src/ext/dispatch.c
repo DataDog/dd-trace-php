@@ -322,7 +322,7 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 #if PHP_VERSION_ID < 50600
         fbc = fcall_fbc(execute_data);
 #else
-        fbc = FBC();
+        fbc = EX(function_state).function;
 #endif
         function_name = Z_STRVAL_P(fname);
         function_name_length = Z_STRLEN_P(fname);

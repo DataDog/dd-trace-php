@@ -11,9 +11,9 @@ INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 C_FILES := $(shell find src/ext -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.phpt' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
-ALL_FILES := $(C_FILES) $(TEST_FILES)  $(BUILD_DIR)/config.m4
+ALL_FILES := $(C_FILES) $(TEST_FILES) $(BUILD_DIR)/config.m4
 
-$(ALL_FILES): $(BUILD_DIR)/%:
+$(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to build dir
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $* $@
