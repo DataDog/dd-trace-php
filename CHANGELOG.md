@@ -7,7 +7,17 @@ All notable changes to this project will be documented in this file - [read more
 
 **WARNING: THIS IS  A BREAKING CHANGE RELEASE**
 
-Refer to the [Migration Guide](UPGRADE-0.10.md)
+Refer to the [Migration Guide](UPGRADE-0.10.md) for a detailed description.
+
+At an high level here are the breaking changes we introduced:
+
+ - We removed OpenTracing as a required dependency. We still support OpenTracing, so you can do
+   `OpenTracing<GlobalTracer::get()` in your code and still retrieve a OopenTracing compliant tracer, but
+   OpenTracing dependency is now optional.
+ - We introduced auto-instrumentation and 1-step installation in place of manual registration of providers/bundles.
+   Before, in order to see traces, you had to install our extension, add two dependencies to the composer file and
+   add a provider (Laravel) or a bundle (Symfony). Starting from now you will only have to install the extension. You
+   still have freedom to manually instrument the code, but only for advanced usage.
 
 ### Added
 - Request init hook configuration allowing running arbitrary code before actual request execution #175
