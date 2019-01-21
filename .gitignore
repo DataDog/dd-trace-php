@@ -12,10 +12,12 @@ autom4te*
 build
 configure
 /configure.*
+/config.*
 *.la
 *.lo
 *.o
 *.so
+install-sh
 error.log
 libtool
 ltmain.sh
