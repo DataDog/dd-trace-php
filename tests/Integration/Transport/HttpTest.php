@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Integration\Transport;
 
 use DDTrace\Encoders\Json;
-use DDTrace\Tests\RequestReplayer;
+use DDTrace\Tests\Common\AgentReplayerTrait;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Version;
@@ -13,6 +13,8 @@ use Prophecy\Argument;
 
 final class HttpTest extends Framework\TestCase
 {
+    use AgentReplayerTrait;
+
     public function agentUrl()
     {
         return 'http://' . ($_SERVER["DDAGENT_HOSTNAME"] ? $_SERVER["DDAGENT_HOSTNAME"] :  "localhost") . ':8126';
@@ -113,10 +115,8 @@ final class HttpTest extends Framework\TestCase
 
     public function testSendsMetaHeaders()
     {
-        $replayer = new RequestReplayer();
-
         $httpTransport = new Http(new Json(), null, [
-            'endpoint' => $replayer->getEndpoint(),
+            'endpoint' => $this->getAgentReplayerEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
@@ -127,7 +127,7 @@ final class HttpTest extends Framework\TestCase
         $traces = [[$span]];
         $httpTransport->send($traces);
 
-        $traceRequest = $replayer->getLastRequest();
+        $traceRequest = $this->getLastAgentRequest();
 
         $this->assertEquals('php', $traceRequest['headers']['Datadog-Meta-Lang']);
         $this->assertEquals(\PHP_VERSION, $traceRequest['headers']['Datadog-Meta-Lang-Version']);
@@ -137,10 +137,8 @@ final class HttpTest extends Framework\TestCase
 
     public function testSetHeader()
     {
-        $replayer = new RequestReplayer();
-
         $httpTransport = new Http(new Json(), null, [
-            'endpoint' => $replayer->getEndpoint(),
+            'endpoint' => $this->getAgentReplayerEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
@@ -152,7 +150,7 @@ final class HttpTest extends Framework\TestCase
         $httpTransport->setHeader('X-my-custom-header', 'my-custom-value');
         $httpTransport->send($traces);
 
-        $traceRequest = $replayer->getLastRequest();
+        $traceRequest = $this->getLastAgentRequest();
 
         $this->assertEquals('my-custom-value', $traceRequest['headers']['X-my-custom-header']);
     }
