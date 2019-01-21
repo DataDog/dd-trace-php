@@ -10,6 +10,7 @@ use DDTrace\Type;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
+use DDTrace\Util\Environment;
 use GuzzleHttp\Message\ResponseInterface;
 
 class GuzzleIntegration extends Integration
@@ -19,6 +20,10 @@ class GuzzleIntegration extends Integration
 
     protected static function loadIntegration()
     {
+        if (Environment::matchesPhpVersion('5.4')) {
+            return;
+        }
+
         self::traceMethod('send', function (Span $span, array $args) {
             list($request) = $args;
             GuzzleIntegration::injectDistributedTracingHeaders($request, $span);

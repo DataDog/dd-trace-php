@@ -273,8 +273,8 @@ static PHP_FUNCTION(dd_trace_noop) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL)
-                                                            PHP_FE(dd_trace_noop, NULL)
-                                                            PHP_FE(dd_untrace, NULL) ZEND_FE_END};
+                                                            PHP_FE(dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL)
+                                                            ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
