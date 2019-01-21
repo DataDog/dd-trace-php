@@ -18,7 +18,6 @@ configure
 *.o
 *.so
 error.log
-install-sh
 libtool
 ltmain.sh
 missing
