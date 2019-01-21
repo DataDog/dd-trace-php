@@ -61,7 +61,7 @@ aliases:
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
-      command: make -f DDMakefile install install_ini SUDO=sudo BUILD_DIR=tmp/build_extension
+      command: make install install_ini SUDO=sudo BUILD_DIR=tmp/build_extension
 
   - &STEP_COMPOSER_SELF_UPDATE
     run:
@@ -103,7 +103,7 @@ aliases:
   - &STEP_RUN_EXTENSION_TESTS
     run:
       name: Run extension tests with leak detection
-      command: TEST_PHP_JUNIT=test-results/leak_test.xml REPORT_EXIT_STATUS=1 make -f DDMakefile test_c_mem
+      command: TEST_PHP_JUNIT=test-results/leak_test.xml REPORT_EXIT_STATUS=1 make test_c_mem
 
   - &STEP_WAIT_AGENT
     run:
@@ -401,7 +401,7 @@ jobs:
           name: Build extension .so
           command: |
               mkdir -p extensions
-              make -f DDMakefile all CFLAGS="-O2 -Wall -Werror -Wextra"
+              make all CFLAGS="-O2 -Wall -Werror -Wextra"
               SUFFIX="$( echo "$CIRCLE_JOB" | awk '{print $NF}' )"
               cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-$SUFFIX.so
       - persist_to_workspace:
@@ -448,7 +448,7 @@ jobs:
           command: sudo apt-get update && sudo apt-get install -y ruby ruby-dev rubygems build-essential rpm && sudo gem install --no-ri --no-rdoc fpm
       - run:
           name: Build packages
-          command: make -f DDMakefile packages
+          command: make packages
       - store_artifacts: { path: 'build/packages', destination: / }
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
       - setup_remote_docker
