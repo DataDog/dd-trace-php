@@ -427,9 +427,11 @@ jobs:
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
-  "5.4 20100525": &ARTIFACT_BUILD
+  "5.4 20100525": &5_4_ARTIFACT_BUILD
     working_directory: ~/datadog
     docker: [ image: 'datadog/docker-library:ddtrace_php_5_4' ]
+    environment:
+      CFLAGS: "-O2 -Wall -Wextra"
     steps:
       - checkout
       - attach_workspace:
@@ -438,28 +440,30 @@ jobs:
           name: Build extension .so
           command: |
               mkdir -p extensions
-              make all CFLAGS="-O2 -Wall -Werror -Wextra"
+              make all CFLAGS="${CFLAGS}"
               SUFFIX="$( echo "$CIRCLE_JOB" | awk '{print $NF}' )"
               cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-$SUFFIX.so
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions']
 
-  "5.6 20131106":
-    <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:5.6' ]
+  "5.6 20131106": &ARTIFACT_BUILD
+    <<: *5_4_ARTIFACT_BUILD
+    environment:
+      CFLAGS: "-O2 -Wall -Wextra -Wextra"
+    docker: [ image: 'datadog/docker-library:ddtrace_php_5_6' ]
 
   "7.0 20151012":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:7.0' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_php_7_0' ]
 
   "7.1 20160303":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:7.1' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_php_7_1' ]
 
   "7.2 20170718":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:7.2' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_php_7_2' ]
 
   "5.6 zts 20131106-zts":
     <<: *ARTIFACT_BUILD
