@@ -44,7 +44,7 @@ x-aliases:
 
 services:
   '5.4-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-5.4' }
-  '5.4': { <<: *base_php_service, build: 'dockerfiles/php-5.4' }
+  '5.4': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_5_4' }
 
   '5.6': { <<: *base_56_service, image: 'datadog/docker-library:ddtrace_php_5_6' }
   '5.6-zts': { <<: *base_56_service, image: 'circleci/php:5.6-zts' }
@@ -61,6 +61,8 @@ services:
 
   mysql_integration:
     image: mysql:5.6
+    ports:
+      - "0.0.0.0:3306:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test
@@ -108,4 +110,4 @@ services:
       - 9000:80
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
-    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/dev/tests/request_replayer/index.php -q && php -derror_log=error.log -S 0.0.0.0:80 index.php"
+    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/labbati/fix-54-tests/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"

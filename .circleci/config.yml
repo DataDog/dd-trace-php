@@ -61,7 +61,7 @@ aliases:
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
-      command: make install install_ini SUDO=sudo BUILD_DIR=tmp/build_extension
+      command: make sudo install_ini BUILD_DIR=tmp/build_extension
 
   - &STEP_COMPOSER_SELF_UPDATE
     run:
@@ -151,6 +151,10 @@ aliases:
 
 # Integrations tests execution
 
+  - &STEP_RUN_INTEGRATIONS_TESTS_54
+    run:
+      command: composer test-integrations-54
+
   - &STEP_RUN_INTEGRATIONS_TESTS_56
     run:
       command: composer test-integrations-56
@@ -166,6 +170,10 @@ aliases:
   - &STEP_RUN_INTEGRATIONS_TESTS_72
     run:
       command: composer test-integrations-72
+
+  - &STEP_RUN_WEB_TESTS_54
+    run:
+      command: composer test-web-54
 
   - &STEP_RUN_WEB_TESTS_56
     run:
@@ -248,6 +256,41 @@ jobs:
       - run:
           name: Running phpstan
           command: composer static-analyze
+
+  "php-5.4":
+    working_directory: ~/datadog
+    docker:
+      - image: datadog/docker-library:ddtrace_php_5_4
+      - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
+      - <<: *IMAGE_DOCKER_HTTPBIN
+      - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_MEMCHACED
+      - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_MONGODB
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+    steps:
+      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_INSTALL_LEGACY
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_RUN_EXTENSION_TESTS
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_MONGODB
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_INTEGRATION_TESTS
+      - <<: *STEP_RUN_INTEGRATIONS_TESTS_54
+      - <<: *STEP_RUN_WEB_TESTS_54
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - <<: *STEP_STORE_ARTIFACTS
 
   "php-5.6":
     working_directory: ~/datadog
@@ -389,9 +432,9 @@ jobs:
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
-  "5.6 20131106": &ARTIFACT_BUILD
+  "5.4 20100525": &ARTIFACT_BUILD
     working_directory: ~/datadog
-    docker: [ image: 'circleci/php:5.6' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_php_5_4' ]
     steps:
       - checkout
       - attach_workspace:
@@ -459,13 +502,14 @@ workflows:
   version: 2
   build_packages:
     jobs:
-      - "5.6 20131106": &BUILD_PACKAGE_FORKFLOW
+      - "5.4 20100525": &BUILD_PACKAGE_FORKFLOW
           filters:
 #            tags:
 #              only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
             branches:
               # Always build on master
               ignore: /^(?!labbati).*/
+      - "5.6 20131106": *BUILD_PACKAGE_FORKFLOW
       - "7.0 20151012": *BUILD_PACKAGE_FORKFLOW
       - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
       - "7.2 20170718": *BUILD_PACKAGE_FORKFLOW
@@ -475,6 +519,7 @@ workflows:
       - "7.2 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
       - "package extension":
           requires:
+            - "5.4 20100525"
             - "5.6 20131106"
             - "7.0 20151012"
             - "7.1 20160303"
@@ -487,6 +532,7 @@ workflows:
     jobs:
       - "Lint files"
       - "Static Analysis"
+      - "php-5.4"
       - "php-5.6"
       - "php-7.0"
       - "php-7.1"
