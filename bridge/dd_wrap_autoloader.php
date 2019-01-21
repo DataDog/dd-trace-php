@@ -23,6 +23,10 @@ dd_trace('spl_autoload_register', function () use (&$dd_autoload_called) {
 
     $loader = $args[0];
 
+    // Why unregistering spl_autoload_register?
+    // In some cases (e.g. Symfony) this 'spl_autoload_register' function is called within a private scope and at the
+    // moment we are working to have this use case properly handled by the extension. In the meantime we provide
+    // this workaround.
     if (is_array($loader) && $loader[0] === 'Composer\Autoload\ClassLoader' && $loader[1] === 'loadClass') {
         dd_untrace('spl_autoload_register');
     }
