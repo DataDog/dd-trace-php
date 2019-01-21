@@ -3,16 +3,13 @@
 namespace DDTrace\Transport;
 
 use DDTrace\Configuration;
+use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
+use DDTrace\Log\Logger;
+use DDTrace\Log\LoggerInterface;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\Span;
-use DDTrace\Tracer;
 use DDTrace\Transport;
-use DDTrace\Version;
-use OpenTracing\GlobalTracer;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
-
+use DDTrace\GlobalTracer;
 
 final class Http implements Transport
 {
@@ -51,12 +48,12 @@ final class Http implements Transport
         $this->configure($config);
 
         $this->encoder = $encoder;
-        $this->logger = $logger ?: new NullLogger();
+        $this->logger = $logger ?: Logger::get();
 
         $this->setHeader('Datadog-Meta-Lang', 'php');
         $this->setHeader('Datadog-Meta-Lang-Version', \PHP_VERSION);
         $this->setHeader('Datadog-Meta-Lang-Interpreter', \PHP_SAPI);
-        $this->setHeader('Datadog-Meta-Tracer-Version', Version\VERSION);
+        $this->setHeader('Datadog-Meta-Tracer-Version', \DDTrace\Tracer::VERSION);
     }
 
     /**

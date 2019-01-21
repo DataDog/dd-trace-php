@@ -16,6 +16,7 @@ final class PredisTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
+        parent::setUpBeforeClass();
         IntegrationsLoader::load();
     }
 
@@ -38,7 +39,7 @@ final class PredisTest extends IntegrationTestCase
         $this->assertCount(1, $traces);
         $trace = $traces[0];
 
-        $this->assertContainsOnlyInstancesOf("\OpenTracing\Span", $trace);
+        $this->assertContainsOnlyInstancesOf("\DDTrace\Contracts\Span", $trace);
         $this->assertGreaterThan(2, count($trace)); # two Redis operations -> at least 2 spans
     }
 

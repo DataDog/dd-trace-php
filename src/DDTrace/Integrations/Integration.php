@@ -2,21 +2,32 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Tags;
+use DDTrace\Configuration;
+use DDTrace\Tag;
 use DDTrace\Span;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
 
 abstract class Integration
 {
+    // Possible statuses for the concrete:
+    //   - NOT_LOADED   : It has not been loaded, but it may be loaded at a future time if the preconditions match
+    //   - LOADED       : It has been loaded, no more work required.
+    //   - NOT_AVAILABLE: Prerequisites are not matched and won't be matched in the future.
+    const NOT_LOADED = 0;
+    const LOADED = 1;
+    const NOT_AVAILABLE = 2;
+
     const CLASS_NAME = '';
 
     public static function load()
     {
         if (!class_exists(static::CLASS_NAME)) {
-            return;
+            return self::NOT_LOADED;
         }
         // See comment on the commented out abstract function definition.
         static::loadIntegration();
+
+        return self::LOADED;
     }
 
     /**
@@ -81,6 +92,28 @@ abstract class Integration
      */
     public static function setDefaultTags(Span $span, $method)
     {
-        $span->setTag(Tags\RESOURCE_NAME, $method);
+        $span->setTag(Tag::RESOURCE_NAME, $method);
+    }
+
+    /**
+     * Tells whether or not the provided application should be loaded.
+     *
+     * @param string $name
+     * @return bool
+     */
+    protected static function shouldLoad($name)
+    {
+        if ('cli' === PHP_SAPI && 'dd_testing' !== getenv('APP_ENV')) {
+            return false;
+        }
+        if (!Configuration::get()->isIntegrationEnabled($name)) {
+            return false;
+        }
+        if (!extension_loaded('ddtrace')) {
+            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
+            return false;
+        }
+
+        return true;
     }
 }

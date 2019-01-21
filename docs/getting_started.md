@@ -8,17 +8,9 @@ Datadog's PHP APM integration provides the ability to trace critical parts of yo
 
 To provide a great out-of-the-box experience that automatically instruments common libraries without requiring intrusive code changes or wrapping every object, we provide a PHP extension that allows introspecting any PHP function or method.
 
-## Datadog PHP extension installation
+### Installing the extension
 
-Datadog’s PHP extension (`ddtrace`) allows introspection of arbitrary PHP code.
-
-The easiest way to install the extension is from [PECL](https://pecl.php.net/package/datadog_trace).
-
-```bash
-$ sudo pecl install datadog_trace-beta
-```
-
-If you don't have `pecl` installed, you can install the extension from a package download. First [download the appropriate package](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then install the package with one of the commands below.
+You can install the extension from a package download. First [download the appropriate package](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then install the package with one of the commands below.
 
 ```bash
 # using RPM package (RHEL/Centos 6+, Fedora 20+)
@@ -35,22 +27,32 @@ $ tar -xf datadog-php-tracer.tar.gz -C /
   /opt/datadog-php/bin/post-install.sh
 ```
 
-### Compiling and installing the extension manually
+## Beta support  for PECL
+
+Preliminary beta  support for PECL installation is required [PECL](https://pecl.php.net/package/datadog_trace).
 
 ```bash
-mkdir dd-trace
-cd dd-trace
-curl -L https://github.com/DataDog/dd-trace-php/archive/v0.2.5.tar.gz | tar x --strip-components=1
-phpize # generate files needed to build PHP extension
-./configure
-make
-sudo make install
+$ sudo pecl install datadog_trace-beta
+```
+
+After the installation is complete, you'll need to [enable the extension](#enabling-the-extension).
+
+### Compiling the extension from source
+
+The extension can also be installed by compiling it from source. First [download the source code](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then compile and install the extension with the commands below.
+
+```bash
+$ cd /path/to/dd-trace-php
+$ phpize
+$ ./configure --enable-ddtrace
+$ make
+$ sudo make install
 ```
 
 #### Bash one-liner
 
 ```bash
-(cd $(mktemp -d); curl -L https://github.com/DataDog/dd-trace-php/archive/v0.2.5.tar.gz | tar x --strip-components=1 && phpize && ./configure && make && sudo make install )
+$ (cd $(mktemp -d); curl -L https://github.com/DataDog/dd-trace-php/archive/master.tar.gz | tar x --strip-components=1 && phpize && ./configure && make && sudo make install )
 ```
 
 ### Enabling the extension
@@ -86,100 +88,35 @@ Some systems use different `php.ini` files for command line PHP vs. the web serv
 
 Once the C extension is installed, we need to install the PHP package that provides the actual integrations and framework for sending traces to Datadog.
 
-### Install `datadog/dd-trace` package
-
-```bash
-
-composer config minimum-stability beta # required to install opentracing 1.0.0-beta5
-composer require opentracing/opentracing
-composer require datadog/dd-trace
-```
-
-#### Alternative: Install `datadog/dd-trace` package without changing `minimum-stability`
-
-```bash
-composer require datadog/dd-trace # first add dd-trace require
-# then manually add following entry to your `composer.json` ”require” entry
-#  "opentracing/opentracing": "@dev"
-
-#  Example end result should look like:
-#  "require": {
-#   "datadog/dd-trace": "^0.2.2",
-#    "opentracing/opentracing": "@dev"
-#  }
-# Next run:
-composer update
-```
-
 ### Enabling tracing
 
-#### Laravel integration
+Tracing is automatically enabled by default so if you installed the extension you  are good to go.
 
-To enable [Laravel](https://laravel.com/) integration we need to configure a new provider in `config/app.php`
+#### Manual instrumentation
 
-```php
-    'providers' => [
-# .....
-      # Laravel 5
-      'DDTrace\Integrations\Laravel\V5\LaravelProvider',
-      # Laravel 4
-      'DDTrace\Integrations\Laravel\V4\LaravelProvider',
-```
+In case you bootstrap process is very specific and we do not play well with it, you can disable auto-instrumentation
+and manually enable it with a one liner.
 
-Now your Laravel application should start sending traces to the Datadog agent running on localhost (in default configuration). The Datadog agent must have APM enabled; see https://docs.datadoghq.com/tracing/setup/ for instructions on installing and configuring the agent.
+First require our dependency in composer:
 
-#### Lumen integration
+    $ composer require datadog/dd-trace
 
-To enable [Lumen](https://lumen.laravel.com/) integration we need to add a new provider in `bootstrap/app.php`.
+Then right after you register the composer autoloader, require our bootstrapper.
 
-```php
-# Lumen 5
-$app->register('DDTrace\Integrations\Laravel\V5\LaravelProvider');
-```
+    // This what you already have to use composer
+    require <APP_ROOT> . '/vendor/autoload.php';
 
-#### Symfony integration
+    // Add this and 
+    require <APP_ROOT> . '/vendor/datadog/dd-trace/bridge/dd_init.php';
 
-For Symfony 3.x applications, add the bundle in `app/AppKernel.php`
+#### Zend Framework 1 integration
 
-```php
-public function registerBundles()
-{
-    $bundles = array(
-        // ...
-        new DDTrace\Integrations\Symfony\V3\SymfonyBundle(),
-        // ...
-    );
-    
-    ...
+To enable the tracer in Zend Framework 1, [download the latest source code from the releases page](https://github.com/DataDog/dd-trace-php/releases). Extract the zip file and copy the `src/DDTrace` folder to your application's `library` folder. Then add the following to your `application/configs/application.ini` file.
 
-    return $bundles;
-}
-```
-
-For Symfony 4.x applications, add the bundle in `config/bundles.php`
-
-```php
-public function registerBundles()
-{
-    return [
-        // ...
-        DDTrace\Integrations\Symfony\V4\SymfonyBundle::class => ['all' => true],
-        // ...
-    ];
-}
-```
-
-## Flex
-
-For Symfony Flex applications, add the bundle in `config/bundles.php`:
-
-
-```php
-    return [
-        // ...
-        DDTrace\Integrations\Symfony\V4\SymfonyBundle::class => ['all' => true],
-        // ...
-    ];
+```ini
+autoloaderNamespaces[] = "DDTrace_"
+pluginPaths.DDTrace = APPLICATION_PATH "/../library/DDTrace/Integrations/ZendFramework/V1"
+resources.ddtrace = true
 ```
 
 #### Adding tracing to a custom function or method

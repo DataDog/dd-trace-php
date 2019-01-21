@@ -20,6 +20,7 @@ final class MemcachedTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
+        parent::setUpBeforeClass();
         IntegrationsLoader::load();
     }
 
@@ -464,7 +465,6 @@ final class MemcachedTest extends IntegrationTestCase
     {
         $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
-
             $this->assertSame('value', $this->client->getByKey('my_server', 'key'));
         });
         $this->assertSpans($traces, [

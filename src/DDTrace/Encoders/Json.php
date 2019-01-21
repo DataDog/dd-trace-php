@@ -2,13 +2,13 @@
 
 namespace DDTrace\Encoders;
 
+use DDTrace\Contracts\Span;
+use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
+use DDTrace\GlobalTracer;
+use DDTrace\Log\Logger;
+use DDTrace\Log\LoggerInterface;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\Span;
-use DDTrace\Tracer;
-use OpenTracing\GlobalTracer;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 
 final class Json implements Encoder
 {
@@ -19,7 +19,7 @@ final class Json implements Encoder
 
     public function __construct(LoggerInterface $logger = null)
     {
-        $this->logger = $logger ?: new NullLogger();
+        $this->logger = $logger ?: Logger::get();
     }
 
     /**

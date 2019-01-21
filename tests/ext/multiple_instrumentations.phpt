@@ -56,11 +56,11 @@ dd_trace("test_d", function($a){
     echo "HOOK D" . PHP_EOL;
 });
 
-dd_trace(Test::class, "m_a", function($a){
+dd_trace("Test", "m_a", function($a){
     $this->m_a($a+1);
     echo "HOOK MA" . PHP_EOL;
 });
-dd_trace(Test::class, "m_b", function($a){
+dd_trace("Test", "m_b", function($a){
     $this->m_b($a+1);
     echo "HOOK MB" . PHP_EOL;
 });

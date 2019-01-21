@@ -1,5 +1,7 @@
 <?php
 
+error_reporting(E_ALL ^ E_DEPRECATED);
+
 return array(
 
 	'log' => 'errorlog',
@@ -123,11 +125,6 @@ return array(
 		'Illuminate\Validation\ValidationServiceProvider',
 		'Illuminate\View\ViewServiceProvider',
 		'Illuminate\Workbench\WorkbenchServiceProvider',
-
-		/*
-		 * 3rd parties
-		 */
-		DDTrace\Integrations\Laravel\V4\LaravelProvider::class,
 	),
 
 	/*

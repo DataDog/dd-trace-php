@@ -14,3 +14,5 @@
 Route::get('/simple', ['as' => 'simple_route', 'uses' => 'CommonSpecsController@simple']);
 Route::get('/simple_view', 'CommonSpecsController@simple_view');
 Route::get('/error', 'CommonSpecsController@error');
+Route::get('/pipeline_once', 'TestsController@pipelineCalledOnce');
+Route::get('/pipeline_twice', 'TestsController@pipelineCalledTwice');

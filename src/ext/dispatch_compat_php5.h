@@ -6,6 +6,16 @@
 #include "debug.h"
 #include "dispatch.h"
 
+#if PHP_VERSION_ID < 50600
+#define FBC() EX(fbc)
+#define NUM_ADDITIONAL_ARGS() (0)
+#define OBJECT() EX(object)
+#else
+#define FBC() (EX(call)->fbc)
+#define NUM_ADDITIONAL_ARGS() EX(call)->num_additional_args
+#define OBJECT() (EX(call) ? EX(call)->object : NULL)
+#endif
+
 static zend_always_inline void *zend_hash_str_find_ptr(const HashTable *ht, const char *key, size_t length) {
     void **rv = NULL;
     zend_hash_find(ht, key, length, (void **)&rv);
@@ -22,7 +32,7 @@ static zend_always_inline void *zend_hash_str_find_ptr(const HashTable *ht, cons
 
 static zend_always_inline zend_function *datadog_current_function(zend_execute_data *execute_data) {
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
-        return EX(call)->fbc;
+        return FBC();
     } else {
         return EX(function_state).function;
     }
@@ -33,7 +43,7 @@ static zend_always_inline zval *datadog_this(zend_function *current_function, ze
         return NULL;
     }
 
-    return EX(call) ? EX(call)->object : NULL;
+    return OBJECT();
 }
 
 #undef EX

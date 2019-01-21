@@ -6,23 +6,11 @@
     "autoload": {
         "psr-4": {
             "AppBundle\\": "src/AppBundle",
-            "DDTrace\\": "../../../../src/DDTrace/"
+            "DDTrace\\": "../../../../src/DDTrace"
         },
-        "classmap": [ "app/AppKernel.php", "app/AppCache.php" ],
-        "files": [
-            "../../../../src/DDTrace/Formats.php",
-            "../../../../src/DDTrace/Tags.php",
-            "../../../../src/DDTrace/Time.php",
-
-            "../../../../src/DDTrace/Types.php",
-            "../../../../src/DDTrace/Version.php"
-        ]
+        "classmap": [ "app/AppKernel.php", "app/AppCache.php" ]
     },
     "autoload-dev": {
-        "psr-4": {
-            "Tests\\": "tests/",
-            "DDTrace\\Tests\\": "../../../../tests/"
-        },
         "files": [ "vendor/symfony/symfony/src/Symfony/Component/VarDumper/Resources/functions/dump.php" ]
     },
     "require": {
@@ -30,7 +18,6 @@
         "doctrine/doctrine-bundle": "^1.6",
         "doctrine/orm": "^2.5",
         "incenteev/composer-parameter-handler": "^2.0",
-        "opentracing/opentracing": "1.0.0-beta5@dev",
         "sensio/distribution-bundle": "^5.0.19",
         "sensio/framework-extra-bundle": "^5.0.0",
         "symfony/monolog-bundle": "^3.1.0",
@@ -57,7 +44,8 @@
         "post-update-cmd": [
             "@symfony-scripts"
         ],
-        "test": "vendor/bin/simple-phpunit"
+        "simple-phpunit": "php vendor/bin/simple-phpunit",
+        "test": "@simple-phpunit"
     },
     "config": {
         "platform": {

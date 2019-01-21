@@ -2,6 +2,8 @@
 
 namespace DDTrace;
 
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
+
 /**
  * Propagator implementations should be able to inject and extract
  * SpanContexts into an implementation specific carrier.
@@ -17,18 +19,18 @@ interface Propagator
      * Inject takes the SpanContext and injects it into the carrier using
      * an implementation specific method.
      *
-     * @param SpanContext $spanContext
+     * @param SpanContextInterface $spanContext
      * @param array|\ArrayAccess $carrier
      * @return void
      */
-    public function inject(SpanContext $spanContext, &$carrier);
+    public function inject(SpanContextInterface $spanContext, &$carrier);
 
     /**
      * Extract returns the SpanContext from the given carrier using an
      * implementation specific method.
      *
      * @param array|\ArrayAccess $carrier
-     * @return SpanContext
+     * @return SpanContextInterface
      */
     public function extract($carrier);
 }

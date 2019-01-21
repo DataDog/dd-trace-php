@@ -3,9 +3,10 @@
 namespace DDTrace\Integrations\Mongo;
 
 use DDTrace\Span;
-use DDTrace\Tags;
+use DDTrace\Tag;
 use DDTrace\Obfuscation;
 use DDTrace\Integrations\Integration;
+use DDTrace\Util\Environment;
 
 final class MongoClientIntegration extends Integration
 {
@@ -13,32 +14,36 @@ final class MongoClientIntegration extends Integration
 
     protected static function loadIntegration()
     {
+        if (Environment::matchesPhpVersion('5.4')) {
+            return;
+        }
+
         // MongoClient::__construct ([ string $server = "mongodb://localhost:27017"
         // [, array $options = array("connect" => TRUE) [, array $driver_options ]]] )
         self::traceMethod('__construct', function (Span $span, array $args) {
             if (isset($args[0])) {
-                $span->setTag(Tags\MONGODB_SERVER, Obfuscation::dsn($args[0]));
+                $span->setTag(Tag::MONGODB_SERVER, Obfuscation::dsn($args[0]));
                 $dbName = self::extractDatabaseNameFromDsn($args[0]);
                 if (null !== $dbName) {
-                    $span->setTag(Tags\MONGODB_DATABASE, $dbName);
+                    $span->setTag(Tag::MONGODB_DATABASE, $dbName);
                 }
             }
             if (isset($args[1]['db'])) {
-                $span->setTag(Tags\MONGODB_DATABASE, $args[1]['db']);
+                $span->setTag(Tag::MONGODB_DATABASE, $args[1]['db']);
             }
         });
         // MongoCollection MongoClient::selectCollection ( string $db , string $collection )
         self::traceMethod('selectCollection', function (Span $span, array $args) {
-            $span->setTag(Tags\MONGODB_DATABASE, $args[0]);
-            $span->setTag(Tags\MONGODB_COLLECTION, $args[1]);
+            $span->setTag(Tag::MONGODB_DATABASE, $args[0]);
+            $span->setTag(Tag::MONGODB_COLLECTION, $args[1]);
         });
         // MongoDB MongoClient::selectDB ( string $name )
         self::traceMethod('selectDB', function (Span $span, array $args) {
-            $span->setTag(Tags\MONGODB_DATABASE, $args[0]);
+            $span->setTag(Tag::MONGODB_DATABASE, $args[0]);
         });
         // bool MongoClient::setReadPreference ( string $read_preference [, array $tags ] )
         self::traceMethod('setReadPreference', function (Span $span, array $args) {
-            $span->setTag(Tags\MONGODB_READ_PREFERENCE, $args[0]);
+            $span->setTag(Tag::MONGODB_READ_PREFERENCE, $args[0]);
         });
         // Methods that don't need extra tags added
         self::traceMethod('getHosts');

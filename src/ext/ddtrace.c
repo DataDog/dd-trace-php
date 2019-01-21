@@ -6,15 +6,16 @@
 #include <Zend/zend_exceptions.h>
 #include <php.h>
 #include <php_ini.h>
+#include <php_main.h>
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
 #include "compat_zend_string.h"
 #include "ddtrace.h"
+#include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
-
-#include "debug.h"
+#include "request_hooks.h"
 
 #define UNUSED_1(x) (void)(x)
 #define UNUSED_2(x, y) \
@@ -50,9 +51,17 @@ ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
+STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
+                  zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.ignore_missing_overridables", "1", PHP_INI_SYSTEM, OnUpdateBool, ignore_missing_overridables,
                   zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
+
+static inline void table_dtor(void *zv) {
+    HashTable *ht = *(HashTable **)zv;
+    zend_hash_destroy(ht);
+    efree(ht);
+}
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
@@ -64,6 +73,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+    zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)table_dtor, 0);
+    zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_free, 0);
 
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject();
@@ -94,6 +106,11 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_dispatch_init(TSRMLS_C);
+
+    if (DDTRACE_G(request_init_hook)) {
+        DD_PRINTF("%s", DDTRACE_G(request_init_hook));
+        dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
+    }
 
     return SUCCESS;
 }
@@ -135,6 +152,8 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     php_info_print_table_row(2, "Datadog tracing support", DDTRACE_G(disable) ? "disabled" : "enabled");
     php_info_print_table_row(2, "Version", PHP_DDTRACE_VERSION);
     php_info_print_table_end();
+
+    DISPLAY_INI_ENTRIES();
 }
 
 static PHP_FUNCTION(dd_trace) {
@@ -184,6 +203,51 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
+// This function allows untracing a function.
+static PHP_FUNCTION(dd_untrace) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
+
+    STRING_T *function = NULL;
+
+#if PHP_VERSION_ID < 70000
+    ALLOC_INIT_ZVAL(function);
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "s", &Z_STRVAL_P(function),
+                                 &Z_STRLEN_P(function)) != SUCCESS) {
+        if (!DDTRACE_G(ignore_missing_overridables)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "unexpected parameter. the function name must be provided");
+        }
+
+        RETURN_BOOL(0);
+    }
+    DD_PRINTF("Untracing function: %s", Z_STRVAL_P(function));
+
+    // Remove the traced function from the global lookup
+    zend_hash_del(&DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
+#else
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "S", &function) != SUCCESS) {
+        if (!DDTRACE_G(ignore_missing_overridables)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0,
+                                    "unexpected parameter. the function name must be provided");
+        }
+        RETURN_BOOL(0);
+    }
+
+    // Remove the traced function from the global lookup
+    zend_hash_del(&DDTRACE_G(function_lookup), function);
+#endif
+
+#if PHP_VERSION_ID < 70000
+    FREE_ZVAL(function);
+#endif
+    RETURN_BOOL(1);
+}
+
 static PHP_FUNCTION(dd_trace_reset) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
@@ -196,8 +260,20 @@ static PHP_FUNCTION(dd_trace_reset) {
     RETURN_BOOL(1);
 }
 
-static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL)
-                                                            ZEND_FE_END};
+// method used to be able to easily breakpoint the execution at specific PHP line in GDB
+static PHP_FUNCTION(dd_trace_noop) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
+
+    RETURN_BOOL(1);
+}
+
+static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(
+    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),

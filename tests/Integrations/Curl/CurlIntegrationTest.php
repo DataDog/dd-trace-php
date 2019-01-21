@@ -3,28 +3,55 @@
 namespace DDTrace\Tests\Integrations\Curl;
 
 use DDTrace\Configuration;
-use DDTrace\Formats;
+use DDTrace\Format;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tracer;
 use DDTrace\Util\ArrayKVStore;
-use OpenTracing\GlobalTracer;
+use DDTrace\GlobalTracer;
+use DDTrace\Util\Environment;
 
 final class CurlIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';
-    const URL_NOT_EXISTS = '__i_am_not_real__.invalid';
+    const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid';
 
     public static function setUpBeforeClass()
     {
+        parent::setUpBeforeClass();
         IntegrationsLoader::load();
     }
 
     public function testLoad200UrlOnInit()
     {
         $traces = $this->isolateTracer(function () {
+            $ch = curl_init(self::URL . '/status/200');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            $this->assertSame('', $response);
+            curl_close($ch);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
+                ->withExactTags([
+                    'http.url' => self::URL . '/status/200',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testSampleExternalAgent()
+    {
+        if (Environment::matchesPhpVersion('5.4')) {
+            $message = 'Strange behavior from the curl call to retrieve spans from teh fake agent. ' .
+                'Skipping this test for now on php 5.4 as the real behavior is tested in web framework tests.';
+            $this->markTestSkipped($message);
+        }
+
+        $traces = $this->simulateAgent(function () {
             $ch = curl_init(self::URL . '/status/200');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
@@ -150,15 +177,14 @@ final class CurlIntegrationTest extends IntegrationTestCase
     {
         $ch = curl_init(self::URL . '/status/200');
         curl_setopt($ch, CURLOPT_HTTPHEADER, []);
-        $this->assertNotSame('default', ArrayKVStore::getForResource($ch, Formats\CURL_HTTP_HEADERS, 'default'));
+        $this->assertNotSame('default', ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, 'default'));
         curl_close($ch);
-        $this->assertSame('default', ArrayKVStore::getForResource($ch, Formats\CURL_HTTP_HEADERS, 'default'));
+        $this->assertSame('default', ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, 'default'));
     }
 
     public function testDistributedTracingIsPropagated()
     {
         $found = [];
-
         $traces = $this->isolateTracer(function () use (&$found) {
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
@@ -201,8 +227,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
             $ch = curl_init(self::URL . '/headers');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            $found = json_decode(curl_exec($ch), 1);
 
+            $found = json_decode(curl_exec($ch), 1);
             $span->finish();
         });
 

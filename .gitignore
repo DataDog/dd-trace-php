@@ -1,4 +1,5 @@
 **/vendor/
+tmp/build_extension/
 composer.lock
 .scenarios.lock/
 .vscode/
@@ -17,6 +18,7 @@ configure
 *.o
 *.so
 install-sh
+error.log
 libtool
 ltmain.sh
 missing
@@ -34,3 +36,4 @@ tests/ext/*.log
 tests/ext/*.mem
 tmp-php.ini
 tmp/opcache*
+*.orig

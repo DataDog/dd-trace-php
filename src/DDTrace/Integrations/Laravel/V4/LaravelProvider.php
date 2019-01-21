@@ -2,19 +2,18 @@
 
 namespace DDTrace\Integrations\Laravel\V4;
 
-use DDTrace;
 use DDTrace\Configuration;
-use DDTrace\Encoders\Json;
-use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\GlobalTracer;
+use DDTrace\Span;
 use DDTrace\StartSpanOptionsFactory;
-use DDTrace\Tags;
+use DDTrace\Tag;
+use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-use DDTrace\Types;
+use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use OpenTracing\GlobalTracer;
 
 /**
  * DataDog Laravel 4.2 tracing provider. Use by installing the dd-trace library:
@@ -34,6 +33,11 @@ class LaravelProvider extends ServiceProvider
 {
     const NAME = 'laravel';
 
+    /**
+     * @var Span|null
+     */
+    public $rootScope;
+
     /** @inheritdoc */
     public function register()
     {
@@ -41,13 +45,34 @@ class LaravelProvider extends ServiceProvider
             return;
         }
 
-        // Creates a tracer with default transport and default encoders
-        $tracer = new Tracer(new Http(new Json()));
-
-        // Sets a global tracer (singleton). Also store it in the Laravel
-        // container for easy Laravel-specific use.
-        GlobalTracer::set($tracer);
+        $appName = $this->getAppName();
+        $tracer = GlobalTracer::get();
         $this->app->instance('DDTrace\Tracer', $tracer);
+        $self = $this;
+
+        dd_trace('\Illuminate\Foundation\Application', 'handle', function () use ($appName, $tracer, $self) {
+            $args = func_get_args();
+            $request = $args[0];
+            $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
+                $tracer,
+                [
+                    'start_time' => Time::now(),
+                ],
+                $request->header()
+            );
+
+            // Create a span that starts from when Laravel first boots (public/index.php)
+            $self->rootScope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
+
+            $requestSpan = $self->rootScope->getSpan();
+            $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
+            $requestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
+
+            $response = call_user_func_array([$this, 'handle'], $args);
+            $requestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
+
+            return $response;
+        });
     }
 
     /** @inheritdoc */
@@ -57,55 +82,26 @@ class LaravelProvider extends ServiceProvider
             return;
         }
 
-        $tracer = GlobalTracer::get();
-
-        $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
-            $tracer,
-            [
-                'start_time' => DDTrace\Time\now(),
-            ],
-            $this->app->make('request')->header()
-        );
-
-        // Create a span that starts from when Laravel first boots (public/index.php)
-        $scope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
-        $requestSpan = $scope->getSpan();
-        $requestSpan->setTag(Tags\SERVICE_NAME, $this->getAppName());
-        $requestSpan->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
+        $self = $this;
 
         // Name the scope when the route matches
-        $this->app['events']->listen('router.matched', function () use ($scope) {
+        $this->app['events']->listen('router.matched', function () use ($self) {
             $args = func_get_args();
             list($route, $request) = $args;
-            $span = $scope->getSpan();
+            $span = $self->rootScope->getSpan();
 
-            $span->setTag(Tags\RESOURCE_NAME, $route->getActionName() . ' ' . Route::currentRouteName());
+            $span->setTag(Tag::RESOURCE_NAME, $route->getActionName() . ' ' . Route::currentRouteName());
             $span->setTag('laravel.route.name', $route->getName());
             $span->setTag('laravel.route.action', $route->getActionName());
-            $span->setTag(Tags\HTTP_METHOD, $request->method());
-            $span->setTag(Tags\HTTP_URL, $request->url());
+            $span->setTag(Tag::HTTP_METHOD, $request->method());
+            $span->setTag(Tag::HTTP_URL, $request->url());
         });
 
-        // Enable other integrations
-        IntegrationsLoader::load();
-
-        // Flushes traces to agent.
-        register_shutdown_function(function () use ($scope) {
-            $scope->close();
-            GlobalTracer::get()->flush();
-        });
-
-        // Properly handle status code tag names in both exception and success calls
-        $handler = function () use ($requestSpan) {
+        dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($self) {
             $args = func_get_args();
-
-            $response = call_user_func_array([$this, 'handle'], $args);
-            $requestSpan->setTag(Tags\HTTP_STATUS_CODE, $response->getStatusCode());
-
-            return $response;
-        };
-        dd_trace('Illuminate\Foundation\Application', 'handle', $handler);
-        dd_trace('\Illuminate\Routing\Router', 'dispatch', $handler);
+            $self->rootScope->getSpan()->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
+            return call_user_func_array([$this, 'setStatusCode'], $args);
+        });
 
         dd_trace('Illuminate\Routing\Route', 'run', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.action', $this->uri);
@@ -129,15 +125,15 @@ class LaravelProvider extends ServiceProvider
      *
      * @param string $operation
      * @param string $resource
-     * @return \OpenTracing\Scope
+     * @return \DDTrace\Contracts\Scope
      */
     public static function buildBaseScope($operation, $resource)
     {
         $scope = GlobalTracer::get()->startActiveSpan($operation);
         $span = $scope->getSpan();
-        $span->setTag(Tags\SPAN_TYPE, Types\WEB_SERVLET);
-        $span->setTag(Tags\SERVICE_NAME, self::getAppName());
-        $span->setTag(Tags\RESOURCE_NAME, $resource);
+        $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
+        $span->setTag(Tag::SERVICE_NAME, self::getAppName());
+        $span->setTag(Tag::RESOURCE_NAME, $resource);
 
         return $scope;
     }

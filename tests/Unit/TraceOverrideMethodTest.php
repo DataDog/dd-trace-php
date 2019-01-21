@@ -4,7 +4,6 @@ namespace DDTrace\Tests\Unit;
 
 use DDTrace\Scope;
 use DDTrace\ScopeManager;
-use OpenTracing\Span;
 use PHPUnit\Framework;
 
 final class TraceOverrideMethodTest extends Framework\TestCase
@@ -29,7 +28,7 @@ final class TraceOverrideMethodTest extends Framework\TestCase
         });
         $val = 0;
 
-        $span = $this->prophesize('OpenTracing\Span');
+        $span = $this->prophesize('DDTrace\Contracts\Span');
         $span->finish()->shouldBeCalled();
         $scope = new Scope(new ScopeManager(), $span->reveal(), true);
         $scope->close();
@@ -42,7 +41,7 @@ final class TraceOverrideMethodTest extends Framework\TestCase
         });
         $val = 0;
 
-        $span = $this->prophesize('OpenTracing\Span');
+        $span = $this->prophesize('DDTrace\Contracts\Span');
         $span->finish()->shouldNotBeCalled();
         $scope = new Scope(new ScopeManager(), $span->reveal(), true);
         $scope->close();

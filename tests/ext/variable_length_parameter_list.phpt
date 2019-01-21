@@ -2,25 +2,25 @@
 Check function with variable list of  params can be overwritten and we're able to call original function with modified params
 --FILE--
 <?php
-function test($a, $b, $c, ...$args){
-    echo "FUNCTION " . $a ." ". $b . " " . $c . " " . implode(" ", $args) .  PHP_EOL;
+function test($a, $b, $c){
+    echo "FUNCTION " . $a ." ". $b . " " . $c . " " . implode(" ", array_slice(func_get_args(), 3)) .  PHP_EOL;
 }
 
 class Test {
-    public function m($a, $b, $c, ...$args){
-        echo "METHOD " . $a ." ". $b . " " . $c . " " . implode(" ", $args) .  PHP_EOL;
+    public function m($a, $b, $c){
+        echo "METHOD " . $a ." ". $b . " " . $c . " " . implode(" ", array_slice(func_get_args(), 3)) .  PHP_EOL;
     }
 }
 
-dd_trace("test", function($a, ...$args){
-    // $numargs = func_num_args();
-    // join(" ", $args);
-    test(...$args);
+dd_trace("test", function($a){
+    $args = array_slice(func_get_args(), 1);
+    call_user_func_array('test', $args);
     echo "HOOK " . $a ." ". join(" ", $args) . PHP_EOL;
 });
 
-dd_trace("Test", "m", function($a, ...$args){
-    $this->m(...$args);
+dd_trace("Test", "m", function($a){
+    $args = array_slice(func_get_args(), 1);
+    call_user_func_array(array($this, 'm'), $args);
     echo "HOOK " . $a ." ". join(" ", $args) . PHP_EOL;
 });
 

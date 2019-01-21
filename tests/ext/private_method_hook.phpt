@@ -15,7 +15,7 @@ class Test
     }
 }
 
-dd_trace(Test::class, "private_method", function() {
+dd_trace('Test', "private_method", function() {
     $this->private_method();
     echo "PRIVATE HOOK" . PHP_EOL;
 });

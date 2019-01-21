@@ -7,12 +7,12 @@ use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
+use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tracer;
-use OpenTracing\GlobalTracer;
-use PHPUnit\Framework;
+use DDTrace\GlobalTracer;
 use Prophecy\Argument;
 
-final class JsonTest extends Framework\TestCase
+final class JsonTest extends BaseTestCase
 {
     /**
      * @var Tracer
@@ -44,7 +44,7 @@ JSON;
             1518038421211969
         );
 
-        $logger = $this->prophesize('Psr\Log\LoggerInterface');
+        $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
         $jsonEncoder = new Json($logger->reveal());
@@ -54,6 +54,13 @@ JSON;
 
     public function testEncodeIgnoreSpanWhenEncodingFails()
     {
+        if (self::matchesPhpVersion('5.4')) {
+            $this->markTestSkipped(
+                'json_encode in php < 5.6 does not fail because of malformed string. It sets null on specific key'
+            );
+            return;
+        }
+
         $expectedPayload = '[[]]';
 
         $context = new SpanContext('160e7072ff7bd5f1', '160e7072ff7bd5f2');
@@ -67,7 +74,7 @@ JSON;
         // this will generate a malformed UTF-8 string
         $span->setTag('invalid', hex2bin('37f2bef0ab085308'));
 
-        $logger = $this->prophesize('Psr\Log\LoggerInterface');
+        $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
         $logger
             ->debug(
                 'Failed to json-encode span: Malformed UTF-8 characters, possibly incorrectly encoded'

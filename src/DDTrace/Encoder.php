@@ -2,13 +2,13 @@
 
 namespace DDTrace;
 
-use Psr\Http\Message\StreamInterface;
+use DDTrace\Contracts\Span as SpanInterface;
 
 interface Encoder
 {
     /**
-     * @param Span[][]|array $traces
-     * @return string|StreamInterface
+     * @param SpanInterface[][]|array $traces
+     * @return string
      */
     public function encodeTraces(array $traces);
 
