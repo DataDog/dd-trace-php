@@ -430,9 +430,9 @@ jobs:
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
-  "5.6 20131106": &ARTIFACT_BUILD
+  "5.4 20100525": &ARTIFACT_BUILD
     working_directory: ~/datadog
-    docker: [ image: 'circleci/php:5.6' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_php_5_4' ]
     steps:
       - checkout
       - attach_workspace:
@@ -500,13 +500,14 @@ workflows:
   version: 2
   build_packages:
     jobs:
-      - "5.6 20131106": &BUILD_PACKAGE_FORKFLOW
+      - "5.4 20100525": &BUILD_PACKAGE_FORKFLOW
           filters:
-            tags:
-              only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
+#            tags:
+#              only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
             branches:
               # Always build on master
-              ignore: /^(?!master$).*/
+              ignore: /^(?!labbati).*/
+      - "5.6 20131106": *BUILD_PACKAGE_FORKFLOW
       - "7.0 20151012": *BUILD_PACKAGE_FORKFLOW
       - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
       - "7.2 20170718": *BUILD_PACKAGE_FORKFLOW
@@ -516,6 +517,7 @@ workflows:
       - "7.2 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
       - "package extension":
           requires:
+            - "5.4 20100525"
             - "5.6 20131106"
             - "7.0 20151012"
             - "7.1 20160303"
@@ -528,6 +530,7 @@ workflows:
     jobs:
       - "Lint files"
       - "Static Analysis"
+      - "php-5.4"
       - "php-5.6"
       - "php-7.0"
       - "php-7.1"
