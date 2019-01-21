@@ -1,39 +1,50 @@
 BUILD_SUFFIX := extension
 BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
-WALL_FLAGS := -Wall -Werror -Wextra
+WALL_FLAGS := -Wall -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
-VERSION:=$(shell cat src/DDTrace/Tracer.php | grep 'const VERSION' | awk '{print $$NF}' | cut -d\' -f2)
+VERSION:=$(shell cat src/DDTrace/Tracer.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2)
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 
-all: configure $(SO_FILE)
+C_FILES := $(shell find src/ext -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_FILES := $(shell find tests/ext -name '*.phpt' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+
+ALL_FILES := $(C_FILES) $(TEST_FILES) $(BUILD_DIR)/config.m4
+
+$(BUILD_DIR)/%: %
+	$(Q) echo Copying $* to build dir
+	$(Q) mkdir -p $(dir $@)
+	$(Q) cp -a $* $@
+
+all: $(BUILD_DIR)/configure $(SO_FILE)
+Q := @
 
 src/ext/version.h:
 	@echo "Creating [src/ext/version.h]\n"
-	@echo -n "PHP: "
-	@cat src/DDTrace/Tracer.php | grep 'const VERSION'
+	@echo "PHP: $(VERSION)"
 	@(echo '#ifndef PHP_DDTRACE_VERSION\n#define PHP_DDTRACE_VERSION "$(VERSION)"\n#endif' ) > $@
 	@echo "C: "
 	@cat $@ #| grep '#define'
 
-configure: config.m4
-	phpize
+$(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
+	$(Q) (cd $(BUILD_DIR); phpize)
 
-$(BUILD_DIR)/Makefile: configure
-	mkdir -p $(BUILD_DIR)
-	cd $(BUILD_DIR); $(abspath configure)
+$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
+	$(Q) (cd $(BUILD_DIR); ./configure)
 
-$(SO_FILE): $(BUILD_DIR)/Makefile src/ext/version.h
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
+$(SO_FILE): $(ALL_FILES) $(BUILD_DIR)/Makefile src/ext/version.h
+	$(Q) $(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
 
 install: $(SO_FILE)
-	$(SUDO) $(MAKE) -C $(BUILD_DIR) install
+	$(Q) $(SUDO) $(MAKE) -C $(BUILD_DIR) install
 
 $(INI_FILE):
-	echo "extension=ddtrace.so" | $(SUDO) tee $@
+	$(Q) echo "extension=ddtrace.so" | $(SUDO) tee -a $@
 
 install_ini: $(INI_FILE)
+
+install_all: install install_ini
 
 test_c: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)"
@@ -45,11 +56,16 @@ test_integration: install_ini
 	composer test -- $(PHPUNIT)
 
 dist_clean:
-	phpize --clean
 	rm -rf $(BUILD_DIR)
 
 clean:
 	$(MAKE) -C $(BUILD_DIR) clean
+
+sudo:
+	$(eval SUDO:=sudo)
+
+debug:
+	$(eval CFLAGS="-g")
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
@@ -78,5 +94,4 @@ $(PACKAGES_BUILD_DIR):
 packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
-.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini .apk .rpm .deb .tar.gz src/ext/version.h
-
+.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz src/ext/version.h sudo debug run-tests.php

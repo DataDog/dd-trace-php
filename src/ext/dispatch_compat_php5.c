@@ -45,10 +45,10 @@ static zend_always_inline void **vm_stack_push_args(int count TSRMLS_DC) {
 
 static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, zend_fcall_info *fci,
                                                zval **result TSRMLS_DC) {
-    int argc = EX(opline)->extended_value + EX(call)->num_additional_args;
+    int argc = EX(opline)->extended_value + NUM_ADDITIONAL_ARGS();
     fci->param_count = argc;
 
-    if (EX(call)->num_additional_args) {
+    if (NUM_ADDITIONAL_ARGS()) {
         vm_stack_push_args(fci->param_count TSRMLS_CC);
     } else {
         if (fci->param_count) {
@@ -61,12 +61,20 @@ static zend_always_inline void setup_fcal_name(zend_execute_data *execute_data, 
         fci->params = (zval ***)safe_emalloc(sizeof(zval *), fci->param_count, 0);
         zend_get_parameters_array_ex(fci->param_count, fci->params);
     }
-
+#if PHP_VERSION_ID < 50600
+    if (EG(return_value_ptr_ptr)) {
+        fci->retval_ptr_ptr = EG(return_value_ptr_ptr);
+    } else {
+        fci->retval_ptr_ptr = result;
+    }
+#else
     fci->retval_ptr_ptr = result;
+#endif
 }
 
 void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC) {
     if (EX(opline)->opcode != ZEND_DO_FCALL_BY_NAME) {
+#if PHP_VERSION_ID >= 50600
         call_slot *call = EX(call_slots) + EX(opline)->op2.num;
         call->fbc = EX(function_state).function;
         call->object = NULL;
@@ -74,7 +82,16 @@ void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, 
         call->num_additional_args = 0;
         call->is_ctor_call = 0;
         EX(call) = call;
+#else
+        FBC() = EX(function_state).function;
+#endif
     }
+#if PHP_VERSION_ID < 50600
+    EX(original_return_value) = EG(return_value_ptr_ptr);
+    if (EG(return_value_ptr_ptr) && result) {
+        *EG(return_value_ptr_ptr) = *result;
+    }
+#endif
 
     setup_fcal_name(execute_data, fci, result TSRMLS_CC);
 }

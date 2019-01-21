@@ -20,7 +20,7 @@ class Test
     }
 }
 
-dd_trace(Test::class, "m", function() {
+dd_trace("Test", "m", function() {
     $this->m();
     $this->protected_method();
     $this->private_method();

@@ -13,7 +13,7 @@ class Test
     }
 }
 
-dd_trace(Test::class, "m", function() {
+dd_trace("Test", "m", function() {
     $this->m();
     echo "PRIVATE PROPERTY IN HOOK " . $this->value_private . PHP_EOL;
     echo "PROTECTED PROPERTY IN HOOK " . $this->value_protected . PHP_EOL;

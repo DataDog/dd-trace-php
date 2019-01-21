@@ -6,6 +6,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
+use DDTrace\Util\Environment;
 use DDTrace\Util\TryCatchFinally;
 use Predis\Configuration\OptionsInterface;
 use Predis\Pipeline\Pipeline;
@@ -29,7 +30,7 @@ class PredisIntegration
      */
     public static function load()
     {
-        if (!class_exists('\Predis\Client')) {
+        if (!class_exists('\Predis\Client') || Environment::matchesPhpVersion('5.4')) {
             return Integration::NOT_LOADED;
         }
 
