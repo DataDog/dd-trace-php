@@ -12,7 +12,6 @@ autom4te*
 build
 configure
 /configure.*
-/config.*
 *.la
 *.lo
 *.o
