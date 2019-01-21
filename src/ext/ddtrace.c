@@ -228,7 +228,7 @@ static PHP_FUNCTION(dd_untrace) {
     DD_PRINTF("Untracing function: %s", Z_STRVAL_P(function));
 
     // Remove the traced function from the global lookup
-    zend_hash_del(&DDTRACE_G(function_lookup), function, &Z_STRLEN_P(function));
+    zend_hash_del(&DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
 #else
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "S", &function) != SUCCESS) {
         if (!DDTRACE_G(ignore_missing_overridables)) {
