@@ -251,7 +251,7 @@ jobs:
           command: composer global require phpstan/phpstan
       - run:
           name: Running phpstan
-          command: composer static-analyze
+          command: PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
   "php-5.4":
     working_directory: ~/datadog
