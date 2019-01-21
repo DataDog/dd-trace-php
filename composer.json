@@ -27,9 +27,7 @@
     "require-dev": {
         "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
-        "phpcompatibility/php-compatibility": "^9.0",
-        "phpcompatibility/phpcompatibility-passwordcompat": "^1.0",
-        "phpcompatibility/phpcompatibility-symfony": "*",
+        "phpstan/phpstan": "^0.10.5",
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
         "symfony/process": "*"

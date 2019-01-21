@@ -1,3 +1,6 @@
 parameters:
 	excludes_analyse:
 		- %rootDir%/../../../src/DDTrace/Integrations
+		- %rootDir%/../../../src/DDTrace/OpenTracer
+		# Temporarily disabling as it uses \OpenTracing\GlobalTracer.php
+		- %rootDir%/../../../src/DDTrace/GlobalTracer.php
