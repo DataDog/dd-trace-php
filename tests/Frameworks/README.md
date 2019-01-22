@@ -24,7 +24,13 @@ Link: https://laravel.com/docs/5.7/installation
 
 In order to generate the sample Symfony apps we used the default commands from the framework's 'Getting started' guides.
 
-    $ cd tests/Integration/Frameworks/Symfony
+    $ cd tests/Frameworks/Symfony
+
+### Symfony 3.3
+
+Link: https://symfony.com/doc/3.3/setup.html
+
+    $ composer create-project symfony/framework-standard-edition Version_3_3 "3.3.*"
 
 ### Symfony 3.4
 
