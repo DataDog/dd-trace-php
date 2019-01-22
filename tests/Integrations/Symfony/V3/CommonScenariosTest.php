@@ -10,7 +10,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/app_dev.php';
     }
 
     protected static function getInis()
@@ -29,7 +29,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
         $traces = $this->tracesFromWebRequest(function () use ($spec) {
-            $this->call($spec);
+            $response = $this->call($spec);
+            error_log("Response: " . print_r($response, 1));
         });
 
         $this->assertExpectedSpans($this, $traces, $spanExpectations);

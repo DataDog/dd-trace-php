@@ -1,5 +1,7 @@
 <?php
 
+error_log("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH");
+
 require_once __DIR__ . '/functions.php';
 
 if (php_sapi_name() == 'cli' && getenv('APP_ENV') != 'dd_testing') {
