@@ -16,6 +16,7 @@ final class PredisTest extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
+        parent::setUpBeforeClass();
         IntegrationsLoader::load();
     }
 

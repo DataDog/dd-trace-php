@@ -17,7 +17,7 @@ class Test
     }
 }
 
-dd_trace(Test::class, "protected_method", function(){
+dd_trace("Test", "protected_method", function(){
     $this->protected_method();
     echo "PROTECTED HOOK" . PHP_EOL;
 });

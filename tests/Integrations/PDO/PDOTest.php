@@ -16,6 +16,7 @@ final class PDOTest extends IntegrationTestCase
 {
     public static function setUpBeforeClass()
     {
+        parent::setUpBeforeClass();
         IntegrationsLoader::load();
     }
 

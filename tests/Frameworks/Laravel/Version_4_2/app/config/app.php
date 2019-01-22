@@ -125,11 +125,6 @@ return array(
 		'Illuminate\Validation\ValidationServiceProvider',
 		'Illuminate\View\ViewServiceProvider',
 		'Illuminate\Workbench\WorkbenchServiceProvider',
-
-		/*
-		 * 3rd parties
-		 */
-		DDTrace\Integrations\Laravel\V4\LaravelProvider::class,
 	),
 
 	/*

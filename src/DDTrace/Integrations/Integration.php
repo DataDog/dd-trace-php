@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations;
 
+use DDTrace\Configuration;
 use DDTrace\Tag;
 use DDTrace\Span;
 use DDTrace\GlobalTracer;
@@ -92,5 +93,27 @@ abstract class Integration
     public static function setDefaultTags(Span $span, $method)
     {
         $span->setTag(Tag::RESOURCE_NAME, $method);
+    }
+
+    /**
+     * Tells whether or not the provided application should be loaded.
+     *
+     * @param string $name
+     * @return bool
+     */
+    protected static function shouldLoad($name)
+    {
+        if ('cli' === PHP_SAPI && 'dd_testing' !== getenv('APP_ENV')) {
+            return false;
+        }
+        if (!Configuration::get()->isIntegrationEnabled($name)) {
+            return false;
+        }
+        if (!extension_loaded('ddtrace')) {
+            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
+            return false;
+        }
+
+        return true;
     }
 }

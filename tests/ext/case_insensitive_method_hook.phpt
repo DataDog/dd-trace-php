@@ -1,5 +1,5 @@
 --TEST--
-span class="pl-s1"> Check if we can override method from a parent class using case insensitive matching
+Check if we can override method from a parent class using case insensitive matching
 --FILE--
 <?php
 class Ancestor {

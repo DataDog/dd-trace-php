@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Mongo;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
+use DDTrace\Util\Environment;
 
 final class MongoCollectionIntegration extends Integration
 {
@@ -12,6 +13,10 @@ final class MongoCollectionIntegration extends Integration
 
     protected static function loadIntegration()
     {
+        if (Environment::matchesPhpVersion('5.4')) {
+            return;
+        }
+
         // MongoCollection::__construct ( MongoDB $db , string $name )
         self::traceMethod('__construct', function (Span $span, array $args) {
             $span->setTag(Tag::MONGODB_DATABASE, (string) $args[0]);

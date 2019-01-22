@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Util\Environment;
 use PHPUnit\Framework;
 
 
@@ -11,5 +12,10 @@ abstract class BaseTestCase extends Framework\TestCase
     {
         \Mockery::close();
         parent::tearDown();
+    }
+
+    protected function matchesPhpVersion($version)
+    {
+        return Environment::matchesPhpVersion($version);
     }
 }

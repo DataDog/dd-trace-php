@@ -35,7 +35,7 @@ class Format
      * For example, Tracer::inject():
      *
      *    $headers = []
-     *    $tracer->inject($span->getContext(), Formats::HTTP_HEADERS, $headers)
+     *    $tracer->inject($span->getContext(), Format::HTTP_HEADERS, $headers)
      *    $request = new GuzzleHttp\Psr7\Request($uri, $body, $headers);
      *
      * Or Tracer::extract():

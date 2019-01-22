@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Unit\OpenTracer;
+namespace DDTrace\Tests\OpenTracerUnit;
 
 use DDTrace\OpenTracer\Span;
 use DDTrace\Span as DDSpan;

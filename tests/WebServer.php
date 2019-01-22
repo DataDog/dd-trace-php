@@ -42,6 +42,16 @@ class WebServer
     ];
 
     /**
+     * @var array
+     */
+    private $inis = [];
+
+    private $defaultInis = [
+        'log_errors' => 'on',
+        'error_log' => null,
+    ];
+
+    /**
      * @param string $indexFile
      * @param string $host
      * @param int $port
@@ -49,6 +59,7 @@ class WebServer
     public function __construct($indexFile, $host = '0.0.0.0', $port = 80)
     {
         $this->indexFile = $indexFile;
+        $this->defaultInis['error_log'] = dirname($indexFile) .  '/error.log';
         $this->host = $host;
         $this->port = $port;
     }
@@ -61,13 +72,13 @@ class WebServer
         $host = $this->host;
         $port = $this->port;
         $indexFile = $this->indexFile;
-        $indexFileDir = dirname($indexFile);
-        $cmd = "php -dlog_errors=on -derror_log='$indexFileDir/error.log' -S $host:$port $indexFile";
         $envs = $this->getSerializedEnvsForCli();
+        $inis = $this->getSerializedIniForCli();
+        $cmd = "php $inis -S $host:$port $indexFile";
         $processCmd = "$envs exec $cmd";
         $this->process = new Process($processCmd);
         $this->process->start();
-        usleep(100000);
+        usleep(500000);
     }
 
     /**
@@ -91,6 +102,16 @@ class WebServer
     }
 
     /**
+     * @param array $inis
+     * @return WebServer
+     */
+    public function setInis($inis)
+    {
+        $this->inis = $inis;
+        return $this;
+    }
+
+    /**
      * Returns the CLI compatible version of an associative array representing env variables.
      *
      * @return string
@@ -101,6 +122,21 @@ class WebServer
         $forCli = [];
         foreach ($all as $name => $value) {
             $forCli[] = $name . "=" . escapeshellarg($value);
+        }
+        return implode(' ', $forCli);
+    }
+
+    /**
+     * Returns the CLI compatible version of an associative array representing ini configuration values.
+     *
+     * @return string
+     */
+    private function getSerializedIniForCli()
+    {
+        $all = array_merge($this->defaultInis, $this->inis);
+        $forCli = [];
+        foreach ($all as $name => $value) {
+            $forCli[] = "-d" . $name . "=" . escapeshellarg($value);
         }
         return implode(' ', $forCli);
     }

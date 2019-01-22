@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Mongo;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
+use DDTrace\Util\Environment;
 
 final class MongoDBIntegration extends Integration
 {
@@ -12,6 +13,10 @@ final class MongoDBIntegration extends Integration
 
     protected static function loadIntegration()
     {
+        if (Environment::matchesPhpVersion('5.4')) {
+            return;
+        }
+
         // array MongoDB::command ( array $command [, array $options = array() [, string &$hash ]] )
         self::traceMethod('command', function (Span $span, array $args) {
             if (isset($args[0]['query'])) {

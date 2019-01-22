@@ -159,11 +159,6 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
-
-        /*
-         * 3rd parties
-         */
-        DDTrace\Integrations\Laravel\V5\LaravelProvider::class,
     ],
 
     /*

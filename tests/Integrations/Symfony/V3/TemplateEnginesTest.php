@@ -30,7 +30,7 @@ final class TemplateEnginesTest extends WebFrameworkTestCase
                     'symfony.route.action' => 'AppBundle\Controller\HomeController@indexAction',
                     'symfony.route.name' => 'alternate_templating',
                     'http.method' => 'GET',
-                    'http.url' => 'http://127.0.0.1:9999/alternate_templating',
+                    'http.url' => 'http://localhost:9999/alternate_templating',
                     'http.status_code' => '200',
                 ]),
             SpanAssertion::exists('symfony.kernel.handle'),

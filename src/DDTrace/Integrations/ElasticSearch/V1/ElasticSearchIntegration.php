@@ -2,11 +2,12 @@
 
 namespace DDTrace\Integrations\ElasticSearch\V1;
 
+use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\GlobalTracer;
+use DDTrace\Util\Environment;
 
 /**
  * ElasticSearch driver v1 Integration
@@ -18,7 +19,7 @@ class ElasticSearchIntegration
 
     public static function load()
     {
-        if (!class_exists('Elasticsearch\Client')) {
+        if (!class_exists('Elasticsearch\Client') || Environment::matchesPhpVersion('5.4')) {
             return Integration::NOT_LOADED;
         }
 

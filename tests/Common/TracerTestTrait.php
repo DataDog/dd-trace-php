@@ -104,12 +104,14 @@ trait TracerTestTrait
 
         // For now we only support asserting traces against one dump at a time.
         $loaded = json_decode($response, true);
+
         if (!isset($loaded['body'])) {
             return [];
         }
-        $rawTraces = json_decode($loaded['body'], true);
 
+        $rawTraces = json_decode($loaded['body'], true);
         $traces = [];
+
         foreach ($rawTraces as $spansInTrace) {
             $spans = [];
             foreach ($spansInTrace as $rawSpan) {
@@ -132,7 +134,9 @@ trait TracerTestTrait
                 $this->setRawPropertyFromArray($span, $rawSpan, 'service');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'resource');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'startTime', 'start');
-                $this->setRawPropertyFromArray($span, $rawSpan, 'hasError', 'error', 'boolval');
+                $this->setRawPropertyFromArray($span, $rawSpan, 'hasError', 'error', function ($value) {
+                    return $value == 1 || $value == true;
+                });
                 $this->setRawPropertyFromArray($span, $rawSpan, 'type');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'duration');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'tags', 'meta');

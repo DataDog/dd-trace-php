@@ -13,6 +13,13 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app.php';
     }
 
+    protected static function getInis()
+    {
+        return [
+            'ddtrace.request_init_hook' => '',
+        ];
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
@@ -43,7 +50,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleAction',
                             'symfony.route.name' => 'simple',
                             'http.method' => 'GET',
-                            'http.url' => 'http://127.0.0.1:9999/simple',
+                            'http.url' => 'http://localhost:9999/simple',
                             'http.status_code' => '200',
                         ]),
                     SpanAssertion::exists('symfony.kernel.handle'),
@@ -65,7 +72,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleViewAction',
                             'symfony.route.name' => 'simple_view',
                             'http.method' => 'GET',
-                            'http.url' => 'http://127.0.0.1:9999/simple_view',
+                            'http.url' => 'http://localhost:9999/simple_view',
                             'http.status_code' => '200',
                         ]),
                     SpanAssertion::exists('symfony.kernel.handle'),
@@ -94,7 +101,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@errorAction',
                             'symfony.route.name' => 'error',
                             'http.method' => 'GET',
-                            'http.url' => 'http://127.0.0.1:9999/error',
+                            'http.url' => 'http://localhost:9999/error',
                             'error.msg' => 'An exception occurred',
                             'error.type' => 'Exception',
                             'http.status_code' => '500',
