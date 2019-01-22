@@ -107,7 +107,7 @@ Then right after you register the composer autoloader, require our bootstrapper.
 
 #### Zend Framework 1 integration
 
-By default Zend Framework 1 is auto-instrumented by default, so you are not required to do anything. If you decided to disable auto-instrumentation, 
+Zend Framework 1 is auto-instrumented by default, so you are not required to do anything. If you decided to disable auto-instrumentation, 
 in order to enable the tracer in Zend Framework 1, [download the latest source code from the releases page](https://github.com/DataDog/dd-trace-php/releases). Extract the zip file and copy the `src/DDTrace` folder to your application's `library` folder. Then add the following to your `application/configs/application.ini` file.
 
 ```ini

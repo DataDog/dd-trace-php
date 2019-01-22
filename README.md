@@ -42,7 +42,7 @@ $ tar -xf datadog-php-tracer.tar.gz -C /
 
 ## Beta support  for PECL
 
-Preliminary beta  support for PECL installation is required [PECL](https://pecl.php.net/package/datadog_trace).
+Preliminary beta support for PECL installation is required [PECL](https://pecl.php.net/package/datadog_trace).
 
 ```bash
 $ sudo pecl install datadog_trace-beta
