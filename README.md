@@ -21,33 +21,36 @@ If you haven't already, [sign up for a free Datadog account](https://www.datadog
 
 > **Make sure that APM is enabled.** The agent does not have APM enabled by default so make sure [to enable it](https://docs.datadoghq.com/tracing/setup/?tab=agent630#agent-configuration).
 
-### Installation
+### Installing the extension
 
-The PHP tracer is composed of a PHP extension and a Composer package. You'll need to install both in order to start tracing your PHP projects.
-
-#### Composer installation
-
-First we'll install the Composer package.
+You can install the extension from a package download. First [download the appropriate package](https://github.com/DataDog/dd-trace-php/releases) from the releases page. Then install the package with one of the commands below.
 
 ```bash
-$ composer require datadog/dd-trace
+# using RPM package (RHEL/Centos 6+, Fedora 20+)
+$ rpm -ivh datadog-php-tracer.rpm
+
+# using DEB package (Debian Jessie+ , Ubuntu 14.04+)
+$ deb -i datadog-php-tracer.deb
+
+# using APK package (Alpine)
+$ apk add datadog-php-tracer.apk --allow-untrusted
+
+# using tar.gz archive (Other distributions using libc6)
+$ tar -xf datadog-php-tracer.tar.gz -C /
+  /opt/datadog-php/bin/post-install.sh
 ```
 
-#### Installing the extension
+## Beta support  for PECL
 
-Next we'll install the `ddtrace` extension. The easiest way to install the extension is from [PECL](https://pecl.php.net/package/datadog_trace).
+Preliminary beta  support for PECL installation is required [PECL](https://pecl.php.net/package/datadog_trace).
 
 ```bash
 $ sudo pecl install datadog_trace-beta
 ```
 
-After the installation is complete, you'll need to [enable the extension](docs/getting_started.md#enabling-the-extension).
-
-If you don't have `pecl` installed, you can [install the extension manually](docs/getting_started.md#installing-the-extension-manually).
-
 ### Instrumentation
 
-Once the `ddtrace` extension and Composer package is installed, you can start tracing your PHP project. There are a few framework instrumentations available out of the box.
+Once the `ddtrace` extension is installed, you should be already good to go. There are a few framework instrumentations available out of the box.
 
 * [Laravel 4 & 5 instrumentation](docs/getting_started.md#laravel-integration)
 * [Lumen 5 instrumentation](docs/getting_started.md#lumen-integration)
@@ -62,16 +65,6 @@ If you are using another framework or CMS that is not listed above, you can manu
 use DDTrace\Tracer;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\IntegrationsLoader;
-
-// Creates a tracer with default transport and propagators
-$tracer = new Tracer();
-
-// Sets a global tracer (singleton)
-GlobalTracer::set($tracer);
-// Flushes traces to agent on script shutdown
-register_shutdown_function(function() {
-    GlobalTracer::get()->flush();
-});
 
 // Enable the built-in integrations
 IntegrationsLoader::load();

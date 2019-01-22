@@ -84,11 +84,7 @@ php -m | grep ddtrace
 
 Some systems use different `php.ini` files for command line PHP vs. the web server module, so you may need to confirm both. If you look at the output of `phpinfo()` in a web page, you will see `ddtrace` listed if it’s loaded.
 
-## Enabling automatic tracing
-
-Once the C extension is installed, we need to install the PHP package that provides the actual integrations and framework for sending traces to Datadog.
-
-### Enabling tracing
+## Enabling tracing
 
 Tracing is automatically enabled by default so if you installed the extension you  are good to go.
 
@@ -111,7 +107,8 @@ Then right after you register the composer autoloader, require our bootstrapper.
 
 #### Zend Framework 1 integration
 
-To enable the tracer in Zend Framework 1, [download the latest source code from the releases page](https://github.com/DataDog/dd-trace-php/releases). Extract the zip file and copy the `src/DDTrace` folder to your application's `library` folder. Then add the following to your `application/configs/application.ini` file.
+By default Zend Framework 1 is auto-instrumented by default, so you are not required to do anything. If you decided to disable auto-instrumentation, 
+in order to enable the tracer in Zend Framework 1, [download the latest source code from the releases page](https://github.com/DataDog/dd-trace-php/releases). Extract the zip file and copy the `src/DDTrace` folder to your application's `library` folder. Then add the following to your `application/configs/application.ini` file.
 
 ```ini
 autoloaderNamespaces[] = "DDTrace_"
