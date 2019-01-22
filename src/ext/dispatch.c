@@ -137,7 +137,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         efree(fci.params);
     }
 #else
-    if (fci.params){
+    if (fci.params) {
         zend_fcall_info_args_clear(&fci, 0);
     }
 #endif
@@ -147,7 +147,10 @@ _exit_cleanup:
     if (this) {
         Z_DELREF_P(this);
     }
-
+#else
+    if (this) {
+        Z_DELREF_P(this);
+    }
 #endif
     zval_dtor(&closure);
 }

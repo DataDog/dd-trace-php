@@ -2,10 +2,9 @@
 #if PHP_VERSION_ID >= 70000
 
 #include "ddtrace.h"
+#include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
-#include "debug.h"
-
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 

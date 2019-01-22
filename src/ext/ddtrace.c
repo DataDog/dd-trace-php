@@ -155,7 +155,8 @@ static PHP_MINFO_FUNCTION(ddtrace) {
 
 static PHP_FUNCTION(dd_trace) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
-    STRING_T *function = NULL;
+    zval *function = NULL;
+    zval *class_name = NULL;
     zend_class_entry *clazz = NULL;
     zval *callable = NULL;
 
@@ -163,42 +164,48 @@ static PHP_FUNCTION(dd_trace) {
         RETURN_BOOL(0);
     }
 
-#if PHP_VERSION_ID < 70000
-    ALLOC_INIT_ZVAL(function);
-
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "Csz", &clazz,
-                                 &Z_STRVAL_P(function), &Z_STRLEN_P(function), &callable) != SUCCESS &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "sz", &Z_STRVAL_P(function),
-                                 &Z_STRLEN_P(function), &callable) != SUCCESS) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzz", &class_name, &function,
+                                 &callable) != SUCCESS &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zz", &function, &callable) !=
+            SUCCESS) {
         if (!DDTRACE_G(ignore_missing_overridables)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameter combination, expected (class, function, closure) "
-                                    "or (function, closure)");
+            zend_throw_exception_ex(
+                spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                "unexpected parameter combination, expected (class, function, closure) or (function, closure)");
         }
 
         RETURN_BOOL(0);
     }
     DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
 
-#else
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "CSz", &clazz, &function, &callable) !=
-            SUCCESS &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "Sz", &function, &callable) != SUCCESS) {
-        if (!DDTRACE_G(ignore_missing_overridables)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0,
-                                    "unexpected parameter combination, expected (class, function, closure) "
-                                    "or (function, closure)");
+    if (class_name && Z_TYPE_P(class_name) == IS_STRING) {
+        clazz = zend_fetch_class_by_name(Z_STR_P(class_name), NULL, ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT);
+        if (!clazz) {
+            zval_ptr_dtor(class_name);
+            if (function) {
+                zval_ptr_dtor(function);
+            }
+            RETURN_BOOL(0);
         }
+    }
 
-        zval_ptr_dtor(callable);
+    if (!function || Z_TYPE_P(function) != IS_STRING) {
+        if (class_name) {
+            zval_ptr_dtor(class_name);
+        }
+        zval_ptr_dtor(function);
         RETURN_BOOL(0);
     }
-#endif
-    zend_bool rv = ddtrace_trace(clazz, function, callable TSRMLS_CC);
+
+    zend_bool rv = ddtrace_trace(clazz, Z_STR_P(function), callable TSRMLS_CC);
 
 #if PHP_VERSION_ID < 70000
     FREE_ZVAL(function);
 #endif
+
+    // if (function) {
+    //     zval_ptr_dtor(function);
+    // }
     RETURN_BOOL(rv);
 }
 
