@@ -74,9 +74,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-    zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)table_dtor, 0);
-    zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_free, 0);
-
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject();
 
@@ -192,6 +189,8 @@ static PHP_FUNCTION(dd_trace) {
                                     "unexpected parameter combination, expected (class, function, closure) "
                                     "or (function, closure)");
         }
+
+        zval_ptr_dtor(callable);
         RETURN_BOOL(0);
     }
 #endif

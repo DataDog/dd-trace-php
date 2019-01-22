@@ -4,6 +4,8 @@
 #include "ddtrace.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
+#include "debug.h"
+
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
@@ -23,10 +25,11 @@ zend_function *ddtrace_function_get(const HashTable *table, zend_string *name) {
 
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zend_string_release(dispatch->function);
-    zval_dtor(&dispatch->callable);
+    zval_ptr_dtor(&dispatch->callable);
 }
 
 void ddtrace_class_lookup_free(zval *zv) {
+    DD_PRINTF("freeing %p", (void *)zv);
     ddtrace_dispatch_t *dispatch = Z_PTR_P(zv);
     ddtrace_dispatch_free_owned_data(dispatch);
     efree(dispatch);

@@ -136,6 +136,10 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
     if (fci.params) {
         efree(fci.params);
     }
+#else
+    if (fci.params){
+        zend_fcall_info_args_clear(&fci, 0);
+    }
 #endif
 
 _exit_cleanup:
@@ -204,7 +208,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         common_scope_length = ZSTR_LEN(fbc->common.scope->name);
 #endif
     }
-    DD_PRINTF("Loaded object id: %0lx", object);
+    DD_PRINTF("Loaded object id: %p", (void *)object);
 
     ddtrace_dispatch_t *dispatch;
 
