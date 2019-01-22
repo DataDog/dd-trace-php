@@ -62,6 +62,8 @@
                     <file name="dispatch_compat_php5.h" role="src" />
                     <file name="dispatch_compat_php7.c" role="src" />
                     <file name="dispatch_setup.c" role="src" />
+                    <file name="request_hooks.c" role="src" />
+                    <file name="request_hooks.h" role="src" />
                     <file name="version.h" role="src" />
                 </dir>
             </dir>
@@ -72,17 +74,26 @@
                     <file name="case_insensitive_method_hook.phpt" role="test" />
                     <file name="closure_accessing_outside_variables.phpt" role="test" />
                     <file name="closure_set_inside_object_methods.phpt" role="test" />
+                    <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
+                    <file name="method_invoked_via_reflection.phpt" role="test" />
                     <file name="method_returning_array.phpt" role="test" />
                     <file name="multiple_instrumentations.phpt" role="test" />
                     <file name="namespaces.phpt" role="test" />
                     <file name="overriding_construct.phpt" role="test" />
                     <file name="overriding_method_defined_in_parent.phpt" role="test" />
                     <file name="private_method_hook.phpt" role="test" />
+                    <file name="private_self_access.phpt" role="test" />
                     <file name="protected_method_hook.phpt" role="test" />
                     <file name="recursion.phpt" role="test" />
+                    <file name="request_init_hook_file_not_found.phpt" role="test" />
+                    <file name="reset_configured_overrides.phpt" role="test" />
+                    <file name="reset_function_tracing.phpt" role="test" />
                     <file name="return_value_passed.phpt" role="test" />
+                    <file name="run_file_before_request_handling.phpt" role="test" />
+                    <file name="silently_check_if_overridable_exists.phpt" role="test" />
                     <file name="simple_function_hook.phpt" role="test" />
                     <file name="simple_method_hook.phpt" role="test" />
+                    <file name="simple_sanity_check.phpt" role="test" />
                     <file name="throw_exception.phpt" role="test" />
                     <file name="variable_length_parameter_list.phpt" role="test" />
                     <file name="with_params_function_hook.phpt" role="test" />
@@ -93,6 +104,7 @@
             <file name="config.m4" role="src" />
             <file name="LICENSE" role="doc" />
             <file name="README.md" role="doc" />
+            <file name="UPGRADE-0.10.md" role="doc" />
         </dir>
     </contents>
     <dependencies>
