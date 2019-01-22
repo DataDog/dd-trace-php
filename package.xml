@@ -21,14 +21,30 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        ### Added
-        - Ability to reset all overrides via `dd_trace_reset`
+        **WARNING: THIS IS A BREAKING CHANGE RELEASE**
 
-        ### Changed
-        - By default do not throw an exception when method or function doesn't exist
+        Refer to the migration guide (/UPGRADE-0.10.md) for a detailed description.
+
+        At an high level here are the breaking changes we introduced:
+
+        - We removed OpenTracing as a required dependency. We still support OpenTracing, so you can do `OpenTracing\GlobalTracer::get()` in your code and still retrieve a OpenTracing compliant tracer, but OpenTracing dependency is now optional.
+        - We introduced auto-instrumentation and 1-step installation in place of manual registration of providers/bundles. Before, in order to see traces, you had to install our extension, add two dependencies to the composer file and add a provider (Laravel) or a bundle (Symfony). Starting from now you will only have to install the extension. You still have freedom to manually instrument the code, but only for advanced usage.
+
+        ### Added
+        - Request init hook configuration allowing running arbitrary code before actual request execution #175
+        - Support OpenTracing without depending on it #193
+        - Initial C extension PHP 5.4 support #205
+        - Removal of external dependencies to support auto-instrumentation #206
+        - Migration from namespace based constants to class based constants for tags, formats and types #207
+        - Track integration loading to avoid re-loading unnecessary ones #211
+        - Documenting release steps #223
+        - Ability to run web framework tests in external web server #232
+        - Support for auto-instrumentation #237
+        - Support for Zend Framework 1 #238
+        - `Tracer::startRootSpan()` to track the root `Scope` instance which can be accessed with `Tracer::getRootScope()` #241
 
         ### Fixed
-        - Eloquent integration calling protected `performInsert` method
+        - The INI settings now appear in `phpinfo()` and when running `$ php -i` #242
     </notes>
     <contents>
         <dir name="/">
