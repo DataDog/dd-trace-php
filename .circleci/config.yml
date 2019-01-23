@@ -449,7 +449,7 @@ jobs:
           name: Build extension .so
           command: |
               mkdir -p extensions
-              make all CFLAGS="${CFLAGS}"
+              make all CFLAGS="${CFLAGS}" ECHO_ARG="-e"
               SUFFIX="$( echo "$CIRCLE_JOB" | awk '{print $NF}' )"
               cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-$SUFFIX.so
       - persist_to_workspace:
