@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Util\Environment;
+use DDTrace\Util\Versions;
 use PHPUnit\Framework;
 
 
@@ -16,6 +16,6 @@ abstract class BaseTestCase extends Framework\TestCase
 
     protected function matchesPhpVersion($version)
     {
-        return Environment::matchesPhpVersion($version);
+        return Versions::phpVersionMatches($version);
     }
 }

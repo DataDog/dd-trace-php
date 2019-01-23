@@ -19,13 +19,20 @@
             "role": "Developer"
         }
     ],
+    "repositories": [
+        {
+            "type": "github",
+            "no-api": true,
+            "url": "https://github.com/labbati/composer-test-scenarios"
+        }
+    ],
     "require": {
         "php": "~5.4.0 || ~5.6.0 || ^7.0",
         "ext-curl": "*",
         "ext-json": "*"
     },
     "require-dev": {
-        "g1a/composer-test-scenarios": "~3.0",
+        "g1a/composer-test-scenarios": "dev-master",
         "mockery/mockery": "*",
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
@@ -44,7 +51,6 @@
             "DDTrace\\Tests\\": "./tests/"
         }
     },
-    "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": {
         "fix-lint": "phpcbf",
@@ -217,6 +223,11 @@
                     "guzzlehttp/guzzle": "~5.0"
                 }
             },
+            "guzzle6": {
+                "require": {
+                    "guzzlehttp/guzzle": "~6.0"
+                }
+            },
             "predis1": {
                 "require": {
                     "predis/predis": "^1.1"
@@ -224,7 +235,8 @@
             }
         },
         "scenario-options": {
-            "dependency-licenses": false
+            "dependency-licenses": false,
+            "ignore-platform-reqs": true
         }
     }
 }

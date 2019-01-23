@@ -6,7 +6,7 @@ use DDTrace\Configuration;
 use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
-use DDTrace\Integrations\Guzzle\V5\GuzzleIntegration;
+use DDTrace\Integrations\Guzzle\GuzzleIntegration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
@@ -38,7 +38,7 @@ class IntegrationsLoader
         CurlIntegration::NAME => '\DDTrace\Integrations\Curl\CurlIntegration',
         ElasticSearchIntegration::NAME => '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
         EloquentIntegration::NAME => '\DDTrace\Integrations\Eloquent\EloquentIntegration',
-        GuzzleIntegration::NAME => '\DDTrace\Integrations\Guzzle\V5\GuzzleIntegration',
+        GuzzleIntegration::NAME => '\DDTrace\Integrations\Guzzle\GuzzleIntegration',
         LaravelIntegration::NAME => '\DDTrace\Integrations\Laravel\LaravelIntegration',
         MemcachedIntegration::NAME => '\DDTrace\Integrations\Memcached\MemcachedIntegration',
         MongoIntegration::NAME => '\DDTrace\Integrations\Mongo\MongoIntegration',
