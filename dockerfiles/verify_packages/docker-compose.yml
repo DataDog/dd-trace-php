@@ -1,0 +1,27 @@
+version: '3.6'
+
+x-aliases:
+  - &base_build
+      ulimits:
+        core: 99999999999
+      stdin_open: true
+      tty: true
+      volumes:
+        - ../../:/build_src
+      cap_add:
+        - SYS_PTRACE
+  - &base_centos_build
+      dockerfile: 'Dockerfile_centos'
+      context: ./
+
+services:
+  '5.4-centos6': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 54 } } }
+  '5.6-centos6': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 56 } } }
+  '7.0-centos6': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 70 } } }
+  '7.1-centos6': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 71 } } }
+  '7.2-centos6': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 72 } } }
+  '5.4-centos7': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 54, CENTOS_VERSION: 7 } } }
+  '5.6-centos7': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 56, CENTOS_VERSION: 7 } } }
+  '7.0-centos7': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 70, CENTOS_VERSION: 7 } } }
+  '7.1-centos7': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 71, CENTOS_VERSION: 7 } } }
+  '7.2-centos7': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 72, CENTOS_VERSION: 7 } } }
