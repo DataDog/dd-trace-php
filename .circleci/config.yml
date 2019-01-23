@@ -430,9 +430,9 @@ jobs:
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
-  "5.4 20100525": &5_4_ARTIFACT_BUILD
+  "5.4 20100412": &5_4_ARTIFACT_BUILD
     working_directory: ~/datadog
-    docker: [ image: 'datadog/docker-library:ddtrace_php_5_4' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_5_4' ]
     environment:
       CFLAGS: "-O2 -Wall -Wextra"
     steps:
@@ -508,13 +508,13 @@ workflows:
   version: 2
   build_packages:
     jobs:
-      - "5.4 20100525": &BUILD_PACKAGE_FORKFLOW
-          filters:
-            tags:
-              only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
-            branches:
-              # Always build on master
-              ignore: /^(?!master).*/
+      - "5.4 20100412": &BUILD_PACKAGE_FORKFLOW
+          filters: {}
+            # tags:
+            #   only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
+            # branches:
+            #   # Always build on master
+            #   ignore: /^(?!master).*/
       - "5.6 20131106": *BUILD_PACKAGE_FORKFLOW
       - "7.0 20151012": *BUILD_PACKAGE_FORKFLOW
       - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
@@ -525,7 +525,7 @@ workflows:
       - "7.2 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
       - "package extension":
           requires:
-            - "5.4 20100525"
+            - "5.4 20100412"
             - "5.6 20131106"
             - "7.0 20151012"
             - "7.1 20160303"
@@ -534,12 +534,12 @@ workflows:
             - "7.0 zts 20151012-zts"
             - "7.1 zts 20160303-zts"
             - "7.2 zts 20170718-zts"
-  build:
-    jobs:
-      - "Lint files"
-      - "Static Analysis"
-      - "php-5.4"
-      - "php-5.6"
-      - "php-7.0"
-      - "php-7.1"
-      - "php-7.2"
+  # build:
+  #   jobs:
+  #     - "Lint files"
+  #     - "Static Analysis"
+  #     - "php-5.4"
+  #     - "php-5.6"
+  #     - "php-7.0"
+  #     - "php-7.1"
+  #     - "php-7.2"
