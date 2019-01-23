@@ -23,7 +23,7 @@ Q := @
 src/ext/version.h:
 	@echo "Creating [src/ext/version.h]\n"
 	@echo "PHP: $(VERSION)"
-	@(echo '#ifndef PHP_DDTRACE_VERSION\n#define PHP_DDTRACE_VERSION "$(VERSION)"\n#endif' ) > $@
+	@(echo $(ECHO_ARG) '#ifndef PHP_DDTRACE_VERSION\n#define PHP_DDTRACE_VERSION "$(VERSION)"\n#endif' ) > $@
 	@echo "C: "
 	@cat $@ #| grep '#define'
 
