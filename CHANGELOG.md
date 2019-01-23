@@ -3,11 +3,13 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [UNRELEASED]
 
+## [0.11.0]
+
 ### Added
 - Support for guzzle 6 #254
 
 ### Fixed
-- Composer php compatibility declaration #247
+- Composer PHP compatibility declaration #247
 - Add missing files to PECL releases #252
 - Trigger of autoloader un-tracing did not respect object #256
 
