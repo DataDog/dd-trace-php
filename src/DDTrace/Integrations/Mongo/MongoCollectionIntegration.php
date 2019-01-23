@@ -5,7 +5,7 @@ namespace DDTrace\Integrations\Mongo;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
-use DDTrace\Util\Environment;
+use DDTrace\Util\Versions;
 
 final class MongoCollectionIntegration extends Integration
 {
@@ -13,7 +13,7 @@ final class MongoCollectionIntegration extends Integration
 
     protected static function loadIntegration()
     {
-        if (Environment::matchesPhpVersion('5.4')) {
+        if (Versions::phpVersionMatches('5.4')) {
             return;
         }
 

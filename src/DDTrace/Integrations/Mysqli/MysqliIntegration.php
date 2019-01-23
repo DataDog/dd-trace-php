@@ -5,7 +5,7 @@ namespace DDTrace\Integrations\Mysqli;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Environment;
+use DDTrace\Util\Versions;
 use DDTrace\Util\ObjectKVStore;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
@@ -16,7 +16,7 @@ class MysqliIntegration
 
     public static function load()
     {
-        if (!extension_loaded('mysqli') || Environment::matchesPhpVersion('5.4')) {
+        if (!extension_loaded('mysqli') || Versions::phpVersionMatches('5.4')) {
             // Memcached is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }

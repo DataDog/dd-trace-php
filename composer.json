@@ -25,7 +25,7 @@
         "ext-json": "*"
     },
     "require-dev": {
-        "g1a/composer-test-scenarios": "~3.0",
+        "g1a/composer-test-scenarios": "dev-master",
         "mockery/mockery": "*",
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
@@ -44,7 +44,6 @@
             "DDTrace\\Tests\\": "./tests/"
         }
     },
-    "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": {
         "fix-lint": "phpcbf",
@@ -108,7 +107,9 @@
             "@composer scenario elasticsearch1",
             "@composer test -- tests/Integrations/Elasticsearch",
             "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle",
+            "@composer test -- tests/Integrations/Guzzle/V5",
+            "@composer scenario guzzle6",
+            "@composer test -- tests/Integrations/Guzzle/V6",
             "@composer scenario predis1",
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
@@ -123,7 +124,9 @@
             "@composer scenario elasticsearch1",
             "@composer test -- tests/Integrations/Elasticsearch",
             "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle",
+            "@composer test -- tests/Integrations/Guzzle/V5",
+            "@composer scenario guzzle6",
+            "@composer test -- tests/Integrations/Guzzle/V6",
             "@composer scenario predis1",
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
@@ -138,7 +141,9 @@
             "@composer scenario elasticsearch1",
             "@composer test -- tests/Integrations/Elasticsearch",
             "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle",
+            "@composer test -- tests/Integrations/Guzzle/V5",
+            "@composer scenario guzzle6",
+            "@composer test -- tests/Integrations/Guzzle/V6",
             "@composer scenario predis1",
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
@@ -153,7 +158,9 @@
             "@composer scenario elasticsearch1",
             "@composer test -- tests/Integrations/Elasticsearch",
             "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle",
+            "@composer test -- tests/Integrations/Guzzle/V5",
+            "@composer scenario guzzle6",
+            "@composer test -- tests/Integrations/Guzzle/V6",
             "@composer scenario predis1",
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
@@ -212,16 +219,33 @@
             "elasticsearch1": {
                 "require": {
                     "elasticsearch/elasticsearch": "1.2.*"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
                 }
             },
             "guzzle5": {
                 "require": {
                     "guzzlehttp/guzzle": "~5.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "guzzle6": {
+                "require": {
+                    "guzzlehttp/guzzle": "~6.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
                 }
             },
             "predis1": {
                 "require": {
                     "predis/predis": "^1.1"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
                 }
             }
         },

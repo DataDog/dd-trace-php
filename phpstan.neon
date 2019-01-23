@@ -1,5 +1,6 @@
 parameters:
 	excludes_analyse:
+		- src/DDTrace/Util/CodeTracer.php
 		- src/DDTrace/Integrations
 		- src/DDTrace/OpenTracer
 		# Temporarily disabling as it uses \OpenTracing\GlobalTracer.php
