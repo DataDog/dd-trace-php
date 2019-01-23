@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file - [read more
 ### Fixed
 - Composer php compatibility declaration #247
 - Add missing files to PECL releases #252
+- Trigger of autoloader un-tracing did not respect object #256
 
 ## [0.10.0]
 
