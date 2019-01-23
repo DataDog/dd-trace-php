@@ -13,7 +13,7 @@ final class Versions
      */
     public static function phpVersionMatches($version)
     {
-        return self::versionMatches(phpversion(), $version);
+        return self::versionMatches($version, phpversion());
     }
 
     /**

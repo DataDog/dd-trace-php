@@ -19,13 +19,6 @@
             "role": "Developer"
         }
     ],
-    "repositories": [
-        {
-            "type": "github",
-            "no-api": true,
-            "url": "https://github.com/labbati/composer-test-scenarios"
-        }
-    ],
     "require": {
         "php": "~5.4.0 || ~5.6.0 || ^7.0",
         "ext-curl": "*",
@@ -224,27 +217,38 @@
             "elasticsearch1": {
                 "require": {
                     "elasticsearch/elasticsearch": "1.2.*"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
                 }
             },
             "guzzle5": {
                 "require": {
                     "guzzlehttp/guzzle": "~5.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
                 }
             },
             "guzzle6": {
                 "require": {
                     "guzzlehttp/guzzle": "~6.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
                 }
             },
             "predis1": {
                 "require": {
                     "predis/predis": "^1.1"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
                 }
             }
         },
         "scenario-options": {
-            "dependency-licenses": false,
-            "ignore-platform-reqs": true
+            "dependency-licenses": false
         }
     }
 }
