@@ -112,7 +112,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected function sendRequest($method, $url)
     {
-        error_log("Sending request...$url");
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);

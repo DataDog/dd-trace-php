@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Symfony\V3;
+namespace DDTrace\Tests\Integrations\Symfony\V3_4;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
@@ -10,14 +10,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/app_dev.php';
-    }
-
-    protected static function getInis()
-    {
-        return [
-            'ddtrace.request_init_hook' => '',
-        ];
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app_dev.php';
     }
 
     /**
