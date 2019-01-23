@@ -5,17 +5,19 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - Composer php compatibility declaration #247
+- Add missing files to PECL releases #252
+- Trigger of autoloader un-tracing did not respect object #256
 
 ## [0.10.0]
 
-**WARNING: THIS IS  A BREAKING CHANGE RELEASE**
+**WARNING: THIS IS A BREAKING CHANGE RELEASE**
 
 Refer to the [Migration Guide](UPGRADE-0.10.md) for a detailed description.
 
 At an high level here are the breaking changes we introduced:
 
 - We removed OpenTracing as a required dependency. We still support OpenTracing, so you can do
-  `OpenTracing<GlobalTracer::get()` in your code and still retrieve a OopenTracing compliant tracer, but
+  `OpenTracing\GlobalTracer::get()` in your code and still retrieve a OpenTracing compliant tracer, but
   OpenTracing dependency is now optional.
 - We introduced auto-instrumentation and 1-step installation in place of manual registration of providers/bundles.
   Before, in order to see traces, you had to install our extension, add two dependencies to the composer file and
@@ -34,8 +36,6 @@ At an high level here are the breaking changes we introduced:
 - Support for auto-instrumentation #237
 - Support for Zend Framework 1 #238
 - `Tracer::startRootSpan()` to track the root `Scope` instance which can be accessed with `Tracer::getRootScope()` #241
-
-### Changed
 
 ### Fixed
 - The INI settings now appear in `phpinfo()` and when running `$ php -i` #242
