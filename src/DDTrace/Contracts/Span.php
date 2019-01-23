@@ -59,9 +59,10 @@ interface Span
      *
      * @param string $key
      * @param string|bool|int|float $value
+     * @param boolean $setIfFinished
      * @return void
      */
-    public function setTag($key, $value);
+    public function setTag($key, $value, $setIfFinished = false);
 
     /**
      * @param string $key

@@ -11,7 +11,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ArrayKVStore;
 use DDTrace\GlobalTracer;
-use DDTrace\Util\Environment;
+use DDTrace\Util\Versions;
 
 /**
  * Integration for curl php client.
@@ -25,7 +25,7 @@ class CurlIntegration
      */
     public static function load()
     {
-        if (!function_exists('curl_exec') || Environment::matchesPhpVersion('5.4')) {
+        if (!function_exists('curl_exec') || Versions::phpVersionMatches('5.4')) {
             // `curl_exec` doesn't come from an autoloader, if it does not exists we can return this integration as
             // not available.
             return Integration::NOT_AVAILABLE;

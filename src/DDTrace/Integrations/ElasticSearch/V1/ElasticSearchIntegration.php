@@ -7,7 +7,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Environment;
+use DDTrace\Util\Versions;
 
 /**
  * ElasticSearch driver v1 Integration
@@ -19,7 +19,7 @@ class ElasticSearchIntegration
 
     public static function load()
     {
-        if (!class_exists('Elasticsearch\Client') || Environment::matchesPhpVersion('5.4')) {
+        if (!class_exists('Elasticsearch\Client') || Versions::phpVersionMatches('5.4')) {
             return Integration::NOT_LOADED;
         }
 

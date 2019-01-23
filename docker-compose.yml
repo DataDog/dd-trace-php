@@ -109,4 +109,4 @@ services:
       - 9000:80
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
-    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/labbati/fix-54-tests/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
+    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/master/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"

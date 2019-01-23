@@ -5,7 +5,7 @@ namespace DDTrace\Integrations\Eloquent;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Environment;
+use DDTrace\Util\Versions;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
@@ -15,7 +15,7 @@ class EloquentIntegration
 
     public static function load()
     {
-        if (!class_exists('Illuminate\Database\Eloquent\Builder') || Environment::matchesPhpVersion('5.4')) {
+        if (!class_exists('Illuminate\Database\Eloquent\Builder') || Versions::phpVersionMatches('5.4')) {
             return Integration::NOT_LOADED;
         }
 

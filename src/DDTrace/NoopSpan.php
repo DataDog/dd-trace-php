@@ -57,7 +57,7 @@ final class NoopSpan implements SpanInterface
     /**
      * {@inheritdoc}
      */
-    public function setTag($key, $value)
+    public function setTag($key, $value, $setIfFinished = false)
     {
     }
 

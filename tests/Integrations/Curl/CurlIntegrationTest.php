@@ -11,7 +11,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tracer;
 use DDTrace\Util\ArrayKVStore;
 use DDTrace\GlobalTracer;
-use DDTrace\Util\Environment;
+use DDTrace\Util\Versions;
 
 final class CurlIntegrationTest extends IntegrationTestCase
 {
@@ -45,7 +45,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testSampleExternalAgent()
     {
-        if (Environment::matchesPhpVersion('5.4')) {
+        if (Versions::phpVersionMatches('5.4')) {
             $message = 'Strange behavior from the curl call to retrieve spans from teh fake agent. ' .
                 'Skipping this test for now on php 5.4 as the real behavior is tested in web framework tests.';
             $this->markTestSkipped($message);

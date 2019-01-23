@@ -6,7 +6,7 @@ use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Obfuscation;
 use DDTrace\Integrations\Integration;
-use DDTrace\Util\Environment;
+use DDTrace\Util\Versions;
 
 final class MongoClientIntegration extends Integration
 {
@@ -14,7 +14,7 @@ final class MongoClientIntegration extends Integration
 
     protected static function loadIntegration()
     {
-        if (Environment::matchesPhpVersion('5.4')) {
+        if (Versions::phpVersionMatches('5.4')) {
             return;
         }
 

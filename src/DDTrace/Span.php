@@ -173,9 +173,9 @@ final class Span implements SpanInterface
     /**
      * {@inheritdoc}
      */
-    public function setTag($key, $value)
+    public function setTag($key, $value, $setIfFinished = false)
     {
-        if ($this->isFinished()) {
+        if ($this->isFinished() && !$setIfFinished) {
             return;
         }
 

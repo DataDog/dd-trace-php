@@ -1,14 +1,15 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Guzzle\V5;
+namespace DDTrace\Tests\Integrations\Guzzle\V6;
 
 use DDTrace\Configuration;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;
 use GuzzleHttp\Client;
-use GuzzleHttp\Message\Request;
-use GuzzleHttp\Ring\Client\MockHandler;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\GlobalTracer;
@@ -17,28 +18,19 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';
 
-    /** @var Client */
-    private $client;
-
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
         IntegrationsLoader::load();
     }
 
-    /**
-     * @param array|null $responseStack
-     * @return Client
-     */
     protected function getMockedClient(array $responseStack = null)
     {
-        $handler = new MockHandler(['status' => 200]);
+        $responseStack = null === $responseStack ? [new Response(200)] : $responseStack;
+        $handler = new MockHandler($responseStack);
         return new Client(['handler' => $handler]);
     }
 
-    /**
-     * @return Client
-     */
     protected function getRealClient()
     {
         return new Client();
@@ -53,7 +45,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $this->getMockedClient()->$method('http://example.com/?foo=secret');
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
                 ->withExactTags([
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/',
@@ -82,7 +74,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $this->getMockedClient()->send($request);
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
                 ->withExactTags([
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
@@ -97,7 +89,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $this->getMockedClient()->get('http://example.com');
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
@@ -108,7 +100,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsPropagated()
     {
-        $client = new Client();
+        $client = $this->getRealClient();
         $found = [];
 
         $traces = $this->isolateTracer(function () use (&$found, $client) {
@@ -123,7 +115,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
                 ],
             ]);
 
-            $found = $response->json();
+            $found = json_decode($response->getBody(), 1);
             $span->finish();
         });
 
@@ -138,7 +130,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
-        $client = new Client();
+        $client = $this->getRealClient();
         $found = [];
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isAutofinishSpansEnabled' => false,
@@ -154,7 +146,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 
             $response = $client->get(self::URL . '/headers');
 
-            $found = $response->json();
+            $found = json_decode($response->getBody(), 1);
             $span->finish();
         });
 
