@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [UNRELEASED]
 
+### Added
+- Support for guzzle 6 #254
+
 ### Fixed
 - Composer php compatibility declaration #247
 
