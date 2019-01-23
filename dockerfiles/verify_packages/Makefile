@@ -1,5 +1,5 @@
-JESSIE_PHP_VERSIONS:=5.4.jessie 5.6.jessie 7.0.jessie 7.1.jessie 7.2.jessie
-STRETCH_PHP_VERSIONS:=5.4.stretch 5.6.stretch 7.0.stretch 7.1.stretch 7.2.stretch
+JESSIE_PHP_VERSIONS:=5.6.jessie 7.0.jessie 7.1.jessie 7.2.jessie
+STRETCH_PHP_VERSIONS:=5.6.stretch 7.0.stretch 7.1.stretch 7.2.stretch
 CENTOS6_PHP_VERSIONS=5.4.centos6 5.6.centos6 7.0.centos6 7.1.centos6 7.2.centos6
 CENTOS7_PHP_VERSIONS=5.4.centos7 5.6.centos7 7.0.centos7 7.1.centos7 7.2.centos7
 CENTOS7_MANUAL_PHP_VERSIONS=71.centos7-compiled
@@ -9,7 +9,7 @@ ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 .PHONY: $(JESSIE_PHP_VERSIONS) $(STRETCH_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) $(CENTOS7_MANUAL_PHP_VERSIONS) all all_centos
 
-all: $(JESSIE_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) #CENTOS6 is currently not fully supported due to glibc missmatch
+all: $(JESSIE_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) 5.4.centos6 #CENTOS6 is currently not fully supported due to glibc missmatch
 all_centos: $(CENTOS6_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS)
 
 5.6: 56.centos6 56.centos7 5.6.stretch 5.6.jessie 5.6.alpine 5.6-zts.alpine
