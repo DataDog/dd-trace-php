@@ -21,8 +21,6 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        ## [0.11.0]
-
         ### Added
         - Support for guzzle 6 #254
 
