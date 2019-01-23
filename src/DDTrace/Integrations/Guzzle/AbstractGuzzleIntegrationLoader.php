@@ -25,29 +25,29 @@ abstract class AbstractGuzzleIntegrationLoader
      * @param Span $span
      * @param mixed $request
      */
-    protected abstract function setUrlTag(Span $span, $request);
+    abstract protected function setUrlTag(Span $span, $request);
 
     /**
      * @param Span $span
      * @param mixed $response
      */
-    protected abstract function setStatusCodeTag(Span $span, $response);
+    abstract protected function setStatusCodeTag(Span $span, $response);
 
     /**
      * @param mixed $request
      */
-    protected abstract function extractRequestHeaders($request);
+    abstract protected function extractRequestHeaders($request);
 
     /**
      * @param mixed $request
      * @param array $headers
      */
-    protected abstract function addRequestHeaders($request, $headers);
+    abstract protected function addRequestHeaders($request, $headers);
 
     /**
      * @return string
      */
-    protected abstract function getMethodToTrace();
+    abstract protected function getMethodToTrace();
 
     /**
      * @param CodeTracer $codeTracer
