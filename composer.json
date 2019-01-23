@@ -114,7 +114,9 @@
             "@composer scenario elasticsearch1",
             "@composer test -- tests/Integrations/Elasticsearch",
             "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle",
+            "@composer test -- tests/Integrations/Guzzle/V5",
+            "@composer scenario guzzle6",
+            "@composer test -- tests/Integrations/Guzzle/V6",
             "@composer scenario predis1",
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
@@ -129,7 +131,9 @@
             "@composer scenario elasticsearch1",
             "@composer test -- tests/Integrations/Elasticsearch",
             "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle",
+            "@composer test -- tests/Integrations/Guzzle/V5",
+            "@composer scenario guzzle6",
+            "@composer test -- tests/Integrations/Guzzle/V6",
             "@composer scenario predis1",
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
@@ -144,7 +148,9 @@
             "@composer scenario elasticsearch1",
             "@composer test -- tests/Integrations/Elasticsearch",
             "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle",
+            "@composer test -- tests/Integrations/Guzzle/V5",
+            "@composer scenario guzzle6",
+            "@composer test -- tests/Integrations/Guzzle/V6",
             "@composer scenario predis1",
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
@@ -159,7 +165,9 @@
             "@composer scenario elasticsearch1",
             "@composer test -- tests/Integrations/Elasticsearch",
             "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle",
+            "@composer test -- tests/Integrations/Guzzle/V5",
+            "@composer scenario guzzle6",
+            "@composer test -- tests/Integrations/Guzzle/V6",
             "@composer scenario predis1",
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
