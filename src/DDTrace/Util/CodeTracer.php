@@ -4,7 +4,7 @@ namespace DDTrace\Util;
 
 use DDTrace\GlobalTracer;
 
-class CodeTracer
+final class CodeTracer
 {
     /**
      * @var CodeTracer
@@ -17,7 +17,7 @@ class CodeTracer
     public static function getInstance()
     {
         if (self::$instance === null) {
-            self::$instance = new CodeTracer();
+            self::$instance = new self();
         }
 
         return self::$instance;

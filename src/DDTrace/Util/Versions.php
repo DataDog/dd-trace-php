@@ -13,7 +13,7 @@ final class Versions
      */
     public static function phpVersionMatches($version)
     {
-        return self::versionMatches($version, phpversion());
+        return self::versionMatches($version, PHP_VERSION);
     }
 
     /**
@@ -30,7 +30,8 @@ final class Versions
             return false;
         }
 
-        for ($i = 0; $i < count($expectedFragments); $i++) {
+        $count = count($expectedFragments);
+        for ($i = 0; $i < $count; $i++) {
             if ($specimenFragments[$i] !== $expectedFragments[$i]) {
                 return false;
             }
@@ -51,7 +52,7 @@ final class Versions
             array_filter(
                 array_map(
                     function ($fragment) {
-                        return is_numeric($fragment) ? intval($fragment) : null;
+                        return is_numeric($fragment) ? (int) $fragment : null;
                     },
                     explode('.', $versionAsString)
                 )
