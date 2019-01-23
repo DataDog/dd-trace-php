@@ -235,6 +235,9 @@ jobs:
       - run:
           name: Check linting failure
           command: test -e .failure && exit 1 || true
+      - run:
+          name: Verify PECL config and Version files
+          command: make verify_all
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 

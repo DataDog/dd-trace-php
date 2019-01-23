@@ -4,6 +4,7 @@ SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
 VERSION:=$(shell cat src/DDTrace/Tracer.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2)
+VERSION_WITHOUT_SUFFIX:=$(shell cat src/DDTrace/Tracer.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2 | cut -d- -f1)
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 
@@ -20,20 +21,13 @@ $(BUILD_DIR)/%: %
 all: $(BUILD_DIR)/configure $(SO_FILE)
 Q := @
 
-src/ext/version.h:
-	@echo "Creating [src/ext/version.h]\n"
-	@echo "PHP: $(VERSION)"
-	@(echo $(ECHO_ARG) '#ifndef PHP_DDTRACE_VERSION\n#define PHP_DDTRACE_VERSION "$(VERSION)"\n#endif' ) > $@
-	@echo "C: "
-	@cat $@ #| grep '#define'
-
 $(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
 	$(Q) (cd $(BUILD_DIR); phpize)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure)
 
-$(SO_FILE): $(ALL_FILES) $(BUILD_DIR)/Makefile src/ext/version.h
+$(SO_FILE): $(ALL_FILES) $(BUILD_DIR)/Makefile
 	$(Q) $(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
 
 install: $(SO_FILE)
@@ -97,4 +91,19 @@ $(PACKAGES_BUILD_DIR):
 packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
-.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz src/ext/version.h sudo debug run-tests.php
+verify_pecl_file_definitions:
+	@for i in src/ext/*.c src/ext/*.h tests/ext/*.phpt; do\
+		k=$$(basename $$i); \
+		grep -q $$k package.xml || ( echo missing $$k && exit 1); \
+	done
+	@echo "PECL file definitions are correct"
+
+verify_version:
+	@grep -q "<release>$(VERSION_WITHOUT_SUFFIX)</release>" package.xml || (echo package.xml release version missmatch && exit 1)
+	@grep -q "<api>$(VERSION_WITHOUT_SUFFIX)</api>" package.xml || (echo package.xml api version missmatch && exit 1)
+	@grep -q "#define PHP_DDTRACE_VERSION \"$(VERSION)" src/ext/version.h || (echo src/ext/version.h Version missmatch && exit 1)
+	@echo "All version files match"
+
+verify_all: verify_pecl_file_definitions verify_version
+
+.PHONY: dist_clean clean all install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz sudo debug run-tests.php verify_pecl_file_definitions verify_version verify_all
