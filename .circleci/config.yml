@@ -529,12 +529,12 @@ workflows:
   build_packages:
     jobs:
       - "5.4 20100412": &BUILD_PACKAGE_FORKFLOW
-          filters: {}
-            # tags:
-            #   only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
-            # branches:
-            #   # Always build on master
-            #   ignore: /^(?!master).*/
+          filters:
+            tags:
+              only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
+            branches:
+              # Always build on master
+              ignore: /^(?!master).*/
       - "5.6 20131106": *BUILD_PACKAGE_FORKFLOW
       - "7.0 20151012": *BUILD_PACKAGE_FORKFLOW
       - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
@@ -554,12 +554,12 @@ workflows:
             - "7.0 zts 20151012-zts"
             - "7.1 zts 20160303-zts"
             - "7.2 zts 20170718-zts"
-  # build:
-  #   jobs:
-  #     - "Lint files"
-  #     - "Static Analysis"
-  #     - "php-5.4"
-  #     - "php-5.6"
-  #     - "php-7.0"
-  #     - "php-7.1"
-  #     - "php-7.2"
+  build:
+    jobs:
+      - "Lint files"
+      - "Static Analysis"
+      - "php-5.4"
+      - "php-5.6"
+      - "php-7.0"
+      - "php-7.1"
+      - "php-7.2"
