@@ -122,6 +122,7 @@ services:
       APACHE_RUN_USER: www-data
       APACHE_RUN_GROUP: www-data
       APACHE_LOG_DIR: /var/log/apache2
+      DD_TRACE_DEBUG: 'true'
     volumes:
       - ./tests/Frameworks:/var/www
       - ./tests/dockerfiles/symfony_34_virtualhost.conf:/etc/apache2/sites-available/000-default.conf
