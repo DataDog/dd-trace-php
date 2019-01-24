@@ -41,6 +41,24 @@ class EnvVariableRegistry implements Registry
     /**
      * {@inheritdoc}
      */
+    public function floatValue($key, $default)
+    {
+        if (!isset($this->registry[$key])) {
+            $value = getenv($this->convertKeyToEnvVariableName($key));
+            $value = trim(strtolower($value));
+            if (is_numeric($value)) {
+                $this->registry[$key] = (float)$value;
+            } else {
+                $this->registry[$key] = (float)$default;
+            }
+        }
+
+        return $this->registry[$key];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function inArray($key, $name)
     {
         if (!isset($this->registry[$key])) {

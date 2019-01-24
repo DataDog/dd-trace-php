@@ -53,6 +53,26 @@ final class EnvVariableRegistryTest extends BaseTestCase
         $this->assertFalse($registry->boolValue('some.test.parameter', true));
     }
 
+    public function testFloatValueProvided()
+    {
+        $registry = new EnvVariableRegistry();
+        putenv('DD_SOME_TEST_PARAMETER=0.7   ');
+        $this->assertSame(0.7, $registry->floatValue('some.test.parameter', 1));
+    }
+
+    public function testFloatValueNot()
+    {
+        $registry = new EnvVariableRegistry();
+        $this->assertSame(1.0, $registry->floatValue('some.test.parameter', 1));
+    }
+
+    public function testFloatValueAlwaysConvertedToFloat()
+    {
+        $registry = new EnvVariableRegistry();
+        putenv('DD_SOME_TEST_PARAMETER=1   ');
+        $this->assertEquals(1.0, $registry->floatValue('some.test.parameter', 1));
+    }
+
     public function testInArrayNotSet()
     {
         $registry = new EnvVariableRegistry();

@@ -16,6 +16,14 @@ interface Registry
      */
     public function boolValue($key, $default);
 
+    /**
+     * Extract a float configuration value, providing a default if the value has not been configured.
+     *
+     * @param string $key
+     * @param float $default
+     * @return float
+     */
+    public function floatValue($key, $default);
 
     /**
      * Returns whether or not a given case-insensitive name is contained in a configuration property.

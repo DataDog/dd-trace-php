@@ -55,6 +55,16 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Returns the sampling rate provided by the user. Default: 1.0 (keep all).
+     *
+     * @return float
+     */
+    public function getSamplingRate()
+    {
+        return $this->floatValue('sampling.rate', 1.0);
+    }
+
+    /**
      * Whether or not a specific integration is enabled.
      *
      * @param string $name

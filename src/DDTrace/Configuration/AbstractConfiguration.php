@@ -49,6 +49,16 @@ abstract class AbstractConfiguration implements Registry
     /**
      * {@inheritdoc}
      *
+     * Returns a floating point value from the registry.
+     */
+    public function floatValue($key, $default)
+    {
+        return $this->registry->floatValue($key, $default);
+    }
+
+    /**
+     * {@inheritdoc}
+     *
      * Allows users to access configuration properties by name instead of calling explicit methods.
      */
     public function inArray($key, $name)
