@@ -110,3 +110,18 @@ services:
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
     command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/master/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
+
+  apache_56_server:
+    build:
+      context: .
+      dockerfile: tests/dockerfiles/Dockerfile_php56_apache
+    ports:
+      - 4134:80
+    environment:
+      APACHE_RUN_DIR: /var/run/apache2
+      APACHE_RUN_USER: www-data
+      APACHE_RUN_GROUP: www-data
+      APACHE_LOG_DIR: /var/log/apache2
+    volumes:
+      - ./tests/Frameworks:/var/www
+      - ./tests/dockerfiles/symfony_34_virtualhost.conf:/etc/apache2/sites-available/000-default.conf
