@@ -54,7 +54,7 @@ class DebugLogger implements LoggerInterface
      */
     public function has($level, $message)
     {
-        return count(array_filter($this->records, function($record) use ($level, $message) {
+        return count(array_filter($this->records, function ($record) use ($level, $message) {
             return $record[0] === $level && $record[1] === $message;
         })) > 0;
     }
