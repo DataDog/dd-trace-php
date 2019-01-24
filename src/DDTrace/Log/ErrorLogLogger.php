@@ -31,7 +31,7 @@ class ErrorLogLogger implements LoggerInterface
      *
      * @return void
      */
-    public function warning($message, array $context = array())
+    public function warning($message, array $context = [])
     {
         // As a first draft, we do not implement logging levels. This logger is simply enabled when property
         // trace.debug = true and all messages are shown.
@@ -46,7 +46,7 @@ class ErrorLogLogger implements LoggerInterface
      *
      * @return void
      */
-    public function error($message, array $context = array())
+    public function error($message, array $context = [])
     {
         // As a first draft, we do not implement logging levels. This logger is simply enabled when property
         // trace.debug = true and all messages are shown.

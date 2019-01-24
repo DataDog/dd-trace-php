@@ -25,7 +25,7 @@ final class NullLogger implements LoggerInterface
      *
      * @return void
      */
-    public function warning($message, array $context = array())
+    public function warning($message, array $context = [])
     {
     }
 

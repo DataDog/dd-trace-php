@@ -15,7 +15,7 @@ class DebugLogger implements LoggerInterface
      * @param string $message
      * @param array $context
      */
-    public function debug($message, array $context = array())
+    public function debug($message, array $context = [])
     {
         $this->records[] = [
             LoggerInterface::DEBUG,
