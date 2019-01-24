@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [UNRELEASED]
+### Added
+- Configurable Sampler #260
 
 ## [0.11.0]
 
