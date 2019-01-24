@@ -4,11 +4,11 @@ namespace DDTrace\Tests\Unit\Transport;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Log\NullLogger;
+use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tests\Unit\CleanEnvTrait;
 use DDTrace\Transport\Http;
-use PHPUnit\Framework;
 
-final class HttpTest extends Framework\TestCase
+final class HttpTest extends BaseTestCase
 {
     use CleanEnvTrait;
 

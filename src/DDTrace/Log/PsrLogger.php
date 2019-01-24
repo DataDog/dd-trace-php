@@ -5,7 +5,7 @@ namespace DDTrace\Log;
 /**
  * An implementation of the DDTrace\LoggerInterface that uses Psr\Log under the hood.
  */
-class PsrLogger implements LoggerInterface
+final class PsrLogger implements LoggerInterface
 {
     /**
      * @var \Psr\Log\LoggerInterface
@@ -34,5 +34,31 @@ class PsrLogger implements LoggerInterface
     public function debug($message, array $context = array())
     {
         $this->psrLogger->debug($message, $context);
+    }
+
+    /**
+     * Logs a warning at the debug level.
+     *
+     * @param string $message
+     * @param array $context
+     *
+     * @return void
+     */
+    public function warning($message, array $context = array())
+    {
+        $this->psrLogger->warning($message, $context);
+    }
+
+    /**
+     * Logs a error at the debug level.
+     *
+     * @param string $message
+     * @param array $context
+     *
+     * @return void
+     */
+    public function error($message, array $context = array())
+    {
+        $this->psrLogger->error($message, $context);
     }
 }

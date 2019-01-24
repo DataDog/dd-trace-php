@@ -15,12 +15,15 @@ use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
+use DDTrace\Log\LoggingTrait;
 
 /**
  * Loader for all integrations currently enabled.
  */
 class IntegrationsLoader
 {
+    use LoggingTrait;
+
     /**
      * @var IntegrationsLoader
      */
@@ -94,8 +97,11 @@ class IntegrationsLoader
             return;
         }
 
+        self::logDebug('Attempting integrations load');
+
         foreach ($this->integrations as $name => $class) {
             if (!$globalConfig->isIntegrationEnabled($name)) {
+                self::logDebug('Integration {name} is disabled', ['name' => $name]);
                 continue;
             }
 
@@ -108,6 +114,33 @@ class IntegrationsLoader
             }
 
             $this->loadings[$name] = call_user_func([$class, 'load']);
+            $this->logResult($name, $this->loadings[$name]);
+        }
+    }
+
+    /**
+     * Logs a proper message to report the status of an integration loading attempt.
+     *
+     * @param string $name
+     * @param int $result
+     */
+    private function logResult($name, $result)
+    {
+        if ($result === Integration::LOADED) {
+            self::logDebug('Loaded integration {name}', ['name' => $name]);
+        } elseif ($result === Integration::NOT_AVAILABLE) {
+            self::logDebug('Integration {name} not available. New attempts WILL NOT be performed.', [
+                'name' => $name,
+            ]);
+        } elseif ($result === Integration::NOT_LOADED) {
+            self::logDebug('Integration {name} not loaded. New attempts might be performed.', [
+                'name' => $name,
+            ]);
+        } else {
+            self::logError('Invalid value returning by integration loader for {name}: {value}', [
+                'name' => $name,
+                'value' => $result,
+            ]);
         }
     }
 

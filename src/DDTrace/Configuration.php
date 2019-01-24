@@ -20,6 +20,16 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Whether or not debug mode is enabled.
+     *
+     * @return bool
+     */
+    public function isDebugModeEnabled()
+    {
+        return $this->boolValue('trace.debug', false);
+    }
+
+    /**
      * Whether or not distributed tracing is enabled globally.
      *
      * @return bool

@@ -215,7 +215,7 @@ class PDOIntegration
             return $result;
         });
 
-        Integration::LOADED;
+        return Integration::LOADED;
     }
 
     /**
