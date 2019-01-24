@@ -5,15 +5,39 @@ namespace DDTrace\Log;
 /**
  * An implementation of the DDTrace\LoggerInterface that logs nothing.
  */
-class NullLogger implements LoggerInterface
+final class NullLogger implements LoggerInterface
 {
     /**
-     * Does not emit any debug message.
+     * Logs a debug at the debug level.
      *
      * @param string $message
      * @param array $context
      */
     public function debug($message, array $context = array())
+    {
+    }
+
+    /**
+     * Logs a warning at the debug level.
+     *
+     * @param string $message
+     * @param array $context
+     *
+     * @return void
+     */
+    public function warning($message, array $context = array())
+    {
+    }
+
+    /**
+     * Logs a error at the debug level.
+     *
+     * @param string $message
+     * @param array $context
+     *
+     * @return void
+     */
+    public function error($message, array $context = array())
     {
     }
 }

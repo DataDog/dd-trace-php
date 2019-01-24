@@ -7,12 +7,15 @@ use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
 use DDTrace\Log\Logger;
 use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\LoggingTrait;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Transport;
 use DDTrace\GlobalTracer;
 
 final class Http implements Transport
 {
+    use LoggingTrait;
+
     // Env variables to configure trace agent. They will be moved to a configuration class once we implement it.
     const AGENT_HOST_ENV = 'DD_AGENT_HOST';
     const TRACE_AGENT_PORT_ENV = 'DD_TRACE_AGENT_PORT';
@@ -76,6 +79,7 @@ final class Http implements Transport
     public function send(array $traces)
     {
         $tracesPayload = $this->encoder->encodeTraces($traces);
+        self::logDebug('About to send to the agent {count} traces.', ['count' => count($traces)]);
 
         // We keep the endpoint configuration option for backward compatibility instead of moving to an 'agent base url'
         // concept, but this should be probably revisited in the future.
@@ -115,11 +119,10 @@ final class Http implements Transport
         curl_setopt($handle, CURLOPT_HTTPHEADER, $curlHeaders);
 
         if (curl_exec($handle) === false) {
-            $this->logger->debug(sprintf(
-                'Reporting of spans failed: %s, error code %s',
-                curl_error($handle),
-                curl_errno($handle)
-            ));
+            self::logError('Reporting of spans failed: {num} / {error}', [
+                'error' => curl_error($handle),
+                'num' => curl_errno($handle),
+            ]);
 
             return;
         }
@@ -128,16 +131,16 @@ final class Http implements Transport
         curl_close($handle);
 
         if ($statusCode === 415) {
-            $this->logger->debug('Reporting of spans failed, upgrade your client library.');
+            self::logError('Reporting of spans failed, upgrade your client library');
             return;
         }
 
         if ($statusCode !== 200) {
-            $this->logger->debug(
-                sprintf('Reporting of spans failed, status code %d', $statusCode)
-            );
+            self::logError('Reporting of spans failed, status code {code}', ['code' => $statusCode]);
             return;
         }
+
+        self::logDebug('Traces successfully sent to the agent');
     }
 
     /**

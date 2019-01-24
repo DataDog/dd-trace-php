@@ -3,7 +3,9 @@
 namespace DDTrace\Tests\Integration\Transport;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Log\Logger;
 use DDTrace\Tests\Common\AgentReplayerTrait;
+use DDTrace\Tests\DebugLogger;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\Version;
@@ -27,14 +29,10 @@ final class HttpTest extends Framework\TestCase
 
     public function testSpanReportingFailsOnUnavailableAgent()
     {
-        $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
-        $logger
-            ->debug(
-                'Reporting of spans failed: Failed to connect to 0.0.0.0 port 8127: Connection refused, error code 7'
-            )
-            ->shouldBeCalled();
+        $logger = new DebugLogger();
+        Logger::set($logger);
 
-        $httpTransport = new Http(new Json(), $logger->reveal(), [
+        $httpTransport = new Http(new Json(), null, [
             'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
         ]);
         $tracer = new Tracer($httpTransport);
@@ -53,6 +51,10 @@ final class HttpTest extends Framework\TestCase
         ];
 
         $httpTransport->send($traces);
+        $this->assertTrue($logger->has(
+            'error',
+            'Reporting of spans failed: 7 / Failed to connect to 0.0.0.0 port 8127: Connection refused'
+        ));
     }
 
     public function testSpanReportingSuccess()
