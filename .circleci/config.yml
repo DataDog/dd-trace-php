@@ -522,7 +522,18 @@ jobs:
           command: make packages
       - store_artifacts: { path: 'build/packages', destination: / }
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
-      - setup_remote_docker
+      - persist_to_workspace:
+          root: '.'
+          paths: ['./build/packages']
+
+  "package verification":
+    working_directory: ~/datadog
+    machine:
+      image: circleci/classic:latest
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/datadog
       - run:
           name: Test installing packages on target systems
           command: make -f dockerfiles/verify_packages/Makefile
@@ -557,6 +568,9 @@ workflows:
             - "7.0 zts 20151012-zts"
             - "7.1 zts 20160303-zts"
             - "7.2 zts 20170718-zts"
+      - "package verification":
+          requires:
+            - "package extension"
   build:
     jobs:
       - "Lint files"
