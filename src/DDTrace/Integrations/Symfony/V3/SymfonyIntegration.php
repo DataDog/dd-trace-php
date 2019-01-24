@@ -10,7 +10,7 @@ class SymfonyIntegration
     {
         // If this line is not here then the Symfony\Component\HttpKernel\Kernel::boot
         // is not traced in php 5.6
-        dd_trace('AppKernel', 'handle', function () {
+        dd_trace('Symfony\Component\HttpKernel\Kernel', 'handle', function () {
             return call_user_func_array([$this, 'handle'], func_get_args());
         });
 
