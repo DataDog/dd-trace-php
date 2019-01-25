@@ -167,7 +167,9 @@
         ],
 
         "test-web-54": [
-            "@zend-framework-1-test"
+            "@zend-framework-1-test",
+            "@custom-framework-autoloaded-update",
+            "@custom-framework-autoloaded-test"
         ],
         "test-web-56": [
             "@laravel-42-update",
@@ -176,7 +178,9 @@
             "@symfony-33-test",
             "@symfony-34-update",
             "@symfony-34-test",
-            "@zend-framework-1-test"
+            "@zend-framework-1-test",
+            "@custom-framework-autoloaded-update",
+            "@custom-framework-autoloaded-test"
         ],
         "test-web-70": [
             "@laravel-42-update",
@@ -185,7 +189,9 @@
             "@symfony-33-test",
             "@symfony-34-update",
             "@symfony-34-test",
-            "@zend-framework-1-test"
+            "@zend-framework-1-test",
+            "@custom-framework-autoloaded-update",
+            "@custom-framework-autoloaded-test"
         ],
         "test-web-71": [
             "@laravel-42-update",
@@ -196,7 +202,9 @@
             "@symfony-33-test",
             "@symfony-34-update",
             "@symfony-34-test",
-            "@zend-framework-1-test"
+            "@zend-framework-1-test",
+            "@custom-framework-autoloaded-update",
+            "@custom-framework-autoloaded-test"
         ],
         "test-web-72": [
             "@laravel-42-update",
@@ -207,7 +215,9 @@
             "@symfony-33-test",
             "@symfony-34-update",
             "@symfony-34-test",
-            "@zend-framework-1-test"
+            "@zend-framework-1-test",
+            "@custom-framework-autoloaded-update",
+            "@custom-framework-autoloaded-test"
         ],
 
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
