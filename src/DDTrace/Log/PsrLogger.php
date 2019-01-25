@@ -44,7 +44,7 @@ final class PsrLogger implements LoggerInterface
      *
      * @return void
      */
-    public function warning($message, array $context = array())
+    public function warning($message, array $context = [])
     {
         $this->psrLogger->warning($message, $context);
     }

@@ -15,7 +15,7 @@ class DebugLogger implements LoggerInterface
      * @param string $message
      * @param array $context
      */
-    public function debug($message, array $context = array())
+    public function debug($message, array $context = [])
     {
         $this->records[] = [
             LoggerInterface::DEBUG,
@@ -57,6 +57,16 @@ class DebugLogger implements LoggerInterface
         return count(array_filter($this->records, function ($record) use ($level, $message) {
             return $record[0] === $level && $record[1] === $message;
         })) > 0;
+    }
+
+    /**
+     * @param string $level
+     * @param string $message
+     * @return bool
+     */
+    public function hasOnly($level, $message)
+    {
+        return count($this->all()) === 1 && $this->has($level, $message);
     }
 
     /**
