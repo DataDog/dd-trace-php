@@ -12,7 +12,9 @@ All notable changes to this project will be documented in this file - [read more
 - Composer PHP compatibility declaration #247
 - Add missing files to PECL releases #252
 - Trigger of autoloader un-tracing did not respect object #256
+- Incorrect tar command in one-liner example from getting_started.md #258 - thanks @danielkay
 - Debug mode for logging #261
+- Auto-instrumentation in Symfony 3.4 and PHP 5.6 #262
 
 ## [0.10.0]
 
