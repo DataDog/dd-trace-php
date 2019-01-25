@@ -60,6 +60,16 @@ class DebugLogger implements LoggerInterface
     }
 
     /**
+     * @param string $level
+     * @param string $message
+     * @return bool
+     */
+    public function hasOnly($level, $message)
+    {
+        return count($this->all()) === 1 && $this->has($level, $message);
+    }
+
+    /**
      * @return array
      */
     public function all()

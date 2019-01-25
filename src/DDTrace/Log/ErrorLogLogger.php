@@ -62,6 +62,6 @@ class ErrorLogLogger implements LoggerInterface
     {
         $interpolatedMessage = $this->interpolate($message, $context);
         $date = date(\DateTime::ATOM);
-        error_log("[$date] [$level] - $interpolatedMessage");
+        error_log("[$date] [ddtrace] [$level] - $interpolatedMessage");
     }
 }

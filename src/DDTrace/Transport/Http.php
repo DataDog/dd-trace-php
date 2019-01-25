@@ -5,8 +5,6 @@ namespace DDTrace\Transport;
 use DDTrace\Configuration;
 use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
-use DDTrace\Log\Logger;
-use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Transport;
@@ -41,17 +39,11 @@ final class Http implements Transport
      */
     private $config;
 
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    public function __construct(Encoder $encoder, LoggerInterface $logger = null, array $config = [])
+    public function __construct(Encoder $encoder, array $config = [])
     {
         $this->configure($config);
 
         $this->encoder = $encoder;
-        $this->logger = $logger ?: Logger::get();
 
         $this->setHeader('Datadog-Meta-Lang', 'php');
         $this->setHeader('Datadog-Meta-Lang-Version', \PHP_VERSION);
@@ -79,7 +71,7 @@ final class Http implements Transport
     public function send(array $traces)
     {
         $tracesPayload = $this->encoder->encodeTraces($traces);
-        self::logDebug('About to send to the agent {count} traces.', ['count' => count($traces)]);
+        self::logDebug('About to send to the agent {count} traces', ['count' => count($traces)]);
 
         // We keep the endpoint configuration option for backward compatibility instead of moving to an 'agent base url'
         // concept, but this should be probably revisited in the future.
