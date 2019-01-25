@@ -230,7 +230,10 @@
         ],
         "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3_4",
 
-        "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1"
+        "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1",
+
+        "custom-framework-autoloaded-update": "composer --working-dir=tests/Frameworks/Custom/Version_Autoloaded update",
+        "custom-framework-autoloaded-test": "@composer test -- tests/Integrations/Custom/Autoloaded/CommonScenariosTest.php"
     },
     "extra": {
         "scenarios": {
