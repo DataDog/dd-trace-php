@@ -22,7 +22,8 @@ function dd_tracing_enabled()
  * @param string[] $sentinelClasses
  * @return bool
  */
-function any_class_exists(array $sentinelClasses) {
+function any_class_exists(array $sentinelClasses)
+{
     foreach ($sentinelClasses as $sentinelClass) {
         if (class_exists($sentinelClass)) {
             return true;
