@@ -111,6 +111,16 @@ services:
       DD_REQUEST_DUMPER_FILE: dump.json
     command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/master/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
 
+  agent:
+    image: datadog/agent:latest
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /proc/:/host/proc/:ro
+    - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+    - DD_API_KEY=${DATADOG_API_KEY}
+    - DD_APM_ENABLED=true
+
   apache_56_server:
     build:
       context: .
@@ -123,6 +133,10 @@ services:
       APACHE_RUN_GROUP: www-data
       APACHE_LOG_DIR: /var/log/apache2
       DD_TRACE_DEBUG: 'true'
+      DD_AGENT_HOST: agent
+    depends_on:
+      - agent
     volumes:
       - ./tests/Frameworks:/var/www
       - ./tests/dockerfiles/symfony_34_virtualhost.conf:/etc/apache2/sites-available/000-default.conf
+      - ./:/var/dd-trace-php

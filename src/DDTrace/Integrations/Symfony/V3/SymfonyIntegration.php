@@ -8,6 +8,13 @@ class SymfonyIntegration
 {
     public static function load()
     {
+        // This is necessary because Symfony\Component\HttpKernel\Kernel::boot it is not properly traced if we do not
+        // wrap the context when it is called, which if Symfony\Component\HttpKernel\Kernel::handle.
+        dd_trace('Symfony\Component\HttpKernel\Kernel', 'handle', function () {
+            $args =  func_get_args();
+            return call_user_func_array([$this, 'handle'], $args);
+        });
+
         dd_trace('Symfony\Component\HttpKernel\Kernel', 'boot', function () {
             $result = call_user_func_array([$this, 'boot'], func_get_args());
 

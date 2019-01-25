@@ -15,3 +15,19 @@ function dd_tracing_enabled()
         return true;
     }
 }
+
+/**
+ * Checks if any of the provided classes exists.
+ *
+ * @param string[] $sentinelClasses
+ * @return bool
+ */
+function any_class_exists(array $sentinelClasses) {
+    foreach ($sentinelClasses as $sentinelClass) {
+        if (class_exists($sentinelClass)) {
+            return true;
+        }
+    }
+
+    return false;
+}

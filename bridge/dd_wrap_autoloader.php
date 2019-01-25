@@ -12,8 +12,17 @@ if (!dd_tracing_enabled()) {
 
 $dd_autoload_called = false;
 
-$untraceTriggers = [
+// Classes of autoloaders that triggers a check to un-register our hook into 'spl_autoload_register' function.
+$untraceTriggerClasses = [
     'Composer\Autoload\ClassLoader',
+];
+
+// When a check to un-register our hook into 'spl_autoload_register' function is triggered, if any of the classes
+// listed here exists, then we un-register our spl_autoload_register wrapper.
+// This check is required because some frameworks (e.g. Zend 1) register autoloaders which are relevant to our
+// instrumentation after the one provided by composer.
+$sentinelClasses = [
+    'Symfony\Component\HttpKernel\Kernel',
 ];
 
 // Instead of tracing autoloaders statically, we should trace them dynamically. This can be done at the moment because
@@ -21,7 +30,7 @@ $untraceTriggers = [
 // `Symfony\Component\Config\Resource\ClassExistenceResource::throwOnRequiredClass` loaders are private.
 // As soon as this is fixed we can trace `spl_autoload_register` function and use it as a hook instead of
 // statically hooking into a limited number of class loaders.
-dd_trace('spl_autoload_register', function () use (&$dd_autoload_called, $untraceTriggers) {
+dd_trace('spl_autoload_register', function () use (&$dd_autoload_called, $untraceTriggerClasses, $sentinelClasses) {
     $args = func_get_args();
     $originalAutoloaderRegistered = call_user_func_array('spl_autoload_register', $args);
 
@@ -41,7 +50,7 @@ dd_trace('spl_autoload_register', function () use (&$dd_autoload_called, $untrac
     // In some cases (e.g. Symfony) this 'spl_autoload_register' function is called within a private scope and at the
     // moment we are working to have this use case properly handled by the extension. In the meantime we provide
     // this workaround.
-    if (in_array($loaderClass, $untraceTriggers)) {
+    if (in_array($loaderClass, $untraceTriggerClasses) && any_class_exists($sentinelClasses)) {
         dd_untrace('spl_autoload_register');
     }
 
