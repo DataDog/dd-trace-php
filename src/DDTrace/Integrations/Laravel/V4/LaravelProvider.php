@@ -2,14 +2,13 @@
 
 namespace DDTrace\Integrations\Laravel\V4;
 
+use DDTrace\Bootstrap;
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Span;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tag;
 use DDTrace\Time;
-use DDTrace\Tracer;
-use DDTrace\Transport\Http;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use Illuminate\Support\Facades\Route;
@@ -45,30 +44,21 @@ class LaravelProvider extends ServiceProvider
             return;
         }
 
-        $appName = $this->getAppName();
+        $appName = self::getAppName();
+        Bootstrap::tracerOnce();
         $tracer = GlobalTracer::get();
         $this->app->instance('DDTrace\Tracer', $tracer);
         $self = $this;
 
         dd_trace('\Illuminate\Foundation\Application', 'handle', function () use ($appName, $tracer, $self) {
-            $args = func_get_args();
-            $request = $args[0];
-            $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
-                $tracer,
-                [
-                    'start_time' => Time::now(),
-                ],
-                $request->header()
-            );
-
             // Create a span that starts from when Laravel first boots (public/index.php)
-            $self->rootScope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
+            $self->rootScope = $tracer->getRootScope();
 
             $requestSpan = $self->rootScope->getSpan();
+            $requestSpan->overwriteOperationName('laravel.request');
             $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
-            $requestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
 
-            $response = call_user_func_array([$this, 'handle'], $args);
+            $response = call_user_func_array([$this, 'handle'], func_get_args());
             $requestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
 
             return $response;
