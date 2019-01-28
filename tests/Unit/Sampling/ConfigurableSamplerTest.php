@@ -11,58 +11,47 @@ use DDTrace\Tests\Unit\BaseTestCase;
 
 final class ConfigurableSamplerTest extends BaseTestCase
 {
-    const REPETITIONS = 1;
-    const DEVIATION = 1;
+    const REPETITIONS = 5000;
 
-    public function testSpansAreKept()
+    /**
+     * @dataProvider samplingRatesScenarios
+     * @param float $samplingRate
+     * @param float $lower
+     * @param float $upper
+     */
+    public function testSpansAreKept($samplingRate, $lower, $upper)
     {
         Configuration::replace(\Mockery::mock('DDtrace\Configuration', [
-            'getSamplingRate' => 0.5,
+            'getSamplingRate' => $samplingRate,
         ]));
         $sampler = new ConfigurableSampler();
 
         $output = 0;
 
         for ($i = 0; $i < self::REPETITIONS; $i++) {
-            $context = new SpanContext('', 13796632237066639360);
+            $context = new SpanContext('', ID::generate());
             $output += $sampler->getPrioritySampling(new Span('', $context, '', ''));
         }
 
-        error_log("Output: " . print_r($output, 1));
+        $ratio = $output / self::REPETITIONS;
+        $this->assertGreaterThanOrEqual($lower, $ratio);
+        $this->assertLessThanOrEqual($upper, $ratio);
     }
 
-    private function multiply($one, $two)
+    public function samplingRatesScenarios()
     {
+        return [
+            // Edges
+            [0.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0],
+            [100, 1.0, 1.0],
+            [-20, 0.0, 0.0],
 
+            // Common cases
+            [0.5, 0.47, 0.53],
+            [0.8, 0.77, 0.83],
+            [0.2, 0.17, 0.23],
+        ];
     }
-//
-//    public function testSpansAreKeptRejected()
-//    {
-//        Configuration::replace(\Mockery::mock('DDtrace\Configuration', [
-//            'getSamplingRate' => 0.5,
-//        ]));
-//        $sampler = new ConfigurableSampler();
-//        $context = new SpanContext('', (string)(int)(PHP_INT_MAX * 0.51));
-//        $this->assertSame(0, $sampler->getPrioritySampling(new Span('', $context, '', '')));
-//    }
-//
-//    public function testCanBeAlwaysOn()
-//    {
-//        Configuration::replace(\Mockery::mock('DDtrace\Configuration', [
-//            'getSamplingRate' => 1.0,
-//        ]));
-//        $sampler = new ConfigurableSampler();
-//        $context = new SpanContext('', '1');
-//        $this->assertSame(1, $sampler->getPrioritySampling(new Span('', $context, '', '')));
-//    }
-//
-//    public function testCanBeAlwaysOff()
-//    {
-//        Configuration::replace(\Mockery::mock('DDtrace\Configuration', [
-//            'getSamplingRate' => 0.0,
-//        ]));
-//        $sampler = new ConfigurableSampler();
-//        $context = new SpanContext('', (string) PHP_INT_MAX);
-//        $this->assertSame(0, $sampler->getPrioritySampling(new Span('', $context, '', '')));
-//    }
+
 }

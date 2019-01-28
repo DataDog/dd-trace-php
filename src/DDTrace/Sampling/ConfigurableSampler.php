@@ -18,6 +18,12 @@ class ConfigurableSampler implements Sampler
     {
         $rate = Configuration::get()->getSamplingRate();
 
+        if ($rate === 1.0) {
+            return PrioritySampling::AUTO_KEEP;
+        } elseif ($rate === 0.0) {
+            return PrioritySampling::AUTO_REJECT;
+        }
+
         // NOTE: we do not apply the knuth hashing algorithm here and this is fine for the sole purpose of setting the
         // sampling priority. This would not work though if we were using this value for client sampling, as the value
         // and statistical distribution should exactly match the one used by the agent.

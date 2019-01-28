@@ -51,9 +51,9 @@ abstract class AbstractConfiguration implements Registry
      *
      * Returns a floating point value from the registry.
      */
-    public function floatValue($key, $default)
+    public function floatValue($key, $default, $min = null, $max = null)
     {
-        return $this->registry->floatValue($key, $default);
+        return $this->registry->floatValue($key, $default, $min, $max);
     }
 
     /**

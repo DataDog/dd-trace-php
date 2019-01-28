@@ -21,9 +21,11 @@ interface Registry
      *
      * @param string $key
      * @param float $default
+     * @param float|null $min
+     * @param float|null $max
      * @return float
      */
-    public function floatValue($key, $default);
+    public function floatValue($key, $default, $min = null, $max = null);
 
     /**
      * Returns whether or not a given case-insensitive name is contained in a configuration property.

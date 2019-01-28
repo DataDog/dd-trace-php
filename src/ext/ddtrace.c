@@ -257,26 +257,8 @@ static PHP_FUNCTION(dd_trace_reset) {
         RETURN_BOOL(0);
     }
 
-
     ddtrace_dispatch_reset();
     RETURN_BOOL(1);
-}
-
-static PHP_FUNCTION(dd_knuth) {
-    uint64_t operand, knuth_factor, max_value;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lll", &operand, &knuth_factor, &max_value) != SUCCESS) {
-        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                "unexpected parameter. the function name must be provided");
-    }
-
-    DD_PRINTF("Operand %lu", operand);
-    DD_PRINTF("knuth_factor %lu", knuth_factor);
-    DD_PRINTF("max_value %lu", max_value);
-    DD_PRINTF("multiply %lu", (operand * knuth_factor));
-    DD_PRINTF("left %lu", (operand * knuth_factor) % max_value);
-    DD_PRINTF("tricked %f", ((float)operand * (float)knuth_factor));
-    DD_PRINTF("tricked modulus %f", fmod((float)operand * (float)knuth_factor, (float)max_value));
-    RETURN_LONG((operand * knuth_factor) % max_value);
 }
 
 // method used to be able to easily breakpoint the execution at specific PHP line in GDB
@@ -292,7 +274,7 @@ static PHP_FUNCTION(dd_trace_noop) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(
-    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) PHP_FE(dd_knuth, NULL) ZEND_FE_END};
+    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),

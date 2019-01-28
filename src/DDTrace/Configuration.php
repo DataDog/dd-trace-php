@@ -61,7 +61,7 @@ class Configuration extends AbstractConfiguration
      */
     public function getSamplingRate()
     {
-        return $this->floatValue('sampling.rate', 1.0);
+        return $this->floatValue('sampling.rate', 1.0, 0.0, 1.0);
     }
 
     /**

@@ -73,6 +73,20 @@ final class EnvVariableRegistryTest extends BaseTestCase
         $this->assertEquals(1.0, $registry->floatValue('some.test.parameter', 1));
     }
 
+    public function testFloatValueOverMax()
+    {
+        $registry = new EnvVariableRegistry();
+        putenv('DD_SOME_TEST_PARAMETER=10000   ');
+        $this->assertEquals(1.0, $registry->floatValue('some.test.parameter', 1, 0, 1));
+    }
+
+    public function testFloatValueBelowMin()
+    {
+        $registry = new EnvVariableRegistry();
+        putenv('DD_SOME_TEST_PARAMETER=0   ');
+        $this->assertEquals(1.0, $registry->floatValue('some.test.parameter', 1, 1, 2));
+    }
+
     public function testInArrayNotSet()
     {
         $registry = new EnvVariableRegistry();

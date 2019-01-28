@@ -41,16 +41,26 @@ class EnvVariableRegistry implements Registry
     /**
      * {@inheritdoc}
      */
-    public function floatValue($key, $default)
+    public function floatValue($key, $default, $min = null, $max = null)
     {
         if (!isset($this->registry[$key])) {
             $value = getenv($this->convertKeyToEnvVariableName($key));
             $value = trim(strtolower($value));
             if (is_numeric($value)) {
-                $this->registry[$key] = (float)$value;
+                $floatValue = (float)$value;
             } else {
-                $this->registry[$key] = (float)$default;
+                $floatValue = (float)$default;
             }
+
+            if (null !== $min && $floatValue < $min) {
+                $floatValue = $min;
+            }
+
+            if (null !== $max && $floatValue > $max) {
+                $floatValue = $max;
+            }
+
+            $this->registry[$key] = $floatValue;
         }
 
         return $this->registry[$key];
