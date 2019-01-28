@@ -181,6 +181,8 @@
         "test-web-70": [
             "@laravel-42-update",
             "@laravel-42-test",
+            "@symfony-33-update",
+            "@symfony-33-test",
             "@symfony-34-update",
             "@symfony-34-test",
             "@zend-framework-1-test"
@@ -190,6 +192,8 @@
             "@laravel-42-test",
             "@laravel-57-update",
             "@laravel-57-test",
+            "@symfony-33-update",
+            "@symfony-33-test",
             "@symfony-34-update",
             "@symfony-34-test",
             "@zend-framework-1-test"
@@ -199,6 +203,8 @@
             "@laravel-42-test",
             "@laravel-57-update",
             "@laravel-57-test",
+            "@symfony-33-update",
+            "@symfony-33-test",
             "@symfony-34-update",
             "@symfony-34-test",
             "@zend-framework-1-test"

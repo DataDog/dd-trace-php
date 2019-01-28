@@ -14,7 +14,6 @@ class CommonScenariosController extends Controller
      */
     public function simpleAction(Request $request)
     {
-        error_log("Serving simple....");
         // replace this example code with whatever you need
         return new Response(
             'Hi!'

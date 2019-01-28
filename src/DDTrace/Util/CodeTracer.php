@@ -17,7 +17,7 @@ final class CodeTracer
     public static function getInstance()
     {
         if (self::$instance === null) {
-            self::$instance = new CodeTracer();
+            self::$instance = new self();
         }
 
         return self::$instance;
