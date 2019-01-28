@@ -24,11 +24,16 @@ final class ConfigurableSamplerTest extends BaseTestCase
         $output = 0;
 
         for ($i = 0; $i < self::REPETITIONS; $i++) {
-            $context = new SpanContext('', ID::generate());
+            $context = new SpanContext('', 13796632237066639360);
             $output += $sampler->getPrioritySampling(new Span('', $context, '', ''));
         }
 
         error_log("Output: " . print_r($output, 1));
+    }
+
+    private function multiply($one, $two)
+    {
+
     }
 //
 //    public function testSpansAreKeptRejected()

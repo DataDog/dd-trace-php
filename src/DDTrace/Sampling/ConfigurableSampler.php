@@ -19,6 +19,15 @@ class ConfigurableSampler implements Sampler
     {
         echo "\n";
         $rate = 0.5;
+        $spanId = decbin($span->getSpanId());
+        $knut = decbin(self::KNUT_FACTOR);
+        $max = decbin(PHP_INT_MAX);
+
+        error_log("Span id: " . print_r($spanId, 1));
+        error_log("knut: " . print_r($knut, 1));
+        error_log("max: " . print_r($max, 1));
+
+
 //        $this->dump('KNUT   ', self::KNUT_FACTOR);
 //        $this->dump('PHP MAX', decbin(PHP_INT_MAX));
 //        $this->dump('span id', (float)$span->getSpanId());
@@ -42,19 +51,19 @@ class ConfigurableSampler implements Sampler
 //        $this->dump('(float)$span->getSpanId() * self::KNUT_FACTOR', (float)$span->getSpanId() * self::KNUT_FACTOR);
 //        $this->dump('fmod((float)PHP_INT_MAX, (float)$span->getSpanId())', fmod((float)PHP_INT_MAX, (float)$span->getSpanId()));
 //        $this->dump('fmod((float)$span->getSpanId(), (float)PHP_INT_MAX)', fmod((float)$span->getSpanId(), (float)PHP_INT_MAX));
-        $dividend = (float)$span->getSpanId() * self::KNUT_FACTOR;
-        $divisor = (float)PHP_INT_MAX;
-        $division = $dividend / $divisor;
-        $this->dump('PHP_INT_MAX as float', (float)PHP_INT_MAX);
-        $this->dump('$dividend', $dividend);
-        $this->dump('$divisor', $divisor);
-        $this->dump('$division', $division);
-        echo "Is division less than MAX INT? " . ($division <= PHP_INT_MAX) . "\n";
-        $this->dump('$dividend / $divisor', $dividend / $divisor);
-        $this->dump('$dividend / $divisor as int', intval($division));
-        $this->dump('($dividend / $divisor as int) * $divisor', intval($division) * $divisor);
-        $this->dump('fmod($dividend, $divisor)', fmod($dividend, $divisor));
-        $this->dump('trick', floatval($dividend - intval($dividend / $divisor) * $divisor));
+//        $dividend = (float)$span->getSpanId() * self::KNUT_FACTOR;
+//        $divisor = (float)PHP_INT_MAX;
+//        $division = $dividend / $divisor;
+//        $this->dump('PHP_INT_MAX as float', (float)PHP_INT_MAX);
+//        $this->dump('$dividend', $dividend);
+//        $this->dump('$divisor', $divisor);
+//        $this->dump('$division', $division);
+//        echo "Is division less than MAX INT? " . ($division <= PHP_INT_MAX) . "\n";
+//        $this->dump('$dividend / $divisor', $dividend / $divisor);
+//        $this->dump('$dividend / $divisor as int', intval($division));
+//        $this->dump('($dividend / $divisor as int) * $divisor', intval($division) * $divisor);
+//        $this->dump('fmod($dividend, $divisor)', fmod($dividend, $divisor));
+//        $this->dump('trick', floatval($dividend - intval($dividend / $divisor) * $divisor));
 
 //        $rate = Configuration::get()->getSamplingRate();
 //        // $shouldKeep = (int) $span->getSpanId() <= $rate * PHP_INT_MAX;
