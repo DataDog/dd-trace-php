@@ -92,7 +92,6 @@ class LaravelIntegrationLoader
         $requestSpan = $this->rootScope->getSpan();
         $requestSpan->overwriteOperationName('laravel.request');
         $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
-        $requestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
 
         // Trace middleware
         dd_trace('Illuminate\Pipeline\Pipeline', 'then', function () {
