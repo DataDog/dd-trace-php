@@ -16,6 +16,7 @@ invocation.
 - Support for guzzle 6 #254
 - Configurable Sampler #260
 - Support for symfony 3.3 #266
+- Basic tracing for unsupported and custom frameworks #264
 
 ### Fixed
 - Composer PHP compatibility declaration #247
