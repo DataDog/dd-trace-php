@@ -12,7 +12,7 @@ if (!dd_tracing_enabled()) {
     return;
 }
 
-call_user_func(function() {
+call_user_func(function () {
     $dd_autoload_called = false;
 
     // Classes of autoloaders that triggers a check to un-register our hook into 'spl_autoload_register' function.
@@ -28,8 +28,8 @@ call_user_func(function() {
         'Symfony\Component\HttpKernel\Kernel',
     ];
 
-    // Instead of tracing autoloaders statically, we should trace them dynamically. This can be done at the moment because
-    // of https://github.com/DataDog/dd-trace-php/issues/224 and the fact that in some cases, e.g. Symfony's
+    // Instead of tracing autoloaders statically, we should trace them dynamically. This can be done at the moment
+    // because of https://github.com/DataDog/dd-trace-php/issues/224 and the fact that in some cases, e.g. Symfony's
     // `Symfony\Component\Config\Resource\ClassExistenceResource::throwOnRequiredClass` loaders are private.
     // As soon as this is fixed we can trace `spl_autoload_register` function and use it as a hook instead of
     // statically hooking into a limited number of class loaders.
@@ -50,8 +50,8 @@ call_user_func(function() {
 
 
         // Why unregistering spl_autoload_register?
-        // In some cases (e.g. Symfony) this 'spl_autoload_register' function is called within a private scope and at the
-        // moment we are working to have this use case properly handled by the extension. In the meantime we provide
+        // In some cases (e.g. Symfony) this 'spl_autoload_register' function is called within a private scope and at
+        // the moment we are working to have this use case properly handled by the extension. In the meantime we provide
         // this workaround.
         if (in_array($loaderClass, $untraceTriggerClasses)
                 && \DDTrace\Bridge\any_class_exists($sentinelClasses)) {
