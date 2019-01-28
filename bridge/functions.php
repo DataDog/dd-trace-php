@@ -1,5 +1,7 @@
 <?php
 
+namespace DDTrace\Bridge;
+
 function dd_tracing_enabled()
 {
     $value = getenv('DD_TRACE_ENABLED');
