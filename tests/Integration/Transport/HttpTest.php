@@ -3,14 +3,11 @@
 namespace DDTrace\Tests\Integration\Transport;
 
 use DDTrace\Encoders\Json;
-use DDTrace\Log\Logger;
 use DDTrace\Tests\Common\AgentReplayerTrait;
-use DDTrace\Tests\DebugLogger;
 use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\GlobalTracer;
-use Prophecy\Argument;
 
 final class HttpTest extends BaseTestCase
 {

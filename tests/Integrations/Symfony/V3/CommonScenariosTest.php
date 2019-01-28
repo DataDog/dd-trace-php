@@ -13,13 +13,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app.php';
     }
 
-    protected static function getInis()
-    {
-        return [
-            'ddtrace.request_init_hook' => '',
-        ];
-    }
-
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec

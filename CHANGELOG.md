@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [0.11.0]
 
+**WARNING: THIS IS A BREAKING CHANGE RELEASE**
+
+This change should not impact most of the users as starting from `0.10.0` it is not required (and not recommended) to
+manually set the transport. `DDtrace\Transport\Http` no longer accepts a logger as the second argument as it uses
+the globally registered logger. If you are using the `Http` class, just remove the second argument from the constructor
+invocation.
+
 ### Added
 - Support for guzzle 6 #254
 
@@ -12,7 +19,9 @@ All notable changes to this project will be documented in this file - [read more
 - Composer PHP compatibility declaration #247
 - Add missing files to PECL releases #252
 - Trigger of autoloader un-tracing did not respect object #256
+- Incorrect tar command in one-liner example from getting_started.md #258 - thanks @danielkay
 - Debug mode for logging #261
+- Auto-instrumentation in Symfony 3.4 and PHP 5.6 #262
 
 ## [0.10.0]
 

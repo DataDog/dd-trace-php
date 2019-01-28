@@ -5,10 +5,10 @@ namespace DDTrace\Transport;
 use DDTrace\Configuration;
 use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
+use DDTrace\GlobalTracer;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Transport;
-use DDTrace\GlobalTracer;
 
 final class Http implements Transport
 {
