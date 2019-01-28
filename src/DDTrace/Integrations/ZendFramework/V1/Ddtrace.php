@@ -2,16 +2,13 @@
 
 require __DIR__ . '/../../../autoload.php';
 
+use DDTrace\Bootstrap;
 use DDTrace\Configuration;
-use DDTrace\Contracts\Scope;
 use DDTrace\GlobalTracer;
+use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\ZendFramework\V1\TraceRequest;
-use DDTrace\StartSpanOptions;
-use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tag;
-use DDTrace\Time;
 use DDTrace\Tracer;
-use DDTrace\Type;
 
 class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
 {
@@ -30,8 +27,13 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
         $front = Zend_Controller_Front::getInstance();
         $front->registerPlugin(new TraceRequest());
 
-        $this->tracer = GlobalTracer::get();
-        $this->initRootSpan();
+        Bootstrap::tracerOnce();
+        IntegrationsLoader::load();
+
+        $tracer = GlobalTracer::get();
+        $span = $tracer->getRootScope()->getSpan();
+        $span->overwriteOperationName(self::getOperationName());
+        $span->setTag(Tag::SERVICE_NAME, $this->getAppName());
 
         return $this->tracer;
     }
@@ -49,56 +51,6 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
             return false;
         }
         return true;
-    }
-
-    /**
-     * @return void
-     */
-    private function initRootSpan()
-    {
-        $options = ['start_time' => Time::now()];
-        $startSpanOptions = 'cli' === PHP_SAPI
-            ? StartSpanOptions::create($options)
-            : StartSpanOptionsFactory::createForWebRequest(
-                $this->tracer,
-                $options,
-                self::getRequestHeaders()
-            );
-        $this->startRootSpan($startSpanOptions);
-    }
-
-    /**
-     * @param StartSpanOptions $startSpanOptions
-     * @return Scope
-     */
-    private function startRootSpan(StartSpanOptions $startSpanOptions)
-    {
-        $scope = $this->tracer->startRootSpan(
-            self::getOperationName(),
-            $startSpanOptions
-        );
-        $scope->getSpan()->setTag(Tag::SERVICE_NAME, $this->getAppName());
-        $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
-        return $scope;
-    }
-
-    /**
-     * This should be refactored out into a helper of sorts
-     *
-     * @return array
-     */
-    private static function getRequestHeaders()
-    {
-        $headers = [];
-        foreach ($_SERVER as $key => $value) {
-            if (strpos($key, 'HTTP_') !== 0) {
-                continue;
-            }
-            $key = substr($key, 5);
-            $key = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', $key))));
-            $headers[$key] = $value;
-        }
-        return $headers;
     }
 
     /**
