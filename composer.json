@@ -25,7 +25,7 @@
         "ext-json": "*"
     },
     "require-dev": {
-        "g1a/composer-test-scenarios": "dev-master",
+        "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",

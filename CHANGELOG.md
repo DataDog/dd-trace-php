@@ -10,15 +10,9 @@ manually set the transport. `DDtrace\Transport\Http` no longer accepts a logger 
 the globally registered logger. If you are using the `Http` class, just remove the second argument from the constructor
 invocation.
 
-**WARNING: THIS IS A BREAKING CHANGE RELEASE**
-
-This change should not impact most of the users as starting from `0.10.0` it is not required (and not recommended) to
-manually set the transport. `DDtrace\Transport\Http` no longer accepts a logger as the second argument as it uses
-the globally registered logger. If you are using the `Http` class, just remove the second argument from the constructor
-invocation.
-
 ### Added
 - Support for guzzle 6 #254
+- Support for symfony 3.3 #266
 
 ### Fixed
 - Composer PHP compatibility declaration #247
