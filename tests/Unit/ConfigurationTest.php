@@ -13,6 +13,7 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_DISTRIBUTED_TRACING');
         putenv('DD_PRIORITY_SAMPLING');
         putenv('DD_INTEGRATIONS_DISABLED');
+        putenv('DD_TRACE_DEBUG');
     }
 
     public function testTracerEnabledByDefault()
@@ -24,6 +25,17 @@ final class ConfigurationTest extends BaseTestCase
     {
         putenv('DD_TRACE_ENABLED=false');
         $this->assertFalse(Configuration::get()->isEnabled());
+    }
+
+    public function testDebugModeDisabledByDefault()
+    {
+        $this->assertFalse(Configuration::get()->isDebugModeEnabled());
+    }
+
+    public function testDebugModeCanBeEnabled()
+    {
+        putenv('DD_TRACE_DEBUG=true');
+        $this->assertTrue(Configuration::get()->isDebugModeEnabled());
     }
 
     public function testDistributedTracingEnabledByDefault()

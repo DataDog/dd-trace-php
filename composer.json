@@ -208,12 +208,22 @@
 
         "laravel-42-update": "composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
         "laravel-42-test": "@composer test -- tests/Integrations/Laravel/V4",
+
         "laravel-57-update": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",
         "laravel-57-test": "@composer test -- tests/Integrations/Laravel/V5/CommonScenariosTest.php",
-        "symfony-33-update": "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_3 update",
+
+        "symfony-33-update": [
+            "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_3 update",
+            "php tests/Frameworks/Symfony/Version_3_3/bin/console cache:clear --no-warmup --env=prod"
+        ],
         "symfony-33-test": "@composer test -- tests/Integrations/Symfony/V3_3",
-        "symfony-34-update": "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
-        "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3_4",
+
+        "symfony-34-update": [
+            "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
+            "php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod"
+        ],
+        "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3",
+
         "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1"
     },
     "extra": {

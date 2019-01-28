@@ -48,6 +48,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isEnabled' => true,
             'isIntegrationEnabled' => false,
+            'isDebugModeEnabled' => false,
         ]));
 
         DummyIntegration1::$value = Integration::LOADED;
@@ -62,6 +63,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
+            'isDebugModeEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -78,6 +80,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
+            'isDebugModeEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -100,6 +103,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
+            'isDebugModeEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -122,6 +126,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
+            'isDebugModeEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 

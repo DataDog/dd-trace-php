@@ -7,7 +7,7 @@ use DDTrace\Integrations\IntegrationsLoader;
 
 require_once __DIR__ . '/functions.php';
 
-if (!dd_tracing_enabled()) {
+if (!\DDTrace\Bridge\dd_tracing_enabled()) {
     return;
 }
 

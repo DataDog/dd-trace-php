@@ -4,14 +4,12 @@ namespace DDTrace\Tests\Integration\Transport;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Tests\Common\AgentReplayerTrait;
+use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-use DDTrace\Version;
 use DDTrace\GlobalTracer;
-use PHPUnit\Framework;
-use Prophecy\Argument;
 
-final class HttpTest extends Framework\TestCase
+final class HttpTest extends BaseTestCase
 {
     use AgentReplayerTrait;
 
@@ -27,14 +25,9 @@ final class HttpTest extends Framework\TestCase
 
     public function testSpanReportingFailsOnUnavailableAgent()
     {
-        $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
-        $logger
-            ->debug(
-                'Reporting of spans failed: Failed to connect to 0.0.0.0 port 8127: Connection refused, error code 7'
-            )
-            ->shouldBeCalled();
+        $logger = $this->withDebugLogger();
 
-        $httpTransport = new Http(new Json(), $logger->reveal(), [
+        $httpTransport = new Http(new Json(), [
             'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
         ]);
         $tracer = new Tracer($httpTransport);
@@ -53,14 +46,17 @@ final class HttpTest extends Framework\TestCase
         ];
 
         $httpTransport->send($traces);
+        $this->assertTrue($logger->has(
+            'error',
+            'Reporting of spans failed: 7 / Failed to connect to 0.0.0.0 port 8127: Connection refused'
+        ));
     }
 
     public function testSpanReportingSuccess()
     {
-        $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
-        $logger->debug(Argument::any())->shouldNotBeCalled();
+        $logger = $this->withDebugLogger();
 
-        $httpTransport = new Http(new Json(), $logger->reveal(), [
+        $httpTransport = new Http(new Json(), [
             'endpoint' => $this->agentTracesUrl()
         ]);
         $tracer = new Tracer($httpTransport);
@@ -88,34 +84,13 @@ final class HttpTest extends Framework\TestCase
         ];
 
         $httpTransport->send($traces);
-    }
-
-    public function testSilentlySendTraces()
-    {
-        $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
-        $logger->debug(Argument::any())->shouldNotBeCalled();
-
-        $httpTransport = new Http(new Json(), $logger->reveal(), [
-            'endpoint' => $this->agentTracesUrl()
-        ]);
-        $tracer = new Tracer($httpTransport);
-        GlobalTracer::set($tracer);
-
-        $span = $tracer->startSpan('test');
-        $span->finish();
-
-        $traces = [[$span]];
-
-        ob_start();
-        $httpTransport->send($traces);
-        $output = ob_get_clean();
-
-        $this->assertSame('', $output);
+        $this->assertTrue($logger->has('debug', 'About to send to the agent 1 traces'));
+        $this->assertTrue($logger->has('debug', 'Traces successfully sent to the agent'));
     }
 
     public function testSendsMetaHeaders()
     {
-        $httpTransport = new Http(new Json(), null, [
+        $httpTransport = new Http(new Json(), [
             'endpoint' => $this->getAgentReplayerEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);
@@ -137,7 +112,7 @@ final class HttpTest extends Framework\TestCase
 
     public function testSetHeader()
     {
-        $httpTransport = new Http(new Json(), null, [
+        $httpTransport = new Http(new Json(), [
             'endpoint' => $this->getAgentReplayerEndpoint(),
         ]);
         $tracer = new Tracer($httpTransport);

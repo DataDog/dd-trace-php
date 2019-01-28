@@ -4,7 +4,7 @@ namespace DDTrace\Util;
 
 use DDTrace\GlobalTracer;
 
-class CodeTracer
+final class CodeTracer
 {
     /**
      * @var CodeTracer

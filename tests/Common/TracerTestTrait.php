@@ -44,7 +44,7 @@ trait TracerTestTrait
         // Clearing existing dumped file
         $this->resetRequestDumper();
 
-        $transport = new Http(new Json(), null, ['endpoint' => self::$agentRequestDumperUrl]);
+        $transport = new Http(new Json(), ['endpoint' => self::$agentRequestDumperUrl]);
         $tracer = $tracer ?: new Tracer($transport);
         GlobalTracer::set($tracer);
 

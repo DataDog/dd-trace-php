@@ -213,7 +213,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!config.*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon' '!tests/Frameworks/*/Version_*/**' || touch .failure
+          command: node_modules/.bin/eclint check '**/*' '!config.*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' || touch .failure
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
@@ -235,6 +235,9 @@ jobs:
       - run:
           name: Check linting failure
           command: test -e .failure && exit 1 || true
+      - run:
+          name: Verify PECL config and Version files
+          command: make verify_all
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
@@ -519,7 +522,18 @@ jobs:
           command: make packages
       - store_artifacts: { path: 'build/packages', destination: / }
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
-      - setup_remote_docker
+      - persist_to_workspace:
+          root: '.'
+          paths: ['./build/packages']
+
+  "package verification":
+    working_directory: ~/datadog
+    machine:
+      image: circleci/classic:latest
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/datadog
       - run:
           name: Test installing packages on target systems
           command: make -f dockerfiles/verify_packages/Makefile
@@ -554,6 +568,9 @@ workflows:
             - "7.0 zts 20151012-zts"
             - "7.1 zts 20160303-zts"
             - "7.2 zts 20170718-zts"
+      - "package verification":
+          requires:
+            - "package extension"
   build:
     jobs:
       - "Lint files"

@@ -17,7 +17,7 @@ You can install the extension from a package download. First [download the appro
 $ rpm -ivh datadog-php-tracer.rpm
 
 # using DEB package (Debian Jessie+ , Ubuntu 14.04+)
-$ deb -i datadog-php-tracer.deb
+$ dpkg -i datadog-php-tracer.deb
 
 # using APK package (Alpine)
 $ apk add datadog-php-tracer.apk --allow-untrusted
@@ -52,7 +52,7 @@ $ sudo make install
 #### Bash one-liner
 
 ```bash
-$ (cd $(mktemp -d); curl -L https://github.com/DataDog/dd-trace-php/archive/master.tar.gz | tar x --strip-components=1 && phpize && ./configure && make && sudo make install )
+$ (cd $(mktemp -d); curl -L https://github.com/DataDog/dd-trace-php/archive/master.tar.gz | tar zx --strip-components=1 && phpize && ./configure && make && sudo make install )
 ```
 
 ### Enabling the extension

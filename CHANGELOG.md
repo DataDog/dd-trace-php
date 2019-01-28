@@ -3,13 +3,23 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [UNRELEASED]
 
+**WARNING: THIS IS A BREAKING CHANGE RELEASE**
+
+This change should not impact most of the users as starting from `0.10.0` it is not required (and not recommended) to
+manually set the transport. `DDtrace\Transport\Http` no longer accepts a logger as the second argument as it uses
+the globally registered logger. If you are using the `Http` class, just remove the second argument from the constructor
+invocation.
+
 ### Added
 - Support for guzzle 6 #254
 
 ### Fixed
-- Composer php compatibility declaration #247
+- Composer PHP compatibility declaration #247
 - Add missing files to PECL releases #252
 - Trigger of autoloader un-tracing did not respect object #256
+- Incorrect tar command in one-liner example from getting_started.md #258 - thanks @danielkay
+- Debug mode for logging #261
+- Auto-instrumentation in Symfony 3.4 and PHP 5.6 #262
 
 ## [0.10.0]
 
@@ -234,7 +244,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.10.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.11.0...HEAD
+[0.11.0]: https://github.com/DataDog/dd-trace-php/compare/0.10.0...0.11.0
 [0.10.0]: https://github.com/DataDog/dd-trace-php/compare/0.9.1...0.10.0
 [0.9.1]: https://github.com/DataDog/dd-trace-php/compare/0.9.0...0.9.1
 [0.9.0]: https://github.com/DataDog/dd-trace-php/compare/0.8.1...0.9.0

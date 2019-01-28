@@ -22,8 +22,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
         $traces = $this->tracesFromWebRequest(function () use ($spec) {
-            $response = $this->call($spec);
-            error_log("Response: " . print_r($response, 1));
+            $this->call($spec);
         });
 
         $this->assertExpectedSpans($this, $traces, $spanExpectations);
@@ -77,8 +76,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.templating.render',
                         'symfony',
                         'web',
-                        'Twig_Environment twig_template.html.twig'
+                        'Symfony\Bundle\TwigBundle\TwigEngine twig_template.html.twig'
                     ),
+                    SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.response'),
                     SpanAssertion::exists('symfony.kernel.finish_request'),
                     SpanAssertion::exists('symfony.kernel.terminate'),
@@ -109,6 +109,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     SpanAssertion::exists('symfony.kernel.exception'),
                     SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.response'),
+                    SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.finish_request'),
                     SpanAssertion::exists('symfony.kernel.terminate'),
                 ],
