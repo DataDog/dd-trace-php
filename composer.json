@@ -228,7 +228,7 @@
             "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
             "php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod"
         ],
-        "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3",
+        "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3_4",
 
         "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1"
     },
