@@ -74,14 +74,18 @@ final class Bootstrap
                 Request::getHeaders()
             );
         $operationName = 'cli' === PHP_SAPI ? 'cli.command' : 'web.request';
-        $scope = $tracer->startRootSpan($operationName, $startSpanOptions);
-        $scope->getSpan()->setTag(
+        $span = $tracer->startRootSpan($operationName, $startSpanOptions)->getSpan();
+        $span->setTag(
             Tag::SERVICE_NAME,
             getenv('ddtrace_app_name') ?: $operationName
         );
-        $scope->getSpan()->setTag(
+        $span->setTag(
             Tag::SPAN_TYPE,
             'cli' === PHP_SAPI ? Type::CLI : Type::WEB_SERVLET
         );
+        if ('cli' !== PHP_SAPI) {
+            $span->setTag(Tag::HTTP_METHOD, $_SERVER['REQUEST_METHOD']);
+            $span->setTag(Tag::HTTP_URL, $_SERVER['REQUEST_URI']);
+        }
     }
 }
