@@ -12,7 +12,8 @@ if (!dd_tracing_enabled()) {
     return;
 }
 
-call_user_func(function () {
+function dd_wrap_autoloader()
+{
     $dd_autoload_called = false;
 
     // Classes of autoloaders that triggers a check to un-register our hook into 'spl_autoload_register' function.
@@ -68,4 +69,6 @@ call_user_func(function () {
 
         return $originalAutoloaderRegistered;
     });
-});
+}
+
+dd_wrap_autoloader();
