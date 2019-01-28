@@ -6,9 +6,7 @@ use DDTrace\Bootstrap;
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Span;
-use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tag;
-use DDTrace\Time;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use Illuminate\Support\Facades\Route;
@@ -45,7 +43,7 @@ class LaravelProvider extends ServiceProvider
         }
 
         $appName = self::getAppName();
-        Bootstrap::tracerOnce();
+        Bootstrap::tracerAndIntegrations();
         $tracer = GlobalTracer::get();
         $this->app->instance('DDTrace\Tracer', $tracer);
         $self = $this;
