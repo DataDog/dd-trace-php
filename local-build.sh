@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 rm -rf extensions
 mkdir -p extensions
 rm -rf build/packages
@@ -14,6 +16,15 @@ function build_version() {
     docker run --rm -w /var/app -v $(pwd):/var/app circleci/php:${PHP_VERSION}${SUFFIX} cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-${PHP_API}${SUFFIX}.so
 }
 
+function build_version_54() {
+    PHP_VERSION=5.4
+    PHP_API=20100412
+    rm -rf tmp
+    docker run --rm -w /var/app -v $(pwd):/var/app datadog/docker-library:ddtrace_centos_6_php_5_4 make all CFLAGS="-O2 -Wall -Wextra -Wextra" ECHO_ARG="-e"
+    docker run --rm -w /var/app -v $(pwd):/var/app datadog/docker-library:ddtrace_centos_6_php_5_4 cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-${PHP_API}.so
+}
+
+build_version_54
 build_version 5.6 20131106
 build_version 5.6 20131106 '-zts'
 build_version 7.0 20151012
