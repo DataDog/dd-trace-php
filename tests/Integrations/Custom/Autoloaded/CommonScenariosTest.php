@@ -42,37 +42,34 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 'A simple GET request returning a string' => [
                     SpanAssertion::build(
                         'web.request',
-                        'test_app',
+                        'web.request',
                         'web',
-                        '/simple'
+                        'web.request'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
-                        'http.status_code' => '200',
+                        'http.url' => '/simple',
                     ]),
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
                         'web.request',
-                        'test_app',
+                        'web.request',
                         'web',
-                        '/simple_view'
+                        'web.request'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view',
-                        'http.status_code' => '200',
+                        'http.url' => '/simple_view',
                     ]),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
                         'web.request',
-                        'test_app',
+                        'web.request',
                         'web',
-                        '/error'
+                        'web.request'
                     )->withExactTags([
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error',
-                        'http.status_code' => '500',
+                        'http.url' => '/error',
                     ]),
                 ],
             ]
