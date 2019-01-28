@@ -3,12 +3,12 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [UNRELEASED]
 ### Added
-- Configurable Sampler #260
 
 ## [0.11.0]
 
 ### Added
 - Support for guzzle 6 #254
+- Configurable Sampler #260
 
 ### Fixed
 - Composer PHP compatibility declaration #247

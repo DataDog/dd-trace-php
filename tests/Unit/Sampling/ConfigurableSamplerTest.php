@@ -53,5 +53,4 @@ final class ConfigurableSamplerTest extends BaseTestCase
             [0.2, 0.17, 0.23],
         ];
     }
-
 }

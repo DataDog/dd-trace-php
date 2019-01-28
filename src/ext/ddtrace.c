@@ -1,7 +1,6 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-#define DEBUG
 #include <SAPI.h>
 #include <Zend/zend.h>
 #include <Zend/zend_exceptions.h>
