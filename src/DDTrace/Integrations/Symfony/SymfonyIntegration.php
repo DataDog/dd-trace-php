@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\Symfony;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Util\Versions;
 
 class SymfonyIntegration
 {
@@ -11,16 +12,16 @@ class SymfonyIntegration
 
     public static function load()
     {
-        if (!defined('Symfony\Component\HttpKernel\Kernel::VERSION')) {
+        if (!defined('\Symfony\Component\HttpKernel\Kernel::VERSION')) {
             return Integration::NOT_LOADED;
         }
 
         $version = \Symfony\Component\HttpKernel\Kernel::VERSION;
 
-        if (substr($version, 0, 3) === "3.4") {
+        if (Versions::versionMatches('3.4', $version) || Versions::versionMatches('3.3', $version)) {
             V3\SymfonyIntegration::load();
             return Integration::LOADED;
-        } elseif (substr($version, 0, 2) === "4.") {
+        } elseif (Versions::versionMatches('4', $version)) {
             V4\SymfonyIntegration::load();
             return Integration::LOADED;
         }

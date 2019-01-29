@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Symfony\V3;
+namespace DDTrace\Tests\Integrations\Symfony\V3_4;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
