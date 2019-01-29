@@ -80,8 +80,8 @@ class EnvVariableRegistry implements Registry
     public function floatValue($key, $default, $min = null, $max = null)
     {
         if (!isset($this->registry[$key])) {
-            $value = getenv($this->convertKeyToEnvVariableName($key));
-            $value = trim(strtolower($value));
+            $value = self::get($key);
+            $value = strtolower($value);
             if (is_numeric($value)) {
                 $floatValue = (float)$value;
             } else {
