@@ -65,9 +65,6 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
      */
     private function getAppName()
     {
-        if (getenv('ddtrace_app_name')) {
-            return getenv('ddtrace_app_name');
-        }
-        return self::NAME;
+        return Configuration::get()->appName(self::NAME);
     }
 }

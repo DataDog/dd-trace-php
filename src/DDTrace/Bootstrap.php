@@ -77,7 +77,7 @@ final class Bootstrap
         $span = $tracer->startRootSpan($operationName, $startSpanOptions)->getSpan();
         $span->setTag(
             Tag::SERVICE_NAME,
-            getenv('ddtrace_app_name') ?: $operationName
+            Configuration::get()->appName($operationName)
         );
         $span->setTag(
             Tag::SPAN_TYPE,

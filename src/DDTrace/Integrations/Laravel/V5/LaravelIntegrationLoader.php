@@ -166,14 +166,13 @@ class LaravelIntegrationLoader
 
     private function getAppName()
     {
-        $name = null;
-
-        if (getenv('ddtrace_app_name')) {
-            $name = getenv('ddtrace_app_name');
-        } elseif (is_callable('config')) {
-            $name = config('app.name');
+        $name = Configuration::get()->appName();
+        if ($name) {
+            return $name;
         }
-
-        return empty($name) ? 'laravel' : $name;
+        if (is_callable('config')) {
+            return config('app.name');
+        }
+        return 'laravel';
     }
 }
