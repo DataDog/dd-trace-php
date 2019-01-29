@@ -60,6 +60,8 @@ class WebServer
     {
         $this->indexFile = $indexFile;
         $this->defaultInis['error_log'] = dirname($indexFile) .  '/error.log';
+        // Enable auto-instrumentation
+        $this->defaultInis['ddtrace.request_init_hook'] = __DIR__ .  '/../bridge/dd_autoloader.php';
         $this->host = $host;
         $this->port = $port;
     }

@@ -2,7 +2,6 @@
 
 require __DIR__ . '/../../../autoload.php';
 
-use DDTrace\Bootstrap;
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\ZendFramework\V1\TraceRequest;
@@ -25,8 +24,6 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
         }
         $front = Zend_Controller_Front::getInstance();
         $front->registerPlugin(new TraceRequest());
-
-        Bootstrap::tracerAndIntegrations();
 
         $tracer = GlobalTracer::get();
         $span = $tracer->getRootScope()->getSpan();

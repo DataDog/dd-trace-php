@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Laravel\V4;
 
-use DDTrace\Bootstrap;
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Span;
@@ -43,7 +42,6 @@ class LaravelProvider extends ServiceProvider
         }
 
         $appName = self::getAppName();
-        Bootstrap::tracerAndIntegrations();
         $tracer = GlobalTracer::get();
         $this->app->instance('DDTrace\Tracer', $tracer);
         $self = $this;

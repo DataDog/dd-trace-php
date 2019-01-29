@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Laravel\V5;
 
-use DDTrace\Bootstrap;
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
@@ -84,7 +83,6 @@ class LaravelIntegrationLoader
     {
         $self = $this;
         $appName = $this->getAppName();
-        Bootstrap::tracerAndIntegrations();
         $tracer = GlobalTracer::get();
 
         // Create a span that starts from when Laravel first boots (public/index.php)

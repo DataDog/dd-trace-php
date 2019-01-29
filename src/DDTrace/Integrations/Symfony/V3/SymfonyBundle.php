@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Symfony\V3;
 
-use DDTrace\Bootstrap;
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Symfony\SymfonyIntegration as DDSymfonyIntegration;
@@ -53,7 +52,6 @@ class SymfonyBundle extends Bundle
             return;
         }
 
-        Bootstrap::tracerAndIntegrations();
         $tracer = GlobalTracer::get();
 
         // Create a span that starts from when Symfony first boots
