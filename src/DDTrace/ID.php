@@ -4,6 +4,11 @@ namespace DDTrace;
 
 final class ID
 {
+    /**
+     * Generates a new random 63bits ID between 1 and PHP_INT_MAX
+     *
+     * @return string
+     */
     public static function generate()
     {
         /*
@@ -14,6 +19,19 @@ final class ID
          * will do. And since all integers in PHP are signed, an int
          * between 1 & PHP_INT_MAX will be 63-bit.
          */
-        return (string) mt_rand(1, PHP_INT_MAX);
+        $first31bits = mt_rand(0, mt_getrandmax()) << 32;
+        $second31bits = mt_rand(0, mt_getrandmax()) << 1;
+        $random1or0 = mt_rand(0, 1);
+        return (string) ($first31bits | $second31bits | $random1or0);
+    }
+
+    /**
+     * The expected max value for the generated id.
+     *
+     * @return int
+     */
+    public static function getMaxId()
+    {
+        return (mt_getrandmax() << 32) | (mt_getrandmax() << 1) | 1;
     }
 }
