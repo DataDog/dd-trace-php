@@ -55,11 +55,11 @@ class SymfonyBundle extends Bundle
         $tracer = GlobalTracer::get();
 
         // Create a span that starts from when Symfony first boots
-        $scope = $tracer->startActiveSpan('symfony.request');
+        $scope = $tracer->getRootScope();
         $appName = $this->getAppName();
         $symfonyRequestSpan = $scope->getSpan();
+        $symfonyRequestSpan->overwriteOperationName('symfony.request');
         $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $appName);
-        $symfonyRequestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
         $request = null;
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
@@ -198,10 +198,6 @@ class SymfonyBundle extends Bundle
 
     private function getAppName()
     {
-        if ($appName = getenv('ddtrace_app_name')) {
-            return $appName;
-        } else {
-            return 'symfony';
-        }
+        return Configuration::get()->appName('symfony');
     }
 }

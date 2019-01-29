@@ -2,6 +2,12 @@
 
 This package contains a number of sample apps used to tests different web frameworks.
 
+The test frameworks must support the following routes/endpoints in order to execute the tests in `./TestScenarios.php`:
+
+* `/simple`: GET request that returns a string
+* `/simple_view`: GET request that renders a view
+* `/error`: GET request that throws an exception (returns a **500** response)
+
 ## Laravel
 
 In order to generate the sample Laravel apps we used the default commands from the framework's 'Getting started' guides.
@@ -43,3 +49,9 @@ Link: https://symfony.com/doc/3.4/setup.html
 Link: https://symfony.com/doc/4.2/setup.html
 
     $ composer create-project symfony/website-skeleton Version_4_2
+
+## Custom frameworks
+
+These aren't real frameworks, but they represent unsupported frameworks and custom frameworks.
+
+    $ cd tests/Frameworks/Custom

@@ -7,6 +7,7 @@ class Type
     const CACHE = 'cache';
     const HTTP_CLIENT = 'http';
     const WEB_SERVLET = 'web';
+    const CLI = 'cli';
     const SQL = 'sql';
 
     const MESSAGE_CONSUMER = 'queue';

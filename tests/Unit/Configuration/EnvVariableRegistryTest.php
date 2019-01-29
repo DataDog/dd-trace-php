@@ -13,6 +13,19 @@ final class EnvVariableRegistryTest extends BaseTestCase
         putenv('DD_SOME_TEST_PARAMETER');
     }
 
+    public function testStringFromEnv()
+    {
+        putenv('DD_SOME_TEST_PARAMETER=bar');
+        $registry = new EnvVariableRegistry();
+        $this->assertSame('bar', $registry->stringValue('some.test.parameter', 'foo'));
+    }
+
+    public function testStringWillFallbackToDefault()
+    {
+        $registry = new EnvVariableRegistry();
+        $this->assertSame('foo', $registry->stringValue('some.test.parameter', 'foo'));
+    }
+
     public function testTrueValueWhenEnvNotSet()
     {
         $registry = new EnvVariableRegistry();

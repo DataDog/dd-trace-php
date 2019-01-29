@@ -7,15 +7,12 @@ use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Scope;
-use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tag;
-use DDTrace\Time;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Routing\Events\RouteMatched;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Route;
 
 class LaravelIntegrationLoader
@@ -88,25 +85,11 @@ class LaravelIntegrationLoader
         $appName = $this->getAppName();
         $tracer = GlobalTracer::get();
 
-        /** @var Application $laravelApp */
-        $laravelApp = App::getFacadeRoot();
-        $request = $laravelApp->make('request');
-
-        $startSpanOptions = StartSpanOptionsFactory::createForWebRequest(
-            $tracer,
-            [
-                'start_time' => defined('LARAVEL_START')
-                    ? Time::fromMicrotime(LARAVEL_START)
-                    : Time::now(),
-            ],
-            $request->header()
-        );
-
         // Create a span that starts from when Laravel first boots (public/index.php)
-        $this->rootScope = $tracer->startActiveSpan('laravel.request', $startSpanOptions);
+        $this->rootScope = $tracer->getRootScope();
         $requestSpan = $this->rootScope->getSpan();
+        $requestSpan->overwriteOperationName('laravel.request');
         $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
-        $requestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
 
         // Trace middleware
         dd_trace('Illuminate\Pipeline\Pipeline', 'then', function () {
@@ -181,14 +164,13 @@ class LaravelIntegrationLoader
 
     private function getAppName()
     {
-        $name = null;
-
-        if (getenv('ddtrace_app_name')) {
-            $name = getenv('ddtrace_app_name');
-        } elseif (is_callable('config')) {
-            $name = config('app.name');
+        $name = Configuration::get()->appName();
+        if ($name) {
+            return $name;
         }
-
-        return empty($name) ? 'laravel' : $name;
+        if (is_callable('config')) {
+            return config('app.name');
+        }
+        return 'laravel';
     }
 }

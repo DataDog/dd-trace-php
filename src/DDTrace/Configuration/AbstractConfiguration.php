@@ -38,6 +38,14 @@ abstract class AbstractConfiguration implements Registry
 
     /**
      * {@inheritdoc}
+     */
+    public function stringValue($key, $default = '')
+    {
+        return $this->registry->stringValue($key, $default);
+    }
+
+    /**
+     * {@inheritdoc}
      *
      * Allows users to access configuration properties by name instead of calling explicit methods.
      */

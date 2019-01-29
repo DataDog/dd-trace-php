@@ -3,11 +3,8 @@
 namespace DDTrace\Integrations\Symfony\V4;
 
 use DDTrace\Configuration;
-use DDTrace\Encoders\Json;
 use DDTrace\Integrations\Symfony\SymfonyIntegration as DDSymfonyIntegration;
 use DDTrace\Tag;
-use DDTrace\Tracer;
-use DDTrace\Transport\Http;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
@@ -53,11 +50,7 @@ class SymfonyBundle extends Bundle
             return;
         }
 
-        // Creates a tracer with default transport and default propagators
-        $tracer = new Tracer(new Http(new Json()));
-
-        // Sets a global tracer (singleton).
-        GlobalTracer::set($tracer);
+        $tracer = GlobalTracer::get();
 
         // Create a span that starts from when Symfony first boots
         $scope = $tracer->startActiveSpan('symfony.request');
@@ -144,10 +137,6 @@ class SymfonyBundle extends Bundle
 
     private function getAppName()
     {
-        if ($appName = getenv('ddtrace_app_name')) {
-            return $appName;
-        } else {
-            return 'symfony';
-        }
+        return Configuration::get()->appName('symfony');
     }
 }
