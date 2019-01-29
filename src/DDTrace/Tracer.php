@@ -3,6 +3,7 @@
 namespace DDTrace;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Log\LoggingTrait;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
@@ -17,6 +18,8 @@ use DDTrace\Contracts\Tracer as TracerInterface;
 
 final class Tracer implements TracerInterface
 {
+    use LoggingTrait;
+
     const VERSION = '0.11.0-beta';
 
     /**
@@ -258,9 +261,12 @@ final class Tracer implements TracerInterface
             return;
         }
 
+        self::logDebug('Flushing {count} traces', ['count' => count($this->traces)]);
+
         $tracesToBeSent = $this->shiftFinishedTraces();
 
         if (empty($tracesToBeSent)) {
+            self::logDebug('No finished traces to be sent to the agent');
             return;
         }
 
@@ -332,6 +338,10 @@ final class Tracer implements TracerInterface
         }
 
         $this->traces[$span->getTraceId()][$span->getSpanId()] = $span;
+        self::logDebug('New span {operation} {resource} recorded.', [
+            'operation' => $span->getOperationName(),
+            'resource' => $span->getResource(),
+        ]);
     }
 
     /**
