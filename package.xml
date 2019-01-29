@@ -10,7 +10,7 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-01-23</date>
+    <date>2019-01-29</date>
     <version>
         <release>0.11.0</release>
         <api>0.11.0</api>
@@ -21,13 +21,31 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
+        **WARNING: THIS IS A BREAKING CHANGE RELEASE**
+
+        This change should not impact most of the users as starting from `0.10.0` it is not required (and not recommended) to
+        manually set the transport. `DDtrace\Transport\Http` no longer accepts a logger as the second argument as it uses
+        the globally registered logger. If you are using the `Http` class, just remove the second argument from the constructor
+        invocation.
+
         ### Added
         - Support for guzzle 6 #254
+        - Configurable Sampler #260
+        - Debug mode for logging #261
+        - Support for symfony 3.3 #266 and #243
+        - Build php 5.4 extension locally #267
+        - Basic tracing for unsupported and custom frameworks #264
 
         ### Fixed
         - Composer PHP compatibility declaration #247
+        - Release notes for PECL and fix type-os in CHANGELOG #248
         - Add missing files to PECL releases #252
+        - PHP 5.4 installation and build #255
         - Trigger of autoloader un-tracing did not respect object #256
+        - docker-compose based packages verification #257
+        - Incorrect tar command in one-liner example from getting_started.md #258 - thanks @danielkay
+        - Auto-instrumentation in Symfony 3.4 and PHP 5.6 #262
+        - Type-o in command to install .deb packages #263
     </notes>
     <contents>
         <dir name="/">

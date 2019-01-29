@@ -8,7 +8,7 @@
     1. Make sure that the changelog is up to date, if not fix it. Make sure bottom links are up to date.
     1. Update the version number in `src/DDTrace/Version.php`.
     1. Update the version number in `src/ext/version.h`.
-    1. Update `package.xml` and run `$ pear package-validate package.xml`.
+    1. Update `package.xml` (versions, date, notes) and run `$ pear package-validate package.xml`.
     1. Create the PR and ask for code review.
     1. Merge it to master
 1. Create the release named after the release number, e.g. `0.9.0`, (initially as a draft) and copy there the changelog
