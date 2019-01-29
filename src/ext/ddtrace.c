@@ -185,6 +185,11 @@ static PHP_FUNCTION(dd_trace) {
             if (function) {
                 zval_ptr_dtor(function);
             }
+
+            if (!DDTRACE_G(ignore_missing_overridables)) {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "class not found");
+            }
+
             RETURN_BOOL(0);
         }
     }
@@ -203,9 +208,6 @@ static PHP_FUNCTION(dd_trace) {
     FREE_ZVAL(function);
 #endif
 
-    // if (function) {
-    //     zval_ptr_dtor(function);
-    // }
     RETURN_BOOL(rv);
 }
 

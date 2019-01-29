@@ -1,5 +1,5 @@
 --TEST--
-Toggle checking if overridable method/function exists or not
+Toggle checking if overrided class doesn't exist
 --INI--
 ddtrace.ignore_missing_overridables=0
 --FILE--
@@ -14,4 +14,4 @@ try {
 
 ?>
 --EXPECTF--
-unexpected parameter combination, expected (class, function, closure) or (function, closure)
+class not found
