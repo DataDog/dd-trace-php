@@ -19,20 +19,51 @@ class EnvVariableRegistry implements Registry
     }
 
     /**
+     * Return an env variable that starts with "DD_".
+     *
+     * @param string $key
+     * @return string|null
+     */
+    public static function get($key)
+    {
+        $value = getenv(self::convertKeyToEnvVariableName($key));
+        if (false === $value) {
+            return null;
+        }
+        return trim($value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function stringValue($key, $default)
+    {
+        return isset($this->registry[$key])
+            ? $this->registry[$key]
+            : $this->registry[$key] = (string) self::get($key);
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function boolValue($key, $default)
     {
-        if (!isset($this->registry[$key])) {
-            $value = getenv($this->convertKeyToEnvVariableName($key));
-            $value = trim(strtolower($value));
-            if ($value === '1' || $value === 'true') {
-                $this->registry[$key] = true;
-            } elseif ($value === '0' || $value === 'false') {
-                $this->registry[$key] = false;
-            } else {
-                $this->registry[$key] = $default;
-            }
+        if (isset($this->registry[$key])) {
+            return $this->registry[$key];
+        }
+
+        $value = self::get($key);
+        if (null === $value) {
+            return $default;
+        }
+
+        $value = strtolower($value);
+        if ($value === '1' || $value === 'true') {
+            $this->registry[$key] = true;
+        } elseif ($value === '0' || $value === 'false') {
+            $this->registry[$key] = false;
+        } else {
+            return $default;
         }
 
         return $this->registry[$key];
@@ -72,18 +103,18 @@ class EnvVariableRegistry implements Registry
     public function inArray($key, $name)
     {
         if (!isset($this->registry[$key])) {
-            $value = getenv($this->convertKeyToEnvVariableName($key));
-            if (is_string($value)) {
+            $value = self::get($key);
+            if (null !== $value) {
                 $disabledIntegrations = explode(',', $value);
                 $this->registry[$key] = array_map(function ($entry) {
-                    return trim(strtolower($entry));
+                    return strtolower(trim($entry));
                 }, $disabledIntegrations);
             } else {
                 $this->registry[$key] = [];
             }
         }
 
-        return in_array(strtolower($name), $this->registry[$key]);
+        return in_array(strtolower($name), $this->registry[$key], true);
     }
 
     /**
@@ -94,8 +125,8 @@ class EnvVariableRegistry implements Registry
      * @param string $key
      * @return string
      */
-    private function convertKeyToEnvVariableName($key)
+    private static function convertKeyToEnvVariableName($key)
     {
-        return 'DD_' . trim(strtoupper(str_replace('.', '_', $key)));
+        return 'DD_' . strtoupper(str_replace('.', '_', trim($key)));
     }
 }

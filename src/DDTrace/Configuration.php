@@ -84,4 +84,23 @@ class Configuration extends AbstractConfiguration
     {
         return $this->isEnabled() && !$this->inArray('integrations.disabled', $name);
     }
+
+    /**
+     * The name of the application.
+     *
+     * @param string $default
+     * @return string
+     */
+    public function appName($default = '')
+    {
+        $appName = $this->stringValue('trace.app.name');
+        if ($appName) {
+            return $appName;
+        }
+        $appName = getenv('ddtrace_app_name');
+        if (false !== $appName) {
+            return trim($appName);
+        }
+        return $default;
+    }
 }

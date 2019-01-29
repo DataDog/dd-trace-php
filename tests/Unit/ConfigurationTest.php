@@ -80,4 +80,22 @@ final class ConfigurationTest extends BaseTestCase
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('one'));
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('two'));
     }
+
+    public function testAppNameFallbackPriorities()
+    {
+        putenv('ddtrace_app_name');
+        putenv('DD_TRACE_APP_NAME');
+        $this->assertSame(
+            'fallback_name',
+            Configuration::get()->appName('fallback_name')
+        );
+
+        putenv('ddtrace_app_name=foo_app');
+        $this->assertSame('foo_app', Configuration::get()->appName());
+
+        Configuration::clear();
+        putenv('ddtrace_app_name=foo_app');
+        putenv('DD_TRACE_APP_NAME=bar_app');
+        $this->assertSame('bar_app', Configuration::get()->appName());
+    }
 }

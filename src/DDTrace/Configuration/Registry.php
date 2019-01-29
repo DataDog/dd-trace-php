@@ -8,6 +8,15 @@ namespace DDTrace\Configuration;
 interface Registry
 {
     /**
+     * Extract a string configuration value, providing a default if the value has not been configured.
+     *
+     * @param string $key
+     * @param string $default
+     * @return string
+     */
+    public function stringValue($key, $default);
+
+    /**
      * Extract a boolean configuration value, providing a default if the value has not been configured.
      *
      * @param string $key
