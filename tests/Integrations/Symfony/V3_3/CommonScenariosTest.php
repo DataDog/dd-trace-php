@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Symfony\V3;
+namespace DDTrace\Tests\Integrations\Symfony\V3_3;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
@@ -10,7 +10,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/app_dev.php';
     }
 
     /**
@@ -76,8 +76,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.templating.render',
                         'symfony',
                         'web',
-                        'Twig_Environment twig_template.html.twig'
+                        'Symfony\Bundle\TwigBundle\TwigEngine twig_template.html.twig'
                     ),
+                    SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.response'),
                     SpanAssertion::exists('symfony.kernel.finish_request'),
                     SpanAssertion::exists('symfony.kernel.terminate'),
@@ -108,6 +109,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     SpanAssertion::exists('symfony.kernel.exception'),
                     SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.response'),
+                    SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.finish_request'),
                     SpanAssertion::exists('symfony.kernel.terminate'),
                 ],

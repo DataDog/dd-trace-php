@@ -2,7 +2,6 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [UNRELEASED]
-### Added
 
 ## [0.11.0]
 
@@ -16,6 +15,7 @@ invocation.
 ### Added
 - Support for guzzle 6 #254
 - Configurable Sampler #260
+- Support for symfony 3.3 #266
 
 ### Fixed
 - Composer PHP compatibility declaration #247
