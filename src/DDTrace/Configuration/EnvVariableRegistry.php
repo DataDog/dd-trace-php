@@ -38,9 +38,14 @@ class EnvVariableRegistry implements Registry
      */
     public function stringValue($key, $default)
     {
-        return isset($this->registry[$key])
-            ? $this->registry[$key]
-            : $this->registry[$key] = (string) self::get($key);
+        if (isset($this->registry[$key])) {
+            return $this->registry[$key];
+        }
+        $value = self::get($key);
+        if (null !== $value) {
+            return $this->registry[$key] = $value;
+        }
+        return $default;
     }
 
     /**
