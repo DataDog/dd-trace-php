@@ -179,11 +179,16 @@ static PHP_FUNCTION(dd_trace) {
     DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
 
     if (class_name && Z_TYPE_P(class_name) == IS_STRING) {
+#if PHP_VERSION_ID < 70000
+        clazz = zend_fetch_class(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name),
+                                 ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT TSRMLS_CC);
+#else
         clazz = zend_fetch_class_by_name(Z_STR_P(class_name), NULL, ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT);
+#endif
         if (!clazz) {
-            zval_ptr_dtor(class_name);
+            ddtrace_zval_ptr_dtor(class_name);
             if (function) {
-                zval_ptr_dtor(function);
+                ddtrace_zval_ptr_dtor(function);
             }
 
             if (!DDTRACE_G(ignore_missing_overridables)) {
@@ -196,13 +201,17 @@ static PHP_FUNCTION(dd_trace) {
 
     if (!function || Z_TYPE_P(function) != IS_STRING) {
         if (class_name) {
-            zval_ptr_dtor(class_name);
+            ddtrace_zval_ptr_dtor(class_name);
         }
-        zval_ptr_dtor(function);
+        ddtrace_zval_ptr_dtor(function);
         RETURN_BOOL(0);
     }
 
+#if PHP_VERSION_ID < 70000
+    zend_bool rv = ddtrace_trace(clazz, function, callable TSRMLS_CC);
+#else
     zend_bool rv = ddtrace_trace(clazz, Z_STR_P(function), callable TSRMLS_CC);
+#endif
 
 #if PHP_VERSION_ID < 70000
     FREE_ZVAL(function);
