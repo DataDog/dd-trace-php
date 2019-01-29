@@ -15,16 +15,21 @@ invocation.
 ### Added
 - Support for guzzle 6 #254
 - Configurable Sampler #260
-- Support for symfony 3.3 #266
+- Debug mode for logging #261
 - Basic tracing for unsupported and custom frameworks #264
+- Support for symfony 3.3 #266 and #243
+- Build php 5.4 extension locally #267
 
 ### Fixed
 - Composer PHP compatibility declaration #247
+- Release notes for PECL and fix type-os in CHANGELOG #248
 - Add missing files to PECL releases #252
+- PHP 5.4 installation and build #255
 - Trigger of autoloader un-tracing did not respect object #256
+- docker-compose based packages verification #257
 - Incorrect tar command in one-liner example from getting_started.md #258 - thanks @danielkay
-- Debug mode for logging #261
 - Auto-instrumentation in Symfony 3.4 and PHP 5.6 #262
+- Type-o in command to install .deb packages #263
 
 ## [0.10.0]
 
