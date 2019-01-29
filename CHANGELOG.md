@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [UNRELEASED]
 
+## [0.11.0]
+
 **WARNING: THIS IS A BREAKING CHANGE RELEASE**
 
 This change should not impact most of the users as starting from `0.10.0` it is not required (and not recommended) to
