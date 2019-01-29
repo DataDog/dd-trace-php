@@ -14,6 +14,7 @@ invocation.
 
 ### Added
 - Support for guzzle 6 #254
+- Configurable Sampler #260
 - Support for symfony 3.3 #266
 
 ### Fixed

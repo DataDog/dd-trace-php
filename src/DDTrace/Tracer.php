@@ -7,7 +7,7 @@ use DDTrace\Log\LoggingTrait;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
-use DDTrace\Sampling\AlwaysKeepSampler;
+use DDTrace\Sampling\ConfigurableSampler;
 use DDTrace\Sampling\Sampler;
 use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
@@ -104,7 +104,7 @@ final class Tracer implements TracerInterface
     {
         $this->scopeManager = new ScopeManager();
         $this->globalConfig = Configuration::get();
-        $this->sampler = new AlwaysKeepSampler();
+        $this->sampler = new ConfigurableSampler();
         $this->traces = [];
     }
 
