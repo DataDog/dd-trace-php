@@ -285,8 +285,13 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         execute_fcall(dispatch, execute_data, &return_value TSRMLS_CC);
 
         if (return_value != NULL) {
-            EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
+            if (RETURN_VALUE_USED(opline)) {
+                EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
+            } else {
+                zval_ptr_dtor(&return_value);
+            }
         }
+
 #else
         zval rv;
         INIT_ZVAL(rv);
