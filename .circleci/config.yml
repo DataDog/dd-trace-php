@@ -509,14 +509,11 @@ jobs:
 
   "package extension":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:7.2' ]
+    docker: [ image: 'pawelchcki/dd-docker-library:ddtrace_php_fpm' ]
     steps:
       - checkout
       - attach_workspace:
           at: ~/datadog
-      - run:
-          name: Install FPM and build dependencies
-          command: sudo apt-get update && sudo apt-get install -y ruby ruby-dev rubygems build-essential rpm && sudo gem install --no-ri --no-rdoc fpm
       - run:
           name: Build packages
           command: make packages
@@ -543,12 +540,12 @@ workflows:
   build_packages:
     jobs:
       - "5.4 20100412": &BUILD_PACKAGE_FORKFLOW
-          filters:
-            tags:
-              only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
-            branches:
-              # Always build on master
-              ignore: /^(?!master).*/
+          filters: {}
+            # tags:
+            #   only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
+            # branches:
+            #   # Always build on master
+            #   ignore: /^(?!master).*/
       - "5.6 20131106": *BUILD_PACKAGE_FORKFLOW
       - "7.0 20151012": *BUILD_PACKAGE_FORKFLOW
       - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
@@ -571,12 +568,12 @@ workflows:
       - "package verification":
           requires:
             - "package extension"
-  build:
-    jobs:
-      - "Lint files"
-      - "Static Analysis"
-      - "php-5.4"
-      - "php-5.6"
-      - "php-7.0"
-      - "php-7.1"
-      - "php-7.2"
+  # build:
+  #   jobs:
+  #     - "Lint files"
+  #     - "Static Analysis"
+  #     - "php-5.4"
+  #     - "php-5.6"
+  #     - "php-7.0"
+  #     - "php-7.1"
+  #     - "php-7.2"
