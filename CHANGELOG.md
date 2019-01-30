@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file - [read more
 ## [UNRELEASED]
 
 ### Fixed
-- Memory leaks in this and return value handling in PHP 7.x
+- Memory leaks in `this` object and return value handling in PHP 5.6 and 7.x
 
 ## [0.11.0]
 
