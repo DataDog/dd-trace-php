@@ -143,16 +143,11 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 #endif
 
 _exit_cleanup:
-#if PHP_VERSION_ID < 70000
     if (this) {
         Z_DELREF_P(this);
     }
-#else
-    if (this) {
-        Z_DELREF_P(this);
-    }
-#endif
-    zval_dtor(&closure);
+
+    Z_DELREF(closure);
 }
 
 static int is_anonymous_closure(zend_function *fbc, const char *function_name, uint32_t *function_name_length_p) {
