@@ -213,10 +213,6 @@ static PHP_FUNCTION(dd_trace) {
     zend_bool rv = ddtrace_trace(clazz, Z_STR_P(function), callable TSRMLS_CC);
 #endif
 
-#if PHP_VERSION_ID < 70000
-    FREE_ZVAL(function);
-#endif
-
     RETURN_BOOL(rv);
 }
 
