@@ -533,7 +533,7 @@ jobs:
           at: ~/datadog
       - run:
           name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile
+          command: make -f dockerfiles/verify_packages/Makefile 7.2.alpine
 
 workflows:
   version: 2
