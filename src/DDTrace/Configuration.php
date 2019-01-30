@@ -86,6 +86,14 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Returns the global tags to be set on all spans.
+     */
+    public function getGlobalTags()
+    {
+        return $this->associativeStringArrayValue('trace.global.tags');
+    }
+
+    /**
      * The name of the application.
      *
      * @param string $default

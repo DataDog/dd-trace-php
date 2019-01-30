@@ -37,6 +37,15 @@ interface Registry
     public function floatValue($key, $default, $min = null, $max = null);
 
     /**
+     * Given a string like 'key1:value1,key2:value2', it returns an associative array
+     * ['key1'=> 'value1', 'key2'=> 'value2']
+     *
+     * @param string $key
+     * @return string[]
+     */
+    public function associativeStringArrayValue($key);
+
+    /**
      * Returns whether or not a given case-insensitive name is contained in a configuration property.
      *
      * @param string $key

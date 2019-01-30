@@ -67,6 +67,16 @@ abstract class AbstractConfiguration implements Registry
     /**
      * {@inheritdoc}
      *
+     * Reads a configuration property into an associative string => string array.
+     */
+    public function associativeStringArrayValue($key)
+    {
+        return $this->registry->associativeStringArrayValue($key);
+    }
+
+    /**
+     * {@inheritdoc}
+     *
      * Allows users to access configuration properties by name instead of calling explicit methods.
      */
     public function inArray($key, $name)
