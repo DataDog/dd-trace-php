@@ -454,40 +454,25 @@ jobs:
           paths: ['./extensions']
 
   "5.6 20131106": &ARTIFACT_BUILD
-    working_directory: ~/datadog
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_56' ]
-    environment:
-      CFLAGS: "-O2 -Wall -Wextra -Wextra"
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/datadog
-      - run:
-          name: Build extension .so
-          command: |
-              mkdir -p extensions
-              make all CFLAGS="${CFLAGS}"
-              SUFFIX="$( echo "$CIRCLE_JOB" | awk '{print $NF}' )"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-$SUFFIX.so
-      - persist_to_workspace:
-          root: '.'
-          paths: ['./extensions']
+    <<: *5_4_ARTIFACT_BUILD
+    docker: [ image: 'datadog/docker-library:ddtrace_centos__6_php_56' ]
+    environment: { CFLAGS: "-O2 -Wall -Wextra -Wextra" }
 
   "7.0 20151012":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_70' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos__6_php_70' ]
 
   "7.1 20160303":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_71' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos__6_php_71' ]
 
   "7.2 20170718":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_72' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos__6_php_72' ]
 
   "7.3 20180731":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos__7_php_72' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos__7_php_73' ]
 
   "5.6 zts 20131106-zts":
     <<: *ARTIFACT_BUILD
@@ -507,7 +492,7 @@ jobs:
 
   "package extension":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_php_fpm' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
     steps:
       - checkout
       - attach_workspace:
