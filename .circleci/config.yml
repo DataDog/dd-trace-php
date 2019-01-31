@@ -455,24 +455,24 @@ jobs:
 
   "5.6 20131106": &ARTIFACT_BUILD
     <<: *5_4_ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos__6_php_56' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_56' ]
     environment: { CFLAGS: "-O2 -Wall -Wextra -Wextra" }
 
   "7.0 20151012":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos__6_php_70' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_70' ]
 
   "7.1 20160303":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos__6_php_71' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_71' ]
 
   "7.2 20170718":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos__6_php_72' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_72' ]
 
   "7.3 20180731":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos__7_php_73' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_73' ]
 
   "5.6 zts 20131106-zts":
     <<: *ARTIFACT_BUILD
@@ -489,6 +489,10 @@ jobs:
   "7.2 zts 20170718-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.2-zts' ]
+
+  "7.3 zts 20180731-zts":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.3-zts' ]
 
   "package extension":
     <<: *ARTIFACT_BUILD
@@ -514,9 +518,12 @@ jobs:
       - checkout
       - attach_workspace:
           at: ~/datadog
+      - run: mkdir -p test-results
       - run:
           name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile 7.2.alpine
+          command: make -f dockerfiles/verify_packages/Makefile docker_compose_pull all
+      - store_test_results:
+          path: test-results
 
 workflows:
   version: 2
@@ -538,6 +545,7 @@ workflows:
       - "7.0 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.1 zts 20160303-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.2 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
+      - "7.3 zts 20180731-zts": *BUILD_PACKAGE_FORKFLOW
       - "package extension":
           requires:
             - "5.4 20100412"
@@ -550,6 +558,7 @@ workflows:
             - "7.0 zts 20151012-zts"
             - "7.1 zts 20160303-zts"
             - "7.2 zts 20170718-zts"
+            - "7.3 zts 20180731-zts"
       - "package verification":
           requires:
             - "package extension"
