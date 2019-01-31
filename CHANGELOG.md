@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - Memory leaks in `this` object and return value handling in PHP 5.6 and 7.x
+- Alpine APK package file being badly formatted when some filepaths were over 100 character long #274
+- Extension being compatible with Centos 6 and other distributions using old Glibc #265
 
 ## [0.11.0]
 
