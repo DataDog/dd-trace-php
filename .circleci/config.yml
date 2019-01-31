@@ -439,12 +439,6 @@ jobs:
     environment:
       CFLAGS: "-O2 -Wall -Wextra"
     steps:
-      - run:
-          name: Install latest git repo
-          command: yum install -y http://opensource.wandisco.com/centos/6/git/x86_64/wandisco-git-release-6-1.noarch.rpm
-      - run:
-          name: Install latest git
-          command: yum update -y git
       - checkout
       - attach_workspace:
           at: ~/datadog
@@ -461,7 +455,7 @@ jobs:
 
   "5.6 20131106": &ARTIFACT_BUILD
     working_directory: ~/datadog
-    docker: [ image: 'datadog/docker-library:ddtrace_php_5_6' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_56' ]
     environment:
       CFLAGS: "-O2 -Wall -Wextra -Wextra"
     steps:
@@ -481,15 +475,19 @@ jobs:
 
   "7.0 20151012":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_php_7_0' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_70' ]
 
   "7.1 20160303":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_php_7_1' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_71' ]
 
   "7.2 20170718":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_php_7_2' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_72' ]
+
+  "7.3 20180731":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'datadog/docker-library:ddtrace_centos__7_php_72' ]
 
   "5.6 zts 20131106-zts":
     <<: *ARTIFACT_BUILD
@@ -509,7 +507,7 @@ jobs:
 
   "package extension":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'pawelchcki/dd-docker-library:ddtrace_php_fpm' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_php_fpm' ]
     steps:
       - checkout
       - attach_workspace:
@@ -550,6 +548,7 @@ workflows:
       - "7.0 20151012": *BUILD_PACKAGE_FORKFLOW
       - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
       - "7.2 20170718": *BUILD_PACKAGE_FORKFLOW
+      - "7.3 20180731": *BUILD_PACKAGE_FORKFLOW
       - "5.6 zts 20131106-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.0 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.1 zts 20160303-zts": *BUILD_PACKAGE_FORKFLOW
@@ -561,6 +560,7 @@ workflows:
             - "7.0 20151012"
             - "7.1 20160303"
             - "7.2 20170718"
+            - "7.3 20180731"
             - "5.6 zts 20131106-zts"
             - "7.0 zts 20151012-zts"
             - "7.1 zts 20160303-zts"
