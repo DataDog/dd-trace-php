@@ -133,6 +133,16 @@ final class EnvVariableRegistryTest extends BaseTestCase
         $this->assertFalse($registry->inArray('some.test.parameter', 'value3'));
     }
 
+    public function testAssociativeStringArrayNotPersistingDefaultValue()
+    {
+        $registry = new EnvVariableRegistry();
+        $this->assertSame([], $registry->associativeStringArrayValue('some.test.parameter'));
+
+        putenv('DD_SOME_TEST_PARAMETER=key:value');
+
+        $this->assertSame(['key' => 'value'], $registry->associativeStringArrayValue('some.test.parameter'));
+    }
+
     /**
      * @dataProvider associativeStringArrayDataProvider
      * @param string|null $env

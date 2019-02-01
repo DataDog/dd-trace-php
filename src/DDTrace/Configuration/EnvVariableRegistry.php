@@ -119,7 +119,7 @@ class EnvVariableRegistry implements Registry
         $value = self::get($key);
 
         if (null === $value) {
-            return $this->registry[$key] = $default;
+            return $default;
         }
 
         // For now we provide no escaping
