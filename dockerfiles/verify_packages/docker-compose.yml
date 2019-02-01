@@ -1,22 +1,31 @@
 version: '3.2'
 
 services:
-  '5.4-centos6': &base_build
+  '5.4-centos6': &base_image
     ulimits: { core: 99999999999 }
     stdin_open: true
     tty: true
     volumes: [ '../../:/build_src' ]
     cap_add: [ SYS_PTRACE ]
-    build: &base_centos_build
-      dockerfile: 'Dockerfile_centos'
-      context: ./
-      args: { PHP_VERSION: 54 }
-  '5.6-centos6': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 56 } } }
-  '7.0-centos6': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 70 } } }
-  '7.1-centos6': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 71 } } }
-  '7.2-centos6': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 72 } } }
-  '5.4-centos7': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 54, CENTOS_VERSION: 7 } } }
-  '5.6-centos7': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 56, CENTOS_VERSION: 7 } } }
-  '7.0-centos7': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 70, CENTOS_VERSION: 7 } } }
-  '7.1-centos7': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 71, CENTOS_VERSION: 7 } } }
-  '7.2-centos7': { <<: *base_build, build: { <<: *base_centos_build, args: { PHP_VERSION: 72, CENTOS_VERSION: 7 } } }
+    image: 'datadog/docker-library:ddtrace_centos_6_php_5_4'
+  '5.6-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_56' }
+  '7.0-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_70' }
+  '7.1-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_71' }
+  '7.2-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_72' }
+  '5.4-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_54' }
+  '5.6-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_56' }
+  '7.0-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_70' }
+  '7.1-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_71' }
+  '7.2-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_72' }
+  '7.3-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_73' }
+  '5.6-alpine':  { <<: *base_image, image: 'php:5.6-alpine' }
+  '7.0-alpine':  { <<: *base_image, image: 'php:7.0-alpine' }
+  '7.1-alpine':  { <<: *base_image, image: 'php:7.1-alpine' }
+  '7.2-alpine':  { <<: *base_image, image: 'php:7.2-alpine' }
+  '7.3-alpine':  { <<: *base_image, image: 'php:7.3-alpine' }
+  '5.6-zts-alpine':  { <<: *base_image, image: 'php:5.6-zts-alpine' }
+  '7.0-zts-alpine':  { <<: *base_image, image: 'php:7.0-zts-alpine' }
+  '7.1-zts-alpine':  { <<: *base_image, image: 'php:7.1-zts-alpine' }
+  '7.2-zts-alpine':  { <<: *base_image, image: 'php:7.2-zts-alpine' }
+  '7.3-zts-alpine':  { <<: *base_image, image: 'php:7.3-zts-alpine' }
+

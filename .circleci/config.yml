@@ -439,12 +439,6 @@ jobs:
     environment:
       CFLAGS: "-O2 -Wall -Wextra"
     steps:
-      - run:
-          name: Install latest git repo
-          command: yum install -y http://opensource.wandisco.com/centos/6/git/x86_64/wandisco-git-release-6-1.noarch.rpm
-      - run:
-          name: Install latest git
-          command: yum update -y git
       - checkout
       - attach_workspace:
           at: ~/datadog
@@ -460,36 +454,25 @@ jobs:
           paths: ['./extensions']
 
   "5.6 20131106": &ARTIFACT_BUILD
-    working_directory: ~/datadog
-    docker: [ image: 'datadog/docker-library:ddtrace_php_5_6' ]
-    environment:
-      CFLAGS: "-O2 -Wall -Wextra -Wextra"
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/datadog
-      - run:
-          name: Build extension .so
-          command: |
-              mkdir -p extensions
-              make all CFLAGS="${CFLAGS}"
-              SUFFIX="$( echo "$CIRCLE_JOB" | awk '{print $NF}' )"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-$SUFFIX.so
-      - persist_to_workspace:
-          root: '.'
-          paths: ['./extensions']
+    <<: *5_4_ARTIFACT_BUILD
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_56' ]
+    environment: { CFLAGS: "-O2 -Wall -Wextra -Wextra" }
 
   "7.0 20151012":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_php_7_0' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_70' ]
 
   "7.1 20160303":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_php_7_1' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_71' ]
 
   "7.2 20170718":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_php_7_2' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_72' ]
+
+  "7.3 20180731":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_73' ]
 
   "5.6 zts 20131106-zts":
     <<: *ARTIFACT_BUILD
@@ -507,16 +490,17 @@ jobs:
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.2-zts' ]
 
+  "7.3 zts 20180731-zts":
+    <<: *ARTIFACT_BUILD
+    docker: [ image: 'circleci/php:7.3-zts' ]
+
   "package extension":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:7.2' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
     steps:
       - checkout
       - attach_workspace:
           at: ~/datadog
-      - run:
-          name: Install FPM and build dependencies
-          command: sudo apt-get update && sudo apt-get install -y ruby ruby-dev rubygems build-essential rpm && sudo gem install --no-ri --no-rdoc fpm
       - run:
           name: Build packages
           command: make packages
@@ -534,9 +518,12 @@ jobs:
       - checkout
       - attach_workspace:
           at: ~/datadog
+      - run: mkdir -p test-results
       - run:
           name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile
+          command: make -f dockerfiles/verify_packages/Makefile docker_compose_pull all
+      - store_test_results:
+          path: test-results
 
 workflows:
   version: 2
@@ -553,10 +540,12 @@ workflows:
       - "7.0 20151012": *BUILD_PACKAGE_FORKFLOW
       - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
       - "7.2 20170718": *BUILD_PACKAGE_FORKFLOW
+      - "7.3 20180731": *BUILD_PACKAGE_FORKFLOW
       - "5.6 zts 20131106-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.0 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.1 zts 20160303-zts": *BUILD_PACKAGE_FORKFLOW
       - "7.2 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
+      - "7.3 zts 20180731-zts": *BUILD_PACKAGE_FORKFLOW
       - "package extension":
           requires:
             - "5.4 20100412"
@@ -564,10 +553,12 @@ workflows:
             - "7.0 20151012"
             - "7.1 20160303"
             - "7.2 20170718"
+            - "7.3 20180731"
             - "5.6 zts 20131106-zts"
             - "7.0 zts 20151012-zts"
             - "7.1 zts 20160303-zts"
             - "7.2 zts 20170718-zts"
+            - "7.3 zts 20180731-zts"
       - "package verification":
           requires:
             - "package extension"
