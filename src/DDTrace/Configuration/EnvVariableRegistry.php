@@ -111,34 +111,35 @@ class EnvVariableRegistry implements Registry
      */
     public function associativeStringArrayValue($key)
     {
+        if (isset($this->registry[$key])) {
+            return $this->registry[$key];
+        }
+
         $default = [];
+        $value = self::get($key);
 
-        if (!isset($this->registry[$key])) {
-            $value = self::get($key);
+        if (null === $value) {
+            return $this->registry[$key] = $default;
+        }
 
-            if (null === $value) {
-                $this->registry[$key] = $default;
+        // For now we provide no escaping
+        $this->registry[$key] = [];
+        $elements = explode(',', $value);
+        foreach ($elements as $element) {
+            $keyAndValue = explode(':', $element);
+
+            if (count($keyAndValue) !== 2) {
+                continue;
             }
 
-            // For now we provide no escaping
-            $this->registry[$key] = [];
-            $elements = explode(',', $value);
-            foreach ($elements as $element) {
-                $keyAndValue = explode(':', $element);
+            $keyFragment = trim($keyAndValue[0]);
+            $valueFragment = trim($keyAndValue[1]);
 
-                if (count($keyAndValue) !== 2) {
-                    continue;
-                }
-
-                $keyFragment = trim($keyAndValue[0]);
-                $valueFragment = trim($keyAndValue[1]);
-
-                if (empty($keyFragment)) {
-                    continue;
-                }
-
-                $this->registry[$key][$keyFragment] = $valueFragment;
+            if (empty($keyFragment)) {
+                continue;
             }
+
+            $this->registry[$key][$keyFragment] = $valueFragment;
         }
 
         return $this->registry[$key];
