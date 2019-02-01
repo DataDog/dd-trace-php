@@ -7,8 +7,12 @@
 #if PHP_VERSION_ID < 70000
 #include "dispatch_compat_php5.h"
 void ddtrace_class_lookup_free(void *zv);
+
+#define ddtrace_zval_ptr_dtor(x) zval_dtor(x)
 #else
 void ddtrace_class_lookup_free(zval *zv);
+
+#define ddtrace_zval_ptr_dtor(x) zval_ptr_dtor(x)
 #define INIT_ZVAL(x) ZVAL_NULL(&x)
 #endif
 
