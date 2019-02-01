@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [UNRELEASED]
 
+### Added
+- support for global tags #273
+
 ### Fixed
 - Memory leaks in `this` object and return value handling in PHP 5.6 and 7.x
 

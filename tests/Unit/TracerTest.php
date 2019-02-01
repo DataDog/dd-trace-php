@@ -184,6 +184,7 @@ final class TracerTest extends BaseTestCase
             'isAutofinishSpansEnabled' => true,
             'isPrioritySamplingEnabled' => false,
             'isDebugModeEnabled' => false,
+            'getGlobalTags' => [],
         ]));
 
         $transport = new DebugTransport();
@@ -208,5 +209,25 @@ final class TracerTest extends BaseTestCase
     {
         $tracer = new Tracer(new NoopTransport());
         $this->assertNull($tracer->getRootScope());
+    }
+
+    public function testHonorGlobalTags()
+    {
+        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+            'isAutofinishSpansEnabled' => true,
+            'isPrioritySamplingEnabled' => false,
+            'isDebugModeEnabled' => false,
+            'getGlobalTags' => [
+                'key1' => 'value1',
+                'key2' => 'value2',
+            ],
+        ]));
+
+        $transport = new DebugTransport();
+        $tracer = new Tracer($transport);
+        $span = $tracer->startSpan('some_operation');
+
+        $this->assertSame('value1', $span->getAllTags()['key1']);
+        $this->assertSame('value2', $span->getAllTags()['key2']);
     }
 }

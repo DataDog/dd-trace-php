@@ -13,6 +13,13 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
     }
 
+    protected static function getEnvs()
+    {
+        return array_merge(parent::getEnvs(), [
+            'DD_TRACE_GLOBAL_TAGS' => 'some.key1:value,some.key2:value2',
+        ]);
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
@@ -40,11 +47,17 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple',
                             'http.status_code' => '200',
+                            'some.key1' => 'value',
+                            'some.key2' => 'value2',
                         ]),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
-                    SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple'),
+                    SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple')
+                        ->withExactTags([
+                            'some.key1' => 'value',
+                            'some.key2' => 'value2',
+                        ]),
                     SpanAssertion::exists('laravel.event.handle'),
                 ],
                 'A simple GET request with a view' => [
@@ -54,7 +67,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.action'),
                     SpanAssertion::exists('laravel.event.handle'),
-                    SpanAssertion::build('laravel.view.render', 'laravel', 'web', 'simple_view'),
+                    SpanAssertion::build('laravel.view.render', 'laravel', 'web', 'simple_view')
+                        ->withExactTags([
+                            'some.key1' => 'value',
+                            'some.key2' => 'value2',
+                        ]),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                 ],
@@ -65,7 +82,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'laravel.route.action' => 'HomeController@error',
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error',
-                            'http.status_code' => '500'
+                            'http.status_code' => '500',
+                            'some.key1' => 'value',
+                            'some.key2' => 'value2',
                         ]),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
@@ -74,6 +93,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         ->withExactTags([
                             'error.msg' => 'Controller error',
                             'error.type' => 'Exception',
+                            'some.key1' => 'value',
+                            'some.key2' => 'value2',
                         ])
                         ->withExistingTagsNames(['error.stack'])
                         ->setError(),

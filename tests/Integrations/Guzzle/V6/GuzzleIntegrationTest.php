@@ -136,6 +136,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             'isAutofinishSpansEnabled' => false,
             'isDistributedTracingEnabled' => false,
             'isPrioritySamplingEnabled' => false,
+            'getGlobalTags' => [],
         ]));
 
         $this->isolateTracer(function () use (&$found, $client) {

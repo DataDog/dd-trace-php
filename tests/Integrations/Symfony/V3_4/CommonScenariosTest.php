@@ -13,6 +13,13 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app.php';
     }
 
+    protected static function getEnvs()
+    {
+        return array_merge(parent::getEnvs(), [
+            'DD_TRACE_APP_NAME' => 'test_symfony_34',
+        ]);
+    }
+
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
@@ -35,7 +42,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 'A simple GET request returning a string' => [
                     SpanAssertion::build(
                         'symfony.request',
-                        'symfony',
+                        'test_symfony_34',
                         'web',
                         'simple'
                     )
@@ -57,7 +64,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
                         'symfony.request',
-                        'symfony',
+                        'test_symfony_34',
                         'web',
                         'simple_view'
                     )
@@ -74,7 +81,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     SpanAssertion::exists('symfony.kernel.controller_arguments'),
                     SpanAssertion::build(
                         'symfony.templating.render',
-                        'symfony',
+                        'test_symfony_34',
                         'web',
                         'Twig_Environment twig_template.html.twig'
                     ),
@@ -85,7 +92,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 'A GET request with an exception' => [
                     SpanAssertion::build(
                         'symfony.request',
-                        'symfony',
+                        'test_symfony_34',
                         'web',
                         'error'
                     )

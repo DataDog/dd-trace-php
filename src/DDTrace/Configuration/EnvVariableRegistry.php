@@ -103,6 +103,49 @@ class EnvVariableRegistry implements Registry
     }
 
     /**
+     * Given a string like 'key1:value1,key2:value2', it returns an associative array
+     * ['key1'=> 'value1', 'key2'=> 'value2']
+     *
+     * @param string $key
+     * @return string[]
+     */
+    public function associativeStringArrayValue($key)
+    {
+        if (isset($this->registry[$key])) {
+            return $this->registry[$key];
+        }
+
+        $default = [];
+        $value = self::get($key);
+
+        if (null === $value) {
+            return $default;
+        }
+
+        // For now we provide no escaping
+        $this->registry[$key] = [];
+        $elements = explode(',', $value);
+        foreach ($elements as $element) {
+            $keyAndValue = explode(':', $element);
+
+            if (count($keyAndValue) !== 2) {
+                continue;
+            }
+
+            $keyFragment = trim($keyAndValue[0]);
+            $valueFragment = trim($keyAndValue[1]);
+
+            if (empty($keyFragment)) {
+                continue;
+            }
+
+            $this->registry[$key][$keyFragment] = $valueFragment;
+        }
+
+        return $this->registry[$key];
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function inArray($key, $name)
