@@ -45,11 +45,17 @@ function install_conf_d_files() {
     println "\n"
 
     # Detect installed SAPI's
+    SAPI_CONFIG_DIRS=(${PHP_CFG_DIR})
     SAPI_DIR=${PHP_CFG_DIR%cli/conf.d}
     if [[ "$PHP_CFG_DIR" != "$SAPI_DIR" ]]; then
-        SAPI_CONFIG_DIRS=($(find ${SAPI_DIR} -type d -name 'conf.d'))
-    else
-        SAPI_CONFIG_DIRS=(${PHP_CFG_DIR})
+        # Detect FPM
+        if [[ -d "${SAPI_DIR}fpm/conf.d" ]]; then
+            SAPI_CONFIG_DIRS+=("${SAPI_DIR}fpm/conf.d")
+        fi
+        # Detect Apache
+        if [[ -d "${SAPI_DIR}apache2/conf.d" ]]; then
+            SAPI_CONFIG_DIRS+=("${SAPI_DIR}apache2/conf.d")
+        fi
     fi
 
     for SAPI_CFG_DIR in ${SAPI_CONFIG_DIRS[@]}
