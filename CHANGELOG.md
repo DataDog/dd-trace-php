@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file - [read more
 ## [UNRELEASED]
 
 ### Added
- - support for global tags #273
+- support for global tags #273
 
 ## [0.11.0]
 
