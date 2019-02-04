@@ -5,7 +5,7 @@ namespace DDTrace\Util;
 /**
  * Utilities related tot he PHP runtime
  */
-class Runtime
+final class Runtime
 {
     /**
      * Tells whether or not a given autoloader is registered.
