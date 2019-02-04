@@ -53,19 +53,21 @@ class SymfonyBundle extends Bundle
         $tracer = GlobalTracer::get();
 
         // Create a span that starts from when Symfony first boots
-        $scope = $tracer->startActiveSpan('symfony.request');
-        $symfonyRequestSpan = $scope->getSpan();
+        $symfonyRequestScope = $tracer->getRootScope();
+        $symfonyRequestSpan = $symfonyRequestScope->getSpan();
         $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $this->getAppName());
         $symfonyRequestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
+        $symfonyRequestSpan->overwriteOperationName('symfony.request');
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
         dd_trace(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
-            function () use ($symfonyRequestSpan) {
+            function () use ($symfonyRequestScope) {
                 $args = func_get_args();
                 $request = $args[0];
                 $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
+                $symfonyRequestSpan = $symfonyRequestScope->getSpan();
                 $symfonyRequestSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
                 $symfonyRequestSpan->setTag(Tag::HTTP_URL, $request->getUriForPath($request->getPathInfo()));
 
@@ -74,6 +76,7 @@ class SymfonyBundle extends Bundle
 
                 try {
                     $response = call_user_func_array([$this, 'handle'], $args);
+                    $symfonyRequestScope->close();
                 } catch (\Exception $e) {
                     $span = $scope->getSpan();
                     $span->setError($e);
