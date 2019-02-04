@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 
 ### Fixed
+- Post-install to link the extension to all installed SAPI's for common configurations #277
 
 ## [0.12.0]
 
