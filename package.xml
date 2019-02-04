@@ -78,6 +78,7 @@
                     <file name="disable_tracing_disables_tracing.phpt" role="test" />
                     <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
+                    <file name="inheritance_with_same_method_name.phpt" role="test" />
                     <file name="method_invoked_via_reflection.phpt" role="test" />
                     <file name="method_returning_array.phpt" role="test" />
                     <file name="multiple_instrumentations.phpt" role="test" />
