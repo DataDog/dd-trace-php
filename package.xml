@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-02-01</date>
+    <date>2019-02-04</date>
     <version>
-        <release>0.12.0</release>
-        <api>0.12.0</api>
+        <release>0.12.1</release>
+        <api>0.12.1</api>
     </version>
     <stability>
         <release>beta</release>
@@ -21,13 +21,8 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        ### Added
-        - Support for global tags via the environment variable `DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2` #273
-
         ### Fixed
-        - Memory leaks in `$this` object and return value handling in PHP 5.6 and 7.x #268
-        - Alpine APK package file being badly formatted when some file paths were over 100 character long #274
-        - Extension being compatible with CentOS 6 and other distributions using old Glibc #265
+        - Post-install to link the extension to all installed SAPI's for common configurations #277
     </notes>
     <contents>
         <dir name="/">
