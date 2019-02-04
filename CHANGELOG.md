@@ -275,7 +275,7 @@ At an high level here are the breaking changes we introduced:
 - OpenTracing compliance tha can be used for manual instrumentation
 
 [Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.12.2...HEAD
-[0.12.1]: https://github.com/DataDog/dd-trace-php/compare/0.12.1...0.12.2
+[0.12.2]: https://github.com/DataDog/dd-trace-php/compare/0.12.1...0.12.2
 [0.12.1]: https://github.com/DataDog/dd-trace-php/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/DataDog/dd-trace-php/compare/0.11.0...0.12.0
 [0.11.0]: https://github.com/DataDog/dd-trace-php/compare/0.10.0...0.11.0
