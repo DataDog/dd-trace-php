@@ -70,7 +70,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'simple_view'
                     )
                         ->withExactTags([
-                            'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleViewAction',
+                            'symfony.route.action' => 'App\Controller\CommonScenariosController@simpleViewAction',
                             'symfony.route.name' => 'simple_view',
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple_view',
@@ -99,7 +99,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )
                         ->setError()
                         ->withExactTags([
-                            'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@errorAction',
+                            'symfony.route.action' => 'App\Controller\CommonScenariosController@errorAction',
                             'symfony.route.name' => 'error',
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error',
