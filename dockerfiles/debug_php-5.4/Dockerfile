@@ -21,7 +21,6 @@ RUN apt-get update && apt-get upgrade -y \
     autoconf \
     && ln -s  x86_64-linux-gnu/curl /usr/include/curl
 
-
 RUN apt-get install -y libgmp-dev libmcrypt-dev && ln -s /usr/include/x86_64-linux-gnu/gmp.h /usr/include/gmp.h
 RUN apt-get install -y valgrind vim
 
@@ -29,8 +28,6 @@ RUN mkdir -p /src/php; (cd /src/php; curl -L https://github.com/php/php-src/arch
 WORKDIR /src/php
 
 RUN ./buildconf --force
-
-
 
 RUN curl -L 'http://launchpadlibrarian.net/96013406/libbison-dev_2.5.dfsg-2.1_amd64.deb' -o /tmp/libbison-dev.deb \
     && curl -L 'http://launchpadlibrarian.net/35068736/bison_2.4.1.dfsg-3_amd64.deb' -o /tmp/bison.deb \
@@ -85,6 +82,8 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
   && php -r "if (hash_file('sha384', 'composer-setup.php') === '93b54496392c062774670ac18b134c3b3a95e5a5e5c8f1a9f115f203b75bf9a129d5daa8ba6a13e2cc8a1da0806388a8') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"\
   && php composer-setup.php && php -r "unlink('composer-setup.php');"\
   && mv composer.phar /usr/local/bin/composer
+ADD https://raw.githubusercontent.com/php/php-src/PHP-5.4.45/.gdbinit /root/.gdbinit
+RUN echo 'set history save on' >> /root/.gdbinit && chmod 600 /root/.gdbinit
 
 CMD ["bash"]
 

@@ -283,10 +283,8 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             if (*return_value){
                 zval_delref_p(*return_value);
                 if (Z_REFCOUNT_PP(return_value) == 0){
-                    if ((fbc->common.fn_flags & ZEND_ACC_CTOR) == 0) {
-                        efree(*return_value);
-                        *return_value = NULL;
-                    }
+                    efree(*return_value);
+                    *return_value = NULL;
                 }
             }
         }

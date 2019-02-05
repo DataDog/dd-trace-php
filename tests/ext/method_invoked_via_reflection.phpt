@@ -20,6 +20,7 @@ class Test {
 dd_trace("Test", "__construct", function ($append = "") {
     $this->__construct($append);
     echo "HOOK CONSTRUCT" . $this->append . PHP_EOL;
+    dd_trace_noop();
 });
 
 $reflectionMethod = new ReflectionMethod('Test', 'method');
