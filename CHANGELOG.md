@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Symfony 4.2 traces generation #280
+
 ## [0.12.2]
 
 ### Fixed
