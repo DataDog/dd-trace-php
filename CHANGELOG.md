@@ -1,12 +1,17 @@
 # Changelog
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
-## [UNRELEASED]
+## [Unreleased]
 
 ### Fixed
 - Symfony 4.2 traces generation #280
 
-### Added
+## [0.12.2]
+
+### Fixed
+- Zend integration incompatibility with Yii #282
+
+## [0.12.1]
 
 ### Fixed
 - Post-install to link the extension to all installed SAPI's for common configurations #277
@@ -272,7 +277,9 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.12.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.12.2...HEAD
+[0.12.2]: https://github.com/DataDog/dd-trace-php/compare/0.12.1...0.12.2
+[0.12.1]: https://github.com/DataDog/dd-trace-php/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/DataDog/dd-trace-php/compare/0.11.0...0.12.0
 [0.11.0]: https://github.com/DataDog/dd-trace-php/compare/0.10.0...0.11.0
 [0.10.0]: https://github.com/DataDog/dd-trace-php/compare/0.9.1...0.10.0

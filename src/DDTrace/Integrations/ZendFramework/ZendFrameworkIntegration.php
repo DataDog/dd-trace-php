@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations\ZendFramework;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Util\Runtime;
 
 /**
  * Zend framework integration loader.
@@ -19,6 +20,12 @@ class ZendFrameworkIntegration extends Integration
     public static function load()
     {
         if (!self::shouldLoad(self::NAME)) {
+            return self::NOT_AVAILABLE;
+        }
+
+        // Some frameworks, e.g. Yii registers autoloaders that fails with non-psr4 classes. For this reason the
+        // Zend framework integration is not compatible with some of them
+        if (Runtime::isAutoloaderRegistered('YiiBase', 'autoload')) {
             return self::NOT_AVAILABLE;
         }
 
