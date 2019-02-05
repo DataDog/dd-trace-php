@@ -55,7 +55,7 @@ class SymfonyBundle extends Bundle
         $tracer = GlobalTracer::get();
         $appName = $this->getAppName();
 
-        // Create a span that starts from when Symfony first boots
+        // Retrieve the web root span for the current host
         $symfonyRequestScope = $tracer->getRootScope();
         $symfonyRequestSpan = $symfonyRequestScope->getSpan();
         $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $appName);
