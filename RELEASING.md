@@ -2,8 +2,10 @@
 
 ## Packagist Package
 
-1. Make sure that all the PR in the current milestone are merged. Move remaining PRs that will not make into the release to the next milestone.
-1. Make sure that there is a 1-to-1 correlation between commits and PRs. This is easy thanks to the squash merge strategy that we adopted.
+1. Make sure that all the PR in the current milestone are merged. Move remaining PRs that will not make into the release
+    to the next milestone.
+1. Make sure that there is a 1-to-1 correlation between commits and PRs. This is easy thanks to the squash merge
+    strategy that we adopted.
 1. Create the version bump commit:
     1. Make sure that the changelog is up to date, if not fix it. Make sure bottom links are up to date.
     1. Update the version number in `src/DDTrace/Tracer.php`.
@@ -20,4 +22,9 @@
 1. Check the release page and share it with the team to make sure big mistakes are avoided :smile:.
 1. Publish it!
 1. Run `pear package` & upload release to PECL: https://pecl.php.net/release-upload.php
+1. Make sure that [packagist](https://packagist.org/packages/datadog/dd-trace) is up to date with the version we just
+    released.
+    There is a web-hook configured for it so the new version should show up in seconds.
+    If it does not you can login and manually trigger an update. Only staff and admins have access to credentials for
+    account `DataDog`.
 1. Once the process is completed, close the milestone.
