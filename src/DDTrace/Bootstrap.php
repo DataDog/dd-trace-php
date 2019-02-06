@@ -86,6 +86,23 @@ final class Bootstrap
         if ('cli' !== PHP_SAPI) {
             $span->setTag(Tag::HTTP_METHOD, $_SERVER['REQUEST_METHOD']);
             $span->setTag(Tag::HTTP_URL, $_SERVER['REQUEST_URI']);
+            // Status code defaults to 200, will be later on changed when http_response_code will be called
+            $span->setTag(Tag::HTTP_STATUS_CODE, 200);
         }
+
+        dd_trace('header', function () use ($span) {
+            $args = func_get_args();
+            $argsCount = count($args);
+            error_log("Called header: " . $args[0]);
+            if ($argsCount === 1) {
+                $result = header($args[0]);
+            } elseif ($argsCount === 2) {
+                $result = header($args[0], $args[1]);
+            } else {
+                $result = header($args[0], $args[1], $args[2]);
+            }
+
+            return $result;
+        });
     }
 }
