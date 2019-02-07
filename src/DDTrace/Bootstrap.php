@@ -92,17 +92,57 @@ final class Bootstrap
 
         dd_trace('header', function () use ($span) {
             $args = func_get_args();
+
+            // header ( string $header [, bool $replace = TRUE [, int $http_response_code ]] ) : void
             $argsCount = count($args);
-            error_log("Called header: " . $args[0]);
+
+            $parsedHttpStatusCode = null;
             if ($argsCount === 1) {
                 $result = header($args[0]);
+                $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
             } elseif ($argsCount === 2) {
                 $result = header($args[0], $args[1]);
+                $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
             } else {
                 $result = header($args[0], $args[1], $args[2]);
+                // header() function can override the current status code
+                $parsedHttpStatusCode = $args[2] === null ? Bootstrap::parseStatusCode($args[0]) : $args[2];
+            }
+
+            if (null !== $parsedHttpStatusCode) {
+                $span->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
             }
 
             return $result;
         });
+    }
+
+    /**
+     * Parses the status code from a a standard header line such as: 'HTTP/1.1 201 Created'.
+     * As part of a refactoring, methods `initRootSpan` and `parseStatusCode` can be moved to a specific generic web
+     * request handler class.
+     *
+     * @param string $headersLine
+     * @return int|null
+     */
+    public static function parseStatusCode($headersLine)
+    {
+        if (empty($headersLine)
+                || !is_string($headersLine)
+                || substr(strtoupper($headersLine), 0, 5) !== 'HTTP/'
+        ) {
+            return null;
+        }
+
+        // Parts MUST be separated by space based on Http Spec:
+        // Header definition: https://tools.ietf.org/html/rfc2616#section-6.1
+        // Space char (SP) definition: https://tools.ietf.org/html/rfc2616#section-2.2
+        $parts = explode(' ', $headersLine);
+        if (count($parts) < 2 || !is_numeric($parts[1])) {
+            return null;
+        }
+
+        // Vase don https://tools.ietf.org/html/rfc2616#section-6.1 the status code MUST be numeric.
+        return (int) $parts[1];
     }
 }
