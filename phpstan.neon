@@ -1,5 +1,6 @@
 parameters:
 	excludes_analyse:
+		- src/DDTrace/Bootstrap.php
 		- src/DDTrace/Util/CodeTracer.php
 		- src/DDTrace/Integrations
 		- src/DDTrace/OpenTracer
