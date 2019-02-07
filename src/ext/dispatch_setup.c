@@ -26,13 +26,18 @@ static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
     } else
         execute_ex(execute_data TSRMLS_CC);
 }
-#endif
 
+static inline void dispatch_table_dtor(zval *zv) {
+    zend_hash_destroy(Z_PTR_P(zv));
+    efree(Z_PTR_P(zv));
+}
+#else
 static inline void dispatch_table_dtor(void *zv) {
     HashTable *ht = *(HashTable **)zv;
     zend_hash_destroy(ht);
     efree(ht);
 }
+#endif
 
 void ddtrace_dispatch_init(TSRMLS_D) {
     zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)dispatch_table_dtor, 0);
