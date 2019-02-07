@@ -48,6 +48,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => '/simple',
+                        'http.status_code' => '200',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -59,6 +60,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => '/simple_view',
+                        'http.status_code' => '200',
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -70,6 +72,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => '/error',
+                        'http.status_code' => '500',
                     ]),
                 ],
             ]
