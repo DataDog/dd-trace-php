@@ -31,4 +31,13 @@ class HomeController extends Controller
         // replace this example code with whatever you need
         return new Response($templating->render('php_template.template.php', []));
     }
+
+    /**
+     * @Route("/terminated_by_exit", name="terminated_by_exit")
+     */
+    public function actionBeingTerminatedByExit(Request $request)
+    {
+        echo "This is calculated by some service";
+        exit();
+    }
 }

@@ -3,9 +3,9 @@
 namespace DDTrace\Integrations\Symfony\V3;
 
 use DDTrace\Configuration;
+use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Symfony\SymfonyIntegration as DDSymfonyIntegration;
-use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
@@ -131,15 +131,27 @@ class SymfonyBundle extends Bundle
             }
         );
 
-        // public function dispatch($eventName, Event $event = null)
+        $tracedEventDispatcherClasses = [];
         dd_trace(
-            'Symfony\Component\EventDispatcher\EventDispatcher',
-            'dispatch',
-            function () use ($symfonyRequestSpan, &$request) {
+            'Symfony\Component\HttpKernel\HttpKernel',
+            '__construct',
+            function ($eventName, $event = null) use (&$tracedEventDispatcherClasses, &$request, &$symfonyRequestSpan) {
                 $args = func_get_args();
-                $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
-                SymfonyBundle::injectRouteInfo($args, $request, $symfonyRequestSpan);
-                return TryCatchFinally::executePublicMethod($scope, $this, 'dispatch', $args);
+                if (count($args) > 0) {
+                    $dispatcherClass = get_class($args[0]);
+                    if (!in_array($dispatcherClass, $tracedEventDispatcherClasses)) {
+                        $tracedEventDispatcherClasses[] = $dispatcherClass;
+
+                        dd_trace($dispatcherClass, 'dispatch', function () use (&$request, &$symfonyRequestSpan) {
+                            $args = func_get_args();
+                            $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
+                            SymfonyBundle::injectRouteInfo($args, $request, $symfonyRequestSpan);
+                            return TryCatchFinally::executePublicMethod($scope, $this, 'dispatch', $args);
+                        });
+                    }
+                }
+
+                return call_user_func_array([$this, '__construct'], $args);
             }
         );
 
@@ -194,6 +206,11 @@ class SymfonyBundle extends Bundle
         $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
         $requestSpan->setTag('symfony.route.action', $action);
         $requestSpan->setTag('symfony.route.name', $request->get('_route'));
+
+        if ($route = $request->get('_route')) {
+            $rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
+            $rootSpan->setResource($route);
+        }
     }
 
     private function getAppName()
