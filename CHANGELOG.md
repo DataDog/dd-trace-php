@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Span::setResource as a legit method # 287
+
 ### Fixed
 - Symfony 4.2 traces generation #280
 - Drupal crashes (temporary workaround) #285
