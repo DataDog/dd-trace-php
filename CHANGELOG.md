@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file - [read more
 - Symfony 4.2 traces generation #280
 - Drupal crashes (temporary workaround) #285
 - Tracing of http status code in generic web requests #288
+- Route not set in symfony 3.4 when user calls exit() #289
 
 ## [0.12.2]
 
