@@ -49,6 +49,13 @@ interface Span
     public function overwriteOperationName($newOperationName);
 
     /**
+     * Sets the span's resource name.
+     *
+     * @param string $resource
+     */
+    public function setResource($resource);
+
+    /**
      * Adds a tag to the span.
      *
      * If there is a pre-existing tag set for key, it is overwritten.
