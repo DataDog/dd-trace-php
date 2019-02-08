@@ -34,6 +34,7 @@ dd_trace_noop();
 echo $bar->parentDoStuff() . "\n";
 
 dd_trace('Foo', 'doStuff', function () {
+    var_dump(dd_trace_invoke_original());
     return call_user_func_array([$this, 'doStuff'], func_get_args());
 });
 

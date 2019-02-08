@@ -221,6 +221,18 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
+// Invoke the function/method from the original context
+static PHP_FUNCTION(dd_trace_invoke_original) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
+
+    RETURN_BOOL(1);
+}
+
 // This function allows untracing a function.
 static PHP_FUNCTION(dd_untrace) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
@@ -313,9 +325,15 @@ static PHP_FUNCTION(dd_trace_noop) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {
-    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL)
-        PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
-            ZEND_FE_END};
+    PHP_FE(dd_trace, NULL)
+    PHP_FE(dd_trace_invoke_original, NULL)
+    PHP_FE(dd_trace_reset, NULL)
+    PHP_FE(dd_trace_noop, NULL)
+    PHP_FE(dd_untrace, NULL)
+    PHP_FE(dd_trace_disable_in_request, NULL)
+    PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
+    ZEND_FE_END
+};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
