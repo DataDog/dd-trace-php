@@ -30,6 +30,7 @@ class Bar extends Foo
 
 $bar = new Bar;
 echo "Before tracing:\n";
+dd_trace_noop();
 echo $bar->parentDoStuff() . "\n";
 
 dd_trace('Foo', 'doStuff', function () {
@@ -37,6 +38,7 @@ dd_trace('Foo', 'doStuff', function () {
 });
 
 echo "After tracing:\n";
+dd_trace_noop();
 echo $bar->parentDoStuff() . "\n";
 ?>
 --EXPECT--
