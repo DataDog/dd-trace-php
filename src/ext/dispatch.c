@@ -255,8 +255,10 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         zval *rv_ptr = &rv;
 
         if (RETURN_VALUE_USED(opline)) {
-            EX_T(opline->result.var).var.ptr = NULL;
-            return_value = &EX_T(opline->result.var).var.ptr;
+            EX_T(opline->result.var).var.ptr = &EG(uninitialized_zval);
+            EX_T(opline->result.var).var.ptr_ptr = NULL;
+
+            return_value = NULL;
         } else {
             return_value = &rv_ptr;
         }
@@ -271,7 +273,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
                 ret->var.ptr_ptr = EG(return_value_ptr_ptr);
             } else {
                 ret->var.ptr = NULL;
-                ALLOC_INIT_ZVAL(ret->var.ptr);
                 ret->var.ptr_ptr = &ret->var.ptr;
             }
 
@@ -280,6 +281,16 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         }
 
         execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
+        EG(return_value_ptr_ptr) = EX(original_return_value);
+
+        if (!RETURN_VALUE_USED(opline) && return_value && *return_value) {
+            zval_delref_p(*return_value);
+            if (Z_REFCOUNT_PP(return_value) == 0) {
+                efree(*return_value);
+                *return_value = NULL;
+            }
+        }
+
 #elif PHP_VERSION_ID < 70000
         zval *return_value = NULL;
         execute_fcall(dispatch, execute_data, &return_value TSRMLS_CC);
@@ -380,6 +391,7 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     EG(opline_ptr) = &EX(opline);
     EG(active_op_array) = EX(op_array);
 
+    EG(return_value_ptr_ptr) = EX(original_return_value);
     EX(original_return_value) = NULL;
 
     EG(active_symbol_table) = EX(symbol_table);

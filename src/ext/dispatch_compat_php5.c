@@ -86,11 +86,10 @@ void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, 
         FBC() = EX(function_state).function;
 #endif
     }
+
 #if PHP_VERSION_ID < 50600
     EX(original_return_value) = EG(return_value_ptr_ptr);
-    if (EG(return_value_ptr_ptr) && result) {
-        *EG(return_value_ptr_ptr) = *result;
-    }
+    EG(return_value_ptr_ptr) = result;
 #endif
 
     setup_fcal_name(execute_data, fci, result TSRMLS_CC);

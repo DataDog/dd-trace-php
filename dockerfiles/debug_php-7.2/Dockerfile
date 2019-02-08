@@ -62,11 +62,16 @@ RUN ./buildconf --force && ./configure \
     --with-bz2=/usr \
     --with-kerberos=shared,/usr/lib \
     --disable-nls \
+    --with-config-file-scan-dir=/usr/local/etc/php/conf.d \
+    --with-config-file-path=/usr/local/etc/php \
     --enable-debug
 
 RUN make -j 4 && make install
 
 RUN apt-get install -y vim valgrind
+
+ADD https://raw.githubusercontent.com/php/php-src/PHP-7.2.1/.gdbinit /root/.gdbinit
+RUN echo 'set history save on' >> /root/.gdbinit && chmod 600 /root/.gdbinit
 
 CMD ["bash"]
 

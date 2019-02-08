@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file - [read more
 - Span::setResource as a legit method # 287
 
 ### Fixed
+- Memory leak and misshandling of return value in PHP 5.4 #281
 - Symfony 4.2 traces generation #280
 - Drupal crashes (temporary workaround) #285
 - Tracing of http status code in generic web requests #288
