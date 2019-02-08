@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Memory leak and misshandling of return value in PHP 5.4 #281
+
 ## [0.12.1]
 
 ### Fixed
