@@ -151,6 +151,14 @@ final class SpanTest extends Framework\TestCase
         $this->assertFalse($span->hasError());
     }
 
+    public function testSpanSetResource()
+    {
+        $span = $this->createSpan();
+        $span->setResource('modified_test_resource');
+
+        $this->assertSame('modified_test_resource', $span->getResource());
+    }
+
     /**
      * @expectedException \DDTrace\Exceptions\InvalidSpanArgument
      * @expectedExceptionMessage Error should be either Exception or Throwable, got integer.

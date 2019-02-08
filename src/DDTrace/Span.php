@@ -227,13 +227,10 @@ final class Span implements SpanInterface
     }
 
     /**
-     * @deprecated
-     * @param string $resource
+     * {@inheritdoc}
      */
     public function setResource($resource)
     {
-        error_log('DEPRECATED: Method "DDTrace\Span\setResource" will be removed soon, '
-            . 'you should use DDTrace\Span::setTag(Tag::RESOURCE_NAME, $value) instead.');
         $this->setTag(Tag::RESOURCE_NAME, $resource);
     }
 

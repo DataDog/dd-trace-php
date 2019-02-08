@@ -49,6 +49,13 @@ final class NoopSpan implements SpanInterface
     /**
      * {@inheritdoc}
      */
+    public function setResource($resource)
+    {
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function getTag($key)
     {
         return null;

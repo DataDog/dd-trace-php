@@ -202,6 +202,8 @@
             "@symfony-33-test",
             "@symfony-34-update",
             "@symfony-34-test",
+            "@symfony-42-update",
+            "@symfony-42-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-update",
             "@custom-framework-autoloaded-test"
@@ -215,6 +217,8 @@
             "@symfony-33-test",
             "@symfony-34-update",
             "@symfony-34-test",
+            "@symfony-42-update",
+            "@symfony-42-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-update",
             "@custom-framework-autoloaded-test"
@@ -239,6 +243,12 @@
             "php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod"
         ],
         "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3_4",
+
+        "symfony-42-update": [
+            "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_4_2 update",
+            "php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod"
+        ],
+        "symfony-42-test": "@composer test -- tests/Integrations/Symfony/V4_2",
 
         "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1",
 

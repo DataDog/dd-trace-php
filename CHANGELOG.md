@@ -3,8 +3,20 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Span::setResource as a legit method # 287
+
 ### Fixed
 - Memory leak and misshandling of return value in PHP 5.4 #281
+- Symfony 4.2 traces generation #280
+- Drupal crashes (temporary workaround) #285
+- Tracing of http status code in generic web requests #288
+- Route not set in symfony 3.4 when user calls exit() #289
+
+## [0.12.2]
+
+### Fixed
+- Zend integration incompatibility with Yii #282
 
 ## [0.12.1]
 
@@ -272,7 +284,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.12.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.12.2...HEAD
+[0.12.2]: https://github.com/DataDog/dd-trace-php/compare/0.12.1...0.12.2
 [0.12.1]: https://github.com/DataDog/dd-trace-php/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/DataDog/dd-trace-php/compare/0.11.0...0.12.0
 [0.11.0]: https://github.com/DataDog/dd-trace-php/compare/0.10.0...0.11.0

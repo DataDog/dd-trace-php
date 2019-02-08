@@ -2,8 +2,8 @@
 
 namespace DDTrace\Util;
 
+use DDTrace\Contracts\Scope;
 use DDTrace\Contracts\Span;
-use DDTrace\Scope;
 
 /**
  * PHP 5.4 compatible methods to workaround the missing try-catch-finally block.

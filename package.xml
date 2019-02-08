@@ -12,8 +12,8 @@
     </lead>
     <date>2019-02-04</date>
     <version>
-        <release>0.12.1</release>
-        <api>0.12.1</api>
+        <release>0.12.2</release>
+        <api>0.12.2</api>
     </version>
     <stability>
         <release>beta</release>
@@ -22,7 +22,7 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         ### Fixed
-        - Post-install to link the extension to all installed SAPI's for common configurations #277
+        - Zend integration incompatibility with Yii #282
     </notes>
     <contents>
         <dir name="/">
