@@ -26,24 +26,35 @@ class Bar extends Foo
         # Should return "42"
         return parent::doStuff();
     }
+
+    public function myDoStuff()
+    {
+        # Should return "1337"
+        return $this->doStuff();
+    }
 }
 
 $bar = new Bar;
 echo "Before tracing:\n";
 dd_trace_noop();
 echo $bar->parentDoStuff() . "\n";
+echo $bar->myDoStuff() . "\n";
 
 dd_trace('Foo', 'doStuff', function () {
     var_dump(dd_trace_invoke_original());
+    #return call_user_func_array([get_called_class(), 'doStuff'], func_get_args());
     return call_user_func_array([$this, 'doStuff'], func_get_args());
 });
 
 echo "After tracing:\n";
 dd_trace_noop();
 echo $bar->parentDoStuff() . "\n";
+echo $bar->myDoStuff() . "\n";
 ?>
 --EXPECT--
 Before tracing:
 42
+1337
 After tracing:
 42
+1337
