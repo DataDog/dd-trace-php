@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - Span::setResource as a legit method # 287
 - Logging more span's info when in debug mode # 292
+- Disable tracing for specific URI's #293
 
 ### Fixed
 - Symfony 4.2 traces generation #280
