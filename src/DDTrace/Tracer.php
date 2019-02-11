@@ -263,7 +263,7 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        if (self::isLogLevelActive(LogLevel::DEBUG)) {
+        if (self::isLogDebugActive()) {
             self::logDebug('Flushing {count} traces, {spanCount} spans', [
                 'count' => count($this->traces),
                 'spanCount' => $this->getSpanCount(),

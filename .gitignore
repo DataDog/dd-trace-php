@@ -37,3 +37,4 @@ tests/ext/*.mem
 tmp-php.ini
 tmp/opcache*
 *.orig
+benchmark.php

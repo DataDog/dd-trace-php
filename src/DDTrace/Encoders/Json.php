@@ -84,7 +84,7 @@ final class Json implements Encoder
      */
     private function logSpanDetailsIfDebug(Span $span)
     {
-        if (!self::isLogLevelActive(LogLevel::DEBUG)) {
+        if (!self::isLogDebugActive()) {
             return;
         }
 
@@ -93,7 +93,7 @@ final class Json implements Encoder
             $lengths[] = "$tagName:" . strlen($tagValue);
         }
 
-        self:self::logDebug(
+        self::logDebug(
             "Encoding span '{id}' op: '{operation}' serv: '{service}' res: '{resource}' type '{type}'",
             [
                 'id' => $span->getSpanId(),

@@ -17,9 +17,14 @@ abstract class AbstractLogger implements LoggerInterface
      */
     public function __construct($level)
     {
-        // At the moment we only support debug or off.
-        foreach (LogLevel::all() as $knownLevel) {
-            $this->enabledLevels[$knownLevel] = $level === LogLevel::DEBUG;
+        $level = trim(strtolower($level));
+
+        # all() have all levels ordered from highest to lowest
+        # all preceding levels to given $level will be marked as enabled
+        $found = false;
+        foreach (array_reverse(LogLevel::all()) as $knownLevel) {
+            $found = $found || ($level === $knownLevel);
+            $this->enabledLevels[$knownLevel] = $found || false;
         }
     }
 

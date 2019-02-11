@@ -38,11 +38,10 @@ trait LoggingTrait
     }
 
     /**
-     * @param string $level
      * @return bool
      */
-    protected static function isLogLevelActive($level)
+    protected static function isLogDebugActive()
     {
-        return Logger::get()->isLevelActive($level);
+        return Logger::get()->isLevelActive(LogLevel::DEBUG);
     }
 }
