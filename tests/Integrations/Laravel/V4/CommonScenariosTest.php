@@ -16,6 +16,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
+            'DD_TRACE_DEBUG' => 'true',
             'DD_TRACE_GLOBAL_TAGS' => 'some.key1:value,some.key2:value2',
         ]);
     }
