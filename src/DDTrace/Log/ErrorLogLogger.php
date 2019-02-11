@@ -5,7 +5,7 @@ namespace DDTrace\Log;
 /**
  * An implementation of the DDTrace\LoggerInterface that logs to the error_log.
  */
-class ErrorLogLogger implements LoggerInterface
+class ErrorLogLogger extends AbstractLogger
 {
     use InterpolateTrait;
 
@@ -20,7 +20,7 @@ class ErrorLogLogger implements LoggerInterface
     {
         // As a first draft, we do not implement logging levels. This logger is simply enabled when property
         // trace.debug = true and all messages are shown.
-        $this->emit(self::DEBUG, $message, $context);
+        $this->emit(LogLevel::DEBUG, $message, $context);
     }
 
     /**
@@ -35,7 +35,7 @@ class ErrorLogLogger implements LoggerInterface
     {
         // As a first draft, we do not implement logging levels. This logger is simply enabled when property
         // trace.debug = true and all messages are shown.
-        $this->emit(self::WARNING, $message, $context);
+        $this->emit(LogLevel::WARNING, $message, $context);
     }
 
     /**
@@ -50,7 +50,7 @@ class ErrorLogLogger implements LoggerInterface
     {
         // As a first draft, we do not implement logging levels. This logger is simply enabled when property
         // trace.debug = true and all messages are shown.
-        $this->emit(self::ERROR, $message, $context);
+        $this->emit(LogLevel::ERROR, $message, $context);
     }
 
     /**
@@ -60,6 +60,10 @@ class ErrorLogLogger implements LoggerInterface
      */
     private function emit($level, $message, array $context = [])
     {
+        if (!$this->isLevelActive($level)) {
+            return;
+        }
+
         $interpolatedMessage = $this->interpolate($message, $context);
         $date = date(\DateTime::ATOM);
         error_log("[$date] [ddtrace] [$level] - $interpolatedMessage");

@@ -5,7 +5,7 @@ namespace DDTrace\Log;
 /**
  * An implementation of the DDTrace\LoggerInterface that uses Psr\Log under the hood.
  */
-final class PsrLogger implements LoggerInterface
+final class PsrLogger extends AbstractLogger
 {
     /**
      * @var \Psr\Log\LoggerInterface
@@ -14,14 +14,17 @@ final class PsrLogger implements LoggerInterface
 
     /**
      * @param \Psr\Log\LoggerInterface $psrLogger
+     * @param string $level
      */
-    public function __construct($psrLogger)
+    public function __construct($psrLogger, $level = LogLevel::INFO)
     {
         if (!is_a($psrLogger, '\Psr\Log\LoggerInterface')) {
             throw new \InvalidArgumentException(
                 '\DDTrace\Log\PsrLogger constructor arg must implement \Psr\Log\LoggerInterface'
             );
         }
+
+        parent::__construct($level);
         $this->psrLogger = $psrLogger;
     }
 

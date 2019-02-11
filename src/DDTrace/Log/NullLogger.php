@@ -5,7 +5,7 @@ namespace DDTrace\Log;
 /**
  * An implementation of the DDTrace\LoggerInterface that logs nothing.
  */
-final class NullLogger implements LoggerInterface
+final class NullLogger extends AbstractLogger
 {
     /**
      * Logs a debug at the debug level.
@@ -39,5 +39,14 @@ final class NullLogger implements LoggerInterface
      */
     public function error($message, array $context = array())
     {
+    }
+
+    /**
+     * @param string $level
+     * @return bool
+     */
+    public function isLevelActive($level)
+    {
+        return false;
     }
 }
