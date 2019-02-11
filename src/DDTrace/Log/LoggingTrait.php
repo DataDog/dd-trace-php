@@ -36,4 +36,12 @@ trait LoggingTrait
     {
         Logger::get()->error($message, $context);
     }
+
+    /**
+     * @return bool
+     */
+    protected static function isLogDebugActive()
+    {
+        return Logger::get()->isLevelActive(LogLevel::DEBUG);
+    }
 }

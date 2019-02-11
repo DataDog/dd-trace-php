@@ -33,7 +33,9 @@ final class Logger
     {
         if (self::$logger === null) {
             $config = Configuration::get();
-            self::$logger = $config->isDebugModeEnabled() ? new ErrorLogLogger() : new NullLogger();
+            self::$logger = $config->isDebugModeEnabled()
+                ? new ErrorLogLogger(LogLevel::DEBUG)
+                : new NullLogger(LogLevel::EMERGENCY);
         }
         return self::$logger;
     }

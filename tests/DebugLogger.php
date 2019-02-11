@@ -2,14 +2,20 @@
 
 namespace DDTrace\Tests;
 
+use DDTrace\Log\AbstractLogger;
 use DDTrace\Log\InterpolateTrait;
-use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\LogLevel;
 
-class DebugLogger implements LoggerInterface
+class DebugLogger extends AbstractLogger
 {
     use InterpolateTrait;
 
     private $records = [];
+
+    public function __construct()
+    {
+        parent::__construct(LogLevel::DEBUG);
+    }
 
     /**
      * @param string $message
@@ -18,7 +24,7 @@ class DebugLogger implements LoggerInterface
     public function debug($message, array $context = [])
     {
         $this->records[] = [
-            LoggerInterface::DEBUG,
+            LogLevel::DEBUG,
             $this->interpolate($message, $context),
         ];
     }
@@ -30,7 +36,7 @@ class DebugLogger implements LoggerInterface
     public function warning($message, array $context = array())
     {
         $this->records[] = [
-            LoggerInterface::WARNING,
+            LogLevel::WARNING,
             $this->interpolate($message, $context),
         ];
     }
@@ -42,7 +48,7 @@ class DebugLogger implements LoggerInterface
     public function error($message, array $context = array())
     {
         $this->records[] = [
-            LoggerInterface::ERROR,
+            LogLevel::ERROR,
             $this->interpolate($message, $context),
         ];
     }

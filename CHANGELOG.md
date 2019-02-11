@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Added
 - Span::setResource as a legit method # 287
+- Logging more span's info when in debug mode # 292
 
 ### Fixed
 - Memory leak and misshandling of return value in PHP 5.4 #281

@@ -8,10 +8,14 @@ use DDTrace\Encoder;
 use DDTrace\GlobalTracer;
 use DDTrace\Log\Logger;
 use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\LoggingTrait;
+use DDTrace\Log\LogLevel;
 use DDTrace\Sampling\PrioritySampling;
 
 final class Json implements Encoder
 {
+    use LoggingTrait;
+
     /**
      * @var LoggerInterface
      */
@@ -51,6 +55,10 @@ final class Json implements Encoder
      */
     private function encodeSpan(Span $span, Tracer $tracer)
     {
+        if (self::isLogDebugActive()) {
+            $this->logSpanDetailsIfDebug($span);
+        }
+
         $json = json_encode($this->spanToArray($span, $tracer));
         if (false === $json) {
             $this->logger->debug("Failed to json-encode span: " . json_last_error_msg());
@@ -70,6 +78,34 @@ final class Json implements Encoder
             '"span_id":' . $span->getSpanId(),
             '"parent_id":' . $span->getParentId(),
         ], $json);
+    }
+
+    /**
+     * Logs a Span's detailed info.
+     *
+     * @param Span $span
+     */
+    private function logSpanDetailsIfDebug(Span $span)
+    {
+        $lengths = [];
+        foreach ($span->getAllTags() as $tagName => $tagValue) {
+            $lengths[] = "$tagName:" . strlen($tagValue);
+        }
+
+        self::logDebug(
+            "Encoding span '{id}' op: '{operation}' serv: '{service}' res: '{resource}' type '{type}'",
+            [
+                'id' => $span->getSpanId(),
+                'operation' => $span->getOperationName(),
+                'service' => $span->getService(),
+                'resource' => $span->getResource(),
+                'type' => $span->getType(),
+            ]
+        );
+        self::logDebug('Tags for span {id} \'tag:chars_count\' are: {lengths}', [
+            'id' => $span->getSpanId(),
+            'lengths' => implode(',', $lengths),
+        ]);
     }
 
     /**
