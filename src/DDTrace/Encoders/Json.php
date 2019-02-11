@@ -94,15 +94,15 @@ final class Json implements Encoder
         }
 
         self:self::logDebug(
-        "Encoding span '{id}' op: '{operation}' serv: '{service}' res: '{resource}' type '{type}'",
-        [
-            'id' => $span->getSpanId(),
-            'operation' => $span->getOperationName(),
-            'service' => $span->getService(),
-            'resource' => $span->getResource(),
-            'type' => $span->getType(),
-        ]
-    );
+            "Encoding span '{id}' op: '{operation}' serv: '{service}' res: '{resource}' type '{type}'",
+            [
+                'id' => $span->getSpanId(),
+                'operation' => $span->getOperationName(),
+                'service' => $span->getService(),
+                'resource' => $span->getResource(),
+                'type' => $span->getType(),
+            ]
+        );
         self::logDebug('Tags for span {id} \'tag:chars_count\' are: {lengths}', [
             'id' => $span->getSpanId(),
             'lengths' => implode(',', $lengths),
