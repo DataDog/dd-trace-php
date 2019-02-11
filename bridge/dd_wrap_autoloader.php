@@ -8,7 +8,7 @@ if (php_sapi_name() == 'cli' && getenv('APP_ENV') != 'dd_testing') {
     return;
 }
 
-if (!dd_tracing_enabled()) {
+if (!dd_tracing_enabled() || !dd_tracing_route_enabled()) {
     return;
 }
 

@@ -10,12 +10,38 @@ function dd_tracing_enabled()
         return true;
     }
 
-    $value = trim(strtolower($value));
-    if ($value === '0' || $value === 'false') {
-        return false;
-    } else {
+    $value = strtolower(trim($value));
+    return !($value === '0' || $value === 'false');
+}
+
+/**
+ * Checks the `DD_DISABLE_URI` env var for routes to disable the tracer on
+ *
+ * @param string|null $requestUri
+ * @return bool
+ */
+function dd_tracing_route_enabled($requestUri = null)
+{
+    $value = getenv('DD_DISABLE_URI');
+    if (false === $value) {
+        // Not setting the env means we default to enabled.
         return true;
     }
+    if (null === $requestUri) {
+        $requestUri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : null;
+    }
+    if (!$requestUri) {
+        return true;
+    }
+
+    $uris = explode(',', $value);
+    foreach ($uris as $uri) {
+        $uriRegex = str_replace('\*', '.*', preg_quote(trim($uri), '~'));
+        if (1 === preg_match('~^'.$uriRegex.'$~', $requestUri)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /**
