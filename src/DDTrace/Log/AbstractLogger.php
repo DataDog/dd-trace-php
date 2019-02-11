@@ -21,10 +21,10 @@ abstract class AbstractLogger implements LoggerInterface
 
         # all() have all levels ordered from highest to lowest
         # all preceding levels to given $level will be marked as enabled
-        $found = false;
+        $enabled = false;
         foreach (array_reverse(LogLevel::all()) as $knownLevel) {
-            $found = $found || ($level === $knownLevel);
-            $this->enabledLevels[$knownLevel] = $found || false;
+            $enabled = $enabled || ($level === $knownLevel);
+            $this->enabledLevels[$knownLevel] = $enabled;
         }
     }
 

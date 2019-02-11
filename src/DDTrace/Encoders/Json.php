@@ -55,9 +55,9 @@ final class Json implements Encoder
      */
     private function encodeSpan(Span $span, Tracer $tracer)
     {
-        self::whenDebugIsEnabled(function () use ($span) {
+        if (self::isLogDebugActive()) {
             $this->logSpanDetailsIfDebug($span);
-        });
+        }
 
         $json = json_encode($this->spanToArray($span, $tracer));
         if (false === $json) {
