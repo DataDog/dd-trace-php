@@ -37,7 +37,7 @@ function dd_tracing_route_enabled($requestUri = null)
     $uris = explode(',', $value);
     foreach ($uris as $uri) {
         $uriRegex = str_replace('\*', '.*', preg_quote(trim($uri), '~'));
-        if (1 === preg_match('~^'.$uriRegex.'$~', $requestUri)) {
+        if (1 === preg_match('~^' . $uriRegex . '$~', $requestUri)) {
             return false;
         }
     }
