@@ -55,7 +55,10 @@ final class Json implements Encoder
      */
     private function encodeSpan(Span $span, Tracer $tracer)
     {
-        $this->logSpanDetailsIfDebug($span);
+        self::whenDebugIsEnabled(function () use ($span) {
+            $this->logSpanDetailsIfDebug($span);
+        });
+
         $json = json_encode($this->spanToArray($span, $tracer));
         if (false === $json) {
             $this->logger->debug("Failed to json-encode span: " . json_last_error_msg());
@@ -84,10 +87,6 @@ final class Json implements Encoder
      */
     private function logSpanDetailsIfDebug(Span $span)
     {
-        if (!self::isLogDebugActive()) {
-            return;
-        }
-
         $lengths = [];
         foreach ($span->getAllTags() as $tagName => $tagValue) {
             $lengths[] = "$tagName:" . strlen($tagValue);

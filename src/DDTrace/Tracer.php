@@ -4,7 +4,6 @@ namespace DDTrace;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Log\LoggingTrait;
-use DDTrace\Log\LogLevel;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
@@ -263,12 +262,12 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        if (self::isLogDebugActive()) {
+        self::whenDebugIsEnabled(function () {
             self::logDebug('Flushing {count} traces, {spanCount} spans', [
                 'count' => count($this->traces),
                 'spanCount' => $this->getSpanCount(),
             ]);
-        }
+        });
 
         $tracesToBeSent = $this->shiftFinishedTraces();
 

@@ -38,10 +38,12 @@ trait LoggingTrait
     }
 
     /**
-     * @return bool
+     * @param \Closure $classback
      */
-    protected static function isLogDebugActive()
+    protected static function whenDebugIsEnabled(\Closure $classback)
     {
-        return Logger::get()->isLevelActive(LogLevel::DEBUG);
+        if (Logger::get()->isLevelActive(LogLevel::DEBUG)) {
+            $classback();
+        }
     }
 }
