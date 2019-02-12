@@ -22,7 +22,8 @@ final class Bootstrap
      */
     public static function tracerOnce()
     {
-        if (self::$bootstrapped) {
+        if (self::$bootstrapped
+                || !\DDTrace\Bridge\dd_tracing_route_enabled()) {
             return;
         }
 
