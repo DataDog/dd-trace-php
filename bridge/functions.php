@@ -90,11 +90,16 @@ function dd_wrap_autoloader()
         // the moment we are working to have this use case properly handled by the extension. In the meantime we provide
         // this workaround.
         if (in_array($loaderClass, $untraceTriggerClasses)
-            && any_class_exists($sentinelClasses)) {
+                && any_class_exists($sentinelClasses)
+        ) {
             dd_untrace('spl_autoload_register');
         }
 
-        if (!$dd_autoload_called && !class_exists('\DDTrace\Tracer')) {
+        if (!$dd_autoload_called
+                // If `\DDTrace\Tracer` exists, then the user defined this entry in the composer.json file and we don't
+                // need to add the autoloader that loads sources from the bundled version.
+                && !class_exists('\DDTrace\Tracer')
+        ) {
             $dd_autoload_called = true;
             require_once __DIR__ . '/dd_autoloader.php';
             spl_autoload_register(['\DDTrace\Bridge\Autoloader', 'load']);
