@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Honor ddtrace provided by composer if user provided one #276
+
 ## [0.13.0]
 
 ### Added
