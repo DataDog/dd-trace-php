@@ -39,7 +39,7 @@ namespace DDTrace\Tests\Unit
          */
         public function testTracerEnabledOrDisabledForUris($uri, $expected)
         {
-            putenv('DD_DISABLE_URI=/foo,/users/*,/bar/*/test,/index.php?foo=*');
+            putenv('DD_DISABLE_URI=/foo,/users/*,/bar/*/test,/slow/*.php');
 
             $this->assertSame(
                 $expected,
@@ -56,8 +56,9 @@ namespace DDTrace\Tests\Unit
                 ['/users', true],
                 ['/users/' . mt_rand(), false],
                 ['/bar/test', true],
-                ['/bar/' . mt_rand() . '/more/test', false],
-                ['/index.php?foo=' . mt_rand(), false],
+                ['/bar/' . mt_rand() . '/test', false],
+                ['/bar/' . mt_rand() . '/more/test', true],
+                ['/slow/' . mt_rand() . '.php', false],
             ];
         }
     }
