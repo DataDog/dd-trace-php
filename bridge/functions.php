@@ -15,14 +15,14 @@ function dd_tracing_enabled()
 }
 
 /**
- * Checks the `DD_DISABLE_URI` env var for routes to disable the tracer on
+ * Checks the `DD_EXPERIMENTAL_DISABLE_URI` env var for routes to disable the tracer on
  *
  * @param string|null $requestUri
  * @return bool
  */
 function dd_tracing_route_enabled($requestUri = null)
 {
-    $value = getenv('DD_DISABLE_URI');
+    $value = getenv('DD_EXPERIMENTAL_DISABLE_URI');
     if (false === $value) {
         // Not setting the env means we default to enabled.
         return true;

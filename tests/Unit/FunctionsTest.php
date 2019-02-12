@@ -13,7 +13,7 @@ namespace DDTrace\Tests\Unit
         {
             parent::setUp();
             putenv('DD_TRACE_ENABLED');
-            putenv('DD_DISABLE_URI');
+            putenv('DD_EXPERIMENTAL_DISABLE_URI');
         }
 
         public function testTracerEnabledByDefault()
@@ -39,7 +39,7 @@ namespace DDTrace\Tests\Unit
          */
         public function testTracerEnabledOrDisabledForUris($uri, $expected)
         {
-            putenv('DD_DISABLE_URI=/foo,/users/*,/bar/*/test,/slow/*.php');
+            putenv('DD_EXPERIMENTAL_DISABLE_URI=/foo,/users/*,/bar/*/test,/slow/*.php');
 
             $this->assertSame(
                 $expected,
