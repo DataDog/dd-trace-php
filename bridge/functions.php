@@ -11,7 +11,7 @@ function dd_tracing_enabled()
     }
 
     $value = strtolower(trim($value));
-    return !($value === '0' || $value === 'false');
+    return $value !== '0' && $value !== 'false';
 }
 
 /**
