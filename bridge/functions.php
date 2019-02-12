@@ -33,6 +33,9 @@ function dd_tracing_route_enabled($requestUri = null)
     if (!$requestUri) {
         return true;
     }
+    if (false !== $pos = strpos($requestUri, '?')) {
+        $requestUri = substr($requestUri, 0, $pos);
+    }
 
     $uris = explode(',', $value);
     foreach ($uris as $uri) {

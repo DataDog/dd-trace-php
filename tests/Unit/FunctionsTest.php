@@ -57,6 +57,7 @@ namespace DDTrace\Tests\Unit
                 ['/users/' . mt_rand(), false],
                 ['/bar/test', true],
                 ['/bar/' . mt_rand() . '/test', false],
+                ['/bar/' . mt_rand() . '/test?foo=bar', false],
                 ['/bar/' . mt_rand() . '/more/test', true],
                 ['/slow/' . mt_rand() . '.php', false],
             ];
