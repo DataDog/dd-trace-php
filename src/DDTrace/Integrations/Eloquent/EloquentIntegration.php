@@ -15,7 +15,7 @@ class EloquentIntegration
 
     public static function load()
     {
-        if (!class_exists('Illuminate\Database\Eloquent\Builder') || Versions::phpVersionMatches('5.4')) {
+        if (!class_exists('Illuminate\Database\Eloquent\Builder')) {
             return Integration::NOT_LOADED;
         }
 

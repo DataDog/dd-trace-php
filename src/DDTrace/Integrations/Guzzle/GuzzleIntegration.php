@@ -15,10 +15,6 @@ final class GuzzleIntegration
 
     public static function load()
     {
-        if (Versions::phpVersionMatches('5.4')) {
-            return Integration::NOT_AVAILABLE;
-        }
-
         if (!defined('GuzzleHttp\ClientInterface::VERSION')) {
             return Integration::NOT_LOADED;
         }
