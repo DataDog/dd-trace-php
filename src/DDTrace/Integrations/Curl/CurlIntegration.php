@@ -25,7 +25,7 @@ class CurlIntegration
      */
     public static function load()
     {
-        if (!function_exists('curl_exec') || Versions::phpVersionMatches('5.4')) {
+        if (!function_exists('curl_exec')) {
             // `curl_exec` doesn't come from an autoloader, if it does not exists we can return this integration as
             // not available.
             return Integration::NOT_AVAILABLE;

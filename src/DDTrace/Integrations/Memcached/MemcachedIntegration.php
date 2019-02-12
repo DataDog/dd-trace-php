@@ -29,7 +29,7 @@ class MemcachedIntegration
 
     public static function load()
     {
-        if (!class_exists('Memcached') || Versions::phpVersionMatches('5.4')) {
+        if (!class_exists('Memcached')) {
             // Memcached is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }
