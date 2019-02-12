@@ -19,7 +19,7 @@ class ElasticSearchIntegration
 
     public static function load()
     {
-        if (!class_exists('Elasticsearch\Client') || Versions::phpVersionMatches('5.4')) {
+        if (!class_exists('Elasticsearch\Client')) {
             return Integration::NOT_LOADED;
         }
 

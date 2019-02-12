@@ -94,7 +94,16 @@
         "test-integrations-54": [
             "@composer scenario:update",
             "@composer scenario default",
-            "@composer test -- tests/Integrations/PDO"
+            "@composer test -- tests/Integrations/Curl",
+            "@composer test -- tests/Integrations/Memcached",
+            "@composer test -- tests/Integrations/PDO",
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch",
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle/V5",
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis",
+            "@composer scenario default"
         ],
         "test-integrations-56": [
             "@composer scenario:update",
@@ -167,6 +176,8 @@
         ],
 
         "test-web-54": [
+            "@laravel-42-update",
+            "@laravel-42-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-update",
             "@custom-framework-autoloaded-test"

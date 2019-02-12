@@ -154,18 +154,13 @@ final class CurlIntegrationTest extends IntegrationTestCase
             $this->assertFalse($response);
             curl_close($ch);
         });
-        $expectedErrorMsg = 'Could not resolve host: __i_am_not_real__.invalid';
-
-        if (Versions::phpVersionMatches('5.4')) {
-            $expectedErrorMsg .= '; Unknown error';
-        }
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://__i_am_not_real__.invalid/')
                 ->withExactTags([
                     'http.url' => 'http://__i_am_not_real__.invalid/',
                     'http.status_code' => '0',
-                    'error.msg' => $expectedErrorMsg,
+                    'error.msg' => 'Could not resolve host: __i_am_not_real__.invalid',
                     'error.type' => 'curl error',
                 ])
                 ->setError(),

@@ -30,7 +30,7 @@ class PredisIntegration
      */
     public static function load()
     {
-        if (!class_exists('\Predis\Client') || Versions::phpVersionMatches('5.4')) {
+        if (!class_exists('\Predis\Client')) {
             return Integration::NOT_LOADED;
         }
 
