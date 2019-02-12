@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - Honor ddtrace provided by composer if user provided one #276
+- PHP 5.4 incorrectly handling nested internal functions #295
 
 ## [0.13.0]
 
