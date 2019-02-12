@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-02-04</date>
+    <date>2019-02-12</date>
     <version>
-        <release>0.12.2</release>
-        <api>0.12.2</api>
+        <release>0.13.0</release>
+        <api>0.13.0</api>
     </version>
     <stability>
         <release>beta</release>
@@ -21,8 +21,17 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
+        ### Added
+        - Span::setResource as a legit method # 287
+        - Logging more span's info when in debug mode # 292
+
         ### Fixed
-        - Zend integration incompatibility with Yii #282
+        - Symfony 4.2 traces generation #280
+        - Memory leak and misshandling of return value in PHP 5.4 #281
+        - Drupal crashes (temporary workaround) #285
+        - Tracing of http status code in generic web requests #288
+        - Route not set in symfony 3.4 when user calls exit() #289
+        - Fix hash table dtor for PHP 7 #290
     </notes>
     <contents>
         <dir name="/">
