@@ -12,6 +12,7 @@ use GuzzleHttp\Ring\Client\MockHandler;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\GlobalTracer;
+use DDTrace\Util\Versions;
 
 final class GuzzleIntegrationTest extends IntegrationTestCase
 {
@@ -130,7 +131,14 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         // trace is: some_operation
         $this->assertSame($traces[0][0]->getContext()->getSpanId(), $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec, used under the hood
-        $this->assertSame($traces[0][2]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
+
+        if (Versions::phpVersionMatches('5.4')) {
+            // in 5.4 curl_exec is not included in the trace due to being run through `call_func_array`
+            $this->assertSame($traces[0][1]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
+        } else {
+            $this->assertSame($traces[0][2]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
+        }
+
         $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
         $this->assertSame('preserved_value', $found['headers']['Honored']);

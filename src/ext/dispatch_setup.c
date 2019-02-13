@@ -66,14 +66,14 @@ void ddtrace_dispatch_inject() {
     ddtrace_original_execute_ex = zend_execute_ex;
     zend_execute_ex = php_execute;
 
-    ddtrace_old_icall_handler = zend_get_user_opcode_handler(ZEND_DO_ICALL);
+    DDTRACE_G(ddtrace_old_icall_handler) = zend_get_user_opcode_handler(ZEND_DO_ICALL);
     zend_set_user_opcode_handler(ZEND_DO_ICALL, ddtrace_wrap_fcall);
 #endif
-    ddtrace_old_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
+    DDTRACE_G(ddtrace_old_fcall_handler) = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);
 
 #if PHP_VERSION_ID < 70000
-    ddtrace_old_fcall_by_name_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL_BY_NAME);
+    DDTRACE_G(ddtrace_old_fcall_by_name_handler) = zend_get_user_opcode_handler(ZEND_DO_FCALL_BY_NAME);
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, ddtrace_wrap_fcall);
 #endif
 }

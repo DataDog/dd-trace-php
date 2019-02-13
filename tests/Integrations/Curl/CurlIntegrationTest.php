@@ -45,12 +45,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testSampleExternalAgent()
     {
-        if (Versions::phpVersionMatches('5.4')) {
-            $message = 'Strange behavior from the curl call to retrieve spans from teh fake agent. ' .
-                'Skipping this test for now on php 5.4 as the real behavior is tested in web framework tests.';
-            $this->markTestSkipped($message);
-        }
-
         $traces = $this->simulateAgent(function () {
             $ch = curl_init(self::URL . '/status/200');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
