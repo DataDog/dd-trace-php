@@ -69,7 +69,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_dispatch_init(TSRMLS_C);
-    ddtrace_dispatch_inject();
+    ddtrace_dispatch_inject(TSRMLS_C);
 
     return SUCCESS;
 }
@@ -263,7 +263,7 @@ static PHP_FUNCTION(dd_trace_reset) {
         RETURN_BOOL(0);
     }
 
-    ddtrace_dispatch_reset();
+    ddtrace_dispatch_reset(TSRMLS_C);
     RETURN_BOOL(1);
 }
 
