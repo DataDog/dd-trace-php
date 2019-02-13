@@ -54,7 +54,7 @@ void ddtrace_dispatch_reset(TSRMLS_D) {
     zend_hash_clean(&DDTRACE_G(function_lookup));
 }
 
-void ddtrace_dispatch_inject() {
+void ddtrace_dispatch_inject(TSRMLS_D) {
 /**
  * Replacing zend_execute_ex with anything other than original
  * changes some of the bevavior in PHP compilation and execution
