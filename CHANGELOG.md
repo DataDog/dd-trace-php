@@ -3,8 +3,11 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.13.1]
+
 ### Fixed
 - Honor ddtrace provided by composer if user provided one #276
+- Remove unused function that was moved to dispatch_table_dtor() (#291)
 - PHP 5.4 incorrectly handling nested internal functions #295
 
 ## [0.13.0]
@@ -292,7 +295,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.13.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.13.1...HEAD
+[0.13.1]: https://github.com/DataDog/dd-trace-php/compare/0.13.0...0.13.1
 [0.13.0]: https://github.com/DataDog/dd-trace-php/compare/0.12.2...0.13.0
 [0.12.2]: https://github.com/DataDog/dd-trace-php/compare/0.12.1...0.12.2
 [0.12.1]: https://github.com/DataDog/dd-trace-php/compare/0.12.0...0.12.1
