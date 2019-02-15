@@ -5,10 +5,12 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - optional extension .so files compiled with "-g" flag #306
 
-## [0.13.2]
-
 ### Fixed
 - Auto-instrumentation when user's autoloader throws exception on not found #305
+
+### Added
+- Debug mode - enabled via ddtrace.debug_mode=1 ini setting (#300)
+- Print backtrace on segmentation fault in debug_mode (#300)
 
 ## [0.13.1]
 
