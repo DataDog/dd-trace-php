@@ -97,7 +97,7 @@ aliases:
     run:
       name: export .env.circleci
       command: |
-        echo "export $(cat .env.circleci | xargs)" >> $BASH_ENV
+        echo "export $(cat .env.circleci | xargs)" >> $HOME/.profile
 
   - &STEP_RUN_EXTENSION_TESTS
     run:
@@ -107,7 +107,7 @@ aliases:
   - &STEP_WAIT_AGENT
     run:
       name: Waiting for Dockerized agent
-      command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m
+      command: dockerize -wait tcp://127.0.0.1:8126 -timeout 1m && export
 
   - &STEP_WAIT_MYSQL
     run:
