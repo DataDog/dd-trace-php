@@ -1,9 +1,9 @@
 #include <execinfo.h>
+#include <php.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <php.h>
 
 #include "ddtrace.h"
 #include "debug_backtrace.h"

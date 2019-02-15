@@ -4,7 +4,7 @@ Dump backtrace when segmentation fault signal is raised and config enables it
 ddtrace.debug_mode=1
 --FILE--
 <?php
-posix_kill(posix_getpid(), SIGSEGV); // boom
+posix_kill(posix_getpid(), 11); // boom
 
 ?>
 --EXPECTREGEX--
