@@ -62,7 +62,7 @@ debug:
 	$(eval CFLAGS="-g")
 
 clang_format_fix:
-	@find ./ -iname *.h -o -iname *.c | xargs clang-format -i
+	@find ./ -iname '*.h' -o -iname '*.c' | xargs clang-format -i
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer

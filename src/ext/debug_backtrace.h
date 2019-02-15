@@ -4,4 +4,4 @@
 void ddtrace_backtrace_handler(int sig);
 void ddtrace_install_backtrace_handler();
 
-#endif //DD_DEBUG_H
+#endif  // DD_DEBUG_H
