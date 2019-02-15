@@ -271,7 +271,7 @@ jobs:
   "php-5.4":
     working_directory: ~/datadog
     docker:
-      - image: datadog/docker-library:ddtrace_php_5_4
+      - image: datadog/docker-library:ddtrace_alpine_php-5.4.39-debug
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
@@ -308,7 +308,7 @@ jobs:
   "php-5.6":
     working_directory: ~/datadog
     docker:
-      - image: datadog/docker-library:ddtrace_php_5_6
+      - image: datadog/docker-library:ddtrace_alpine_php-5.6.40-debug
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
@@ -344,7 +344,7 @@ jobs:
   "php-7.0":
     working_directory: ~/datadog
     docker:
-      - image: datadog/docker-library:ddtrace_php_7_0
+      - image: datadog/docker-library:ddtrace_alpine_php-7.0.33-debug
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
@@ -380,7 +380,7 @@ jobs:
   "php-7.1":
     working_directory: ~/datadog
     docker:
-      - image: datadog/docker-library:ddtrace_php_7_1
+      - image: datadog/docker-library:ddtrace_alpine_php-7.1.21-debug
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
@@ -416,7 +416,7 @@ jobs:
   "php-7.2":
     working_directory: ~/datadog
     docker:
-      - image: datadog/docker-library:ddtrace_php_7_2
+      - image: datadog/docker-library:ddtrace_alpine_php-7.2.9-debug
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
