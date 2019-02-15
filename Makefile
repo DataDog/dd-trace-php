@@ -76,7 +76,6 @@ FPM_FILES=extensions/=$(EXT_DIR)/extensions \
 	bridge=$(EXT_DIR)/dd-trace-sources
 FPM_OPTS=$(FPM_INFO_OPTS) $(FPM_DIR_OPTS) --after-install=package/post-install.sh --depends="php > 7"
 
-
 PACKAGES_BUILD_DIR:=build/packages
 
 $(PACKAGES_BUILD_DIR):

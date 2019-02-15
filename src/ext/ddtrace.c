@@ -13,6 +13,7 @@
 #include "compat_zend_string.h"
 #include "ddtrace.h"
 #include "debug.h"
+#include "debug_backtrace.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "request_hooks.h"
@@ -67,6 +68,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+    ddtrace_install_backtrace_handler();
 
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);
