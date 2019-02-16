@@ -52,7 +52,7 @@ function dd_wrap_autoloader()
     // This check is required because some frameworks (e.g. Zend 1) register autoloaders which are relevant to our
     // instrumentation after the one provided by composer.
     $sentinelClasses = [
-        'Symfony\Component\HttpKernel\Kernel',
+//        'Symfony\Component\HttpKernel\Kernel',
     ];
 
     // Instead of tracing autoloaders statically, we should trace them dynamically. This can be done at the moment
