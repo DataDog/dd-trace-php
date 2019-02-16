@@ -12,4 +12,4 @@ if (!dd_tracing_enabled()) {
     return;
 }
 
-\DDTrace\Bridge\dd_wrap_autoloader();
+dd_wrap_autoloader();
