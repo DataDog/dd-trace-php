@@ -52,12 +52,13 @@ function dd_wrap_autoloader()
     // This check is required because some frameworks (e.g. Zend 1) register autoloaders which are relevant to our
     // instrumentation after the one provided by composer.
     $sentinelClasses = [
-//        'Symfony\Component\HttpKernel\Kernel',
+        'Symfony\Component\HttpKernel\Kernel',
     ];
 
-    // Instead of tracing autoloaders statically, we should trace them dynamically. This can be done at the moment
-    // because of https://github.com/DataDog/dd-trace-php/issues/224 and the fact that in some cases, e.g. Symfony's
-    // `Symfony\Component\Config\Resource\ClassExistenceResource::throwOnRequiredClass` loaders are private.
+    // Instead of tracing autoloaders statically, we should trace them dynamically. This cannot be done at the moment
+    // because of https://github.com/DataDog/dd-trace-php/issues/224 and the fact that in some cases, e.g. Symfony 3.3's
+    // `Symfony\Component\Config\Resource\ClassExistenceResource::throwOnRequiredClass` loaders are private (note:
+    // this method has been transformed to public in Symfony 3.4).
     // As soon as this is fixed we can trace `spl_autoload_register` function and use it as a hook instead of
     // statically hooking into a limited number of class loaders.
     dd_trace('spl_autoload_register', function () use (&$dd_autoload_called, $untraceTriggerClasses, $sentinelClasses) {
