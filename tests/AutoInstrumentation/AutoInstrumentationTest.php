@@ -40,6 +40,12 @@ class AutoInstrumentationTest extends BaseTestCase
             // we do not support this scenario, yet. As a result, we have to make sure that the workaround we applied
             // works.
             ['symfony_33_private_loader', $currentTracerVersion, true],
+
+            // In some cases, e.g. Zend Framework 1.12's Zend_Loader, loaders are not lenient, e.g. returning null/false
+            // if they do not recognize their namespace. Instead they try to load the file, no matter what. This causes
+            // an issue when we run `class_exist` during the first phases of auto-instrumentation because the loader
+            // would try to `include_once` a file (e.g. 'DDTrace/Tracer.php') that does not exists.
+            ['autoloader_includes_even_non_existing', $currentTracerVersion, false],
         ];
     }
 
