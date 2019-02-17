@@ -20,6 +20,7 @@ class AutoInstrumentationTest extends BaseTestCase
             $this->composerUpdateScenario($scenario);
         }
         $loadedVersion = $this->runAndReadVersion($scenario);
+        file_put_contents('index.html', $loadedVersion);
         $this->assertSame($expectedVersion, $loadedVersion);
     }
 
