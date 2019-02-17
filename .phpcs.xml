@@ -23,4 +23,5 @@
     <exclude-pattern>*/node_modules/*</exclude-pattern>
     <exclude-pattern>tests/ext/*</exclude-pattern>
     <exclude-pattern>tests/Frameworks/*/Version_*/*</exclude-pattern>
+    <exclude-pattern>tests/AutoInstrumentation</exclude-pattern>
 </ruleset>
