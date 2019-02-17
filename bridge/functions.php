@@ -171,9 +171,12 @@ function dd_wrap_autoloader()
             }
         }
 
-        // Our instrumentation code calls class exists many times. We either replace those calls with a safe version
-        // or suppress errors here. For now we do this but to be evaluated for the future. Note: development and
-        // test of library integrations DO NOT rely on auto-instrumentation, so exceptions would not be hidden in tests.
+        // Our instrumentation code calls class_exists many times. We either replace those calls with a safe version
+        // or suppress errors here. For now we do this but to be evaluated for the future.
+        // Note #1: development and test of library integrations DO NOT rely on auto-instrumentation, so exceptions
+        // would not be hidden in tests.
+        // Note #2: During the init process we ONLY register integrations, no user-land code is executed, so the lines
+        // below DO NOT hide any user-land exception/error.
         set_error_handler(function () {});
         require __DIR__ . '/dd_init.php';
         restore_error_handler();
