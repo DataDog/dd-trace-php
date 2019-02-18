@@ -53,7 +53,11 @@ class AutoInstrumentationTest extends BaseTestCase
     {
         $here = __DIR__;
         $scenarioFolder = $this->buildScenarioAbsPath($scenario);
-        exec("cd $scenarioFolder && composer update -q && cd $here", $output, $return);
+        exec(
+            "cd $scenarioFolder && composer config disable-tls true && composer update -q && cd $here",
+            $output,
+            $return
+        );
         if (0 !== $return) {
             $this->fail('Error while preparing the env: ' . implode("\n", $output));
         }
