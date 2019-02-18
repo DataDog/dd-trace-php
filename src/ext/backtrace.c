@@ -32,7 +32,7 @@ void ddtrace_backtrace_handler(int sig) {
 }
 
 void ddtrace_install_backtrace_handler() {
-    if (!DDTRACE_G(debug_mode)) {
+    if (!DDTRACE_G(log_backtrace)) {
         return;
     }
 

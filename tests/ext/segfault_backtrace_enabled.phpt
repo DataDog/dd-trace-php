@@ -1,7 +1,7 @@
 --TEST--
 Dump backtrace when segmentation fault signal is raised and config enables it
 --INI--
-ddtrace.debug_mode=1
+ddtrace.log_backtrace=1
 --FILE--
 <?php
 posix_kill(posix_getpid(), 11); // boom
