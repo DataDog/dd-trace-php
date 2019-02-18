@@ -11,17 +11,23 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void ddtrace_backtrace_handler(int sig) {
-    fprintf(stderr, "Datadog PHP Trace extension (DEBUG MODE)\n");
-    fprintf(stderr, "Received Signal %d\n", sig);
+    php_log_err("Datadog PHP Trace extension (DEBUG MODE)");
+    ddtrace_log_errf("Received Signal %d", sig);
     void *array[MAX_STACK_SIZE];
     size_t size = backtrace(array, MAX_STACK_SIZE);
 
-    fprintf(stderr, "Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime\n");
-    fprintf(stderr, "Backtrace:\n");
-    backtrace_symbols_fd(array, size, STDERR_FILENO);
-    fflush(stderr);
+    php_log_err("Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
+    php_log_err("Backtrace:");
 
-    exit(0);
+    char **backtraces = backtrace_symbols(array, size);
+    if (backtraces){
+        for (size_t i=0; i<size; i++) {
+            php_log_err(backtraces[i]);
+        }
+        free(backtraces);
+    }
+
+    exit(sig);
 }
 
 void ddtrace_install_backtrace_handler() {
