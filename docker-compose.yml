@@ -44,7 +44,7 @@ x-aliases:
 
 services:
   '5.4-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-5.4' }
-  '5.4': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_centos_7_php_54' }
+  '5.4': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_5_4' }
   '5.6': { <<: *base_56_service, image: 'datadog/docker-library:ddtrace_php_5_6' }
   '5.6-zts': { <<: *base_56_service, image: 'circleci/php:5.6-zts' }
   '5.6-debug': { <<: *base_56_service, build: 'dockerfiles/debug_php-5.6' }

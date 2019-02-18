@@ -124,6 +124,11 @@ aliases:
       name: Run unit tests
       command: composer test-unit -- --log-junit test-results/php-unit/results.xml
 
+  - &STEP_RUN_AUTO_INSTRUMENTATION_TESTS
+    run:
+      name: Run auto-instrumentation tests
+      command: composer test-auto-instrumentation -- --log-junit test-results/php-auto-instrumentation/results.xml
+
   - &STEP_RUN_INTEGRATION_TESTS
     run:
       name: Run integration tests
@@ -286,6 +291,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_RUN_INTEGRATIONS_TESTS_54
       - <<: *STEP_RUN_WEB_TESTS_54
@@ -321,6 +327,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_RUN_INTEGRATIONS_TESTS_56
       - <<: *STEP_RUN_WEB_TESTS_56
@@ -356,6 +363,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_RUN_INTEGRATIONS_TESTS_70
       - <<: *STEP_RUN_WEB_TESTS_70
@@ -391,6 +399,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_RUN_INTEGRATIONS_TESTS_71
       - <<: *STEP_RUN_WEB_TESTS_71
@@ -426,6 +435,7 @@ jobs:
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RUN_UNIT_TESTS
+      - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - <<: *STEP_RUN_INTEGRATIONS_TESTS_72
       - <<: *STEP_RUN_WEB_TESTS_72

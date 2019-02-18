@@ -10,7 +10,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/app_dev.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/app.php';
     }
 
     /**
@@ -109,7 +109,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     SpanAssertion::exists('symfony.kernel.exception'),
                     SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.response'),
-                    SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.finish_request'),
                     SpanAssertion::exists('symfony.kernel.terminate'),
                 ],
