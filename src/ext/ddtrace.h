@@ -15,9 +15,6 @@ user_opcode_handler_t ddtrace_old_icall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 
-#define ddtrace_log_err(message) php_log_err(message)
-void ddtrace_log_errf(const char *format, ...);
-
 #ifdef ZTS
 #define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
 #else

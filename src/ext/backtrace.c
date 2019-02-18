@@ -6,23 +6,24 @@
 #include <unistd.h>
 
 #include "ddtrace.h"
-#include "debug_backtrace.h"
+#include "logging.h"
+#include "backtrace.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void ddtrace_backtrace_handler(int sig) {
-    php_log_err("Datadog PHP Trace extension (DEBUG MODE)");
+    ddtrace_log_err("Datadog PHP Trace extension (DEBUG MODE)");
     ddtrace_log_errf("Received Signal %d", sig);
     void *array[MAX_STACK_SIZE];
     size_t size = backtrace(array, MAX_STACK_SIZE);
 
-    php_log_err("Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
-    php_log_err("Backtrace:");
+    ddtrace_log_err("Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
+    ddtrace_log_err("Backtrace:");
 
     char **backtraces = backtrace_symbols(array, size);
     if (backtraces){
         for (size_t i=0; i<size; i++) {
-            php_log_err(backtraces[i]);
+            ddtrace_log_err(backtraces[i]);
         }
         free(backtraces);
     }
