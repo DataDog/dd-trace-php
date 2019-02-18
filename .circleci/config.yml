@@ -78,6 +78,11 @@ aliases:
       paths:
         - vendor/
 
+  - &STEP_COMPOSER_DISABLE_TLS
+    run:
+      name: Disabling tls for php < 5.6 (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
+      command: composer config disable-tls true
+
   - &STEP_COMPOSER_INSTALL
     run:
       name: Installing dependencies with composer
@@ -281,6 +286,7 @@ jobs:
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_DISABLE_TLS
       - <<: *STEP_COMPOSER_INSTALL
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
