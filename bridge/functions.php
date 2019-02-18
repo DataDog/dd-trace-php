@@ -2,10 +2,15 @@
 
 namespace DDTrace\Bridge;
 
+/**
+ * Tells whether or not a class exists. It never throws an exception.
+ *
+ * @param string $class
+ * @return bool
+ */
 function dd_safe_class_exists($class)
 {
     $error = false;
-    error_log("Setting the error handler....");
     set_error_handler(function () use (&$error) {
         $error = true;
     });
@@ -14,6 +19,12 @@ function dd_safe_class_exists($class)
     return $error === true ? false : $result;
 }
 
+/**
+ * Tells whether or not any of the provided classes exist. It never throws an exception.
+ *
+ * @param string[] $classes
+ * @return bool
+ */
 function dd_safe_any_class_exists(array $classes)
 {
     foreach ($classes as $class) {
@@ -25,6 +36,11 @@ function dd_safe_any_class_exists(array $classes)
     return false;
 }
 
+/**
+ * Tells whether or not tracing is enabled without having to fire the auto-loading mechanism.
+ *
+ * @return bool
+ */
 function dd_tracing_enabled()
 {
     $value = getenv('DD_TRACE_ENABLED');
@@ -89,12 +105,18 @@ function extract_autoloader_class_and_method($loader)
     return null;
 }
 
+/**
+ * Registers the Datadog.
+ */
 function dd_register_autoloader()
 {
     require_once __DIR__ . '/dd_autoloader.php';
     spl_autoload_register(['\DDTrace\Bridge\Autoloader', 'load'], true, true);
 }
 
+/**
+ * Unregisters the Datadog.
+ */
 function dd_unregister_autoloader()
 {
     spl_autoload_unregister(['\DDTrace\Bridge\Autoloader', 'load']);
