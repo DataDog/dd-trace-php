@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+### Added
+- optional extension .so files compiled with "-g" flag #306
 
 ## [0.13.2]
 
