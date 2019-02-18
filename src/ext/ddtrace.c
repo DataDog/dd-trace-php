@@ -10,10 +10,10 @@
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
+#include "backtrace.h"
 #include "compat_zend_string.h"
 #include "ddtrace.h"
 #include "debug.h"
-#include "backtrace.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "request_hooks.h"

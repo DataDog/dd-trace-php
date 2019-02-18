@@ -1,10 +1,10 @@
-#include "config.h"
 #include <SAPI.h>
-#define EQUALS(stra, strb) (memcmp(stra, strb, sizeof(strb)-1) == 0)
+#include "config.h"
+#define EQUALS(stra, strb) (memcmp(stra, strb, sizeof(strb) - 1) == 0)
 
-char *get_local_env_or_sapi_env(char *name){
+char *get_local_env_or_sapi_env(char *name) {
     char *env = NULL, *tmp = getenv(name);
-    if (tmp){
+    if (tmp) {
         env = estrdup(tmp);
     } else {
         env = sapi_getenv(name, strlen(name));
@@ -13,14 +13,14 @@ char *get_local_env_or_sapi_env(char *name){
     return env;
 }
 
-zend_bool ddtrace_get_bool_config(char *name, zend_bool def){
+zend_bool ddtrace_get_bool_config(char *name, zend_bool def) {
     char *env = get_local_env_or_sapi_env(name);
-    if (!env){
+    if (!env) {
         return def;
     }
 
     size_t len = strlen(env);
-    if (len > sizeof("false")){
+    if (len > sizeof("false")) {
         efree(env);
         return def;
     }

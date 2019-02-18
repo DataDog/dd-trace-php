@@ -5,10 +5,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "ddtrace.h"
-#include "logging.h"
-#include "env_config.h"
 #include "backtrace.h"
+#include "ddtrace.h"
+#include "env_config.h"
+#include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -22,8 +22,8 @@ void ddtrace_backtrace_handler(int sig) {
     ddtrace_log_err("Backtrace:");
 
     char **backtraces = backtrace_symbols(array, size);
-    if (backtraces){
-        for (size_t i=0; i<size; i++) {
+    if (backtraces) {
+        for (size_t i = 0; i < size; i++) {
             ddtrace_log_err(backtraces[i]);
         }
         free(backtraces);
