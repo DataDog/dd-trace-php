@@ -61,8 +61,11 @@ sudo:
 debug:
 	$(eval CFLAGS="-g")
 
+strict:
+	$(eval CFLAGS="-Wall -Werror -Wextra")
+
 clang_format_fix:
-	@find ./ -iname *.h -o -iname *.c | xargs clang-format -i
+	@find ./ -iname '*.h' -o -iname '*.c' | xargs clang-format -i
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
@@ -75,7 +78,6 @@ FPM_FILES=extensions/=$(EXT_DIR)/extensions \
 	src=$(EXT_DIR)/dd-trace-sources \
 	bridge=$(EXT_DIR)/dd-trace-sources
 FPM_OPTS=$(FPM_INFO_OPTS) $(FPM_DIR_OPTS) --after-install=package/post-install.sh --depends="php > 7"
-
 
 PACKAGES_BUILD_DIR:=build/packages
 
@@ -109,4 +111,4 @@ verify_version:
 
 verify_all: verify_pecl_file_definitions verify_version
 
-.PHONY: dist_clean clean all clang_format_fix install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz sudo debug run-tests.php verify_pecl_file_definitions verify_version verify_all
+.PHONY: dist_clean clean all clang_format_fix install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_all

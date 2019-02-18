@@ -3,9 +3,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 ### Added
-- optional extension .so files compiled with "-g" flag #306
-
-## [0.13.2]
+- Optional extension .so files compiled with "-g" flag #306
+- Log backtrace on segmentation fault, enabled via ddtrace.log_backtrace=1 #300
 
 ### Fixed
 - Auto-instrumentation when user's autoloader throws exception on not found #305

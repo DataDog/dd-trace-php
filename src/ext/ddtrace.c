@@ -10,6 +10,7 @@
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
+#include "backtrace.h"
 #include "compat_zend_string.h"
 #include "ddtrace.h"
 #include "debug.h"
@@ -55,6 +56,8 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.ignore_missing_overridables", "1", PHP_INI_SYSTEM, OnUpdateBool, ignore_missing_overridables,
                   zend_ddtrace_globals, ddtrace_globals)
+STD_PHP_INI_ENTRY("ddtrace.log_backtrace", "0", PHP_INI_SYSTEM, OnUpdateBool, log_backtrace, zend_ddtrace_globals,
+                  ddtrace_globals)
 PHP_INI_END()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
@@ -67,6 +70,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+    ddtrace_install_backtrace_handler();
 
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);

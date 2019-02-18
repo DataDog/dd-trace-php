@@ -21,7 +21,6 @@ dd_trace('Test', "private_method", function() {
 });
 
 (new Test())->m();
-
 ?>
 --EXPECT--
 METHOD

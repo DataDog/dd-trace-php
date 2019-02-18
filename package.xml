@@ -30,6 +30,8 @@
         <dir name="/">
             <dir name="src">
                 <dir name="ext">
+                    <file name="backtrace.c" role="src" />
+                    <file name="backtrace.h" role="src" />
                     <file name="compat_zend_string.c" role="src" />
                     <file name="compat_zend_string.h" role="src" />
                     <file name="ddtrace.c" role="src" />
@@ -42,6 +44,10 @@
                     <file name="dispatch_compat_php5.h" role="src" />
                     <file name="dispatch_compat_php7.c" role="src" />
                     <file name="dispatch_setup.c" role="src" />
+                    <file name="env_config.c" role="src" />
+                    <file name="env_config.h" role="src" />
+                    <file name="logging.c" role="src" />
+                    <file name="logging.h" role="src" />
                     <file name="request_hooks.c" role="src" />
                     <file name="request_hooks.h" role="src" />
                     <file name="version.h" role="src" />

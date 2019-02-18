@@ -233,7 +233,7 @@ jobs:
               if [ $changes != 0 ]
               then
                 clang-format-6.0 -output-replacements-xml $fname
-                echo "$fname did not pass clang-format, consider running: find ./ -iname *.h -o -iname *.c | xargs clang-format -i"
+                echo "$fname did not pass clang-format, consider running: find ./ -iname '*.h' -o -iname '*.c' | xargs clang-format -i"
                 touch .failure
               fi
             done
