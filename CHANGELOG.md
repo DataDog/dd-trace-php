@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.13.2]
+
+### Fixed
+- Auto-instrumentation when user's autoloader throws exception on not found #305
+
 ## [0.13.1]
 
 ### Fixed
