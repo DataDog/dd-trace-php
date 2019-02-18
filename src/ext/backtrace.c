@@ -7,6 +7,7 @@
 
 #include "ddtrace.h"
 #include "logging.h"
+#include "env_config.h"
 #include "backtrace.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -32,7 +33,7 @@ void ddtrace_backtrace_handler(int sig) {
 }
 
 void ddtrace_install_backtrace_handler() {
-    if (!DDTRACE_G(log_backtrace)) {
+    if (!ddtrace_get_bool_config("DD_LOG_BACKTRACE", DDTRACE_G(log_backtrace))) {
         return;
     }
 

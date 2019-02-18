@@ -44,6 +44,8 @@
                     <file name="dispatch_compat_php5.h" role="src" />
                     <file name="dispatch_compat_php7.c" role="src" />
                     <file name="dispatch_setup.c" role="src" />
+                    <file name="env_config.c" role="src" />
+                    <file name="env_config.h" role="src" />
                     <file name="logging.c" role="src" />
                     <file name="logging.h" role="src" />
                     <file name="request_hooks.c" role="src" />
