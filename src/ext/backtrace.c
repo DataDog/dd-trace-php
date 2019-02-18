@@ -23,7 +23,8 @@ void ddtrace_backtrace_handler(int sig) {
 
     char **backtraces = backtrace_symbols(array, size);
     if (backtraces) {
-        for (size_t i = 0; i < size; i++) {
+        size_t i;
+        for (i = 0; i < size; i++) {
             ddtrace_log_err(backtraces[i]);
         }
         free(backtraces);
