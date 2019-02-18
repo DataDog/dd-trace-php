@@ -126,7 +126,7 @@ aliases:
 
   - &STEP_RUN_AUTO_INSTRUMENTATION_TESTS
     run:
-      name: Run unit tests
+      name: Run auto-instrumentation tests
       command: composer test-auto-instrumentation -- --log-junit test-results/php-auto-instrumentation/results.xml
 
   - &STEP_RUN_INTEGRATION_TESTS
