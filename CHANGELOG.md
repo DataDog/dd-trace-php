@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+
+## [0.13.2]
 ### Added
 - Optional extension .so files compiled with "-g" flag #306
 - Log backtrace on segmentation fault, enabled via ddtrace.log_backtrace=1 #300
@@ -301,7 +303,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.13.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.13.2...HEAD
+[0.13.2]: https://github.com/DataDog/dd-trace-php/compare/0.13.1...0.13.2
 [0.13.1]: https://github.com/DataDog/dd-trace-php/compare/0.13.0...0.13.1
 [0.13.0]: https://github.com/DataDog/dd-trace-php/compare/0.12.2...0.13.0
 [0.12.2]: https://github.com/DataDog/dd-trace-php/compare/0.12.1...0.12.2
