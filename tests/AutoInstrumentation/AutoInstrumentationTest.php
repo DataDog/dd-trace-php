@@ -54,7 +54,9 @@ class AutoInstrumentationTest extends BaseTestCase
         $here = __DIR__;
         $scenarioFolder = $this->buildScenarioAbsPath($scenario);
         exec("cd $scenarioFolder && composer update -q && cd $here", $output, $return);
-        $this->assertSame(0, $return);
+        if (0 !== $return) {
+            $this->fail('Error while preparing the env: ' . implode("\n", $output));
+        }
     }
 
     private function buildScenarioAbsPath($scenario)
