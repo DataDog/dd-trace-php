@@ -70,7 +70,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
-    ddtrace_install_backtrace_handler();
+    ddtrace_install_backtrace_handler(TSRMLS_C);
 
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);

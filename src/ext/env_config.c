@@ -3,11 +3,12 @@
 #define EQUALS(stra, strb) (memcmp(stra, strb, sizeof(strb) - 1) == 0)
 
 char *get_local_env_or_sapi_env(char *name) {
+    TSRMLS_FETCH();
     char *env = NULL, *tmp = getenv(name);
     if (tmp) {
         env = estrdup(tmp);
     } else {
-        env = sapi_getenv(name, strlen(name));
+        env = sapi_getenv(name, strlen(name) TSRMLS_CC);
     }
 
     return env;

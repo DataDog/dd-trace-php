@@ -1,14 +1,13 @@
 #include "logging.h"
 #include <php.h>
 
-void ddtrace_log_errf(const char *format, ...) {
+void ddtrace_log_errf(const char *format TSRMLS_DC, ...) {
     va_list args;
     char *buffer;
-    size_t size;
 
     va_start(args, format);
-    size = vspprintf(&buffer, 0, format, args);
-    ddtrace_log_err(buffer);
+    vspprintf(&buffer, 0, format, args);
+    ddtrace_log_err(buffer TSRMLS_CC);
 
     efree(buffer);
     va_end(args);
