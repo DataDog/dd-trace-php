@@ -2,10 +2,14 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+
+## [0.13.3]
+
 ### Fixed
 - 7.x handling of `$this` pointer passed to the closure causing errors in PHP VM #311
 
 ## [0.13.2]
+
 ### Added
 - Optional extension .so files compiled with "-g" flag #306
 - Log backtrace on segmentation fault, enabled via ddtrace.log_backtrace=1 #300
@@ -17,7 +21,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - Honor ddtrace provided by composer if user provided one #276
-- Remove unused function that was moved to dispatch_table_dtor() (#291)
+- Remove unused function that was moved to dispatch_table_dtor() #291
 - PHP 5.4 incorrectly handling nested internal functions #295
 
 ## [0.13.0]
@@ -305,7 +309,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.13.2...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.13.3...HEAD
+[0.13.3]: https://github.com/DataDog/dd-trace-php/compare/0.13.2...0.13.3
 [0.13.2]: https://github.com/DataDog/dd-trace-php/compare/0.13.1...0.13.2
 [0.13.1]: https://github.com/DataDog/dd-trace-php/compare/0.13.0...0.13.1
 [0.13.0]: https://github.com/DataDog/dd-trace-php/compare/0.12.2...0.13.0
