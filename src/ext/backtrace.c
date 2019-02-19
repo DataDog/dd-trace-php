@@ -1,3 +1,4 @@
+#if defined(__GLIBC__) || defined(__APPLE__)
 #include <execinfo.h>
 #include <php.h>
 #include <signal.h>
@@ -49,3 +50,10 @@ void ddtrace_install_backtrace_handler(TSRMLS_D) {
         handler_installed = 1;
     }
 }
+#else
+void ddtrace_install_backtrace_handler(TSRMLS_D) {
+#ifdef ZTS
+    UNUSED(TSRML_C);
+#endif  // ZTS
+}
+#endif  // GLIBC
