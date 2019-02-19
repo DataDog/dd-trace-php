@@ -20,27 +20,27 @@
 #define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
 #endif
 
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+
 #if PHP_VERSION_ID < 70000
 #undef EX
 #define EX(x) ((execute_data)->x)
-#endif
 
-ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
-
+#else  // PHP7.0+
 // imported from PHP 7.2 as 7.0 missed this method
-zend_class_entry *get_executed_scope(void)
-{
-	zend_execute_data *ex = EG(current_execute_data);
+zend_class_entry *get_executed_scope(void) {
+    zend_execute_data *ex = EG(current_execute_data);
 
-	while (1) {
-		if (!ex) {
-			return NULL;
-		} else if (ex->func && (ZEND_USER_CODE(ex->func->type) || ex->func->common.scope)) {
-			return ex->func->common.scope;
-		}
-		ex = ex->prev_execute_data;
-	}
+    while (1) {
+        if (!ex) {
+            return NULL;
+        } else if (ex->func && (ZEND_USER_CODE(ex->func->type) || ex->func->common.scope)) {
+            return ex->func->common.scope;
+        }
+        ex = ex->prev_execute_data;
+    }
 }
+#endif
 
 static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, const char *function_name,
                                            uint32_t function_name_length) {
