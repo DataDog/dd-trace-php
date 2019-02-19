@@ -27,6 +27,21 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+// imported from PHP 7.2 as 7.0 missed this method
+zend_class_entry *get_executed_scope(void)
+{
+	zend_execute_data *ex = EG(current_execute_data);
+
+	while (1) {
+		if (!ex) {
+			return NULL;
+		} else if (ex->func && (ZEND_USER_CODE(ex->func->type) || ex->func->common.scope)) {
+			return ex->func->common.scope;
+		}
+		ex = ex->prev_execute_data;
+	}
+}
+
 static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, const char *function_name,
                                            uint32_t function_name_length) {
     if (function_name_length == 0) {
@@ -146,7 +161,7 @@ _exit_cleanup:
 #else
         zend_function *constructor = Z_OBJ_HT_P(this)->get_constructor(Z_OBJ_P(this));
 
-        if ((zend_get_executed_scope() != dispatch->clazz) || constructor) {
+        if ((get_executed_scope() != dispatch->clazz) || constructor) {
             Z_DELREF_P(this);
         }
 #endif
