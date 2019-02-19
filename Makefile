@@ -46,7 +46,7 @@ test_c: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)"
 
 test_c_mem: $(SO_FILE)
-	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS) && grep -e 'errors="0"' ${TEST_PHP_JUNIT} )
+	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS)"
 
 test_extension_ci: $(SO_FILE)
 	( \

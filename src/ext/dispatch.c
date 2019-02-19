@@ -140,7 +140,16 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 
 _exit_cleanup:
     if (this) {
+#if PHP_VERSION_ID < 70000
         Z_DELREF_P(this);
+
+#else
+        zend_function *constructor = Z_OBJ_HT_P(this)->get_constructor(Z_OBJ_P(this));
+
+        if ((zend_get_executed_scope() != dispatch->clazz) || constructor) {
+            Z_DELREF_P(this);
+        }
+#endif
     }
 
     Z_DELREF(closure);
