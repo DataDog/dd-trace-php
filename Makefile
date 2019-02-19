@@ -18,6 +18,8 @@ $(BUILD_DIR)/%: %
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $* $@
 
+JUNIT_RESULTS_DIR := .
+
 all: $(BUILD_DIR)/configure $(SO_FILE)
 Q := @
 
@@ -44,7 +46,14 @@ test_c: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)"
 
 test_c_mem: $(SO_FILE)
-	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS)"
+	REPORT_EXIT_STATUS=1 $(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS) && grep -e 'errors="0"' ${TEST_PHP_JUNIT} )
+test_extension_ci: $(SO_FILE)
+	export REPORT_EXIT_STATUS=1
+	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml
+	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)" && grep -e 'errors="0"' ${TEST_PHP_JUNIT}
+
+	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml
+	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS)" && grep -e 'errors="0"' ${TEST_PHP_JUNIT} )
 
 test_integration: install_ini
 	composer test -- $(PHPUNIT)
@@ -111,4 +120,4 @@ verify_version:
 
 verify_all: verify_pecl_file_definitions verify_version
 
-.PHONY: dist_clean clean all clang_format_fix install sudo_install test_c test_c_mem test test_integration install_ini install_all .apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_all
+.PHONY: dist_clean clean all clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test test_integration install_ini install_all .apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_all
