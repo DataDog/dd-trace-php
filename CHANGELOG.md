@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+### Fixed
+- 7.x handling of `$this` pointer passed to the closure causing errors in PHP VM #311
 
 ## [0.13.2]
 ### Added
