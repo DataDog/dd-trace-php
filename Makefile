@@ -18,7 +18,7 @@ $(BUILD_DIR)/%: %
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $* $@
 
-JUNIT_RESULTS_DIR := .
+JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 Q := @
@@ -46,14 +46,19 @@ test_c: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)"
 
 test_c_mem: $(SO_FILE)
-	REPORT_EXIT_STATUS=1 $(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS) && grep -e 'errors="0"' ${TEST_PHP_JUNIT} )
-test_extension_ci: $(SO_FILE)
-	export REPORT_EXIT_STATUS=1
-	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml
-	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)" && grep -e 'errors="0"' ${TEST_PHP_JUNIT}
+	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS) && grep -e 'errors="0"' ${TEST_PHP_JUNIT} )
 
-	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml
-	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS)" && grep -e 'errors="0"' ${TEST_PHP_JUNIT} )
+test_extension_ci: $(SO_FILE)
+	( \
+	set -xe; \
+	export REPORT_EXIT_STATUS=1; \
+	\
+	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
+	$(MAKE) -C $(BUILD_DIR) test  TESTS="-q --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
+	\
+	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
+	$(MAKE) -C $(BUILD_DIR) test  TESTS="-q  -m --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
+	)
 
 test_integration: install_ini
 	composer test -- $(PHPUNIT)
