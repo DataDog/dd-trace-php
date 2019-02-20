@@ -116,10 +116,9 @@ void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zval_dtor(&dispatch->callable);
 }
 
-void ddtrace_class_lookup_free(void *zv) {
-    ddtrace_dispatch_t **dispatch = (ddtrace_dispatch_t **)zv;
-    ddtrace_dispatch_free_owned_data(*dispatch);
-    efree(*dispatch);
+void ddtrace_class_lookup_release_compat(void *zv) {
+    ddtrace_dispatch_t *dispatch = *(ddtrace_dispatch_t **)zv;
+    ddtrace_class_lookup_release(dispatch);
 }
 
 HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz TSRMLS_DC) {
@@ -129,7 +128,7 @@ HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz TSRMLS_DC) {
 
     HashTable *class_lookup;
     ALLOC_HASHTABLE(class_lookup);
-    zend_hash_init(class_lookup, 8, NULL, ddtrace_class_lookup_free, 0);
+    zend_hash_init(class_lookup, 8, NULL, ddtrace_class_lookup_release_compat, 0);
 
     zend_hash_update(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length, &class_lookup, sizeof(HashTable *),
                      NULL);
@@ -140,8 +139,8 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
     ddtrace_dispatch_t *dispatch = pemalloc(sizeof(ddtrace_dispatch_t), lookup->persistent);
 
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
-    DD_PRINTF("%s, %d", Z_STRVAL_P(dispatch->function), Z_STRLEN_P(dispatch->function));
 
+    ddtrace_class_lookup_acquire(dispatch);
     return zend_hash_update(lookup, Z_STRVAL_P(dispatch->function), Z_STRLEN_P(dispatch->function), &dispatch,
                             sizeof(ddtrace_dispatch_t *), NULL) == SUCCESS;
 }

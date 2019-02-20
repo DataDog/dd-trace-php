@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+### Fixed
+- Accessing freed memory when instrumentation code un/instrumented itself #314
 
 ## [0.13.3]
 
