@@ -27,7 +27,7 @@ void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zval_ptr_dtor(&dispatch->callable);
 }
 
-void ddtrace_class_lookup_release_compat(zval *zv){
+void ddtrace_class_lookup_release_compat(zval *zv) {
     DD_PRINTF("freeing %p", (void *)zv);
     ddtrace_dispatch_t *dispatch = Z_PTR_P(zv);
     ddtrace_class_lookup_release(dispatch);

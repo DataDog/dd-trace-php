@@ -244,8 +244,8 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     }
 
     if (dispatch && !dispatch->busy) {
-        ddtrace_class_lookup_acquire(dispatch); // protecting against dispatch being freed during php code execution
-        dispatch->busy = 1;  // guard against recursion, catching only topmost execution
+        ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
+        dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
 #if PHP_VERSION_ID < 50600
         if (EX(opline)->opcode == ZEND_DO_FCALL) {
@@ -466,11 +466,9 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     return default_dispatch(execute_data TSRMLS_CC);
 }
 
-void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *dispatch){
-    dispatch->acquired++;
-}
+void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }
 
-void ddtrace_class_lookup_release(ddtrace_dispatch_t *dispatch){
+void ddtrace_class_lookup_release(ddtrace_dispatch_t *dispatch) {
     if (dispatch->acquired > 0) {
         dispatch->acquired--;
     }

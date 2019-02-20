@@ -1,7 +1,9 @@
 #ifndef DISPATCH_H
 #define DISPATCH_H
 
-#include "Zend/zend_types.h"
+#include <Zend/zend_types.h>
+#include <stdint.h>
+
 #include "compat_zend_string.h"
 
 typedef struct _ddtrace_dispatch_t {
