@@ -27,18 +27,17 @@ void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zval_ptr_dtor(&dispatch->callable);
 }
 
-void ddtrace_class_lookup_free(zval *zv) {
+void ddtrace_class_lookup_release_compat(zval *zv){
     DD_PRINTF("freeing %p", (void *)zv);
     ddtrace_dispatch_t *dispatch = Z_PTR_P(zv);
-    ddtrace_dispatch_free_owned_data(dispatch);
-    efree(dispatch);
+    ddtrace_class_lookup_release(dispatch);
 }
 
 HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz) {
     HashTable *class_lookup;
 
     ALLOC_HASHTABLE(class_lookup);
-    zend_hash_init(class_lookup, 8, NULL, ddtrace_class_lookup_free, 0);
+    zend_hash_init(class_lookup, 8, NULL, ddtrace_class_lookup_release_compat, 0);
     zend_hash_update_ptr(&DDTRACE_G(class_lookup), clazz->name, class_lookup);
 
     return class_lookup;
@@ -52,6 +51,7 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
 #endif
 
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
+    ddtrace_class_lookup_acquire(dispatch);
     return zend_hash_update_ptr(lookup, dispatch->function, dispatch) != NULL;
 }
 #endif  // PHP_VERSION_ID >= 70000
