@@ -1,5 +1,5 @@
 --TEST--
-xxx
+Check if we can safely override instrumentation from within instrumentation.
 --FILE--
 <?php
 function test($a){
