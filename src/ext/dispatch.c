@@ -181,7 +181,9 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     }
 
     ddtrace_setup_fcall(execute_data, &fci, return_value_ptr TSRMLS_CC);
+    DDTRACE_G(original_op_array) = &func->op_array;
     zend_call_function(&fci, &fcc TSRMLS_CC);
+    DDTRACE_G(original_op_array) = NULL;
 
 #if PHP_VERSION_ID < 70000
     if (fci.params) {
@@ -237,7 +239,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     zval *original_object = EX(object);
 #endif
     zval *object = NULL;
-    zend_function *func = NULL;
     const char *common_scope = NULL;
     uint32_t common_scope_length = 0;
 

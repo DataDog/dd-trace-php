@@ -8,7 +8,7 @@ https://github.com/drupal/drupal/blob/bc60c9298a6b1a09c22bea7f5d87916902c27024/i
 
 class Foo
 {
-    public function doStuff($foo, array $bar = [])
+    public function doStuff(/*$foo, array $bar = []*/)
     {
         return 42;
     }
@@ -16,7 +16,7 @@ class Foo
 
 class Bar extends Foo
 {
-    public function doStuff($foo, array $bar = [])
+    public function doStuff(/*$foo, array $bar = []*/)
     {
         return 1337;
     }
@@ -24,13 +24,13 @@ class Bar extends Foo
     public function parentDoStuff()
     {
         # Should return "42"
-        return parent::doStuff('foo', [1, 2, 3]);
+        return parent::doStuff(/*'foo', [1, 2, 3]*/);
     }
 
     public function myDoStuff()
     {
         # Should return "1337"
-        return $this->doStuff('bar', [4, 2]);
+        return $this->doStuff(/*'bar', [4, 2]*/);
     }
 }
 
@@ -40,7 +40,6 @@ echo $foo->doStuff('foo') . "\n";
 
 $bar = new Bar;
 echo "Before tracing:\n";
-dd_trace_noop();
 echo $bar->parentDoStuff() . "\n";
 echo $bar->myDoStuff() . "\n";
 
@@ -58,7 +57,6 @@ dd_trace('Bar', 'parentDoStuff', function () {
 */
 
 echo "After tracing:\n";
-dd_trace_noop();
 echo $bar->parentDoStuff() . "\n";
 echo $bar->myDoStuff() . "\n";
 ?>
