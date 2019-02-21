@@ -13,10 +13,15 @@ dd_trace('doStuff', function () {
     echo "**TRACED**\n";
     return dd_trace_forward_call();
 });
+dd_trace('array_sum', function () {
+    echo "**TRACED INTERNAL**\n";
+    return dd_trace_forward_call();
+});
 
 echo doStuff('After', [2, 3]) . "\n";
 ?>
 --EXPECT--
 [Before] 3
 **TRACED**
+**TRACED INTERNAL**
 [After] 5

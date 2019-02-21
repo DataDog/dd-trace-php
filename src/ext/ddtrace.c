@@ -242,26 +242,26 @@ static PHP_FUNCTION(dd_trace_forward_call) {
     ZVAL_STR_COPY(&fname, DDTRACE_G(original_execute_data)->func->common.function_name);
 
     fci.size = sizeof(fci);
-	fci.function_name = fname;
-	fci.retval = &retval;
+    fci.function_name = fname;
+    fci.retval = &retval;
     fci.param_count = ZEND_CALL_NUM_ARGS(DDTRACE_G(original_execute_data));
     fci.params = ZEND_CALL_ARG(DDTRACE_G(original_execute_data), 1);
     fci.object = Z_OBJ(DDTRACE_G(original_execute_data)->This);
-	fci.no_separation = 1;
+    fci.no_separation = 1;
 
-	fcc.initialized = 1; // Removed in PHP 7.3
-	fcc.function_handler = DDTRACE_G(original_execute_data)->func;
-	fcc.calling_scope = DDTRACE_G(original_execute_data)->func->common.scope;
-	fcc.called_scope = DDTRACE_G(original_execute_data)->func->common.scope;
-	fcc.object = Z_OBJ(DDTRACE_G(original_execute_data)->This);
+    fcc.initialized = 1; // Removed in PHP 7.3
+    fcc.function_handler = DDTRACE_G(original_execute_data)->func;
+    fcc.calling_scope = DDTRACE_G(original_execute_data)->func->common.scope;
+    fcc.called_scope = DDTRACE_G(original_execute_data)->func->common.scope;
+    fcc.object = Z_OBJ(DDTRACE_G(original_execute_data)->This);
 
     DDTRACE_G(forwarding_call) = 1;
-	if (zend_call_function(&fci, &fcc) == SUCCESS && Z_TYPE(retval) != IS_UNDEF) {
-		if (Z_ISREF(retval)) {
-			zend_unwrap_reference(&retval);
-		}
-		ZVAL_COPY_VALUE(return_value, &retval);
-	}
+    if (zend_call_function(&fci, &fcc) == SUCCESS && Z_TYPE(retval) != IS_UNDEF) {
+        if (Z_ISREF(retval)) {
+            zend_unwrap_reference(&retval);
+        }
+        ZVAL_COPY_VALUE(return_value, &retval);
+    }
     DDTRACE_G(forwarding_call) = 0;
 
     zval_ptr_dtor(&fname);
