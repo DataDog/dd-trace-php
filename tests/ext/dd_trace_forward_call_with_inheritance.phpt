@@ -1,8 +1,5 @@
 --TEST--
-Ensure the `parent::` method is invoked from a sub class
---DESCRIPTION--
-This bug was found from the Drupal 7 DBAL:
-https://github.com/drupal/drupal/blob/bc60c9298a6b1a09c22bea7f5d87916902c27024/includes/database/sqlite/database.inc#L238
+The original method call is invoked from a sub class
 --FILE--
 <?php
 
@@ -42,7 +39,7 @@ echo $bar->myDoStuff() . "\n";
 
 dd_trace('Foo', 'doStuff', function () {
     echo "**TRACED**\n";
-    return dd_trace_invoke_original();
+    return dd_trace_forward_call();
 });
 
 echo "=== After tracing ===\n";

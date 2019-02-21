@@ -222,7 +222,7 @@ static PHP_FUNCTION(dd_trace) {
 }
 
 // Invoke the function/method from the original context
-static PHP_FUNCTION(dd_trace_invoke_original) {
+static PHP_FUNCTION(dd_trace_forward_call) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
     zval fname, retval;
@@ -356,7 +356,7 @@ static PHP_FUNCTION(dd_trace_noop) {
 
 static const zend_function_entry ddtrace_functions[] = {
     PHP_FE(dd_trace, NULL)
-    PHP_FE(dd_trace_invoke_original, NULL)
+    PHP_FE(dd_trace_forward_call, NULL)
     PHP_FE(dd_trace_reset, NULL)
     PHP_FE(dd_trace_noop, NULL)
     PHP_FE(dd_untrace, NULL)
