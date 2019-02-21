@@ -12,20 +12,49 @@ class SymfonyIntegration
 
     public static function load()
     {
-        if (!defined('\Symfony\Component\HttpKernel\Kernel::VERSION')) {
-            return Integration::NOT_LOADED;
-        }
+        $instance = new self();
+        return $instance->doLoad();
+    }
 
-        $version = \Symfony\Component\HttpKernel\Kernel::VERSION;
+    private function doLoad()
+    {
+        // This is necessary because Symfony\Component\HttpKernel\Kernel::boot it is not properly traced if we do not
+        // wrap the context when it is called, which if Symfony\Component\HttpKernel\Kernel::handle.
+        dd_trace('Symfony\Component\HttpKernel\Kernel', 'handle', function () {
+            $args =  func_get_args();
+            return call_user_func_array([$this, 'handle'], $args);
+        });
 
-        if (Versions::versionMatches('3.4', $version) || Versions::versionMatches('3.3', $version)) {
-            V3\SymfonyIntegration::load();
-            return Integration::LOADED;
-        } elseif (Versions::versionMatches('4', $version)) {
-            V4\SymfonyIntegration::load();
-            return Integration::LOADED;
-        }
+        dd_trace('Symfony\Component\HttpKernel\Kernel', 'boot', function () {
+            $result = call_user_func_array([$this, 'boot'], func_get_args());
 
-        return Integration::NOT_AVAILABLE;
+            $name = SymfonyIntegration::BUNDLE_NAME;
+            if (!isset($this->bundles[$name])
+                    && defined('\Symfony\Component\HttpKernel\Kernel::VERSION')) {
+
+                $version = \Symfony\Component\HttpKernel\Kernel::VERSION;
+
+                $bundle = null;
+                if (Versions::versionMatches('3.4', $version) || Versions::versionMatches('3.3', $version)) {
+                    $bundle = \DDTrace\Integrations\Symfony\V3\SymfonyBundle();
+                } elseif (Versions::versionMatches('4', $version)) {
+                    $bundle = \DDTrace\Integrations\Symfony\V4\SymfonyBundle();
+                }
+
+                if ($bundle) {
+                    // Simulating behavior of bundle initialization for bundles without any parent bundle based on:
+                    // https://github.com/symfony/symfony/blob/05efd1243fb3910fbaaedabf9b4758604b397c0f/src/Symfony/Component/HttpKernel/Kernel.php#L481
+                    $this->bundles[$name] = $bundle;
+                    $this->bundleMap[$name] = [$bundle];
+
+                    $bundle->setContainer($this->container);
+                    $bundle->boot();
+                }
+            }
+
+            return $result;
+        });
+
+        return Integration::LOADED;
     }
 }
