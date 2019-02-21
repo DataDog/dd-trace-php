@@ -30,10 +30,6 @@ class PredisIntegration
      */
     public static function load()
     {
-        if (!class_exists('\Predis\Client')) {
-            return Integration::NOT_LOADED;
-        }
-
         // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
         dd_trace('\Predis\Client', '__construct', function () {
             $args = func_get_args();

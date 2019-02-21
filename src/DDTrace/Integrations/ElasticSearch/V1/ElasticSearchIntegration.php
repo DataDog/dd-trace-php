@@ -19,10 +19,6 @@ class ElasticSearchIntegration
 
     public static function load()
     {
-        if (!class_exists('Elasticsearch\Client')) {
-            return Integration::NOT_LOADED;
-        }
-
         // Client operations
         self::traceClientMethod('__construct');
         self::traceClientMethod('count');
@@ -170,9 +166,6 @@ class ElasticSearchIntegration
     public static function traceClientMethod($name)
     {
         $class = 'Elasticsearch\Client';
-        if (!method_exists($class, $name)) {
-            return;
-        }
 
         dd_trace($class, $name, function () use ($name) {
             $args = func_get_args();
@@ -225,10 +218,6 @@ class ElasticSearchIntegration
      */
     public static function traceMethod($class, $name)
     {
-        if (!method_exists($class, $name)) {
-            return;
-        }
-
         dd_trace($class, $name, function () use ($class, $name) {
             $args = func_get_args();
 
@@ -268,9 +257,6 @@ class ElasticSearchIntegration
     public static function traceNamespaceMethod($namespace, $name)
     {
         $class = 'Elasticsearch\Namespaces\\' . $namespace;
-        if (!method_exists($class, $name)) {
-            return;
-        }
 
         dd_trace($class, $name, function () use ($namespace, $name) {
             $args = func_get_args();
