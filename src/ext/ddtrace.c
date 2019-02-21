@@ -233,7 +233,11 @@ static PHP_FUNCTION(dd_trace_forward_call) {
         RETURN_BOOL(0);
     }
 
-    // @TODO Null checks, etc
+    if (!DDTRACE_G(original_execute_data) || DDTRACE_G(forwarding_call)) {
+        zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
+                                        "Cannot use dd_trace_forward_call() outside of a tracing closure");
+        return;
+    }
 
     ZVAL_STR_COPY(&fname, DDTRACE_G(original_execute_data)->func->common.function_name);
 
@@ -251,14 +255,14 @@ static PHP_FUNCTION(dd_trace_forward_call) {
 	fcc.called_scope = DDTRACE_G(original_execute_data)->func->common.scope;
 	fcc.object = Z_OBJ(DDTRACE_G(original_execute_data)->This);
 
-    DDTRACE_G(doing_original) = 1;
+    DDTRACE_G(forwarding_call) = 1;
 	if (zend_call_function(&fci, &fcc) == SUCCESS && Z_TYPE(retval) != IS_UNDEF) {
 		if (Z_ISREF(retval)) {
 			zend_unwrap_reference(&retval);
 		}
 		ZVAL_COPY_VALUE(return_value, &retval);
 	}
-    DDTRACE_G(doing_original) = 0;
+    DDTRACE_G(forwarding_call) = 0;
 
     zval_ptr_dtor(&fname);
 }
