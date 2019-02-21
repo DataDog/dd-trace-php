@@ -15,6 +15,7 @@ HashTable function_lookup;
 zend_bool log_backtrace;
 zend_function *current_fbc;
 zend_op_array *original_op_array;
+zend_execute_data *original_execute_data;
 zend_bool doing_original;
 user_opcode_handler_t ddtrace_old_fcall_handler;
 user_opcode_handler_t ddtrace_old_icall_handler;
