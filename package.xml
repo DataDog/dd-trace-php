@@ -80,6 +80,7 @@
                     <file name="dd_trace_forward_call_error.phpt" role="test" />
                     <file name="dd_trace_forward_call_for_functions.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_inheritance.phpt" role="test" />
+                    <file name="dd_trace_forward_call_with_private_callback.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="method_invoked_via_reflection.phpt" role="test" />
                     <file name="method_returning_array.phpt" role="test" />
