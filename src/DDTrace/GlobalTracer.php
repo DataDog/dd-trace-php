@@ -29,11 +29,6 @@ final class GlobalTracer
     public static function set(TracerInterface $tracer)
     {
         self::$instance = $tracer;
-        if (class_exists('\OpenTracing\GlobalTracer')) {
-            \OpenTracing\GlobalTracer::set(
-                new OpenTracer($tracer)
-            );
-        }
     }
 
     /**
