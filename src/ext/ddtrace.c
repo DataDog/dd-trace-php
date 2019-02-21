@@ -261,7 +261,6 @@ static PHP_FUNCTION(dd_trace_invoke_original) {
     DDTRACE_G(doing_original) = 0;
 
     zval_ptr_dtor(&fname);
-    zval_ptr_dtor(&retval);
 }
 
 // This function allows untracing a function.
