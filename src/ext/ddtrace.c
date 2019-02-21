@@ -233,7 +233,7 @@ static PHP_FUNCTION(dd_trace_forward_call) {
         RETURN_BOOL(0);
     }
 
-    if (!DDTRACE_G(original_execute_data) || DDTRACE_G(forwarding_call)) {
+    if (!DDTRACE_G(original_execute_data)/* || DDTRACE_G(forwarding_call)*/) {
         zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
                                         "Cannot use dd_trace_forward_call() outside of a tracing closure");
         return;
