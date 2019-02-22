@@ -10,7 +10,7 @@ typedef struct _ddtrace_dispatch_t {
     zval callable;
     zend_bool busy;
     uint32_t acquired;
-    zend_class_entry *clazz;
+    STRING_T *class_name;
     STRING_T *function;
 } ddtrace_dispatch_t;
 

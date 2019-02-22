@@ -463,7 +463,9 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     return default_dispatch(execute_data TSRMLS_CC);
 }
 
-void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }
+void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *dispatch) {
+    dispatch->acquired++;
+}
 
 void ddtrace_class_lookup_release(ddtrace_dispatch_t *dispatch) {
     if (dispatch->acquired > 0) {

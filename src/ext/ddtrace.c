@@ -174,28 +174,29 @@ static PHP_FUNCTION(dd_trace) {
 
         RETURN_BOOL(0);
     }
+    DD_PRINTF("Class name: %s", Z_STRVAL_P(class_name));
     DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
 
-    if (class_name && Z_TYPE_P(class_name) == IS_STRING) {
-#if PHP_VERSION_ID < 70000
-        clazz = zend_fetch_class(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name),
-                                 ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT TSRMLS_CC);
-#else
-        clazz = zend_fetch_class_by_name(Z_STR_P(class_name), NULL, ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT);
-#endif
-        if (!clazz) {
-            ddtrace_zval_ptr_dtor(class_name);
-            if (function) {
-                ddtrace_zval_ptr_dtor(function);
-            }
+//     if (class_name && Z_TYPE_P(class_name) == IS_STRING) {
+// #if PHP_VERSION_ID < 70000
+//         clazz = zend_fetch_class(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name),
+//                                  ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT TSRMLS_CC);
+// #else
+//         clazz = zend_fetch_class_by_name(Z_STR_P(class_name), NULL, ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT);
+// #endif
+//         if (!clazz) {
+//             ddtrace_zval_ptr_dtor(class_name);
+//             if (function) {
+//                 ddtrace_zval_ptr_dtor(function);
+//             }
 
-            if (!DDTRACE_G(ignore_missing_overridables)) {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "class not found");
-            }
+//             if (!DDTRACE_G(ignore_missing_overridables)) {
+//                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "class not found");
+//             }
 
-            RETURN_BOOL(0);
-        }
-    }
+//             RETURN_BOOL(0);
+//         }
+//     }
 
     if (!function || Z_TYPE_P(function) != IS_STRING) {
         if (class_name) {
@@ -206,9 +207,9 @@ static PHP_FUNCTION(dd_trace) {
     }
 
 #if PHP_VERSION_ID < 70000
-    zend_bool rv = ddtrace_trace(clazz, function, callable TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(class_name, function, callable TSRMLS_CC);
 #else
-    zend_bool rv = ddtrace_trace(clazz, Z_STR_P(function), callable TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(Z_STR_P(class_name), Z_STR_P(function), callable TSRMLS_CC);
 #endif
 
     RETURN_BOOL(rv);

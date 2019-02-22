@@ -95,59 +95,59 @@ static int find_method(zend_class_entry *ce, STRING_T *name, zend_function **fun
     return find_function(&ce->function_table, name, function);
 }
 
-zend_bool ddtrace_trace(zend_class_entry *clazz, STRING_T *name, zval *callable TSRMLS_DC) {
+zend_bool ddtrace_trace(STRING_T *class_name, STRING_T *function_name, zval *callable TSRMLS_DC) {
     zend_function *function;
 
-    if (clazz) {
-        if (find_method(clazz, name, &function) != SUCCESS) {
-            if (!DDTRACE_G(ignore_missing_overridables)) {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                        "Failed to override %s::%s - the method does not exist",
-                                        STRING_VAL(clazz->name), STRING_VAL_CHAR(name));
-            }
+    // if (clazz) {
+    //     if (find_method(clazz, function_name, &function) != SUCCESS) {
+    //         if (!DDTRACE_G(ignore_missing_overridables)) {
+    //             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+    //                                     "Failed to override %s::%s - the method does not exist",
+    //                                     STRING_VAL(clazz->name), STRING_VAL_CHAR(function_name));
+    //         }
 
-            return 0;
-        }
+    //         return 0;
+    //     }
 
-        if (function->common.scope != clazz) {
-            clazz = function->common.scope;
-            DD_PRINTF("Overriding Parent class method");
-        }
-    }
+    //     if (function->common.scope != clazz) {
+    //         clazz = function->common.scope;
+    //         DD_PRINTF("Overriding Parent class method");
+    //     }
+    // }
 
     HashTable *overridable_lookup = NULL;
-    if (clazz) {
-#if PHP_VERSION_ID < 70000
-        overridable_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length);
-#else
-        overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), clazz->name);
-#endif
-        if (!overridable_lookup) {
-            overridable_lookup = ddtrace_new_class_lookup(clazz TSRMLS_CC);
-        }
-    } else {
-        if (find_function(EG(function_table), name, &function) != SUCCESS) {
-            if (!DDTRACE_G(ignore_missing_overridables)) {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                        "Failed to override function %s - the function does not exist",
-                                        STRING_VAL_CHAR(name));
-            }
+//     if (clazz) {
+// #if PHP_VERSION_ID < 70000
+//         overridable_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length);
+// #else
+//         overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), clazz->name);
+// #endif
+//         if (!overridable_lookup) {
+//             overridable_lookup = ddtrace_new_class_lookup(clazz TSRMLS_CC);
+//         }
+//     } else {
+//         if (find_function(EG(function_table), function_name, &function) != SUCCESS) {
+//             if (!DDTRACE_G(ignore_missing_overridables)) {
+//                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+//                                         "Failed to override function %s - the function does not exist",
+//                                         STRING_VAL_CHAR(function_name));
+//             }
 
-            return 0;
-        }
+//             return 0;
+//         }
 
-        overridable_lookup = &DDTRACE_G(function_lookup);
-    }
+//         overridable_lookup = &DDTRACE_G(function_lookup);
+//     }
 
-    if (!overridable_lookup) {
-        return 0;
-    }
+//     if (!overridable_lookup) {
+//         return 0;
+//     }
 
-    ddtrace_dispatch_t dispatch;
-    memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
+//     ddtrace_dispatch_t dispatch;
+//     memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
 
-    dispatch.clazz = clazz;
-    dispatch.function = STRING_TOLOWER(name);  // method/function names are case insensitive in PHP
+    dispatch.class_name = class_name;
+    dispatch.function = STRING_TOLOWER(function_name);  // method/function names are case insensitive in PHP
 
     dispatch.callable = *callable;
     zval_copy_ctor(&dispatch.callable);
