@@ -233,7 +233,7 @@ static PHP_FUNCTION(dd_untrace) {
     // Remove the traced function from the global lookup
     zend_hash_del(&DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
 #else
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "S", &function) != SUCCESS) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "z", &function) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0,
                                     "unexpected parameter. the function name must be provided");
@@ -242,6 +242,10 @@ static PHP_FUNCTION(dd_untrace) {
     }
 
     // Remove the traced function from the global lookup
+    if (!function || Z_TYPE_P(function) != IS_STRING) {
+        RETURN_BOOL(0);
+    }
+
     zend_hash_del(&DDTRACE_G(function_lookup), Z_STR_P(function));
 #endif
 

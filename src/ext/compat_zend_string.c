@@ -20,9 +20,11 @@ zval *ddtrace_string_tolower(zval *str) {
     if (!str || Z_TYPE_P(str) != IS_STRING) {
         return NULL;
     }
-    zval *val = emalloc(sizeof(zval));
-    *val = EG(uninitialized_zval);
-    ZVAL_STR(val, zend_string_tolower(Z_STR_P(str)));
-    return val;
+    zend_string *original_str = Z_STR_P(str);
+    // zval *val = emalloc(sizeof(zval));
+    // *val = EG(uninitialized_zval);
+    ZVAL_STR(str, zend_string_tolower(original_str));
+    zend_string_release(original_str);
+    return str;
 }
 #endif
