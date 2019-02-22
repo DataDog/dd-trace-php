@@ -30,8 +30,8 @@ class SymfonyIntegration
 
             $name = SymfonyIntegration::BUNDLE_NAME;
             if (!isset($this->bundles[$name])
-                    && defined('\Symfony\Component\HttpKernel\Kernel::VERSION')) {
-
+                    && defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
+            ) {
                 $version = \Symfony\Component\HttpKernel\Kernel::VERSION;
 
                 $bundle = null;
