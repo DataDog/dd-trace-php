@@ -89,7 +89,7 @@ zend_function *fcall_fbc(zend_execute_data *execute_data) {
 }
 #endif
 
-static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execute_data,
+static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_class_entry *execution_scope, zend_execute_data *execute_data,
                           zval **return_value_ptr TSRMLS_DC) {
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
@@ -103,7 +103,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 #if PHP_VERSION_ID < 70000
     func = datadog_current_function(execute_data);
 
-    if (dispatch->clazz) {
+    if (execution_scope) {
         this = datadog_this(func, execute_data);
     }
 
@@ -114,7 +114,8 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         callable->common.fn_flags &= ~ZEND_ACC_STATIC;
     }
 
-    zend_create_closure(&closure, callable, dispatch->clazz, this TSRMLS_CC);
+    zend_class_entry clazz =
+    zend_create_closure(&closure, callable, execution_scope, this TSRMLS_CC);
 #else
     func = EX(func);
     this = Z_OBJ(EX(This)) ? &EX(This) : NULL;
@@ -298,7 +299,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             return_value = ret->var.ptr_ptr;
         }
 
-        execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
+        execute_fcall(dispatch, fbc->common.scope, execute_data, return_value TSRMLS_CC);
         EG(return_value_ptr_ptr) = EX(original_return_value);
 
         if (!RETURN_VALUE_USED(opline) && return_value && *return_value) {
@@ -475,4 +476,40 @@ void ddtrace_class_lookup_release(ddtrace_dispatch_t *dispatch) {
         ddtrace_dispatch_free_owned_data(dispatch);
         efree(dispatch);
     }
+}
+
+zend_class_entry* ddtrace_target_class_entry(zval *class_name, zval *method_name){
+    zend_class_entry *class = NULL;
+    #if PHP_VERSION_ID < 70000
+        class = zend_fetch_class(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name),
+                                 ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT TSRMLS_CC);
+#else
+        class = zend_fetch_class_by_name(Z_STR_P(class_name), NULL, ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT);
+    #endif
+    zend_function *method = NULL
+
+    if (class && find_method(class, method_name, &method) == SUCCESS) {
+        if (method->common.scope != class) {
+            class = function->common.scope;
+            DD_PRINTF("Overriding Parent class method");
+        }
+
+    return class;
+}
+
+int ddtrace_find_function(HashTable *table, zval *name, zend_function **function) {
+    zend_function *ptr = ddtrace_function_get(table, name);
+    if (!ptr) {
+        return FAILURE;
+    }
+
+    if (function) {
+        *function = ptr;
+    }
+
+    return SUCCESS;
+}
+
+int find_method(zend_class_entry *ce, zval *name, zend_function **function) {
+    return ddtrace_find_function(&ce->function_table, name, function);
 }

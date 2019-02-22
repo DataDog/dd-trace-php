@@ -176,33 +176,30 @@ static PHP_FUNCTION(dd_trace) {
     DD_PRINTF("Class name: %s", Z_STRVAL_P(class_name));
     DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
 
-    if (class_name && DDTRACE_G(strict_mode) && Z_TYPE_P(class_name) == IS_STRING) {
-        zend_class_entry *class = NULL;
-
-#if PHP_VERSION_ID < 70000
-        class = zend_fetch_class(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name),
-                                 ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT TSRMLS_CC);
-#else
-        class = zend_fetch_class_by_name(Z_STR_P(class_name), NULL, ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT);
-#endif
-        if (!class) {
-            ddtrace_zval_ptr_dtor(class_name);
-            if (function) {
-                ddtrace_zval_ptr_dtor(function);
-            }
-
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "class not found");
-
-            RETURN_BOOL(0);
-        }
-    }
-
     if (!function || Z_TYPE_P(function) != IS_STRING) {
         if (class_name) {
             ddtrace_zval_ptr_dtor(class_name);
         }
         ddtrace_zval_ptr_dtor(function);
+
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "function/method name parameter must be a string");
+        }
+
         RETURN_BOOL(0);
+    }
+
+    if (class_name && DDTRACE_G(strict_mode) && Z_TYPE_P(class_name) == IS_STRING) {
+        zend_class_entry *class = ddtrace_target_class_entry(class_name, function);
+
+        if (!class) {
+            ddtrace_zval_ptr_dtor(class_name);
+            ddtrace_zval_ptr_dtor(function);
+
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "class not found");
+
+            RETURN_BOOL(0);
+        }
     }
 
     zend_bool rv = ddtrace_trace(class_name, function, callable TSRMLS_CC);
