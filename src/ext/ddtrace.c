@@ -54,7 +54,7 @@ PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.ignore_missing_overridables", "1", PHP_INI_SYSTEM, OnUpdateBool, ignore_missing_overridables,
+STD_PHP_INI_ENTRY("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode,
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.log_backtrace", "0", PHP_INI_SYSTEM, OnUpdateBool, log_backtrace, zend_ddtrace_globals,
                   ddtrace_globals)
@@ -166,7 +166,7 @@ static PHP_FUNCTION(dd_trace) {
                                  &callable) != SUCCESS &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zz", &function, &callable) !=
             SUCCESS) {
-        if (!DDTRACE_G(ignore_missing_overridables)) {
+        if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(
                 spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
                 "unexpected parameter combination, expected (class, function, closure) or (function, closure)");
@@ -190,7 +190,7 @@ static PHP_FUNCTION(dd_trace) {
 //                 ddtrace_zval_ptr_dtor(function);
 //             }
 
-//             if (!DDTRACE_G(ignore_missing_overridables)) {
+//             if (DDTRACE_G(strict_mode)) {
 //                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "class not found");
 //             }
 
@@ -230,7 +230,7 @@ static PHP_FUNCTION(dd_untrace) {
     ALLOC_INIT_ZVAL(function);
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "s", &Z_STRVAL_P(function),
                                  &Z_STRLEN_P(function)) != SUCCESS) {
-        if (!DDTRACE_G(ignore_missing_overridables)) {
+        if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
                                     "unexpected parameter. the function name must be provided");
         }
@@ -243,7 +243,7 @@ static PHP_FUNCTION(dd_untrace) {
     zend_hash_del(&DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
 #else
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "S", &function) != SUCCESS) {
-        if (!DDTRACE_G(ignore_missing_overridables)) {
+        if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0,
                                     "unexpected parameter. the function name must be provided");
         }

@@ -100,7 +100,7 @@ zend_bool ddtrace_trace(STRING_T *class_name, STRING_T *function_name, zval *cal
 
     // if (clazz) {
     //     if (find_method(clazz, function_name, &function) != SUCCESS) {
-    //         if (!DDTRACE_G(ignore_missing_overridables)) {
+    //         if (DDTRACE_G(strict_mode)) {
     //             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
     //                                     "Failed to override %s::%s - the method does not exist",
     //                                     STRING_VAL(clazz->name), STRING_VAL_CHAR(function_name));
@@ -127,7 +127,7 @@ zend_bool ddtrace_trace(STRING_T *class_name, STRING_T *function_name, zval *cal
         }
     } else {
         // if (find_function(EG(function_table), function_name, &function) != SUCCESS) {
-        //     if (!DDTRACE_G(ignore_missing_overridables)) {
+        //     if (DDTRACE_G(strict_mode)) {
         //         zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
         //                                 "Failed to override function %s - the function does not exist",
         //                                 STRING_VAL_CHAR(function_name));

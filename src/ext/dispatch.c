@@ -123,7 +123,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 #endif
 
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
-        if (!DDTRACE_G(ignore_missing_overridables)) {
+        if (DDTRACE_G(strict_mode)) {
             if (func->common.scope) {
                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
                                         "cannot set override for %s::%s - %s", STRING_VAL(func->common.scope->name),
