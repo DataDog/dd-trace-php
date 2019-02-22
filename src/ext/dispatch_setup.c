@@ -85,17 +85,17 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TS
 #if PHP_VERSION_ID < 70000
         overridable_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), class_name, &Z_STRLEN_P(class_name));
 #else
-        overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), class_name);
+        overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), Z_STR_P(class_name));
 #endif
         if (!overridable_lookup) {
             overridable_lookup = ddtrace_new_class_lookup(class_name TSRMLS_CC);
         }
     } else {
         if (DDTRACE_G(strict_mode)) {
-            if (find_function(EG(function_table), function_name, &function) != SUCCESS) {
+            zend_function *function = NULL;
+            if (ddtrace_find_function(EG(function_table), function_name, &function) != SUCCESS) {
                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                        "Failed to override function %s - the function does not exist",
-                                        STRING_VAL_CHAR(function_name));
+                                        "Failed to override function %z - the function does not exist", function_name);
             }
 
             return 0;

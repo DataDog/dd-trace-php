@@ -41,12 +41,12 @@ void ddtrace_class_lookup_release_compat(zval *zv) {
     ddtrace_class_lookup_release(dispatch);
 }
 
-HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz) {
+HashTable *ddtrace_new_class_lookup(zval *class_name) {
     HashTable *class_lookup;
 
     ALLOC_HASHTABLE(class_lookup);
     zend_hash_init(class_lookup, 8, NULL, ddtrace_class_lookup_release_compat, 0);
-    zend_hash_update_ptr(&DDTRACE_G(class_lookup), clazz->name, class_lookup);
+    zend_hash_update_ptr(&DDTRACE_G(class_lookup), Z_STR_P(class_name), class_lookup);
 
     return class_lookup;
 }
@@ -60,6 +60,6 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
 
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
     ddtrace_class_lookup_acquire(dispatch);
-    return zend_hash_update_ptr(lookup, dispatch->function, dispatch) != NULL;
+    return zend_hash_update_ptr(lookup, Z_STR_P(dispatch->function_name), dispatch) != NULL;
 }
 #endif  // PHP_VERSION_ID >= 70000

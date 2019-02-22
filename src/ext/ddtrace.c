@@ -242,7 +242,7 @@ static PHP_FUNCTION(dd_untrace) {
     }
 
     // Remove the traced function from the global lookup
-    zend_hash_del(&DDTRACE_G(function_lookup), function);
+    zend_hash_del(&DDTRACE_G(function_lookup), Z_STR_P(function));
 #endif
 
 #if PHP_VERSION_ID < 70000
