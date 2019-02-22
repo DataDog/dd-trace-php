@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file - [read more
 ## [Unreleased]
 ### Fixed
 - Accessing freed memory when instrumentation code un/instrumented itself #314
+- Freeing `$this` object prematurely in PHP-FPM VM #317
 
 ## [0.13.3]
 
