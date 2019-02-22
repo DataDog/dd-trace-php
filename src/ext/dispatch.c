@@ -157,12 +157,9 @@ _exit_cleanup:
     if (this) {
 #if PHP_VERSION_ID < 70000
         Z_DELREF_P(this);
-
 #else
-        zend_function *constructor = Z_OBJ_HT_P(this)->get_constructor(Z_OBJ_P(this));
-
-        if ((get_executed_scope() != dispatch->clazz) || constructor) {
-            Z_DELREF_P(this);
+        if (EX_CALL_INFO() & ZEND_CALL_RELEASE_THIS) {
+            OBJ_RELEASE(Z_OBJ(execute_data->This));
         }
 #endif
     }
