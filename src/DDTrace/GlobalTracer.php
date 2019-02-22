@@ -8,7 +8,6 @@
 namespace DDTrace;
 
 use DDTrace\Contracts\Tracer as TracerInterface;
-use DDTrace\OpenTracer\Tracer as OpenTracer;
 
 final class GlobalTracer
 {
