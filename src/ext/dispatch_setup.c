@@ -116,28 +116,28 @@ zend_bool ddtrace_trace(STRING_T *class_name, STRING_T *function_name, zval *cal
     // }
 
     HashTable *overridable_lookup = NULL;
-//     if (clazz) {
-// #if PHP_VERSION_ID < 70000
-//         overridable_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length);
-// #else
-//         overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), clazz->name);
-// #endif
-//         if (!overridable_lookup) {
-//             overridable_lookup = ddtrace_new_class_lookup(clazz TSRMLS_CC);
-//         }
-//     } else {
-//         if (find_function(EG(function_table), function_name, &function) != SUCCESS) {
-//             if (!DDTRACE_G(ignore_missing_overridables)) {
-//                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-//                                         "Failed to override function %s - the function does not exist",
-//                                         STRING_VAL_CHAR(function_name));
-//             }
+    if (class_name) {
+#if PHP_VERSION_ID < 70000
+        overridable_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), class_name, &Z_STRLEN_P(class_name));
+#else
+        overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), class_name);
+#endif
+        if (!overridable_lookup) {
+            overridable_lookup = ddtrace_new_class_lookup(clazz TSRMLS_CC);
+        }
+    } else {
+        // if (find_function(EG(function_table), function_name, &function) != SUCCESS) {
+        //     if (!DDTRACE_G(ignore_missing_overridables)) {
+        //         zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+        //                                 "Failed to override function %s - the function does not exist",
+        //                                 STRING_VAL_CHAR(function_name));
+        //     }
 
-//             return 0;
-//         }
+        //     return 0;
+        // }
 
-//         overridable_lookup = &DDTRACE_G(function_lookup);
-//     }
+        overridable_lookup = &DDTRACE_G(function_lookup);
+    }
 
 //     if (!overridable_lookup) {
 //         return 0;
