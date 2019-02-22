@@ -14,7 +14,7 @@ typedef struct _ddtrace_dispatch_t {
     STRING_T *function;
 } ddtrace_dispatch_t;
 
-zend_bool ddtrace_trace(zend_class_entry *, STRING_T *, zval *TSRMLS_DC);
+zend_bool ddtrace_trace(zval *, zval *, zval *TSRMLS_DC);
 int ddtrace_wrap_fcall(zend_execute_data *TSRMLS_DC);
 void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *);
 void ddtrace_class_lookup_release(ddtrace_dispatch_t *);

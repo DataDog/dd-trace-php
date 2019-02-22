@@ -7,6 +7,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 zend_bool disable;
 char *request_init_hook;
 zend_bool strict_mode;
+
 HashTable class_lookup;
 HashTable function_lookup;
 zend_bool log_backtrace;

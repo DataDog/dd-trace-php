@@ -121,8 +121,8 @@ void ddtrace_class_lookup_release_compat(void *zv) {
     ddtrace_class_lookup_release(dispatch);
 }
 
-HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz TSRMLS_DC) {
-    if (!clazz) {
+HashTable *ddtrace_new_class_lookup(zval *class_name TSRMLS_DC) {
+    if (!class_name) {
         return &DDTRACE_G(function_lookup);
     }
 
@@ -130,8 +130,8 @@ HashTable *ddtrace_new_class_lookup(zend_class_entry *clazz TSRMLS_DC) {
     ALLOC_HASHTABLE(class_lookup);
     zend_hash_init(class_lookup, 8, NULL, ddtrace_class_lookup_release_compat, 0);
 
-    zend_hash_update(&DDTRACE_G(class_lookup), clazz->name, clazz->name_length, &class_lookup, sizeof(HashTable *),
-                     NULL);
+    zend_hash_update(&DDTRACE_G(class_lookup), Z_STRVAL_P(class_name), Z_STRLEN_P(class_name), &class_lookup,
+                     sizeof(HashTable *), NULL);
     return class_lookup;
 }
 

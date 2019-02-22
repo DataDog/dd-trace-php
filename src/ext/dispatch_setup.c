@@ -95,25 +95,25 @@ static int find_method(zend_class_entry *ce, STRING_T *name, zend_function **fun
     return find_function(&ce->function_table, name, function);
 }
 
-zend_bool ddtrace_trace(STRING_T *class_name, STRING_T *function_name, zval *callable TSRMLS_DC) {
+zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TSRMLS_DC) {
     zend_function *function;
 
-    // if (clazz) {
-    //     if (find_method(clazz, function_name, &function) != SUCCESS) {
-    //         if (DDTRACE_G(strict_mode)) {
-    //             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-    //                                     "Failed to override %s::%s - the method does not exist",
-    //                                     STRING_VAL(clazz->name), STRING_VAL_CHAR(function_name));
-    //         }
+    if (clazz && DDTRACE_G(strict_mode)) {
+        if (find_method(clazz, function_name, &function) != SUCCESS) {
+            if (DDTRACE_G(strict_mode)) {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                        "Failed to override %s::%s - the method does not exist",
+                                        STRING_VAL(clazz->name), STRING_VAL_CHAR(function_name));
+            }
 
-    //         return 0;
-    //     }
+            return 0;
+        }
 
-    //     if (function->common.scope != clazz) {
-    //         clazz = function->common.scope;
-    //         DD_PRINTF("Overriding Parent class method");
-    //     }
-    // }
+        if (function->common.scope != clazz) {
+            clazz = function->common.scope;
+            DD_PRINTF("Overriding Parent class method");
+        }
+    }
 
     HashTable *overridable_lookup = NULL;
     if (class_name) {
@@ -123,7 +123,7 @@ zend_bool ddtrace_trace(STRING_T *class_name, STRING_T *function_name, zval *cal
         overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), class_name);
 #endif
         if (!overridable_lookup) {
-            overridable_lookup = ddtrace_new_class_lookup(clazz TSRMLS_CC);
+            overridable_lookup = ddtrace_new_class_lookup(class_name TSRMLS_CC);
         }
     } else {
         // if (find_function(EG(function_table), function_name, &function) != SUCCESS) {
@@ -139,12 +139,12 @@ zend_bool ddtrace_trace(STRING_T *class_name, STRING_T *function_name, zval *cal
         overridable_lookup = &DDTRACE_G(function_lookup);
     }
 
-//     if (!overridable_lookup) {
-//         return 0;
-//     }
+    if (!overridable_lookup) {
+        return 0;
+    }
 
-//     ddtrace_dispatch_t dispatch;
-//     memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
+    ddtrace_dispatch_t dispatch;
+    memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
 
     dispatch.class_name = class_name;
     dispatch.function = STRING_TOLOWER(function_name);  // method/function names are case insensitive in PHP
