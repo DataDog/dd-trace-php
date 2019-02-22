@@ -3,7 +3,7 @@ Check that a function can be traced before it exists.
 --FILE--
 <?php
 
-dd_trace("Test", "test", function($a){
+dd_trace("Test", "some_method", function($a){
     $this->some_method($a);
     echo "HOOK " . $a . PHP_EOL;
 });
