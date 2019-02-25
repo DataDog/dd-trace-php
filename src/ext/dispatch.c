@@ -140,6 +140,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
 
     zend_function *func;
     zend_execute_data *prev_original_execute_data;
+    zend_string *func_name = zend_string_init(ZEND_STRL("dd_trace_callback"), 0);
 #if PHP_VERSION_ID < 70000
     func = datadog_current_function(execute_data);
 
@@ -156,6 +157,11 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable),
                         executed_method_class, executed_method_class, this TSRMLS_CC);
 #endif
+
+    //fcc.function_handler = func;
+    //fcc.calling_scope = func->common.scope;
+    //fcc.called_scope = func->common.scope;
+    //fcc.object = Z_OBJ_P(this);
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             const char *scope_name, *function_name;
@@ -182,10 +188,19 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     }
 
     ddtrace_setup_fcall(execute_data, &fci, return_value_ptr TSRMLS_CC);
+
+    //fcc.function_handler = current_fbc;
+    // Move this to closure zval before zend_fcall_info_init()
+    fcc.function_handler->common.function_name = func_name;
+    fcc.called_scope = current_fbc->common.scope;
+    //fcc.object = Z_OBJ_P(this);
+
     prev_original_execute_data = DDTRACE_G(original_execute_data);
     DDTRACE_G(original_execute_data) = execute_data;
     zend_call_function(&fci, &fcc TSRMLS_CC);
     DDTRACE_G(original_execute_data) = prev_original_execute_data;
+
+    zend_string_release(func_name);
 
 #if PHP_VERSION_ID < 70000
     if (fci.params) {
@@ -240,10 +255,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 #if PHP_VERSION_ID < 50500
     zval *original_object = EX(object);
 #endif
-    zval *object = NULL;
-    const char *common_scope = NULL;
-    uint32_t common_scope_length = 0;
-
     zval *this = ddtrace_this(execute_data);
     DD_PRINTF("Loaded $this object ptr: %p", (void *)this);
 
