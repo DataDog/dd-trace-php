@@ -7,11 +7,9 @@
 #include "compat_zend_string.h"
 
 typedef struct _ddtrace_dispatch_t {
-    zval callable;
+    zval callable, function_name;
     zend_bool busy;
     uint32_t acquired;
-    zval *class_name;
-    zval *function_name;
 } ddtrace_dispatch_t;
 
 zend_bool ddtrace_trace(zval *, zval *, zval *TSRMLS_DC);
