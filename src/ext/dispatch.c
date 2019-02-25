@@ -200,7 +200,6 @@ static zend_always_inline zend_bool executing_method(zend_execute_data *execute_
         }                                                               \
     }
 
-#include <assert.h>
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, zend_function *fbc,
                                                  const char *function_name, uint32_t function_name_length TSRMLS_DC) {
 #if PHP_VERSION_ID < 50600
@@ -214,6 +213,10 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     if (executed_method_class) {
 #if PHP_VERSION_ID < 70000
         object = EG(This) ? EG(This) : OBJECT();
+        zval* executed_method_object = EX(call)->object;
+        if (executed_method_object && Z_TYPE_P(executed_method_object) == IS_OBJECT){
+            executed_method_class = Z_OBJCE_P(executed_method_object);
+        }
         common_scope = executed_method_class->name;
         common_scope_length = executed_method_class->name_length;
 #else
