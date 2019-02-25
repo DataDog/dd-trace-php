@@ -15,5 +15,16 @@ zval *ddtrace_string_tolower(zval *str) {
     ZVAL_STRINGL(ret, zend_str_tolower_dup(Z_STRVAL_P(str), Z_STRLEN_P(str)), Z_STRLEN_P(str), 0);
     return ret;
 }
-
+#else
+zval *ddtrace_string_tolower(zval *str) {
+    if (!str || Z_TYPE_P(str) != IS_STRING) {
+        return NULL;
+    }
+    zend_string *original_str = Z_STR_P(str);
+    // zval *val = emalloc(sizeof(zval));
+    // *val = EG(uninitialized_zval);
+    ZVAL_STR(str, zend_string_tolower(original_str));
+    zend_string_release(original_str);
+    return str;
+}
 #endif

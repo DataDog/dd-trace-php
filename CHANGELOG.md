@@ -2,8 +2,15 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+
+## [0.13.4]
+
+Special thanks to @stayallive for helping us debugging the memory issues in his environment! His help and guidance were
+of paramount importance.
+
 ### Fixed
 - Accessing freed memory when instrumentation code un/instrumented itself #314
+- Freeing `$this` object prematurely in PHP-FPM VM #317
 
 ## [0.13.3]
 
@@ -311,7 +318,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.13.3...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.13.4...HEAD
+[0.13.4]: https://github.com/DataDog/dd-trace-php/compare/0.13.3...0.13.4
 [0.13.3]: https://github.com/DataDog/dd-trace-php/compare/0.13.2...0.13.3
 [0.13.2]: https://github.com/DataDog/dd-trace-php/compare/0.13.1...0.13.2
 [0.13.1]: https://github.com/DataDog/dd-trace-php/compare/0.13.0...0.13.1

@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-02-19</date>
+    <date>2019-02-22</date>
     <version>
-        <release>0.13.3</release>
-        <api>0.13.3</api>
+        <release>0.13.4</release>
+        <api>0.13.4</api>
     </version>
     <stability>
         <release>beta</release>
@@ -21,8 +21,12 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
+        Special thanks to @stayallive for helping us debugging the memory issues in his environment! His help and
+        guidance were of paramount importance.
+
         ### Fixed
-        - 7.x handling of `$this` pointer passed to the closure causing errors in PHP VM #311
+        - Accessing freed memory when instrumentation code un/instrumented itself #314
+        - Freeing `$this` object prematurely in PHP-FPM VM #317
     </notes>
     <contents>
         <dir name="/">

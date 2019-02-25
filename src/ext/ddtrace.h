@@ -6,7 +6,8 @@ extern zend_module_entry ddtrace_module_entry;
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 zend_bool disable;
 char *request_init_hook;
-zend_bool ignore_missing_overridables;
+zend_bool strict_mode;
+
 HashTable class_lookup;
 HashTable function_lookup;
 zend_bool log_backtrace;

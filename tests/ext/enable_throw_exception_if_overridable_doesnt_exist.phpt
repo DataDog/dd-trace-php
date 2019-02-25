@@ -1,7 +1,7 @@
 --TEST--
 Toggle checking if overrided class doesn't exist
 --INI--
-ddtrace.ignore_missing_overridables=0
+ddtrace.strict_mode=1
 --FILE--
 <?php
 try {

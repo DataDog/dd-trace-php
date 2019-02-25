@@ -89,7 +89,7 @@ zend_function *fcall_fbc(zend_execute_data *execute_data) {
 }
 #endif
 
-static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execute_data,
+static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_class_entry *executed_method_class, zend_execute_data *execute_data,
                           zval **return_value_ptr TSRMLS_DC) {
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
@@ -103,7 +103,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
 #if PHP_VERSION_ID < 70000
     func = datadog_current_function(execute_data);
 
-    if (dispatch->clazz) {
+    if (executed_method_class) {
         this = datadog_this(func, execute_data);
     }
 
@@ -114,23 +114,23 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_execute_data *execu
         callable->common.fn_flags &= ~ZEND_ACC_STATIC;
     }
 
-    zend_create_closure(&closure, callable, dispatch->clazz, this TSRMLS_CC);
+    zend_create_closure(&closure, callable, executed_method_class, this TSRMLS_CC);
 #else
     func = EX(func);
     this = Z_OBJ(EX(This)) ? &EX(This) : NULL;
-    zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable), dispatch->clazz,
-                        dispatch->clazz, this TSRMLS_CC);
+    zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable), executed_method_class,
+                        executed_method_class, this TSRMLS_CC);
 #endif
 
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
-        if (!DDTRACE_G(ignore_missing_overridables)) {
+        if (DDTRACE_G(strict_mode)) {
             if (func->common.scope) {
                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                        "cannot set override for %s::%s - %s", STRING_VAL(func->common.scope->name),
-                                        STRING_VAL(func->common.function_name), error);
+                                        "cannot set override for %s::%s - %s", func->common.scope->name,
+                                        func->common.function_name, error);
             } else {
                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "cannot set override for %s - %s",
-                                        STRING_VAL(func->common.function_name), error);
+                                        func->common.function_name, error);
             }
         }
 
@@ -157,12 +157,9 @@ _exit_cleanup:
     if (this) {
 #if PHP_VERSION_ID < 70000
         Z_DELREF_P(this);
-
 #else
-        zend_function *constructor = Z_OBJ_HT_P(this)->get_constructor(Z_OBJ_P(this));
-
-        if ((get_executed_scope() != dispatch->clazz) || constructor) {
-            Z_DELREF_P(this);
+        if (EX_CALL_INFO() & ZEND_CALL_RELEASE_THIS) {
+            OBJ_RELEASE(Z_OBJ(execute_data->This));
         }
 #endif
     }
@@ -210,20 +207,25 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     zval *original_object = EX(object);
 #endif
     zval *object = NULL;
+    zend_class_entry *executed_method_class = fbc->common.scope;
     const char *common_scope = NULL;
     uint32_t common_scope_length = 0;
 
-    if (fbc->common.scope) {
+    if (executed_method_class) {
 #if PHP_VERSION_ID < 70000
         object = EG(This) ? EG(This) : OBJECT();
-
-        common_scope = fbc->common.scope->name;
-        common_scope_length = fbc->common.scope->name_length;
-
+        common_scope = executed_method_class->name;
+        common_scope_length = executed_method_class->name_length;
 #else
         object = &EX(This);
-        common_scope = ZSTR_VAL(fbc->common.scope->name);
-        common_scope_length = ZSTR_LEN(fbc->common.scope->name);
+
+        zval* executed_method_object = &EX(call)->This;
+        if (Z_TYPE_P(executed_method_object) == IS_OBJECT){
+            executed_method_class = Z_OBJCE_P(executed_method_object);
+        }
+
+        common_scope = ZSTR_VAL(executed_method_class->name);
+        common_scope_length = ZSTR_LEN(executed_method_class->name);
 #endif
     }
     DD_PRINTF("Loaded object id: %p", (void *)object);
@@ -301,7 +303,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             return_value = ret->var.ptr_ptr;
         }
 
-        execute_fcall(dispatch, execute_data, return_value TSRMLS_CC);
+        execute_fcall(dispatch, executed_method_class, execute_data, return_value TSRMLS_CC);
         EG(return_value_ptr_ptr) = EX(original_return_value);
 
         if (!RETURN_VALUE_USED(opline) && return_value && *return_value) {
@@ -314,7 +316,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
 #elif PHP_VERSION_ID < 70000
         zval *return_value = NULL;
-        execute_fcall(dispatch, execute_data, &return_value TSRMLS_CC);
+        execute_fcall(dispatch, executed_method_class, execute_data, &return_value TSRMLS_CC);
 
         if (return_value != NULL) {
             if (RETURN_VALUE_USED(opline)) {
@@ -329,7 +331,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         INIT_ZVAL(rv);
 
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
-        execute_fcall(dispatch, EX(call), &return_value TSRMLS_CC);
+        execute_fcall(dispatch, executed_method_class, EX(call), &return_value TSRMLS_CC);
 
         if (!RETURN_VALUE_USED(opline)) {
             zval_dtor(&rv);
@@ -479,3 +481,41 @@ void ddtrace_class_lookup_release(ddtrace_dispatch_t *dispatch) {
         efree(dispatch);
     }
 }
+int find_method(zend_class_entry *ce, zval *name, zend_function **function) {
+    return ddtrace_find_function(&ce->function_table, name, function);
+}
+
+zend_class_entry* ddtrace_target_class_entry(zval *class_name, zval *method_name){
+    zend_class_entry *class = NULL;
+    #if PHP_VERSION_ID < 70000
+        class = zend_fetch_class(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name),
+                                 ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT TSRMLS_CC);
+#else
+        class = zend_fetch_class_by_name(Z_STR_P(class_name), NULL, ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT);
+    #endif
+    zend_function *method = NULL;
+
+    if (class && find_method(class, method_name, &method) == SUCCESS) {
+        if (method->common.scope != class) {
+            class = method->common.scope;
+            DD_PRINTF("Overriding Parent class method");
+        }
+    }
+
+    return class;
+}
+
+int ddtrace_find_function(HashTable *table, zval *name, zend_function **function) {
+    zend_function *ptr = ddtrace_function_get(table, name);
+    if (!ptr) {
+        return FAILURE;
+    }
+
+    if (function) {
+        *function = ptr;
+    }
+
+    return SUCCESS;
+}
+
+
