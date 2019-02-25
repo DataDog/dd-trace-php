@@ -46,7 +46,7 @@ class LaravelProvider extends ServiceProvider
         $this->app->instance('DDTrace\Tracer', $tracer);
         $self = $this;
 
-        dd_trace('\Illuminate\Foundation\Application', 'handle', function () use ($appName, $tracer, $self) {
+        dd_trace('Illuminate\Foundation\Application', 'handle', function () use ($appName, $tracer, $self) {
             // Create a span that starts from when Laravel first boots (public/index.php)
             $self->rootScope = $tracer->getRootScope();
 

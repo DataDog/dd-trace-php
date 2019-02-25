@@ -41,7 +41,7 @@ class LaravelIntegration
                 $loader->load();
             }
 
-            return call_user_func([$this, '__construct'], func_get_args());
+            return call_user_func_array([$this, '__construct'], func_get_args());
         });
 
         return Integration::LOADED;

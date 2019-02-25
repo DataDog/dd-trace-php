@@ -31,7 +31,7 @@ class PredisIntegration
     public static function load()
     {
         // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
-        dd_trace('\Predis\Client', '__construct', function () {
+        dd_trace('Predis\Client', '__construct', function () {
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.__construct');
             $span = $scope->getSpan();
@@ -58,7 +58,7 @@ class PredisIntegration
         });
 
         // public void Predis\Client::connect()
-        dd_trace('\Predis\Client', 'connect', function () {
+        dd_trace('Predis\Client', 'connect', function () {
             $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.connect');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
@@ -70,7 +70,7 @@ class PredisIntegration
         });
 
         // public mixed Predis\Client::executeCommand(CommandInterface $command)
-        dd_trace('\Predis\Client', 'executeCommand', function ($command) {
+        dd_trace('Predis\Client', 'executeCommand', function ($command) {
             $arguments = $command->getArguments();
             array_unshift($arguments, $command->getId());
             $query = PredisIntegration::formatArguments($arguments);
@@ -90,7 +90,7 @@ class PredisIntegration
         // Predis < 1 has not this method
         if (method_exists('\Predis\Client', 'executeRaw')) {
             // public mixed Predis\Client::executeRaw(array $arguments, bool &$error)
-            dd_trace('\Predis\Client', 'executeRaw', function ($arguments, &$error = null) {
+            dd_trace('Predis\Client', 'executeRaw', function ($arguments, &$error = null) {
                 $query = PredisIntegration::formatArguments($arguments);
 
                 $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeRaw');
@@ -126,7 +126,7 @@ class PredisIntegration
         // Predis < 1 has not this method
         if (method_exists('\Predis\Pipeline\Pipeline', 'executePipeline')) {
             // protected array Predis\Pipeline::executePipeline(ConnectionInterface $connection, \SplQueue $commands)
-            dd_trace('\Predis\Pipeline\Pipeline', 'executePipeline', function ($connection, $commands) {
+            dd_trace('Predis\Pipeline\Pipeline', 'executePipeline', function ($connection, $commands) {
                 $scope = GlobalTracer::get()->startActiveSpan('Predis.Pipeline.executePipeline');
                 $span = $scope->getSpan();
                 $span->setTag(Tag::SPAN_TYPE, Type::CACHE);

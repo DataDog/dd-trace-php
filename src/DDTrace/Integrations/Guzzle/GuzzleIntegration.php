@@ -22,6 +22,11 @@ final class GuzzleIntegration
      */
     private $codeTracer;
 
+    public function __construct()
+    {
+        $this->codeTracer = CodeTracer::getInstance();
+    }
+
     public static function load()
     {
         $instance = new self();
