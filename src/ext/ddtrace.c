@@ -173,7 +173,9 @@ static PHP_FUNCTION(dd_trace) {
 
         RETURN_BOOL(0);
     }
-    DD_PRINTF("Class name: %s", Z_STRVAL_P(class_name));
+    if (class_name) {
+        DD_PRINTF("Class name: %s", Z_STRVAL_P(class_name));
+    }
     DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
 
     if (!function || Z_TYPE_P(function) != IS_STRING) {
@@ -218,9 +220,7 @@ static PHP_FUNCTION(dd_untrace) {
     zval *function = NULL;
 
 #if PHP_VERSION_ID < 70000
-    ALLOC_INIT_ZVAL(function);
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "z", &Z_STRVAL_P(function),
-                                 &Z_STRLEN_P(function)) != SUCCESS) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "z", &function) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
                                     "unexpected parameter. the function name must be provided");
@@ -228,6 +228,7 @@ static PHP_FUNCTION(dd_untrace) {
 
         RETURN_BOOL(0);
     }
+
     DD_PRINTF("Untracing function: %s", Z_STRVAL_P(function));
 
     // Remove the traced function from the global lookup
@@ -249,9 +250,6 @@ static PHP_FUNCTION(dd_untrace) {
     zend_hash_del(&DDTRACE_G(function_lookup), Z_STR_P(function));
 #endif
 
-#if PHP_VERSION_ID < 70000
-    FREE_ZVAL(function);
-#endif
     RETURN_BOOL(1);
 }
 

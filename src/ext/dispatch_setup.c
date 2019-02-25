@@ -83,7 +83,7 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TS
     HashTable *overridable_lookup = NULL;
     if (class_name) {
 #if PHP_VERSION_ID < 70000
-        overridable_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), class_name, &Z_STRLEN_P(class_name));
+        overridable_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), Z_STRVAL_P(class_name), Z_STRLEN_P(class_name));
 #else
         overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), Z_STR_P(class_name));
 #endif
