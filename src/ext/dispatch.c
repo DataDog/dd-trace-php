@@ -56,20 +56,36 @@ static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, const char *
     return dispatch;
 }
 
-static ddtrace_dispatch_t *find_dispatch(const char *scope_name, uint32_t scope_name_length, const char *function_name,
-                                         uint32_t function_name_length TSRMLS_DC) {
-    if (!function_name) {
+static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, const char *method_name,
+                                         uint32_t method_name_length TSRMLS_DC) {
+    if (!method_name) {
         return NULL;
     }
-    HashTable *class_lookup = NULL;
-    class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), scope_name, scope_name_length);
+    const char *class_name = NULL;
+    size_t class_name_length = 0;
+
+#if PHP_VERSION_ID < 70000
+        class_name = class->name;
+        class_name_length = class->name_length;
+#else
+        class_name = ZSTR_VAL(class->name);
+        class_name_length = ZSTR_LEN(class->name);
+#endif
+
+
+    DD_PRINTF("Dispatch Lookup for class: %s", class_name);
+    HashTable *class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), class_name, class_name_length);
 
     if (!class_lookup) {
-        DD_PRINTF("Dispatch Lookup for class: %s", scope_name);
-        return NULL;
+        DD_PRINTF("Dispatch Lookup for class %s not found", class_name);
+        if (class->parent) {
+            return find_dispatch(class->parent, method_name, method_name_length TSRMLS_CC);
+        } else {
+            return NULL;
+        }
     }
 
-    return lookup_dispatch(class_lookup, function_name, function_name_length);
+    return lookup_dispatch(class_lookup, method_name, method_name_length);
 }
 
 #if PHP_VERSION_ID < 50600
@@ -207,25 +223,13 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     uint32_t common_scope_length = 0;
 
     zval *this = ddtrace_this(execute_data);
-
-    if (this) {
-        zend_class_entry *executed_method_class = NULL;
-        executed_method_class = Z_OBJCE_P(this);
-#if PHP_VERSION_ID < 70000
-        common_scope = executed_method_class->name;
-        common_scope_length = executed_method_class->name_length;
-#else
-        common_scope = ZSTR_VAL(executed_method_class->name);
-        common_scope_length = ZSTR_LEN(executed_method_class->name);
-#endif
-    }
     DD_PRINTF("Loaded $this object ptr: %p", (void *)this);
 
     ddtrace_dispatch_t *dispatch = NULL;
 
     if (this) {
         DD_PRINTF("Looking for handler for %s#%s", common_scope, function_name);
-        dispatch = find_dispatch(common_scope, common_scope_length, function_name, function_name_length TSRMLS_CC);
+        dispatch = find_dispatch(Z_OBJCE_P(this), function_name, function_name_length TSRMLS_CC);
     } else {
         dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), function_name, function_name_length);
     }
