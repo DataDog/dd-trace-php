@@ -13,7 +13,7 @@ class Test
 }
 
 dd_trace("Test", "public_static_method", function(){
-    return "test_access hook start" . PHP_EOL . self::public_static_method() . "test_access hook end" . PHP_EOL;
+    return "test_access hook start" . PHP_EOL . Test::public_static_method() . "test_access hook end" . PHP_EOL;
 });
 
 echo Test::public_static_method();
