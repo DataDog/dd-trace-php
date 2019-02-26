@@ -97,6 +97,7 @@
             "@composer test -- --testsuite=integration"
         ],
         "test-integrations-54": [
+            "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
             "@composer scenario default",
             "@composer test -- tests/Integrations/Curl",
@@ -112,6 +113,7 @@
             "@composer scenario default"
         ],
         "test-integrations-56": [
+            "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
             "@composer scenario default",
             "@composer test -- tests/Integrations/Curl",
@@ -130,6 +132,7 @@
             "@composer scenario default"
         ],
         "test-integrations-70": [
+            "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
             "@composer scenario default",
             "@composer test -- tests/Integrations/Curl",
@@ -147,6 +150,7 @@
             "@composer scenario default"
         ],
         "test-integrations-71": [
+            "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
             "@composer scenario default",
             "@composer test -- tests/Integrations/Curl",
@@ -164,6 +168,7 @@
             "@composer scenario default"
         ],
         "test-integrations-72": [
+            "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
             "@composer scenario default",
             "@composer test -- tests/Integrations/Curl",
