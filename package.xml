@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-02-22</date>
+    <date>2019-02-26</date>
     <version>
-        <release>0.13.4</release>
-        <api>0.13.4</api>
+        <release>0.14.0</release>
+        <api>0.14.0</api>
     </version>
     <stability>
         <release>beta</release>
@@ -21,12 +21,9 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        Special thanks to @stayallive for helping us debugging the memory issues in his environment! His help and
-        guidance were of paramount importance.
-
-        ### Fixed
-        - Accessing freed memory when instrumentation code un/instrumented itself #314
-        - Freeing `$this` object prematurely in PHP-FPM VM #317
+        ### Added
+        - Ability to trace static methods #320
+        - Ability to trace non existing methods and functions #320
     </notes>
     <contents>
         <dir name="/">
@@ -59,6 +56,7 @@
                 <dir name="ext">
                     <file name="access_modifier_method_access_hook.phpt" role="test" />
                     <file name="access_modifier_property_access_hook.phpt" role="test" />
+                    <file name="allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
                     <file name="case_insensitive_method_hook.phpt" role="test" />
                     <file name="closure_accessing_outside_variables.phpt" role="test" />
                     <file name="closure_set_inside_object_methods.phpt" role="test" />
@@ -83,6 +81,8 @@
                     <file name="simple_method_hook.phpt" role="test" />
                     <file name="simple_sanity_check.phpt" role="test" />
                     <file name="throw_exception.phpt" role="test" />
+                    <file name="trace_method_or_function_that_will_exist_later.phpt" role="test" />
+                    <file name="trace_static_method.phpt" role="test" />
                     <file name="variable_length_parameter_list.phpt" role="test" />
                     <file name="with_params_function_hook.phpt" role="test" />
                     <file name="with_params_method_hook.phpt" role="test" />
