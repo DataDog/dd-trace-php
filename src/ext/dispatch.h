@@ -16,7 +16,7 @@ zend_bool ddtrace_trace(zval *, zval *, zval *TSRMLS_DC);
 int ddtrace_wrap_fcall(zend_execute_data *TSRMLS_DC);
 void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *);
 void ddtrace_class_lookup_release(ddtrace_dispatch_t *);
-zend_class_entry* ddtrace_target_class_entry(zval *, zval *);
+zend_class_entry *ddtrace_target_class_entry(zval *, zval *);
 int ddtrace_find_function(HashTable *table, zval *name, zend_function **function);
 void ddtrace_dispatch_init(TSRMLS_D);
 void ddtrace_dispatch_inject(TSRMLS_D);

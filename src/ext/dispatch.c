@@ -65,13 +65,12 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, const ch
     size_t class_name_length = 0;
 
 #if PHP_VERSION_ID < 70000
-        class_name = class->name;
-        class_name_length = class->name_length;
+    class_name = class->name;
+    class_name_length = class->name_length;
 #else
-        class_name = ZSTR_VAL(class->name);
-        class_name_length = ZSTR_LEN(class->name);
+    class_name = ZSTR_VAL(class->name);
+    class_name_length = ZSTR_LEN(class->name);
 #endif
-
 
     DD_PRINTF("Dispatch Lookup for class: %s", class_name);
     HashTable *class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), class_name, class_name_length);
@@ -136,8 +135,8 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
 #else
     func = EX(func);
     // this = Z_OBJ(EX(This)) ? &EX(This) : NULL;
-    zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable), executed_method_class,
-                        executed_method_class, this TSRMLS_CC);
+    zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable),
+                        executed_method_class, executed_method_class, this TSRMLS_CC);
 #endif
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
@@ -217,8 +216,8 @@ static zend_always_inline zend_bool executing_method(zend_execute_data *execute_
         }                                                               \
     }
 
-static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data,
-                                                 const char *function_name, uint32_t function_name_length TSRMLS_DC) {
+static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, const char *function_name,
+                                                 uint32_t function_name_length TSRMLS_DC) {
 #if PHP_VERSION_ID < 50600
     zval *original_object = EX(object);
 #endif
@@ -295,7 +294,8 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
                 ret->var.ptr_ptr = &ret->var.ptr;
             }
 
-            ret->var.fcall_returned_reference = (DDTRACE_G(current_fbc)->common.fn_flags & ZEND_ACC_RETURN_REFERENCE) != 0;
+            ret->var.fcall_returned_reference =
+                (DDTRACE_G(current_fbc)->common.fn_flags & ZEND_ACC_RETURN_REFERENCE) != 0;
             return_value = ret->var.ptr_ptr;
         }
 
@@ -479,14 +479,14 @@ int find_method(zend_class_entry *ce, zval *name, zend_function **function) {
     return ddtrace_find_function(&ce->function_table, name, function);
 }
 
-zend_class_entry* ddtrace_target_class_entry(zval *class_name, zval *method_name){
+zend_class_entry *ddtrace_target_class_entry(zval *class_name, zval *method_name) {
     zend_class_entry *class = NULL;
-    #if PHP_VERSION_ID < 70000
-        class = zend_fetch_class(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name),
-                                 ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT TSRMLS_CC);
+#if PHP_VERSION_ID < 70000
+    class = zend_fetch_class(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name),
+                             ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT TSRMLS_CC);
 #else
-        class = zend_fetch_class_by_name(Z_STR_P(class_name), NULL, ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT);
-    #endif
+    class = zend_fetch_class_by_name(Z_STR_P(class_name), NULL, ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT);
+#endif
     zend_function *method = NULL;
 
     if (class && find_method(class, method_name, &method) == SUCCESS) {
@@ -511,5 +511,3 @@ int ddtrace_find_function(HashTable *table, zval *name, zend_function **function
 
     return SUCCESS;
 }
-
-
