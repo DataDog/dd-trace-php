@@ -134,7 +134,6 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     zend_create_closure(&closure, callable, executed_method_class, this TSRMLS_CC);
 #else
     func = EX(func);
-    // this = Z_OBJ(EX(This)) ? &EX(This) : NULL;
     zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable),
                         executed_method_class, executed_method_class, this TSRMLS_CC);
 #endif
