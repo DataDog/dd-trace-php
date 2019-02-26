@@ -16,6 +16,29 @@ void ddtrace_class_lookup_release_compat(zval *zv);
 #define INIT_ZVAL(x) ZVAL_NULL(&x)
 #endif
 
+#define _EX(x) ((execute_data)->x)
+static zend_always_inline zval *ddtrace_this(zend_execute_data *execute_data) {
+    zval *this = NULL;
+#if PHP_VERSION_ID < 50600
+    if (_EX(opline)->opcode != ZEND_DO_FCALL && _EX(object)){
+        this = _EX(object);
+    }
+#elif PHP_VERSION_ID < 70000
+    this = _EX(call) ? _EX(call)->object : NULL;
+#else
+    if (_EX(call)){
+        this = &(_EX(call)->This);
+    }
+#endif
+
+    if (this && Z_TYPE_P(this) != IS_OBJECT){
+        this = NULL;
+    }
+
+    return this;
+}
+#undef _EX
+
 void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC);
 zend_function *ddtrace_function_get(const HashTable *table, zval *name);
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch);
