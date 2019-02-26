@@ -24,7 +24,9 @@ static zend_always_inline zval *ddtrace_this(zend_execute_data *execute_data) {
         this = _EX(object);
     }
 #elif PHP_VERSION_ID < 70000
-    this = _EX(call) ? _EX(call)->object : NULL;
+    if (_EX(opline)->opcode != ZEND_DO_FCALL) {
+        this = _EX(call) ? _EX(call)->object : NULL;
+    }
 #else
     if (_EX(call)) {
         this = &(_EX(call)->This);
