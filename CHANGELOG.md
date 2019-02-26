@@ -3,10 +3,6 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
-### Added
-- Ability to trace static methods #320
-- Ability to trace non existing methods and functions #320
-
 ## [0.13.4]
 
 Special thanks to @stayallive for helping us debugging the memory issues in his environment! His help and guidance were

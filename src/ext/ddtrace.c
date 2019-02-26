@@ -54,8 +54,8 @@ PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
-                  ddtrace_globals)
+STD_PHP_INI_ENTRY("ddtrace.ignore_missing_overridables", "1", PHP_INI_SYSTEM, OnUpdateBool, ignore_missing_overridables,
+                  zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.log_backtrace", "0", PHP_INI_SYSTEM, OnUpdateBool, log_backtrace, zend_ddtrace_globals,
                   ddtrace_globals)
 PHP_INI_END()
@@ -155,6 +155,7 @@ static PHP_FUNCTION(dd_trace) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *function = NULL;
     zval *class_name = NULL;
+    zend_class_entry *clazz = NULL;
     zval *callable = NULL;
 
     if (DDTRACE_G(disable)) {
@@ -165,7 +166,7 @@ static PHP_FUNCTION(dd_trace) {
                                  &callable) != SUCCESS &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zz", &function, &callable) !=
             SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
+        if (!DDTRACE_G(ignore_missing_overridables)) {
             zend_throw_exception_ex(
                 spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
                 "unexpected parameter combination, expected (class, function, closure) or (function, closure)");
@@ -173,39 +174,43 @@ static PHP_FUNCTION(dd_trace) {
 
         RETURN_BOOL(0);
     }
-    if (class_name) {
-        DD_PRINTF("Class name: %s", Z_STRVAL_P(class_name));
-    }
     DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
+
+    if (class_name && Z_TYPE_P(class_name) == IS_STRING) {
+#if PHP_VERSION_ID < 70000
+        clazz = zend_fetch_class(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name),
+                                 ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT TSRMLS_CC);
+#else
+        clazz = zend_fetch_class_by_name(Z_STR_P(class_name), NULL, ZEND_FETCH_CLASS_DEFAULT | ZEND_FETCH_CLASS_SILENT);
+#endif
+        if (!clazz) {
+            ddtrace_zval_ptr_dtor(class_name);
+            if (function) {
+                ddtrace_zval_ptr_dtor(function);
+            }
+
+            if (!DDTRACE_G(ignore_missing_overridables)) {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "class not found");
+            }
+
+            RETURN_BOOL(0);
+        }
+    }
 
     if (!function || Z_TYPE_P(function) != IS_STRING) {
         if (class_name) {
             ddtrace_zval_ptr_dtor(class_name);
         }
         ddtrace_zval_ptr_dtor(function);
-
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "function/method name parameter must be a string");
-        }
-
         RETURN_BOOL(0);
     }
 
-    if (class_name && DDTRACE_G(strict_mode) && Z_TYPE_P(class_name) == IS_STRING) {
-        zend_class_entry *class = ddtrace_target_class_entry(class_name, function);
+#if PHP_VERSION_ID < 70000
+    zend_bool rv = ddtrace_trace(clazz, function, callable TSRMLS_CC);
+#else
+    zend_bool rv = ddtrace_trace(clazz, Z_STR_P(function), callable TSRMLS_CC);
+#endif
 
-        if (!class) {
-            ddtrace_zval_ptr_dtor(class_name);
-            ddtrace_zval_ptr_dtor(function);
-
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "class not found");
-
-            RETURN_BOOL(0);
-        }
-    }
-
-    zend_bool rv = ddtrace_trace(class_name, function, callable TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
@@ -218,12 +223,26 @@ static PHP_FUNCTION(dd_untrace) {
         RETURN_BOOL(0);
     }
 
-    zval *function = NULL;
+    STRING_T *function = NULL;
+
+#if PHP_VERSION_ID < 70000
+    ALLOC_INIT_ZVAL(function);
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "s", &Z_STRVAL_P(function),
+                                 &Z_STRLEN_P(function)) != SUCCESS) {
+        if (!DDTRACE_G(ignore_missing_overridables)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "unexpected parameter. the function name must be provided");
+        }
+
+        RETURN_BOOL(0);
+    }
     DD_PRINTF("Untracing function: %s", Z_STRVAL_P(function));
 
     // Remove the traced function from the global lookup
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "z", &function) != SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
+    zend_hash_del(&DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
+#else
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "S", &function) != SUCCESS) {
+        if (!DDTRACE_G(ignore_missing_overridables)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0,
                                     "unexpected parameter. the function name must be provided");
         }
@@ -231,16 +250,12 @@ static PHP_FUNCTION(dd_untrace) {
     }
 
     // Remove the traced function from the global lookup
-    if (!function || Z_TYPE_P(function) != IS_STRING) {
-        RETURN_BOOL(0);
-    }
-
-#if PHP_VERSION_ID < 70000
-    zend_hash_del(&DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
-#else
-    zend_hash_del(&DDTRACE_G(function_lookup), Z_STR_P(function));
+    zend_hash_del(&DDTRACE_G(function_lookup), function);
 #endif
 
+#if PHP_VERSION_ID < 70000
+    FREE_ZVAL(function);
+#endif
     RETURN_BOOL(1);
 }
 
