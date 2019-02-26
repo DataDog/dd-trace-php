@@ -246,6 +246,7 @@
         "test-auto-instrumentation": "phpunit --colors=always --configuration=phpunit.xml --testsuite=auto-instrumentation",
 
         "laravel-42-update": "composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
+        "laravel-42-optimize": "@php tests/Frameworks/Laravel/Version_4_2/artisan optimize",
         "laravel-42-test": "@composer test -- tests/Integrations/Laravel/V4",
 
         "laravel-57-update": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",
