@@ -79,15 +79,16 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, const ch
         dispatch = lookup_dispatch(class_lookup, method_name, method_name_length);
     }
 
-    if (!dispatch) {
-        DD_PRINTF("Dispatch Lookup for class %s not found", class_name);
-        if (class->parent) {
-            return find_dispatch(class->parent, method_name, method_name_length TSRMLS_CC);
-        } else {
-            return NULL;
-        }
+    if (dispatch) {
+        return dispatch;
     }
-    return dispatch;
+
+    DD_PRINTF("Dispatch Lookup for class %s not found", class_name);
+    if (class->parent) {
+        return find_dispatch(class->parent, method_name, method_name_length TSRMLS_CC);
+    } else {
+        return NULL;
+    }
 }
 
 #if PHP_VERSION_ID < 50600
