@@ -29,7 +29,7 @@ final class Bootstrap
         self::$bootstrapped = true;
         self::resetTracer();
         self::initRootSpan();
-        self::registerOpenTracing();
+//        self::registerOpenTracing();
 
         register_shutdown_function(function () {
             $tracer = GlobalTracer::get();
