@@ -89,7 +89,7 @@ zend_function *fcall_fbc(zend_execute_data *execute_data) {
 }
 #endif
 
-static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_class_entry *executed_method_class, zval *this, zend_execute_data *execute_data,
+static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute_data *execute_data,
                           zval **return_value_ptr TSRMLS_DC) {
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
@@ -97,7 +97,10 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_class_entry *execut
     zval closure;
     INIT_ZVAL(closure);
     zend_function *current_fbc = DDTRACE_G(current_fbc);
-
+    zend_class_entry *executed_method_class = NULL;
+    if (this) {
+        executed_method_class = Z_OBJCE_P(this);
+    }
 
     zend_function *func;
 #if PHP_VERSION_ID < 70000
@@ -200,14 +203,13 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 #if PHP_VERSION_ID < 50600
     zval *original_object = EX(object);
 #endif
-
-    zend_class_entry *executed_method_class = NULL;
     const char *common_scope = NULL;
     uint32_t common_scope_length = 0;
 
     zval *this = ddtrace_this(execute_data);
 
     if (this) {
+        zend_class_entry *executed_method_class = NULL;
         executed_method_class = Z_OBJCE_P(this);
 #if PHP_VERSION_ID < 70000
         common_scope = executed_method_class->name;
@@ -292,7 +294,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             return_value = ret->var.ptr_ptr;
         }
 
-        execute_fcall(dispatch, executed_method_class, this, execute_data, return_value TSRMLS_CC);
+        execute_fcall(dispatch, this, execute_data, return_value TSRMLS_CC);
         EG(return_value_ptr_ptr) = EX(original_return_value);
 
         if (!RETURN_VALUE_USED(opline) && return_value && *return_value) {
@@ -305,7 +307,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
 #elif PHP_VERSION_ID < 70000
         zval *return_value = NULL;
-        execute_fcall(dispatch, executed_method_class, this, execute_data, &return_value TSRMLS_CC);
+        execute_fcall(dispatch, this, execute_data, &return_value TSRMLS_CC);
 
         if (return_value != NULL) {
             if (RETURN_VALUE_USED(opline)) {
@@ -320,7 +322,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         INIT_ZVAL(rv);
 
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
-        execute_fcall(dispatch, executed_method_class, this, EX(call), &return_value TSRMLS_CC);
+        execute_fcall(dispatch, this, EX(call), &return_value TSRMLS_CC);
 
         if (!RETURN_VALUE_USED(opline)) {
             zval_dtor(&rv);
