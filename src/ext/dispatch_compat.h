@@ -20,18 +20,20 @@ void ddtrace_class_lookup_release_compat(zval *zv);
 static zend_always_inline zval *ddtrace_this(zend_execute_data *execute_data) {
     zval *this = NULL;
 #if PHP_VERSION_ID < 50600
-    if (_EX(opline)->opcode != ZEND_DO_FCALL && _EX(object)){
+    if (_EX(opline)->opcode != ZEND_DO_FCALL && _EX(object)) {
         this = _EX(object);
     }
 #elif PHP_VERSION_ID < 70000
     this = _EX(call) ? _EX(call)->object : NULL;
 #else
-    if (_EX(call)){
+    if (_EX(call)) {
         this = &(_EX(call)->This);
+        if (Z_OBJ_P(this) == NULL) {
+            this = NULL;
+        }
     }
 #endif
-
-    if (this && (Z_TYPE_P(this) != IS_OBJECT || Z_OBJ_P(this) == NULL)){
+    if (this && Z_TYPE_P(this) != IS_OBJECT) {
         this = NULL;
     }
 

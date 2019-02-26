@@ -15,7 +15,7 @@ void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, 
 }
 
 zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
-    if(Z_TYPE_P(name ) != IS_STRING) {
+    if (Z_TYPE_P(name) != IS_STRING) {
         return NULL;
     }
 
