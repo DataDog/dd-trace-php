@@ -60,6 +60,7 @@
                     <file name="case_insensitive_method_hook.phpt" role="test" />
                     <file name="closure_accessing_outside_variables.phpt" role="test" />
                     <file name="closure_set_inside_object_methods.phpt" role="test" />
+                    <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="method_invoked_via_reflection.phpt" role="test" />
                     <file name="method_returning_array.phpt" role="test" />
@@ -76,7 +77,6 @@
                     <file name="reset_function_tracing.phpt" role="test" />
                     <file name="return_value_passed.phpt" role="test" />
                     <file name="run_file_before_request_handling.phpt" role="test" />
-                    <file name="silently_check_if_overridable_exists.phpt" role="test" />
                     <file name="simple_function_hook.phpt" role="test" />
                     <file name="simple_method_hook.phpt" role="test" />
                     <file name="simple_sanity_check.phpt" role="test" />
