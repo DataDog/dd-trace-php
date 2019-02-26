@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-02-22</date>
+    <date>2019-02-26</date>
     <version>
-        <release>0.13.4</release>
-        <api>0.13.4</api>
+        <release>0.14.0</release>
+        <api>0.14.0</api>
     </version>
     <stability>
         <release>beta</release>
@@ -21,12 +21,9 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        Special thanks to @stayallive for helping us debugging the memory issues in his environment! His help and
-        guidance were of paramount importance.
-
-        ### Fixed
-        - Accessing freed memory when instrumentation code un/instrumented itself #314
-        - Freeing `$this` object prematurely in PHP-FPM VM #317
+        ### Added
+        - Loading of integrations before knowing if the library will be actually used #319
+        - Ability to define tracing for not yet defined methods and classes #325
     </notes>
     <contents>
         <dir name="/">
@@ -59,9 +56,11 @@
                 <dir name="ext">
                     <file name="access_modifier_method_access_hook.phpt" role="test" />
                     <file name="access_modifier_property_access_hook.phpt" role="test" />
+                    <file name="allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
                     <file name="case_insensitive_method_hook.phpt" role="test" />
                     <file name="closure_accessing_outside_variables.phpt" role="test" />
                     <file name="closure_set_inside_object_methods.phpt" role="test" />
+                    <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="method_invoked_via_reflection.phpt" role="test" />
                     <file name="method_returning_array.phpt" role="test" />
@@ -78,11 +77,12 @@
                     <file name="reset_function_tracing.phpt" role="test" />
                     <file name="return_value_passed.phpt" role="test" />
                     <file name="run_file_before_request_handling.phpt" role="test" />
-                    <file name="silently_check_if_overridable_exists.phpt" role="test" />
                     <file name="simple_function_hook.phpt" role="test" />
                     <file name="simple_method_hook.phpt" role="test" />
                     <file name="simple_sanity_check.phpt" role="test" />
                     <file name="throw_exception.phpt" role="test" />
+                    <file name="trace_method_or_function_that_will_exist_later.phpt" role="test" />
+                    <file name="trace_static_method.phpt" role="test" />
                     <file name="variable_length_parameter_list.phpt" role="test" />
                     <file name="with_params_function_hook.phpt" role="test" />
                     <file name="with_params_method_hook.phpt" role="test" />

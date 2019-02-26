@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.14.0]
+
 ### Added
 - Loading of integrations before knowing if the library will be actually used #319
 - Ability to define tracing for not yet defined methods and classes #325
@@ -322,7 +324,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.13.4...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.14.0...HEAD
+[0.14.0]: https://github.com/DataDog/dd-trace-php/compare/0.13.4...0.14.0
 [0.13.4]: https://github.com/DataDog/dd-trace-php/compare/0.13.3...0.13.4
 [0.13.3]: https://github.com/DataDog/dd-trace-php/compare/0.13.2...0.13.3
 [0.13.2]: https://github.com/DataDog/dd-trace-php/compare/0.13.1...0.13.2
