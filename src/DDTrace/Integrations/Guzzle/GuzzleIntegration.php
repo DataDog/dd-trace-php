@@ -83,7 +83,7 @@ final class GuzzleIntegration
      * @param Span $span
      * @param mixed $request
      */
-    protected function setUrlTag(Span $span, $request)
+    private function setUrlTag(Span $span, $request)
     {
         if (is_a($request, '\GuzzleHttp\Message\RequestInterface')) {
             $span->setTag(Tag::HTTP_URL, Urls::sanitize($request->getUrl()));
@@ -96,7 +96,7 @@ final class GuzzleIntegration
      * @param Span $span
      * @param mixed $response
      */
-    protected function setStatusCodeTag(Span $span, $response)
+    private function setStatusCodeTag(Span $span, $response)
     {
         if (is_a($response, '\GuzzleHttp\Message\ResponseInterface')) {
             $span->setTag(Tag::HTTP_STATUS_CODE, Urls::sanitize($response->getStatusCode()), true);
@@ -131,7 +131,7 @@ final class GuzzleIntegration
      * @param mixed $request
      * @return string[]
      */
-    protected function extractRequestHeaders($request)
+    private function extractRequestHeaders($request)
     {
         $headers = [];
 
@@ -148,7 +148,7 @@ final class GuzzleIntegration
      * @param mixed $request
      * @param array $headers
      */
-    protected function addRequestHeaders($request, $headers)
+    private function addRequestHeaders($request, $headers)
     {
         if (is_a($request, '\GuzzleHttp\Message\MessageInterface')) {
             $request->setHeaders($headers);
