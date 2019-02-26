@@ -78,7 +78,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'Symfony\Bundle\TwigBundle\TwigEngine twig_template.html.twig'
                     ),
-                    SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.response'),
                     SpanAssertion::exists('symfony.kernel.finish_request'),
                     SpanAssertion::exists('symfony.kernel.terminate'),

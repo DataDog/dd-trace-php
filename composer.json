@@ -97,6 +97,7 @@
             "@composer test -- --testsuite=integration"
         ],
         "test-integrations-54": [
+            "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
             "@composer scenario default",
             "@composer test -- tests/Integrations/Curl",
@@ -112,6 +113,7 @@
             "@composer scenario default"
         ],
         "test-integrations-56": [
+            "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
             "@composer scenario default",
             "@composer test -- tests/Integrations/Curl",
@@ -130,6 +132,7 @@
             "@composer scenario default"
         ],
         "test-integrations-70": [
+            "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
             "@composer scenario default",
             "@composer test -- tests/Integrations/Curl",
@@ -147,6 +150,7 @@
             "@composer scenario default"
         ],
         "test-integrations-71": [
+            "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
             "@composer scenario default",
             "@composer test -- tests/Integrations/Curl",
@@ -164,6 +168,7 @@
             "@composer scenario default"
         ],
         "test-integrations-72": [
+            "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
             "@composer scenario default",
             "@composer test -- tests/Integrations/Curl",
@@ -246,6 +251,7 @@
         "test-auto-instrumentation": "phpunit --colors=always --configuration=phpunit.xml --testsuite=auto-instrumentation",
 
         "laravel-42-update": "composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
+        "laravel-42-optimize": "@php tests/Frameworks/Laravel/Version_4_2/artisan optimize",
         "laravel-42-test": "@composer test -- tests/Integrations/Laravel/V4",
 
         "laravel-57-update": "composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",

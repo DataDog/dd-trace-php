@@ -4,8 +4,8 @@ All notable changes to this project will be documented in this file - [read more
 ## [Unreleased]
 
 ### Added
-- Ability to trace static methods #320
-- Ability to trace non existing methods and functions #320
+- Loading of integrations before knowing if the library will be actually used #319
+- Ability to define tracing for not yet defined methods and classes #325
 
 ## [0.13.4]
 

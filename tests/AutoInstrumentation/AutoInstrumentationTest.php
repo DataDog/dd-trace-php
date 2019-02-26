@@ -14,7 +14,7 @@ class AutoInstrumentationTest extends BaseTestCase
      * @param string $expectedVersion
      * @param bool $isComposer
      */
-    public function testPureInstrumentationNoComposerDependency($scenario, $expectedVersion, $isComposer)
+    public function testAutoInstrumentationScenarios($scenario, $expectedVersion, $isComposer)
     {
         if ($isComposer) {
             $this->composerUpdateScenario($scenario);
