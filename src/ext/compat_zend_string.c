@@ -45,6 +45,5 @@ void ddtrace_downcase_zval(zval *src) {
 
     ZVAL_STR(src, zend_string_tolower(str));
     zend_string_release(str);
-    return src;
 }
 #endif

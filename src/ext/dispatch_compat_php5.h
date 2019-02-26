@@ -38,14 +38,6 @@ static zend_always_inline zend_function *datadog_current_function(zend_execute_d
     }
 }
 
-static zend_always_inline zval *datadog_this(zend_function *current_function, zend_execute_data *execute_data) {
-    if (!current_function->common.scope) {
-        return NULL;
-    }
-
-    return OBJECT();
-}
-
 #undef EX
 #define EX(x) ((execute_data).x)
 #endif  // PHP_VERSION_ID < 70000
