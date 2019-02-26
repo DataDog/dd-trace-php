@@ -185,7 +185,8 @@ static PHP_FUNCTION(dd_trace) {
         ddtrace_zval_ptr_dtor(function);
 
         if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "function/method name parameter must be a string");
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "function/method name parameter must be a string");
         }
 
         RETURN_BOOL(0);
