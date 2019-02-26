@@ -29,6 +29,7 @@ final class Bootstrap
         self::$bootstrapped = true;
         self::resetTracer();
         self::initRootSpan();
+        self::registerOpenTracing();
 
         register_shutdown_function(function () {
             $tracer = GlobalTracer::get();
@@ -55,6 +56,25 @@ final class Bootstrap
         GlobalTracer::set(
             new Tracer(new Http(new Json()))
         );
+    }
+
+    /**
+     * Replace the OT tracer with a wrapper containing the datadog tracer.
+     */
+    private static function registerOpenTracing()
+    {
+        dd_trace('OpenTracing\GlobalTracer', 'get', function () {
+            $original = \OpenTracing\GlobalTracer::get();
+
+            if (is_a($original, 'DDTrace\OpenTracer')) {
+                return $original;
+            }
+
+            $otWrapper = new \DDTrace\OpenTracer\Tracer(GlobalTracer::get());
+            \OpenTracing\GlobalTracer::set($otWrapper);
+
+            return $otWrapper;
+        });
     }
 
     /**

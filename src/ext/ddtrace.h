@@ -6,10 +6,12 @@ extern zend_module_entry ddtrace_module_entry;
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 zend_bool disable;
 char *request_init_hook;
-zend_bool ignore_missing_overridables;
+zend_bool strict_mode;
+
 HashTable class_lookup;
 HashTable function_lookup;
 zend_bool log_backtrace;
+zend_function *current_fbc;
 user_opcode_handler_t ddtrace_old_fcall_handler;
 user_opcode_handler_t ddtrace_old_icall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;

@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Loading of integrations before knowing if the library will be actually used #319
+- Ability to define tracing for not yet defined methods and classes #325
+
 ## [0.13.4]
 
 Special thanks to @stayallive for helping us debugging the memory issues in his environment! His help and guidance were

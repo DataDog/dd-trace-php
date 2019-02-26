@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\Eloquent;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Versions;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
@@ -15,10 +14,6 @@ class EloquentIntegration
 
     public static function load()
     {
-        if (!class_exists('Illuminate\Database\Eloquent\Builder')) {
-            return Integration::NOT_LOADED;
-        }
-
         // getModels($columns = ['*'])
         dd_trace('Illuminate\Database\Eloquent\Builder', 'getModels', function () {
             $args = func_get_args();

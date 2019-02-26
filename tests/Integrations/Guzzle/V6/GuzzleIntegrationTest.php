@@ -74,6 +74,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $this->getMockedClient()->send($request);
         });
         $this->assertSpans($traces, [
+            SpanAssertion::exists('GuzzleHttp\Client.send', 'guzzle', 'http', 'send'),
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
                 ->withExactTags([
                     'http.method' => 'PUT',
