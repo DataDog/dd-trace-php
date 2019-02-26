@@ -134,7 +134,6 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     zend_create_closure(&closure, callable, executed_method_class, this TSRMLS_CC);
 #else
     func = EX(func);
-    // this = Z_OBJ(EX(This)) ? &EX(This) : NULL;
     zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable),
                         executed_method_class, executed_method_class, this TSRMLS_CC);
 #endif
@@ -199,23 +198,6 @@ static int is_anonymous_closure(zend_function *fbc, const char *function_name, u
     }
 }
 
-static zend_always_inline zend_bool executing_method(zend_execute_data *execute_data, zval *object) {
-#if PHP_VERSION_ID < 70000
-    return EX(opline)->opcode != ZEND_DO_FCALL && object;
-#else
-    return execute_data && object;
-#endif
-}
-
-#define FREE_OP(should_free)                                            \
-    if (should_free.var) {                                              \
-        if ((zend_uintptr_t)should_free.var & 1L) {                     \
-            zval_dtor((zval *)((zend_uintptr_t)should_free.var & ~1L)); \
-        } else {                                                        \
-            zval_ptr_dtor(&should_free.var);                            \
-        }                                                               \
-    }
-
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, const char *function_name,
                                                  uint32_t function_name_length TSRMLS_DC) {
 #if PHP_VERSION_ID < 50600
@@ -233,7 +215,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         class = Z_OBJCE_P(this);
     }
 
-    if (!this && (DDTRACE_G(current_fbc)->common.fn_flags & ZEND_ACC_STATIC) != 0){
+    if (!this && (DDTRACE_G(current_fbc)->common.fn_flags & ZEND_ACC_STATIC) != 0) {
         class = DDTRACE_G(current_fbc)->common.scope;
     }
 
@@ -353,20 +335,12 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     }
 }
 
-static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *execute_data,
-                                                           char const **function_name_p,
-                                                           uint32_t *function_name_length_p) {
+static zend_always_inline zend_function *get_current_fbc(zend_execute_data *execute_data) {
     zend_function *fbc = NULL;
-    const char *function_name = NULL;
-    uint32_t function_name_length = 0;
 
 #if PHP_VERSION_ID < 70000
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         fbc = FBC();
-        function_name_length = 0;
-        if (fbc) {
-            function_name = fbc->common.function_name;
-        }
     } else {
         zend_op *opline = EX(opline);
         zval *fname = opline->op1.zv;
@@ -375,6 +349,31 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 #else
         fbc = EX(function_state).function;
 #endif
+    }
+#else
+    fbc = EX(call)->func;
+#endif
+    return fbc;
+}
+
+static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *execute_data, zend_function *fbc,
+                                                          char const **function_name_p,
+                                                          uint32_t *function_name_length_p) {
+    const char *function_name = NULL;
+    uint32_t function_name_length = 0;
+    if (!fbc) {
+        DD_PRINTF("No function obj found, skipping lookup");
+        return 0;
+    }
+
+#if PHP_VERSION_ID < 70000
+    if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
+        if (fbc) {
+            function_name = fbc->common.function_name;
+        }
+    } else {
+        zval *fname = EX(opline)->op1.zv;
+
         function_name = Z_STRVAL_P(fname);
         function_name_length = Z_STRLEN_P(fname);
     }
@@ -385,15 +384,8 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
         function_name_length = ZSTR_LEN(fbc->common.function_name);
     }
 #endif
-    DDTRACE_G(current_fbc) = fbc;
-
     if (!function_name) {
         DD_PRINTF("No function name, skipping lookup");
-        return 0;
-    }
-
-    if (!fbc) {
-        DD_PRINTF("No function obj found, skipping lookup");
         return 0;
     }
 
@@ -413,7 +405,6 @@ static zend_always_inline zend_bool get_wrappable_function(zend_execute_data *ex
 
 static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("Update opcode leave");
-    DDTRACE_G(current_fbc) = NULL;
 #if PHP_VERSION_ID < 50600
     EX(function_state).function = (zend_function *)EX(op_array);
     EX(function_state).arguments = NULL;
@@ -461,15 +452,22 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     uint32_t function_name_length = 0;
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
 
-    if (!get_wrappable_function(execute_data, &function_name, &function_name_length)) {
+    zend_function *current_fbc = get_current_fbc(execute_data);
+
+    if (!is_function_wrappable(execute_data, current_fbc, &function_name, &function_name_length)) {
         return default_dispatch(execute_data TSRMLS_CC);
     }
+    zend_function *previous_fbc = DDTRACE_G(current_fbc);
+    DDTRACE_G(current_fbc) = current_fbc;
 
-    if (wrap_and_run(execute_data, function_name, function_name_length TSRMLS_CC)) {
+    zend_bool wrapped = wrap_and_run(execute_data, function_name, function_name_length TSRMLS_CC);
+
+    DDTRACE_G(current_fbc) = previous_fbc;
+    if (wrapped) {
         return update_opcode_leave(execute_data TSRMLS_CC);
+    } else {
+        return default_dispatch(execute_data TSRMLS_CC);
     }
-
-    return default_dispatch(execute_data TSRMLS_CC);
 }
 
 void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }
