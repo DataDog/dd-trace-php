@@ -45,14 +45,12 @@ final class GuzzleIntegration
             $self->setStatusCodeTag($span, $response);
         };
 
-        // Guzzle 5
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'send',
             $this->buildPreCallback('send'),
             $postCallback
         );
-        // Guzzle 6
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'transfer',
