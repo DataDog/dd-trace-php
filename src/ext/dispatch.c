@@ -75,8 +75,12 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, const ch
 
     DD_PRINTF("Dispatch Lookup for class: %s", class_name);
     HashTable *class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), class_name, class_name_length);
+    ddtrace_dispatch_t *dispatch = NULL;
+    if (class_lookup) {
+        dispatch = lookup_dispatch(class_lookup, method_name, method_name_length);
+    }
 
-    if (!class_lookup) {
+    if (!dispatch) {
         DD_PRINTF("Dispatch Lookup for class %s not found", class_name);
         if (class->parent) {
             return find_dispatch(class->parent, method_name, method_name_length TSRMLS_CC);
@@ -84,8 +88,7 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, const ch
             return NULL;
         }
     }
-
-    return lookup_dispatch(class_lookup, method_name, method_name_length);
+    return dispatch;
 }
 
 #if PHP_VERSION_ID < 50600
@@ -219,8 +222,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 #if PHP_VERSION_ID < 50600
     zval *original_object = EX(object);
 #endif
-    const char *common_scope = NULL;
-    uint32_t common_scope_length = 0;
 
     zval *this = ddtrace_this(execute_data);
     DD_PRINTF("Loaded $this object ptr: %p", (void *)this);
