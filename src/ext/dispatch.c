@@ -486,7 +486,7 @@ int find_method(zend_class_entry *ce, zval *name, zend_function **function) {
     return ddtrace_find_function(&ce->function_table, name, function);
 }
 
-zend_class_entry *ddtrace_target_class_entry(zval *class_name, zval *method_name) {
+zend_class_entry *ddtrace_target_class_entry(zval *class_name, zval *method_name TSRMLS_DC) {
     zend_class_entry *class = NULL;
 #if PHP_VERSION_ID < 70000
     class = zend_fetch_class(Z_STRVAL_P(class_name), Z_STRLEN_P(class_name),

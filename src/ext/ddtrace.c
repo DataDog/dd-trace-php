@@ -193,7 +193,7 @@ static PHP_FUNCTION(dd_trace) {
     }
 
     if (class_name && DDTRACE_G(strict_mode) && Z_TYPE_P(class_name) == IS_STRING) {
-        zend_class_entry *class = ddtrace_target_class_entry(class_name, function);
+        zend_class_entry *class = ddtrace_target_class_entry(class_name, function TSRMLS_CC);
 
         if (!class) {
             ddtrace_zval_ptr_dtor(class_name);
@@ -224,7 +224,7 @@ static PHP_FUNCTION(dd_untrace) {
     // Remove the traced function from the global lookup
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "z", &function) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0,
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
                                     "unexpected parameter. the function name must be provided");
         }
         RETURN_BOOL(0);
