@@ -132,15 +132,15 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     if (!sapi_module.phpinfo_as_text) {
         datadog_info_print("<br><strong>For help, check out " TSRMLS_CC);
         datadog_info_print(
-            "<a href=\"https://github.com/DataDog/dd-trace-php/blob/master/README.md#getting-started\" "
+            "<a href=\"https://docs.datadoghq.com/tracing/languages/php/\" "
             "style=\"background:transparent;\">the documentation</a>.</strong>" TSRMLS_CC);
     } else {
         datadog_info_print(
             "\nFor help, check out the documentation at "
-            "https://github.com/DataDog/dd-trace-php/blob/master/README.md#getting-started" TSRMLS_CC);
+            "https://docs.datadoghq.com/tracing/languages/php/" TSRMLS_CC);
     }
     datadog_info_print(!sapi_module.phpinfo_as_text ? "<br><br>" : "\n" TSRMLS_CC);
-    datadog_info_print("(c) Datadog 2018\n" TSRMLS_CC);
+    datadog_info_print("(c) Datadog 2019\n" TSRMLS_CC);
     php_info_print_box_end();
 
     php_info_print_table_start();
