@@ -121,7 +121,6 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zend_class_entry *execut
     zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable), executed_method_class,
                         executed_method_class, this TSRMLS_CC);
 #endif
-
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             if (func->common.scope) {
@@ -200,30 +199,38 @@ static zend_always_inline zend_bool executing_method(zend_execute_data *execute_
         }                                                               \
     }
 
-#include <assert.h>
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, zend_function *fbc,
                                                  const char *function_name, uint32_t function_name_length TSRMLS_DC) {
 #if PHP_VERSION_ID < 50600
     zval *original_object = EX(object);
 #endif
+
+    zval *this = NULL;
+#if PHP_VERSION_ID < 70000
+    this = EX(call) ? EX(call)->object : NULL;
+#else
+    if (EX(call) && Z_TYPE(EX(call)->This) == IS_OBJECT){
+        this = &EX(call)->This;
+    }
+#endif
+    if (this && Z_TYPE_P(this) != IS_OBJECT){
+        this = NULL;
+    }
+
     zval *object = NULL;
-    zend_class_entry *executed_method_class = fbc->common.scope;
+
+    zend_class_entry *executed_method_class = NULL;
     const char *common_scope = NULL;
     uint32_t common_scope_length = 0;
 
-    if (executed_method_class) {
+
+    if (this) {
+        executed_method_class = Z_OBJCE_P(this);
 #if PHP_VERSION_ID < 70000
-        object = EG(This) ? EG(This) : OBJECT();
         common_scope = executed_method_class->name;
         common_scope_length = executed_method_class->name_length;
 #else
         object = &EX(This);
-
-        zval* executed_method_object = &EX(call)->This;
-        if (Z_TYPE_P(executed_method_object) == IS_OBJECT){
-            executed_method_class = Z_OBJCE_P(executed_method_object);
-        }
-
         common_scope = ZSTR_VAL(executed_method_class->name);
         common_scope_length = ZSTR_LEN(executed_method_class->name);
 #endif
@@ -232,7 +239,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
     ddtrace_dispatch_t *dispatch = NULL;
 
-    if (executing_method(execute_data, object)) {
+    if (this) {
         DD_PRINTF("Looking for handler for %s#%s", common_scope, function_name);
         dispatch = find_dispatch(common_scope, common_scope_length, function_name, function_name_length TSRMLS_CC);
     } else {

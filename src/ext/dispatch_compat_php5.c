@@ -112,7 +112,7 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
 }
 
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
-    zval_ptr_dtor(&dispatch->function_name);
+    zval_dtor(&dispatch->function_name);
     zval_dtor(&dispatch->callable);
 }
 
@@ -137,7 +137,7 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
 
     ddtrace_class_lookup_acquire(dispatch);
-    return zend_hash_update(lookup, Z_STRVAL_P(dispatch->function_name), Z_STRLEN_P(dispatch->function_name), &dispatch,
+    return zend_hash_update(lookup, Z_STRVAL(dispatch->function_name), Z_STRLEN(dispatch->function_name), &dispatch,
                             sizeof(ddtrace_dispatch_t *), NULL) == SUCCESS;
 }
 

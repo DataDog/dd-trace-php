@@ -17,11 +17,11 @@ zval *ddtrace_string_tolower(zval *str) {
 }
 
 void ddtrace_downcase_zval(zval *src) {
-    if (!src || !target) {
+    if (!src || Z_TYPE_P(src) != IS_STRING) {
         return;
     }
 
-    ZVAL_STRINGL(target, zend_str_tolower_dup(Z_STRVAL_P(src), Z_STRLEN_P(src)), Z_STRLEN_P(src), 0);
+    zend_str_tolower(Z_STRVAL_P(src), Z_STRLEN_P(src));
 }
 
 #else
