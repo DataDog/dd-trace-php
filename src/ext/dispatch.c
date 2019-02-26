@@ -342,8 +342,6 @@ static zend_always_inline zend_function *get_current_fbc(zend_execute_data *exec
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         fbc = FBC();
     } else {
-        zend_op *opline = EX(opline);
-        zval *fname = opline->op1.zv;
 #if PHP_VERSION_ID < 50600
         fbc = fcall_fbc(execute_data);
 #else
