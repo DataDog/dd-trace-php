@@ -227,9 +227,19 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
     ddtrace_dispatch_t *dispatch = NULL;
 
+    zend_class_entry *class = NULL;
+
     if (this) {
+        class = Z_OBJCE_P(this);
+    }
+
+    if (!this && (DDTRACE_G(current_fbc)->common.fn_flags & ZEND_ACC_STATIC) != 0){
+        class = DDTRACE_G(current_fbc)->common.scope;
+    }
+
+    if (class) {
         DD_PRINTF("Looking for handler for %s#%s", common_scope, function_name);
-        dispatch = find_dispatch(Z_OBJCE_P(this), function_name, function_name_length TSRMLS_CC);
+        dispatch = find_dispatch(class, function_name, function_name_length TSRMLS_CC);
     } else {
         dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), function_name, function_name_length);
     }
