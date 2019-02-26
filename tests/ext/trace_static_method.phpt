@@ -1,5 +1,5 @@
 --TEST--
-Private self access
+Public static method tracing.
 --FILE--
 <?php
 
