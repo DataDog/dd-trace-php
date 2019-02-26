@@ -199,15 +199,6 @@ static int is_anonymous_closure(zend_function *fbc, const char *function_name, u
     }
 }
 
-#define FREE_OP(should_free)                                            \
-    if (should_free.var) {                                              \
-        if ((zend_uintptr_t)should_free.var & 1L) {                     \
-            zval_dtor((zval *)((zend_uintptr_t)should_free.var & ~1L)); \
-        } else {                                                        \
-            zval_ptr_dtor(&should_free.var);                            \
-        }                                                               \
-    }
-
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, const char *function_name,
                                                  uint32_t function_name_length TSRMLS_DC) {
 #if PHP_VERSION_ID < 50600
