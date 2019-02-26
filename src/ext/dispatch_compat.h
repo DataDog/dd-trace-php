@@ -31,7 +31,7 @@ static zend_always_inline zval *ddtrace_this(zend_execute_data *execute_data) {
     }
 #endif
 
-    if (this && Z_TYPE_P(this) != IS_OBJECT){
+    if (this && (Z_TYPE_P(this) != IS_OBJECT || Z_OBJ_P(this) == NULL)){
         this = NULL;
     }
 
