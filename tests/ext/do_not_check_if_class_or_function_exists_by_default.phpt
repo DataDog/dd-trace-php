@@ -30,9 +30,9 @@ echo  "no exception thrown" . PHP_EOL;
 
 ?>
 --EXPECT--
-FALSE
 TRUE
-FALSE
-FALSE
+TRUE
+TRUE
+TRUE
 TRUE
 no exception thrown
