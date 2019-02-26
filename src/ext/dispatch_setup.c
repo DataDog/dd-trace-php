@@ -114,9 +114,10 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TS
     dispatch.function_name = *function_name;  // method/function names are case insensitive in PHP
     dispatch.callable = *callable;
 
-    zval_copy_ctor(&dispatch.function_name);
 #if PHP_VERSION_ID < 70000
-    ZVAL_STRING(&dispatch.function_name, function_name, 1)
+    ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);
+#else
+    zval_copy_ctor(&dispatch.function_name);
 #endif
     zval_copy_ctor(&dispatch.callable);
 
