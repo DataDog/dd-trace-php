@@ -29,24 +29,6 @@ class ZendFrameworkIntegration extends Integration
             return self::NOT_AVAILABLE;
         }
 
-        if (!defined('Zend_Version::VERSION')) {
-            return Integration::NOT_LOADED;
-        }
-
-        $version = \Zend_Version::VERSION;
-        if (substr($version, 0, 5) === "1.12.") {
-            self::loadV1();
-            return Integration::LOADED;
-        }
-
-        return Integration::NOT_LOADED;
-    }
-
-    /**
-     * Loads version 1 of zend framework.
-     */
-    private static function loadV1()
-    {
         dd_trace('Zend_Application', 'setOptions', function () {
             $args = func_get_args();
             $options = $args[0];
@@ -60,5 +42,7 @@ class ZendFrameworkIntegration extends Integration
 
             return call_user_func_array([$this, 'setOptions'], [$options]);
         });
+
+        return Integration::NOT_LOADED;
     }
 }
