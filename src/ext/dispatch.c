@@ -203,17 +203,14 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
                                                  const char *function_name, uint32_t function_name_length TSRMLS_DC) {
 #if PHP_VERSION_ID < 50600
     zval *original_object = EX(object);
-
 #endif
+
     zval *this = NULL;
 #if PHP_VERSION_ID < 70000
     this = EX(call) ? EX(call)->object : NULL;
-    // if (EG(This) && Z_TYPE_P(EG(This))==IS_OBJECT && EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME){
-    //     this = EX(call) ? EX(call)->object : (EG);
-    // }
 #else
-    if (Z_TYPE(EX(This)) == IS_OBJECT){
-        this = &EX(This);
+    if (EX(call) && Z_TYPE(EX(call)->This) == IS_OBJECT){
+        this = &EX(call)->This;
     }
 #endif
     if (this && Z_TYPE_P(this) != IS_OBJECT){
@@ -228,24 +225,12 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
 
     if (this) {
-        // executed_method_class = fbc->common.scope;
-#if PHP_VERSION_ID < 70000
-        // object = ;
-        // if (EX(call) && EX(call)->object) {
-        //     zval* executed_method_object = EX(call)->object;
         executed_method_class = Z_OBJCE_P(this);
-        // }
-
+#if PHP_VERSION_ID < 70000
         common_scope = executed_method_class->name;
         common_scope_length = executed_method_class->name_length;
 #else
         object = &EX(This);
-
-        zval* executed_method_object = &EX(call)->This;
-        if (Z_TYPE_P(executed_method_object) == IS_OBJECT){
-            executed_method_class = Z_OBJCE_P(executed_method_object);
-        }
-
         common_scope = ZSTR_VAL(executed_method_class->name);
         common_scope_length = ZSTR_LEN(executed_method_class->name);
 #endif
