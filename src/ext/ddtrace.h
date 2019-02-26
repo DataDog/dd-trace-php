@@ -1,12 +1,17 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
 #include "version.h"
+#include "auto.h"
 extern zend_module_entry ddtrace_module_entry;
 
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 zend_bool disable;
 char *request_init_hook;
 zend_bool strict_mode;
+
+HashTable auto_class_lookup;
+HashTable auto_function_lookup;
+ddtrace_auto_stats_t *auto_prev_stats;
 
 HashTable class_lookup;
 HashTable function_lookup;

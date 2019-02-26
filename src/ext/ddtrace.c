@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
+#include "auto.h"
 #include "request_hooks.h"
 
 #define UNUSED_1(x) (void)(x)
@@ -71,7 +72,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
     ddtrace_install_backtrace_handler(TSRMLS_C);
-
+    ddtrace_auto_minit(TSRMLS_C);
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);
 
@@ -85,6 +86,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
 
     return SUCCESS;
 }
