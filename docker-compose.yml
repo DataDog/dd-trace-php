@@ -60,8 +60,8 @@ services:
 
   mysql_integration:
     image: mysql:5.6
-    # ports:
-    #   - "0.0.0.0:3306:3306"
+    ports:
+      - "0.0.0.0:3306:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test
