@@ -36,9 +36,9 @@ class SymfonyIntegration
 
                 $bundle = null;
                 if (Versions::versionMatches('3.4', $version) || Versions::versionMatches('3.3', $version)) {
-                    $bundle = \DDTrace\Integrations\Symfony\V3\SymfonyBundle();
+                    $bundle = new \DDTrace\Integrations\Symfony\V3\SymfonyBundle();
                 } elseif (Versions::versionMatches('4', $version)) {
-                    $bundle = \DDTrace\Integrations\Symfony\V4\SymfonyBundle();
+                    $bundle = new \DDTrace\Integrations\Symfony\V4\SymfonyBundle();
                 }
 
                 if ($bundle) {
