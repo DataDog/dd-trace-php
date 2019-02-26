@@ -259,9 +259,6 @@ class MysqliIntegration
         self::traceProceduralFetchMethod('mysqli_fetch_all');
         self::traceProceduralFetchMethod('mysqli_fetch_array');
         self::traceProceduralFetchMethod('mysqli_fetch_assoc');
-        self::traceProceduralFetchMethod('mysqli_fetch_field_direct');
-        self::traceProceduralFetchMethod('mysqli_fetch_field');
-        self::traceProceduralFetchMethod('mysqli_fetch_fields');
         self::traceProceduralFetchMethod('mysqli_fetch_object');
         self::traceProceduralFetchMethod('mysqli_fetch_row');
 
@@ -269,9 +266,6 @@ class MysqliIntegration
         self::traceConstructorFetchMethod('fetch_all');
         self::traceConstructorFetchMethod('fetch_array');
         self::traceConstructorFetchMethod('fetch_assoc');
-        self::traceConstructorFetchMethod('fetch_field_direct');
-        self::traceConstructorFetchMethod('fetch_field');
-        self::traceConstructorFetchMethod('fetch_fields');
         self::traceConstructorFetchMethod('fetch_object');
         self::traceConstructorFetchMethod('fetch_row');
 

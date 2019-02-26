@@ -376,27 +376,6 @@ final class MysqliTest extends IntegrationTestCase
                 [ 'id' => 1, 'name' => 'Tom' ],
             ],
             [
-                'fetch_field_direct',
-                [ 1 ],
-                function ($fetched) {
-                    $this->assertTrue(is_object($fetched));
-                },
-            ],
-            [
-                'fetch_field',
-                [],
-                function ($fetched) {
-                    $this->assertTrue(is_object($fetched));
-                },
-            ],
-            [
-                'fetch_fields',
-                [],
-                function ($fetched) {
-                    $this->assertTrue(is_array($fetched));
-                },
-            ],
-            [
                 'fetch_object',
                 [],
                 function ($fetched) {
