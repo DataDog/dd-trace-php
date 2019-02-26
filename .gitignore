@@ -5,6 +5,7 @@ composer.lock
 .vscode/
 .libs
 .deps
+**.code-workspace
 Makefile*
 acinclude.m4
 aclocal.m4

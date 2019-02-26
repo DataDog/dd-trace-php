@@ -4,7 +4,11 @@ Check if we can override method from a parent class in a descendant class
 <?php
 class Ancestor {
     public function m(){
-        echo "METHOD" . PHP_EOL;
+        return "METHOD";
+    }
+
+    public function m2(){
+        return "METHOD 2";
     }
 }
 
@@ -14,13 +18,18 @@ class Test extends Ancestor{
 
 $no = 1;
 dd_trace("Test", "m", function() use ($no){
-    $this->m();
-    echo "HOOK " . $no . PHP_EOL;
+    return "HOOK " .  $this->m() . ' ' . $no . PHP_EOL;
 });
 
-(new Test())->m();
+dd_trace("Ancestor", "m2", function(){
+    return  "HOOK " . $this->m2() . PHP_EOL;
+});
+
+
+echo (new Test())->m();
+echo (new Test())->m2();
 
 ?>
 --EXPECT--
-METHOD
-HOOK 1
+HOOK METHOD 1
+HOOK METHOD 2

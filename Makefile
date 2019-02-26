@@ -76,7 +76,7 @@ debug:
 	$(eval CFLAGS="-g")
 
 strict:
-	$(eval CFLAGS="-Wall -Werror -Wextra")
+	$(eval CFLAGS=-Wall -Werror -Wextra)
 
 clang_format_fix:
 	@find ./ -iname '*.h' -o -iname '*.c' | xargs clang-format -i
