@@ -16,24 +16,18 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #define _DTOR_VALUE_CAST_CLASS_STATS(zv) (Z_PTR_P(zv))
 #endif
 
-static inline void auto_fn_stats_dtor(_DTOR_PARAM_TYPE *zv) {
+static void auto_fn_stats_dtor(_DTOR_PARAM_TYPE *zv) {
     ddtrace_auto_stats_t *stats = _DTOR_VALUE_CAST_FN_STATS(zv);
-    efree(stats);
+    pefree(stats, 1);
 }
 
-static inline void auto_class_stats_dtor(_DTOR_PARAM_TYPE *zv) {
+static void auto_class_stats_dtor(_DTOR_PARAM_TYPE *zv) {
     HashTable *ht = _DTOR_VALUE_CAST_CLASS_STATS(zv);
     zend_hash_destroy(ht);
-    efree(ht);
+    pefree(ht, 1);
 }
 
-void ddtrace_auto(zend_execute_data *ex, const char *function_name, size_t function_name_length TSRMLS_DC) {
-    if (DDTRACE_G(auto_prev_stats)){
-
-    }
-}
-
-ddtrace_auto_stats_t* ddtrace_auto_record_start(zend_execute_data *ex, const char *function_name, size_t function_name_length TSRMLS_DC){
+ddtrace_auto_stats_t* ddtrace_auto_record_fetch(zend_execute_data *ex, const char *function_name, size_t function_name_length TSRMLS_DC){
     zval* this = ddtrace_this(ex);
     HashTable *stats_lookup = NULL;
     ddtrace_auto_stats_t *auto_stats = NULL;
@@ -57,8 +51,12 @@ ddtrace_auto_stats_t* ddtrace_auto_record_start(zend_execute_data *ex, const cha
     return auto_stats;
 }
 
+// void ddtrace_auto_find_and_mark(zend_execute_data *ex, const char *function_name, size_t function_name_length TSRMLS_DC) {
+//     DDTRACE_G(auto_prev_stats) = ddtrace_auto_record_fetch(ex, function_name, function_name_length);
+// }
+
 void ddtrace_auto_minit(TSRMLS_D){
-    DDTRACE_G(auto_prev_stats) = NULL;
+    DDTRACE_G(auto_stats) = NULL;
     zend_hash_init(&DDTRACE_G(auto_class_lookup), 128, NULL, (dtor_func_t)auto_class_stats_dtor, 1);
     zend_hash_init(&DDTRACE_G(auto_function_lookup), 128, NULL, (dtor_func_t)auto_fn_stats_dtor, 1);
 }

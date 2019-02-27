@@ -465,6 +465,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     if (wrapped) {
         return update_opcode_leave(execute_data TSRMLS_CC);
     } else {
+        DDTRACE_G(auto_stats) = ddtrace_auto_record_fetch(execute_data, function_name, function_name_length TSRMLS_CC);
         return default_dispatch(execute_data TSRMLS_CC);
     }
 }

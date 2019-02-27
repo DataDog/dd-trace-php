@@ -11,7 +11,7 @@ zend_bool strict_mode;
 
 HashTable auto_class_lookup;
 HashTable auto_function_lookup;
-ddtrace_auto_stats_t *auto_prev_stats;
+ddtrace_auto_stats_t *auto_stats;
 
 HashTable class_lookup;
 HashTable function_lookup;

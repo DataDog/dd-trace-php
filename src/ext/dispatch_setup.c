@@ -23,8 +23,9 @@ void (*ddtrace_original_execute_ex)(zend_execute_data *TSRMLS_DC);
 static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
     if (ddtrace_original_execute_ex) {
         ddtrace_original_execute_ex(execute_data TSRMLS_CC);
-    } else
+    } else {
         execute_ex(execute_data TSRMLS_CC);
+    }
 }
 
 static inline void dispatch_table_dtor(zval *zv) {
