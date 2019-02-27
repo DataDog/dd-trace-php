@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Large number of mysqli spans not containing relevant information #330
+
 ## [0.14.0]
 
 ### Added

@@ -254,74 +254,7 @@ class MysqliIntegration
                 }
             );
         });
-
-        // Procedural fetch methods
-        self::traceProceduralFetchMethod('mysqli_fetch_all');
-        self::traceProceduralFetchMethod('mysqli_fetch_array');
-        self::traceProceduralFetchMethod('mysqli_fetch_assoc');
-        self::traceProceduralFetchMethod('mysqli_fetch_field_direct');
-        self::traceProceduralFetchMethod('mysqli_fetch_field');
-        self::traceProceduralFetchMethod('mysqli_fetch_fields');
-        self::traceProceduralFetchMethod('mysqli_fetch_object');
-        self::traceProceduralFetchMethod('mysqli_fetch_row');
-
-        // Constructor fetch methods
-        self::traceConstructorFetchMethod('fetch_all');
-        self::traceConstructorFetchMethod('fetch_array');
-        self::traceConstructorFetchMethod('fetch_assoc');
-        self::traceConstructorFetchMethod('fetch_field_direct');
-        self::traceConstructorFetchMethod('fetch_field');
-        self::traceConstructorFetchMethod('fetch_fields');
-        self::traceConstructorFetchMethod('fetch_object');
-        self::traceConstructorFetchMethod('fetch_row');
-
         return Integration::LOADED;
-    }
-
-    /**
-     * Trace a generic fetch method in a constructor instance approach.
-     *
-     * @param string $methodName
-     */
-    private static function traceConstructorFetchMethod($methodName)
-    {
-        dd_trace('mysqli_result', $methodName, function () use ($methodName) {
-            $operationName = 'mysqli_result.' . $methodName;
-            $args = func_get_args();
-            $resource = MysqliIntegration::retrieveQuery($this, $operationName);
-            $scope = MysqliIntegration::initScope($operationName, $resource);
-            /** @var \DDTrace\Span $span */
-            $span = $scope->getSpan();
-            $host_info = ObjectKVStore::get($this, 'host_info', []);
-            foreach ($host_info as $key => $value) {
-                $span->setTag($key, $value);
-            }
-
-            return TryCatchFinally::executePublicMethod($scope, $this, $methodName, $args);
-        });
-    }
-
-    /**
-     * Trace a generic fetch method in a procedural instance approach.
-     *
-     * @param string $methodName
-     */
-    private static function traceProceduralFetchMethod($methodName)
-    {
-        dd_trace($methodName, function () use ($methodName) {
-            $args = func_get_args();
-            list($mysql_result) = $args;
-            $resource = MysqliIntegration::retrieveQuery($mysql_result, $methodName);
-            $scope = MysqliIntegration::initScope($methodName, $resource);
-            /** @var \DDTrace\Span $span */
-            $span = $scope->getSpan();
-            $host_info = ObjectKVStore::get($mysql_result, 'host_info', []);
-            foreach ($host_info as $key => $value) {
-                $span->setTag($key, $value);
-            }
-
-            return TryCatchFinally::executeFunction($scope, $methodName, $args);
-        });
     }
 
     /**
