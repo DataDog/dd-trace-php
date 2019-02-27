@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-02-26</date>
+    <date>2019-02-27</date>
     <version>
-        <release>0.14.0</release>
-        <api>0.14.0</api>
+        <release>0.14.1</release>
+        <api>0.14.1</api>
     </version>
     <stability>
         <release>beta</release>
@@ -21,9 +21,8 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        ### Added
-        - Loading of integrations before knowing if the library will be actually used #319
-        - Ability to define tracing for not yet defined methods and classes #325
+        ### Fixed
+        - Large number of mysqli spans not containing relevant information #330
     </notes>
     <contents>
         <dir name="/">
