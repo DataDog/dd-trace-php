@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+### Fixed
+- Ensure Function name is safely copied to avoid freeing persistent string #333
 
 ## [0.14.1]
 
