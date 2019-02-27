@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.14.1]
+
 ### Fixed
 - Large number of mysqli spans not containing relevant information #330
 
@@ -327,7 +329,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.14.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.14.1...HEAD
+[0.14.1]: https://github.com/DataDog/dd-trace-php/compare/0.14.0...0.14.1
 [0.14.0]: https://github.com/DataDog/dd-trace-php/compare/0.13.4...0.14.0
 [0.13.4]: https://github.com/DataDog/dd-trace-php/compare/0.13.3...0.13.4
 [0.13.3]: https://github.com/DataDog/dd-trace-php/compare/0.13.2...0.13.3
