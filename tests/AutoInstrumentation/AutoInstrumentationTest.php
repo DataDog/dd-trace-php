@@ -46,6 +46,11 @@ class AutoInstrumentationTest extends BaseTestCase
             // an issue when we run `class_exist` during the first phases of auto-instrumentation because the loader
             // would try to `include_once` a file (e.g. 'DDTrace/Tracer.php') that does not exists.
             ['autoloader_includes_even_non_existing', $currentTracerVersion, false],
+
+            // In some cases, autoloaders exit() or die() if they don't find a class. This test makes sure that in our
+            // auto-instrumentation code we never try to `class_exists()`, `method_exists()` or `defined()` outside of
+            // DDTrace namespace.
+            ['autoloader_die_on_not_found', $currentTracerVersion, false],
         ];
     }
 
