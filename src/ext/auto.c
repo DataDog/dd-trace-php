@@ -1,4 +1,5 @@
 #include <php.h>
+#include <time.h>
 
 #include "ddtrace.h"
 #include "auto.h"
@@ -27,6 +28,43 @@ static void auto_class_stats_dtor(_DTOR_PARAM_TYPE *zv) {
     pefree(ht, 1);
 }
 
+void (*ddtrace_auto_execute_original_ex)(zend_execute_data *TSRMLS_DC);
+
+void ddtrace_auto_execute(zend_execute_data *execute_data TSRMLS_DC) {
+    ddtrace_auto_stats_t* stats = DDTRACE_G(auto_stats);
+    struct timespec start_time, end_time;
+
+    if (stats) {
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
+    }
+
+    if (ddtrace_auto_execute_original_ex) {
+        ddtrace_auto_execute_original_ex(execute_data TSRMLS_CC);
+    } else {
+        execute_ex(execute_data TSRMLS_CC);
+    }
+
+    if (stats) {
+        clock_gettime(CLOCK_MONOTONIC, &end_time);
+        long duration = end_time.tv_nsec - end_time.tv_nsec;
+
+        if (stats->avg_time > 0){
+            stats->avg_time = stats->avg_time;
+            // stats->avg_time /= 2;
+        } else {
+            stats->avg_time = duration;
+        }
+        stats->count++;
+    }
+}
+
+void ddtrace_auto_inject(){
+#if PHP_VERSION_ID >= 50600
+    ddtrace_auto_execute_original_ex = zend_execute_ex;
+    zend_execute_ex = ddtrace_auto_execute;
+#endif
+}
+
 ddtrace_auto_stats_t* ddtrace_auto_record_fetch(zend_execute_data *ex, const char *function_name, size_t function_name_length TSRMLS_DC){
     zval* this = ddtrace_this(ex);
     HashTable *stats_lookup = NULL;
@@ -42,7 +80,7 @@ ddtrace_auto_stats_t* ddtrace_auto_record_fetch(zend_execute_data *ex, const cha
 
         if (!auto_stats){
             auto_stats = pemalloc(sizeof(ddtrace_auto_stats_t), 1);
-            zend_hash_str_update_ptr(stats_lookup, function_name, function_name_length, auto_stats);
+            zend_hash_str_add_ptr(stats_lookup, function_name, function_name_length, auto_stats);
         }
 
         efree(key);

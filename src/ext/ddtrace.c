@@ -75,6 +75,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_auto_minit(TSRMLS_C);
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);
+    ddtrace_auto_inject();
 
     return SUCCESS;
 }
