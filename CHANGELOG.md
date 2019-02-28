@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+
+## [0.14.2]
+
 ### Fixed
 - Ensure Function name is safely copied to avoid freeing persistent string #333
 
@@ -331,7 +334,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.14.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.14.2...HEAD
+[0.14.2]: https://github.com/DataDog/dd-trace-php/compare/0.14.1...0.14.2
 [0.14.1]: https://github.com/DataDog/dd-trace-php/compare/0.14.0...0.14.1
 [0.14.0]: https://github.com/DataDog/dd-trace-php/compare/0.13.4...0.14.0
 [0.13.4]: https://github.com/DataDog/dd-trace-php/compare/0.13.3...0.13.4
