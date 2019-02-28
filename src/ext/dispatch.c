@@ -141,7 +141,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     zend_function *func;
     zend_execute_data *prev_original_execute_data;
 #if PHP_VERSION_ID < 70000
-    //const char *func_name = zend_string_init(ZEND_STRL("dd_trace_callback"), 0);
+    const char *func_name = "dd_trace_callback";
     func = datadog_current_function(execute_data);
 
     zend_function *callable = (zend_function *)zend_get_closure_method_def(&dispatch->callable TSRMLS_CC);

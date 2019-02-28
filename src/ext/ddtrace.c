@@ -230,7 +230,11 @@ static PHP_FUNCTION(dd_trace_forward_call) {
         RETURN_BOOL(0);
     }
 
+#if PHP_VERSION_ID < 70000
+    ddtrace_forward_call(EG(current_execute_data), return_value);
+#else
     ddtrace_forward_call(execute_data, return_value);
+#endif
 }
 
 // This function allows untracing a function.
