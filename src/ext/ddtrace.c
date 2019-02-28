@@ -256,7 +256,9 @@ static PHP_FUNCTION(dd_trace_forward_call) {
     fci.object = Z_OBJ(DDTRACE_G(original_execute_data)->This);
     fci.no_separation = 1;
 
-    fcc.initialized = 1;  // Removed in PHP 7.3
+#if PHP_VERSION_ID < 70300
+    fcc.initialized = 1;
+#endif
     fcc.function_handler = DDTRACE_G(original_execute_data)->func;
     fcc.calling_scope = DDTRACE_G(original_execute_data)->func->common.scope;
     fcc.called_scope = DDTRACE_G(original_execute_data)->func->common.scope;
