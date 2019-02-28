@@ -228,13 +228,18 @@ static PHP_FUNCTION(dd_trace_forward_call) {
     zval fname, retval;
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;
-    zend_string *callback_name = EX(prev_execute_data)->func->common.function_name;
+    zend_execute_data *prev_ex;
+    zend_string *callback_name;
 
     if (DDTRACE_G(disable)) {
         RETURN_BOOL(0);
     }
 
+    prev_ex = !EX(prev_execute_data)->func->common.function_name ? EX(prev_execute_data)->prev_execute_data : EX(prev_execute_data);
+    callback_name = !prev_ex ? NULL : prev_ex->func->common.function_name;
+
     if (!DDTRACE_G(original_execute_data)
+            || !callback_name
             || !zend_string_equals_literal(callback_name, "dd_trace_callback")) {
         zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
                                 "Cannot use dd_trace_forward_call() outside of a tracing closure");
