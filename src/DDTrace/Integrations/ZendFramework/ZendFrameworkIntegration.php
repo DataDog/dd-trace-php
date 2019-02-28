@@ -73,7 +73,7 @@ class ZendFrameworkIntegration extends Integration
                 $options['resources']['ddtrace'] = true;
             }
 
-            return call_user_func_array([$this, 'setOptions'], [$options]);
+            return dd_trace_forward_call();
         });
 
         return Integration::NOT_LOADED;

@@ -32,9 +32,7 @@ class LaravelIntegrationLoader
         $self = $this;
 
         dd_trace('Illuminate\Routing\Events\RouteMatched', '__construct', function () use ($self) {
-            $args = func_get_args();
-
-            list($route, $request) = $args;
+            list($route, $request) = func_get_args();
             $span = $self->rootScope->getSpan();
             // Overwriting the default web integration
             $span->setIntegration(LaravelIntegration::getInstance());
@@ -48,12 +46,10 @@ class LaravelIntegrationLoader
             $span->setTag('http.url', $request->url());
             $span->setTag('http.method', $request->method());
 
-            return call_user_func_array([$this, '__construct'], $args);
+            return dd_trace_forward_call();
         });
 
         dd_trace('Illuminate\Foundation\Http\Events\RequestHandled', '__construct', function () use ($self) {
-            $args = func_get_args();
-
             $span = $self->rootScope->getSpan();
             try {
                 $user = auth()->user();
@@ -63,7 +59,7 @@ class LaravelIntegrationLoader
             } catch (\Exception $e) {
             }
 
-            return call_user_func_array([$this, '__construct'], $args);
+            return dd_trace_forward_call();
         });
 
         dd_trace('Illuminate\Foundation\ProviderRepository', 'load', function (array $providers) use ($self) {
@@ -89,8 +85,6 @@ class LaravelIntegrationLoader
 
         // Trace middleware
         dd_trace('Illuminate\Pipeline\Pipeline', 'then', function () {
-            $args = func_get_args();
-
             foreach ($this->pipes as $pipe) {
                 // Pipes can be passed both as class to the pipeline and as instances
                 if (is_string($pipe) || is_object($pipe)) {
@@ -124,7 +118,7 @@ class LaravelIntegrationLoader
                 }
             }
 
-            return call_user_func_array([$this, 'then'], $args);
+            return dd_trace_forward_call();
         });
 
         // Create a trace span for every template rendered
@@ -141,7 +135,7 @@ class LaravelIntegrationLoader
         dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($self) {
             $args = func_get_args();
             $self->rootScope->getSpan()->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
-            return call_user_func_array([$this, 'setStatusCode'], $args);
+            return dd_trace_forward_call();
         });
     }
 

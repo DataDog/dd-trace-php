@@ -57,7 +57,7 @@ class LaravelProvider extends ServiceProvider
             $requestSpan->setTraceAnalyticsCandidate();
             $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
 
-            $response = call_user_func_array([$this, 'handle'], func_get_args());
+            $response = dd_trace_forward_call();
             $requestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
 
             return $response;
@@ -89,7 +89,7 @@ class LaravelProvider extends ServiceProvider
         dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($self) {
             $args = func_get_args();
             $self->rootScope->getSpan()->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
-            return call_user_func_array([$this, 'setStatusCode'], $args);
+            return dd_trace_forward_call();
         });
 
         dd_trace('Illuminate\Routing\Route', 'run', function () {

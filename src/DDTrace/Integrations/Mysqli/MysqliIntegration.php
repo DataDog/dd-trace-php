@@ -59,7 +59,7 @@ class MysqliIntegration extends Integration
             $result = null;
             try {
                 // Depending on configuration, connections errors can both cause an exception and return false
-                $result = call_user_func_array('mysqli_connect', $args);
+                $result = dd_trace_forward_call();
                 if ($result === false) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
                 } else {
@@ -95,7 +95,7 @@ class MysqliIntegration extends Integration
             // PHP 5.4 compatible try-catch-finally
             $thrown = null;
             try {
-                call_user_func_array([$this, $mysqli_constructor], $args);
+                dd_trace_forward_call();
                 //Mysqli::storeConnectionParams($this, $args);
                 if (mysqli_connect_errno()) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
@@ -127,7 +127,7 @@ class MysqliIntegration extends Integration
             MysqliIntegration::setConnectionInfo($span, $mysqli);
             MysqliIntegration::storeQuery($mysqli, $query);
 
-            $result = call_user_func_array('mysqli_query', $args);
+            $result = dd_trace_forward_call();
             MysqliIntegration::storeQuery($result, $query);
             ObjectKVStore::put($result, 'host_info', MysqliIntegration::extractHostInfo($mysqli));
 
@@ -143,7 +143,7 @@ class MysqliIntegration extends Integration
             $span = $scope->getSpan();
             MysqliIntegration::setConnectionInfo($span, $mysqli);
 
-            $statement = mysqli_prepare($mysqli, $query);
+            $statement = dd_trace_forward_call();
             MysqliIntegration::storeQuery($statement, $query);
             $host_info = MysqliIntegration::extractHostInfo($mysqli);
             ObjectKVStore::put($statement, 'host_info', $host_info);
@@ -167,7 +167,7 @@ class MysqliIntegration extends Integration
                 $span->setTag('db.transaction_name', $args[2]);
             }
 
-            $result = call_user_func_array('mysqli_commit', $args);
+            $result = dd_trace_forward_call();
 
             $scope->close();
 
@@ -179,7 +179,7 @@ class MysqliIntegration extends Integration
             $resource = MysqliIntegration::retrieveQuery($stmt, 'mysqli_stmt_execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt_execute', $resource);
 
-            $result = mysqli_stmt_execute($stmt);
+            $result = dd_trace_forward_call();
 
             $scope->close();
 
@@ -189,7 +189,7 @@ class MysqliIntegration extends Integration
         // bool mysqli_stmt_get_result ( mysqli_stmt $stmt )
         dd_trace('mysqli_stmt_get_result', function ($stmt) {
             $resource = MysqliIntegration::retrieveQuery($stmt, 'mysqli_stmt_get_result');
-            $result = mysqli_stmt_get_result($stmt);
+            $result = dd_trace_forward_call();
 
             MysqliIntegration::storeQuery($result, $resource);
             ObjectKVStore::propagate($stmt, $result, 'host_info');

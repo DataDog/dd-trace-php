@@ -86,7 +86,7 @@ class SymfonyBundle extends Bundle
                 $response = null;
 
                 try {
-                    $response = call_user_func_array([$this, 'handle'], $args);
+                    $response = dd_trace_forward_call();
                     $symfonyRequestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
                 } catch (\Exception $e) {
                     $span = $scope->getSpan();
@@ -127,7 +127,7 @@ class SymfonyBundle extends Bundle
                 $result = null;
                 $span = $scope->getSpan();
                 try {
-                    $result = $this->handleException($e, $request, $type);
+                    $result = dd_trace_forward_call();
                 } catch (\Exception $ex) {
                     $thrown = $ex;
                     $span->setError($ex);
