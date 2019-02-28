@@ -1,6 +1,7 @@
 #include "php.h"
 #if PHP_VERSION_ID >= 70000
 
+#include <Zend/zend_exceptions.h>
 #include <ext/spl/spl_exceptions.h>
 
 #include "ddtrace.h"

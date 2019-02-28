@@ -140,8 +140,8 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
 
     zend_function *func;
     zend_execute_data *prev_original_execute_data;
-    zend_string *func_name = zend_string_init(ZEND_STRL("dd_trace_callback"), 0);
 #if PHP_VERSION_ID < 70000
+    //const char *func_name = zend_string_init(ZEND_STRL("dd_trace_callback"), 0);
     func = datadog_current_function(execute_data);
 
     zend_function *callable = (zend_function *)zend_get_closure_method_def(&dispatch->callable TSRMLS_CC);
@@ -153,6 +153,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
 
     zend_create_closure(&closure, callable, executed_method_class, this TSRMLS_CC);
 #else
+    zend_string *func_name = zend_string_init(ZEND_STRL("dd_trace_callback"), 0);
     func = EX(func);
     zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable),
                         executed_method_class, executed_method_class, this TSRMLS_CC);
@@ -192,13 +193,12 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     zend_call_function(&fci, &fcc TSRMLS_CC);
     DDTRACE_G(original_execute_data) = prev_original_execute_data;
 
-    zend_string_release(func_name);
-
 #if PHP_VERSION_ID < 70000
     if (fci.params) {
         efree(fci.params);
     }
 #else
+    zend_string_release(func_name);
     if (fci.params) {
         zend_fcall_info_args_clear(&fci, 0);
     }

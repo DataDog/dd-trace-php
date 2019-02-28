@@ -142,5 +142,6 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
 }
 
 void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value) {
+    //strcmp("dd_trace_callback", callback_name)
 }
 #endif  // PHP 5
