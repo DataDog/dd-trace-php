@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-02-27</date>
+    <date>2019-02-28</date>
     <version>
-        <release>0.14.1</release>
-        <api>0.14.1</api>
+        <release>0.14.2</release>
+        <api>0.14.2</api>
     </version>
     <stability>
         <release>beta</release>
@@ -22,7 +22,7 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         ### Fixed
-        - Large number of mysqli spans not containing relevant information #330
+        - Ensure Function name is safely copied to avoid freeing persistent string #333
     </notes>
     <contents>
         <dir name="/">
