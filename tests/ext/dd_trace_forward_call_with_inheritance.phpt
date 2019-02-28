@@ -57,4 +57,5 @@ BAR 12 {mine}
 [foo] 0
 **TRACED**
 [parent] 6
+**TRACED**
 BAR 12 {mine}
