@@ -141,4 +141,6 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
                             sizeof(ddtrace_dispatch_t *), NULL) == SUCCESS;
 }
 
+void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value) {
+}
 #endif  // PHP 5

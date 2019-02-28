@@ -225,53 +225,12 @@ static PHP_FUNCTION(dd_trace) {
 static PHP_FUNCTION(dd_trace_forward_call) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
-    zval fname, retval;
-    zend_fcall_info fci;
-    zend_fcall_info_cache fcc;
-    zend_execute_data *prev_ex;
-    zend_string *callback_name;
 
     if (DDTRACE_G(disable)) {
         RETURN_BOOL(0);
     }
 
-    prev_ex = !EX(prev_execute_data)->func->common.function_name ? EX(prev_execute_data)->prev_execute_data : EX(prev_execute_data);
-    callback_name = !prev_ex ? NULL : prev_ex->func->common.function_name;
-
-    if (!DDTRACE_G(original_execute_data)
-            || !callback_name
-            || !zend_string_equals_literal(callback_name, "dd_trace_callback")) {
-        zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
-                                "Cannot use dd_trace_forward_call() outside of a tracing closure");
-        return;
-    }
-
-    ZVAL_STR_COPY(&fname, DDTRACE_G(original_execute_data)->func->common.function_name);
-
-    fci.size = sizeof(fci);
-    fci.function_name = fname;
-    fci.retval = &retval;
-    fci.param_count = ZEND_CALL_NUM_ARGS(DDTRACE_G(original_execute_data));
-    fci.params = ZEND_CALL_ARG(DDTRACE_G(original_execute_data), 1);
-    fci.object = Z_OBJ(DDTRACE_G(original_execute_data)->This);
-    fci.no_separation = 1;
-
-#if PHP_VERSION_ID < 70300
-    fcc.initialized = 1;
-#endif
-    fcc.function_handler = DDTRACE_G(original_execute_data)->func;
-    fcc.calling_scope = DDTRACE_G(original_execute_data)->func->common.scope;
-    fcc.called_scope = DDTRACE_G(original_execute_data)->func->common.scope;
-    fcc.object = Z_OBJ(DDTRACE_G(original_execute_data)->This);
-
-    if (zend_call_function(&fci, &fcc) == SUCCESS && Z_TYPE(retval) != IS_UNDEF) {
-        if (Z_ISREF(retval)) {
-            zend_unwrap_reference(&retval);
-        }
-        ZVAL_COPY_VALUE(return_value, &retval);
-    }
-
-    zval_ptr_dtor(&fname);
+    ddtrace_forward_call(execute_data, return_value);
 }
 
 // This function allows untracing a function.
