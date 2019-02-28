@@ -46,11 +46,10 @@ void ddtrace_auto_execute(zend_execute_data *execute_data TSRMLS_DC) {
 
     if (stats) {
         clock_gettime(CLOCK_MONOTONIC, &end_time);
-        long duration = end_time.tv_nsec - end_time.tv_nsec;
+        long duration = (end_time.tv_sec - start_time.tv_sec)*1000*1000 + (end_time.tv_nsec - start_time.tv_nsec)/1000;
 
         if (stats->avg_time > 0){
-            stats->avg_time = stats->avg_time;
-            // stats->avg_time /= 2;
+            stats->avg_time = (stats->avg_time + duration)/2;
         } else {
             stats->avg_time = duration;
         }
@@ -79,7 +78,7 @@ ddtrace_auto_stats_t* ddtrace_auto_record_fetch(zend_execute_data *ex, const cha
         auto_stats = zend_hash_str_find_ptr(stats_lookup, key, function_name_length);
 
         if (!auto_stats){
-            auto_stats = pemalloc(sizeof(ddtrace_auto_stats_t), 1);
+            auto_stats = pecalloc(1, sizeof(ddtrace_auto_stats_t), 1);
             zend_hash_str_add_ptr(stats_lookup, function_name, function_name_length, auto_stats);
         }
 
