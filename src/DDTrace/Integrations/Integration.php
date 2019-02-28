@@ -138,7 +138,7 @@ abstract class Integration
             $returnVal = null;
             $thrownException = null;
             try {
-                $returnVal = call_user_func_array([$this, $method], $args);
+                $returnVal = dd_trace_forward_call();
             } catch (\Exception $e) {
                 $span->setError($e);
                 $thrownException = $e;

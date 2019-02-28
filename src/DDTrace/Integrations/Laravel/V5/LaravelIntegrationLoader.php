@@ -9,7 +9,6 @@ use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Scope;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\TryCatchFinally;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Route;
 
@@ -105,7 +104,6 @@ class LaravelIntegrationLoader
 
                     $handlerMethod = $this->method;
                     dd_trace($class, $handlerMethod, function () use ($handlerMethod) {
-                        $args = func_get_args();
                         $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                             \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
                             'laravel.pipeline.pipe'
@@ -113,7 +111,7 @@ class LaravelIntegrationLoader
                         $span = $scope->getSpan();
                         $span->setTag(Tag::RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
                         $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
-                        return TryCatchFinally::executePublicMethod($scope, $this, $handlerMethod, $args);
+                        return include __DIR__ . '/../../../try_catch_finally.php';
                     });
                 }
             }
@@ -123,13 +121,13 @@ class LaravelIntegrationLoader
 
         // Create a trace span for every template rendered
         // public function get($path, array $data = array())
-        dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function ($path, $data = array()) {
+        dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function () {
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                 LaravelIntegration::getInstance(),
                 'laravel.view'
             );
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
-            return TryCatchFinally::executePublicMethod($scope, $this, 'get', [$path, $data]);
+            return include __DIR__ . '/../../../try_catch_finally.php';
         });
 
         dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($self) {

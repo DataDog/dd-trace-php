@@ -7,7 +7,6 @@ use DDTrace\GlobalTracer;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\TryCatchFinally;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -94,18 +93,18 @@ class LaravelProvider extends ServiceProvider
 
         dd_trace('Illuminate\Routing\Route', 'run', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.action', $this->uri);
-            return TryCatchFinally::executePublicMethod($scope, $this, 'run', func_get_args());
+            return include __DIR__ . '/../../../try_catch_finally.php';
         });
 
         dd_trace('Illuminate\View\View', 'render', function () {
             $scope = LaravelProvider::buildBaseScope('laravel.view.render', $this->view);
-            return TryCatchFinally::executePublicMethod($scope, $this, 'render', func_get_args());
+            return include __DIR__ . '/../../../try_catch_finally.php';
         });
 
         dd_trace('Illuminate\Events\Dispatcher', 'fire', function () {
             $args = func_get_args();
             $scope = LaravelProvider::buildBaseScope('laravel.event.handle', $args[0]);
-            return TryCatchFinally::executePublicMethod($scope, $this, 'fire', $args);
+            return include __DIR__ . '/../../../try_catch_finally.php';
         });
     }
 

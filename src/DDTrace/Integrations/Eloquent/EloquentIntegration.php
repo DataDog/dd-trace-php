@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\Eloquent;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
 class EloquentIntegration extends Integration
@@ -50,7 +49,7 @@ class EloquentIntegration extends Integration
             $span->setTag(Tag::DB_STATEMENT, $sql);
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
-            return TryCatchFinally::executePublicMethod($scope, $this, 'getModels', $args);
+            return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         // performInsert(Builder $query)
@@ -64,7 +63,7 @@ class EloquentIntegration extends Integration
             $span->setTag(Tag::DB_STATEMENT, $sql);
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
-            return TryCatchFinally::executeAnyMethod($scope, $this, 'performInsert', $args);
+            return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         // performUpdate(Builder $query)
@@ -78,7 +77,7 @@ class EloquentIntegration extends Integration
             $span->setTag(Tag::DB_STATEMENT, $sql);
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
-            return TryCatchFinally::executeAnyMethod($scope, $this, 'performUpdate', $args);
+            return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         // public function delete()
@@ -86,7 +85,7 @@ class EloquentIntegration extends Integration
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.delete');
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::SQL);
 
-            return TryCatchFinally::executePublicMethod($scope, $this, 'delete', []);
+            return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         return Integration::LOADED;

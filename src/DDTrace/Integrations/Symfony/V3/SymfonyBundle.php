@@ -9,7 +9,6 @@ use DDTrace\Integrations\Symfony\SymfonyIntegration as DDSymfonyIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\TryCatchFinally;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -159,7 +158,7 @@ class SymfonyBundle extends Bundle
                                 'symfony.' . $args[0]
                             );
                             SymfonyBundle::injectRouteInfo($args, $request, $symfonyRequestSpan);
-                            return TryCatchFinally::executePublicMethod($scope, $this, 'dispatch', $args);
+                            return include __DIR__ . '/../../../try_catch_finally.php';
                         });
                     }
                 }
@@ -180,7 +179,7 @@ class SymfonyBundle extends Bundle
             $span->setTag(Tag::SERVICE_NAME, $appName);
             $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
             $span->setTag(Tag::RESOURCE_NAME, get_class($this) . ' ' . $args[0]);
-            return TryCatchFinally::executePublicMethod($scope, $this, 'render', $args);
+            return include __DIR__ . '/../../../try_catch_finally.php';
         };
 
         // This can be replaced once and for all by EngineInterface tracing
