@@ -1,6 +1,9 @@
 #include "php.h"
 #if PHP_VERSION_ID < 70000
 
+#include <Zend/zend_exceptions.h>
+#include <ext/spl/spl_exceptions.h>
+
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
@@ -141,7 +144,61 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
                             sizeof(ddtrace_dispatch_t *), NULL) == SUCCESS;
 }
 
-void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value) {
-    //strcmp("dd_trace_callback", callback_name)
+void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
+    //zend_op **orig_opline = EG(opline_ptr);
+    //zend_op_array *orig_op_array = EG(active_op_array);
+    //zval **orig_retval_ptr = EG(return_value_ptr_ptr);
+    zval *retval_ptr = NULL;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fcc;
+
+    zend_execute_data *orig_ex = DDTRACE_G(original_execute_data);
+    zend_op *orig_opline = *DDTRACE_G(original_opline_ptr);
+    zend_op_array *orig_op_array = DDTRACE_G(original_active_op_array);
+    zval **orig_retval_ptr = DDTRACE_G(original_return_value_ptr_ptr);
+
+    //zend_execute_data *ex = zend_create_execute_data_from_op_array(orig_op_array, 1 TSRMLS_CC);
+
+    zend_function *func = orig_ex->call->fbc; //function_state.function;
+
+    fcc.initialized = 1;
+    fcc.function_handler = func;
+    fcc.calling_scope = func->common.scope; // EG(scope)->parent; //DDTRACE_G(original_execute_data)->func->common.scope;
+    fcc.called_scope = func->common.scope; // DDTRACE_G(original_execute_data)->func->common.scope;
+    fcc.object_ptr = orig_ex->object; //EG(This); //Z_OBJ(DDTRACE_G(original_execute_data)->This);
+
+    fci.size = sizeof(fci);
+    fci.function_table = EG(function_table);
+    fci.object_ptr = fcc.object_ptr;
+    fci.function_name = orig_opline->op1.zv; // Copy first?
+    fci.retval_ptr_ptr = &retval_ptr;
+    fci.param_count = 0;
+    fci.params = NULL;
+    fci.no_separation = 1;
+    fci.symbol_table = NULL;
+
+    if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS && fci.retval_ptr_ptr && *fci.retval_ptr_ptr) {
+		COPY_PZVAL_TO_ZVAL(*return_value, *fci.retval_ptr_ptr);
+	}
+
+	zend_fcall_info_args_clear(&fci, 1);
+    
+    /*
+    EG(active_op_array) = DDTRACE_G(original_active_op_array);
+    EG(return_value_ptr_ptr) = DDTRACE_G(original_return_value_ptr_ptr);
+    if (!EG(active_symbol_table)) {
+        zend_rebuild_symbol_table(TSRMLS_C);
+    }
+    if (execute_data && execute_data->symbol_table) {
+        zend_hash_clean(execute_data->symbol_table);
+    }
+
+    zend_execute(EG(active_op_array) TSRMLS_CC);
+    return_value = *EG(return_value_ptr_ptr);
+
+    EG(active_op_array) = orig_op_array;
+    EG(opline_ptr) = orig_opline;
+    EG(return_value_ptr_ptr) = orig_retval_ptr;
+    */
 }
 #endif  // PHP 5

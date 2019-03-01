@@ -69,7 +69,7 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
     return zend_hash_update_ptr(lookup, Z_STR(dispatch->function_name), dispatch) != NULL;
 }
 
-void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value) {
+void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
     zval fname, retval;
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;

@@ -140,7 +140,14 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
 
     zend_function *func;
     zend_execute_data *prev_original_execute_data;
+
+    zend_op **prev_original_opline_ptr;
+    zend_op_array *prev_original_active_op_array;
+    zval **prev_original_return_value_ptr_ptr;
+
+    zend_execute_data *cur_execute_data = EG(current_execute_data);
 #if PHP_VERSION_ID < 70000
+    zend_executor_globals *executor_globals;
     const char *func_name = "dd_trace_callback";
     func = datadog_current_function(execute_data);
 
@@ -188,12 +195,31 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     // Move this to closure zval before zend_fcall_info_init()
     fcc.function_handler->common.function_name = func_name;
 
+    //executor_globals = (*((void ***) tsrm_ls))[TSRM_UNSHUFFLE_RSRC_ID(executor_globals_id)];
     prev_original_execute_data = DDTRACE_G(original_execute_data);
     DDTRACE_G(original_execute_data) = execute_data;
+
+    prev_original_active_op_array = DDTRACE_G(original_active_op_array);
+    DDTRACE_G(original_active_op_array) = EG(active_op_array);
+
+    prev_original_opline_ptr = DDTRACE_G(original_opline_ptr);
+    DDTRACE_G(original_opline_ptr) = EG(opline_ptr);
+
+    prev_original_return_value_ptr_ptr = DDTRACE_G(original_return_value_ptr_ptr);
+    DDTRACE_G(original_return_value_ptr_ptr) = EG(return_value_ptr_ptr);
+
     zend_call_function(&fci, &fcc TSRMLS_CC);
+
+    DDTRACE_G(original_return_value_ptr_ptr) = prev_original_return_value_ptr_ptr;
+
+    DDTRACE_G(original_opline_ptr) = prev_original_opline_ptr;
+
+    DDTRACE_G(original_active_op_array) = prev_original_active_op_array;
+
     DDTRACE_G(original_execute_data) = prev_original_execute_data;
 
 #if PHP_VERSION_ID < 70000
+    //efree(func_name);
     if (fci.params) {
         efree(fci.params);
     }
@@ -478,6 +504,11 @@ int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
 }
 
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
+    //zend_execute_data *orig_ex = execute_data;
+    //zend_op **orig_opline = EG(opline_ptr);
+    //zend_op_array *orig_op_array = EG(active_op_array);
+    //zval **orig_retval_ptr = EG(return_value_ptr_ptr);
+
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         return default_dispatch(execute_data TSRMLS_CC);
