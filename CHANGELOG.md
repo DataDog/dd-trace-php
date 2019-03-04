@@ -5,7 +5,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [0.15.0]
 
-- Remove beta references and get ready for GA #339
+### Changed
+- Removed beta references and get ready for GA #339
 
 ## [0.14.2]
 
