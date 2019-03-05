@@ -32,6 +32,10 @@ In order to generate the sample Symfony apps we used the default commands from t
 
     $ cd tests/Frameworks/Symfony
 
+### Symfony 2.8
+
+    $ composer create-project symfony/framework-standard-edition Version_2_8 "2.8.*"
+
 ### Symfony 3.3
 
 Link: https://symfony.com/doc/3.3/setup.html
