@@ -9,8 +9,6 @@
 
 PHP Tracer
 
-> **This is Beta software.** We do not recommend using it in production yet.
-
 ## Getting Started
 
 The Datadog PHP Tracer (**ddtrace**) brings [APM and distributed tracing](https://docs.datadoghq.com/tracing/) to PHP.
