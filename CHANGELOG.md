@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.15.0]
+
+### Changed
+- Removed beta references and get ready for GA #339
+
 ## [0.14.2]
 
 ### Fixed
@@ -334,7 +339,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.14.2...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.0.15.0...HEAD
+[0.15.0]: https://github.com/DataDog/dd-trace-php/compare/0.14.2...0.15.0
 [0.14.2]: https://github.com/DataDog/dd-trace-php/compare/0.14.1...0.14.2
 [0.14.1]: https://github.com/DataDog/dd-trace-php/compare/0.14.0...0.14.1
 [0.14.0]: https://github.com/DataDog/dd-trace-php/compare/0.13.4...0.14.0

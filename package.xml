@@ -10,19 +10,19 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-02-28</date>
+    <date>2019-03-05</date>
     <version>
-        <release>0.14.2</release>
-        <api>0.14.2</api>
+        <release>0.15.0</release>
+        <api>0.15.0</api>
     </version>
     <stability>
-        <release>beta</release>
-        <api>beta</api>
+        <release>stable</release>
+        <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        ### Fixed
-        - Ensure Function name is safely copied to avoid freeing persistent string #333
+        ### Changed
+        - Removed beta references and get ready for GA #339
     </notes>
     <contents>
         <dir name="/">
