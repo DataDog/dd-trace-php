@@ -189,6 +189,8 @@
         "test-web-54": [
             "@laravel-42-update",
             "@laravel-42-test",
+            "@symfony-28-update",
+            "@symfony-28-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-update",
             "@custom-framework-autoloaded-test"
@@ -196,6 +198,8 @@
         "test-web-56": [
             "@laravel-42-update",
             "@laravel-42-test",
+            "@symfony-28-update",
+            "@symfony-28-test",
             "@symfony-33-update",
             "@symfony-33-test",
             "@symfony-34-update",
@@ -207,6 +211,8 @@
         "test-web-70": [
             "@laravel-42-update",
             "@laravel-42-test",
+            "@symfony-28-update",
+            "@symfony-28-test",
             "@symfony-33-update",
             "@symfony-33-test",
             "@symfony-34-update",
@@ -220,6 +226,8 @@
             "@laravel-42-test",
             "@laravel-57-update",
             "@laravel-57-test",
+            "@symfony-28-update",
+            "@symfony-28-test",
             "@symfony-33-update",
             "@symfony-33-test",
             "@symfony-34-update",
@@ -235,6 +243,8 @@
             "@laravel-42-test",
             "@laravel-57-update",
             "@laravel-57-test",
+            "@symfony-28-update",
+            "@symfony-28-test",
             "@symfony-33-update",
             "@symfony-33-test",
             "@symfony-34-update",
