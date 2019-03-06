@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Resource name on Symfony 2.x requests served through controllers #341
+
 ## [0.15.0]
 
 ### Changed

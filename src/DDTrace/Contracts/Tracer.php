@@ -142,4 +142,11 @@ interface Tracer
      * @return Scope|null
      */
     public function getRootScope();
+
+    /**
+     * Returns the root span or null and never throws an exception.
+     *
+     * @return Span|null
+     */
+    public function getSafeRootSpan();
 }
