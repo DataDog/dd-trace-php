@@ -1,5 +1,9 @@
 --TEST--
 Don't Dump backtrace when segmentation fault signal is raised and config is defalt
+--SKIPIF--
+<?php
+preg_match("/alpine/i", file_get_contents("/etc/os-release")) and die("skip Unsupported LIBC");
+?>
 --INI--
 ddtrace.log_backtrace=1
 --ENV--
