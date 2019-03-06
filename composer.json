@@ -189,8 +189,6 @@
         "test-web-54": [
             "@laravel-42-update",
             "@laravel-42-test",
-            "@symfony-28-update",
-            "@symfony-28-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-update",
             "@custom-framework-autoloaded-test"
