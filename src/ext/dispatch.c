@@ -466,8 +466,8 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
         return update_opcode_leave(execute_data TSRMLS_CC);
     } else {
         DDTRACE_G(auto_stats) = ddtrace_auto_record_fetch(execute_data, function_name, function_name_length TSRMLS_CC);
-        if (DDTRACE_G(auto_stats)){
-            fprintf(stderr, "X >>> %s - count: %ld avg: %lf\n", function_name, DDTRACE_G(auto_stats)->count, (DDTRACE_G(auto_stats)->avg_time / 1.0));
+        if (DDTRACE_G(auto_stats) && (DDTRACE_G(auto_stats)->avg_time > 40*1000)){ //longer that 40 msec on average
+            fprintf(stderr, "X >>> %s - count: %u avg: %lf\n", function_name, DDTRACE_G(auto_stats)->count, (DDTRACE_G(auto_stats)->avg_time / 1.0));
         }
         return default_dispatch(execute_data TSRMLS_CC);
     }
