@@ -13,6 +13,7 @@ use DDTrace\Transport\Http;
 use DDTrace\Transport\Noop as NoopTransport;
 use DDTrace\Exceptions\UnsupportedFormat;
 use DDTrace\Contracts\Scope as ScopeInterface;
+use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Contracts\Tracer as TracerInterface;
 
@@ -401,5 +402,21 @@ final class Tracer implements TracerInterface
         }
 
         return $count;
+    }
+
+    /**
+     * Returns the root span or null and never throws an exception.
+     *
+     * @return SpanInterface|null
+     */
+    public function getSafeRootSpan()
+    {
+        $rootScope = $this->getRootScope();
+
+        if (empty($rootScope)) {
+            return null;
+        }
+
+        return $rootScope->getSpan();
     }
 }

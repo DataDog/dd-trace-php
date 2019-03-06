@@ -7,6 +7,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Contracts\Span;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Contracts\Tracer as TracerInterface;
 
@@ -93,5 +94,15 @@ final class NoopTracer implements TracerInterface
     public function getRootScope()
     {
         return NoopScope::create();
+    }
+
+    /**
+     * Returns the root span or null and never throws an exception.
+     *
+     * @return Span|null
+     */
+    public function getSafeRootSpan()
+    {
+        return NoopSpan::create();
     }
 }
