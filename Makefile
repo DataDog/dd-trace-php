@@ -8,7 +8,7 @@ VERSION_WITHOUT_SUFFIX:=$(shell cat src/DDTrace/Tracer.php | grep VERSION | awk 
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 
-C_FILES := $(shell find src/ext -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+C_FILES := $(shell find zephir/ext -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.phpt' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
 ALL_FILES := $(C_FILES) $(TEST_FILES) $(BUILD_DIR)/config.m4
@@ -111,7 +111,7 @@ packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
 verify_pecl_file_definitions:
-	@for i in src/ext/*.c src/ext/*.h tests/ext/*.phpt; do\
+	@for i in zephir/ext/*.c zephir/ext/*.h tests/ext/*.phpt; do\
 		k=$$(basename $$i); \
 		grep -q $$k package.xml || ( echo missing $$k && exit 1); \
 	done
@@ -120,7 +120,7 @@ verify_pecl_file_definitions:
 verify_version:
 	@grep -q "<release>$(VERSION_WITHOUT_SUFFIX)</release>" package.xml || (echo package.xml release version missmatch && exit 1)
 	@grep -q "<api>$(VERSION_WITHOUT_SUFFIX)</api>" package.xml || (echo package.xml api version missmatch && exit 1)
-	@grep -q "#define PHP_DDTRACE_VERSION \"$(VERSION)" src/ext/version.h || (echo src/ext/version.h Version missmatch && exit 1)
+	@grep -q "#define PHP_DDTRACE_VERSION \"$(VERSION)" zephir/ext/version.h || (echo zephir/ext/version.h Version missmatch && exit 1)
 	@echo "All version files match"
 
 verify_all: verify_pecl_file_definitions verify_version
