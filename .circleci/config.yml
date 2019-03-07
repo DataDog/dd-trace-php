@@ -154,68 +154,17 @@ aliases:
     store_test_results:
       path: test-results
 
-# Integrations tests execution
-
-  - &STEP_RUN_INTEGRATIONS_TESTS_54
-    run:
-      command: composer test-integrations-54
-
-  - &STEP_RUN_INTEGRATIONS_TESTS_56
-    run:
-      command: composer test-integrations-56
-
-  - &STEP_RUN_INTEGRATIONS_TESTS_70
-    run:
-      command: composer test-integrations-70
-
-  - &STEP_RUN_INTEGRATIONS_TESTS_71
-    run:
-      command: composer test-integrations-71
-
-  - &STEP_RUN_INTEGRATIONS_TESTS_72
-    run:
-      command: composer test-integrations-72
-
-  - &STEP_RUN_WEB_TESTS_54
-    run:
-      command: composer test-web-54
-
-  - &STEP_RUN_WEB_TESTS_56
-    run:
-      command: composer test-web-56
-
-  - &STEP_RUN_WEB_TESTS_70
-    run:
-      command: composer test-web-70
-
-  - &STEP_RUN_WEB_TESTS_71
-    run:
-      command: composer test-web-71
-
-  - &STEP_RUN_WEB_TESTS_72
-    run:
-      command: composer test-web-72
-
-
 commands:
   prepare_extension_and_composer_with_cache:
-    parameters:
-      disable_tls:
-        description: Disable tla in composer
-        type: boolean
-        default: false
     steps:
       - <<: *STEP_EXT_INSTALL
+      - run:  # disabled by default due to test flakiness
+          name: Disable TLS to avoid composer flakiness (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
+          command: composer config disable-tls
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_INSTALL
-      - when:
-          condition: << disable_tls >>
-          steps:
-            - run:
-                when: << disable_tls >>
-                name: Disable tls for php < 5.6 (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
-                command: composer config disable-tls
+
       - <<: *STEP_COMPOSER_CACHE_SAVE
 
 executors:
@@ -306,13 +255,11 @@ jobs:
       - run:
           name: Running phpstan
           command: PATH=$PATH:~/.composer/vendor/bin composer static-analyze
+
   unit_tests:
     parameters:
       version:
         type: string
-      disable_composer_tls:
-        type: boolean
-        default: false
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -322,8 +269,7 @@ jobs:
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
-      - prepare_extension_and_composer_with_cache:
-          disable_tls: << parameters.disable_composer_tls >>
+      - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_RUN_EXTENSION_TESTS
@@ -337,40 +283,29 @@ jobs:
     parameters:
       image_tag:
         type: string
-      integration_tests_version:
+      integration_testsuite:
         type: string
-      disable_composer_tls:
-        type: boolean
-        default: false
     executor:
       name: with_integrations
       tag: << parameters.image_tag >>
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
-      - prepare_extension_and_composer_with_cache:
-          disable_tls: << parameters.disable_composer_tls >>
+      - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_WAIT_REQUEST_REPLAYER
-      - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
       - run:
-          name: Run integrsation test specific to << parameters.integration_tests_version >>
-          command: composer test-integrations-<< parameters.integration_tests_version >>
+          name: Integration test
+          command: composer << parameters.integration_testsuite >>
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
-
-      # command: composer test-web-54
-      # command: composer test-web-56
-      # command: composer test-web-70
-      # command: composer test-web-71
-      # command: composer test-web-72
 
   "PHP 54 20100412": &5_4_ARTIFACT_BUILD
     working_directory: ~/datadog
@@ -508,7 +443,6 @@ workflows:
       - unit_tests:
           name: "Unit tests 54"
           version: "5.4"
-          disable_composer_tls: true
       - unit_tests:
           name: "Unit tests 56"
           version: "5.6"
@@ -521,33 +455,56 @@ workflows:
       - unit_tests:
           name: "Unit tests 72"
           version: "7.2"
-      - unit_tests:
-          name: "Unit tests 73"
-          version: "7.3"
+      # - unit_tests:
+      #     name: "Unit tests 73"
+      #     version: "7.3" # TODO: unit test for 7.3 are failing due to memory leaks - 7.3 not yet officially supported
       - integration_tests:
-          name: "Integration tests 54"
+          name: "Intg tests 54"
           image_tag: "ddtrace_alpine_php-5.4-debug"
-          integration_tests_version: "54"
-          disable_composer_tls: true
+          integration_testsuite: "test-integrations-54"
       - integration_tests:
-          name: "Integration tests 56"
-          integration_tests_version: "56"
+          name: "Intg tests 56"
+          integration_testsuite: "test-integrations-56"
           image_tag: "ddtrace_alpine_php-5.6-debug"
       - integration_tests:
-          name: "Integration tests 70"
-          integration_tests_version: "70"
+          name: "Intg tests 70"
+          integration_testsuite: "test-integrations-70"
           image_tag: "ddtrace_php_7_0"
       - integration_tests:
-          name: "Integration tests 71"
-          integration_tests_version: "71"
+          name: "Intg tests 71"
+          integration_testsuite: "test-integrations-71"
           image_tag: "ddtrace_php_7_1"
       - integration_tests:
-          name: "Integration tests 72"
-          integration_tests_version: "72"
+          name: "Intg tests 72"
+          integration_testsuite: "test-integrations-72"
           image_tag: "ddtrace_php_7_2"
       - integration_tests:
-          name: "Integration tests 73"
-          integration_tests_version: "72" # not yet defined for 7.3
-          image_tag: "ddtrace_alpine_php-7.3"
+          name: "Intg tests 73"
+          integration_testsuite: "test-integrations-72" # not yet defined for 7.3
+          image_tag: "ddtrace_alpine_php-7.3-debug"
+      - integration_tests:
+          name: "Web tests 54"
+          image_tag: "ddtrace_alpine_php-5.4-debug"
+          integration_testsuite: "test-web-54"
+      - integration_tests:
+          name: "Web tests 56"
+          integration_testsuite: "test-web-56"
+          image_tag: "ddtrace_alpine_php-5.6-debug"
+      - integration_tests:
+          name: "Web tests 70"
+          integration_testsuite: "test-web-70"
+          image_tag: "ddtrace_php_7_0"
+      - integration_tests:
+          name: "Web tests 71"
+          integration_testsuite: "test-web-71"
+          image_tag: "ddtrace_php_7_1"
+      - integration_tests:
+          name: "Web tests 72"
+          integration_testsuite: "test-web-72"
+          image_tag: "ddtrace_php_7_2"
+      - integration_tests:
+          name: "Web tests 73"
+          integration_testsuite: "test-web-72" # not yet defined for 7.3
+          image_tag: "ddtrace_alpine_php-7.3-debug"
       - "Lint files"
       - "Static Analysis"
