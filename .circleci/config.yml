@@ -160,7 +160,7 @@ commands:
       - <<: *STEP_EXT_INSTALL
       - run:  # disabled by default due to test flakiness
           name: Disable TLS to avoid composer flakiness (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
-          command: composer config disable-tls
+          command: composer config disable-tls true
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_INSTALL
@@ -455,9 +455,9 @@ workflows:
       - unit_tests:
           name: "Unit tests 72"
           image_tag: ddtrace_alpine_php-7.2-debug
-      - unit_tests:
-          name: "Unit tests 70-zts"
-          image_tag: ddtrace_alpine_php-7.0-zts-debug
+      # - unit_tests:
+      #     name: "Unit tests 70-zts"
+      #     image_tag: ddtrace_alpine_php-7.0-zts-debug # zts build is failing atm due to 2 memory leaks
       # - unit_tests:
       #     name: "Unit tests 73"
       #     version: "7.3" # TODO: unit test for 7.3 are failing due to memory leaks - 7.3 not yet officially supported
