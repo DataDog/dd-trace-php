@@ -258,14 +258,14 @@ jobs:
 
   unit_tests:
     parameters:
-      version:
+      image_tag:
         type: string
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
     executor:
       name: with_agent
-      tag: ddtrace_alpine_php-<< parameters.version >>-debug
+      tag: << parameters.image_tag >>
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
@@ -442,19 +442,19 @@ workflows:
     jobs:
       - unit_tests:
           name: "Unit tests 54"
-          version: "5.4"
+          image_tag: ddtrace_alpine_php-5.4-debug
       - unit_tests:
           name: "Unit tests 56"
-          version: "5.6"
+          image_tag: ddtrace_alpine_php-5.6-debug
       - unit_tests:
           name: "Unit tests 70"
-          version: "7.0"
+          image_tag: ddtrace_alpine_php-7.0-debug
       - unit_tests:
           name: "Unit tests 71"
-          version: "7.1"
+          image_tag: ddtrace_alpine_php-7.1-debug
       - unit_tests:
           name: "Unit tests 72"
-          version: "7.2"
+          image_tag: ddtrace_alpine_php-7.2-debug
       # - unit_tests:
       #     name: "Unit tests 73"
       #     version: "7.3" # TODO: unit test for 7.3 are failing due to memory leaks - 7.3 not yet officially supported
