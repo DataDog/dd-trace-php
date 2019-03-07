@@ -156,9 +156,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://__i_am_not_real__.invalid')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://__i_am_not_real__.invalid/')
                 ->withExactTags([
-                    'http.url' => 'http://__i_am_not_real__.invalid',
+                    'http.url' => 'http://__i_am_not_real__.invalid/',
                     'http.status_code' => '0',
                     'error.msg' => 'Could not resolve host: __i_am_not_real__.invalid',
                     'error.type' => 'curl error',

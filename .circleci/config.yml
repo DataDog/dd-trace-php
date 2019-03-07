@@ -209,14 +209,43 @@ commands:
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_INSTALL
-      - run:
-          name: Optionally disable tls. Mainly for php < 5.6 (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
-          command: <<# disable_tls >> composer config disable-tls <</ disable_tls >>
+      - when:
+          condition: << disable_tls >>
+          steps:
+            - run:
+                when: << disable_tls >>
+                name: Disable tls for php < 5.6 (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
+                command: composer config disable-tls
       - <<: *STEP_COMPOSER_CACHE_SAVE
 
+executors:
+  with_agent:
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+    parameters:
+      tag:
+        type: string
+    docker:
+      - image: datadog/docker-library:<< parameters.tag >>
+      - <<: *IMAGE_DOCKER_DD_AGENT
+  with_integrations:
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+    parameters:
+      tag:
+        type: string
+    docker:
+      - image: datadog/docker-library:<< parameters.tag >>
+      - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
+      - <<: *IMAGE_DOCKER_HTTPBIN
+      - <<: *IMAGE_DOCKER_REDIS
+      - <<: *IMAGE_DOCKER_MEMCHACED
+      - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_MONGODB
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
 
 jobs:
-
   "Lint files": &lint_files
     docker:
       - image: circleci/php:7.2-cli-node-browsers
@@ -277,63 +306,52 @@ jobs:
       - run:
           name: Running phpstan
           command: PATH=$PATH:~/.composer/vendor/bin composer static-analyze
-
-  "php-5.4":
+  unit_tests:
+    parameters:
+      version:
+        type: string
+      disable_composer_tls:
+        type: boolean
+        default: false
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
-    docker:
-      - image: datadog/docker-library:ddtrace_alpine_php-5.4-debug
-      - <<: *IMAGE_DOCKER_DD_AGENT
-      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
-      - <<: *IMAGE_DOCKER_HTTPBIN
-      - <<: *IMAGE_DOCKER_REDIS
-      - <<: *IMAGE_DOCKER_MEMCHACED
-      - <<: *IMAGE_DOCKER_MYSQL
-      - <<: *IMAGE_DOCKER_MONGODB
-      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+    executor:
+      name: with_agent
+      tag: ddtrace_alpine_php-<< parameters.version >>-debug
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache:
-          disable_tls: true
+          disable_tls: << parameters.disable_composer_tls >>
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_RUN_EXTENSION_TESTS
-      - <<: *STEP_WAIT_AGENT
-      - <<: *STEP_WAIT_MYSQL
-      - <<: *STEP_WAIT_MONGODB
-      - <<: *STEP_WAIT_REQUEST_REPLAYER
       - <<: *STEP_RUN_UNIT_TESTS
-      - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
-      - <<: *STEP_RUN_INTEGRATION_TESTS
-      - <<: *STEP_RUN_INTEGRATIONS_TESTS_54
-      - <<: *STEP_RUN_WEB_TESTS_54
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
-  "php-5.6":
+  integration_tests:
     working_directory: ~/datadog
-    environment:
-      DDAGENT_HOSTNAME: 127.0.0.1
-    docker:
-      - image: datadog/docker-library:ddtrace_alpine_php-5.6-debug
-      - <<: *IMAGE_DOCKER_DD_AGENT
-      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
-      - <<: *IMAGE_DOCKER_HTTPBIN
-      - <<: *IMAGE_DOCKER_REDIS
-      - <<: *IMAGE_DOCKER_MEMCHACED
-      - <<: *IMAGE_DOCKER_MYSQL
-      - <<: *IMAGE_DOCKER_MONGODB
-      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+    parameters:
+      image_tag:
+        type: string
+      integration_tests_version:
+        type: string
+      disable_composer_tls:
+        type: boolean
+        default: false
+    executor:
+      name: with_integrations
+      tag: << parameters.image_tag >>
     steps:
       - checkout
       - <<: *STEP_ATTACH_WORKSPACE
-      - prepare_extension_and_composer_with_cache
+      - prepare_extension_and_composer_with_cache:
+          disable_tls: << parameters.disable_composer_tls >>
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_RUN_EXTENSION_TESTS
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_MONGODB
@@ -341,115 +359,20 @@ jobs:
       - <<: *STEP_RUN_UNIT_TESTS
       - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
       - <<: *STEP_RUN_INTEGRATION_TESTS
-      - <<: *STEP_RUN_INTEGRATIONS_TESTS_56
-      - <<: *STEP_RUN_WEB_TESTS_56
+      - run:
+          name: Run integrsation test specific to << parameters.integration_tests_version >>
+          command: composer test-integrations-<< parameters.integration_tests_version >>
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
-  "php-7.0":
-    working_directory: ~/datadog
-    environment:
-      DDAGENT_HOSTNAME: 127.0.0.1
-    docker:
-      - image: datadog/docker-library:ddtrace_alpine_php-7.0-debug
-      - <<: *IMAGE_DOCKER_DD_AGENT
-      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
-      - <<: *IMAGE_DOCKER_HTTPBIN
-      - <<: *IMAGE_DOCKER_REDIS
-      - <<: *IMAGE_DOCKER_MEMCHACED
-      - <<: *IMAGE_DOCKER_MYSQL
-      - <<: *IMAGE_DOCKER_MONGODB
-      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
-    steps:
-      - checkout
-      - <<: *STEP_ATTACH_WORKSPACE
-      - prepare_extension_and_composer_with_cache
-      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-      - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_RUN_EXTENSION_TESTS
-      - <<: *STEP_WAIT_AGENT
-      - <<: *STEP_WAIT_MYSQL
-      - <<: *STEP_WAIT_MONGODB
-      - <<: *STEP_WAIT_REQUEST_REPLAYER
-      - <<: *STEP_RUN_UNIT_TESTS
-      - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
-      - <<: *STEP_RUN_INTEGRATION_TESTS
-      - <<: *STEP_RUN_INTEGRATIONS_TESTS_70
-      - <<: *STEP_RUN_WEB_TESTS_70
-      - <<: *STEP_PERSIST_TO_WORKSPACE
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
+      # command: composer test-web-54
+      # command: composer test-web-56
+      # command: composer test-web-70
+      # command: composer test-web-71
+      # command: composer test-web-72
 
-  "php-7.1":
-    working_directory: ~/datadog
-    environment:
-      DDAGENT_HOSTNAME: 127.0.0.1
-    docker:
-      - image: datadog/docker-library:ddtrace_alpine_php-7.1-debug
-      - <<: *IMAGE_DOCKER_DD_AGENT
-      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
-      - <<: *IMAGE_DOCKER_HTTPBIN
-      - <<: *IMAGE_DOCKER_REDIS
-      - <<: *IMAGE_DOCKER_MEMCHACED
-      - <<: *IMAGE_DOCKER_MYSQL
-      - <<: *IMAGE_DOCKER_MONGODB
-      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
-    steps:
-      - checkout
-      - <<: *STEP_ATTACH_WORKSPACE
-      - prepare_extension_and_composer_with_cache
-      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-      - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_RUN_EXTENSION_TESTS
-      - <<: *STEP_WAIT_AGENT
-      - <<: *STEP_WAIT_MYSQL
-      - <<: *STEP_WAIT_MONGODB
-      - <<: *STEP_WAIT_REQUEST_REPLAYER
-      - <<: *STEP_RUN_UNIT_TESTS
-      - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
-      - <<: *STEP_RUN_INTEGRATION_TESTS
-      - <<: *STEP_RUN_INTEGRATIONS_TESTS_71
-      - <<: *STEP_RUN_WEB_TESTS_71
-      - <<: *STEP_PERSIST_TO_WORKSPACE
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
-
-  "php-7.2":
-    working_directory: ~/datadog
-    environment:
-      DDAGENT_HOSTNAME: 127.0.0.1
-    docker:
-      - image: datadog/docker-library:ddtrace_alpine_php-7.2-debug
-      - <<: *IMAGE_DOCKER_DD_AGENT
-      - <<: *IMAGE_DOCKER_ELASTICSEARCH2
-      - <<: *IMAGE_DOCKER_HTTPBIN
-      - <<: *IMAGE_DOCKER_REDIS
-      - <<: *IMAGE_DOCKER_MEMCHACED
-      - <<: *IMAGE_DOCKER_MYSQL
-      - <<: *IMAGE_DOCKER_MONGODB
-      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
-    steps:
-      - checkout
-      - <<: *STEP_ATTACH_WORKSPACE
-      - prepare_extension_and_composer_with_cache
-      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-      - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_RUN_EXTENSION_TESTS
-      - <<: *STEP_WAIT_AGENT
-      - <<: *STEP_WAIT_MYSQL
-      - <<: *STEP_WAIT_MONGODB
-      - <<: *STEP_WAIT_REQUEST_REPLAYER
-      - <<: *STEP_RUN_UNIT_TESTS
-      - <<: *STEP_RUN_AUTO_INSTRUMENTATION_TESTS
-      - <<: *STEP_RUN_INTEGRATION_TESTS
-      - <<: *STEP_RUN_INTEGRATIONS_TESTS_72
-      - <<: *STEP_RUN_WEB_TESTS_72
-      - <<: *STEP_PERSIST_TO_WORKSPACE
-      - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
-
-  "5.4 20100412": &5_4_ARTIFACT_BUILD
+  "PHP 54 20100412": &5_4_ARTIFACT_BUILD
     working_directory: ~/datadog
     docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_5_4' ]
     environment:
@@ -471,44 +394,44 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
-  "5.6 20131106": &ARTIFACT_BUILD
+  "PHP 56 20131106": &ARTIFACT_BUILD
     <<: *5_4_ARTIFACT_BUILD
     docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_56' ]
     environment: { CFLAGS: "-O2 -Wall -Wextra" }
 
-  "7.0 20151012":
+  "PHP 70 20151012":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_70' ]
 
-  "7.1 20160303":
+  "PHP 71 20160303":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_71' ]
 
-  "7.2 20170718":
+  "PHP 72 20170718":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_72' ]
 
-  "7.3 20180731":
+  "PHP 73 20180731":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_73' ]
 
-  "5.6 zts 20131106-zts":
+  "PHP 56 zts 20131106-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:5.6-zts' ]
 
-  "7.0 zts 20151012-zts":
+  "PHP 70 zts 20151012-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.0-zts' ]
 
-  "7.1 zts 20160303-zts":
+  "PHP 71 zts 20160303-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.1-zts' ]
 
-  "7.2 zts 20170718-zts":
+  "PHP 72 zts 20170718-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.2-zts' ]
 
-  "7.3 zts 20180731-zts":
+  "PHP 73 zts 20180731-zts":
     <<: *ARTIFACT_BUILD
     docker: [ image: 'circleci/php:7.3-zts' ]
 
@@ -547,45 +470,84 @@ workflows:
   version: 2
   build_packages:
     jobs:
-      - "5.4 20100412": &BUILD_PACKAGE_FORKFLOW
+      - "PHP 54 20100412": &BUILD_PACKAGE_FORKFLOW
           filters:
             tags:
               only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
             branches:
               # Always build on master
               ignore: /^(?!master).*/
-      - "5.6 20131106": *BUILD_PACKAGE_FORKFLOW
-      - "7.0 20151012": *BUILD_PACKAGE_FORKFLOW
-      - "7.1 20160303": *BUILD_PACKAGE_FORKFLOW
-      - "7.2 20170718": *BUILD_PACKAGE_FORKFLOW
-      - "7.3 20180731": *BUILD_PACKAGE_FORKFLOW
-      - "5.6 zts 20131106-zts": *BUILD_PACKAGE_FORKFLOW
-      - "7.0 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
-      - "7.1 zts 20160303-zts": *BUILD_PACKAGE_FORKFLOW
-      - "7.2 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
-      - "7.3 zts 20180731-zts": *BUILD_PACKAGE_FORKFLOW
+      - "PHP 56 20131106": *BUILD_PACKAGE_FORKFLOW
+      - "PHP 70 20151012": *BUILD_PACKAGE_FORKFLOW
+      - "PHP 71 20160303": *BUILD_PACKAGE_FORKFLOW
+      - "PHP 72 20170718": *BUILD_PACKAGE_FORKFLOW
+      - "PHP 73 20180731": *BUILD_PACKAGE_FORKFLOW
+      - "PHP 56 zts 20131106-zts": *BUILD_PACKAGE_FORKFLOW
+      - "PHP 70 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
+      - "PHP 71 zts 20160303-zts": *BUILD_PACKAGE_FORKFLOW
+      - "PHP 72 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
+      - "PHP 73 zts 20180731-zts": *BUILD_PACKAGE_FORKFLOW
       - "package extension":
           requires:
-            - "5.4 20100412"
-            - "5.6 20131106"
-            - "7.0 20151012"
-            - "7.1 20160303"
-            - "7.2 20170718"
-            - "7.3 20180731"
-            - "5.6 zts 20131106-zts"
-            - "7.0 zts 20151012-zts"
-            - "7.1 zts 20160303-zts"
-            - "7.2 zts 20170718-zts"
-            - "7.3 zts 20180731-zts"
+            - "PHP 54 20100412"
+            - "PHP 56 20131106"
+            - "PHP 70 20151012"
+            - "PHP 71 20160303"
+            - "PHP 72 20170718"
+            - "PHP 73 20180731"
+            - "PHP 56 zts 20131106-zts"
+            - "PHP 70 zts 20151012-zts"
+            - "PHP 71 zts 20160303-zts"
+            - "PHP 72 zts 20170718-zts"
+            - "PHP 73 zts 20180731-zts"
       - "package verification":
           requires:
             - "package extension"
   build:
     jobs:
+      - unit_tests:
+          name: "Unit tests 54"
+          version: "5.4"
+          disable_composer_tls: true
+      - unit_tests:
+          name: "Unit tests 56"
+          version: "5.6"
+      - unit_tests:
+          name: "Unit tests 70"
+          version: "7.0"
+      - unit_tests:
+          name: "Unit tests 71"
+          version: "7.1"
+      - unit_tests:
+          name: "Unit tests 72"
+          version: "7.2"
+      - unit_tests:
+          name: "Unit tests 73"
+          version: "7.3"
+      - integration_tests:
+          name: "Integration tests 54"
+          image_tag: "ddtrace_alpine_php-5.4-debug"
+          integration_tests_version: "54"
+          disable_composer_tls: true
+      - integration_tests:
+          name: "Integration tests 56"
+          integration_tests_version: "56"
+          image_tag: "ddtrace_alpine_php-5.6-debug"
+      - integration_tests:
+          name: "Integration tests 70"
+          integration_tests_version: "70"
+          image_tag: "ddtrace_php_7_0"
+      - integration_tests:
+          name: "Integration tests 71"
+          integration_tests_version: "71"
+          image_tag: "ddtrace_php_7_1"
+      - integration_tests:
+          name: "Integration tests 72"
+          integration_tests_version: "72"
+          image_tag: "ddtrace_php_7_2"
+      - integration_tests:
+          name: "Integration tests 73"
+          integration_tests_version: "72" # not yet defined for 7.3
+          image_tag: "ddtrace_alpine_php-7.3"
       - "Lint files"
       - "Static Analysis"
-      - "php-5.4"
-      - "php-5.6"
-      - "php-7.0"
-      - "php-7.1"
-      - "php-7.2"
