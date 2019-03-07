@@ -489,7 +489,7 @@ workflows:
       - integration_tests:
           name: "Web tests 56"
           integration_testsuite: "test-web-56"
-          image_tag: "ddtrace_alpine_php-5.6-debug"
+          image_tag: "ddtrace_alpine_php-5.6"
       - integration_tests:
           name: "Web tests 70"
           integration_testsuite: "test-web-70"
@@ -501,7 +501,7 @@ workflows:
       - integration_tests:
           name: "Web tests 72"
           integration_testsuite: "test-web-72"
-          image_tag: "ddtrace_php-7_2"
+          image_tag: "ddtrace_php_7_2"
       # - integration_tests:
       #     name: "Web tests 73"
       #     integration_testsuite: "test-web-72" # not yet defined for 7.3
