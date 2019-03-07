@@ -455,6 +455,9 @@ workflows:
       - unit_tests:
           name: "Unit tests 72"
           image_tag: ddtrace_alpine_php-7.2-debug
+      - unit_tests:
+          name: "Unit tests 70-zts"
+          image_tag: ddtrace_alpine_php-7.0-zts-debug
       # - unit_tests:
       #     name: "Unit tests 73"
       #     version: "7.3" # TODO: unit test for 7.3 are failing due to memory leaks - 7.3 not yet officially supported
@@ -489,7 +492,7 @@ workflows:
       - integration_tests:
           name: "Web tests 56"
           integration_testsuite: "test-web-56"
-          image_tag: "ddtrace_alpine_php-5.6"
+          image_tag: "ddtrace_php_5_6"
       - integration_tests:
           name: "Web tests 70"
           integration_testsuite: "test-web-70"
