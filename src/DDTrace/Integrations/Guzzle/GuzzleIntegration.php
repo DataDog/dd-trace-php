@@ -86,9 +86,9 @@ final class GuzzleIntegration
     private function setUrlTag(Span $span, $request)
     {
         if (is_a($request, '\GuzzleHttp\Message\RequestInterface')) {
-            $span->setTag(Tag::HTTP_URL, Urls::sanitize($request->getUrl()));
+            $span->setTag(Tag::HTTP_URL, $request->getUrl());
         } elseif (is_a($request, '\Psr\Http\Message\RequestInterface')) {
-            $span->setTag(Tag::HTTP_URL, Urls::sanitize($request->getUri()));
+            $span->setTag(Tag::HTTP_URL, $request->getUri());
         }
     }
 
@@ -99,12 +99,12 @@ final class GuzzleIntegration
     private function setStatusCodeTag(Span $span, $response)
     {
         if (is_a($response, '\GuzzleHttp\Message\ResponseInterface')) {
-            $span->setTag(Tag::HTTP_STATUS_CODE, Urls::sanitize($response->getStatusCode()), true);
+            $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
         } elseif (is_a($response, '\Psr\Http\Message\ResponseInterface')) {
-            $span->setTag(Tag::HTTP_STATUS_CODE, Urls::sanitize($response->getStatusCode()), true);
+            $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
         } elseif (is_a($response, '\GuzzleHttp\Promise\Promise')) {
             $response->then(function ($response) use ($span) {
-                $span->setTag(Tag::HTTP_STATUS_CODE, Urls::sanitize($response->getStatusCode()), true);
+                $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
             });
         }
     }
