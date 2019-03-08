@@ -5,6 +5,7 @@ namespace DDTrace;
 use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Exceptions\InvalidSpanArgument;
+use DDTrace\Http\Urls;
 use Exception;
 use InvalidArgumentException;
 use Throwable;
@@ -201,6 +202,10 @@ final class Span implements SpanInterface
         if ($key === Tag::SPAN_TYPE) {
             $this->type = $value;
             return;
+        }
+
+        if ($key === Tag::HTTP_URL) {
+            $value = Urls::sanitize((string)$value);
         }
 
         $this->tags[$key] = (string)$value;

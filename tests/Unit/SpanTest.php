@@ -191,6 +191,15 @@ final class SpanTest extends Framework\TestCase
         $span->setTag(1, self::TAG_VALUE);
     }
 
+    public function testHttpUrlIsSanitizedInTag()
+    {
+        $span = $this->createSpan();
+        $url = 'https://example.com/some/path/index.php?some=param&other=param';
+
+        $span->setTag(Tag::HTTP_URL, $url);
+        $this->assertSame('https://example.com/some/path/index.php', $span->getAllTags()[Tag::HTTP_URL]);
+    }
+
     private function createSpan()
     {
         $context = SpanContext::createAsRoot();
