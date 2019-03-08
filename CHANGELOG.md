@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - Resource name on Symfony 2.x requests served through controllers #341
+- Sanitize url in web spans #344
 
 ## [0.15.0]
 
