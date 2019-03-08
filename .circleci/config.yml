@@ -41,7 +41,7 @@ aliases:
       - MYSQL_DATABASE=test
 
   - &IMAGE_DOCKER_MONGODB
-    image: circleci/mongo:4.0
+    image: mongo:4
     name: mongodb_integration
     environment:
       - MONGO_INITDB_ROOT_USERNAME=test
