@@ -16,7 +16,7 @@ use DDTrace\Util\Versions;
 final class CurlIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';
-    const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid';
+    const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
 
     public static function setUpBeforeClass()
     {

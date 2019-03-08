@@ -43,19 +43,22 @@ x-aliases:
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
 
 services:
-  '5.4-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-5.4' }
+  '5.4-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.4-debug' }
   '5.4': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_5_4' }
   '5.6': { <<: *base_56_service, image: 'datadog/docker-library:ddtrace_php_5_6' }
-  '5.6-zts': { <<: *base_56_service, image: 'circleci/php:5.6-zts' }
-  '5.6-debug': { <<: *base_56_service, build: 'dockerfiles/debug_php-5.6' }
+  '5.6-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.6-debug' }
+  '5.6-zts': { <<: *base_56_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.6-zts' }
   '7.0': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_0' }
+  '7.0-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.0-debug' }
   '7.1': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_1' }
+  '7.1-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-debug' }
   'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }
   'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }
   '7.2': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_2' }
-  '7.2-debug': { <<: *base_php_service, build: 'dockerfiles/debug_php-7.2' }
+  '7.2-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-debug' }
   '7.1-centos-compiled': { <<: *base_php_service, build: 'dockerfiles/verify_packages/centos7-compiled' }
-
+  '7.3-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-debug' }
+  '7.3-zts-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-zts-debug' }
   'fpm': { <<: *base_php_service, image: 'circleci/ruby:2.5', depends_on: [] }
 
   mysql_integration:
