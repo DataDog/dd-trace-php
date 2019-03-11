@@ -20,6 +20,12 @@ Link: https://laravel.com/docs/4.2/quick#installation
 
     $ composer create-project laravel/laravel Version_4_2 4.2.*
 
+### Laravel 5.8
+
+Link: https://laravel.com/docs/5.8/installation
+
+    $ composer create-project --prefer-dist laravel/laravel Version_5_8 5.8.*
+
 ### Laravel 5.7
 
 Link: https://laravel.com/docs/5.7/installation
