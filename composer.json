@@ -196,6 +196,8 @@
         "test-web-56": [
             "@laravel-42-update",
             "@laravel-42-test",
+            "@symfony-23-update",
+            "@symfony-23-test",
             "@symfony-28-update",
             "@symfony-28-test",
             "@symfony-33-update",
@@ -209,6 +211,8 @@
         "test-web-70": [
             "@laravel-42-update",
             "@laravel-42-test",
+            "@symfony-23-update",
+            "@symfony-23-test",
             "@symfony-28-update",
             "@symfony-28-test",
             "@symfony-33-update",
@@ -226,6 +230,8 @@
             "@laravel-57-test",
             "@laravel-58-update",
             "@laravel-58-test",
+            "@symfony-23-update",
+            "@symfony-23-test",
             "@symfony-28-update",
             "@symfony-28-test",
             "@symfony-33-update",
@@ -245,6 +251,8 @@
             "@laravel-57-test",
             "@laravel-58-update",
             "@laravel-58-test",
+            "@symfony-23-update",
+            "@symfony-23-test",
             "@symfony-28-update",
             "@symfony-28-test",
             "@symfony-33-update",
@@ -271,6 +279,11 @@
 
         "laravel-58-update": "composer --working-dir=tests/Frameworks/Laravel/Version_5_8 update",
         "laravel-58-test": "@composer test -- tests/Integrations/Laravel/V5_8/CommonScenariosTest.php",
+
+        "symfony-23-update": [
+            "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_2_3 update"
+        ],
+        "symfony-23-test": "@composer test -- tests/Integrations/Symfony/V2_3",
 
         "symfony-28-update": [
             "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_2_8 update"
