@@ -3,7 +3,31 @@
 
 #include <Zend/zend.h>
 #include <Zend/zend_compile.h>
+#include <php/ext/pcre/php_pcre.h>
 #include <php_main.h>
+
+int dd_no_blacklisted_modules(const char *blacklist_regexp) {
+    zend_module_entry *module;
+    pcre *pce;
+    int re_options, rv = 1;
+    pcre_extra *re_extra;
+    zend_string *pattern;
+
+    pattern = zend_string_init(blacklist_regexp, strlen(blacklist_regexp), 0);
+    if ((pce = pcre_get_compiled_regex(pattern, &re_extra, &re_options)) != NULL) {
+        ZEND_HASH_FOREACH_PTR(&module_registry, module) {
+            if (!pcre_exec(pce, re_extra, module->name, strlen(module->name), 0, re_options, NULL, 0)) {
+                php_error(E_WARNING, "Found blacklisted module: %s, disabling conflicting functionality", module->name);
+                rv = 0;
+                break;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+
+    zend_string_release(pattern);
+    return rv;
+}
 
 #if PHP_VERSION_ID < 70000
 int dd_execute_php_file(const char *filename TSRMLS_DC) {
