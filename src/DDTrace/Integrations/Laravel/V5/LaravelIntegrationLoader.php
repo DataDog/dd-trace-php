@@ -10,9 +10,6 @@ use DDTrace\Scope;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
-use Illuminate\Foundation\Application;
-use Illuminate\Foundation\Http\Events\RequestHandled;
-use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Route;
 
 class LaravelIntegrationLoader
