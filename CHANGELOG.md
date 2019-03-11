@@ -3,8 +3,11 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.15.1]
+
 ### Added
 - Symfony 2.3 web tests for resource name #349
+- Update images and enable leak detection, split tests in CI to Unit, Integration and Web #299
 
 ### Fixed
 - Resource name on Symfony 2.x requests served through controllers #341
@@ -347,7 +350,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.0.15.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.15.1...HEAD
+[0.15.1]: https://github.com/DataDog/dd-trace-php/compare/0.15.0...0.15.1
 [0.15.0]: https://github.com/DataDog/dd-trace-php/compare/0.14.2...0.15.0
 [0.14.2]: https://github.com/DataDog/dd-trace-php/compare/0.14.1...0.14.2
 [0.14.1]: https://github.com/DataDog/dd-trace-php/compare/0.14.0...0.14.1
