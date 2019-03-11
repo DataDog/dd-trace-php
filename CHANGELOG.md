@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Added
 - Symfony 2.3 web tests for resource name #349
+- Update images and enable leak detection, split tests in CI to Unit, Integration and Web #299
 
 ### Fixed
 - Resource name on Symfony 2.x requests served through controllers #341
