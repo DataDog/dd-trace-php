@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Disable request_init_hook functionality in presence of blacklisted modules #345
+
 ## [0.15.1]
 
 ### Added

@@ -453,84 +453,84 @@ workflows:
             - "PHP 71 zts 20160303-zts"
             - "PHP 72 zts 20170718-zts"
             - "PHP 73 zts 20180731-zts"
-      # - "package verification":
-      #     requires:
-      #       - "package extension"
+      - "package verification":
+          requires:
+            - "package extension"
       - verify_package:
           requires: [ "package extension" ]
           name: "webdevops/php:7.1"
           docker_image: webdevops/php:7.1
           package_type: deb
-  # build:
-  #   jobs:
-  #     - unit_tests:
-  #         name: "PHP 54 Unit tests"
-  #         image_tag: ddtrace_alpine_php-5.4-debug
-  #     - unit_tests:
-  #         name: "PHP 56 Unit tests"
-  #         image_tag: ddtrace_alpine_php-5.6-debug
-  #     - unit_tests:
-  #         name: "PHP 70 Unit tests"
-  #         image_tag: ddtrace_alpine_php-7.0-debug
-  #     - unit_tests:
-  #         name: "PHP 71 Unit tests"
-  #         image_tag: ddtrace_alpine_php-7.1-debug
-  #     - unit_tests:
-  #         name: "PHP 72 Unit tests"
-  #         image_tag: ddtrace_alpine_php-7.2-debug
-  #     # - unit_tests:
-  #     #     name: "PHP 70 Unit tests-zts"
-  #     #     image_tag: ddtrace_alpine_php-7.0-zts-debug # zts build is failing atm due to 2 memory leaks
-  #     # - unit_tests:
-  #     #     name: "PHP 73 Unit tests"
-  #     #     version: "7.3" # TODO: unit test for 7.3 are failing due to memory leaks - 7.3 not yet officially supported
-  #     - integration_tests:
-  #         name: "PHP 54 Integration tests"
-  #         image_tag: "ddtrace_alpine_php-5.4-debug"
-  #         integration_testsuite: "test-integrations-54"
-  #     - integration_tests:
-  #         name: "PHP 56 Integration tests"
-  #         integration_testsuite: "test-integrations-56"
-  #         image_tag: "ddtrace_alpine_php-5.6-debug"
-  #     - integration_tests:
-  #         name: "PHP 70 Integration tests"
-  #         integration_testsuite: "test-integrations-70"
-  #         image_tag: "ddtrace_alpine_php-7.0-debug"
-  #     - integration_tests:
-  #         name: "PHP 71 Integration tests"
-  #         integration_testsuite: "test-integrations-71"
-  #         image_tag: "ddtrace_alpine_php-7.1-debug"
-  #     - integration_tests:
-  #         name: "PHP 72 Integration tests"
-  #         integration_testsuite: "test-integrations-72"
-  #         image_tag: "ddtrace_alpine_php-7.2-debug"
-  #     # - integration_tests:
-  #     #     name: "PHP 73 Integration tests"
-  #     #     integration_testsuite: "test-integrations-72" # not yet defined for 7.3
-  #     #     image_tag: "ddtrace_alpine_php-7.3-debug" # image is missing proper mcrypt support - to be investigated
-  #     - integration_tests:
-  #         name: "PHP 54 Web integration tests"
-  #         image_tag: "ddtrace_alpine_php-5.4-debug"
-  #         integration_testsuite: "test-web-54"
-  #     - integration_tests:
-  #         name: "PHP 56 Web integration tests"
-  #         integration_testsuite: "test-web-56"
-  #         image_tag: "ddtrace_php_5_6"
-  #     - integration_tests:
-  #         name: "PHP 70 Web integration tests"
-  #         integration_testsuite: "test-web-70"
-  #         image_tag: "ddtrace_alpine_php-7.0-debug"
-  #     - integration_tests:
-  #         name: "PHP 71 Web integration tests"
-  #         integration_testsuite: "test-web-71"
-  #         image_tag: "ddtrace_alpine_php-7.1-debug"
-  #     - integration_tests:
-  #         name: "PHP 72 Web integration tests"
-  #         integration_testsuite: "test-web-72"
-  #         image_tag: "ddtrace_php_7_2"
-  #     # - integration_tests:
-  #     #     name: "PHP 73 Web integration tests"
-  #     #     integration_testsuite: "test-web-72" # not yet defined for 7.3
-  #     #     image_tag: "ddtrace_alpine_php-7.3-debug"
-  #     - "Lint files"
-  #     - "Static Analysis"
+  build:
+    jobs:
+      - unit_tests:
+          name: "PHP 54 Unit tests"
+          image_tag: ddtrace_alpine_php-5.4-debug
+      - unit_tests:
+          name: "PHP 56 Unit tests"
+          image_tag: ddtrace_alpine_php-5.6-debug
+      - unit_tests:
+          name: "PHP 70 Unit tests"
+          image_tag: ddtrace_alpine_php-7.0-debug
+      - unit_tests:
+          name: "PHP 71 Unit tests"
+          image_tag: ddtrace_alpine_php-7.1-debug
+      - unit_tests:
+          name: "PHP 72 Unit tests"
+          image_tag: ddtrace_alpine_php-7.2-debug
+      # - unit_tests:
+      #     name: "PHP 70 Unit tests-zts"
+      #     image_tag: ddtrace_alpine_php-7.0-zts-debug # zts build is failing atm due to 2 memory leaks
+      # - unit_tests:
+      #     name: "PHP 73 Unit tests"
+      #     version: "7.3" # TODO: unit test for 7.3 are failing due to memory leaks - 7.3 not yet officially supported
+      - integration_tests:
+          name: "PHP 54 Integration tests"
+          image_tag: "ddtrace_alpine_php-5.4-debug"
+          integration_testsuite: "test-integrations-54"
+      - integration_tests:
+          name: "PHP 56 Integration tests"
+          integration_testsuite: "test-integrations-56"
+          image_tag: "ddtrace_alpine_php-5.6-debug"
+      - integration_tests:
+          name: "PHP 70 Integration tests"
+          integration_testsuite: "test-integrations-70"
+          image_tag: "ddtrace_alpine_php-7.0-debug"
+      - integration_tests:
+          name: "PHP 71 Integration tests"
+          integration_testsuite: "test-integrations-71"
+          image_tag: "ddtrace_alpine_php-7.1-debug"
+      - integration_tests:
+          name: "PHP 72 Integration tests"
+          integration_testsuite: "test-integrations-72"
+          image_tag: "ddtrace_alpine_php-7.2-debug"
+      # - integration_tests:
+      #     name: "PHP 73 Integration tests"
+      #     integration_testsuite: "test-integrations-72" # not yet defined for 7.3
+      #     image_tag: "ddtrace_alpine_php-7.3-debug" # image is missing proper mcrypt support - to be investigated
+      - integration_tests:
+          name: "PHP 54 Web integration tests"
+          image_tag: "ddtrace_alpine_php-5.4-debug"
+          integration_testsuite: "test-web-54"
+      - integration_tests:
+          name: "PHP 56 Web integration tests"
+          integration_testsuite: "test-web-56"
+          image_tag: "ddtrace_php_5_6"
+      - integration_tests:
+          name: "PHP 70 Web integration tests"
+          integration_testsuite: "test-web-70"
+          image_tag: "ddtrace_alpine_php-7.0-debug"
+      - integration_tests:
+          name: "PHP 71 Web integration tests"
+          integration_testsuite: "test-web-71"
+          image_tag: "ddtrace_alpine_php-7.1-debug"
+      - integration_tests:
+          name: "PHP 72 Web integration tests"
+          integration_testsuite: "test-web-72"
+          image_tag: "ddtrace_php_7_2"
+      # - integration_tests:
+      #     name: "PHP 73 Web integration tests"
+      #     integration_testsuite: "test-web-72" # not yet defined for 7.3
+      #     image_tag: "ddtrace_alpine_php-7.3-debug"
+      - "Lint files"
+      - "Static Analysis"
