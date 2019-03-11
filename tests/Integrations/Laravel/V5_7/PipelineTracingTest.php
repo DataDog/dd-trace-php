@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laravel\V5;
+namespace DDTrace\Tests\Integrations\Laravel\V5_7;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;

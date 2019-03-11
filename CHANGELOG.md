@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file - [read more
 ### Fixed
 - Resource name on Symfony 2.x requests served through controllers #341
 - Sanitize url in web spans #344
+- Laravel 5.8 compatibility #351
 
 ## [0.15.0]
 

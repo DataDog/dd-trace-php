@@ -10,9 +10,6 @@ use DDTrace\Scope;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
-use Illuminate\Foundation\Application;
-use Illuminate\Foundation\Http\Events\RequestHandled;
-use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Route;
 
 class LaravelIntegrationLoader
@@ -33,41 +30,34 @@ class LaravelIntegrationLoader
         $kernelClass = null;
         $self = $this;
 
-        dd_trace('Illuminate\Foundation\Application', 'bind', function () use (&$kernelClass, $self) {
-
+        dd_trace('Illuminate\Routing\Events\RouteMatched', '__construct', function () use ($self) {
             $args = func_get_args();
-            /** @var Application $laravelApp */
-            $laravelApp = $this;
-            $result = call_user_func_array([$this, 'bind'], $args);
 
-            $laravelApp['events']->listen(
-                'Illuminate\Routing\Events\RouteMatched',
-                function (RouteMatched $event) use ($self) {
-                    $span = $self->rootScope->getSpan();
-                    $span->setTag(
-                        Tag::RESOURCE_NAME,
-                        $event->route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
-                    );
-                    $span->setTag('laravel.route.name', Route::currentRouteName());
-                    $span->setTag('laravel.route.action', $event->route->getActionName());
-                    $span->setTag('http.url', $event->request->url());
-                    $span->setTag('http.method', $event->request->method());
-                }
+            list($route, $request) = $args;
+            $span = $self->rootScope->getSpan();
+            $span->setTag(
+                Tag::RESOURCE_NAME,
+                $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
             );
+            $span->setTag('laravel.route.name', Route::currentRouteName());
+            $span->setTag('laravel.route.action', $route->getActionName());
+            $span->setTag('http.url', $request->url());
+            $span->setTag('http.method', $request->method());
 
-            $laravelApp['events']->listen(
-                'Illuminate\Foundation\Http\Events\RequestHandled',
-                function (RequestHandled $event) use ($self) {
-                    $span = $self->rootScope->getSpan();
-                    try {
-                        $user = auth()->user()->id;
-                        $span->setTag('laravel.user', strlen($user) ? $user : '-');
-                    } catch (\Exception $e) {
-                    }
-                }
-            );
+            return call_user_func_array([$this, '__construct'], $args);
+        });
 
-            return $result;
+        dd_trace('Illuminate\Foundation\Http\Events\RequestHandled', '__construct', function () use ($self) {
+            $args = func_get_args();
+
+            $span = $self->rootScope->getSpan();
+            try {
+                $user = auth()->user()->id;
+                $span->setTag('laravel.user', strlen($user) ? $user : '-');
+            } catch (\Exception $e) {
+            }
+
+            return call_user_func_array([$this, '__construct'], $args);
         });
 
         dd_trace('Illuminate\Foundation\ProviderRepository', 'load', function (array $providers) use ($self) {
