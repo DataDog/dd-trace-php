@@ -50,10 +50,15 @@ void ddtrace_install_backtrace_handler(TSRMLS_D) {
         handler_installed = 1;
     }
 }
-#else
-void ddtrace_install_backtrace_handler(TSRMLS_D) {
+#else //defined(__GLIBC__) || defined(__APPLE__)
 #ifdef ZTS
+void ddtrace_install_backtrace_handler(TSRMLS_D) {
     UNUSED(TSRML_C);
-#endif  // ZTS
+    // NOOP
 }
+#else //ZTS
+void ddtrace_install_backtrace_handler() {
+    // NOOP
+}
+#endif  // ZTS
 #endif  // GLIBC
