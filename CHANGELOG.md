@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.15.1]
+
 ### Added
 - Symfony 2.3 web tests for resource name #349
 - Update images and enable leak detection, split tests in CI to Unit, Integration and Web #299
