@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Symfony\V2_8;
+namespace DDTrace\Tests\Integrations\Symfony\V2_3;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
@@ -10,7 +10,7 @@ final class RouteNameTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_2_8/web/app.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_2_3/web/app.php';
     }
 
     /**
