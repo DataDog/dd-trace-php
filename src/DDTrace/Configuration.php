@@ -238,7 +238,7 @@ class Configuration extends AbstractConfiguration
     {
         return $this->retrieveOrCreateIntegrationConfiguration(
             PDOIntegration::NAME,
-            'DDTrace\Integrations\Pdo\PdoConfiguration'
+            'DDTrace\Integrations\PDO\PDOConfiguration'
         );
     }
 
