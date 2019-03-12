@@ -2,7 +2,7 @@
 #define DD_LOGGING_H
 #include <php.h>
 
-#ifdef ZTS
+#if defined(ZTS) && PHP_VERSION_ID < 70000
 #define TSRMLS_FC TSRMLS_D,
 #define ddtrace_log_errf(...) _ddtrace_log_errf(TSRMLS_C, __VA_ARGS__)
 #else
