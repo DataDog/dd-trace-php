@@ -5,8 +5,8 @@ namespace DDTrace;
 use DDTrace\Configuration\AbstractConfiguration;
 use DDTrace\Integrations\Curl\CurlConfiguration;
 use DDTrace\Integrations\Curl\CurlIntegration;
+use DDTrace\Integrations\ElasticSearch\ElasticSearchConfiguration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
-use DDTrace\Integrations\Eloquent\ElasticSearchConfiguration;
 use DDTrace\Integrations\Eloquent\EloquentConfiguration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleConfiguration;
@@ -289,8 +289,8 @@ class Configuration extends AbstractConfiguration
     /**
      * Returns an integration configuration from the registry or create an instance and store it in the registry.
      *
-     * @param $name string
-     * @param $class string
+     * @param string $name
+     * @param string $class
      * @return mixed
      */
     private function retrieveOrCreateIntegrationConfiguration($name, $class)
