@@ -14,7 +14,7 @@ final class EnvVariableRegistryTest extends BaseTestCase
         putenv('DD_CUSTOM_PREFIX_SOME_TEST_PARAMETER');
     }
 
-    public function testPrefixDefaultToDD_()
+    public function testPrefixDefaultToDD()
     {
         putenv('DD_SOME_TEST_PARAMETER=bar');
         $registry = new EnvVariableRegistry();
