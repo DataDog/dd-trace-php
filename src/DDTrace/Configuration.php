@@ -36,7 +36,7 @@ use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 class Configuration extends AbstractConfiguration
 {
     /**
-     * @var array
+     * @var array A registry to hold integration-level configuration objects.
      */
     private $integrationConfigurations = [];
 
@@ -144,7 +144,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return CurlConfiguration
+     * @return CurlConfiguration The curl integration configuration object
      */
     public function curl()
     {
@@ -155,7 +155,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return ElasticSearchConfiguration
+     * @return ElasticSearchConfiguration The elastic search integration configuration object
      */
     public function elasticSearch()
     {
@@ -166,7 +166,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return EloquentConfiguration
+     * @return EloquentConfiguration The eloquent integration configuration object
      */
     public function eloquent()
     {
@@ -177,7 +177,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return GuzzleConfiguration
+     * @return GuzzleConfiguration The guzzle integration configuration object
      */
     public function guzzle()
     {
@@ -188,7 +188,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return LaravelConfiguration
+     * @return LaravelConfiguration The laravel integration configuration object
      */
     public function laravel()
     {
@@ -199,7 +199,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return MemcachedConfiguration
+     * @return MemcachedConfiguration The memcached integration configuration object
      */
     public function memcached()
     {
@@ -210,7 +210,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return MongoConfiguration
+     * @return MongoConfiguration The mongo integration configuration object
      */
     public function mongo()
     {
@@ -221,7 +221,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return MysqliConfiguration
+     * @return MysqliConfiguration The mysqli integration configuration object
      */
     public function mysqli()
     {
@@ -232,7 +232,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return PDOConfiguration
+     * @return PDOConfiguration The pdo integration configuration object
      */
     public function pdo()
     {
@@ -243,7 +243,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return PredisConfiguration
+     * @return PredisConfiguration The predis integration configuration object
      */
     public function predis()
     {
@@ -254,7 +254,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return SymfonyConfiguration
+     * @return SymfonyConfiguration The symfony integration configuration object
      */
     public function symfony()
     {
@@ -265,7 +265,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return WebConfiguration
+     * @return WebConfiguration The generic web request integration configuration object
      */
     public function web()
     {
@@ -276,7 +276,7 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * @return ZendFrameworkConfiguration
+     * @return ZendFrameworkConfiguration The zend framework integration configuration object
      */
     public function zendFramework()
     {
