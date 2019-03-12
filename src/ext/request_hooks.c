@@ -3,10 +3,39 @@
 
 #include <Zend/zend.h>
 #include <Zend/zend_compile.h>
-#include <php/ext/pcre/php_pcre.h>
 #include <php_main.h>
+#if PHP_VERSION_ID >= 70000
+#include <php/ext/pcre/php_pcre.h>
+#else
+#include <ext/pcre/php_pcre.h>
+#endif
+#if PHP_VERSION_ID < 70000
+int dd_no_blacklisted_modules(char *blacklist_regexp) {
+    zend_module_entry *module;
+    pcre *pce;
+    int re_options, rv = 1;
+    pcre_extra *re_extra;
 
-int dd_no_blacklisted_modules(const char *blacklist_regexp) {
+	HashPosition pos;
+
+    if ((pce = pcre_get_compiled_regex(blacklist_regexp, &re_extra, &re_options)) != NULL) {
+		zend_hash_internal_pointer_reset_ex(&module_registry, &pos);
+
+        while (zend_hash_get_current_data_ex(&module_registry, (void *) &module, &pos) != FAILURE) {
+			if (!pcre_exec(pce, re_extra, module->name, strlen(module->name), 0, re_options, NULL, 0)) {
+                php_error(E_WARNING, "Found blacklisted module: %s, disabling conflicting functionality", module->name);
+                rv = 0;
+                break;
+            }
+			zend_hash_move_forward_ex(&module_registry, &pos);
+		}
+    }
+
+    return rv;
+}
+
+#elif PHP_VERSION_ID < 70300
+int dd_no_blacklisted_modules(char *blacklist_regexp) {
     zend_module_entry *module;
     pcre *pce;
     int re_options, rv = 1;
@@ -28,6 +57,34 @@ int dd_no_blacklisted_modules(const char *blacklist_regexp) {
     zend_string_release(pattern);
     return rv;
 }
+#else
+int dd_no_blacklisted_modules(char *blacklist_regexp) {
+    zend_module_entry *module;
+    pcre2_code *pce;
+    int rv = 1;
+    uint32_t capture_count, re_options;
+    zend_string *pattern;
+
+    pattern = zend_string_init(blacklist_regexp, strlen(blacklist_regexp), 0);
+    if ((pce = pcre_get_compiled_regex(pattern, &capture_count, &re_options)) != NULL) {
+        pcre2_match_data *match_data = php_pcre_create_match_data(capture_count, pce);
+        if (match_data) {
+            ZEND_HASH_FOREACH_PTR(&module_registry, module) {
+                if (pcre2_match(pce, (PCRE2_SPTR)module->name, strlen(module->name), 0, re_options, match_data, php_pcre_mctx()) > 0) {
+                    php_error(E_WARNING, "Found blacklisted module: %s, disabling conflicting functionality", module->name);
+                    rv = 0;
+                    break;
+                }
+            }
+            ZEND_HASH_FOREACH_END();
+            php_pcre_free_match_data(match_data);
+        }
+    }
+
+    zend_string_release(pattern);
+    return rv;
+}
+#endif
 
 #if PHP_VERSION_ID < 70000
 int dd_execute_php_file(const char *filename TSRMLS_DC) {
