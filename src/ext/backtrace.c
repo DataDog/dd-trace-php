@@ -52,9 +52,7 @@ void ddtrace_install_backtrace_handler(TSRMLS_D) {
 }
 #else  // defined(__GLIBC__) || defined(__APPLE__)
 #if defined(ZTS) && PHP_VERSION_ID < 70000
-void ddtrace_install_backtrace_handler(TSRMLS_D) {
-    (void)(TSRMLS_C);
-}
+void ddtrace_install_backtrace_handler(TSRMLS_D) { (void)(TSRMLS_C); }
 #else   // ZTS
 void ddtrace_install_backtrace_handler() {
     // NOOP

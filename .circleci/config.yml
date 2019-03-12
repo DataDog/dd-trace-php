@@ -424,12 +424,12 @@ workflows:
       - "Packaging Code Checkout"
       - "PHP 54 20100412": &BUILD_PACKAGE_FORKFLOW
           requires: [ 'Packaging Code Checkout' ]
-          filters: {}
-            # tags:
-            #   only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
-            # branches:
-            #   # Always build on master
-            #   ignore: /^(?!master).*/
+          filters:
+            tags:
+              only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
+            branches:
+              # Always build on master
+              ignore: /^(?!master).*/
       - "PHP 56 20131106": *BUILD_PACKAGE_FORKFLOW
       - "PHP 70 20151012": *BUILD_PACKAGE_FORKFLOW
       - "PHP 71 20160303": *BUILD_PACKAGE_FORKFLOW
