@@ -9,5 +9,5 @@ echo "Request start" . PHP_EOL;
 
 ?>
 --EXPECT--
-Warning: Found blacklisted module: ddtrace, disabling conflicting functionality in Unknown on line 0
+Found blacklisted module: ddtrace, disabling conflicting functionality
 Request start

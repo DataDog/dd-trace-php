@@ -104,7 +104,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     ddtrace_dispatch_init(TSRMLS_C);
 
-    if (DDTRACE_G(internal_blacklisted_modules_regexp) && !dd_no_blacklisted_modules(DDTRACE_G(internal_blacklisted_modules_regexp))) {
+    if (DDTRACE_G(internal_blacklisted_modules_regexp) && !dd_no_blacklisted_modules(TSRMLS_C)) {
         return SUCCESS;
     }
 
