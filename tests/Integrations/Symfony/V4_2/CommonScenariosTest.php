@@ -80,12 +80,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     SpanAssertion::exists('symfony.kernel.request'),
                     SpanAssertion::exists('symfony.kernel.controller'),
                     SpanAssertion::exists('symfony.kernel.controller_arguments'),
-                    SpanAssertion::build(
-                        'symfony.templating.render',
-                        'test_symfony_42',
-                        'web',
-                        'Twig_Environment twig_template.html.twig'
-                    ),
                     SpanAssertion::exists('symfony.kernel.response'),
                     SpanAssertion::exists('symfony.kernel.finish_request'),
                     SpanAssertion::exists('symfony.kernel.terminate'),
@@ -114,7 +108,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     SpanAssertion::exists('symfony.kernel.controller_arguments'),
                     SpanAssertion::exists('symfony.kernel.handleException'),
                     SpanAssertion::exists('symfony.kernel.exception'),
-                    SpanAssertion::exists('symfony.templating.render'),
                     SpanAssertion::exists('symfony.kernel.response'),
                     SpanAssertion::exists('symfony.kernel.finish_request'),
                     SpanAssertion::exists('symfony.kernel.terminate'),
