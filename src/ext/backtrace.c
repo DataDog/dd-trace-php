@@ -1,11 +1,12 @@
-#if defined(__GLIBC__) || defined(__APPLE__)
-#include <execinfo.h>
 #include <php.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+#if defined(__GLIBC__) || defined(__APPLE__)
+
+#include <execinfo.h>
 #include "backtrace.h"
 #include "ddtrace.h"
 #include "env_config.h"
