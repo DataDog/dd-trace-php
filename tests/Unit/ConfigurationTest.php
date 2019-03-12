@@ -142,7 +142,7 @@ final class ConfigurationTest extends BaseTestCase
             [MemcachedIntegration::NAME, 'memcached', 'DDTrace\Integrations\Memcached\MemcachedConfiguration',],
             [MongoIntegration::NAME, 'mongo', 'DDTrace\Integrations\Mongo\MongoConfiguration',],
             [MysqliIntegration::NAME, 'mysqli', 'DDTrace\Integrations\Mysqli\MysqliConfiguration',],
-            [PDOIntegration::NAME, 'pdo', 'DDTrace\Integrations\Pdo\PdoConfiguration',],
+            [PDOIntegration::NAME, 'pdo', 'DDTrace\Integrations\PDO\PDOConfiguration',],
             [PredisIntegration::NAME, 'predis', 'DDTrace\Integrations\Predis\PredisConfiguration',],
             [SymfonyIntegration::NAME, 'symfony', 'DDTrace\Integrations\Symfony\SymfonyConfiguration',],
             [WebIntegration::NAME, 'web', 'DDTrace\Integrations\Web\WebConfiguration',],
