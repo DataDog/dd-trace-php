@@ -3,12 +3,43 @@
 namespace DDTrace;
 
 use DDTrace\Configuration\AbstractConfiguration;
+use DDTrace\Integrations\Curl\CurlConfiguration;
+use DDTrace\Integrations\Curl\CurlIntegration;
+use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
+use DDTrace\Integrations\Eloquent\ElasticSearchConfiguration;
+use DDTrace\Integrations\Eloquent\EloquentConfiguration;
+use DDTrace\Integrations\Eloquent\EloquentIntegration;
+use DDTrace\Integrations\Guzzle\GuzzleConfiguration;
+use DDTrace\Integrations\Guzzle\GuzzleIntegration;
+use DDTrace\Integrations\Laravel\LaravelConfiguration;
+use DDTrace\Integrations\Laravel\LaravelIntegration;
+use DDTrace\Integrations\Memcached\MemcachedConfiguration;
+use DDTrace\Integrations\Memcached\MemcachedIntegration;
+use DDTrace\Integrations\Mongo\MongoConfiguration;
+use DDTrace\Integrations\Mongo\MongoIntegration;
+use DDTrace\Integrations\Mysqli\MysqliConfiguration;
+use DDTrace\Integrations\Mysqli\MysqliIntegration;
+use DDTrace\Integrations\PDO\PDOConfiguration;
+use DDTrace\Integrations\PDO\PDOIntegration;
+use DDTrace\Integrations\Predis\PredisConfiguration;
+use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\Symfony\SymfonyConfiguration;
+use DDTrace\Integrations\Symfony\SymfonyIntegration;
+use DDTrace\Integrations\Web\WebConfiguration;
+use DDTrace\Integrations\Web\WebIntegration;
+use DDTrace\Integrations\ZendFramework\ZendFrameworkConfiguration;
+use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 
 /**
  * DDTrace global configuration object.
  */
 class Configuration extends AbstractConfiguration
 {
+    /**
+     * @var array
+     */
+    private $integrationConfigurations = [];
+
     /**
      * Whether or not tracing is enabled.
      *
@@ -110,5 +141,164 @@ class Configuration extends AbstractConfiguration
             return trim($appName);
         }
         return $default;
+    }
+
+    /**
+     * @return CurlConfiguration
+     */
+    public function curl()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            CurlIntegration::NAME,
+            'DDTrace\Integrations\Curl\CurlConfiguration'
+        );
+    }
+
+    /**
+     * @return ElasticSearchConfiguration
+     */
+    public function elasticSearch()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            ElasticSearchIntegration::NAME,
+            'DDTrace\Integrations\ElasticSearch\ElasticSearchConfiguration'
+        );
+    }
+
+    /**
+     * @return EloquentConfiguration
+     */
+    public function eloquent()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            EloquentIntegration::NAME,
+            'DDTrace\Integrations\Eloquent\EloquentConfiguration'
+        );
+    }
+
+    /**
+     * @return GuzzleConfiguration
+     */
+    public function guzzle()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            GuzzleIntegration::NAME,
+            'DDTrace\Integrations\Guzzle\GuzzleConfiguration'
+        );
+    }
+
+    /**
+     * @return LaravelConfiguration
+     */
+    public function laravel()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            LaravelIntegration::NAME,
+            'DDTrace\Integrations\Laravel\LaravelConfiguration'
+        );
+    }
+
+    /**
+     * @return MemcachedConfiguration
+     */
+    public function memcached()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            MemcachedIntegration::NAME,
+            'DDTrace\Integrations\Memcached\MemcachedConfiguration'
+        );
+    }
+
+    /**
+     * @return MongoConfiguration
+     */
+    public function mongo()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            MongoIntegration::NAME,
+            'DDTrace\Integrations\Mongo\MongoConfiguration'
+        );
+    }
+
+    /**
+     * @return MysqliConfiguration
+     */
+    public function mysqli()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            MysqliIntegration::NAME,
+            'DDTrace\Integrations\Mysqli\MysqliConfiguration'
+        );
+    }
+
+    /**
+     * @return PDOConfiguration
+     */
+    public function pdo()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            PDOIntegration::NAME,
+            'DDTrace\Integrations\Pdo\PdoConfiguration'
+        );
+    }
+
+    /**
+     * @return PredisConfiguration
+     */
+    public function predis()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            PredisIntegration::NAME,
+            'DDTrace\Integrations\Predis\PredisConfiguration'
+        );
+    }
+
+    /**
+     * @return SymfonyConfiguration
+     */
+    public function symfony()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            SymfonyIntegration::NAME,
+            'DDTrace\Integrations\Symfony\SymfonyConfiguration'
+        );
+    }
+
+    /**
+     * @return WebConfiguration
+     */
+    public function web()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            WebIntegration::NAME,
+            'DDTrace\Integrations\Web\WebConfiguration'
+        );
+    }
+
+    /**
+     * @return ZendFrameworkConfiguration
+     */
+    public function zendFramework()
+    {
+        return $this->retrieveOrCreateIntegrationConfiguration(
+            ZendFrameworkIntegration::NAME,
+            'DDTrace\Integrations\ZendFramework\ZendFrameworkConfiguration'
+        );
+    }
+
+    /**
+     * Returns an integration configuration from the registry or create an instance and store it in the registry.
+     *
+     * @param $name string
+     * @param $class string
+     * @return mixed
+     */
+    private function retrieveOrCreateIntegrationConfiguration($name, $class)
+    {
+        if (!isset($this->integrationConfigurations[$name])) {
+            $this->integrationConfigurations[$name] = $class();
+        }
+
+        return $this->integrationConfigurations[$name];
     }
 }
