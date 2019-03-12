@@ -296,7 +296,7 @@ class Configuration extends AbstractConfiguration
     private function retrieveOrCreateIntegrationConfiguration($name, $class)
     {
         if (!isset($this->integrationConfigurations[$name])) {
-            $this->integrationConfigurations[$name] = $class();
+            $this->integrationConfigurations[$name] = new $class();
         }
 
         return $this->integrationConfigurations[$name];

@@ -1,8 +1,9 @@
 <?php
 
-namespace DDTrace\Integrations\Eloquent;
+namespace DDTrace\Integrations\ElasticSearch;
 
 use DDTrace\Integrations\AbstractIntegrationConfiguration;
+use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 
 final class ElasticSearchConfiguration extends AbstractIntegrationConfiguration
 {
@@ -11,6 +12,6 @@ final class ElasticSearchConfiguration extends AbstractIntegrationConfiguration
      */
     public function getIntegrationName()
     {
-        return EloquentIntegration::NAME;
+        return ElasticSearchIntegration::NAME;
     }
 }

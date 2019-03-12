@@ -3,6 +3,20 @@
 namespace DDTrace\Tests\Unit;
 
 use DDTrace\Configuration;
+use DDTrace\Integrations\AbstractIntegrationConfiguration;
+use DDTrace\Integrations\Curl\CurlIntegration;
+use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
+use DDTrace\Integrations\Eloquent\EloquentIntegration;
+use DDTrace\Integrations\Guzzle\GuzzleIntegration;
+use DDTrace\Integrations\Laravel\LaravelIntegration;
+use DDTrace\Integrations\Memcached\MemcachedIntegration;
+use DDTrace\Integrations\Mongo\MongoIntegration;
+use DDTrace\Integrations\Mysqli\MysqliIntegration;
+use DDTrace\Integrations\PDO\PDOIntegration;
+use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\Symfony\SymfonyIntegration;
+use DDTrace\Integrations\Web\WebIntegration;
+use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 
 final class ConfigurationTest extends BaseTestCase
 {
@@ -97,5 +111,46 @@ final class ConfigurationTest extends BaseTestCase
         putenv('ddtrace_app_name=foo_app');
         putenv('DD_TRACE_APP_NAME=bar_app');
         $this->assertSame('bar_app', Configuration::get()->appName());
+    }
+
+    /**
+     * @dataProvider dataProviderIntegrationLevelConfigurationGeneration
+     * @param string $name The integration name
+     * @param string $method
+     * @param string $expectedClass
+     */
+    public function testIntegrationLevelConfigurationGeneration($name, $method, $expectedClass)
+    {
+        /** @var AbstractIntegrationConfiguration $config */
+        $config = Configuration::get()->$method();
+        $this->assertInstanceOf($expectedClass, $config);
+        $this->assertSame($name, $config->getIntegrationName());
+    }
+
+    public function dataProviderIntegrationLevelConfigurationGeneration()
+    {
+        return [
+            [CurlIntegration::NAME, 'curl', 'DDTrace\Integrations\Curl\CurlConfiguration',],
+            [
+                ElasticSearchIntegration::NAME,
+                'elasticSearch',
+                'DDTrace\Integrations\ElasticSearch\ElasticSearchConfiguration',
+            ],
+            [EloquentIntegration::NAME, 'eloquent', 'DDTrace\Integrations\Eloquent\EloquentConfiguration',],
+            [GuzzleIntegration::NAME, 'guzzle', 'DDTrace\Integrations\Guzzle\GuzzleConfiguration',],
+            [LaravelIntegration::NAME, 'laravel', 'DDTrace\Integrations\Laravel\LaravelConfiguration',],
+            [MemcachedIntegration::NAME, 'memcached', 'DDTrace\Integrations\Memcached\MemcachedConfiguration',],
+            [MongoIntegration::NAME, 'mongo', 'DDTrace\Integrations\Mongo\MongoConfiguration',],
+            [MysqliIntegration::NAME, 'mysqli', 'DDTrace\Integrations\Mysqli\MysqliConfiguration',],
+            [PDOIntegration::NAME, 'pdo', 'DDTrace\Integrations\Pdo\PdoConfiguration',],
+            [PredisIntegration::NAME, 'predis', 'DDTrace\Integrations\Predis\PredisConfiguration',],
+            [SymfonyIntegration::NAME, 'symfony', 'DDTrace\Integrations\Symfony\SymfonyConfiguration',],
+            [WebIntegration::NAME, 'web', 'DDTrace\Integrations\Web\WebConfiguration',],
+            [
+                ZendFrameworkIntegration::NAME,
+                'zendFramework',
+                'DDTrace\Integrations\ZendFramework\ZendFrameworkConfiguration',
+            ],
+        ];
     }
 }
