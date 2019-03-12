@@ -91,7 +91,7 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, const ch
     }
 }
 
-#if PHP_VERSION_ID < 50600
+#if PHP_VERSION_ID < 50500
 zend_function *fcall_fbc(zend_execute_data *execute_data) {
     zend_op *opline = EX(opline);
     zend_function *fbc = NULL;
@@ -201,7 +201,7 @@ static int is_anonymous_closure(zend_function *fbc, const char *function_name, u
 
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, const char *function_name,
                                                  uint32_t function_name_length TSRMLS_DC) {
-#if PHP_VERSION_ID < 50600
+#if PHP_VERSION_ID < 50500
     zval *original_object = EX(object);
 #endif
 
@@ -237,7 +237,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
         dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
-#if PHP_VERSION_ID < 50600
+#if PHP_VERSION_ID < 50500
         if (EX(opline)->opcode == ZEND_DO_FCALL) {
             zend_op *opline = EX(opline);
             zend_ptr_stack_3_push(&EG(arg_types_stack), FBC(), EX(object), EX(called_scope));
@@ -257,7 +257,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 #endif
         const zend_op *opline = EX(opline);
 
-#if PHP_VERSION_ID < 50600
+#if PHP_VERSION_ID < 50500
 #define EX_T(offset) (*(temp_variable *)((char *)EX(Ts) + offset))
         zval rv;
         INIT_ZVAL(rv);
@@ -343,7 +343,7 @@ static zend_always_inline zend_function *get_current_fbc(zend_execute_data *exec
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         fbc = FBC();
     } else {
-#if PHP_VERSION_ID < 50600
+#if PHP_VERSION_ID < 50500
         fbc = fcall_fbc(execute_data);
 #else
         fbc = EX(function_state).function;
@@ -404,7 +404,7 @@ static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *exe
 
 static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("Update opcode leave");
-#if PHP_VERSION_ID < 50600
+#if PHP_VERSION_ID < 50500
     EX(function_state).function = (zend_function *)EX(op_array);
     EX(function_state).arguments = NULL;
     EG(opline_ptr) = &EX(opline);

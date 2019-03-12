@@ -6,10 +6,14 @@
 #include "debug.h"
 #include "dispatch.h"
 
-#if PHP_VERSION_ID < 50600
+#if PHP_VERSION_ID < 50500
 #define FBC() EX(fbc)
 #define NUM_ADDITIONAL_ARGS() (0)
 #define OBJECT() EX(object)
+#elif PHP_VERSION_ID < 50600
+#define FBC() (EX(call)->fbc)
+#define NUM_ADDITIONAL_ARGS() (0)
+#define OBJECT() (EX(call) ? EX(call)->object : NULL)
 #else
 #define FBC() (EX(call)->fbc)
 #define NUM_ADDITIONAL_ARGS() EX(call)->num_additional_args
