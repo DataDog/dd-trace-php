@@ -330,14 +330,19 @@ jobs:
       CFLAGS: ""
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p extensions
       - run:
-          name: Build extension .so
-          command: |
-              mkdir -p extensions
-              make all CFLAGS="-O2 -Wall -Wextra <<# catch_warnings >> -Werror <</ catch_warnings >>" ECHO_ARG="-e"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< so_suffix >>.so
-              make clean debug all ECHO_ARG="-e"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< so_suffix >>-debug.so
+          name: Build extension basic .so
+          command: make all CFLAGS="-O2 -Wall -Wextra <<# catch_warnings >> -Werror <</ catch_warnings >>" ECHO_ARG="-e"
+      - run:
+          name: Copy extension basic .so
+          command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< so_suffix >>.so
+      - run:
+          name: Build extension debug .so
+          command: make all CFLAGS="-g -Wall -Wextra <<# catch_warnings >> -Werror <</ catch_warnings >>" ECHO_ARG="-e"
+      - run:
+          name: Copy extension basic .so
+          command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< so_suffix >>-debug.so
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions']
