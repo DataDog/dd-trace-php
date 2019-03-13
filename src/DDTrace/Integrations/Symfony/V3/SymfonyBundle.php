@@ -173,6 +173,7 @@ class SymfonyBundle extends Bundle
         dd_trace('Symfony\Bundle\TwigBundle\TwigEngine', 'render', $renderTraceCallback);
         dd_trace('Symfony\Component\Templating\DelegatingEngine', 'render', $renderTraceCallback);
         dd_trace('Symfony\Component\Templating\PhpEngine', 'render', $renderTraceCallback);
+        dd_trace('Twig\Environment', 'render', $renderTraceCallback);
         dd_trace('Twig_Environment', 'render', $renderTraceCallback);
     }
 

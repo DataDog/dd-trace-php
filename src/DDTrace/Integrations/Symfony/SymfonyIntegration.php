@@ -2,12 +2,9 @@
 
 namespace DDTrace\Integrations\Symfony;
 
-use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
-use DDTrace\Util\TryCatchFinally;
 use DDTrace\Util\Versions;
-use Symfony\Component\HttpKernel\KernelEvents;
 
 class SymfonyIntegration
 {

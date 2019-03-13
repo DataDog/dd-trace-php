@@ -144,17 +144,20 @@ class SymfonyBundle extends Bundle
             }
         );
 
-        // Tracing templating engine
-        dd_trace('Twig_Environment', 'render', function () use ($appName) {
+        // Tracing templating engines
+        $renderTraceCallback = function () use ($appName) {
             $args = func_get_args();
-
             $scope = GlobalTracer::get()->startActiveSpan('symfony.templating.render');
             $span = $scope->getSpan();
             $span->setTag(Tag::SERVICE_NAME, $appName);
             $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
             $span->setTag(Tag::RESOURCE_NAME, get_class($this) . ' ' . $args[0]);
             return TryCatchFinally::executePublicMethod($scope, $this, 'render', $args);
-        });
+        };
+
+        // Tracing templating engine
+        dd_trace('Twig_Environment', 'render', $renderTraceCallback);
+        dd_trace('Twig\Environment', 'render', $renderTraceCallback);
     }
 
     /**
