@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - Disable request_init_hook functionality in presence of blacklisted modules #345
 
+### Fixed
+- Symfony template rendering spans #359
+
 ## [0.15.1]
 
 ### Added
