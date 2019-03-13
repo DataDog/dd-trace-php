@@ -143,13 +143,20 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
 #endif
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
-            if (func->common.scope) {
+            const char *scope_name, *function_name;
+#if PHP_VERSION_ID < 70000
+            scope_name = (func->common.scope) ? func->common.scope->name : NULL;
+            function_name = func->common.function_name;
+#else
+            scope_name = (func->common.scope) ? ZSTR_VAL(func->common.scope->name) : NULL;
+            function_name = ZSTR_VAL(func->common.function_name);
+#endif
+            if (scope_name) {
                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                        "cannot set override for %s::%s - %s", func->common.scope->name,
-                                        func->common.function_name, error);
+                                        "cannot set override for %s::%s - %s", scope_name, function_name, error);
             } else {
                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "cannot set override for %s - %s",
-                                        func->common.function_name, error);
+                                        function_name, error);
             }
         }
 

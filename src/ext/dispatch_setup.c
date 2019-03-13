@@ -95,7 +95,8 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TS
             zend_function *function = NULL;
             if (ddtrace_find_function(EG(function_table), function_name, &function) != SUCCESS) {
                 zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                        "Failed to override function %z - the function does not exist", function_name);
+                                        "Failed to override function %s - the function does not exist",
+                                        Z_STRVAL_P(function_name));
             }
 
             return 0;
