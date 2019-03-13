@@ -3,6 +3,7 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\Configuration;
+use DDTrace\Contracts\Integration as IntegrationContract;
 use DDTrace\Tag;
 use DDTrace\Span;
 use DDTrace\GlobalTracer;
@@ -43,13 +44,13 @@ abstract class Integration extends AbstractIntegration
      * @param string $method
      * @param \Closure|null $preCallHook
      * @param \Closure|null $postCallHook
-     * @param Integration|null $integration
+     * @param IntegrationContract|null $integration
      */
     protected static function traceMethod(
         $method,
         \Closure $preCallHook = null,
         \Closure $postCallHook = null,
-        Integration $integration = null
+        IntegrationContract $integration = null
     ) {
         $className = static::CLASS_NAME;
         $integrationClass = get_called_class();
