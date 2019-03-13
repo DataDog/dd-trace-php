@@ -11,6 +11,14 @@ final class MongoCollectionIntegration extends Integration
 {
     const CLASS_NAME = 'MongoCollection';
 
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return MongoIntegration::NAME;
+    }
+
     protected static function loadIntegration()
     {
         if (Versions::phpVersionMatches('5.4')) {

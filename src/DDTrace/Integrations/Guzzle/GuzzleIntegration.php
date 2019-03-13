@@ -7,13 +7,13 @@ use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
-use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\CodeTracer;
 
-final class GuzzleIntegration
+final class GuzzleIntegration extends AbstractIntegration
 {
     const NAME = 'guzzle';
 
@@ -24,7 +24,16 @@ final class GuzzleIntegration
 
     public function __construct()
     {
+        parent::__construct();
         $this->codeTracer = CodeTracer::getInstance();
+    }
+
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
     }
 
     public static function load()

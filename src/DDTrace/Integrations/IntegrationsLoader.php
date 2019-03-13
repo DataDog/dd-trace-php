@@ -14,6 +14,7 @@ use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
+use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 use DDTrace\Log\LoggingTrait;
 
@@ -49,6 +50,7 @@ class IntegrationsLoader
         PDOIntegration::NAME => '\DDTrace\Integrations\PDO\PDOIntegration',
         PredisIntegration::NAME => '\DDTrace\Integrations\Predis\PredisIntegration',
         SymfonyIntegration::NAME => '\DDTrace\Integrations\Symfony\SymfonyIntegration',
+        WebIntegration::NAME => '\DDTrace\Integrations\Web\WebIntegration',
         ZendFrameworkIntegration::NAME => '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration',
     ];
 

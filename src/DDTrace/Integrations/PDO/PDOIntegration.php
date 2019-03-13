@@ -3,11 +3,12 @@
 namespace DDTrace\Integrations\PDO;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
 
-class PDOIntegration
+class PDOIntegration extends AbstractIntegration
 {
     const NAME = 'pdo';
 
@@ -20,6 +21,14 @@ class PDOIntegration
      * @var array
      */
     private static $statements = [];
+
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
 
     /**
      * Static method to add instrumentation to PDO requests

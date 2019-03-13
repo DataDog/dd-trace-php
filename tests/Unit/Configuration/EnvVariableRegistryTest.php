@@ -11,6 +11,21 @@ final class EnvVariableRegistryTest extends BaseTestCase
     {
         parent::setUp();
         putenv('DD_SOME_TEST_PARAMETER');
+        putenv('DD_CUSTOM_PREFIX_SOME_TEST_PARAMETER');
+    }
+
+    public function testPrefixDefaultToDD()
+    {
+        putenv('DD_SOME_TEST_PARAMETER=bar');
+        $registry = new EnvVariableRegistry();
+        $this->assertSame('bar', $registry->stringValue('some.test.parameter', 'foo'));
+    }
+
+    public function testPrefixCanBeCustomized()
+    {
+        putenv('DD_CUSTOM_PREFIX_SOME_TEST_PARAMETER=bar');
+        $registry = new EnvVariableRegistry('DD_CUSTOM_PREFIX_');
+        $this->assertSame('bar', $registry->stringValue('some.test.parameter', 'foo'));
     }
 
     public function testStringFromEnv()

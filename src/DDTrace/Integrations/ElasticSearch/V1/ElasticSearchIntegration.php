@@ -4,18 +4,26 @@ namespace DDTrace\Integrations\ElasticSearch\V1;
 
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Versions;
 
 /**
  * ElasticSearch driver v1 Integration
  */
-class ElasticSearchIntegration
+class ElasticSearchIntegration extends AbstractIntegration
 {
     const NAME = 'elasticsearch';
     const DEFAULT_SERVICE_NAME = 'elasticsearch';
+
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
 
     public static function load()
     {

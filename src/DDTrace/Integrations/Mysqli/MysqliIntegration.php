@@ -3,16 +3,24 @@
 namespace DDTrace\Integrations\Mysqli;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Versions;
 use DDTrace\Util\ObjectKVStore;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
-class MysqliIntegration
+class MysqliIntegration extends AbstractIntegration
 {
     const NAME = 'mysqli';
+
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
 
     public static function load()
     {

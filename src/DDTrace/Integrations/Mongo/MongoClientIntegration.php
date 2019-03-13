@@ -12,6 +12,14 @@ final class MongoClientIntegration extends Integration
 {
     const CLASS_NAME = 'MongoClient';
 
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return MongoIntegration::NAME;
+    }
+
     protected static function loadIntegration()
     {
         if (Versions::phpVersionMatches('5.4')) {

@@ -3,10 +3,10 @@
 namespace DDTrace\Integrations\Predis;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
-use DDTrace\Util\Versions;
 use DDTrace\Util\TryCatchFinally;
 use Predis\Configuration\OptionsInterface;
 use Predis\Pipeline\Pipeline;
@@ -16,7 +16,7 @@ const VALUE_MAX_LEN = 100;
 const VALUE_TOO_LONG_MARK = "...";
 const CMD_MAX_LEN = 1000;
 
-class PredisIntegration
+class PredisIntegration extends AbstractIntegration
 {
     const NAME = 'predis';
 
@@ -24,6 +24,14 @@ class PredisIntegration
      * @var array
      */
     private static $connections = [];
+
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
 
     /**
      * Static method to add instrumentation to the Predis library

@@ -7,7 +7,7 @@ use DDTrace\Tag;
 use DDTrace\Span;
 use DDTrace\GlobalTracer;
 
-abstract class Integration
+abstract class Integration extends AbstractIntegration
 {
     // Possible statuses for the concrete:
     //   - NOT_LOADED   : It has not been loaded, but it may be loaded at a future time if the preconditions match
