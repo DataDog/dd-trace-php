@@ -136,7 +136,10 @@ class MemcachedIntegration extends AbstractIntegration
         // bool Memcached::flush ([ int $delay = 0 ] )
         dd_trace('Memcached', 'flush', function () {
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(MemcachedIntegration::getInstance(), 'Memcached.flush');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                MemcachedIntegration::getInstance(),
+                'Memcached.flush'
+            );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
             $span->setTag(Tag::SERVICE_NAME, 'memcached');
@@ -249,7 +252,10 @@ class MemcachedIntegration extends AbstractIntegration
 
     public static function traceCommand($memcached, $command, $args)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(MemcachedIntegration::getInstance(), "Memcached.$command");
+        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            MemcachedIntegration::getInstance(),
+            "Memcached.$command"
+        );
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
         $span->setTag(Tag::SERVICE_NAME, 'memcached');
@@ -266,7 +272,10 @@ class MemcachedIntegration extends AbstractIntegration
 
     public static function traceCommandByKey($memcached, $command, $args)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(MemcachedIntegration::getInstance(), "Memcached.$command");
+        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            MemcachedIntegration::getInstance(),
+            "Memcached.$command"
+        );
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
         $span->setTag(Tag::SERVICE_NAME, 'memcached');
@@ -282,7 +291,10 @@ class MemcachedIntegration extends AbstractIntegration
 
     public static function traceCas($memcached, $args)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(MemcachedIntegration::getInstance(), 'Memcached.cas');
+        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            MemcachedIntegration::getInstance(),
+            'Memcached.cas'
+        );
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
         $span->setTag(Tag::SERVICE_NAME, 'memcached');
@@ -298,7 +310,10 @@ class MemcachedIntegration extends AbstractIntegration
 
     public static function traceCasByKey($memcached, $args)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(MemcachedIntegration::getInstance(), 'Memcached.casByKey');
+        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            MemcachedIntegration::getInstance(),
+            'Memcached.casByKey'
+        );
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
         $span->setTag(Tag::SERVICE_NAME, 'memcached');
@@ -316,7 +331,10 @@ class MemcachedIntegration extends AbstractIntegration
 
     public static function traceMulti($memcached, $command, $args)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(MemcachedIntegration::getInstance(), "Memcached.$command");
+        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            MemcachedIntegration::getInstance(),
+            "Memcached.$command"
+        );
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
         $span->setTag(Tag::SERVICE_NAME, 'memcached');
@@ -331,7 +349,10 @@ class MemcachedIntegration extends AbstractIntegration
 
     public static function traceMultiByKey($memcached, $command, $args)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(MemcachedIntegration::getInstance(), "Memcached.$command");
+        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            MemcachedIntegration::getInstance(),
+            "Memcached.$command"
+        );
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::MEMCACHED);
         $span->setTag(Tag::SERVICE_NAME, 'memcached');

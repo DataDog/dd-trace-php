@@ -129,7 +129,10 @@ class LaravelIntegrationLoader
         // Create a trace span for every template rendered
         // public function get($path, array $data = array())
         dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function ($path, $data = array()) {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(LaravelIntegration::getInstance(), 'laravel.view');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                LaravelIntegration::getInstance(),
+                'laravel.view'
+            );
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
             return TryCatchFinally::executePublicMethod($scope, $this, 'get', [$path, $data]);
         });
