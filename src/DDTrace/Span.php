@@ -90,15 +90,13 @@ final class Span implements SpanInterface
      * @param string $service
      * @param string $resource
      * @param int|null $startTime
-     * @param null $integration
      */
     public function __construct(
         $operationName,
         SpanContextInterface $context,
         $service,
         $resource,
-        $startTime = null,
-        $integration = null
+        $startTime = null
     ) {
         $this->context = $context;
         $this->operationName = (string)$operationName;
