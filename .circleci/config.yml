@@ -545,32 +545,32 @@ workflows:
           name: "PHP 54 Web integration tests"
           image_tag: "ddtrace_alpine_php-5.4-debug"
           integration_testsuite: "test-web-54"
-          parallelism: 10
+          parallelism: 3
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 56 Web integration tests"
           integration_testsuite: "test-web-56"
           # image_tag: "ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
           image_tag: "ddtrace_php_5_6"
-          parallelism: 10
+          parallelism: 6
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 70 Web integration tests"
           integration_testsuite: "test-web-70"
           image_tag: "ddtrace_alpine_php-7.0-debug"
-          parallelism: 10
+          parallelism: 7
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 71 Web integration tests"
           integration_testsuite: "test-web-71"
           image_tag: "ddtrace_alpine_php-7.1-debug"
-          parallelism: 10
+          parallelism: 9
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 72 Web integration tests"
           integration_testsuite: "test-web-72"
           image_tag: "ddtrace_php_7_2"
-          parallelism: 10
+          parallelism: 9
       # - integration_tests:
       #     requires: [ 'Code Checkout' ]
       #     name: "PHP 73 Web integration tests"
