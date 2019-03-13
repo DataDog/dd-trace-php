@@ -7,28 +7,6 @@ use DDTrace\Integrations\AbstractIntegrationConfiguration;
 class DummyIntegrationConfiguration extends AbstractIntegrationConfiguration
 {
     /**
-     * @var string
-     */
-    private $name;
-
-    /**
-     * @param string $name
-     */
-    public function __construct($name)
-    {
-        $this->name = $name;
-        parent::__construct();
-    }
-
-    /**
-     * @return string The integration name this configuration refers to.
-     */
-    public function getIntegrationName()
-    {
-        return $this->name;
-    }
-
-    /**
      * @return float
      */
     public function getSampleBool()
