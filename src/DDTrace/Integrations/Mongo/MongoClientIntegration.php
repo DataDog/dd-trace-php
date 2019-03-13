@@ -29,6 +29,7 @@ final class MongoClientIntegration extends Integration
         // MongoClient::__construct ([ string $server = "mongodb://localhost:27017"
         // [, array $options = array("connect" => TRUE) [, array $driver_options ]]] )
         self::traceMethod('__construct', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             if (isset($args[0])) {
                 $span->setTag(Tag::MONGODB_SERVER, Obfuscation::dsn($args[0]));
                 $dbName = self::extractDatabaseNameFromDsn($args[0]);
@@ -42,23 +43,31 @@ final class MongoClientIntegration extends Integration
         });
         // MongoCollection MongoClient::selectCollection ( string $db , string $collection )
         self::traceMethod('selectCollection', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_DATABASE, $args[0]);
             $span->setTag(Tag::MONGODB_COLLECTION, $args[1]);
         });
         // MongoDB MongoClient::selectDB ( string $name )
         self::traceMethod('selectDB', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_DATABASE, $args[0]);
         });
         // bool MongoClient::setReadPreference ( string $read_preference [, array $tags ] )
         self::traceMethod('setReadPreference', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_READ_PREFERENCE, $args[0]);
         });
+
+        $setIntegration = function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
+        };
+
         // Methods that don't need extra tags added
-        self::traceMethod('getHosts');
-        self::traceMethod('getReadPreference');
-        self::traceMethod('getWriteConcern');
-        self::traceMethod('listDBs');
-        self::traceMethod('setWriteConcern');
+        self::traceMethod('getHosts', $setIntegration);
+        self::traceMethod('getReadPreference', $setIntegration);
+        self::traceMethod('getWriteConcern', $setIntegration);
+        self::traceMethod('listDBs', $setIntegration);
+        self::traceMethod('setWriteConcern', $setIntegration);
     }
 
     /**

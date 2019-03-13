@@ -52,7 +52,10 @@ class PDOIntegration extends AbstractIntegration
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         dd_trace('PDO', '__construct', function () {
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startActiveSpan('PDO.__construct');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                PDOIntegration::getInstance(),
+                'PDO.__construct'
+            );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -79,7 +82,7 @@ class PDOIntegration extends AbstractIntegration
 
         // public int PDO::exec(string $query)
         dd_trace('PDO', 'exec', function ($statement) {
-            $scope = GlobalTracer::get()->startActiveSpan('PDO.exec');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.exec');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -113,7 +116,7 @@ class PDOIntegration extends AbstractIntegration
         // public int PDO::exec(string $query)
         dd_trace('PDO', 'query', function () {
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startActiveSpan('PDO.query');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.query');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -146,7 +149,7 @@ class PDOIntegration extends AbstractIntegration
 
         // public bool PDO::commit ( void )
         dd_trace('PDO', 'commit', function () {
-            $scope = GlobalTracer::get()->startActiveSpan('PDO.commit');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.commit');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -174,7 +177,7 @@ class PDOIntegration extends AbstractIntegration
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
         dd_trace('PDO', 'prepare', function () {
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startActiveSpan('PDO.prepare');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.prepare');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -203,7 +206,10 @@ class PDOIntegration extends AbstractIntegration
         // public bool PDOStatement::execute ([ array $input_parameters ] )
         dd_trace('PDOStatement', 'execute', function () {
             $params = func_get_args();
-            $scope = GlobalTracer::get()->startActiveSpan('PDOStatement.execute');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                PDOIntegration::getInstance(),
+                'PDOStatement.execute'
+            );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');

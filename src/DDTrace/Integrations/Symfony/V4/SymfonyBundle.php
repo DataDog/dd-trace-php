@@ -6,6 +6,7 @@ use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Symfony\SymfonyIntegration as DDSymfonyIntegration;
+use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
@@ -70,7 +71,10 @@ class SymfonyBundle extends Bundle
             function () use ($symfonyRequestScope, &$request) {
                 $args = func_get_args();
                 $request = $args[0];
-                $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handle');
+                $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                    SymfonyIntegration::getInstance(),
+                    'symfony.kernel.handle'
+                );
                 $symfonyRequestSpan = $symfonyRequestScope->getSpan();
                 $symfonyRequestSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
                 $symfonyRequestSpan->setTag(Tag::HTTP_URL, $request->getUriForPath($request->getPathInfo()));
@@ -108,7 +112,10 @@ class SymfonyBundle extends Bundle
             'Symfony\Component\HttpKernel\HttpKernel',
             'handleException',
             function (\Exception $e, Request $request, $type) use ($symfonyRequestSpan) {
-                $scope = GlobalTracer::get()->startActiveSpan('symfony.kernel.handleException');
+                $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                    SymfonyIntegration::getInstance(),
+                    'symfony.kernel.handleException'
+                );
                 $symfonyRequestSpan->setError($e);
 
                 // PHP 5.4 compliant try-catch-finally block.
@@ -138,7 +145,10 @@ class SymfonyBundle extends Bundle
             'dispatch',
             function () use ($symfonyRequestSpan, &$request) {
                 $args = func_get_args();
-                $scope = GlobalTracer::get()->startActiveSpan('symfony.' . $args[0]);
+                $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                    SymfonyIntegration::getInstance(),
+                    'symfony.' . $args[0]
+                );
                 SymfonyBundle::injectRouteInfo($args, $request, $symfonyRequestSpan);
                 return TryCatchFinally::executePublicMethod($scope, $this, 'dispatch', $args);
             }
@@ -147,7 +157,10 @@ class SymfonyBundle extends Bundle
         // Tracing templating engines
         $renderTraceCallback = function () use ($appName) {
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startActiveSpan('symfony.templating.render');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                SymfonyIntegration::getInstance(),
+                'symfony.templating.render'
+            );
             $span = $scope->getSpan();
             $span->setTag(Tag::SERVICE_NAME, $appName);
             $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);

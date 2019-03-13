@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Contracts\Integration;
 use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Exceptions\InvalidSpanArgument;
@@ -78,19 +79,26 @@ final class Span implements SpanInterface
     private $hasError = false;
 
     /**
+     * @var Integration
+     */
+    private $integration = null;
+
+    /**
      * Span constructor.
      * @param string $operationName
      * @param SpanContextInterface $context
      * @param string $service
      * @param string $resource
      * @param int|null $startTime
+     * @param null $integration
      */
     public function __construct(
         $operationName,
         SpanContextInterface $context,
         $service,
         $resource,
-        $startTime = null
+        $startTime = null,
+        $integration = null
     ) {
         $this->context = $context;
         $this->operationName = (string)$operationName;
@@ -383,5 +391,17 @@ final class Span implements SpanInterface
     public function getAllBaggageItems()
     {
         return $this->context->getAllBaggageItems();
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @param Integration $integration
+     * @return $this|SpanInterface
+     */
+    public function setIntegration(Integration $integration)
+    {
+        $this->integration = $integration;
+        return $this;
     }
 }

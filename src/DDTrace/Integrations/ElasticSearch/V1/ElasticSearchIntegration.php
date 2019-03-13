@@ -129,7 +129,10 @@ class ElasticSearchIntegration extends AbstractIntegration
         dd_trace('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function () {
             $args = func_get_args();
             $tracer = GlobalTracer::get();
-            $scope = $tracer->startActiveSpan("Elasticsearch.Endpoint.performRequest");
+            $scope = $tracer->startIntegrationScopeAndSpan(
+                ElasticSearchIntegration::getInstance(),
+                "Elasticsearch.Endpoint.performRequest"
+            );
             $span = $scope->getSpan();
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
@@ -182,7 +185,10 @@ class ElasticSearchIntegration extends AbstractIntegration
                 list($params) = $args;
             }
             $tracer = GlobalTracer::get();
-            $scope = $tracer->startActiveSpan("Elasticsearch.Client.$name");
+            $scope = $tracer->startIntegrationScopeAndSpan(
+                ElasticSearchIntegration::getInstance(),
+                "Elasticsearch.Client.$name"
+            );
             $span = $scope->getSpan();
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
@@ -231,7 +237,7 @@ class ElasticSearchIntegration extends AbstractIntegration
 
             $tracer = GlobalTracer::get();
             $operationName = str_replace('\\', '.', "$class.$name");
-            $scope = $tracer->startActiveSpan($operationName);
+            $scope = $tracer->startIntegrationScopeAndSpan(ElasticSearchIntegration::getInstance(), $operationName);
             $span = $scope->getSpan();
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
@@ -273,7 +279,10 @@ class ElasticSearchIntegration extends AbstractIntegration
                 list($params) = $args;
             }
             $tracer = GlobalTracer::get();
-            $scope = $tracer->startActiveSpan("Elasticsearch.$namespace.$name");
+            $scope = $tracer->startIntegrationScopeAndSpan(
+                ElasticSearchIntegration::getInstance(),
+                "Elasticsearch.$namespace.$name"
+            );
             $span = $scope->getSpan();
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);

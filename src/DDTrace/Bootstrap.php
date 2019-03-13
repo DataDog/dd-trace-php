@@ -5,6 +5,7 @@ namespace DDTrace;
 use DDTrace\Encoders\Json;
 use DDTrace\Http\Request;
 use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Transport\Http;
 
 /**
@@ -95,6 +96,7 @@ final class Bootstrap
             );
         $operationName = 'cli' === PHP_SAPI ? 'cli.command' : 'web.request';
         $span = $tracer->startRootSpan($operationName, $startSpanOptions)->getSpan();
+        $span ->setIntegration(new WebIntegration());
         $span->setTag(
             Tag::SERVICE_NAME,
             Configuration::get()->appName($operationName)

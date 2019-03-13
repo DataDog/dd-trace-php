@@ -186,4 +186,10 @@ interface Span
      * @return array
      */
     public function getAllTags();
+
+    /**
+     * @param Integration $integration
+     * @return self
+     */
+    public function setIntegration(Integration $integration);
 }

@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Contracts\Integration;
 use DDTrace\Encoders\Json;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Propagators\CurlHeadersMap;
@@ -212,6 +213,16 @@ final class Tracer implements TracerInterface
         }
 
         return $this->scopeManager->activate($span, $options->shouldFinishSpanOnClose());
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function startIntegrationScopeAndSpan(Integration $integration, $operationName, $options = [])
+    {
+        $scope = $this->startActiveSpan($operationName, $options);
+        $scope->getSpan()->setIntegration($integration);
+        return $scope;
     }
 
     /**

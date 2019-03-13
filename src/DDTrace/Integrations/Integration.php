@@ -23,7 +23,6 @@ abstract class Integration extends AbstractIntegration
     {
         // See comment on the commented out abstract function definition.
         static::loadIntegration();
-
         return self::LOADED;
     }
 

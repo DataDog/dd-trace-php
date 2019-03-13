@@ -54,17 +54,21 @@ final class GuzzleIntegration extends AbstractIntegration
             $self->setStatusCodeTag($span, $response);
         };
 
+        $integration = GuzzleIntegration::getInstance();
+
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'send',
             $this->buildPreCallback('send'),
-            $postCallback
+            $postCallback,
+            $integration
         );
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'transfer',
             $this->buildPreCallback('transfer'),
-            $postCallback
+            $postCallback,
+            $integration
         );
 
         return Integration::LOADED;

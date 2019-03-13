@@ -115,7 +115,10 @@ class LaravelProvider extends ServiceProvider
      */
     public static function buildBaseScope($operation, $resource)
     {
-        $scope = GlobalTracer::get()->startActiveSpan($operation);
+        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
+            $operation
+        );
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
         $span->setTag(Tag::SERVICE_NAME, self::getAppName());

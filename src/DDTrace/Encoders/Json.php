@@ -9,7 +9,6 @@ use DDTrace\GlobalTracer;
 use DDTrace\Log\Logger;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\LoggingTrait;
-use DDTrace\Log\LogLevel;
 use DDTrace\Sampling\PrioritySampling;
 
 final class Json implements Encoder
