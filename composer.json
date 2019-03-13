@@ -186,50 +186,11 @@
             "@composer scenario default"
         ],
 
-        "test-web-54": [
-            "@laravel-42-suite",
-            "@custom-framework-autoloaded-suite",
-            "@zend-framework-1-test"
-        ],
-        "test-web-56": [
-            "@laravel-42-suite",
-            "@symfony-23-suite",
-            "@symfony-28-suite",
-            "@symfony-33-suite",
-            "@symfony-34-suite",
-            "@zend-framework-1-test"
-        ],
-        "test-web-70": [
-            "@laravel-42-suite",
-            "@symfony-23-suite",
-            "@symfony-28-suite",
-            "@symfony-33-suite",
-            "@symfony-34-suite",
-            "@custom-framework-autoloaded-suite",
-            "@zend-framework-1-test"
-        ],
-        "test-web-71": [
-            "@laravel-42-suite",
-            "@laravel-57-suite",
-            "@laravel-58-suite",
-            "@symfony-23-suite",
-            "@symfony-33-suite",
-            "@symfony-34-suite",
-            "@symfony-42-suite",
-            "@custom-framework-autoloaded-suite",
-            "@zend-framework-1-test"
-        ],
-        "test-web-72": [
-            "@laravel-42-suite",
-            "@laravel-57-suite",
-            "@laravel-58-suite",
-            "@symfony-23-suite",
-            "@symfony-33-suite",
-            "@symfony-34-suite",
-            "@symfony-42-suite",
-            "@custom-framework-autoloaded-suite",
-            "@zend-framework-1-test"
-        ],
+        "test-web-54": "echo laravel-42-suite custom-framework-autoloaded-suite zend-framework-1-test | circleci tests split | xargs -n 1 composer",
+        "test-web-56": "echo laravel-42-suite symfony-23-suite symfony-28-suite symfony-33-suite symfony-34-suite zend-framework-1-test | circleci tests split | xargs -n 1 composer ",
+        "test-web-70": "echo laravel-42-suite symfony-23-suite symfony-28-suite symfony-33-suite symfony-34-suite custom-framework-autoloaded-suite zend-framework-1-test | circleci tests split | xargs -n 1 composer",
+        "test-web-71": "echo laravel-42-suite laravel-57-suite laravel-58-suite symfony-23-suite symfony-33-suite symfony-34-suite symfony-42-suite custom-framework-autoloaded-suite zend-framework-1-test | circleci tests split | xargs -n 1 composer",
+        "test-web-72": "echo laravel-42-suite laravel-57-suite laravel-58-suite symfony-23-suite symfony-33-suite symfony-34-suite symfony-42-suite custom-framework-autoloaded-suite zend-framework-1-test | circleci tests split | xargs -n 1 composer",
 
         "laravel-42-suite": [ "@laravel-42-update", "@laravel-42-test" ],
         "laravel-57-suite": [ "@laravel-57-update","@laravel-57-test"],
