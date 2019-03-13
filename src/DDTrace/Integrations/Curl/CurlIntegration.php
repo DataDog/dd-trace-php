@@ -40,7 +40,7 @@ class CurlIntegration extends AbstractIntegration
         }
 
         // Waiting for refactoring from static to singleton.
-        $integration = self::getInstance();
+        $integration = new self();
         $globalConfig = Configuration::get();
 
         dd_trace('curl_exec', function ($ch) use ($integration) {

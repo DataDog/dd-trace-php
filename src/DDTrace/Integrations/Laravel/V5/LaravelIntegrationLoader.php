@@ -36,6 +36,8 @@ class LaravelIntegrationLoader
 
             list($route, $request) = $args;
             $span = $self->rootScope->getSpan();
+            // Overwriting the default web integration
+            $span->setIntegration(LaravelIntegration::getInstance());
             $span->setTag(
                 Tag::RESOURCE_NAME,
                 $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')

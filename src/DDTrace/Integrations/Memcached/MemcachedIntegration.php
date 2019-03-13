@@ -7,7 +7,6 @@ use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Obfuscation;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\Versions;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
@@ -27,6 +26,22 @@ use DDTrace\GlobalTracer;
 class MemcachedIntegration extends AbstractIntegration
 {
     const NAME = 'memcached';
+
+    /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * @return string The integration name.

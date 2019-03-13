@@ -52,6 +52,8 @@ class LaravelProvider extends ServiceProvider
 
             $requestSpan = $self->rootScope->getSpan();
             $requestSpan->overwriteOperationName('laravel.request');
+            // Overwriting the default web integration
+            $requestSpan->setIntegration(\DDTrace\Integrations\Laravel\LaravelIntegration::getInstance());
             $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
 
             $response = call_user_func_array([$this, 'handle'], func_get_args());

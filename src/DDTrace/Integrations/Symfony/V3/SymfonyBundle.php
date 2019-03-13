@@ -60,6 +60,8 @@ class SymfonyBundle extends Bundle
         $appName = $this->getAppName();
         $symfonyRequestSpan = $scope->getSpan();
         $symfonyRequestSpan->overwriteOperationName('symfony.request');
+        // Overwriting the default web integration
+        $symfonyRequestSpan->setIntegration(SymfonyIntegration::getInstance());
         $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $appName);
         $request = null;
 

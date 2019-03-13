@@ -62,6 +62,8 @@ class SymfonyBundle extends Bundle
         $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $appName);
         $symfonyRequestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
         $symfonyRequestSpan->overwriteOperationName('symfony.request');
+        // Overwriting the default web integration
+        $symfonyRequestSpan->setIntegration(SymfonyIntegration::getInstance());
         $request = null;
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
