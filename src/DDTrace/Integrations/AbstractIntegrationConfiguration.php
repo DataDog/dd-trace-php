@@ -16,13 +16,17 @@ abstract class AbstractIntegrationConfiguration
     private $registry;
 
     /**
-     * @return string The integration name this configuration refers to.
+     * @var string
      */
-    abstract public function getIntegrationName();
+    private $integrationName;
 
-    public function __construct()
+    /**
+     * @param string $integrationName
+     */
+    public function __construct($integrationName)
     {
-        $prefix = strtoupper(str_replace('-', '_', trim($this->getIntegrationName())));
+        $this->integrationName = $integrationName;
+        $prefix = strtoupper(str_replace('-', '_', trim($this->integrationName)));
         $this->registry = new EnvVariableRegistry("DD_${prefix}_");
     }
 
