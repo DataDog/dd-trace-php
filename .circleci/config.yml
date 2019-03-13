@@ -302,13 +302,35 @@ jobs:
       - <<: *STEP_STORE_TEST_RESULTS
       - <<: *STEP_STORE_ARTIFACTS
 
+  verify_package:
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      package_type:
+        type: string
+    docker: [ image: << parameters.docker_image >> ]
+    steps:
+      - attach_workspace:
+          at: ~/datadog
+      - run: sh dockerfiles/verify_packages/verify_<< parameters.package_type >>.sh
+
+  "Packaging Code Checkout":
+    working_directory: ~/datadog
+    docker: [ image: 'circleci/buildpack-deps:latest' ]
+    steps:
+      - checkout
+      - attach_workspace: { at: ~/datadog }
+      - persist_to_workspace:
+          root: '.'
+          paths: ['./']
+
   "PHP 54 20100412": &5_4_ARTIFACT_BUILD
     working_directory: ~/datadog
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_5_4' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_5_4' ]
     environment:
       CFLAGS: "-O2 -Wall -Wextra"
     steps:
-      - checkout
       - attach_workspace:
           at: ~/datadog
       - run:
@@ -326,20 +348,20 @@ jobs:
 
   "PHP 56 20131106": &ARTIFACT_BUILD
     <<: *5_4_ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_56' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_56' ]
     environment: { CFLAGS: "-O2 -Wall -Wextra" }
 
   "PHP 70 20151012":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_70' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_70' ]
 
   "PHP 71 20160303":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_71' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_71' ]
 
   "PHP 72 20170718":
     <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_6_php_72' ]
+    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_72' ]
 
   "PHP 73 20180731":
     <<: *ARTIFACT_BUILD
@@ -369,7 +391,6 @@ jobs:
     <<: *ARTIFACT_BUILD
     docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
     steps:
-      - checkout
       - attach_workspace:
           at: ~/datadog
       - run:
@@ -379,7 +400,7 @@ jobs:
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
       - persist_to_workspace:
           root: '.'
-          paths: ['./build/packages']
+          paths: ['./build/packages', 'dockerfiles/verify_packages']
 
   "package verification":
     working_directory: ~/datadog
@@ -400,7 +421,9 @@ workflows:
   version: 2
   build_packages:
     jobs:
+      - "Packaging Code Checkout"
       - "PHP 54 20100412": &BUILD_PACKAGE_FORKFLOW
+          requires: [ 'Packaging Code Checkout' ]
           filters:
             tags:
               only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
@@ -433,6 +456,11 @@ workflows:
       - "package verification":
           requires:
             - "package extension"
+      - verify_package:
+          requires: [ "package extension" ]
+          name: "webdevops/php:7.1"
+          docker_image: webdevops/php:7.1
+          package_type: deb
   build:
     jobs:
       - unit_tests:

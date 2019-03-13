@@ -52,6 +52,8 @@ ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
+STD_PHP_INI_ENTRY("ddtrace.internal_blacklisted_modules_regexp", "/ioncube/i", PHP_INI_SYSTEM, OnUpdateString,
+                  internal_blacklisted_modules_regexp, zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
@@ -101,6 +103,10 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_dispatch_init(TSRMLS_C);
+
+    if (DDTRACE_G(internal_blacklisted_modules_regexp) && !dd_no_blacklisted_modules(TSRMLS_C)) {
+        return SUCCESS;
+    }
 
     if (DDTRACE_G(request_init_hook)) {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));
