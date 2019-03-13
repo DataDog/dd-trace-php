@@ -8,12 +8,12 @@ use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SingletonIntegration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\CodeTracer;
 
-final class GuzzleIntegration extends SingletonIntegration
+final class GuzzleIntegration extends AbstractIntegration
 {
     const NAME = 'guzzle';
 
@@ -24,6 +24,7 @@ final class GuzzleIntegration extends SingletonIntegration
 
     public function __construct()
     {
+        parent::__construct();
         $this->codeTracer = CodeTracer::getInstance();
     }
 
@@ -37,7 +38,7 @@ final class GuzzleIntegration extends SingletonIntegration
 
     public static function load()
     {
-        $instance = self::getInstance();
+        $instance = new self();
         $instance->doLoad();
         return Integration::LOADED;
     }

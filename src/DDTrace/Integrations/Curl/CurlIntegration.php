@@ -6,7 +6,7 @@ use DDTrace\Configuration;
 use DDTrace\Format;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SingletonIntegration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -16,7 +16,7 @@ use DDTrace\GlobalTracer;
 /**
  * Integration for curl php client.
  */
-class CurlIntegration extends SingletonIntegration
+class CurlIntegration extends AbstractIntegration
 {
     const NAME = 'curl';
 

@@ -3,7 +3,7 @@
 namespace DDTrace\Integrations\Predis;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SingletonIntegration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
@@ -16,7 +16,7 @@ const VALUE_MAX_LEN = 100;
 const VALUE_TOO_LONG_MARK = "...";
 const CMD_MAX_LEN = 1000;
 
-class PredisIntegration extends SingletonIntegration
+class PredisIntegration extends AbstractIntegration
 {
     const NAME = 'predis';
 

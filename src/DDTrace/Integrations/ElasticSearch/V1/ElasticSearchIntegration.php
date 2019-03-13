@@ -4,7 +4,7 @@ namespace DDTrace\Integrations\ElasticSearch\V1;
 
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SingletonIntegration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -12,7 +12,7 @@ use DDTrace\Type;
 /**
  * ElasticSearch driver v1 Integration
  */
-class ElasticSearchIntegration extends SingletonIntegration
+class ElasticSearchIntegration extends AbstractIntegration
 {
     const NAME = 'elasticsearch';
     const DEFAULT_SERVICE_NAME = 'elasticsearch';

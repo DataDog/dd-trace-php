@@ -2,14 +2,14 @@
 
 namespace DDTrace\Integrations\Mongo;
 
-use DDTrace\Integrations\SingletonIntegration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Integrations\Integration;
 use DDTrace\Util\Versions;
 
-final class MongoIntegration extends SingletonIntegration
+final class MongoIntegration extends AbstractIntegration
 {
     const NAME = 'mongo';
 

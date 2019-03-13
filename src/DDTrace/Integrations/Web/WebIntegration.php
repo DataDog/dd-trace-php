@@ -3,9 +3,9 @@
 namespace DDTrace\Integrations\Web;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SingletonIntegration;
+use DDTrace\Integrations\AbstractIntegration;
 
-class WebIntegration extends SingletonIntegration
+class WebIntegration extends AbstractIntegration
 {
     const NAME = 'web';
 

@@ -4,10 +4,10 @@ namespace DDTrace\Integrations\Symfony;
 
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SingletonIntegration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Util\Versions;
 
-class SymfonyIntegration extends SingletonIntegration
+class SymfonyIntegration extends AbstractIntegration
 {
     const NAME = 'symfony';
     const BUNDLE_NAME = 'datadog_symfony_bundle';
@@ -22,7 +22,7 @@ class SymfonyIntegration extends SingletonIntegration
 
     public static function load()
     {
-        $instance = self::getInstance();
+        $instance = new self();
         return $instance->doLoad();
     }
 

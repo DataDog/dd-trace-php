@@ -3,13 +3,13 @@
 namespace DDTrace\Integrations\Eloquent;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SingletonIntegration;
+use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
-class EloquentIntegration extends SingletonIntegration
+class EloquentIntegration extends AbstractIntegration
 {
     const NAME = 'eloquent';
 

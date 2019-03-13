@@ -3,34 +3,18 @@
 namespace DDTrace\Integrations;
 
 /**
- * A class implementing the singleton pattern for integration instances.
+ * An abstract class used as base for *internal officially supported* integrations. It may change with time.
  */
-abstract class SingletonIntegration implements \DDTrace\Contracts\Integration
+abstract class AbstractIntegration implements \DDTrace\Contracts\Integration
 {
-    /**
-     * @var static
-     */
-    private static $instance;
-
     /**
      * @var DefaultIntegrationConfiguration|mixed
      */
     private $configuration;
 
-    private function __construct()
+    public function __construct()
     {
         $this->configuration = $this->buildConfiguration();
-    }
-
-    /**
-     * @return static
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new static();
-        }
-        return self::$instance;
     }
 
     /**
