@@ -26,6 +26,8 @@ final class MongoClientIntegration extends Integration
             return;
         }
 
+        $mongoIntegration = MongoIntegration::getInstance();
+
         // MongoClient::__construct ([ string $server = "mongodb://localhost:27017"
         // [, array $options = array("connect" => TRUE) [, array $driver_options ]]] )
         self::traceMethod('__construct', function (Span $span, array $args) {
@@ -40,34 +42,30 @@ final class MongoClientIntegration extends Integration
             if (isset($args[1]['db'])) {
                 $span->setTag(Tag::MONGODB_DATABASE, $args[1]['db']);
             }
-        });
+        }, null, $mongoIntegration);
         // MongoCollection MongoClient::selectCollection ( string $db , string $collection )
         self::traceMethod('selectCollection', function (Span $span, array $args) {
             $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_DATABASE, $args[0]);
             $span->setTag(Tag::MONGODB_COLLECTION, $args[1]);
-        });
+        }, null, $mongoIntegration);
         // MongoDB MongoClient::selectDB ( string $name )
         self::traceMethod('selectDB', function (Span $span, array $args) {
             $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_DATABASE, $args[0]);
-        });
+        }, null, $mongoIntegration);
         // bool MongoClient::setReadPreference ( string $read_preference [, array $tags ] )
         self::traceMethod('setReadPreference', function (Span $span, array $args) {
             $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_READ_PREFERENCE, $args[0]);
-        });
-
-        $setIntegration = function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
-        };
+        }, null, $mongoIntegration);
 
         // Methods that don't need extra tags added
-        self::traceMethod('getHosts', $setIntegration);
-        self::traceMethod('getReadPreference', $setIntegration);
-        self::traceMethod('getWriteConcern', $setIntegration);
-        self::traceMethod('listDBs', $setIntegration);
-        self::traceMethod('setWriteConcern', $setIntegration);
+        self::traceMethod('getHosts', null, null, $mongoIntegration);
+        self::traceMethod('getReadPreference', null, null, $mongoIntegration);
+        self::traceMethod('getWriteConcern', null, null, $mongoIntegration);
+        self::traceMethod('listDBs', null, null, $mongoIntegration);
+        self::traceMethod('setWriteConcern', null, null, $mongoIntegration);
     }
 
     /**

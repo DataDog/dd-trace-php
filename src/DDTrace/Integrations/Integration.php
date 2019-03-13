@@ -43,9 +43,14 @@ abstract class Integration extends AbstractIntegration
      * @param string $method
      * @param \Closure|null $preCallHook
      * @param \Closure|null $postCallHook
+     * @param Integration|null $integration
      */
-    protected static function traceMethod($method, \Closure $preCallHook = null, \Closure $postCallHook = null)
-    {
+    protected static function traceMethod(
+        $method,
+        \Closure $preCallHook = null,
+        \Closure $postCallHook = null,
+        Integration $integration = null
+    ) {
         $className = static::CLASS_NAME;
         $integrationClass = get_called_class();
         dd_trace($className, $method, function () use (
@@ -53,11 +58,17 @@ abstract class Integration extends AbstractIntegration
             $integrationClass,
             $method,
             $preCallHook,
-            $postCallHook
+            $postCallHook,
+            $integration
         ) {
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
+
+            if (null !== $integration) {
+                $span->setIntegration($integration);
+            }
+
             $integrationClass::setDefaultTags($span, $method);
             if (null !== $preCallHook) {
                 $preCallHook($span, $args);
