@@ -22,7 +22,7 @@ class SymfonyIntegration extends SingletonIntegration
 
     public static function load()
     {
-        $instance = new self();
+        $instance = self::getInstance();
         return $instance->doLoad();
     }
 
