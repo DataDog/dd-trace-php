@@ -545,7 +545,8 @@ workflows:
           requires: [ 'Code Checkout' ]
           name: "PHP 56 Web integration tests"
           integration_testsuite: "test-web-56"
-          image_tag: "ddtrace_alpine_php-5.6-debug"
+          # image_tag: "ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
+          image_tag: "ddtrace_php_5_6"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 70 Web integration tests"
