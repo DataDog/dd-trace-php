@@ -12,6 +12,9 @@
 #include <Zend/zend_exceptions.h>
 #include "debug.h"
 
+// avoid Older GCC being overly cautious over {0} struct initializer
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+
 #define BUSY_FLAG 1
 
 #if PHP_VERSION_ID >= 70100

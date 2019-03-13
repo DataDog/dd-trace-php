@@ -57,6 +57,7 @@ services:
   '7.1': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_1' }
   '7.1-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-debug' }
   '7.1-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-zts' }
+  '7.1-centos6': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_centos_6_php_7_1' }
   '7.1-centos-compiled': { <<: *base_php_service, build: 'dockerfiles/verify_packages/centos7-compiled' }
   '7.2': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_php_7_2' }
   '7.2-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-debug' }
