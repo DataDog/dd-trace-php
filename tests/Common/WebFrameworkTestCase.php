@@ -60,6 +60,13 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         return [
             'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+            // The following values should be made configurable from the outside. I could not get env XDEBUG_CONFIG
+            // to work setting it both in docker-compose.yml and in `getEnvs()` above, but that should be the best
+            // option.
+            'xdebug.remote_enable' => 1,
+            'xdebug.remote_host' => 'host.docker.internal',
+            'xdebug.remote_autostart' => 1,
+            'xdebug.remote_port' => '9001', // Port 9000 is used by the request re-player
         ];
     }
 

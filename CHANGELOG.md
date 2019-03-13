@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Symfony template rendering spans #359
+
 ## [0.15.1]
 
 ### Added
