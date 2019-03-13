@@ -4,14 +4,23 @@ namespace DDTrace\Integrations\Laravel;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Laravel\V5\LaravelIntegrationLoader;
+use DDTrace\Integrations\SingletonIntegration;
 use DDTrace\Util\Versions;
 
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
  */
-class LaravelIntegration
+class LaravelIntegration extends SingletonIntegration
 {
     const NAME = 'laravel';
+
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
 
     /**
      * Loads the integration.

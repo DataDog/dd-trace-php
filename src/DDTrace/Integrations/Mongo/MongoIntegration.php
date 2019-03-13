@@ -2,15 +2,24 @@
 
 namespace DDTrace\Integrations\Mongo;
 
+use DDTrace\Integrations\SingletonIntegration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Integrations\Integration;
 use DDTrace\Util\Versions;
 
-final class MongoIntegration
+final class MongoIntegration extends SingletonIntegration
 {
     const NAME = 'mongo';
+
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
 
     public static function load()
     {

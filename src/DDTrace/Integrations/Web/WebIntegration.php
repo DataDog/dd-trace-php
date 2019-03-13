@@ -3,10 +3,19 @@
 namespace DDTrace\Integrations\Web;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SingletonIntegration;
 
-class WebIntegration
+class WebIntegration extends SingletonIntegration
 {
     const NAME = 'web';
+
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
 
     /**
      * Loads the generic web request integration.

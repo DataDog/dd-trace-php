@@ -13,6 +13,14 @@ class ZendFrameworkIntegration extends Integration
     const NAME = 'zendframework';
 
     /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
+
+    /**
      * Loads the zend framework integration.
      *
      * @return int

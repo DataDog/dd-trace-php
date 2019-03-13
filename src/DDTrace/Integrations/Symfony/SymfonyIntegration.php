@@ -4,12 +4,21 @@ namespace DDTrace\Integrations\Symfony;
 
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SingletonIntegration;
 use DDTrace\Util\Versions;
 
-class SymfonyIntegration
+class SymfonyIntegration extends SingletonIntegration
 {
     const NAME = 'symfony';
     const BUNDLE_NAME = 'datadog_symfony_bundle';
+
+    /**
+     * @return string The integration name.
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
 
     public static function load()
     {
