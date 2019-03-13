@@ -93,6 +93,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
+    DDTRACE_G(disable) = 0;
 
 #if defined(ZTS) && PHP_VERSION_ID >= 70000
     ZEND_TSRMLS_CACHE_UPDATE();
@@ -101,6 +102,9 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+
+    DDTRACE_G(in_request_shutdown) = 0;
 
     ddtrace_dispatch_init(TSRMLS_C);
 
@@ -122,7 +126,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
-
+    DDTRACE_G(in_request_shutdown) = 1;
+    DDTRACE_G(disable) = 1;
     ddtrace_dispatch_destroy(TSRMLS_C);
 
     return SUCCESS;

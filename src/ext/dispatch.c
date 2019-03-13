@@ -461,6 +461,10 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     uint32_t function_name_length = 0;
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
 
+    if (DDTRACE_G(disable)){
+        return default_dispatch(execute_data TSRMLS_CC);
+    }
+
     zend_function *current_fbc = get_current_fbc(execute_data);
 
     if (!is_function_wrappable(execute_data, current_fbc, &function_name, &function_name_length)) {
