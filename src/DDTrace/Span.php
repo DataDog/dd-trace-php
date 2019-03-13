@@ -404,4 +404,12 @@ final class Span implements SpanInterface
         $this->integration = $integration;
         return $this;
     }
+
+    /**
+     * @return null|Integration
+     */
+    public function getIntegration()
+    {
+        return $this->integration;
+    }
 }

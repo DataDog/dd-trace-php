@@ -209,4 +209,12 @@ final class NoopSpan implements SpanInterface
     {
         return $this;
     }
+
+    /**
+     * @return null|Integration
+     */
+    public function getIntegration()
+    {
+        return null;
+    }
 }
