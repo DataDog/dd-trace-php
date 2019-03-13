@@ -217,4 +217,21 @@ final class NoopSpan implements SpanInterface
     {
         return null;
     }
+
+    /**
+     * @param bool $value
+     * @return self
+     */
+    public function setTraceAnalyticsCandidate($value = true)
+    {
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isTraceAnalyticsCandidate()
+    {
+        return false;
+    }
 }

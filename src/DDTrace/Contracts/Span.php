@@ -197,4 +197,15 @@ interface Span
      * @return null|Integration
      */
     public function getIntegration();
+
+    /**
+     * @param bool $value
+     * @return self
+     */
+    public function setTraceAnalyticsCandidate($value = true);
+
+    /**
+     * @return bool
+     */
+    public function isTraceAnalyticsCandidate();
 }

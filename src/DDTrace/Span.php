@@ -84,6 +84,11 @@ final class Span implements SpanInterface
     private $integration = null;
 
     /**
+     * @var bool Whether or not this trace can be even considered for trace analytics automatic configuration.
+     */
+    private $isTraceAnalyticsCandidate = false;
+
+    /**
      * Span constructor.
      * @param string $operationName
      * @param SpanContextInterface $context
@@ -395,7 +400,7 @@ final class Span implements SpanInterface
      * {@inheritdoc}
      *
      * @param Integration $integration
-     * @return $this|SpanInterface
+     * @return self
      */
     public function setIntegration(Integration $integration)
     {
@@ -409,5 +414,23 @@ final class Span implements SpanInterface
     public function getIntegration()
     {
         return $this->integration;
+    }
+
+    /**
+     * @param bool $value
+     * @return self
+     */
+    public function setTraceAnalyticsCandidate($value = true)
+    {
+        $this->isTraceAnalyticsCandidate = $value;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isTraceAnalyticsCandidate()
+    {
+        return $this->isTraceAnalyticsCandidate;
     }
 }
