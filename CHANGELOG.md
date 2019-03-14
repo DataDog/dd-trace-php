@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - Symfony template rendering spans #359
+- Laravel integration user ID errors #363
 
 ## [0.15.1]
 
