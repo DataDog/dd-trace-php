@@ -3,14 +3,13 @@
 namespace DDTrace\Integrations\Mysqli;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
-class MysqliIntegration extends AbstractIntegration
+class MysqliIntegration extends Integration
 {
     const NAME = 'mysqli';
 

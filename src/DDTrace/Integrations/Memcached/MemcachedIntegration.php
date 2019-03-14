@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\Memcached;
 
 use DDTrace\Contracts\Span;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Obfuscation;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -24,7 +23,7 @@ use DDTrace\GlobalTracer;
  * might be different for each key. setMultiByKey does, since you're pinning a
  * specific server.
  */
-class MemcachedIntegration extends AbstractIntegration
+class MemcachedIntegration extends Integration
 {
     const NAME = 'memcached';
 

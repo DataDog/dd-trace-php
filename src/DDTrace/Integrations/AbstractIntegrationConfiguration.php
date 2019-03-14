@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations;
 
+use DDTrace\Configuration;
 use DDTrace\Configuration\EnvVariableRegistry;
 use DDTrace\Configuration\Registry;
 
@@ -21,6 +22,11 @@ abstract class AbstractIntegrationConfiguration
     private $integrationName;
 
     /**
+     * @var Configuration
+     */
+    protected $globalConfig;
+
+    /**
      * @param string $integrationName
      */
     public function __construct($integrationName)
@@ -28,6 +34,7 @@ abstract class AbstractIntegrationConfiguration
         $this->integrationName = $integrationName;
         $prefix = strtoupper(str_replace('-', '_', trim($this->integrationName)));
         $this->registry = new EnvVariableRegistry("DD_${prefix}_");
+        $this->globalConfig = Configuration::get();
     }
 
     /**

@@ -3,9 +3,8 @@
 namespace DDTrace\Integrations\Web;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 
-class WebIntegration extends AbstractIntegration
+class WebIntegration extends Integration
 {
     const NAME = 'web';
 
@@ -15,6 +14,14 @@ class WebIntegration extends AbstractIntegration
     public function getName()
     {
         return self::NAME;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function requireExplicitTraceAnalyticsEnabling()
+    {
+        return false;
     }
 
     /**

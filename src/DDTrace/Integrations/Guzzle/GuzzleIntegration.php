@@ -8,12 +8,11 @@ use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\CodeTracer;
 
-final class GuzzleIntegration extends AbstractIntegration
+final class GuzzleIntegration extends Integration
 {
     const NAME = 'guzzle';
 

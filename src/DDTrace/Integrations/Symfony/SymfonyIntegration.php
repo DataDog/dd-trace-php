@@ -4,10 +4,9 @@ namespace DDTrace\Integrations\Symfony;
 
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Util\Versions;
 
-class SymfonyIntegration extends AbstractIntegration
+class SymfonyIntegration extends Integration
 {
     const NAME = 'symfony';
     const BUNDLE_NAME = 'datadog_symfony_bundle';
@@ -34,6 +33,14 @@ class SymfonyIntegration extends AbstractIntegration
     public function getName()
     {
         return self::NAME;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function requireExplicitTraceAnalyticsEnabling()
+    {
+        return false;
     }
 
     public static function load()

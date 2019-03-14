@@ -8,7 +8,7 @@ use DDTrace\Tag;
 use DDTrace\Span;
 use DDTrace\GlobalTracer;
 
-abstract class Integration extends AbstractIntegration
+abstract class Integration
 {
     // Possible statuses for the concrete:
     //   - NOT_LOADED   : It has not been loaded, but it may be loaded at a future time if the preconditions match
@@ -19,6 +19,67 @@ abstract class Integration extends AbstractIntegration
     const NOT_AVAILABLE = 2;
 
     const CLASS_NAME = '';
+
+    /**
+     * @var DefaultIntegrationConfiguration|mixed
+     */
+    private $configuration;
+
+    /**
+     * @return string The integration name.
+     */
+    public abstract function getName();
+
+
+    public function __construct()
+    {
+        $this->configuration = $this->buildConfiguration();
+    }
+
+    /**
+     * @return bool
+     */
+    public function isTraceAnalyticsEnabled()
+    {
+        return $this->configuration->isTraceAnalyticsEnabled(!$this->requireExplicitTraceAnalyticsEnabling());
+    }
+
+    /**
+     * @return float
+     */
+    public function getTraceAnalyticsSampleRate()
+    {
+        return $this->configuration->getTraceAnalyticsSampleRate();
+    }
+
+    /**
+     * Whether or not this integration trace analytics configuration is enabled when the global
+     * switch is turned on or it requires explicit enabling.
+     *
+     * @return bool
+     */
+    public function requireExplicitTraceAnalyticsEnabling()
+    {
+        return true;
+    }
+
+    /**
+     * Build the integration's configuration object. Override to provide your own implementation.
+     *
+     * @return DefaultIntegrationConfiguration|mixed
+     */
+    protected function buildConfiguration()
+    {
+        return new DefaultIntegrationConfiguration($this->getName());
+    }
+
+    /**
+     * @return DefaultIntegrationConfiguration|mixed
+     */
+    protected function getConfiguration()
+    {
+        return $this->configuration;
+    }
 
     public static function load()
     {

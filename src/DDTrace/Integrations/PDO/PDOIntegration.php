@@ -3,12 +3,11 @@
 namespace DDTrace\Integrations\PDO;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
 
-class PDOIntegration extends AbstractIntegration
+class PDOIntegration extends Integration
 {
     const NAME = 'pdo';
 
