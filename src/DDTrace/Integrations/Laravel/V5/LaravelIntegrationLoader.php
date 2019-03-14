@@ -53,7 +53,7 @@ class LaravelIntegrationLoader
             $span = $self->rootScope->getSpan();
             try {
                 $user = auth()->user();
-                $span->setTag('laravel.user', null !== $user ? $user->id : '-');
+                $span->setTag('laravel.user', null !== $user ? $user->getAuthIdentifier() : '-');
             } catch (\Exception $e) {
             }
 
