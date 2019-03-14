@@ -10,6 +10,7 @@ use DDTrace\Scope;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Route;
 
 class LaravelIntegrationLoader
@@ -52,8 +53,10 @@ class LaravelIntegrationLoader
 
             $span = $self->rootScope->getSpan();
             try {
-                $user = auth()->user()->id;
-                $span->setTag('laravel.user', strlen($user) ? $user : '-');
+                $user = auth()->user();
+                if ($user instanceof Authenticatable) {
+                    $span->setTag('laravel.user', $user->getAuthIdentifier());
+                }
             } catch (\Exception $e) {
             }
 
