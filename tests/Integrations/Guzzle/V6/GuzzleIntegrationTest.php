@@ -108,7 +108,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
-            $span = $tracer->startActiveSpan('some_operation')->getSpan();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
 
             $response = $client->get(self::URL . '/headers', [
                 'headers' => [
@@ -120,7 +120,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        // trace is: some_operation
+        // trace is: custom
         $this->assertSame($traces[0][0]->getContext()->getSpanId(), $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec, used under the hood
         $this->assertSame($traces[0][2]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
@@ -144,7 +144,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
-            $span = $tracer->startActiveSpan('some_operation')->getSpan();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
 
             $response = $client->get(self::URL . '/headers');
 

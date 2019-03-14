@@ -225,7 +225,7 @@ final class TracerTest extends BaseTestCase
 
         $transport = new DebugTransport();
         $tracer = new Tracer($transport);
-        $span = $tracer->startSpan('some_operation');
+        $span = $tracer->startSpan('custom');
 
         $this->assertSame('value1', $span->getAllTags()['key1']);
         $this->assertSame('value2', $span->getAllTags()['key2']);

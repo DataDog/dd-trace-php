@@ -49,7 +49,7 @@ final class MongoCollectionIntegration extends Integration
             if (isset($ref['$ref'])) {
                 $span->setTag(Tag::MONGODB_COLLECTION, $ref['$ref']);
             }
-        }, null, $mongoIntegration);
+        }, $mongoIntegration);
         // array MongoCollection::distinct ( string $key [, array $query ] )
         self::traceMethod('distinct', function (Span $span, array $args) {
             if (isset($args[1])) {
