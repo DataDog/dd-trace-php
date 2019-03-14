@@ -2,7 +2,7 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Integration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Exceptions\InvalidSpanArgument;
@@ -244,6 +244,14 @@ final class Span implements SpanInterface
     public function getAllTags()
     {
         return $this->tags;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function hasTag($name)
+    {
+        return array_key_exists($name, $this->getAllTags());
     }
 
     /**

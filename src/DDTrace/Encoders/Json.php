@@ -10,6 +10,7 @@ use DDTrace\Log\Logger;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Tag;
 
 final class Json implements Encoder
 {
@@ -20,9 +21,17 @@ final class Json implements Encoder
      */
     private $logger;
 
+    /**
+     * @var string[]
+     */
+    private $metricsNames = [];
+
     public function __construct(LoggerInterface $logger = null)
     {
         $this->logger = $logger ?: Logger::get();
+        $this->metricsNames = [
+            Tag::ANALYTICS_KEY,
+        ];
     }
 
     /**
@@ -136,14 +145,28 @@ final class Json implements Encoder
             $arraySpan['parent_id_hex'] = '-';
         }
 
-        $tags = $span->getAllTags();
-        if (!empty($tags)) {
-            $arraySpan['meta'] = $tags;
+        $tags = [];
+        $metrics = [];
+
+        foreach ($span->getAllTags() as $tagName => $tagValue) {
+            if (in_array($tagName, $this->metricsNames)) {
+                $metrics[$tagName] = $tagValue;
+            } else {
+                $tags[$tagName] = $tagValue;
+            }
         }
 
         if ($span->getContext()->isHostRoot()
                 && ($prioritySampling = $tracer->getPrioritySampling()) !== PrioritySampling::UNKNOWN) {
-            $arraySpan['metrics']['_sampling_priority_v1'] = $prioritySampling;
+            $metrics['_sampling_priority_v1'] = $prioritySampling;
+        }
+
+
+        if ($tags) {
+            $arraySpan['meta'] = $tags;
+        }
+        if ($metrics) {
+            $arraySpan['metrics'] = $metrics;
         }
 
         // This is only for testing purposes and possibly temporary as we may want to add integration name to the span's

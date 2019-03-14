@@ -2,7 +2,7 @@
 
 namespace DDTrace\Util;
 
-use DDTrace\Contracts\Integration;
+use DDTrace\Integrations\Integration;
 use DDTrace\GlobalTracer;
 
 final class CodeTracer

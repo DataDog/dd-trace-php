@@ -26,6 +26,7 @@ class Tag
     const TARGET_HOST = 'out.host';
     const TARGET_PORT = 'out.port';
     const BYTES_OUT = 'net.out.bytes';
+    const ANALYTICS_KEY = '_dd1.sr.eausr';
 
     // Elasticsearch
     const ELASTICSEARCH_BODY = 'elasticsearch.body';

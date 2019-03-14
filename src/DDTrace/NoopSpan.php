@@ -7,7 +7,7 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Integration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Contracts\Span as SpanInterface;
 
 final class NoopSpan implements SpanInterface
@@ -199,6 +199,14 @@ final class NoopSpan implements SpanInterface
     public function getAllTags()
     {
         return [];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function hasTag($name)
+    {
+        return false;
     }
 
     /**
