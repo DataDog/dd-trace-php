@@ -186,11 +186,12 @@ executors:
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
 
 jobs:
-  "Lint files": &lint_files
+  "Lint files":
+    working_directory: ~/datadog
     docker:
       - image: circleci/php:7.2-cli-node-browsers
     steps:
-      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache
       - restore_cache:
           <<: *CACHE_NPM_KEY
@@ -235,10 +236,11 @@ jobs:
       - <<: *STEP_STORE_ARTIFACTS
 
   "Static Analysis":
+    working_directory: ~/datadog
     docker:
       - image: circleci/php:7.2
     steps:
-      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache
       - run:
           name: Install phpstan
@@ -258,7 +260,6 @@ jobs:
       name: with_agent
       tag: << parameters.image_tag >>
     steps:
-      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
@@ -280,7 +281,6 @@ jobs:
       name: with_integrations
       tag: << parameters.image_tag >>
     steps:
-      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
@@ -311,88 +311,58 @@ jobs:
         type: string
     docker: [ image: << parameters.docker_image >> ]
     steps:
-      - attach_workspace:
-          at: ~/datadog
+      - <<: *STEP_ATTACH_WORKSPACE
       - run: sh dockerfiles/verify_packages/verify_<< parameters.package_type >>.sh
 
-  "Packaging Code Checkout":
+  compile_extension:
     working_directory: ~/datadog
-    docker: [ image: 'circleci/buildpack-deps:latest' ]
-    steps:
-      - checkout
-      - attach_workspace: { at: ~/datadog }
-      - persist_to_workspace:
-          root: '.'
-          paths: ['./']
-
-  "PHP 54 20100412": &5_4_ARTIFACT_BUILD
-    working_directory: ~/datadog
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_5_4' ]
+    parameters:
+      docker_image:
+        type: string
+      so_suffix:
+        type: string
+        default: unknown
+      catch_warnings:
+        type: boolean
+        default: true
+    docker: [ image: << parameters.docker_image >> ]
     environment:
-      CFLAGS: "-O2 -Wall -Wextra"
+      CFLAGS: ""
     steps:
-      - attach_workspace:
-          at: ~/datadog
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p extensions
       - run:
-          name: Build extension .so
-          command: |
-              mkdir -p extensions
-              make all CFLAGS="${CFLAGS}" ECHO_ARG="-e"
-              SUFFIX="$( echo "$CIRCLE_JOB" | awk '{print $NF}' )"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-$SUFFIX.so
-              make clean debug all ECHO_ARG="-e"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-$SUFFIX-debug.so
+          name: Build extension basic .so
+          command: make all CFLAGS="-O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+      - run:
+          name: Copy extension basic .so
+          command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
+      - run:
+          name: Build extension debug .so
+          command: make all CFLAGS="-g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+      - run:
+          name: Copy extension basic .so
+          command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions']
 
-  "PHP 56 20131106": &ARTIFACT_BUILD
-    <<: *5_4_ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_56' ]
-    environment: { CFLAGS: "-O2 -Wall -Wextra" }
 
-  "PHP 70 20151012":
-    <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_70' ]
-
-  "PHP 71 20160303":
-    <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_71' ]
-
-  "PHP 72 20170718":
-    <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_72' ]
-
-  "PHP 73 20180731":
-    <<: *ARTIFACT_BUILD
-    docker: [ image: 'datadog/docker-library:ddtrace_centos_7_php_73' ]
-
-  "PHP 56 zts 20131106-zts":
-    <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:5.6-zts' ]
-
-  "PHP 70 zts 20151012-zts":
-    <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:7.0-zts' ]
-
-  "PHP 71 zts 20160303-zts":
-    <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:7.1-zts' ]
-
-  "PHP 72 zts 20170718-zts":
-    <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:7.2-zts' ]
-
-  "PHP 73 zts 20180731-zts":
-    <<: *ARTIFACT_BUILD
-    docker: [ image: 'circleci/php:7.3-zts' ]
+  "Code Checkout":
+    working_directory: ~/datadog
+    docker: [ image: 'circleci/buildpack-deps:latest' ]
+    steps:
+      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      - persist_to_workspace:
+          root: '.'
+          paths: ['./']
 
   "package extension":
-    <<: *ARTIFACT_BUILD
+    working_directory: ~/datadog
     docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
     steps:
-      - attach_workspace:
-          at: ~/datadog
+      - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Build packages
           command: make packages
@@ -407,9 +377,7 @@ jobs:
     machine:
       image: circleci/classic:latest
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/datadog
+      - <<: *STEP_ATTACH_WORKSPACE
       - run: mkdir -p test-results
       - run:
           name: Test installing packages on target systems
@@ -421,38 +389,82 @@ workflows:
   version: 2
   build_packages:
     jobs:
-      - "Packaging Code Checkout"
-      - "PHP 54 20100412": &BUILD_PACKAGE_FORKFLOW
-          requires: [ 'Packaging Code Checkout' ]
+      - "Code Checkout":
           filters:
             tags:
               only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
             branches:
               # Always build on master
               ignore: /^(?!master).*/
-      - "PHP 56 20131106": *BUILD_PACKAGE_FORKFLOW
-      - "PHP 70 20151012": *BUILD_PACKAGE_FORKFLOW
-      - "PHP 71 20160303": *BUILD_PACKAGE_FORKFLOW
-      - "PHP 72 20170718": *BUILD_PACKAGE_FORKFLOW
-      - "PHP 73 20180731": *BUILD_PACKAGE_FORKFLOW
-      - "PHP 56 zts 20131106-zts": *BUILD_PACKAGE_FORKFLOW
-      - "PHP 70 zts 20151012-zts": *BUILD_PACKAGE_FORKFLOW
-      - "PHP 71 zts 20160303-zts": *BUILD_PACKAGE_FORKFLOW
-      - "PHP 72 zts 20170718-zts": *BUILD_PACKAGE_FORKFLOW
-      - "PHP 73 zts 20180731-zts": *BUILD_PACKAGE_FORKFLOW
+      - compile_extension:
+          name: "Compile PHP 54"
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
+          catch_warnings: false
+          so_suffix: "20100412"
+          requires: [ 'Code Checkout' ]
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 56"
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_6"
+          so_suffix: "20131106"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 70"
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_0"
+          so_suffix: "20151012"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 71"
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_1"
+          so_suffix: "20160303"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 72"
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
+          so_suffix: "20170718"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 73"
+          docker_image: "datadog/docker-library:ddtrace_centos_7_php_73"
+          so_suffix: "20180731"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 56-zts"
+          docker_image: "circleci/php:5.6-zts"
+          so_suffix: "20131106-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 70-zts"
+          docker_image: "circleci/php:7.0-zts"
+          so_suffix: "20151012-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 71-zts"
+          docker_image: "circleci/php:7.1-zts"
+          so_suffix: "20160303-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 72-zts"
+          docker_image: "circleci/php:7.2-zts"
+          so_suffix: "20170718-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 73-zts"
+          docker_image: "circleci/php:7.3-zts"
+          so_suffix: "20180731-zts"
       - "package extension":
           requires:
-            - "PHP 54 20100412"
-            - "PHP 56 20131106"
-            - "PHP 70 20151012"
-            - "PHP 71 20160303"
-            - "PHP 72 20170718"
-            - "PHP 73 20180731"
-            - "PHP 56 zts 20131106-zts"
-            - "PHP 70 zts 20151012-zts"
-            - "PHP 71 zts 20160303-zts"
-            - "PHP 72 zts 20170718-zts"
-            - "PHP 73 zts 20180731-zts"
+            - "Compile PHP 54"
+            - "Compile PHP 56"
+            - "Compile PHP 70"
+            - "Compile PHP 71"
+            - "Compile PHP 72"
+            - "Compile PHP 73"
+            - "Compile PHP 56-zts"
+            - "Compile PHP 70-zts"
+            - "Compile PHP 71-zts"
+            - "Compile PHP 72-zts"
+            - "Compile PHP 73-zts"
       - "package verification":
           requires:
             - "package extension"
@@ -463,19 +475,29 @@ workflows:
           package_type: deb
   build:
     jobs:
+      - "Code Checkout"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "test compile PHP 55"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
       - unit_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 54 Unit tests"
           image_tag: ddtrace_alpine_php-5.4-debug
       - unit_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 56 Unit tests"
           image_tag: ddtrace_alpine_php-5.6-debug
       - unit_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 70 Unit tests"
           image_tag: ddtrace_alpine_php-7.0-debug
       - unit_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 71 Unit tests"
           image_tag: ddtrace_alpine_php-7.1-debug
       - unit_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 72 Unit tests"
           image_tag: ddtrace_alpine_php-7.2-debug
       # - unit_tests:
@@ -485,52 +507,67 @@ workflows:
       #     name: "PHP 73 Unit tests"
       #     version: "7.3" # TODO: unit test for 7.3 are failing due to memory leaks - 7.3 not yet officially supported
       - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 54 Integration tests"
           image_tag: "ddtrace_alpine_php-5.4-debug"
           integration_testsuite: "test-integrations-54"
       - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 56 Integration tests"
           integration_testsuite: "test-integrations-56"
           image_tag: "ddtrace_alpine_php-5.6-debug"
       - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 70 Integration tests"
           integration_testsuite: "test-integrations-70"
           image_tag: "ddtrace_alpine_php-7.0-debug"
       - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 71 Integration tests"
           integration_testsuite: "test-integrations-71"
           image_tag: "ddtrace_alpine_php-7.1-debug"
       - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 72 Integration tests"
           integration_testsuite: "test-integrations-72"
           image_tag: "ddtrace_alpine_php-7.2-debug"
       # - integration_tests:
+      #     requires: [ 'Code Checkout' ]
       #     name: "PHP 73 Integration tests"
       #     integration_testsuite: "test-integrations-72" # not yet defined for 7.3
       #     image_tag: "ddtrace_alpine_php-7.3-debug" # image is missing proper mcrypt support - to be investigated
       - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 54 Web integration tests"
           image_tag: "ddtrace_alpine_php-5.4-debug"
           integration_testsuite: "test-web-54"
       - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 56 Web integration tests"
           integration_testsuite: "test-web-56"
+          # image_tag: "ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
           image_tag: "ddtrace_php_5_6"
       - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 70 Web integration tests"
           integration_testsuite: "test-web-70"
           image_tag: "ddtrace_alpine_php-7.0-debug"
       - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 71 Web integration tests"
           integration_testsuite: "test-web-71"
           image_tag: "ddtrace_alpine_php-7.1-debug"
       - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 72 Web integration tests"
           integration_testsuite: "test-web-72"
           image_tag: "ddtrace_php_7_2"
       # - integration_tests:
+      #     requires: [ 'Code Checkout' ]
       #     name: "PHP 73 Web integration tests"
       #     integration_testsuite: "test-web-72" # not yet defined for 7.3
       #     image_tag: "ddtrace_alpine_php-7.3-debug"
-      - "Lint files"
-      - "Static Analysis"
+      - "Lint files":
+          requires: [ 'Code Checkout' ]
+      - "Static Analysis":
+          requires: [ 'Code Checkout' ]

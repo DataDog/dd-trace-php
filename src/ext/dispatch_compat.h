@@ -19,7 +19,7 @@ void ddtrace_class_lookup_release_compat(zval *zv);
 #define _EX(x) ((execute_data)->x)
 static zend_always_inline zval *ddtrace_this(zend_execute_data *execute_data) {
     zval *this = NULL;
-#if PHP_VERSION_ID < 50600
+#if PHP_VERSION_ID < 50500
     if (_EX(opline)->opcode != ZEND_DO_FCALL && _EX(object)) {
         this = _EX(object);
     }
