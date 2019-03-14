@@ -53,23 +53,27 @@ final class MongoCollectionIntegration extends Integration
         // array MongoCollection::distinct ( string $key [, array $query ] )
         self::traceMethod('distinct', function (Span $span, array $args) {
             if (isset($args[1])) {
+                $span->setTraceAnalyticsCandidate();
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[1]));
             }
         }, null, $mongoIntegration);
         // MongoCursor MongoCollection::find ([ array $query = array() [, array $fields = array() ]] )
         self::traceMethod('find', function (Span $span, array $args) {
             if (isset($args[0])) {
+                $span->setTraceAnalyticsCandidate();
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
             }
         }, null, $mongoIntegration);
         // array MongoCollection::findAndModify ( array $query [, array $update [, array $fields [, array $options ]]] )
         self::traceMethod('findAndModify', function (Span $span, array $args) {
+            $span->setTraceAnalyticsCandidate();
             $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
         }, null, $mongoIntegration);
         // array MongoCollection::findOne ([ array $query = array() [, array $fields = array()
         // [, array $options = array() ]]] )
         self::traceMethod('findOne', function (Span $span, array $args) {
             if (isset($args[0])) {
+                $span->setTraceAnalyticsCandidate();
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
             }
         }, null, $mongoIntegration);
@@ -95,6 +99,7 @@ final class MongoCollectionIntegration extends Integration
         // bool|array MongoCollection::update ( array $criteria , array $new_object [, array $options = array() ] )
         self::traceMethod('update', function (Span $span, array $args) {
             if (isset($args[0])) {
+                $span->setTraceAnalyticsCandidate();
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
             }
         }, null, $mongoIntegration);

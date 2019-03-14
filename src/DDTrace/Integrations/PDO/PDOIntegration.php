@@ -103,6 +103,7 @@ class PDOIntegration extends AbstractIntegration
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
             $span->setTag(Tag::RESOURCE_NAME, $statement);
+            $span->setTraceAnalyticsCandidate();
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -137,6 +138,7 @@ class PDOIntegration extends AbstractIntegration
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
             $span->setTag(Tag::RESOURCE_NAME, $args[0]);
+            $span->setTraceAnalyticsCandidate();
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -230,6 +232,7 @@ class PDOIntegration extends AbstractIntegration
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
             $span->setTag(Tag::RESOURCE_NAME, $this->queryString);
+            $span->setTraceAnalyticsCandidate();
             PDOIntegration::setStatementTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally

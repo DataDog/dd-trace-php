@@ -77,14 +77,16 @@ final class GuzzleIntegration extends AbstractIntegration
             'send',
             $this->buildPreCallback('send'),
             $postCallback,
-            $integration
+            $integration,
+            true
         );
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'transfer',
             $this->buildPreCallback('transfer'),
             $postCallback,
-            $integration
+            $integration,
+            true
         );
 
         return Integration::LOADED;

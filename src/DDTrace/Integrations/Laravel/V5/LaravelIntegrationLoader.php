@@ -38,6 +38,7 @@ class LaravelIntegrationLoader
             $span = $self->rootScope->getSpan();
             // Overwriting the default web integration
             $span->setIntegration(LaravelIntegration::getInstance());
+            $span->setTraceAnalyticsCandidate();
             $span->setTag(
                 Tag::RESOURCE_NAME,
                 $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')

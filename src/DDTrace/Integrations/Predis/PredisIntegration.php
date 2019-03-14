@@ -115,6 +115,7 @@ class PredisIntegration extends AbstractIntegration
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
             $span->setTag(Tag::RESOURCE_NAME, $query);
+            $span->setTraceAnalyticsCandidate();
             PredisIntegration::setConnectionTags($this, $span);
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'executeCommand', [$command]);
@@ -134,6 +135,7 @@ class PredisIntegration extends AbstractIntegration
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
             $span->setTag(Tag::RESOURCE_NAME, $query);
+            $span->setTraceAnalyticsCandidate();
             PredisIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally block.

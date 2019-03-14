@@ -47,6 +47,7 @@ class CurlIntegration extends AbstractIntegration
             $tracer = GlobalTracer::get();
             $scope = $tracer->startIntegrationScopeAndSpan($integration, 'curl_exec');
             $span = $scope->getSpan();
+            $span->setTraceAnalyticsCandidate();
             $span->setTag(Tag::SERVICE_NAME, 'curl');
             $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
 

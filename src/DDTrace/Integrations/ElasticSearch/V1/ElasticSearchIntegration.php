@@ -206,6 +206,7 @@ class ElasticSearchIntegration extends AbstractIntegration
                 "Elasticsearch.Client.$name"
             );
             $span = $scope->getSpan();
+            $span->setTraceAnalyticsCandidate();
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
             $span->setTag(Tag::SPAN_TYPE, Type::ELASTICSEARCH);

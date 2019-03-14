@@ -124,6 +124,7 @@ class MysqliIntegration extends AbstractIntegration
             $scope = MysqliIntegration::initScope('mysqli_query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
+            $span->setTraceAnalyticsCandidate();
             MysqliIntegration::setConnectionInfo($span, $mysqli);
             MysqliIntegration::storeQuery($mysqli, $query);
 
@@ -204,6 +205,7 @@ class MysqliIntegration extends AbstractIntegration
             $scope = MysqliIntegration::initScope('mysqli.query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
+            $span->setTraceAnalyticsCandidate();
             MysqliIntegration::setConnectionInfo($span, $this);
             MysqliIntegration::storeQuery($this, $query);
 
@@ -260,6 +262,7 @@ class MysqliIntegration extends AbstractIntegration
         dd_trace('mysqli_stmt', 'execute', function () {
             $resource = MysqliIntegration::retrieveQuery($this, 'mysqli_stmt.execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt.execute', $resource);
+            $scope->getSpan()->setTraceAnalyticsCandidate();
             return TryCatchFinally::executePublicMethod($scope, $this, 'execute', []);
         });
 
