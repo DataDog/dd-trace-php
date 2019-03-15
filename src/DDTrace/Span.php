@@ -208,7 +208,7 @@ final class Span implements SpanInterface
             $value = Urls::sanitize((string)$value);
         }
 
-        if ($key === Tag::HTTP_STATUS_CODE && $value >= 400) {
+        if ($key === Tag::HTTP_STATUS_CODE && $value >= 500) {
             $this->hasError = true;
         }
 
