@@ -208,6 +208,10 @@ final class Span implements SpanInterface
             $value = Urls::sanitize((string)$value);
         }
 
+        if ($key === Tag::HTTP_STATUS_CODE && $value >= 400) {
+            $this->hasError = true;
+        }
+
         $this->tags[$key] = (string)$value;
     }
 
