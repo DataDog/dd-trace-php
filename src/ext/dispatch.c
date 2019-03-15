@@ -45,50 +45,60 @@ zend_class_entry *get_executed_scope(void) {
 }
 #endif
 
-static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, const char *function_name,
-                                           uint32_t function_name_length) {
-    if (function_name_length == 0) {
-        function_name_length = strlen(function_name);
+#if PHP_VERSION_ID < 70000
+static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_lookup_data_t *lookup_data) {
+    if (lookup_data->function_name_length == 0) {
+        ookup_data->function_name_length  = strlen(function_name);
     }
 
-    char *key = zend_str_tolower_dup(function_name, function_name_length);
+    char *key = zend_str_tolower_dup(lookup_data->function_name , lookup_data->function_name_length );
     ddtrace_dispatch_t *dispatch = NULL;
-    dispatch = zend_hash_str_find_ptr(lookup, key, function_name_length);
+    dispatch = zend_hash_str_find_ptr(lookup, key, ookup_data->function_name_length );
 
     efree(key);
     return dispatch;
 }
-
-static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, const char *method_name,
-                                         uint32_t method_name_length TSRMLS_DC) {
-    if (!method_name) {
-        return NULL;
-    }
-    const char *class_name = NULL;
-    size_t class_name_length = 0;
-
-#if PHP_VERSION_ID < 70000
-    class_name = class->name;
-    class_name_length = class->name_length;
 #else
-    class_name = ZSTR_VAL(class->name);
-    class_name_length = ZSTR_LEN(class->name);
+static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_lookup_data_t *lookup_data) {
+    // char *key = zend_str_tolower_dup(lookup_data->function_name , lookup_data->function_name_length );
+    ddtrace_dispatch_t *dispatch = NULL;
+    dispatch = zend_hash_find_ptr(lookup, lookup_data->function_name);
+
+    // efree(key);
+    return dispatch;
+}
 #endif
 
-    DD_PRINTF("Dispatch Lookup for class: %s", class_name);
-    HashTable *class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), class_name, class_name_length);
+static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, ddtrace_lookup_data_t *lookup_data TSRMLS_DC) {
+    if (!lookup_data->function_name) {
+        return NULL;
+    }
+
+    HashTable *class_lookup = NULL;
+
+#if PHP_VERSION_ID < 70000
+    const char *class_name = NULL;
+    size_t class_name_length = 0;
+    class_name = class->name;
+    class_name_length = class->name_length;
+    class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), class_name, class_name_length);
+#else
+    class_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), class->name);
+#endif
+
+    //TODO: DD_PRINTF("Dispatch Lookup for class: %s", class_name);
     ddtrace_dispatch_t *dispatch = NULL;
     if (class_lookup) {
-        dispatch = lookup_dispatch(class_lookup, method_name, method_name_length);
+        dispatch = lookup_dispatch(class_lookup, lookup_data);
     }
 
     if (dispatch) {
         return dispatch;
     }
 
-    DD_PRINTF("Dispatch Lookup for class %s not found", class_name);
+    //TODO: DD_PRINTF("Dispatch Lookup for class %s not found", class_name);
     if (class->parent) {
-        return find_dispatch(class->parent, method_name, method_name_length TSRMLS_CC);
+        return find_dispatch(class->parent, lookup_data TSRMLS_CC);
     } else {
         return NULL;
     }
@@ -193,24 +203,30 @@ _exit_cleanup:
     Z_DELREF(closure);
 }
 
-static int is_anonymous_closure(zend_function *fbc, const char *function_name, uint32_t *function_name_length_p) {
-    if (!(fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !function_name_length_p) {
+static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *lookup) {
+    if (!(fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !lookup->function_name) {
         return 0;
     }
-
-    if (*function_name_length_p == 0) {
-        *function_name_length_p = strlen(function_name);
+#if PHP_VERSION_ID < 70000
+    if (lookup->function_name_length == 0){
+        lookup->function_name_length = strlen(function_name);
     }
-
-    if ((*function_name_length_p == (sizeof("{closure}") - 1)) && strcmp(function_name, "{closure}") == 0) {
+    if ((lookup->function_name_length == (sizeof("{closure}") - 1)) && strcmp(function_name, "{closure}") == 0) {
         return 1;
     } else {
         return 0;
     }
+#else
+    if ((ZSTR_LEN(lookup->function_name) == (sizeof("{closure}") - 1)) && strcmp((ZSTR_VAL(lookup->function_name)), "{closure}") == 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+#endif
+
 }
 
-static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, const char *function_name,
-                                                 uint32_t function_name_length TSRMLS_DC) {
+static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data, ddtrace_lookup_data_t *lookup_data TSRMLS_DC) {
 #if PHP_VERSION_ID < 50500
     zval *original_object = EX(object);
 #endif
@@ -232,15 +248,15 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
     if (class) {
         DD_PRINTF("Looking for handler for %s#%s", common_scope, function_name);
-        dispatch = find_dispatch(class, function_name, function_name_length TSRMLS_CC);
+        dispatch = find_dispatch(class, lookup_data TSRMLS_CC);
     } else {
-        dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), function_name, function_name_length);
+        dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), lookup_data);
     }
 
     if (!dispatch) {
-        DD_PRINTF("Handler for %s not found", function_name);
+        DD_PRINTF("Handler for %s not found", lookup_data->function_name);
     } else if (dispatch->busy) {
-        DD_PRINTF("Handler for %s is BUSY", function_name);
+        DD_PRINTF("Handler for %s is BUSY", lookup_data->function_name);
     }
 
     if (dispatch && !dispatch->busy) {
@@ -284,7 +300,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             return_value = &rv_ptr;
         }
 
-        DD_PRINTF("Starting handler for %s#%s", common_scope, function_name);
+        DD_PRINTF("Starting handler for %s#%s", common_scope, lookup_data->function_name);
 
         if (RETURN_VALUE_USED(opline)) {
             temp_variable *ret = &EX_T(opline->result.var);
@@ -339,7 +355,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
         dispatch->busy = 0;
         ddtrace_class_lookup_release(dispatch);
-        DD_PRINTF("Handler for %s#%s exiting", common_scope, function_name);
+        DD_PRINTF("Handler for %s#%s exiting", common_scope, lookup_data->function_name);
         return 1;
     } else {
         return 0;
@@ -366,10 +382,9 @@ static zend_always_inline zend_function *get_current_fbc(zend_execute_data *exec
 }
 
 static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *execute_data, zend_function *fbc,
-                                                          char const **function_name_p,
-                                                          uint32_t *function_name_length_p) {
-    const char *function_name = NULL;
-    uint32_t function_name_length = 0;
+                        ddtrace_lookup_data_t *lookup_data) {
+    // const char *function_name = NULL;
+    // uint32_t function_name_length = 0;
     if (!fbc) {
         DD_PRINTF("No function obj found, skipping lookup");
         return 0;
@@ -378,33 +393,30 @@ static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *exe
 #if PHP_VERSION_ID < 70000
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         if (fbc) {
-            function_name = fbc->common.function_name;
+            lookup_data->function_name = Z_STRVAL_P(fname);
         }
     } else {
         zval *fname = EX(opline)->op1.zv;
 
-        function_name = Z_STRVAL_P(fname);
-        function_name_length = Z_STRLEN_P(fname);
+        lookup_data->function_name = Z_STRVAL_P(fname);
+        lookup_data->function_name_length = Z_STRLEN_P(fname);
     }
 #else
     fbc = EX(call)->func;
     if (fbc->common.function_name) {
-        function_name = ZSTR_VAL(fbc->common.function_name);
-        function_name_length = ZSTR_LEN(fbc->common.function_name);
+        lookup_data->function_name = fbc->common.function_name;
     }
 #endif
-    if (!function_name) {
+    if (!lookup_data->function_name) {
         DD_PRINTF("No function name, skipping lookup");
         return 0;
     }
 
-    if (is_anonymous_closure(fbc, function_name, &function_name_length)) {
+    if (is_anonymous_closure(fbc, lookup_data)) {
         DD_PRINTF("Anonymous closure, skipping lookup");
         return 0;
     }
 
-    *function_name_p = function_name;
-    *function_name_length_p = function_name_length;
     return 1;
 }
 
@@ -457,23 +469,20 @@ int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
 }
 
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
-    const char *function_name = NULL;
-    uint32_t function_name_length = 0;
+    // const char *function_name = NULL;
+    // uint32_t function_name_length = 0;
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
 
-    if (DDTRACE_G(disable)){
-        return default_dispatch(execute_data TSRMLS_CC);
-    }
-
     zend_function *current_fbc = get_current_fbc(execute_data);
+    ddtrace_lookup_data_t lookup_data = { 0 };
 
-    if (!is_function_wrappable(execute_data, current_fbc, &function_name, &function_name_length)) {
+    if (!is_function_wrappable(execute_data, current_fbc, &lookup_data)) {
         return default_dispatch(execute_data TSRMLS_CC);
     }
     zend_function *previous_fbc = DDTRACE_G(current_fbc);
     DDTRACE_G(current_fbc) = current_fbc;
 
-    zend_bool wrapped = wrap_and_run(execute_data, function_name, function_name_length TSRMLS_CC);
+    zend_bool wrapped = wrap_and_run(execute_data, &lookup_data TSRMLS_CC);
 
     DDTRACE_G(current_fbc) = previous_fbc;
     if (wrapped) {
