@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file - [read more
 ### Fixed
 - Symfony template rendering spans #359
 - Laravel integration user ID errors #363
+- Non-success HTTP response codes aren't properly categorized as errors in the APM UI #366
 
 ## [0.15.1]
 
