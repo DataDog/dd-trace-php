@@ -60,11 +60,18 @@ static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_look
 }
 #else
 static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_lookup_data_t *lookup_data) {
-    // char *key = zend_str_tolower_dup(lookup_data->function_name , lookup_data->function_name_length );
-    ddtrace_dispatch_t *dispatch = NULL;
-    dispatch = zend_hash_find_ptr(lookup, lookup_data->function_name);
+    zend_string *to_free = NULL, *key = lookup_data->function_name;
 
-    // efree(key);
+    if (!ddtrace_is_all_lower(key)){
+        key = zend_string_tolower(key);
+        to_free = key;
+    }
+
+    ddtrace_dispatch_t *dispatch = zend_hash_find_ptr(lookup, key);
+
+    if (to_free) {
+        zend_string_free(key);
+    }
     return dispatch;
 }
 #endif
@@ -73,6 +80,8 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, ddtrace_
     if (!lookup_data->function_name) {
         return NULL;
     }
+
+    // fprintf(stderr, "> %s\n", ZSTR_VAL(lookup_data->function_name));
 
     HashTable *class_lookup = NULL;
 

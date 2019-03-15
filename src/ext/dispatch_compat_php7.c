@@ -14,35 +14,22 @@ void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, 
     fci->retval = *result;
 }
 
-int is_all_lower(zend_string *s){
-    unsigned char *c, *e;
-
-    c = (unsigned char *)ZSTR_VAL(s);
-	e = c + ZSTR_LEN(s);
-
-    int rv = 1;
-	while (c < e) {
-		if (isupper(*c)) {
-            rv = 0;
-            break;
-        }
-		c++;
-	}
-    return rv;
-}
-
 zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
     if (Z_TYPE_P(name) != IS_STRING) {
         return NULL;
     }
 
-    zend_string *key = Z_STR_P(name);
-    if (!is_all_lower(key)){
-        key = zend_string_tolower(Z_STR_P(name));
+    zend_string *to_free = NULL, *key = Z_STR_P(name);
+    if (!ddtrace_is_all_lower(key)){
+        key = zend_string_tolower(key);
+        to_free = key;
     }
 
     zend_function *ptr = zend_hash_find_ptr(table, key);
-    zend_string_release(key);
+
+    if (to_free){
+        zend_string_release(to_free);
+    }
     return ptr;
 }
 
