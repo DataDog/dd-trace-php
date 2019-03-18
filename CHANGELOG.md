@@ -3,9 +3,14 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Changed
+- When shutdown hook is executed we disable all tracing to avoid creating unnecessary spans #361
+- Inside request init hook we disable all function tracing when we decide not to trace #361
+
 ### Added
 - Disable request_init_hook functionality in presence of blacklisted modules #345
 - Integration-level configuration #354
+- `dd_trace_disable_in_request` function which disables all function tracing until request ends #361
 
 ### Fixed
 - Symfony template rendering spans #359
