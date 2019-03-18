@@ -74,6 +74,11 @@ final class Span implements SpanInterface
     private $tags = [];
 
     /**
+     * @var array
+     */
+    private $metrics = [];
+
+    /**
      * @var bool
      */
     private $hasError = false;
@@ -223,6 +228,10 @@ final class Span implements SpanInterface
             $this->hasError = true;
         }
 
+        if (in_array($key, self::getMetricsNames())) {
+            $this->setMetric($key, $value);
+        }
+
         $this->tags[$key] = (string)$value;
     }
 
@@ -252,6 +261,50 @@ final class Span implements SpanInterface
     public function hasTag($name)
     {
         return array_key_exists($name, $this->getAllTags());
+    }
+
+    /**
+     * @param string $key
+     * @param mixed $value
+     */
+    public function setMetric($key, $value)
+    {
+        if ($key === Tag::ANALYTICS_KEY) {
+            $this->processTraceAnalyticsTag($value);
+            return;
+        }
+    }
+
+    /**
+     * @return array
+     */
+    public function getMetrics()
+    {
+        return $this->metrics;
+    }
+
+    /**
+     * @return string[] The known metrics names
+     */
+    private static function getMetricsNames()
+    {
+        return [
+            Tag::ANALYTICS_KEY,
+        ];
+    }
+
+    /**
+     * @param bool|float $value
+     */
+    private function processTraceAnalyticsTag($value)
+    {
+        if (true === $value || null === $value) {
+            $this->metrics[Tag::ANALYTICS_KEY] = 1.0;
+        } elseif (false === $value) {
+            unset($this->metrics[Tag::ANALYTICS_KEY]);
+        } elseif (is_numeric($value) && 0 <= $value && $value <= 1) {
+            $this->metrics[Tag::ANALYTICS_KEY] = (float)$value;
+        }
     }
 
     /**

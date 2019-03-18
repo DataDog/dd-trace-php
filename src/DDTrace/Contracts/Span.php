@@ -199,6 +199,19 @@ interface Span
     public function hasTag($name);
 
     /**
+     * Set a DD metric.
+     *
+     * @param string $key
+     * @param mixed $value
+     */
+    public function setMetric($key, $value);
+
+    /**
+     * @return array All the currently set metrics.
+     */
+    public function getMetrics();
+
+    /**
      * @param Integration $integration
      * @return self
      */

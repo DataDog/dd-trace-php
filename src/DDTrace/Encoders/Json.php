@@ -21,17 +21,9 @@ final class Json implements Encoder
      */
     private $logger;
 
-    /**
-     * @var string[]
-     */
-    private $metricsNames = [];
-
     public function __construct(LoggerInterface $logger = null)
     {
         $this->logger = $logger ?: Logger::get();
-        $this->metricsNames = [
-            Tag::ANALYTICS_KEY,
-        ];
     }
 
     /**
@@ -146,15 +138,15 @@ final class Json implements Encoder
         }
 
         $tags = [];
-        $metrics = [];
-
         foreach ($span->getAllTags() as $tagName => $tagValue) {
-            if (in_array($tagName, $this->metricsNames)) {
-                $metrics[$tagName] = $tagValue;
-            } else {
-                $tags[$tagName] = $tagValue;
-            }
+            $tags[$tagName] = $tagValue;
         }
+
+        $metrics = [];
+        foreach ($span->getMetrics() as $metricName => $metricValue) {
+            $metrics[$metricName] = $metricValue;
+        }
+
 
         if ($span->getContext()->isHostRoot()
                 && ($prioritySampling = $tracer->getPrioritySampling()) !== PrioritySampling::UNKNOWN) {
