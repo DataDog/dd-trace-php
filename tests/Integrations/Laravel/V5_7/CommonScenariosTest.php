@@ -17,6 +17,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     {
         return [
             'APP_NAME' => 'laravel_test_app',
+            'DD_TEST_INTEGRATION' => 'true',
         ];
     }
 

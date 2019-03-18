@@ -146,6 +146,14 @@ final class Json implements Encoder
             $arraySpan['metrics']['_sampling_priority_v1'] = $prioritySampling;
         }
 
+        // This is only for testing purposes and possibly temporary as we may want to add integration name the span's
+        // metadata in a consistent way across various tracers.
+        if (null !== $span->getIntegration()
+                && false !== ($integrationTest = getenv('DD_TEST_INTEGRATION'))
+                && in_array($integrationTest, ['1', 'true'])) {
+            $arraySpan['meta']['integration.name'] = $span->getIntegration()->getName();
+        }
+
         return $arraySpan;
     }
 }

@@ -17,6 +17,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     {
         return [
             'APP_NAME' => 'custom_autoloaded_app',
+            'DD_TEST_INTEGRATION' => 'true',
         ];
     }
 
@@ -49,6 +50,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => '/simple',
                         'http.status_code' => '200',
+                        'integration.name' => 'web',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -61,6 +63,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => '/simple_view',
                         'http.status_code' => '200',
+                        'integration.name' => 'web',
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -73,6 +76,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => '/error',
                         'http.status_code' => '500',
+                        'integration.name' => 'web',
                     ])->setError(),
                 ],
             ]
