@@ -21,7 +21,6 @@ typedef struct _ddtrace_lookup_data_t {
 #endif
 } ddtrace_lookup_data_t;
 
-
 zend_bool ddtrace_trace(zval *, zval *, zval *TSRMLS_DC);
 int ddtrace_wrap_fcall(zend_execute_data *TSRMLS_DC);
 void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *);
