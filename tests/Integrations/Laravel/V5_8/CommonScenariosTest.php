@@ -73,7 +73,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'laravel_test_app',
                         'web',
                         'laravel.view'
-                    ),
+                    )->withExactTags([
+                        'integration.name' => 'laravel',
+                    ]),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
