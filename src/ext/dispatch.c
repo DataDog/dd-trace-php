@@ -48,12 +48,12 @@ zend_class_entry *get_executed_scope(void) {
 #if PHP_VERSION_ID < 70000
 static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_lookup_data_t *lookup_data) {
     if (lookup_data->function_name_length == 0) {
-        ookup_data->function_name_length = strlen(function_name);
+        lookup_data->function_name_length = strlen(lookup_data->function_name);
     }
 
     char *key = zend_str_tolower_dup(lookup_data->function_name, lookup_data->function_name_length);
     ddtrace_dispatch_t *dispatch = NULL;
-    dispatch = zend_hash_str_find_ptr(lookup, key, ookup_data->function_name_length);
+    dispatch = zend_hash_str_find_ptr(lookup, key, lookup_data->function_name_length);
 
     efree(key);
     return dispatch;
@@ -213,9 +213,10 @@ static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *looku
     }
 #if PHP_VERSION_ID < 70000
     if (lookup->function_name_length == 0) {
-        lookup->function_name_length = strlen(function_name);
+        lookup->function_name_length = strlen(lookup->function_name);
     }
-    if ((lookup->function_name_length == (sizeof("{closure}") - 1)) && strcmp(function_name, "{closure}") == 0) {
+    if ((lookup->function_name_length == (sizeof("{closure}") - 1)) &&
+        strcmp(lookup->function_name, "{closure}") == 0) {
         return 1;
     } else {
         return 0;
@@ -388,7 +389,7 @@ static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *exe
 #if PHP_VERSION_ID < 70000
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         if (fbc) {
-            lookup_data->function_name = Z_STRVAL_P(fname);
+            lookup_data->function_name = fbc->common.function_name;
         }
     } else {
         zval *fname = EX(opline)->op1.zv;
