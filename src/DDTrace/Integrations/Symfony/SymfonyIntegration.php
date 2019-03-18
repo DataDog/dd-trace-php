@@ -96,10 +96,15 @@ class SymfonyIntegration extends AbstractIntegration
      */
     public function setupResourceNameTracingV2()
     {
-        dd_trace('Symfony\Component\HttpKernel\Event\FilterControllerEvent', 'setController', function () {
+        $self = this;
+
+        dd_trace('Symfony\Component\HttpKernel\Event\FilterControllerEvent', 'setController', function () use ($self) {
             $args = func_get_args();
             $controllerInfo = $args[0];
             $resourceParts = [];
+
+            $tracer = GlobalTracer::get();
+            $rootSpan = $tracer->getSafeRootSpan();
 
             // Controller info can be provided in various ways.
             if (is_string($controllerInfo)) {
@@ -116,9 +121,9 @@ class SymfonyIntegration extends AbstractIntegration
                 }
             }
 
-            if (count($resourceParts) > 0) {
-                $tracer = GlobalTracer::get();
-                if ($rootSpan = $tracer->getSafeRootSpan()) {
+            if ($rootSpan) {
+                $rootSpan->setIntegration($self);
+                if (count($resourceParts) > 0) {
                     $rootSpan->setResource(implode(' ', $resourceParts));
                 }
             }
