@@ -57,7 +57,7 @@ class SpanIntegrationChecker
                     break;
                 } elseif (null !== $integrationClass && null === $span->getIntegration()) {
                     $message = "No integration defined in span for operation '$operationName'. " .
-                               "Expected '$integrationClass'";
+                                "Expected '$integrationClass'";
                     $test->fail($message);
                     break;
                 } elseif (null !== $integrationClass && null !== $span->getIntegration()) {
@@ -68,8 +68,8 @@ class SpanIntegrationChecker
 
         if (false === $definitionFound) {
             $message = "No matching pattern found for operation " .
-                       "'$operationName' in '$here'. If you are testing custom " .
-                       "spans you can use operation name 'custom.*' or register the name in '$here'";
+                        "'$operationName' in '$here'. If you are testing custom " .
+                        "spans you can use operation name 'custom.*' or register the name in '$here'";
             $test->fail($message);
         }
     }
