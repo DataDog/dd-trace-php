@@ -96,7 +96,7 @@ class SymfonyIntegration extends AbstractIntegration
      */
     public function setupResourceNameTracingV2()
     {
-        $self = this;
+        $self = $this;
 
         dd_trace('Symfony\Component\HttpKernel\Event\FilterControllerEvent', 'setController', function () use ($self) {
             $args = func_get_args();
