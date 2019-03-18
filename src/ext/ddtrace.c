@@ -93,7 +93,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
-    DDTRACE_G(disable) = 0;
 
 #if defined(ZTS) && PHP_VERSION_ID >= 70000
     ZEND_TSRMLS_CACHE_UPDATE();
@@ -103,10 +102,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-
-    DDTRACE_G(in_request_shutdown) = 0;
-
     ddtrace_dispatch_init(TSRMLS_C);
+    DDTRACE_G(disable_in_current_request) = 0;
 
     if (DDTRACE_G(internal_blacklisted_modules_regexp) && !dd_no_blacklisted_modules(TSRMLS_C)) {
         return SUCCESS;
@@ -126,8 +123,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
-    DDTRACE_G(in_request_shutdown) = 1;
-    DDTRACE_G(disable) = 1;
     ddtrace_dispatch_destroy(TSRMLS_C);
 
     return SUCCESS;
@@ -168,7 +163,7 @@ static PHP_FUNCTION(dd_trace) {
     zval *class_name = NULL;
     zval *callable = NULL;
 
-    if (DDTRACE_G(disable)) {
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
@@ -225,7 +220,7 @@ static PHP_FUNCTION(dd_untrace) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
 
-    if (DDTRACE_G(disable)) {
+    if (DDTRACE_G(disable) && DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
@@ -255,6 +250,15 @@ static PHP_FUNCTION(dd_untrace) {
     RETURN_BOOL(1);
 }
 
+static PHP_FUNCTION(dd_trace_disable_in_request) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    DDTRACE_G(disable_in_current_request) = 1;
+
+    RETURN_BOOL(1);
+}
+
 static PHP_FUNCTION(dd_trace_reset) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
@@ -280,7 +284,7 @@ static PHP_FUNCTION(dd_trace_noop) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(
-    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) ZEND_FE_END};
+    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),

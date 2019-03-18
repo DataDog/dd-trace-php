@@ -262,12 +262,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), lookup_data);
     }
 
-    if (!dispatch) {
-        DD_PRINTF("Handler for %s not found", lookup_data->function_name);
-    } else if (dispatch->busy) {
-        DD_PRINTF("Handler for %s is BUSY", lookup_data->function_name);
-    }
-
     if (dispatch && !dispatch->busy) {
         ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
         dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
@@ -392,8 +386,6 @@ static zend_always_inline zend_function *get_current_fbc(zend_execute_data *exec
 
 static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *execute_data, zend_function *fbc,
                         ddtrace_lookup_data_t *lookup_data) {
-    // const char *function_name = NULL;
-    // uint32_t function_name_length = 0;
     if (!fbc) {
         DD_PRINTF("No function obj found, skipping lookup");
         return 0;
@@ -478,9 +470,10 @@ int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
 }
 
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
-    // const char *function_name = NULL;
-    // uint32_t function_name_length = 0;
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+        return default_dispatch(execute_data);
+    }
 
     zend_function *current_fbc = get_current_fbc(execute_data);
     ddtrace_lookup_data_t lookup_data = { 0 };
