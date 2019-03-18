@@ -478,8 +478,12 @@ workflows:
       - "Code Checkout"
       - compile_extension:
           requires: [ 'Code Checkout' ]
-          name: "test compile PHP 55"
+          name: "PHP 55 Compile test "
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "HP 56 Compile - zts"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-zts"
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Unit tests"
