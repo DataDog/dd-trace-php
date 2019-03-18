@@ -352,7 +352,16 @@ jobs:
     working_directory: ~/datadog
     docker: [ image: 'circleci/buildpack-deps:latest' ]
     steps:
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+            - source-v1-{{ .Branch }}-
+            - source-v1-
       - checkout
+      - save_cache:
+          key: source-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
       - persist_to_workspace:
           root: '.'
@@ -478,11 +487,11 @@ workflows:
       - "Code Checkout"
       - compile_extension:
           requires: [ 'Code Checkout' ]
-          name: "PHP 55 Compile test "
+          name: "PHP 55 Compilation test"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
       - compile_extension:
           requires: [ 'Code Checkout' ]
-          name: "HP 56 Compile - zts"
+          name: "PHP 56-zts Compilation test"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-zts"
       - unit_tests:
           requires: [ 'Code Checkout' ]
