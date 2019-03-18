@@ -86,7 +86,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.status_code' => '500',
                             'some.key1' => 'value',
                             'some.key2' => 'value2',
-                        ]),
+                        ])->setError(),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::exists('laravel.event.handle'),

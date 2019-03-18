@@ -73,7 +73,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => '/error',
                         'http.status_code' => '500',
-                    ]),
+                    ])->setError(),
                 ],
             ]
         );
