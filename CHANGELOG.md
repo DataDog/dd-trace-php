@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.16.0]
+
 ### Changed
 - When shutdown hook is executed we disable all tracing to avoid creating unnecessary spans #361
 - Inside request init hook we disable all function tracing when we decide not to trace #361
@@ -364,7 +366,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.15.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.16.0...HEAD
+[0.16.0]: https://github.com/DataDog/dd-trace-php/compare/0.15.1...0.16.0
 [0.15.1]: https://github.com/DataDog/dd-trace-php/compare/0.15.0...0.15.1
 [0.15.0]: https://github.com/DataDog/dd-trace-php/compare/0.14.2...0.15.0
 [0.14.2]: https://github.com/DataDog/dd-trace-php/compare/0.14.1...0.14.2
