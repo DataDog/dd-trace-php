@@ -5,8 +5,16 @@ namespace DDTrace\Processing;
 use DDTrace\Span;
 use DDTrace\Tag;
 
+/**
+ * A span processor in charge of adding the trace analytics client config metric when appropriate.
+ */
 final class TraceAnalyticsProcessor
 {
+    /**
+     * Process the span adding the trace analytics client config option when appropriate.
+     *
+     * @param Span $span
+     */
     public function process(Span $span)
     {
         // We only consider spans that are marked as trace analytics candidates, otherwise the customer bill would

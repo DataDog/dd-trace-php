@@ -19,7 +19,7 @@ class WebIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requireExplicitTraceAnalyticsEnabling()
+    public function requiresExplicitTraceAnalyticsEnabling()
     {
         return false;
     }

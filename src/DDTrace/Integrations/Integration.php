@@ -41,7 +41,7 @@ abstract class Integration
      */
     public function isTraceAnalyticsEnabled()
     {
-        return $this->configuration->isTraceAnalyticsEnabled(!$this->requireExplicitTraceAnalyticsEnabling());
+        return $this->configuration->isTraceAnalyticsEnabled();
     }
 
     /**
@@ -58,7 +58,7 @@ abstract class Integration
      *
      * @return bool
      */
-    public function requireExplicitTraceAnalyticsEnabling()
+    public function requiresExplicitTraceAnalyticsEnabling()
     {
         return true;
     }
@@ -70,7 +70,7 @@ abstract class Integration
      */
     protected function buildConfiguration()
     {
-        return new DefaultIntegrationConfiguration($this->getName());
+        return new DefaultIntegrationConfiguration($this->getName(), $this->requiresExplicitTraceAnalyticsEnabling());
     }
 
     /**

@@ -9,12 +9,11 @@ namespace DDTrace\Integrations;
 class DefaultIntegrationConfiguration extends AbstractIntegrationConfiguration
 {
     /**
-     * @param bool $default
      * @return bool
      */
-    public function isTraceAnalyticsEnabled($default = false)
+    public function isTraceAnalyticsEnabled()
     {
-        return $this->boolValue('analytics.enabled', $default);
+        return $this->boolValue('analytics.enabled', !$this->requiresExplicitTraceAnalyticsEnabling());
     }
 
     /**

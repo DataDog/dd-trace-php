@@ -137,27 +137,21 @@ final class Json implements Encoder
             $arraySpan['parent_id_hex'] = '-';
         }
 
-        $tags = [];
-        foreach ($span->getAllTags() as $tagName => $tagValue) {
-            $tags[$tagName] = $tagValue;
+        $tags = $span->getAllTags();
+        if (!empty($tags)) {
+            $arraySpan['meta'] = $tags;
         }
 
+        // Handling metrics
         $metrics = [];
         foreach ($span->getMetrics() as $metricName => $metricValue) {
             $metrics[$metricName] = $metricValue;
         }
-
-
         if ($span->getContext()->isHostRoot()
                 && ($prioritySampling = $tracer->getPrioritySampling()) !== PrioritySampling::UNKNOWN) {
             $metrics['_sampling_priority_v1'] = $prioritySampling;
         }
-
-
-        if ($tags) {
-            $arraySpan['meta'] = $tags;
-        }
-        if ($metrics) {
+        if (!empty($metrics)) {
             $arraySpan['metrics'] = $metrics;
         }
 
