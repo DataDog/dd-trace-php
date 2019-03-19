@@ -150,8 +150,13 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     php_info_print_box_end();
 
     php_info_print_table_start();
-    php_info_print_table_row(2, "Datadog tracing support", DDTRACE_G(disable) ? "disabled" : "enabled");
+    php_info_print_table_row(2, "Datadog tracing support", DDTRACE_G(disable) ? "Disabled" : "Enabled");
     php_info_print_table_row(2, "Version", PHP_DDTRACE_VERSION);
+#ifdef DDTRACE_DEBUG
+    php_info_print_table_row(2, "Datadog tracing debugging", "Enabled");
+#else
+    php_info_print_table_row(2, "Datadog tracing debugging", "Disabled");
+#endif
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
@@ -271,6 +276,7 @@ static PHP_FUNCTION(dd_trace_reset) {
     RETURN_BOOL(1);
 }
 
+#ifdef DDTRACE_DEBUG
 // method used to be able to easily breakpoint the execution at specific PHP line in GDB
 static PHP_FUNCTION(dd_trace_noop) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
@@ -282,9 +288,14 @@ static PHP_FUNCTION(dd_trace_noop) {
 
     RETURN_BOOL(1);
 }
+#endif
 
-static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(
-    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) ZEND_FE_END};
+static const zend_function_entry ddtrace_functions[] = {
+    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL)
+#ifdef DDTRACE_DEBUG
+        PHP_FE(dd_trace_noop, NULL)
+#endif
+            PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),

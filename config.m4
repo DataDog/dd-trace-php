@@ -1,4 +1,5 @@
 PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,[  --enable-ddtrace   Enable Datadog training support])
+PHP_ARG_ENABLE(ddtrace-debug, whether ddtrace should be built in debug mode,[  --enable-ddtrace-debug Build Datadog tracing in debug mode],, no)
 
 PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,[  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
@@ -8,6 +9,11 @@ if test "$PHP_DDTRACE" != "no"; then
 	  EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
 	  PHP_SUBST(EXTRA_LDFLAGS)
     PHP_SUBST(EXTRA_CFLAGS)
+  fi
+
+  if test "$PHP_DDTRACE_DEBUG" != "no"; then
+    AC_DEFINE(DDTRACE_DEBUG, 1, [ ])
+    STD_CFLAGS="-g -O0 -Wall"
   fi
 
   PHP_NEW_EXTENSION(ddtrace, src/ext/ddtrace.c src/ext/dispatch_setup.c src/ext/dispatch.c src/ext/request_hooks.c src/ext/compat_zend_string.c src/ext/dispatch_compat_php5.c src/ext/dispatch_compat_php7.c src/ext/backtrace.c src/ext/logging.c src/ext/env_config.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
