@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file - [read more
 - Inside request init hook we disable all function tracing when we decide not to trace #361
 
 ### Added
-- Disable request_init_hook functionality in presence of blacklisted modules #345
+- Disable request_init_hook functionality in presence of blacklisted modules via `ddtrace.internal_blacklisted_modules_list=some_module,some_other_module` #345 & #370
 - Integration-level configuration #354
 - `dd_trace_disable_in_request` function which disables all function tracing until request ends #361
 
