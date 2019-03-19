@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Changed
+- Removed `dd_trace_noop()` from non-debug builds of ddtrace #373
+
+### Added
+- Configure flag `--enable-ddtrace-debug` to build ddtrace with debug symbols and expose debug messages #373
+
 ## [0.16.0]
 
 ### Changed
