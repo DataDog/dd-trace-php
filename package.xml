@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-03-11</date>
+    <date>2019-03-19</date>
     <version>
-        <release>0.15.1</release>
-        <api>0.15.1</api>
+        <release>0.16.0</release>
+        <api>0.16.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,14 +21,19 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
+        ### Changed
+        - When shutdown hook is executed we disable all tracing to avoid creating unnecessary spans #361
+        - Inside request init hook we disable all function tracing when we decide not to trace #361
+
         ### Added
-        - Symfony 2.3 web tests for resource name #349
-        - Update images and enable leak detection, split tests in CI to Unit, Integration and Web #299
+        - Disable request_init_hook functionality in presence of blacklisted modules via `ddtrace.internal_blacklisted_modules_list=some_module,some_other_module` #345 &amp; #370
+        - Integration-level configuration #354
+        - `dd_trace_disable_in_request` function which disables all function tracing until request ends #361
 
         ### Fixed
-        - Resource name on Symfony 2.x requests served through controllers #341
-        - Sanitize url in web spans #344
-        - Laravel 5.8 compatibility #351
+        - Symfony template rendering spans #359
+        - Laravel integration user ID errors #363
+        - Non-success HTTP response codes aren't properly categorized as errors in the APM UI #366
     </notes>
     <contents>
         <dir name="/">
