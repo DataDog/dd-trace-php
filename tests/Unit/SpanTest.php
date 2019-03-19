@@ -200,6 +200,74 @@ final class SpanTest extends Framework\TestCase
         $this->assertSame('https://example.com/some/path/index.php', $span->getAllTags()[Tag::HTTP_URL]);
     }
 
+    public function testHasTag()
+    {
+        $span = $this->createSpan();
+        $span->setTag('exists', 'yes');
+
+        $this->assertTrue($span->hasTag('exists'));
+        $this->assertFalse($span->hasTag('other'));
+    }
+
+    public function testMetricsSetGet()
+    {
+        $span = $this->createSpan();
+        $span->setMetric('exists', 1.0);
+
+        $this->assertSame(1.0, $span->getMetrics()['exists']);
+    }
+
+    public function testIsTraceAnalyticsConfigCandidate()
+    {
+        $span = $this->createSpan();
+        $this->assertFalse($span->isTraceAnalyticsCandidate());
+        $span->setTraceAnalyticsCandidate();
+        $this->assertTrue($span->isTraceAnalyticsCandidate());
+        $span->setTraceAnalyticsCandidate(false);
+        $this->assertFalse($span->isTraceAnalyticsCandidate());
+    }
+
+    public function testTraceAnalyticsConfigEnabledByTag()
+    {
+        $span = $this->createSpan();
+        $span->setTag(Tag::ANALYTICS_KEY, 0.5);
+
+        $this->assertSame(0.5, $span->getMetrics()[Tag::ANALYTICS_KEY]);
+    }
+
+    public function testTraceAnalyticsConfigEnabledByMetric()
+    {
+        $span = $this->createSpan();
+        $span->setMetric(Tag::ANALYTICS_KEY, 0.5);
+
+        $this->assertSame(0.5, $span->getMetrics()[Tag::ANALYTICS_KEY]);
+    }
+
+    public function testTraceAnalyticsConfigEnabledTrueResultTo1()
+    {
+        $span = $this->createSpan();
+        $span->setMetric(Tag::ANALYTICS_KEY, true);
+
+        $this->assertSame(1.0, $span->getMetrics()[Tag::ANALYTICS_KEY]);
+    }
+
+    public function testTraceAnalyticsConfigDisabled()
+    {
+        $span = $this->createSpan();
+        $span->setMetric(Tag::ANALYTICS_KEY, true);
+        $this->assertSame(1.0, $span->getMetrics()[Tag::ANALYTICS_KEY]);
+
+        $span->setMetric(Tag::ANALYTICS_KEY, false);
+        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $span->getMetrics());
+    }
+
+    public function testTraceAnalyticsConfigSpecificRate()
+    {
+        $span = $this->createSpan();
+        $span->setMetric(Tag::ANALYTICS_KEY, 0.3);
+        $this->assertSame(0.3, $span->getMetrics()[Tag::ANALYTICS_KEY]);
+    }
+
     private function createSpan()
     {
         $context = SpanContext::createAsRoot();

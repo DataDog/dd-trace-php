@@ -273,6 +273,8 @@ final class Span implements SpanInterface
             $this->processTraceAnalyticsTag($value);
             return;
         }
+
+        $this->metrics[$key] = $value;
     }
 
     /**
