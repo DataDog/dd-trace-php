@@ -1,11 +1,17 @@
 # Changelog
+
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
 
+### Changed
+
+- Request init hook module blacklist now avoids miss matching partial matches #372
+
 ## [0.17.0]
 
 ### Added
+
 - Integration aware spans #360
 - Trace Analytics Client Configuration #367
 
