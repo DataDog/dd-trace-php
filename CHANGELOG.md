@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+
+- Error traces don't appear in "Total Errors" panel #375
+
 ## [0.16.0]
 
 ### Changed
