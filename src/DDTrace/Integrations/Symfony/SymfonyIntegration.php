@@ -57,9 +57,7 @@ class SymfonyIntegration extends AbstractIntegration
             $result = call_user_func_array([$this, 'boot'], func_get_args());
 
             $name = SymfonyIntegration::BUNDLE_NAME;
-            if (!isset($this->bundles[$name])
-                    && defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
-            ) {
+            if (!isset($this->bundles[$name]) && defined('\Symfony\Component\HttpKernel\Kernel::VERSION')) {
                 $version = \Symfony\Component\HttpKernel\Kernel::VERSION;
 
                 $bundle = null;
