@@ -13,13 +13,6 @@ final class RouteNameTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Symfony/Version_2_8/web/app.php';
     }
 
-    protected static function getEnvs()
-    {
-        return array_merge(parent::getEnvs(), [
-            'DD_TEST_INTEGRATION' => 'true',
-        ]);
-    }
-
     /**
      * @throws \Exception
      */

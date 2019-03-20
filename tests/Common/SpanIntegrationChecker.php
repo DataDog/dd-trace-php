@@ -8,7 +8,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Checks that spans are assigned the proper integration.
  */
-class SpanIntegrationChecker
+final class SpanIntegrationChecker
 {
     /**
      * Returns the known matching patterns operation ==> integration class.

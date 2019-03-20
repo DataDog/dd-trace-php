@@ -49,7 +49,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected static function getEnvs()
     {
-        return [];
+        return [
+            'DD_TEST_INTEGRATION' => 'true',
+        ];
     }
 
     /**

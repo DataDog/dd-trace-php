@@ -17,7 +17,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     {
         return [
             'APP_NAME' => 'custom_autoloaded_app',
-            'DD_TEST_INTEGRATION' => 'true',
         ];
     }
 
