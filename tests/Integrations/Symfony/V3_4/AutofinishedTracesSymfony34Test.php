@@ -39,6 +39,7 @@ final class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:9999/terminated_by_exit',
                     'http.status_code' => '200',
+                    'integration.name' => 'symfony',
                 ]),
             SpanAssertion::exists('symfony.kernel.handle'),
             SpanAssertion::exists('symfony.kernel.request'),
