@@ -60,6 +60,17 @@ interface Tracer
     public function startActiveSpan($operationName, $options = []);
 
     /**
+     * Starts an active span for a supported integration and store the integration that originated the span in the
+     * span itself.
+     *
+     * @param Integration $integration
+     * @param string $operationName
+     * @param array $options
+     * @return Scope
+     */
+    public function startIntegrationScopeAndSpan(Integration $integration, $operationName, $options = []);
+
+    /**
      * Starts and returns a new span representing a unit of work.
      *
      * Whenever `child_of` reference is not passed then

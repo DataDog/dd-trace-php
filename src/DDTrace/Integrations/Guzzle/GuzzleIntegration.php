@@ -22,10 +22,26 @@ final class GuzzleIntegration extends AbstractIntegration
      */
     private $codeTracer;
 
+    /**
+     * @var self
+     */
+    private static $instance;
+
     public function __construct()
     {
         parent::__construct();
         $this->codeTracer = CodeTracer::getInstance();
+    }
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
     }
 
     /**
@@ -54,17 +70,21 @@ final class GuzzleIntegration extends AbstractIntegration
             $self->setStatusCodeTag($span, $response);
         };
 
+        $integration = GuzzleIntegration::getInstance();
+
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'send',
             $this->buildPreCallback('send'),
-            $postCallback
+            $postCallback,
+            $integration
         );
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'transfer',
             $this->buildPreCallback('transfer'),
-            $postCallback
+            $postCallback,
+            $integration
         );
 
         return Integration::LOADED;

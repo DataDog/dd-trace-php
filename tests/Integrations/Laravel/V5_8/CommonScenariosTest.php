@@ -15,9 +15,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 
     protected static function getEnvs()
     {
-        return [
+        return array_merge(parent::getEnvs(), [
             'APP_NAME' => 'laravel_test_app',
-        ];
+        ]);
     }
 
     /**
@@ -51,6 +51,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
+                        'integration.name' => 'laravel',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -64,13 +65,16 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
+                        'integration.name' => 'laravel',
                     ])->withExistingTagsNames(['laravel.route.name']),
                     SpanAssertion::build(
                         'laravel.view',
                         'laravel_test_app',
                         'web',
                         'laravel.view'
-                    ),
+                    )->withExactTags([
+                        'integration.name' => 'laravel',
+                    ]),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
@@ -84,6 +88,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
+                        'integration.name' => 'laravel',
                     ])->setError(),
                     SpanAssertion::exists('laravel.view')
                 ],

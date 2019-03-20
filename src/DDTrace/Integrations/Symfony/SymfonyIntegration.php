@@ -13,6 +13,22 @@ class SymfonyIntegration extends AbstractIntegration
     const BUNDLE_NAME = 'datadog_symfony_bundle';
 
     /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    /**
      * @return string The integration name.
      */
     public function getName()
@@ -41,9 +57,7 @@ class SymfonyIntegration extends AbstractIntegration
             $result = call_user_func_array([$this, 'boot'], func_get_args());
 
             $name = SymfonyIntegration::BUNDLE_NAME;
-            if (!isset($this->bundles[$name])
-                    && defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
-            ) {
+            if (!isset($this->bundles[$name]) && defined('\Symfony\Component\HttpKernel\Kernel::VERSION')) {
                 $version = \Symfony\Component\HttpKernel\Kernel::VERSION;
 
                 $bundle = null;
@@ -80,10 +94,15 @@ class SymfonyIntegration extends AbstractIntegration
      */
     public function setupResourceNameTracingV2()
     {
-        dd_trace('Symfony\Component\HttpKernel\Event\FilterControllerEvent', 'setController', function () {
+        $self = $this;
+
+        dd_trace('Symfony\Component\HttpKernel\Event\FilterControllerEvent', 'setController', function () use ($self) {
             $args = func_get_args();
             $controllerInfo = $args[0];
             $resourceParts = [];
+
+            $tracer = GlobalTracer::get();
+            $rootSpan = $tracer->getSafeRootSpan();
 
             // Controller info can be provided in various ways.
             if (is_string($controllerInfo)) {
@@ -100,9 +119,9 @@ class SymfonyIntegration extends AbstractIntegration
                 }
             }
 
-            if (count($resourceParts) > 0) {
-                $tracer = GlobalTracer::get();
-                if ($rootSpan = $tracer->getSafeRootSpan()) {
+            if ($rootSpan) {
+                $rootSpan->setIntegration($self);
+                if (count($resourceParts) > 0) {
                     $rootSpan->setResource(implode(' ', $resourceParts));
                 }
             }

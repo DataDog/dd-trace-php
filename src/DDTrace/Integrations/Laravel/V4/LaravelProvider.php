@@ -52,6 +52,8 @@ class LaravelProvider extends ServiceProvider
 
             $requestSpan = $self->rootScope->getSpan();
             $requestSpan->overwriteOperationName('laravel.request');
+            // Overwriting the default web integration
+            $requestSpan->setIntegration(\DDTrace\Integrations\Laravel\LaravelIntegration::getInstance());
             $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
 
             $response = call_user_func_array([$this, 'handle'], func_get_args());
@@ -115,7 +117,10 @@ class LaravelProvider extends ServiceProvider
      */
     public static function buildBaseScope($operation, $resource)
     {
-        $scope = GlobalTracer::get()->startActiveSpan($operation);
+        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
+            $operation
+        );
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
         $span->setTag(Tag::SERVICE_NAME, self::getAppName());

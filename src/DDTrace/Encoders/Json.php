@@ -9,7 +9,6 @@ use DDTrace\GlobalTracer;
 use DDTrace\Log\Logger;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\LoggingTrait;
-use DDTrace\Log\LogLevel;
 use DDTrace\Sampling\PrioritySampling;
 
 final class Json implements Encoder
@@ -145,6 +144,14 @@ final class Json implements Encoder
         if ($span->getContext()->isHostRoot()
                 && ($prioritySampling = $tracer->getPrioritySampling()) !== PrioritySampling::UNKNOWN) {
             $arraySpan['metrics']['_sampling_priority_v1'] = $prioritySampling;
+        }
+
+        // This is only for testing purposes and possibly temporary as we may want to add integration name to the span's
+        // metadata in a consistent way across various tracers.
+        if (null !== $span->getIntegration()
+                && false !== ($integrationTest = getenv('DD_TEST_INTEGRATION'))
+                && in_array($integrationTest, ['1', 'true'])) {
+            $arraySpan['meta']['integration.name'] = $span->getIntegration()->getName();
         }
 
         return $arraySpan;

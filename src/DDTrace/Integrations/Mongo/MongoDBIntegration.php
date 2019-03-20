@@ -25,8 +25,11 @@ final class MongoDBIntegration extends Integration
             return;
         }
 
+        $mongoIntegration = MongoIntegration::getInstance();
+
         // array MongoDB::command ( array $command [, array $options = array() [, string &$hash ]] )
         self::traceMethod('command', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             if (isset($args[0]['query'])) {
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]['query']));
             }
@@ -35,50 +38,61 @@ final class MongoDBIntegration extends Integration
             } elseif (isset($args[1]['timeout'])) {
                 $span->setTag(Tag::MONGODB_TIMEOUT, $args[1]['timeout']);
             }
-        });
+        }, null, $mongoIntegration);
         // array MongoDB::createDBRef ( string $collection , mixed $document_or_id )
         self::traceMethod('createDBRef', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_COLLECTION, $args[0]);
         }, function (Span $span, $ref) {
             if (is_array($ref) && isset($ref['$id'])) {
                 $span->setTag(Tag::MONGODB_BSON_ID, (string) $ref['$id']);
             }
-        });
+        }, $mongoIntegration);
         // MongoCollection MongoDB::createCollection ( string $name [, array $options ] )
         self::traceMethod('createCollection', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_COLLECTION, $args[0]);
-        });
+        }, null, $mongoIntegration);
         // MongoCollection MongoDB::selectCollection ( string $name )
         self::traceMethod('selectCollection', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_COLLECTION, $args[0]);
-        });
+        }, null, $mongoIntegration);
         // array MongoDB::getDBRef ( array $ref )
         self::traceMethod('getDBRef', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             if (isset($args[0]['$ref'])) {
                 $span->setTag(Tag::MONGODB_COLLECTION, $args[0]['$ref']);
             }
-        });
+        }, null, $mongoIntegration);
         // int MongoDB::setProfilingLevel ( int $level )
         self::traceMethod('setProfilingLevel', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_PROFILING_LEVEL, $args[0]);
-        });
+        }, null, $mongoIntegration);
         // bool MongoDB::setReadPreference ( string $read_preference [, array $tags ] )
         self::traceMethod('setReadPreference', function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_READ_PREFERENCE, $args[0]);
-        });
+        }, null, $mongoIntegration);
+
+        $setIntegration = function (Span $span, array $args) {
+            $span->setIntegration(MongoIntegration::getInstance());
+        };
+
         // Methods that don't need extra tags added
-        self::traceMethod('drop');
-        self::traceMethod('execute');
-        self::traceMethod('getCollectionInfo');
-        self::traceMethod('getCollectionNames');
-        self::traceMethod('getGridFS');
-        self::traceMethod('getProfilingLevel');
-        self::traceMethod('getReadPreference');
-        self::traceMethod('getWriteConcern');
-        self::traceMethod('lastError');
-        self::traceMethod('listCollections');
-        self::traceMethod('repair');
-        self::traceMethod('setWriteConcern');
+        self::traceMethod('drop', null, null, $mongoIntegration);
+        self::traceMethod('execute', null, null, $mongoIntegration);
+        self::traceMethod('getCollectionInfo', null, null, $mongoIntegration);
+        self::traceMethod('getCollectionNames', null, null, $mongoIntegration);
+        self::traceMethod('getGridFS', null, null, $mongoIntegration);
+        self::traceMethod('getProfilingLevel', null, null, $mongoIntegration);
+        self::traceMethod('getReadPreference', null, null, $mongoIntegration);
+        self::traceMethod('getWriteConcern', null, null, $mongoIntegration);
+        self::traceMethod('lastError', null, null, $mongoIntegration);
+        self::traceMethod('listCollections', null, null, $mongoIntegration);
+        self::traceMethod('repair', null, null, $mongoIntegration);
+        self::traceMethod('setWriteConcern', null, null, $mongoIntegration);
     }
 
     /**

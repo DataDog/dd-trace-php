@@ -14,6 +14,22 @@ class EloquentIntegration extends AbstractIntegration
     const NAME = 'eloquent';
 
     /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    /**
      * @return string The integration name.
      */
     public function getName()
@@ -23,10 +39,12 @@ class EloquentIntegration extends AbstractIntegration
 
     public static function load()
     {
+        $integration = self::getInstance();
+
         // getModels($columns = ['*'])
-        dd_trace('Illuminate\Database\Eloquent\Builder', 'getModels', function () {
+        dd_trace('Illuminate\Database\Eloquent\Builder', 'getModels', function () use ($integration) {
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startActiveSpan('eloquent.get');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.get');
             $span = $scope->getSpan();
             $sql = $this->getQuery()->toSql();
             $span->setTag(Tag::RESOURCE_NAME, $sql);
@@ -37,10 +55,10 @@ class EloquentIntegration extends AbstractIntegration
         });
 
         // performInsert(Builder $query)
-        dd_trace('Illuminate\Database\Eloquent\Model', 'performInsert', function () {
+        dd_trace('Illuminate\Database\Eloquent\Model', 'performInsert', function () use ($integration) {
             $args = func_get_args();
             $eloquentQueryBuilder = $args[0];
-            $scope = GlobalTracer::get()->startActiveSpan('eloquent.insert');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.insert');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
             $span->setTag(Tag::RESOURCE_NAME, $sql);
@@ -51,10 +69,10 @@ class EloquentIntegration extends AbstractIntegration
         });
 
         // performUpdate(Builder $query)
-        dd_trace('Illuminate\Database\Eloquent\Model', 'performUpdate', function () {
+        dd_trace('Illuminate\Database\Eloquent\Model', 'performUpdate', function () use ($integration) {
             $args = func_get_args();
             $eloquentQueryBuilder = $args[0];
-            $scope = GlobalTracer::get()->startActiveSpan('eloquent.update');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.update');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
             $span->setTag(Tag::RESOURCE_NAME, $sql);
@@ -65,8 +83,8 @@ class EloquentIntegration extends AbstractIntegration
         });
 
         // public function delete()
-        dd_trace('Illuminate\Database\Eloquent\Model', 'delete', function () {
-            $scope = GlobalTracer::get()->startActiveSpan('eloquent.delete');
+        dd_trace('Illuminate\Database\Eloquent\Model', 'delete', function () use ($integration) {
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.delete');
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::SQL);
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'delete', []);

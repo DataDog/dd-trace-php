@@ -7,6 +7,8 @@
 
 namespace DDTrace;
 
+use DDTrace\Contracts\Integration;
+use DDTrace\Contracts\Scope;
 use DDTrace\Contracts\Span;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Contracts\Tracer as TracerInterface;
@@ -104,5 +106,19 @@ final class NoopTracer implements TracerInterface
     public function getSafeRootSpan()
     {
         return NoopSpan::create();
+    }
+
+    /**
+     * Starts an active span for a supported integration and store the integration that originated the span in the
+     * span itself.
+     *
+     * @param Integration $integration
+     * @param string $operationName
+     * @param array $options
+     * @return Scope
+     */
+    public function startIntegrationScopeAndSpan(Integration $integration, $operationName, $options = [])
+    {
+        return NoopScope::create();
     }
 }

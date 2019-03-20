@@ -15,6 +15,22 @@ class MysqliIntegration extends AbstractIntegration
     const NAME = 'mysqli';
 
     /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    /**
      * @return string The integration name.
      */
     public function getName()
@@ -293,7 +309,7 @@ class MysqliIntegration extends AbstractIntegration
      */
     public static function initScope($operationName, $resource)
     {
-        $scope = GlobalTracer::get()->startActiveSpan($operationName);
+        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(MysqliIntegration::getInstance(), $operationName);
         /** @var \DDTrace\Span $span */
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::SQL);

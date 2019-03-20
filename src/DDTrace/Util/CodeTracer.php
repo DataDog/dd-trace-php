@@ -2,6 +2,7 @@
 
 namespace DDTrace\Util;
 
+use DDTrace\Contracts\Integration;
 use DDTrace\GlobalTracer;
 
 final class CodeTracer
@@ -28,18 +29,30 @@ final class CodeTracer
      * @param string $method
      * @param \Closure|null $preCallHook
      * @param \Closure|null $postCallHook
+     * @param Integration|null $integration
      */
-    public function tracePublicMethod($className, $method, \Closure $preCallHook = null, \Closure $postCallHook = null)
-    {
+    public function tracePublicMethod(
+        $className,
+        $method,
+        \Closure $preCallHook = null,
+        \Closure $postCallHook = null,
+        Integration $integration = null
+    ) {
         dd_trace($className, $method, function () use (
             $className,
             $method,
             $preCallHook,
-            $postCallHook
+            $postCallHook,
+            $integration
         ) {
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
+
+            if ($integration) {
+                $span->setIntegration($integration);
+            }
+
             if (null !== $preCallHook) {
                 $preCallHook($span, $args);
             }

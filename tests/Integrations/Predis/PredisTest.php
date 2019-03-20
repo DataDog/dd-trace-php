@@ -6,7 +6,6 @@ use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Predis\Configuration\Options;
-use Predis\Response\Status;
 
 
 final class PredisTest extends IntegrationTestCase
@@ -27,7 +26,7 @@ final class PredisTest extends IntegrationTestCase
 
     public function testPredisIntegrationCreatesSpans()
     {
-        $traces = $this->inTestScope('redis.test', function () {
+        $traces = $this->inTestScope('custom_redis.test', function () {
             $client = new \Predis\Client([ "host" => $this->host ]);
             $value = 'bar';
 

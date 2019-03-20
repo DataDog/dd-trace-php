@@ -36,6 +36,8 @@ class LaravelIntegrationLoader
 
             list($route, $request) = $args;
             $span = $self->rootScope->getSpan();
+            // Overwriting the default web integration
+            $span->setIntegration(LaravelIntegration::getInstance());
             $span->setTag(
                 Tag::RESOURCE_NAME,
                 $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
@@ -109,7 +111,10 @@ class LaravelIntegrationLoader
                     $handlerMethod = $this->method;
                     dd_trace($class, $handlerMethod, function () use ($handlerMethod) {
                         $args = func_get_args();
-                        $scope = GlobalTracer::get()->startActiveSpan('laravel.pipeline.pipe');
+                        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                            \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
+                            'laravel.pipeline.pipe'
+                        );
                         $span = $scope->getSpan();
                         $span->setTag(Tag::RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
                         $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
@@ -124,7 +129,10 @@ class LaravelIntegrationLoader
         // Create a trace span for every template rendered
         // public function get($path, array $data = array())
         dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function ($path, $data = array()) {
-            $scope = GlobalTracer::get()->startActiveSpan('laravel.view');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                LaravelIntegration::getInstance(),
+                'laravel.view'
+            );
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
             return TryCatchFinally::executePublicMethod($scope, $this, 'get', [$path, $data]);
         });

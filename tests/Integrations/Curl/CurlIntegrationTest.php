@@ -11,7 +11,6 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tracer;
 use DDTrace\Util\ArrayKVStore;
 use DDTrace\GlobalTracer;
-use DDTrace\Util\Versions;
 
 final class CurlIntegrationTest extends IntegrationTestCase
 {
@@ -183,7 +182,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
-            $span = $tracer->startActiveSpan('some_operation')->getSpan();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
 
             $ch = curl_init(self::URL . '/headers');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -195,7 +194,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        // trace is: some_operation
+        // trace is: custom
         $this->assertSame($traces[0][0]->getContext()->getSpanId(), $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec
         $this->assertSame($traces[0][1]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
@@ -218,7 +217,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
-            $span = $tracer->startActiveSpan('some_operation')->getSpan();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
 
             $ch = curl_init(self::URL . '/headers');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
