@@ -75,13 +75,23 @@ final class SpanAssertion
     }
 
     /**
+     * @param string|null $errorType The expected error.type
+     * @param string|null $errorMessage The expected error.msg
      * @return $this
      */
-    public function setError()
+    public function setError($errorType = null, $errorMessage = null)
     {
         $this->hasError = true;
-        if (!isset($this->exactTags[Tag::ERROR_TYPE])) {
+        if (isset($this->exactTags[Tag::ERROR_TYPE])) {
+            return $this;
+        }
+        if (null !== $errorType) {
+            $this->exactTags[Tag::ERROR_TYPE] = $errorType;
+        } else {
             $this->existingTags[] = Tag::ERROR_TYPE;
+        }
+        if (null !== $errorMessage) {
+            $this->exactTags[Tag::ERROR_MSG] = $errorMessage;
         }
         return $this;
     }
@@ -92,7 +102,11 @@ final class SpanAssertion
      */
     public function withExactTags(array $tags)
     {
-        $this->exactTags = $tags;
+        if (is_array($this->exactTags)) {
+            $this->exactTags = array_merge($this->exactTags, $tags);
+        } else {
+            $this->exactTags = $tags;
+        }
         return $this;
     }
 

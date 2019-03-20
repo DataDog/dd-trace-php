@@ -116,10 +116,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
-                    'error.type' => 'curl error',
                 ])
                 ->withExistingTagsNames(['error.msg'])
-                ->setError(),
+                ->setError('curl error'),
         ]);
     }
 
@@ -138,10 +137,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
-                    'error.type' => 'curl error',
                 ])
                 ->withExistingTagsNames(['error.msg'])
-                ->setError(),
+                ->setError('curl error'),
         ]);
     }
 
@@ -160,10 +158,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => 'http://__i_am_not_real__.invalid/',
                     'http.status_code' => '0',
-                    'error.msg' => 'Could not resolve host: __i_am_not_real__.invalid',
-                    'error.type' => 'curl error',
                 ])
-                ->setError(),
+                ->setError('curl error', 'Could not resolve host: __i_am_not_real__.invalid'),
         ]);
     }
 

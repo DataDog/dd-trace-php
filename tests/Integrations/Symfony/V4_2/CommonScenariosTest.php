@@ -102,11 +102,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'symfony.route.name' => 'error',
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error',
-                            'error.msg' => 'An exception occurred',
-                            'error.type' => 'Exception',
                             'http.status_code' => '500',
                         ])
-                        ->setError()
+                        ->setError('Exception', 'An exception occurred')
                         ->withExistingTagsNames(['error.stack']),
                     SpanAssertion::exists('symfony.kernel.handle'),
                     SpanAssertion::exists('symfony.kernel.request'),

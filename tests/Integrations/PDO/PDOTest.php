@@ -53,11 +53,7 @@ final class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'PDO', 'sql', 'PDO.__construct')
-                ->setError()
-                ->withExactTags([
-                    'error.type' => 'PDOException',
-                    'error.msg' => 'Sql error: SQLSTATE[HY000] [1045]',
-                ]),
+                ->setError('PDOException', 'Sql error: SQLSTATE[HY000] [1045]'),
         ]);
     }
 
@@ -97,11 +93,9 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
-                ->setError()
+                ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '',
-                    'error.msg' => 'SQL error: 42000. Driver error: 1064',
-                    'error.type' => 'PDO error',
                 ])),
             SpanAssertion::exists('PDO.commit'),
         ]);
@@ -125,11 +119,8 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
-                ->setError()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'error.msg' => 'Sql error',
-                    'error.type' => 'PDOException',
-                ])),
+                ->setError('PDOException', 'Sql error')
+                ->withExactTags($this->baseTags()),
         ]);
     }
 
@@ -164,11 +155,9 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
-                ->setError()
+                ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '',
-                    'error.msg' => 'SQL error: 42000. Driver error: 1064',
-                    'error.type' => 'PDO error',
                 ])),
         ]);
     }
@@ -188,11 +177,8 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
-                ->setError()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'error.msg' => 'Sql error',
-                    'error.type' => 'PDOException',
-                ])),
+                ->setError('PDOException', 'Sql error')
+                ->withExactTags($this->baseTags()),
         ]);
     }
 
@@ -266,11 +252,9 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
                 ->withExactTags(array_merge($this->baseTags(), [])),
             SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', "WRONG QUERY")
-                ->setError()
+                ->setError('PDOStatement error', 'SQL error: 42000. Driver error: 1064')
                     ->withExactTags(array_merge($this->baseTags(), [
                         'db.rowcount' => 0,
-                        'error.msg' => 'SQL error: 42000. Driver error: 1064',
-                        'error.type' => 'PDOStatement error',
                     ])),
         ]);
     }
@@ -296,11 +280,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
                 ->withExactTags(array_merge($this->baseTags(), [])),
             SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', "WRONG QUERY")
-                ->setError()
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'error.msg' => 'Sql error',
-                    'error.type' => 'PDOException',
-                ])),
+                ->setError('PDOException', 'Sql error')
+                ->withExactTags($this->baseTags()),
         ]);
     }
 
