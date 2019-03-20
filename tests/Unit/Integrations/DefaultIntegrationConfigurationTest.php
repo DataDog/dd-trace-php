@@ -15,7 +15,7 @@ final class DefaultIntegrationConfigurationTest extends BaseTestCase
         putenv('DD_DUMMY_ANALYTICS_SAMPLE_RATE');
     }
 
-    public function testTraceAnalyticsOByDefault()
+    public function testTraceAnalyticsOffByDefault()
     {
         $conf = new DefaultIntegrationConfiguration('dummy');
         $this->assertFalse($conf->isTraceAnalyticsEnabled());
@@ -68,5 +68,11 @@ final class DefaultIntegrationConfigurationTest extends BaseTestCase
         putenv('DD_DUMMY_ANALYTICS_SAMPLE_RATE=0.3');
         $conf = new DefaultIntegrationConfiguration('dummy');
         $this->assertEquals(0.3, $conf->getTraceAnalyticsSampleRate());
+    }
+
+    public function testTraceAnalyticsOffIfGlobalAndIntegrationNotSetAndNotRequiresExplicit()
+    {
+        $conf = new DefaultIntegrationConfiguration('dummy', false);
+        $this->assertFalse($conf->isTraceAnalyticsEnabled());
     }
 }

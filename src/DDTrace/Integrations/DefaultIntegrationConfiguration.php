@@ -2,6 +2,8 @@
 
 namespace DDTrace\Integrations;
 
+use DDTrace\Configuration;
+
 /**
  * Default integration configuration object for integrations not having any specific param. Put here
  * config options that are common to ALL integrations.
@@ -13,7 +15,11 @@ class DefaultIntegrationConfiguration extends AbstractIntegrationConfiguration
      */
     public function isTraceAnalyticsEnabled()
     {
-        return $this->boolValue('analytics.enabled', !$this->requiresExplicitTraceAnalyticsEnabling());
+        $global = Configuration::get();
+        $globalAnalyticsEnabled = $global->isAnalyticsEnabled();
+        $integrationAnalyticsEnabled = $this->boolValue('analytics.enabled', false);
+        return $integrationAnalyticsEnabled
+                || ($globalAnalyticsEnabled && !$this->requiresExplicitTraceAnalyticsEnabling());
     }
 
     /**

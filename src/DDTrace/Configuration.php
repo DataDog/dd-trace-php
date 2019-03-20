@@ -40,6 +40,16 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Whether or not automatic trace analytics configuration is enabled.
+     *
+     * @return bool
+     */
+    public function isAnalyticsEnabled()
+    {
+        return $this->boolValue('analytics.enabled', false);
+    }
+
+    /**
      * Whether or not priority sampling is enabled globally.
      *
      * @return bool

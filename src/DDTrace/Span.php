@@ -230,6 +230,7 @@ final class Span implements SpanInterface
 
         if (in_array($key, self::getMetricsNames())) {
             $this->setMetric($key, $value);
+            return;
         }
 
         $this->tags[$key] = (string)$value;
