@@ -96,7 +96,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'error'
                     )
-                        ->setError()
                         ->withExactTags([
                             'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@errorAction',
                             'symfony.route.name' => 'error',
@@ -106,6 +105,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'error.type' => 'Exception',
                             'http.status_code' => '500',
                         ])
+                        ->setError()
                         ->withExistingTagsNames(['error.stack']),
                     SpanAssertion::exists('symfony.kernel.handle'),
                     SpanAssertion::exists('symfony.kernel.request'),

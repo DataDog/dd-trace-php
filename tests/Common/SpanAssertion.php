@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Common;
 
+use DDTrace\Tag;
 
 final class SpanAssertion
 {
@@ -79,6 +80,9 @@ final class SpanAssertion
     public function setError()
     {
         $this->hasError = true;
+        if (!isset($this->exactTags[Tag::ERROR_TYPE])) {
+            $this->existingTags[] = Tag::ERROR_TYPE;
+        }
         return $this;
     }
 
