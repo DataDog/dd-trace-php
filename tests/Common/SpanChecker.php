@@ -101,6 +101,13 @@ final class SpanChecker
                 $this->testCase->assertArrayHasKey($tagName, $span->getAllTags());
             }
         }
+        if ($exp->getExactMetrics() !== SpanAssertion::NOT_TESTED) {
+            $this->testCase->assertEquals(
+                $exp->getExactMetrics(),
+                $span->getMetrics(),
+                $namePrefix . "Wrong value for 'metrics'"
+            );
+        }
         if ($exp->getService() != SpanAssertion::NOT_TESTED) {
             $this->testCase->assertSame(
                 $exp->getService(),

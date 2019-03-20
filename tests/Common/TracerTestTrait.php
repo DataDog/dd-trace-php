@@ -147,6 +147,7 @@ trait TracerTestTrait
                 $this->setRawPropertyFromArray($span, $rawSpan, 'type');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'duration');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'tags', 'meta');
+                $this->setRawPropertyFromArray($span, $rawSpan, 'metrics', 'metrics');
 
                 $spans[] = $span;
             }
