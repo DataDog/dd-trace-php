@@ -13,13 +13,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/ZendFramework/Version_1_12/public/index.php';
     }
 
-    protected static function getEnvs()
-    {
-        return array_merge(parent::getEnvs(), [
-            'DD_TEST_INTEGRATION' => 'true',
-        ]);
-    }
-
     /**
      * @dataProvider provideSpecs
      * @param RequestSpec $spec
