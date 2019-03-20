@@ -10,9 +10,25 @@ use DDTrace\Util\Versions;
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
  */
-final class LaravelIntegration extends AbstractIntegration
+class LaravelIntegration extends AbstractIntegration
 {
     const NAME = 'laravel';
+
+    /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * @return string The integration name.

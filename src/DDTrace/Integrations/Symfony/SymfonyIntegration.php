@@ -7,10 +7,26 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Util\Versions;
 
-final class SymfonyIntegration extends AbstractIntegration
+class SymfonyIntegration extends AbstractIntegration
 {
     const NAME = 'symfony';
     const BUNDLE_NAME = 'datadog_symfony_bundle';
+
+    /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * @return string The integration name.

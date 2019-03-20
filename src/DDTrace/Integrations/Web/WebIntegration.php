@@ -5,7 +5,7 @@ namespace DDTrace\Integrations\Web;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\AbstractIntegration;
 
-final class WebIntegration extends AbstractIntegration
+class WebIntegration extends AbstractIntegration
 {
     const NAME = 'web';
 

@@ -16,7 +16,7 @@ const VALUE_MAX_LEN = 100;
 const VALUE_TOO_LONG_MARK = "...";
 const CMD_MAX_LEN = 1000;
 
-final class PredisIntegration extends AbstractIntegration
+class PredisIntegration extends AbstractIntegration
 {
     const NAME = 'predis';
 
@@ -24,6 +24,22 @@ final class PredisIntegration extends AbstractIntegration
      * @var array
      */
     private static $connections = [];
+
+    /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * @return string The integration name.

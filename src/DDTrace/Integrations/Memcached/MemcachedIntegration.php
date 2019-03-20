@@ -23,9 +23,25 @@ use DDTrace\GlobalTracer;
  * might be different for each key. setMultiByKey does, since you're pinning a
  * specific server.
  */
-final class MemcachedIntegration extends AbstractIntegration
+class MemcachedIntegration extends AbstractIntegration
 {
     const NAME = 'memcached';
+
+    /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * @return string The integration name.

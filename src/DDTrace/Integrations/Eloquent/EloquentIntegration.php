@@ -9,9 +9,25 @@ use DDTrace\Type;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
-final class EloquentIntegration extends AbstractIntegration
+class EloquentIntegration extends AbstractIntegration
 {
     const NAME = 'eloquent';
+
+    /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * @return string The integration name.

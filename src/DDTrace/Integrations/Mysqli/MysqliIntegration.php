@@ -10,9 +10,25 @@ use DDTrace\Util\ObjectKVStore;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
-final class MysqliIntegration extends AbstractIntegration
+class MysqliIntegration extends AbstractIntegration
 {
     const NAME = 'mysqli';
+
+    /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * @return string The integration name.
