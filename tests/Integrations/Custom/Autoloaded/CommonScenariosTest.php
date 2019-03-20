@@ -15,9 +15,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 
     protected static function getEnvs()
     {
-        return [
+        return array_merge(parent::getEnvs(), [
             'APP_NAME' => 'custom_autoloaded_app',
-        ];
+        ]);
     }
 
     /**
