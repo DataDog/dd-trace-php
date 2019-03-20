@@ -12,9 +12,25 @@ abstract class AbstractIntegration implements \DDTrace\Contracts\Integration
      */
     private $configuration;
 
-    public function __construct()
+    /**
+     * @var static
+     */
+    private static $instance;
+
+    protected function __construct()
     {
         $this->configuration = $this->buildConfiguration();
+    }
+
+    /**
+     * @return static
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new static();
+        }
+        return self::$instance;
     }
 
     /**

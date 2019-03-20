@@ -22,26 +22,10 @@ final class GuzzleIntegration extends AbstractIntegration
      */
     private $codeTracer;
 
-    /**
-     * @var self
-     */
-    private static $instance;
-
-    public function __construct()
+    protected function __construct()
     {
         parent::__construct();
         $this->codeTracer = CodeTracer::getInstance();
-    }
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
     }
 
     /**

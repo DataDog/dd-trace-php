@@ -8,7 +8,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
 
-class PDOIntegration extends AbstractIntegration
+final class PDOIntegration extends AbstractIntegration
 {
     const NAME = 'pdo';
 
@@ -21,22 +21,6 @@ class PDOIntegration extends AbstractIntegration
      * @var array
      */
     private static $statements = [];
-
-    /**
-     * @var self
-     */
-    private static $instance;
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
 
     /**
      * @return string The integration name.

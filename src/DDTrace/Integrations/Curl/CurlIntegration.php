@@ -16,7 +16,7 @@ use DDTrace\GlobalTracer;
 /**
  * Integration for curl php client.
  */
-class CurlIntegration extends AbstractIntegration
+final class CurlIntegration extends AbstractIntegration
 {
     const NAME = 'curl';
 

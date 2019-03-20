@@ -12,26 +12,10 @@ use DDTrace\Type;
 /**
  * ElasticSearch driver v1 Integration
  */
-class ElasticSearchIntegration extends AbstractIntegration
+final class ElasticSearchIntegration extends AbstractIntegration
 {
     const NAME = 'elasticsearch';
     const DEFAULT_SERVICE_NAME = 'elasticsearch';
-
-    /**
-     * @var self
-     */
-    private static $instance;
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
 
     /**
      * @return string The integration name.
