@@ -17,6 +17,7 @@ final class SpanAssertion
     private $type = SpanAssertion::NOT_TESTED;
     private $resource = SpanAssertion::NOT_TESTED;
     private $onlyCheckExistence = false;
+    private $isTraceAnalyticsCandidate = false;
 
     /**
      * @param string $name
@@ -201,5 +202,22 @@ final class SpanAssertion
     public function isOnlyCheckExistence()
     {
         return $this->onlyCheckExistence;
+    }
+
+    /**
+     * @return self
+     */
+    public function setTraceAnalyticsCandidate()
+    {
+        $this->isTraceAnalyticsCandidate = true;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isTraceAnalyticsCandidate()
+    {
+        return $this->isTraceAnalyticsCandidate;
     }
 }

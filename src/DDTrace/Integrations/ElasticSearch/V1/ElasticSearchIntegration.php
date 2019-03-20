@@ -55,12 +55,12 @@ class ElasticSearchIntegration extends Integration
         self::traceClientMethod('update');
 
         // Serializers
-        self::traceMethod('Elasticsearch\Serializers\ArrayToJSONSerializer', 'serialize');
-        self::traceMethod('Elasticsearch\Serializers\ArrayToJSONSerializer', 'deserialize');
-        self::traceMethod('Elasticsearch\Serializers\EverythingToJSONSerializer', 'serialize');
-        self::traceMethod('Elasticsearch\Serializers\EverythingToJSONSerializer', 'deserialize');
-        self::traceMethod('Elasticsearch\Serializers\SmartSerializer', 'serialize');
-        self::traceMethod('Elasticsearch\Serializers\SmartSerializer', 'deserialize');
+        self::traceSimpleMethod('Elasticsearch\Serializers\ArrayToJSONSerializer', 'serialize');
+        self::traceSimpleMethod('Elasticsearch\Serializers\ArrayToJSONSerializer', 'deserialize');
+        self::traceSimpleMethod('Elasticsearch\Serializers\EverythingToJSONSerializer', 'serialize');
+        self::traceSimpleMethod('Elasticsearch\Serializers\EverythingToJSONSerializer', 'deserialize');
+        self::traceSimpleMethod('Elasticsearch\Serializers\SmartSerializer', 'serialize');
+        self::traceSimpleMethod('Elasticsearch\Serializers\SmartSerializer', 'deserialize');
 
         // IndicesNamespace operations
         self::traceNamespaceMethod('IndicesNamespace', 'analyze');
@@ -233,20 +233,9 @@ class ElasticSearchIntegration extends Integration
 
     /**
      * @param string $class
-     * @param array $methods
-     */
-    public static function traceSimpleMethodsCall($class, array $methods)
-    {
-        foreach ($methods as $method) {
-            ElasticSearchIntegration::traceMethod($class, $method);
-        }
-    }
-
-    /**
-     * @param string $class
      * @param string $name
      */
-    public static function traceMethod($class, $name)
+    public static function traceSimpleMethod($class, $name)
     {
         dd_trace($class, $name, function () use ($class, $name) {
             $args = func_get_args();

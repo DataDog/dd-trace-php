@@ -31,7 +31,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
 
     public function testMethodNotExistsDoesNotCrashApps()
     {
-        ElasticSearchIntegration::traceMethod('\Wrong\Class', 'wrong_method');
+        ElasticSearchIntegration::traceSimpleMethod('\Wrong\Class', 'wrong_method');
         $this->addToAssertionCount(1);
     }
 

@@ -74,6 +74,7 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '1',
                 ])),
@@ -97,6 +98,7 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
                 ->setError()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '',
@@ -125,6 +127,7 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
                 ->setError()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'error.msg' => 'Sql error',
@@ -144,6 +147,7 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '1',
                 ])),
@@ -164,6 +168,7 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
                 ->setError()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '',
@@ -188,6 +193,7 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
+                ->setTraceAnalyticsCandidate()
                 ->setError()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'error.msg' => 'Sql error',
@@ -240,7 +246,9 @@ final class PDOTest extends IntegrationTestCase
                 'PDO',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags(array_merge($this->baseTags(), [
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge($this->baseTags(), [
                 'db.rowcount' => 1,
             ])),
         ]);
@@ -266,12 +274,13 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
                 ->withExactTags(array_merge($this->baseTags(), [])),
             SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', "WRONG QUERY")
+                ->setTraceAnalyticsCandidate()
                 ->setError()
-                    ->withExactTags(array_merge($this->baseTags(), [
-                        'db.rowcount' => 0,
-                        'error.msg' => 'SQL error: 42000. Driver error: 1064',
-                        'error.type' => 'PDOStatement error',
-                    ])),
+                ->withExactTags(array_merge($this->baseTags(), [
+                    'db.rowcount' => 0,
+                    'error.msg' => 'SQL error: 42000. Driver error: 1064',
+                    'error.type' => 'PDOStatement error',
+                ])),
         ]);
     }
 
@@ -296,6 +305,7 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
                 ->withExactTags(array_merge($this->baseTags(), [])),
             SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', "WRONG QUERY")
+                ->setTraceAnalyticsCandidate()
                 ->setError()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'error.msg' => 'Sql error',

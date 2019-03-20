@@ -122,6 +122,12 @@ final class SpanChecker
                 $namePrefix . "Wrong value for 'resource'"
             );
         }
+
+        $this->testCase->assertSame(
+            $exp->isTraceAnalyticsCandidate(),
+            $span->isTraceAnalyticsCandidate(),
+            $namePrefix . "Trace Analytics Candidate expectation different from actual"
+        );
     }
 
     /**

@@ -91,6 +91,7 @@ final class MysqliTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('mysqli_connect'),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
         ]);
     }
@@ -106,6 +107,7 @@ final class MysqliTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
         ]);
     }
@@ -143,7 +145,8 @@ final class MysqliTest extends IntegrationTestCase
             SpanAssertion::exists('mysqli.__construct'),
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
-            SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)'),
+            SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
+                ->setTraceAnalyticsCandidate(),
         ]);
     }
 
