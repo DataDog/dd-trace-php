@@ -96,7 +96,7 @@ final class Bootstrap
             );
         $operationName = 'cli' === PHP_SAPI ? 'cli.command' : 'web.request';
         $span = $tracer->startRootSpan($operationName, $startSpanOptions)->getSpan();
-        $span ->setIntegration(WebIntegration::getInstance());
+        $span ->setIntegration(new WebIntegration());
         $span->setTag(
             Tag::SERVICE_NAME,
             Configuration::get()->appName($operationName)
