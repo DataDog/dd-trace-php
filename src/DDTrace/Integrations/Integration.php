@@ -27,7 +27,7 @@ abstract class Integration
     /**
      * @return string The integration name.
      */
-    public abstract function getName();
+    abstract public function getName();
 
 
     protected function __construct()

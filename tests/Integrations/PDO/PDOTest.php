@@ -250,7 +250,7 @@ final class PDOTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
                 'db.rowcount' => 1,
-            ])),
+                ])),
         ]);
     }
 
