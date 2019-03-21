@@ -102,13 +102,9 @@ final class SpanChecker
             }
         }
         if ($exp->getExactMetrics() !== SpanAssertion::NOT_TESTED) {
-            $toBeTested = function ($key) use ($exp) {
-                return !in_array($key, $exp->getNotTestedMetricNames());
-            };
-
             $this->testCase->assertEquals(
-                array_filter($exp->getExactMetrics(), $toBeTested, ARRAY_FILTER_USE_KEY),
-                array_filter($span->getMetrics(), $toBeTested, ARRAY_FILTER_USE_KEY),
+                $this->filterArrayByKey54($exp->getExactMetrics(), $exp->getNotTestedMetricNames(), false),
+                $this->filterArrayByKey54($span->getMetrics(), $exp->getNotTestedMetricNames(), false),
                 $namePrefix . "Wrong value for 'metrics'"
             );
         }
@@ -152,6 +148,27 @@ final class SpanChecker
         array_walk_recursive($traces, function (Span $span) use (&$result) {
             $result[] = $span;
         });
+
+        return $result;
+    }
+
+    /**
+     * PHP < 5.6 does not offer a way to filter only specific elements in an array by key.
+     *
+     * @param array $associative
+     * @param string[] $allowedKeys
+     * @param bool $include
+     * @return array
+     */
+    private function filterArrayByKey54($associative, $allowedKeys, $include = true)
+    {
+        $result = [];
+
+        foreach ($associative as $key => $value) {
+            if (($include && in_array($key, $allowedKeys)) || (!$include && !in_array($key, $allowedKeys))) {
+                $result[$key] = $value;
+            }
+        }
 
         return $result;
     }
