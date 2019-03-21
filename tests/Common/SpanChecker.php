@@ -102,9 +102,14 @@ final class SpanChecker
             }
         }
         if ($exp->getExactMetrics() !== SpanAssertion::NOT_TESTED) {
+
+            $toBeTested = function ($key) use ($exp) {
+                return !in_array($key, $exp->getNotTestedMetricNames());
+            };
+
             $this->testCase->assertEquals(
-                $exp->getExactMetrics(),
-                $span->getMetrics(),
+                array_filter($exp->getExactMetrics(), $toBeTested, ARRAY_FILTER_USE_KEY),
+                array_filter($span->getMetrics(), $toBeTested, ARRAY_FILTER_USE_KEY),
                 $namePrefix . "Wrong value for 'metrics'"
             );
         }

@@ -250,4 +250,14 @@ final class SpanAssertion
     {
         return $this->exactMetrics;
     }
+
+    /**
+     * @return array
+     */
+    public function getNotTestedMetricNames()
+    {
+        return [
+            '_sampling_priority_v1',
+        ];
+    }
 }

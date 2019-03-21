@@ -190,7 +190,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'get index:my_index type:my_type'
-            ),
+            )->setTraceAnalyticsCandidate(),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
         ]);
@@ -316,7 +316,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'search index:' . 'my_index'
-            ),
+            )->setTraceAnalyticsCandidate(),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),

@@ -46,6 +46,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/',
@@ -76,6 +77,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('GuzzleHttp\Client.send', 'guzzle', 'http', 'send'),
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
@@ -91,6 +93,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
@@ -135,6 +138,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         $found = [];
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isAutofinishSpansEnabled' => false,
+            'isAnalyticsEnabled' => false,
             'isDistributedTracingEnabled' => false,
             'isPrioritySamplingEnabled' => false,
             'getGlobalTags' => [],

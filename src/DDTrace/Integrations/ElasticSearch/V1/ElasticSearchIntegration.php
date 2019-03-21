@@ -48,10 +48,10 @@ class ElasticSearchIntegration extends Integration
         self::traceClientMethod('delete');
         self::traceClientMethod('exists');
         self::traceClientMethod('explain');
-        self::traceClientMethod('get');
+        self::traceClientMethod('get', true);
         self::traceClientMethod('index');
         self::traceClientMethod('scroll');
-        self::traceClientMethod('search');
+        self::traceClientMethod('search', true);
         self::traceClientMethod('update');
 
         // Serializers
@@ -188,12 +188,13 @@ class ElasticSearchIntegration extends Integration
 
     /**
      * @param string $name
+     * @param bool $isTraceAnalyticsCandidate
      */
-    public static function traceClientMethod($name)
+    public static function traceClientMethod($name, $isTraceAnalyticsCandidate = false)
     {
         $class = 'Elasticsearch\Client';
 
-        dd_trace($class, $name, function () use ($name) {
+        dd_trace($class, $name, function () use ($name, $isTraceAnalyticsCandidate) {
             $args = func_get_args();
             $params = [];
             if (isset($args[0])) {
@@ -205,7 +206,9 @@ class ElasticSearchIntegration extends Integration
                 "Elasticsearch.Client.$name"
             );
             $span = $scope->getSpan();
-            $span->setTraceAnalyticsCandidate();
+            if ($isTraceAnalyticsCandidate) {
+                $span->setTraceAnalyticsCandidate();
+            }
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
             $span->setTag(Tag::SPAN_TYPE, Type::ELASTICSEARCH);
