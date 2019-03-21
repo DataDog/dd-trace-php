@@ -52,12 +52,13 @@ class LaravelIntegrationLoader
             $args = func_get_args();
 
             $span = $self->rootScope->getSpan();
-            try {
-                $user = auth()->user();
-                if ($user instanceof Authenticatable) {
-                    $span->setTag('laravel.user', $user->getAuthIdentifier());
-                }
-            } catch (\Exception $e) {
+            $user = auth()->user();
+
+            if ($user && $user instanceof \Illuminate\Contracts\Auth\Authenticatable) {
+              $span->setTag(
+                'laravel.user',
+                strlen($user->getAuthIdentifierName()) > 0 ? $user->getAuthIdentifierName() : '-'
+              );
             }
 
             return call_user_func_array([$this, '__construct'], $args);
