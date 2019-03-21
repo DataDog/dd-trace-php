@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\Configuration;
-use DDTrace\Contracts\Integration as IntegrationContract;
 use DDTrace\Tag;
 use DDTrace\Span;
 use DDTrace\GlobalTracer;

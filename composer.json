@@ -59,35 +59,35 @@
         "test": "phpunit --colors=always --configuration=phpunit.xml",
         "test-all-54": [
             "@test-unit",
-            "@test-test-auto-instrumentation",
+            "@test-auto-instrumentation",
             "@test-integration",
             "@test-integrations-54",
             "@test-web-54"
         ],
         "test-all-56": [
             "@test-unit",
-            "@test-test-auto-instrumentation",
+            "@test-auto-instrumentation",
             "@test-integration",
             "@test-integrations-56",
             "@test-web-56"
         ],
         "test-all-70": [
             "@test-unit",
-            "@test-test-auto-instrumentation",
+            "@test-auto-instrumentation",
             "@test-integration",
             "@test-integrations-70",
             "@test-web-70"
         ],
         "test-all-71": [
             "@test-unit",
-            "@test-test-auto-instrumentation",
+            "@test-auto-instrumentation",
             "@test-integration",
             "@test-integrations-71",
             "@test-web-71"
         ],
         "test-all-72": [
             "@test-unit",
-            "@test-test-auto-instrumentation",
+            "@test-auto-instrumentation",
             "@test-integration",
             "@test-integrations-72",
             "@test-web-72"
