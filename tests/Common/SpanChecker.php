@@ -102,7 +102,6 @@ final class SpanChecker
             }
         }
         if ($exp->getExactMetrics() !== SpanAssertion::NOT_TESTED) {
-
             $toBeTested = function ($key) use ($exp) {
                 return !in_array($key, $exp->getNotTestedMetricNames());
             };
