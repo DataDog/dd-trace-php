@@ -30,7 +30,7 @@ abstract class Integration
     public abstract function getName();
 
 
-    public function __construct()
+    protected function __construct()
     {
         $this->configuration = $this->buildConfiguration();
     }
