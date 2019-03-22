@@ -7,6 +7,9 @@ use DDTrace\Tag;
 
 /**
  * A span processor in charge of adding the trace analytics client config metric when appropriate.
+ *
+ * NOTE: this may be transformer into a filter for consistency with other tracers, but for now we did not implement
+ * any filtering functionality so giving it such name as of now might be misleading.
  */
 final class TraceAnalyticsProcessor
 {

@@ -103,8 +103,8 @@ final class SpanChecker
         }
         if ($exp->getExactMetrics() !== SpanAssertion::NOT_TESTED) {
             $this->testCase->assertEquals(
-                $this->filterArrayByKey54($exp->getExactMetrics(), $exp->getNotTestedMetricNames(), false),
-                $this->filterArrayByKey54($span->getMetrics(), $exp->getNotTestedMetricNames(), false),
+                self::filterArrayByKey($exp->getExactMetrics(), $exp->getNotTestedMetricNames(), false),
+                self::filterArrayByKey($span->getMetrics(), $exp->getNotTestedMetricNames(), false),
                 $namePrefix . "Wrong value for 'metrics'"
             );
         }
@@ -160,7 +160,7 @@ final class SpanChecker
      * @param bool $include
      * @return array
      */
-    private function filterArrayByKey54($associative, $allowedKeys, $include = true)
+    private static function filterArrayByKey($associative, $allowedKeys, $include = true)
     {
         $result = [];
 

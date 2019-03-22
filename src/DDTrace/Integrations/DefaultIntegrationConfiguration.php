@@ -15,11 +15,11 @@ class DefaultIntegrationConfiguration extends AbstractIntegrationConfiguration
      */
     public function isTraceAnalyticsEnabled()
     {
-        $global = Configuration::get();
-        $globalAnalyticsEnabled = $global->isAnalyticsEnabled();
-        $integrationAnalyticsEnabled = $this->boolValue('analytics.enabled', false);
-        return $integrationAnalyticsEnabled
-                || ($globalAnalyticsEnabled && !$this->requiresExplicitTraceAnalyticsEnabling());
+        if ($this->boolValue('analytics.enabled', false)) {
+            return true;
+        }
+
+        return Configuration::get()->isAnalyticsEnabled() && !$this->requiresExplicitTraceAnalyticsEnabling();
     }
 
     /**
