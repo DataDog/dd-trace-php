@@ -9,11 +9,12 @@ final class ConfigurationTest extends BaseTestCase
     protected function setUp()
     {
         parent::setUp();
-        putenv('DD_TRACE_ENABLED');
         putenv('DD_DISTRIBUTED_TRACING');
-        putenv('DD_PRIORITY_SAMPLING');
         putenv('DD_INTEGRATIONS_DISABLED');
+        putenv('DD_PRIORITY_SAMPLING');
+        putenv('DD_TRACE_ANALYTICS_ENABLED');
         putenv('DD_TRACE_DEBUG');
+        putenv('DD_TRACE_ENABLED');
     }
 
     public function testTracerEnabledByDefault()
@@ -97,5 +98,16 @@ final class ConfigurationTest extends BaseTestCase
         putenv('ddtrace_app_name=foo_app');
         putenv('DD_TRACE_APP_NAME=bar_app');
         $this->assertSame('bar_app', Configuration::get()->appName());
+    }
+
+    public function testAnalyticsDisabledByDefault()
+    {
+        $this->assertFalse(Configuration::get()->isAnalyticsEnabled());
+    }
+
+    public function testAnalyticsCanBeGloballyEnabled()
+    {
+        putenv('DD_TRACE_ANALYTICS_ENABLED=true');
+        $this->assertTrue(Configuration::get()->isAnalyticsEnabled());
     }
 }
