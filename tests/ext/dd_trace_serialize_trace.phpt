@@ -11,3 +11,4 @@ $encoded = dd_trace_serialize_trace($tracer);
 var_dump($encoded);
 ?>
 --EXPECT--
+bool(true)
