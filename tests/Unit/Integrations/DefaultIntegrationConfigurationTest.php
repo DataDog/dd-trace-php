@@ -10,7 +10,7 @@ final class DefaultIntegrationConfigurationTest extends BaseTestCase
     protected function setUp()
     {
         parent::setUp();
-        putenv('DD_ANALYTICS_ENABLED');
+        putenv('DD_TRACE_ANALYTICS_ENABLED');
         putenv('DD_DUMMY_ANALYTICS_ENABLED');
         putenv('DD_DUMMY_ANALYTICS_SAMPLE_RATE');
     }
@@ -30,14 +30,14 @@ final class DefaultIntegrationConfigurationTest extends BaseTestCase
 
     public function testTraceAnalyticsGlobalEnabledAndNotRequiresExplicit()
     {
-        putenv('DD_ANALYTICS_ENABLED=true');
+        putenv('DD_TRACE_ANALYTICS_ENABLED=true');
         $conf = new DefaultIntegrationConfiguration('dummy', false);
         $this->assertTrue($conf->isTraceAnalyticsEnabled());
     }
 
     public function testTraceAnalyticsGlobalEnabledAndRequiresExplicit()
     {
-        putenv('DD_ANALYTICS_ENABLED=true');
+        putenv('DD_TRACE_ANALYTICS_ENABLED=true');
         $conf = new DefaultIntegrationConfiguration('dummy');
         $this->assertFalse($conf->isTraceAnalyticsEnabled());
     }
@@ -51,7 +51,7 @@ final class DefaultIntegrationConfigurationTest extends BaseTestCase
 
     public function testTraceAnalyticsGlobalDisabledIntegrationEnabledRequiresExplicit()
     {
-        putenv('DD_ANALYTICS_ENABLED=false');
+        putenv('DD_TRACE_ANALYTICS_ENABLED=false');
         putenv('DD_DUMMY_ANALYTICS_ENABLED=true');
         $conf = new DefaultIntegrationConfiguration('dummy');
         $this->assertTrue($conf->isTraceAnalyticsEnabled());

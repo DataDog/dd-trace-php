@@ -16,7 +16,7 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_ANALYTICS_ENABLED' => 'true',
+            'DD_TRACE_ANALYTICS_ENABLED' => 'true',
             'DD_ZENDFRAMEWORK_ANALYTICS_SAMPLE_RATE' => '0.3',
         ]);
     }
