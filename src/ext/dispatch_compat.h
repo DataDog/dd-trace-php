@@ -43,6 +43,25 @@ static zend_always_inline zval *ddtrace_this(zend_execute_data *execute_data) {
 }
 #undef _EX
 
+#if PHP_VERSION_ID >= 70000
+static zend_always_inline int ddtrace_is_all_lower(zend_string *s) {
+    unsigned char *c, *e;
+
+    c = (unsigned char *)ZSTR_VAL(s);
+    e = c + ZSTR_LEN(s);
+
+    int rv = 1;
+    while (c < e) {
+        if (isupper(*c)) {
+            rv = 0;
+            break;
+        }
+        c++;
+    }
+    return rv;
+}
+#endif  // PHP7.x
+
 void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result TSRMLS_DC);
 zend_function *ddtrace_function_get(const HashTable *table, zval *name);
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch);

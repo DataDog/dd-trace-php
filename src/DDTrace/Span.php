@@ -216,6 +216,9 @@ final class Span implements SpanInterface
 
         if ($key === Tag::HTTP_STATUS_CODE && $value >= 500) {
             $this->hasError = true;
+            if (!isset($this->tags[Tag::ERROR_TYPE])) {
+                $this->tags[Tag::ERROR_TYPE] = 'Internal Server Error';
+            }
         }
 
         $this->tags[$key] = (string)$value;
