@@ -5,8 +5,9 @@ extern zend_module_entry ddtrace_module_entry;
 
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 zend_bool disable;
+zend_bool disable_in_current_request;
 char *request_init_hook;
-char *internal_blacklisted_modules_regexp;
+char *internal_blacklisted_modules_list;
 zend_bool strict_mode;
 
 HashTable class_lookup;

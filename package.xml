@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-03-11</date>
+    <date>2019-03-21</date>
     <version>
-        <release>0.15.1</release>
-        <api>0.15.1</api>
+        <release>0.16.1</release>
+        <api>0.16.1</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,14 +21,9 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        ### Added
-        - Symfony 2.3 web tests for resource name #349
-        - Update images and enable leak detection, split tests in CI to Unit, Integration and Web #299
-
         ### Fixed
-        - Resource name on Symfony 2.x requests served through controllers #341
-        - Sanitize url in web spans #344
-        - Laravel 5.8 compatibility #351
+
+        - Error traces don't appear in "Total Errors" panel #375
     </notes>
     <contents>
         <dir name="/">

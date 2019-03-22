@@ -33,6 +33,8 @@ final class Bootstrap
         self::registerOpenTracing();
 
         register_shutdown_function(function () {
+            dd_trace_disable_in_request(); //disable function tracing to speedup shutdown
+
             $tracer = GlobalTracer::get();
             $scopeManager = $tracer->getScopeManager();
             $scopeManager->close();

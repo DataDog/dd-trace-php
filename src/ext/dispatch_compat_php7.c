@@ -19,10 +19,17 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
         return NULL;
     }
 
-    zend_string *key = zend_string_tolower(Z_STR_P(name));
+    zend_string *to_free = NULL, *key = Z_STR_P(name);
+    if (!ddtrace_is_all_lower(key)) {
+        key = zend_string_tolower(key);
+        to_free = key;
+    }
+
     zend_function *ptr = zend_hash_find_ptr(table, key);
 
-    zend_string_release(key);
+    if (to_free) {
+        zend_string_release(to_free);
+    }
     return ptr;
 }
 

@@ -96,14 +96,12 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     SpanAssertion::exists('laravel.event.handle'),
                     SpanAssertion::build('laravel.action', 'laravel', 'web', 'error')
                         ->withExactTags([
-                            'error.msg' => 'Controller error',
-                            'error.type' => 'Exception',
                             'some.key1' => 'value',
                             'some.key2' => 'value2',
                             'integration.name' => 'laravel',
                         ])
                         ->withExistingTagsNames(['error.stack'])
-                        ->setError(),
+                        ->setError('Exception', 'Controller error'),
                     SpanAssertion::exists('laravel.event.handle'),
                 ],
             ]

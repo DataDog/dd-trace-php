@@ -52,8 +52,8 @@ ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.internal_blacklisted_modules_regexp", "/ioncube/i", PHP_INI_SYSTEM, OnUpdateString,
-                  internal_blacklisted_modules_regexp, zend_ddtrace_globals, ddtrace_globals)
+STD_PHP_INI_ENTRY("ddtrace.internal_blacklisted_modules_list", "ionCube Loader,", PHP_INI_SYSTEM, OnUpdateString,
+                  internal_blacklisted_modules_list, zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
@@ -103,8 +103,9 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_dispatch_init(TSRMLS_C);
+    DDTRACE_G(disable_in_current_request) = 0;
 
-    if (DDTRACE_G(internal_blacklisted_modules_regexp) && !dd_no_blacklisted_modules(TSRMLS_C)) {
+    if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
         return SUCCESS;
     }
 
@@ -122,7 +123,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
-
     ddtrace_dispatch_destroy(TSRMLS_C);
 
     return SUCCESS;
@@ -163,7 +163,7 @@ static PHP_FUNCTION(dd_trace) {
     zval *class_name = NULL;
     zval *callable = NULL;
 
-    if (DDTRACE_G(disable)) {
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
@@ -220,7 +220,7 @@ static PHP_FUNCTION(dd_untrace) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
 
-    if (DDTRACE_G(disable)) {
+    if (DDTRACE_G(disable) && DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
@@ -250,6 +250,15 @@ static PHP_FUNCTION(dd_untrace) {
     RETURN_BOOL(1);
 }
 
+static PHP_FUNCTION(dd_trace_disable_in_request) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    DDTRACE_G(disable_in_current_request) = 1;
+
+    RETURN_BOOL(1);
+}
+
 static PHP_FUNCTION(dd_trace_reset) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
@@ -275,7 +284,7 @@ static PHP_FUNCTION(dd_trace_noop) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(
-    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) ZEND_FE_END};
+    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
