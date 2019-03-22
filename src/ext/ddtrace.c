@@ -271,6 +271,17 @@ static PHP_FUNCTION(dd_trace_reset) {
     RETURN_BOOL(1);
 }
 
+static PHP_FUNCTION(dd_trace_serialize_trace) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
+
+    RETURN_BOOL(1);
+}
+
 // method used to be able to easily breakpoint the execution at specific PHP line in GDB
 static PHP_FUNCTION(dd_trace_noop) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
@@ -284,7 +295,7 @@ static PHP_FUNCTION(dd_trace_noop) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(
-    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) ZEND_FE_END};
+    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_serialize_trace, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),

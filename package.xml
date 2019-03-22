@@ -60,6 +60,7 @@
                     <file name="case_insensitive_method_hook.phpt" role="test" />
                     <file name="closure_accessing_outside_variables.phpt" role="test" />
                     <file name="closure_set_inside_object_methods.phpt" role="test" />
+                    <file name="dd_trace_serialize_trace.phpt" role="test" />
                     <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="method_invoked_via_reflection.phpt" role="test" />
