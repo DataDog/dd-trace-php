@@ -408,6 +408,24 @@ static PHP_FUNCTION(dd_trace_serialize_trace) {
         RETURN_BOOL(0);
     }
 
+    zval *tracer_object;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "o", &tracer_object) == FAILURE) {
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "Expected an instance of %s", ZSTR_VAL(php_ddtrace_tracer_ce_interface->name));
+        }
+        RETURN_BOOL(0);
+    }
+    if (instanceof_function_ex(Z_OBJCE_P(tracer_object), php_ddtrace_tracer_ce_interface, 1) == 0) {
+        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                "%s must be an instance of %s",
+                                ZSTR_VAL(Z_OBJCE_P(tracer_object)->name),
+                                ZSTR_VAL(php_ddtrace_tracer_ce_interface->name)
+                                );
+        RETURN_BOOL(0);
+    }
+
     RETURN_BOOL(1);
 }
 
