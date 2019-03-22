@@ -35,7 +35,7 @@ final class TraceAnalyticsProcessor
         }
 
         $integration = $span->getIntegration();
-        if ($integration->isTraceAnalyticsEnabled()) {
+        if (null !== $integration && $integration->isTraceAnalyticsEnabled()) {
             $span->setTag(Tag::ANALYTICS_KEY, $integration->getTraceAnalyticsSampleRate(), true);
         }
     }
