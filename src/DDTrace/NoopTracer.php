@@ -121,4 +121,12 @@ final class NoopTracer implements TracerInterface
     {
         return NoopScope::create();
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function asArray()
+    {
+        return [];
+    }
 }
