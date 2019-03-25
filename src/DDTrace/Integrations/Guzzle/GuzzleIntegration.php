@@ -8,12 +8,11 @@ use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\CodeTracer;
 
-final class GuzzleIntegration extends AbstractIntegration
+final class GuzzleIntegration extends Integration
 {
     const NAME = 'guzzle';
 
@@ -22,10 +21,26 @@ final class GuzzleIntegration extends AbstractIntegration
      */
     private $codeTracer;
 
-    public function __construct()
+    /**
+     * @var self
+     */
+    private static $instance;
+
+    protected function __construct()
     {
         parent::__construct();
         $this->codeTracer = CodeTracer::getInstance();
+    }
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
     }
 
     /**
@@ -54,17 +69,23 @@ final class GuzzleIntegration extends AbstractIntegration
             $self->setStatusCodeTag($span, $response);
         };
 
+        $integration = GuzzleIntegration::getInstance();
+
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'send',
             $this->buildPreCallback('send'),
-            $postCallback
+            $postCallback,
+            $integration,
+            true
         );
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'transfer',
             $this->buildPreCallback('transfer'),
-            $postCallback
+            $postCallback,
+            $integration,
+            true
         );
 
         return Integration::LOADED;

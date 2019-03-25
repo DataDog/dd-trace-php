@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Integration aware spans #360
+- Trace Analytics Client Configuration #367
+
 ## [0.16.1]
 
 ### Fixed

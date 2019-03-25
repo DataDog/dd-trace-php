@@ -46,6 +46,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/',
@@ -76,6 +77,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('GuzzleHttp\Client.send', 'guzzle', 'http', 'send'),
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
@@ -91,6 +93,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
@@ -108,7 +111,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
-            $span = $tracer->startActiveSpan('some_operation')->getSpan();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
 
             $response = $client->get(self::URL . '/headers', [
                 'headers' => [
@@ -120,7 +123,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        // trace is: some_operation
+        // trace is: custom
         $this->assertSame($traces[0][0]->getContext()->getSpanId(), $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec, used under the hood
         $this->assertSame($traces[0][2]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
@@ -135,6 +138,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         $found = [];
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isAutofinishSpansEnabled' => false,
+            'isAnalyticsEnabled' => false,
             'isDistributedTracingEnabled' => false,
             'isPrioritySamplingEnabled' => false,
             'getGlobalTags' => [],
@@ -144,7 +148,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
-            $span = $tracer->startActiveSpan('some_operation')->getSpan();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
 
             $response = $client->get(self::URL . '/headers');
 

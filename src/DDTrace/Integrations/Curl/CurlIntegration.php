@@ -6,7 +6,6 @@ use DDTrace\Configuration;
 use DDTrace\Format;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -16,7 +15,7 @@ use DDTrace\GlobalTracer;
 /**
  * Integration for curl php client.
  */
-class CurlIntegration extends AbstractIntegration
+class CurlIntegration extends Integration
 {
     const NAME = 'curl';
 
@@ -39,12 +38,15 @@ class CurlIntegration extends AbstractIntegration
             return Integration::NOT_AVAILABLE;
         }
 
+        // Waiting for refactoring from static to singleton.
+        $integration = new self();
         $globalConfig = Configuration::get();
 
-        dd_trace('curl_exec', function ($ch) {
+        dd_trace('curl_exec', function ($ch) use ($integration) {
             $tracer = GlobalTracer::get();
-            $scope = $tracer->startActiveSpan('curl_exec');
+            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'curl_exec');
             $span = $scope->getSpan();
+            $span->setTraceAnalyticsCandidate();
             $span->setTag(Tag::SERVICE_NAME, 'curl');
             $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
 

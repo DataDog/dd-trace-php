@@ -31,7 +31,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
 
     public function testMethodNotExistsDoesNotCrashApps()
     {
-        ElasticSearchIntegration::traceMethod('\Wrong\Class', 'wrong_method');
+        ElasticSearchIntegration::traceSimpleMethod('\Wrong\Class', 'wrong_method');
         $this->addToAssertionCount(1);
     }
 
@@ -190,7 +190,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'get index:my_index type:my_type'
-            ),
+            )->setTraceAnalyticsCandidate(),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
         ]);
@@ -316,7 +316,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'search index:' . 'my_index'
-            ),
+            )->setTraceAnalyticsCandidate(),
             SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),

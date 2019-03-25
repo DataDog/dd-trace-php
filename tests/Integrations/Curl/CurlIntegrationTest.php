@@ -6,12 +6,12 @@ use DDTrace\Configuration;
 use DDTrace\Format;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Tests\Common\ClearIntegrationNameInSpan;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tracer;
 use DDTrace\Util\ArrayKVStore;
 use DDTrace\GlobalTracer;
-use DDTrace\Util\Versions;
 
 final class CurlIntegrationTest extends IntegrationTestCase
 {
@@ -36,6 +36,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
@@ -75,6 +76,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
@@ -94,6 +96,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/404')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/404',
                     'http.status_code' => '404',
@@ -113,6 +116,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://10.255.255.1/')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
@@ -134,6 +138,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://10.255.255.1/')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
@@ -155,6 +160,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://__i_am_not_real__.invalid/')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => 'http://__i_am_not_real__.invalid/',
                     'http.status_code' => '0',
@@ -179,7 +185,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
-            $span = $tracer->startActiveSpan('some_operation')->getSpan();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
 
             $ch = curl_init(self::URL . '/headers');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -191,7 +197,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        // trace is: some_operation
+        // trace is: custom
         $this->assertSame($traces[0][0]->getContext()->getSpanId(), $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec
         $this->assertSame($traces[0][1]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
@@ -205,6 +211,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $found = [];
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isAutofinishSpansEnabled' => false,
+            'isAnalyticsEnabled' => false,
             'isDistributedTracingEnabled' => false,
             'isPrioritySamplingEnabled' => false,
             'getGlobalTags' => [],
@@ -214,7 +221,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
             $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
-            $span = $tracer->startActiveSpan('some_operation')->getSpan();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
 
             $ch = curl_init(self::URL . '/headers');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

@@ -4,15 +4,30 @@ namespace DDTrace\Integrations\Laravel;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Laravel\V5\LaravelIntegrationLoader;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Util\Versions;
 
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
  */
-class LaravelIntegration extends AbstractIntegration
+class LaravelIntegration extends Integration
 {
     const NAME = 'laravel';
+
+    /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * @return string The integration name.
@@ -20,6 +35,14 @@ class LaravelIntegration extends AbstractIntegration
     public function getName()
     {
         return self::NAME;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function requiresExplicitTraceAnalyticsEnabling()
+    {
+        return false;
     }
 
     /**

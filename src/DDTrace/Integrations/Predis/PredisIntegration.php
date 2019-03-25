@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Predis;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
@@ -16,7 +15,7 @@ const VALUE_MAX_LEN = 100;
 const VALUE_TOO_LONG_MARK = "...";
 const CMD_MAX_LEN = 1000;
 
-class PredisIntegration extends AbstractIntegration
+class PredisIntegration extends Integration
 {
     const NAME = 'predis';
 
@@ -24,6 +23,22 @@ class PredisIntegration extends AbstractIntegration
      * @var array
      */
     private static $connections = [];
+
+    /**
+     * @var self
+     */
+    private static $instance;
+
+    /**
+     * @return self
+     */
+    public static function getInstance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     /**
      * @return string The integration name.
@@ -41,7 +56,10 @@ class PredisIntegration extends AbstractIntegration
         // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
         dd_trace('Predis\Client', '__construct', function () {
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.__construct');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                PredisIntegration::getInstance(),
+                'Predis.Client.__construct'
+            );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
             $span->setTag(Tag::SERVICE_NAME, 'redis');
@@ -67,7 +85,10 @@ class PredisIntegration extends AbstractIntegration
 
         // public void Predis\Client::connect()
         dd_trace('Predis\Client', 'connect', function () {
-            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.connect');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                PredisIntegration::getInstance(),
+                'Predis.Client.connect'
+            );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
             $span->setTag(Tag::SERVICE_NAME, 'redis');
@@ -83,13 +104,17 @@ class PredisIntegration extends AbstractIntegration
             array_unshift($arguments, $command->getId());
             $query = PredisIntegration::formatArguments($arguments);
 
-            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeCommand');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                PredisIntegration::getInstance(),
+                'Predis.Client.executeCommand'
+            );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
             $span->setTag(Tag::SERVICE_NAME, 'redis');
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
             $span->setTag(Tag::RESOURCE_NAME, $query);
+            $span->setTraceAnalyticsCandidate();
             PredisIntegration::setConnectionTags($this, $span);
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'executeCommand', [$command]);
@@ -99,13 +124,17 @@ class PredisIntegration extends AbstractIntegration
         dd_trace('Predis\Client', 'executeRaw', function ($arguments, &$error = null) {
             $query = PredisIntegration::formatArguments($arguments);
 
-            $scope = GlobalTracer::get()->startActiveSpan('Predis.Client.executeRaw');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                PredisIntegration::getInstance(),
+                'Predis.Client.executeRaw'
+            );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
             $span->setTag(Tag::SERVICE_NAME, 'redis');
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
             $span->setTag(Tag::RESOURCE_NAME, $query);
+            $span->setTraceAnalyticsCandidate();
             PredisIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally block.
@@ -130,7 +159,10 @@ class PredisIntegration extends AbstractIntegration
 
         // protected array Predis\Pipeline::executePipeline(ConnectionInterface $connection, \SplQueue $commands)
         dd_trace('Predis\Pipeline\Pipeline', 'executePipeline', function ($connection, $commands) {
-            $scope = GlobalTracer::get()->startActiveSpan('Predis.Pipeline.executePipeline');
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                PredisIntegration::getInstance(),
+                'Predis.Pipeline.executePipeline'
+            );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
             $span->setTag(Tag::SERVICE_NAME, 'redis');

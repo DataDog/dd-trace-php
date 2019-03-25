@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Integrations\Integration;
 use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Exceptions\InvalidSpanArgument;
@@ -73,9 +74,24 @@ final class Span implements SpanInterface
     private $tags = [];
 
     /**
+     * @var array
+     */
+    private $metrics = [];
+
+    /**
      * @var bool
      */
     private $hasError = false;
+
+    /**
+     * @var Integration
+     */
+    private $integration = null;
+
+    /**
+     * @var bool Whether or not this trace can be even considered for trace analytics automatic configuration.
+     */
+    private $isTraceAnalyticsCandidate = false;
 
     /**
      * Span constructor.
@@ -215,6 +231,11 @@ final class Span implements SpanInterface
             }
         }
 
+        if (in_array($key, self::getMetricsNames())) {
+            $this->setMetric($key, $value);
+            return;
+        }
+
         $this->tags[$key] = (string)$value;
     }
 
@@ -236,6 +257,60 @@ final class Span implements SpanInterface
     public function getAllTags()
     {
         return $this->tags;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function hasTag($name)
+    {
+        return array_key_exists($name, $this->getAllTags());
+    }
+
+    /**
+     * @param string $key
+     * @param mixed $value
+     */
+    public function setMetric($key, $value)
+    {
+        if ($key === Tag::ANALYTICS_KEY) {
+            $this->processTraceAnalyticsTag($value);
+            return;
+        }
+
+        $this->metrics[$key] = $value;
+    }
+
+    /**
+     * @return array
+     */
+    public function getMetrics()
+    {
+        return $this->metrics;
+    }
+
+    /**
+     * @return string[] The known metrics names
+     */
+    private static function getMetricsNames()
+    {
+        return [
+            Tag::ANALYTICS_KEY,
+        ];
+    }
+
+    /**
+     * @param bool|float $value
+     */
+    private function processTraceAnalyticsTag($value)
+    {
+        if (true === $value || null === $value) {
+            $this->metrics[Tag::ANALYTICS_KEY] = 1.0;
+        } elseif (false === $value) {
+            unset($this->metrics[Tag::ANALYTICS_KEY]);
+        } elseif (is_numeric($value) && 0 <= $value && $value <= 1) {
+            $this->metrics[Tag::ANALYTICS_KEY] = (float)$value;
+        }
     }
 
     /**
@@ -386,5 +461,43 @@ final class Span implements SpanInterface
     public function getAllBaggageItems()
     {
         return $this->context->getAllBaggageItems();
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @param Integration $integration
+     * @return self
+     */
+    public function setIntegration(Integration $integration)
+    {
+        $this->integration = $integration;
+        return $this;
+    }
+
+    /**
+     * @return null|Integration
+     */
+    public function getIntegration()
+    {
+        return $this->integration;
+    }
+
+    /**
+     * @param bool $value
+     * @return self
+     */
+    public function setTraceAnalyticsCandidate($value = true)
+    {
+        $this->isTraceAnalyticsCandidate = $value;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isTraceAnalyticsCandidate()
+    {
+        return $this->isTraceAnalyticsCandidate;
     }
 }

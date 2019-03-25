@@ -7,6 +7,8 @@
 
 namespace DDTrace\Contracts;
 
+use DDTrace\Integrations\Integration;
+
 interface Span
 {
     /**
@@ -186,4 +188,48 @@ interface Span
      * @return array
      */
     public function getAllTags();
+
+    /**
+     * Tells whether or not the span has the provided tag. Note that there are no guarantees that the tag value is
+     * not empty.
+     *
+     * @param string $name
+     * @return bool
+     */
+    public function hasTag($name);
+
+    /**
+     * Set a DD metric.
+     *
+     * @param string $key
+     * @param mixed $value
+     */
+    public function setMetric($key, $value);
+
+    /**
+     * @return array All the currently set metrics.
+     */
+    public function getMetrics();
+
+    /**
+     * @param Integration $integration
+     * @return self
+     */
+    public function setIntegration(Integration $integration);
+
+    /**
+     * @return null|Integration
+     */
+    public function getIntegration();
+
+    /**
+     * @param bool $value
+     * @return self
+     */
+    public function setTraceAnalyticsCandidate($value = true);
+
+    /**
+     * @return bool
+     */
+    public function isTraceAnalyticsCandidate();
 }

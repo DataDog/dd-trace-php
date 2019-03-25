@@ -7,7 +7,7 @@ use DDTrace\Tag;
 use DDTrace\Span;
 use DDTrace\GlobalTracer;
 
-abstract class Integration extends AbstractIntegration
+abstract class Integration
 {
     // Possible statuses for the concrete:
     //   - NOT_LOADED   : It has not been loaded, but it may be loaded at a future time if the preconditions match
@@ -19,11 +19,71 @@ abstract class Integration extends AbstractIntegration
 
     const CLASS_NAME = '';
 
+    /**
+     * @var DefaultIntegrationConfiguration|mixed
+     */
+    private $configuration;
+
+    /**
+     * @return string The integration name.
+     */
+    abstract public function getName();
+
+
+    protected function __construct()
+    {
+        $this->configuration = $this->buildConfiguration();
+    }
+
+    /**
+     * @return bool
+     */
+    public function isTraceAnalyticsEnabled()
+    {
+        return $this->configuration->isTraceAnalyticsEnabled();
+    }
+
+    /**
+     * @return float
+     */
+    public function getTraceAnalyticsSampleRate()
+    {
+        return $this->configuration->getTraceAnalyticsSampleRate();
+    }
+
+    /**
+     * Whether or not this integration trace analytics configuration is enabled when the global
+     * switch is turned on or it requires explicit enabling.
+     *
+     * @return bool
+     */
+    public function requiresExplicitTraceAnalyticsEnabling()
+    {
+        return true;
+    }
+
+    /**
+     * Build the integration's configuration object. Override to provide your own implementation.
+     *
+     * @return DefaultIntegrationConfiguration|mixed
+     */
+    protected function buildConfiguration()
+    {
+        return new DefaultIntegrationConfiguration($this->getName(), $this->requiresExplicitTraceAnalyticsEnabling());
+    }
+
+    /**
+     * @return DefaultIntegrationConfiguration|mixed
+     */
+    protected function getConfiguration()
+    {
+        return $this->configuration;
+    }
+
     public static function load()
     {
         // See comment on the commented out abstract function definition.
         static::loadIntegration();
-
         return self::LOADED;
     }
 
@@ -44,9 +104,14 @@ abstract class Integration extends AbstractIntegration
      * @param string $method
      * @param \Closure|null $preCallHook
      * @param \Closure|null $postCallHook
+     * @param Integration|null $integration
      */
-    protected static function traceMethod($method, \Closure $preCallHook = null, \Closure $postCallHook = null)
-    {
+    protected static function traceMethod(
+        $method,
+        \Closure $preCallHook = null,
+        \Closure $postCallHook = null,
+        Integration $integration = null
+    ) {
         $className = static::CLASS_NAME;
         $integrationClass = get_called_class();
         dd_trace($className, $method, function () use (
@@ -54,11 +119,17 @@ abstract class Integration extends AbstractIntegration
             $integrationClass,
             $method,
             $preCallHook,
-            $postCallHook
+            $postCallHook,
+            $integration
         ) {
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
+
+            if (null !== $integration) {
+                $span->setIntegration($integration);
+            }
+
             $integrationClass::setDefaultTags($span, $method);
             if (null !== $preCallHook) {
                 $preCallHook($span, $args);

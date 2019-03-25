@@ -2,6 +2,7 @@
 
 namespace DDTrace\Util;
 
+use DDTrace\Integrations\Integration;
 use DDTrace\GlobalTracer;
 
 final class CodeTracer
@@ -28,18 +29,37 @@ final class CodeTracer
      * @param string $method
      * @param \Closure|null $preCallHook
      * @param \Closure|null $postCallHook
+     * @param Integration|null $integration
+     * @param bool $isTraceAnalyticsCandidate
      */
-    public function tracePublicMethod($className, $method, \Closure $preCallHook = null, \Closure $postCallHook = null)
-    {
+    public function tracePublicMethod(
+        $className,
+        $method,
+        \Closure $preCallHook = null,
+        \Closure $postCallHook = null,
+        Integration $integration = null,
+        $isTraceAnalyticsCandidate = false
+    ) {
         dd_trace($className, $method, function () use (
             $className,
             $method,
             $preCallHook,
-            $postCallHook
+            $postCallHook,
+            $integration,
+            $isTraceAnalyticsCandidate
         ) {
             $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
+
+            if ($integration) {
+                $span->setIntegration($integration);
+            }
+
+            if ($isTraceAnalyticsCandidate) {
+                $span->setTraceAnalyticsCandidate();
+            }
+
             if (null !== $preCallHook) {
                 $preCallHook($span, $args);
             }
