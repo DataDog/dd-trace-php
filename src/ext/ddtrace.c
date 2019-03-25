@@ -135,6 +135,9 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_tracer_get_safe_root_scope, 0)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_tracer_as_array, 0)
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ Function table */
@@ -165,6 +168,7 @@ static const zend_function_entry php_ddtrace_tracer_funcs_interface[] = {
     PHP_ABSTRACT_ME(Tracer, startRootSpan, arginfo_tracer_start_root_span)
     PHP_ABSTRACT_ME(Tracer, getRootScope, arginfo_tracer_get_root_scope)
     PHP_ABSTRACT_ME(Tracer, getSafeRootSpan, arginfo_tracer_get_safe_root_scope)
+    PHP_ABSTRACT_ME(Tracer, asArray, arginfo_tracer_as_array)
     PHP_FE_END
 };
 /* }}} */
