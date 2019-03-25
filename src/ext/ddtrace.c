@@ -18,6 +18,7 @@
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "request_hooks.h"
+#include "serializer.h"
 
 #define UNUSED_1(x) (void)(x)
 #define UNUSED_2(x, y) \
@@ -437,7 +438,9 @@ static PHP_FUNCTION(dd_trace_serialize_trace) {
         RETURN_BOOL(0);
     }
 
-    RETURN_BOOL(1);
+    if (ddtrace_serialize_trace(tracer_object, return_value) != 1) {
+        RETURN_BOOL(0);
+    }
 }
 
 // method used to be able to easily breakpoint the execution at specific PHP line in GDB
