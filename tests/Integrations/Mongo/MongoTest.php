@@ -192,6 +192,7 @@ final class MongoTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('MongoDB.command', 'mongo', 'mongodb', 'command')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"age":{"$gte":18}}',
                     'mongodb.timeout' => '500',
@@ -450,6 +451,7 @@ final class MongoTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('MongoCollection.distinct', 'mongo', 'mongodb', 'distinct')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                 ]),
@@ -464,6 +466,7 @@ final class MongoTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('MongoCollection.find', 'mongo', 'mongodb', 'find')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                 ]),
@@ -483,6 +486,7 @@ final class MongoTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('MongoCollection.findAndModify', 'mongo', 'mongodb', 'findAndModify')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                 ]),
@@ -497,6 +501,7 @@ final class MongoTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('MongoCollection.findOne', 'mongo', 'mongodb', 'findOne')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                 ]),
@@ -624,6 +629,7 @@ final class MongoTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('MongoCollection.update', 'mongo', 'mongodb', 'update')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                 ]),

@@ -141,9 +141,17 @@ final class Json implements Encoder
             $arraySpan['meta'] = $tags;
         }
 
+        // Handling metrics
+        $metrics = [];
+        foreach ($span->getMetrics() as $metricName => $metricValue) {
+            $metrics[$metricName] = $metricValue;
+        }
         if ($span->getContext()->isHostRoot()
                 && ($prioritySampling = $tracer->getPrioritySampling()) !== PrioritySampling::UNKNOWN) {
-            $arraySpan['metrics']['_sampling_priority_v1'] = $prioritySampling;
+            $metrics['_sampling_priority_v1'] = $prioritySampling;
+        }
+        if (!empty($metrics)) {
+            $arraySpan['metrics'] = $metrics;
         }
 
         // This is only for testing purposes and possibly temporary as we may want to add integration name to the span's

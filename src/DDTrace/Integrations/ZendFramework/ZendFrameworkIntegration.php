@@ -37,6 +37,14 @@ class ZendFrameworkIntegration extends Integration
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function requiresExplicitTraceAnalyticsEnabling()
+    {
+        return false;
+    }
+
+    /**
      * Loads the zend framework integration.
      *
      * @return int

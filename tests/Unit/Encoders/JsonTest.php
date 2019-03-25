@@ -116,4 +116,37 @@ JSON;
         $jsonEncoder = new Json();
         $this->assertContains('"_sampling_priority_v1":2', $jsonEncoder->encodeTraces([[$span]]));
     }
+
+    public function testEncodeMetricsWhenPresent()
+    {
+        $context = new SpanContext('tid', 'sid');
+        $span = new Span(
+            'test_name',
+            $context,
+            'test_service',
+            'test_resource',
+            1518038421211969
+        );
+        $span->setMetric('_a', 0.1);
+
+        $jsonEncoder = new Json();
+        $encoded = $jsonEncoder->encodeTraces([[$span]]);
+        $this->assertContains('"_a":0.1', $encoded);
+    }
+
+    public function testDoesNotEncodeMetricsWhenNotPresent()
+    {
+        $context = new SpanContext('tid', 'sid');
+        $span = new Span(
+            'test_name',
+            $context,
+            'test_service',
+            'test_resource',
+            1518038421211969
+        );
+
+        $jsonEncoder = new Json();
+        $encoded = $jsonEncoder->encodeTraces([[$span]]);
+        $this->assertNotContains('"metrics"', $encoded);
+    }
 }

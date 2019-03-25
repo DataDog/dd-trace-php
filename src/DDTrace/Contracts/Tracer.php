@@ -10,6 +10,7 @@ namespace DDTrace\Contracts;
 use DDTrace\Exceptions\InvalidReferencesSet;
 use DDTrace\Exceptions\InvalidSpanOption;
 use DDTrace\Exceptions\UnsupportedFormat;
+use DDTrace\Integrations\Integration;
 use DDTrace\StartSpanOptions;
 
 interface Tracer

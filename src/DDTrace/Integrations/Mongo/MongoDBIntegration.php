@@ -32,6 +32,7 @@ final class MongoDBIntegration extends Integration
             $span->setIntegration(MongoIntegration::getInstance());
             if (isset($args[0]['query'])) {
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]['query']));
+                $span->setTraceAnalyticsCandidate();
             }
             if (isset($args[1]['socketTimeoutMS'])) {
                 $span->setTag(Tag::MONGODB_TIMEOUT, $args[1]['socketTimeoutMS']);

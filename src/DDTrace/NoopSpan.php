@@ -7,7 +7,7 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Integration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Contracts\Span as SpanInterface;
 
 final class NoopSpan implements SpanInterface
@@ -202,6 +202,14 @@ final class NoopSpan implements SpanInterface
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function hasTag($name)
+    {
+        return false;
+    }
+
+    /**
      * @param Integration $integration
      * @return self
      */
@@ -216,5 +224,40 @@ final class NoopSpan implements SpanInterface
     public function getIntegration()
     {
         return null;
+    }
+
+    /**
+     * @param bool $value
+     * @return self
+     */
+    public function setTraceAnalyticsCandidate($value = true)
+    {
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isTraceAnalyticsCandidate()
+    {
+        return false;
+    }
+
+    /**
+     * Set a DD metric.
+     *
+     * @param string $key
+     * @param mixed $value
+     */
+    public function setMetric($key, $value)
+    {
+    }
+
+    /**
+     * @return array All the currently set metrics.
+     */
+    public function getMetrics()
+    {
+        return [];
     }
 }

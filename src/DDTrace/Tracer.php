@@ -2,9 +2,10 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Integration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Encoders\Json;
 use DDTrace\Log\LoggingTrait;
+use DDTrace\Processing\TraceAnalyticsProcessor;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
@@ -82,6 +83,11 @@ final class Tracer implements TracerInterface
     private $prioritySampling;
 
     /**
+     * @var TraceAnalyticsProcessor
+     */
+    private $traceAnalyticsProcessor;
+
+    /**
      * @param Transport $transport
      * @param Propagator[] $propagators
      * @param array $config
@@ -98,6 +104,7 @@ final class Tracer implements TracerInterface
         $this->config = array_merge($this->config, $config);
         $this->reset();
         $this->config['global_tags'] = array_merge($this->config['global_tags'], $this->globalConfig->getGlobalTags());
+        $this->traceAnalyticsProcessor = new TraceAnalyticsProcessor();
     }
 
     /**
@@ -288,10 +295,11 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        $numberOfTraces = 0;
+        // Basic processing. We will do it in a more structured way in the future, but for now we just invoke the
+        // the internal (hard-coded) processors programmatically.
         foreach ($tracesToBeSent as $trace) {
             foreach ($trace as $span) {
-                $numberOfTraces = $numberOfTraces + 1;
+                $this->traceAnalyticsProcessor->process($span);
             }
         }
 

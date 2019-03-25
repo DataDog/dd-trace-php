@@ -3,14 +3,13 @@
 namespace DDTrace\Integrations\Mysqli;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
-class MysqliIntegration extends AbstractIntegration
+class MysqliIntegration extends Integration
 {
     const NAME = 'mysqli';
 
@@ -124,6 +123,7 @@ class MysqliIntegration extends AbstractIntegration
             $scope = MysqliIntegration::initScope('mysqli_query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
+            $span->setTraceAnalyticsCandidate();
             MysqliIntegration::setConnectionInfo($span, $mysqli);
             MysqliIntegration::storeQuery($mysqli, $query);
 
@@ -204,6 +204,7 @@ class MysqliIntegration extends AbstractIntegration
             $scope = MysqliIntegration::initScope('mysqli.query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
+            $span->setTraceAnalyticsCandidate();
             MysqliIntegration::setConnectionInfo($span, $this);
             MysqliIntegration::storeQuery($this, $query);
 
@@ -260,6 +261,7 @@ class MysqliIntegration extends AbstractIntegration
         dd_trace('mysqli_stmt', 'execute', function () {
             $resource = MysqliIntegration::retrieveQuery($this, 'mysqli_stmt.execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt.execute', $resource);
+            $scope->getSpan()->setTraceAnalyticsCandidate();
             return TryCatchFinally::executePublicMethod($scope, $this, 'execute', []);
         });
 

@@ -8,12 +8,11 @@ use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\CodeTracer;
 
-final class GuzzleIntegration extends AbstractIntegration
+final class GuzzleIntegration extends Integration
 {
     const NAME = 'guzzle';
 
@@ -27,7 +26,7 @@ final class GuzzleIntegration extends AbstractIntegration
      */
     private static $instance;
 
-    public function __construct()
+    protected function __construct()
     {
         parent::__construct();
         $this->codeTracer = CodeTracer::getInstance();
@@ -77,14 +76,16 @@ final class GuzzleIntegration extends AbstractIntegration
             'send',
             $this->buildPreCallback('send'),
             $postCallback,
-            $integration
+            $integration,
+            true
         );
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'transfer',
             $this->buildPreCallback('transfer'),
             $postCallback,
-            $integration
+            $integration,
+            true
         );
 
         return Integration::LOADED;

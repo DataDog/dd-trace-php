@@ -3,12 +3,11 @@
 namespace DDTrace\Integrations\PDO;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
 
-class PDOIntegration extends AbstractIntegration
+class PDOIntegration extends Integration
 {
     const NAME = 'pdo';
 
@@ -103,6 +102,7 @@ class PDOIntegration extends AbstractIntegration
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
             $span->setTag(Tag::RESOURCE_NAME, $statement);
+            $span->setTraceAnalyticsCandidate();
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -137,6 +137,7 @@ class PDOIntegration extends AbstractIntegration
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
             $span->setTag(Tag::RESOURCE_NAME, $args[0]);
+            $span->setTraceAnalyticsCandidate();
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -230,6 +231,7 @@ class PDOIntegration extends AbstractIntegration
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
             $span->setTag(Tag::RESOURCE_NAME, $this->queryString);
+            $span->setTraceAnalyticsCandidate();
             PDOIntegration::setStatementTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally

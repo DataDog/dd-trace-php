@@ -7,7 +7,7 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Integration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Contracts\Scope;
 use DDTrace\Contracts\Span;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;

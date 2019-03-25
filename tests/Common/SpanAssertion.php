@@ -14,10 +14,13 @@ final class SpanAssertion
     private $exactTags = SpanAssertion::NOT_TESTED;
     /** @var string[] Tags the MUST be present but with any value */
     private $existingTags = ['system.pid'];
+    /** @var array Exact metrics set on the span */
+    private $exactMetrics = SpanAssertion::NOT_TESTED;
     private $service = SpanAssertion::NOT_TESTED;
     private $type = SpanAssertion::NOT_TESTED;
     private $resource = SpanAssertion::NOT_TESTED;
     private $onlyCheckExistence = false;
+    private $isTraceAnalyticsCandidate = false;
 
     /**
      * @param string $name
@@ -51,15 +54,25 @@ final class SpanAssertion
      * @param array $exactTags
      * @param null $parent
      * @param bool $error
+     * @param array $extactMetrics
      * @return SpanAssertion
      */
-    public static function build($name, $service, $type, $resource, $exactTags = [], $parent = null, $error = false)
-    {
+    public static function build(
+        $name,
+        $service,
+        $type,
+        $resource,
+        $exactTags = [],
+        $parent = null,
+        $error = false,
+        $extactMetrics = []
+    ) {
         return SpanAssertion::forOperation($name, $error)
             ->service($service)
             ->resource($resource)
             ->type($type)
             ->withExactTags($exactTags)
+            ->withExactMetrics($extactMetrics)
         ;
     }
 
@@ -107,6 +120,16 @@ final class SpanAssertion
         } else {
             $this->exactTags = $tags;
         }
+        return $this;
+    }
+
+    /**
+     * @param array $metrics
+     * @return $this
+     */
+    public function withExactMetrics(array $metrics)
+    {
+        $this->exactMetrics = $metrics;
         return $this;
     }
 
@@ -219,5 +242,40 @@ final class SpanAssertion
     public function isOnlyCheckExistence()
     {
         return $this->onlyCheckExistence;
+    }
+
+    /**
+     * @return self
+     */
+    public function setTraceAnalyticsCandidate()
+    {
+        $this->isTraceAnalyticsCandidate = true;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isTraceAnalyticsCandidate()
+    {
+        return $this->isTraceAnalyticsCandidate;
+    }
+
+    /**
+     * @return array
+     */
+    public function getExactMetrics()
+    {
+        return $this->exactMetrics;
+    }
+
+    /**
+     * @return array
+     */
+    public function getNotTestedMetricNames()
+    {
+        return [
+            '_sampling_priority_v1',
+        ];
     }
 }

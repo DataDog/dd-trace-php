@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Predis;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\AbstractIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
@@ -16,7 +15,7 @@ const VALUE_MAX_LEN = 100;
 const VALUE_TOO_LONG_MARK = "...";
 const CMD_MAX_LEN = 1000;
 
-class PredisIntegration extends AbstractIntegration
+class PredisIntegration extends Integration
 {
     const NAME = 'predis';
 
@@ -115,6 +114,7 @@ class PredisIntegration extends AbstractIntegration
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
             $span->setTag(Tag::RESOURCE_NAME, $query);
+            $span->setTraceAnalyticsCandidate();
             PredisIntegration::setConnectionTags($this, $span);
 
             return TryCatchFinally::executePublicMethod($scope, $this, 'executeCommand', [$command]);
@@ -134,6 +134,7 @@ class PredisIntegration extends AbstractIntegration
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
             $span->setTag(Tag::RESOURCE_NAME, $query);
+            $span->setTraceAnalyticsCandidate();
             PredisIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally block.
