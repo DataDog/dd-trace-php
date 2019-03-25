@@ -438,4 +438,13 @@ final class Tracer implements TracerInterface
 
         return $rootScope->getSpan();
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function asArray()
+    {
+        // @TODO Make an array of the trace here
+        return [];
+    }
 }
