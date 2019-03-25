@@ -10,3 +10,4 @@ RELEASING.md        export-ignore
 # ext/ddtrace
 .circleci           export-ignore
 .clang-format       export-ignore
+src/ext/mpack/*     linguist-generated=true
