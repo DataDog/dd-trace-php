@@ -49,6 +49,8 @@
                     <file name="logging.h" role="src" />
                     <file name="request_hooks.c" role="src" />
                     <file name="request_hooks.h" role="src" />
+                    <file name="serializer.c" role="src" />
+                    <file name="serializer.h" role="src" />
                     <file name="version.h" role="src" />
                 </dir>
             </dir>
