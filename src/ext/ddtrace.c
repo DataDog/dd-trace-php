@@ -420,7 +420,7 @@ static PHP_FUNCTION(dd_trace_serialize_trace) {
         RETURN_BOOL(0);
     }
 
-    zval *tracer_object;
+    zval *tracer_object, trace, method;
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "o", &tracer_object) == FAILURE) {
         if (DDTRACE_G(strict_mode)) {
@@ -438,9 +438,15 @@ static PHP_FUNCTION(dd_trace_serialize_trace) {
         RETURN_BOOL(0);
     }
 
-    if (ddtrace_serialize_trace(tracer_object, return_value) != 1) {
+    ZVAL_STRING(&method, "asArray");
+    if (call_user_function(CG(function_table), tracer_object, &method, &trace, 0, NULL) == FAILURE) {
         RETURN_BOOL(0);
     }
+    if (ddtrace_serialize_trace(&trace, return_value) != 1) {
+        RETURN_BOOL(0);
+    }
+    zval_dtor(&method);
+    zval_dtor(&trace);
 }
 
 // method used to be able to easily breakpoint the execution at specific PHP line in GDB
