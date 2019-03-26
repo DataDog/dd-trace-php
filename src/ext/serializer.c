@@ -19,7 +19,7 @@ int ddtrace_serialize_trace(zval *trace, zval *retval) {
     if (mpack_writer_destroy(&writer) != mpack_ok) {
         return 0;
     }
-    ZVAL_STRING(retval, data);
-    //free(data);
+    ZVAL_STRINGL(retval, data, size);
+    free(data);
     return 1;
 }
