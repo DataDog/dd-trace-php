@@ -14,7 +14,7 @@ function dd_trace_unserialize_trace_human($message) {
         while ($code >= 32 && $code <= 126) {
             $word .= $message[$i];
             $i++;
-            $code = ord($message[$i]);
+            $code = isset($message[$i]) ? ord($message[$i]) : 0;
         }
         if ($word) {
             $unserialized[] = $word;
