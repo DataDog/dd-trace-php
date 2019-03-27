@@ -2,12 +2,14 @@
 
 namespace DDTrace;
 
+use DDTrace\Contracts\Tracer as TracerInterface;
+
 interface Transport
 {
     /**
-     * @param Span[][] $traces
+     * @param TracerInterface $tracer
      */
-    public function send(array $traces);
+    public function send(TracerInterface $tracer);
 
     /**
      * @param string $key

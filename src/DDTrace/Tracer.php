@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Encoders\SpanEncoder;
 use DDTrace\Integrations\Integration;
 use DDTrace\Encoders\Json;
 use DDTrace\Log\LoggingTrait;
@@ -288,22 +289,7 @@ final class Tracer implements TracerInterface
             ]);
         }
 
-        $tracesToBeSent = $this->shiftFinishedTraces();
-
-        if (empty($tracesToBeSent)) {
-            self::logDebug('No finished traces to be sent to the agent');
-            return;
-        }
-
-        // Basic processing. We will do it in a more structured way in the future, but for now we just invoke the
-        // the internal (hard-coded) processors programmatically.
-        foreach ($tracesToBeSent as $trace) {
-            foreach ($trace as $span) {
-                $this->traceAnalyticsProcessor->process($span);
-            }
-        }
-
-        $this->transport->send($tracesToBeSent);
+        $this->transport->send($this);
     }
 
     /**
@@ -326,7 +312,10 @@ final class Tracer implements TracerInterface
         return null;
     }
 
-    private function shiftFinishedTraces()
+    /**
+     * {@inheritdoc}
+     */
+    public function asArray()
     {
         $tracesToBeSent = [];
 
@@ -343,7 +332,10 @@ final class Tracer implements TracerInterface
                     }
                     $span->finish();
                 }
-                $traceToBeSent[] = $span;
+                // Basic processing. We will do it in a more structured way in the future, but for now we just invoke
+                // the internal (hard-coded) processors programmatically.
+                $this->traceAnalyticsProcessor->process($span);
+                $traceToBeSent[] = SpanEncoder::encode($span);
             }
 
             if ($traceToBeSent === null) {
@@ -351,7 +343,12 @@ final class Tracer implements TracerInterface
             }
 
             $tracesToBeSent[] = $traceToBeSent;
-            unset($this->traces[$traceToBeSent[0]->getTraceId()]);
+            unset($this->traces[$traceToBeSent[0]['trace_id']]);
+        }
+
+        if (empty($tracesToBeSent)) {
+            self::logDebug('No finished traces to be sent to the agent');
+            return [];
         }
 
         return $tracesToBeSent;
@@ -437,13 +434,5 @@ final class Tracer implements TracerInterface
         }
 
         return $rootScope->getSpan();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function asArray()
-    {
-        return [];
     }
 }
