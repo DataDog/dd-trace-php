@@ -29,6 +29,9 @@
         <dir name="/">
             <dir name="src">
                 <dir name="ext">
+                    <dir name="includes">
+                        <file name="tracer.php" role="test" />
+                    </dir>
                     <file name="backtrace.c" role="src" />
                     <file name="backtrace.h" role="src" />
                     <file name="compat_zend_string.c" role="src" />
