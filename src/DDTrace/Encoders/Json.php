@@ -2,7 +2,7 @@
 
 namespace DDTrace\Encoders;
 
-use DDTrace\Contracts\Span;
+use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
 use DDTrace\Log\LoggingTrait;
 
@@ -13,13 +13,14 @@ final class Json implements Encoder
     /**
      * {@inheritdoc}
      */
-    public function encodeTraces(array $traces)
+    public function encodeTraces(Tracer $tracer)
     {
-        return '[' . implode(',', array_map(function ($trace) {
-            return '[' . implode(',', array_filter(array_map(function ($span) {
-                return $this->encodeSpan($span);
-            }, $trace))) . ']';
-        }, $traces))  . ']';
+        $json = json_encode($tracer->asArray());
+        if (false === $json) {
+            self::logDebug('Failed to json-encode trace: ' . json_last_error_msg());
+            return '[[]]';
+        }
+        return $json;
     }
 
     /**
@@ -28,19 +29,5 @@ final class Json implements Encoder
     public function getContentType()
     {
         return 'application/json';
-    }
-
-    /**
-     * @param Span $span
-     * @return string
-     */
-    private function encodeSpan(Span $span)
-    {
-        $json = json_encode(SpanEncoder::encode($span));
-        if (false === $json) {
-            self::logDebug('Failed to json-encode span: ' . json_last_error_msg());
-            return '';
-        }
-        return $json;
     }
 }

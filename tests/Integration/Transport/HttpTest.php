@@ -41,11 +41,7 @@ final class HttpTest extends BaseTestCase
 
         $span->finish();
 
-        $traces = [
-            [$span],
-        ];
-
-        $httpTransport->send($traces);
+        $httpTransport->send($tracer);
         $this->assertTrue($logger->has(
             'error',
             'Reporting of spans failed: 7 / Failed to connect to 0.0.0.0 port 8127: Connection refused'
@@ -79,12 +75,8 @@ final class HttpTest extends BaseTestCase
 
         $span->finish();
 
-        $traces = [
-            [$span, $childSpan],
-        ];
-
-        $httpTransport->send($traces);
-        $this->assertTrue($logger->has('debug', 'About to send to the agent 1 traces'));
+        $httpTransport->send($tracer);
+        $this->assertTrue($logger->has('debug', 'About to send trace(s) to the agent'));
         $this->assertTrue($logger->has('debug', 'Traces successfully sent to the agent'));
     }
 
@@ -99,8 +91,7 @@ final class HttpTest extends BaseTestCase
         $span = $tracer->startSpan('test');
         $span->finish();
 
-        $traces = [[$span]];
-        $httpTransport->send($traces);
+        $httpTransport->send($tracer);
 
         $traceRequest = $this->getLastAgentRequest();
 
@@ -121,9 +112,8 @@ final class HttpTest extends BaseTestCase
         $span = $tracer->startSpan('test');
         $span->finish();
 
-        $traces = [[$span]];
         $httpTransport->setHeader('X-my-custom-header', 'my-custom-value');
-        $httpTransport->send($traces);
+        $httpTransport->send($tracer);
 
         $traceRequest = $this->getLastAgentRequest();
 

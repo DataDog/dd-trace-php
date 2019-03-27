@@ -71,10 +71,13 @@ final class Http implements Transport
         ], $config);
     }
 
-    public function send(array $traces)
+    /**
+     * {@inheritdoc}
+     */
+    public function send(Tracer $tracer)
     {
-        $tracesPayload = $this->encoder->encodeTraces($traces);
-        self::logDebug('About to send to the agent {count} traces', ['count' => count($traces)]);
+        $tracesPayload = $this->encoder->encodeTraces($tracer);
+        self::logDebug('About to send trace(s) to the agent');
 
         // We keep the endpoint configuration option for backward compatibility instead of moving to an 'agent base url'
         // concept, but this should be probably revisited in the future.
