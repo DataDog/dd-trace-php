@@ -444,7 +444,6 @@ final class Tracer implements TracerInterface
      */
     public function asArray()
     {
-        // @TODO Make an array of the trace here
         return [];
     }
 }
