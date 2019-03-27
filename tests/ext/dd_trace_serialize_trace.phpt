@@ -1,35 +1,30 @@
 --TEST--
 Basic functionality of dd_trace_serialize_trace()
+--DESCRIPTION--
+The "EXPECT" section was generated with the following tool:
+https://github.com/ludocode/msgpack-tools
+Example command:
+$ echo '{"compact": true, "schema": 0}' | json2msgpack | hexdump
 --FILE--
 <?php
-putenv('APP_ENV=dd_testing');
-include __DIR__ . '/../../bridge/dd_wrap_autoloader.php';
+include __DIR__ . '/includes/tracer.php';
 
-function dd_trace_unserialize_trace_human($message) {
-    $unserialized = [];
-    $length = strlen($message);
-    for ($i = 0; $i < $length; $i++) {
-        $code = ord($message[$i]);
-        $word = '';
-        while ($code >= 32 && $code <= 126) {
-            $word .= $message[$i];
-            $i++;
-            $code = isset($message[$i]) ? ord($message[$i]) : 0;
-        }
-        if ($word) {
-            $unserialized[] = $word;
-        }
-        if ($i < $length) {
-            $unserialized[] = '0x' . strtoupper(bin2hex($message[$i]));
-        }
-    }
-    return implode(' ', $unserialized);
-}
-
-$tracer = \DDTrace\GlobalTracer::get();
+$tracer = new FooTracer([[
+    [
+        "trace_id" => 1589331357723252209,
+        "span_id" => 1589331357723252210,
+        "name" => "test_name",
+        "resource" => "test_resource",
+        "service" => "test_service",
+        "start" => 1518038421211969000,
+        "error" => 0,
+    ],
+]]);
+echo dd_trace_unserialize_trace_json($tracer) . "\n";
 
 $encoded = dd_trace_serialize_trace($tracer);
-echo dd_trace_unserialize_trace_human($encoded) . "\n";
+echo dd_trace_unserialize_trace_hex($encoded) . "\n";
 ?>
 --EXPECT--
-0x82 0xA7 compact 0xC3 0xA6 schema 0x00
+[[{"trace_id":1589331357723252209,"span_id":1589331357723252210,"name":"test_name","resource":"test_resource","service":"test_service","start":1518038421211969000,"error":0}]]
+91 91 87 a8 74 72 61 63 65 5f 69 64 cf 16 0e 70 72 ff 7b d5 f1 a7 73 70 61 6e 5f 69 64 cf 16 0e 70 72 ff 7b d5 f2 a4 6e 61 6d 65 a9 74 65 73 74 5f 6e 61 6d 65 a8 72 65 73 6f 75 72 63 65 ad 74 65 73 74 5f 72 65 73 6f 75 72 63 65 a7 73 65 72 76 69 63 65 ac 74 65 73 74 5f 73 65 72 76 69 63 65 a5 73 74 61 72 74 cf 15 11 27 e6 b3 bb f5 e8 a5 65 72 72 6f 72 00
