@@ -2,6 +2,7 @@
 
 namespace DDTrace\Encoders;
 
+use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
 
 final class Noop implements Encoder
@@ -9,7 +10,7 @@ final class Noop implements Encoder
     /**
      * {@inheritdoc}
      */
-    public function encodeTraces(array $traces)
+    public function encodeTraces(Tracer $tracer)
     {
         return '';
     }

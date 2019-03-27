@@ -2,11 +2,15 @@
 
 namespace DDTrace\Transport;
 
+use DDTrace\Contracts\Tracer;
 use DDTrace\Transport;
 
 final class Noop implements Transport
 {
-    public function send(array $traces)
+    /**
+     * {@inheritdoc}
+     */
+    public function send(Tracer $tracer)
     {
     }
 

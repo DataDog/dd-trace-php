@@ -17,10 +17,8 @@ final class StreamTest extends Framework\TestCase
         $span = $tracer->startSpan('test');
         $span->finish();
 
-        $traces = [[$span]];
-
         ob_start();
-        $transport->send($traces);
+        $transport->send($tracer);
         $json = ob_get_clean();
 
         $this->assertJson($json);
@@ -38,10 +36,9 @@ final class StreamTest extends Framework\TestCase
 
         $span = $tracer->startSpan('test');
         $span->finish();
-        $traces = [[$span]];
 
         ob_start();
-        $transport->send($traces);
+        $transport->send($tracer);
         $output = ob_get_clean();
 
         $this->assertEmpty($output);

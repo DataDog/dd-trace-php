@@ -5,8 +5,6 @@ namespace DDTrace\Tests\Unit\Encoders;
 use DDTrace\Encoders\Json;
 use DDTrace\Log\Logger;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\Span;
-use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tracer;
@@ -23,34 +21,41 @@ final class JsonTest extends BaseTestCase
     protected function setUp()
     {
         parent::setUp();
-        $this->tracer = new Tracer(new DebugTransport());
+        putenv('DD_AUTOFINISH_SPANS=true');
+        $this->tracer = new Tracer(
+            new DebugTransport(),
+            null,
+            [
+                'service_name' => 'test_service',
+                'resource' => 'test_resource',
+            ]
+        );
         GlobalTracer::set($this->tracer);
+    }
+
+    protected function tearDown()
+    {
+        parent::tearDown();
+        putenv('DD_AUTOFINISH_SPANS=');
     }
 
     public function testEncodeTracesSuccess()
     {
         $expectedPayload = <<<JSON
-[[{"trace_id":1589331357723252209,"span_id":1589331357723252210,"name":"test_name","resource":"test_resource",
+[[{"trace_id":%d,"span_id":%d,"name":"test_name","resource":"test_resource",
 JSON
             .    <<<JSON
-"service":"test_service","start":1518038421211969000,"error":0}]]
+"service":"test_service","start":%d,"error":0,%s}]]
 JSON;
 
-        $context = new SpanContext('1589331357723252209', '1589331357723252210');
-        $span = new Span(
-            'test_name',
-            $context,
-            'test_service',
-            'test_resource',
-            1518038421211969
-        );
+        $this->tracer->startSpan('test_name');
 
         $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
         $logger->debug(Argument::any())->shouldNotBeCalled();
 
         $jsonEncoder = new Json($logger->reveal());
-        $encodedTrace = $jsonEncoder->encodeTraces([[$span]]);
-        $this->assertJsonStringEqualsJsonString($expectedPayload, $encodedTrace);
+        $encodedTrace = $jsonEncoder->encodeTraces($this->tracer);
+        $this->assertStringMatchesFormat($expectedPayload, $encodedTrace);
     }
 
     public function testEncodeIgnoreSpanWhenEncodingFails()
@@ -64,14 +69,7 @@ JSON;
 
         $expectedPayload = '[[]]';
 
-        $context = new SpanContext('160e7072ff7bd5f1', '160e7072ff7bd5f2');
-        $span = new Span(
-            'test_name',
-            $context,
-            'test_service',
-            'test_resource',
-            1518038421211969
-        );
+        $span = $this->tracer->startSpan('test_name');
         // this will generate a malformed UTF-8 string
         $span->setTag('invalid', hex2bin('37f2bef0ab085308'));
 
@@ -81,78 +79,52 @@ JSON;
             ->shouldBeCalled();
         $logger
             ->debug(
-                'Failed to json-encode span: Malformed UTF-8 characters, possibly incorrectly encoded',
+                'Failed to json-encode trace: Malformed UTF-8 characters, possibly incorrectly encoded',
                 []
             )
             ->shouldBeCalled();
         Logger::set($logger->reveal());
 
         $jsonEncoder = new Json();
-        $encodedTrace = $jsonEncoder->encodeTraces([[$span, $span]]);
+        $encodedTrace = $jsonEncoder->encodeTraces($this->tracer);
         $this->assertEquals($expectedPayload, $encodedTrace);
     }
 
     public function testEncodeNoPrioritySampling()
     {
-        $context = new SpanContext('tid', 'sid');
-        $span = new Span(
-            'test_name',
-            $context,
-            'test_service',
-            'test_resource',
-            1518038421211969
-        );
+        $this->tracer->startSpan('test_name');
+        $this->tracer->setPrioritySampling(null);
 
         $jsonEncoder = new Json();
-        $this->assertNotContains('_sampling_priority_v1', $jsonEncoder->encodeTraces([[$span]]));
+        $this->assertNotContains('_sampling_priority_v1', $jsonEncoder->encodeTraces($this->tracer));
     }
 
     public function testEncodeWithPrioritySampling()
     {
-        $context = new SpanContext('tid', 'sid');
-        $span = new Span(
-            'test_name',
-            $context,
-            'test_service',
-            'test_resource',
-            1518038421211969
-        );
+        $this->tracer->startSpan('test_name');
         $this->tracer->setPrioritySampling(PrioritySampling::USER_KEEP);
 
         $jsonEncoder = new Json();
-        $this->assertContains('"_sampling_priority_v1":2', $jsonEncoder->encodeTraces([[$span]]));
+        $this->assertContains('"_sampling_priority_v1":2', $jsonEncoder->encodeTraces($this->tracer));
     }
 
     public function testEncodeMetricsWhenPresent()
     {
-        $context = new SpanContext('tid', 'sid');
-        $span = new Span(
-            'test_name',
-            $context,
-            'test_service',
-            'test_resource',
-            1518038421211969
-        );
+        $span = $this->tracer->startSpan('test_name');
         $span->setMetric('_a', 0.1);
 
         $jsonEncoder = new Json();
-        $encoded = $jsonEncoder->encodeTraces([[$span]]);
+        $encoded = $jsonEncoder->encodeTraces($this->tracer);
         $this->assertContains('"_a":0.1', $encoded);
     }
 
     public function testDoesNotEncodeMetricsWhenNotPresent()
     {
-        $context = new SpanContext('tid', 'sid');
-        $span = new Span(
-            'test_name',
-            $context,
-            'test_service',
-            'test_resource',
-            1518038421211969
-        );
+        $this->tracer->startSpan('test_name');
+        $this->tracer->setPrioritySampling(null);
 
         $jsonEncoder = new Json();
-        $encoded = $jsonEncoder->encodeTraces([[$span]]);
+        $encoded = $jsonEncoder->encodeTraces($this->tracer);
         $this->assertNotContains('"metrics"', $encoded);
     }
 }
