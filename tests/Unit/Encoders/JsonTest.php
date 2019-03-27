@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Unit\Encoders;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Log\Logger;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Span;
 use DDTrace\SpanContext;
@@ -76,12 +77,17 @@ JSON;
 
         $logger = $this->prophesize('DDTrace\Log\LoggerInterface');
         $logger
+            ->isLevelActive('debug')
+            ->shouldBeCalled();
+        $logger
             ->debug(
-                'Failed to json-encode span: Malformed UTF-8 characters, possibly incorrectly encoded'
+                'Failed to json-encode span: Malformed UTF-8 characters, possibly incorrectly encoded',
+                []
             )
             ->shouldBeCalled();
+        Logger::set($logger->reveal());
 
-        $jsonEncoder = new Json($logger->reveal());
+        $jsonEncoder = new Json();
         $encodedTrace = $jsonEncoder->encodeTraces([[$span, $span]]);
         $this->assertEquals($expectedPayload, $encodedTrace);
     }
