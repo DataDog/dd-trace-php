@@ -217,7 +217,7 @@ jobs:
       - run:
           name: Run clang-format
           command: |
-            find ./ -path ./vendor -prune -o -iname *.h -o -iname *.c | while read fname; do
+            find . -type f -iname *.h -o -iname *.c -not -path "./vendor/*" -not -path "./tests/*" -not -path "./tmp/*" -not -path "./src/ext/mpack/*" | while read fname; do
               changes=$(clang-format-6.0 -output-replacements-xml $fname | grep -c "<replacement " || true)
               if [ $changes != 0 ]
               then

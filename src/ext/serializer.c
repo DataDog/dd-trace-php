@@ -24,7 +24,8 @@ static void ddtrace_hash_table_to_writer(mpack_writer_t *writer, HashTable *ht) 
             mpack_write_cstr(writer, ZSTR_VAL(string_key));
         }
         ddtrace_zval_to_writer(writer, tmp);
-    } ZEND_HASH_FOREACH_END();
+    }
+    ZEND_HASH_FOREACH_END();
 
     if (is_assoc) {
         mpack_finish_map(writer);
@@ -55,18 +56,16 @@ static void ddtrace_zval_to_writer(mpack_writer_t *writer, zval *trace) /* {{{ *
         case IS_STRING:
             mpack_write_cstr(writer, ZSTR_VAL(Z_STR_P(trace)));
             break;
-        default:
-            {
-                // @TODO Error message
-                mpack_write_cstr(writer, "unknown type");
-            }
-            break;
+        default: {
+            // @TODO Error message
+            mpack_write_cstr(writer, "unknown type");
+        } break;
     }
 }
 
 int ddtrace_serialize_trace(zval *trace, zval *retval) {
     // encode to memory buffer
-    char* data;
+    char *data;
     size_t size;
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
