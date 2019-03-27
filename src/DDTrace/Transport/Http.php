@@ -110,7 +110,7 @@ final class Http implements Transport
         }
         curl_setopt($handle, CURLOPT_HTTPHEADER, $curlHeaders);
 
-        if (curl_exec($handle) === false) {
+        if (($response = curl_exec($handle)) === false) {
             self::logError('Reporting of spans failed: {num} / {error}', [
                 'error' => curl_error($handle),
                 'num' => curl_errno($handle),
@@ -128,7 +128,10 @@ final class Http implements Transport
         }
 
         if ($statusCode !== 200) {
-            self::logError('Reporting of spans failed, status code {code}', ['code' => $statusCode]);
+            self::logError(
+                'Reporting of spans failed, status code {code}: {response}',
+                ['code' => $statusCode, 'response' => $response]
+            );
             return;
         }
 
