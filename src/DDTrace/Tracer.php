@@ -23,7 +23,7 @@ final class Tracer implements TracerInterface
 {
     use LoggingTrait;
 
-    const VERSION = '0.16.1';
+    const VERSION = '0.17.0';
 
     /**
      * @var Span[][]
