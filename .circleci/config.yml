@@ -431,11 +431,11 @@ workflows:
           name: "Compile PHP 72"
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
           so_suffix: "20170718"
-      - compile_extension:
-          requires: [ 'Code Checkout' ]
-          name: "Compile PHP 73"
-          docker_image: "datadog/docker-library:ddtrace_centos_7_php_73"
-          so_suffix: "20180731"
+      # - compile_extension:
+      #     requires: [ 'Code Checkout' ]
+      #     name: "Compile PHP 73"
+      #     docker_image: "datadog/docker-library:ddtrace_centos_7_php_73"
+      #     so_suffix: "20180731"
       - compile_extension:
           requires: [ 'Code Checkout' ]
           name: "Compile PHP 56-zts"
@@ -456,11 +456,11 @@ workflows:
           name: "Compile PHP 72-zts"
           docker_image: "circleci/php:7.2-zts"
           so_suffix: "20170718-zts"
-      - compile_extension:
-          requires: [ 'Code Checkout' ]
-          name: "Compile PHP 73-zts"
-          docker_image: "circleci/php:7.3-zts"
-          so_suffix: "20180731-zts"
+      # - compile_extension:
+      #     requires: [ 'Code Checkout' ]
+      #     name: "Compile PHP 73-zts"
+      #     docker_image: "circleci/php:7.3-zts"
+      #     so_suffix: "20180731-zts"
       - "package extension":
           requires:
             - "Compile PHP 54"
@@ -468,12 +468,12 @@ workflows:
             - "Compile PHP 70"
             - "Compile PHP 71"
             - "Compile PHP 72"
-            - "Compile PHP 73"
+            # - "Compile PHP 73"
             - "Compile PHP 56-zts"
             - "Compile PHP 70-zts"
             - "Compile PHP 71-zts"
             - "Compile PHP 72-zts"
-            - "Compile PHP 73-zts"
+            # - "Compile PHP 73-zts"
       - "package verification":
           requires:
             - "package extension"
