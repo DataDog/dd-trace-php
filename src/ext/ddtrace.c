@@ -452,10 +452,11 @@ static PHP_FUNCTION(dd_trace_serialize_trace) {
 
 #if PHP_VERSION_ID < 70000
     ZVAL_STRING(&method, "asArray", 1);
+    if (call_user_function(CG(function_table), &tracer_object, &method, &trace, 0, NULL TSRMLS_CC) == FAILURE) {
 #else
     ZVAL_STRING(&method, "asArray");
+    if (call_user_function(CG(function_table), tracer_object, &method, &trace, 0, NULL TSRMLS_CC) == FAILURE) {
 #endif
-    if (call_user_function(CG(function_table), &tracer_object, &method, &trace, 0, NULL TSRMLS_CC) == FAILURE) {
         RETURN_BOOL(0);
     }
     if (ddtrace_serialize_trace(&trace, return_value) != 1) {
