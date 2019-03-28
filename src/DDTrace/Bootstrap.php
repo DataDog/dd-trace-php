@@ -2,7 +2,7 @@
 
 namespace DDTrace;
 
-use DDTrace\Encoders\Json;
+use DDTrace\Encoders\MessagePack;
 use DDTrace\Http\Request;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\Web\WebIntegration;
@@ -57,7 +57,7 @@ final class Bootstrap
     public static function resetTracer()
     {
         GlobalTracer::set(
-            new Tracer(new Http(new Json()))
+            new Tracer(new Http(new MessagePack()))
         );
     }
 
