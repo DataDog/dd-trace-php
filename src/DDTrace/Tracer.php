@@ -4,7 +4,7 @@ namespace DDTrace;
 
 use DDTrace\Encoders\SpanEncoder;
 use DDTrace\Integrations\Integration;
-use DDTrace\Encoders\Json;
+use DDTrace\Encoders\MessagePack;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Processing\TraceAnalyticsProcessor;
 use DDTrace\Propagators\CurlHeadersMap;
@@ -95,7 +95,7 @@ final class Tracer implements TracerInterface
      */
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
-        $this->transport = $transport ?: new Http(new Json());
+        $this->transport = $transport ?: new Http(new MessagePack());
         $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
             Format::TEXT_MAP => $textMapPropagator,
