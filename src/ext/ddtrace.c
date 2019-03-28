@@ -190,7 +190,7 @@ PHP_INI_END()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
-static void php_ddtrace_register_interfaces(void) {
+static void php_ddtrace_register_interfaces(TSRMLS_D) {
     zend_class_entry span_context_ce_interface, tracer_ce_interface;
 
     INIT_NS_CLASS_ENTRY(span_context_ce_interface, "DDTrace\\Contracts", "SpanContext",
@@ -206,7 +206,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     ZEND_INIT_MODULE_GLOBALS(ddtrace, php_ddtrace_init_globals, NULL);
     REGISTER_INI_ENTRIES();
-    php_ddtrace_register_interfaces();
+    php_ddtrace_register_interfaces(TSRMLS_C);
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
@@ -420,6 +420,21 @@ static PHP_FUNCTION(dd_trace_serialize_trace) {
 
     zval *tracer_object, trace, method;
 
+#if PHP_VERSION_ID < 70000
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "o", &tracer_object) == FAILURE) {
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected an instance of %s",
+                                    php_ddtrace_tracer_ce_interface->name);
+        }
+        RETURN_BOOL(0);
+    }
+    if (instanceof_function_ex(Z_OBJCE_P(tracer_object), php_ddtrace_tracer_ce_interface, 1 TSRMLS_CC) == 0) {
+        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "%s must be an instance of %s",
+                                Z_OBJCE_P(tracer_object)->name,
+                                php_ddtrace_tracer_ce_interface->name);
+        RETURN_BOOL(0);
+    }
+#else
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "o", &tracer_object) == FAILURE) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected an instance of %s",
@@ -427,15 +442,20 @@ static PHP_FUNCTION(dd_trace_serialize_trace) {
         }
         RETURN_BOOL(0);
     }
-    if (instanceof_function_ex(Z_OBJCE_P(tracer_object), php_ddtrace_tracer_ce_interface, 1) == 0) {
+    if (instanceof_function_ex(Z_OBJCE_P(tracer_object), php_ddtrace_tracer_ce_interface, 1 TSRMLS_CC) == 0) {
         zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "%s must be an instance of %s",
                                 ZSTR_VAL(Z_OBJCE_P(tracer_object)->name),
                                 ZSTR_VAL(php_ddtrace_tracer_ce_interface->name));
         RETURN_BOOL(0);
     }
+#endif
 
+#if PHP_VERSION_ID < 70000
+    ZVAL_STRING(&method, "asArray", 1);
+#else
     ZVAL_STRING(&method, "asArray");
-    if (call_user_function(CG(function_table), tracer_object, &method, &trace, 0, NULL) == FAILURE) {
+#endif
+    if (call_user_function(CG(function_table), &tracer_object, &method, &trace, 0, NULL TSRMLS_CC) == FAILURE) {
         RETURN_BOOL(0);
     }
     if (ddtrace_serialize_trace(&trace, return_value) != 1) {
