@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 BUILD_SUFFIX := extension
 BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
@@ -78,8 +79,26 @@ debug:
 strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
 
+clang_find_files_to_lint:
+	@find ./ -type f \
+	-path ./tmp -prune -o \
+	-path ./vendor -prune -o \
+	-path ./tests -prune -o \
+	-path ./src/ext/mpack -prune -o \
+	-iname "*.h" -o -iname "*.c"
+
+clang_format_check:
+	@while read fname; do \
+		changes=$$(clang-format -output-replacements-xml $$fname | grep -c "<replacement " || true); \
+		if [ $$changes != 0 ]; then \
+			clang-format -output-replacements-xml $$fname; \
+			echo "$$fname did not pass clang-format, consider running: make clang_format_fix"; \
+			touch .failure; \
+		fi \
+	done <<< $$($(MAKE) clang_find_files_to_lint)
+
 clang_format_fix:
-	@find ./ -iname '*.h' -o -iname '*.c' | xargs clang-format -i
+	$(MAKE) clang_find_files_to_lint | xargs clang-format -i
 
 EXT_DIR:=/opt/datadog-php
 PACKAGE_NAME:=datadog-php-tracer
@@ -111,7 +130,7 @@ packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
 verify_pecl_file_definitions:
-	@for i in src/ext/*.c src/ext/*.h tests/ext/*.phpt; do\
+	@for i in src/ext/*.c src/ext/*.h tests/ext/*.php*; do\
 		k=$$(basename $$i); \
 		grep -q $$k package.xml || ( echo missing $$k && exit 1); \
 	done
@@ -125,4 +144,4 @@ verify_version:
 
 verify_all: verify_pecl_file_definitions verify_version
 
-.PHONY: dist_clean clean all clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test test_integration install_ini install_all .apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_all
+.PHONY: dist_clean clean all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test test_integration install_ini install_all .apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_all
