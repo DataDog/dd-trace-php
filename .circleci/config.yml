@@ -487,6 +487,10 @@ workflows:
       - "Code Checkout"
       - compile_extension:
           requires: [ 'Code Checkout' ]
+          name: "PHP 73 Compilation test"
+          docker_image: "datadog/docker-library:ddtrace_centos_7_php_73"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
           name: "PHP 55 Compilation test"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
       - compile_extension:
