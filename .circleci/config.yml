@@ -216,16 +216,7 @@ jobs:
           command: sudo apt -y install clang-format-6.0/testing
       - run:
           name: Run clang-format
-          command: |
-            find . -type f -iname *.h -o -iname *.c -not -path "./vendor/*" -not -path "./tests/*" -not -path "./tmp/*" -not -path "./src/ext/mpack/*" | while read fname; do
-              changes=$(clang-format-6.0 -output-replacements-xml $fname | grep -c "<replacement " || true)
-              if [ $changes != 0 ]
-              then
-                clang-format-6.0 -output-replacements-xml $fname
-                echo "$fname did not pass clang-format, consider running: find ./ -iname '*.h' -o -iname '*.c' | xargs clang-format -i"
-                touch .failure
-              fi
-            done
+          command: make clang_format_check
       - run:
           name: Check linting failure
           command: test -e .failure && exit 1 || true
