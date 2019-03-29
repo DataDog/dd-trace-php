@@ -430,8 +430,7 @@ static PHP_FUNCTION(dd_trace_serialize_trace) {
     }
     if (instanceof_function_ex(Z_OBJCE_P(tracer_object), php_ddtrace_tracer_ce_interface, 1 TSRMLS_CC) == 0) {
         zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "%s must be an instance of %s",
-                                Z_OBJCE_P(tracer_object)->name,
-                                php_ddtrace_tracer_ce_interface->name);
+                                Z_OBJCE_P(tracer_object)->name, php_ddtrace_tracer_ce_interface->name);
         RETURN_BOOL(0);
     }
 #else
