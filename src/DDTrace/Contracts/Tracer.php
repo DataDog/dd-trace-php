@@ -161,4 +161,11 @@ interface Tracer
      * @return Span|null
      */
     public function getSafeRootSpan();
+
+    /**
+     * Returns the entire trace encoded as a plain-old PHP array.
+     *
+     * @return array
+     */
+    public function asArray();
 }

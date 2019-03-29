@@ -280,51 +280,18 @@ static PHP_FUNCTION(dd_trace_serialize_trace) {
         RETURN_BOOL(0);
     }
 
-    zval *tracer_object, trace, method;
+    zval *trace_array;
 
-#if PHP_VERSION_ID < 70000
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "o", &tracer_object) == FAILURE) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "a", &trace_array) == FAILURE) {
         if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected an instance of %s",
-                                    php_ddtrace_tracer_ce_interface->name);
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected an array");
         }
         RETURN_BOOL(0);
     }
-    if (instanceof_function_ex(Z_OBJCE_P(tracer_object), php_ddtrace_tracer_ce_interface, 1 TSRMLS_CC) == 0) {
-        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "%s must be an instance of %s",
-                                Z_OBJCE_P(tracer_object)->name, php_ddtrace_tracer_ce_interface->name);
-        RETURN_BOOL(0);
-    }
-#else
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "o", &tracer_object) == FAILURE) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected an instance of %s",
-                                    ZSTR_VAL(php_ddtrace_tracer_ce_interface->name));
-        }
-        RETURN_BOOL(0);
-    }
-    if (instanceof_function_ex(Z_OBJCE_P(tracer_object), php_ddtrace_tracer_ce_interface, 1 TSRMLS_CC) == 0) {
-        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "%s must be an instance of %s",
-                                ZSTR_VAL(Z_OBJCE_P(tracer_object)->name),
-                                ZSTR_VAL(php_ddtrace_tracer_ce_interface->name));
-        RETURN_BOOL(0);
-    }
-#endif
 
-#if PHP_VERSION_ID < 70000
-    ZVAL_STRING(&method, "asArray", 1);
-    if (call_user_function(CG(function_table), &tracer_object, &method, &trace, 0, NULL TSRMLS_CC) == FAILURE) {
-#else
-    ZVAL_STRING(&method, "asArray");
-    if (call_user_function(CG(function_table), tracer_object, &method, &trace, 0, NULL TSRMLS_CC) == FAILURE) {
-#endif
+    if (ddtrace_serialize_trace(trace_array, return_value) != 1) {
         RETURN_BOOL(0);
     }
-    if (ddtrace_serialize_trace(&trace, return_value) != 1) {
-        RETURN_BOOL(0);
-    }
-    zval_dtor(&method);
-    zval_dtor(&trace);
 }
 
 // method used to be able to easily breakpoint the execution at specific PHP line in GDB
