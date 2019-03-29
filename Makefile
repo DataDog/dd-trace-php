@@ -80,18 +80,19 @@ strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
 
 clang_find_files_to_lint:
-	@find ./ -type f \
+	@find ./ \
 	-path ./tmp -prune -o \
 	-path ./vendor -prune -o \
 	-path ./tests -prune -o \
 	-path ./src/ext/mpack -prune -o \
-	-iname "*.h" -o -iname "*.c"
+	-iname "*.h" -o -iname "*.c" \
+	-type f
 
 clang_format_check:
 	@while read fname; do \
-		changes=$$(clang-format -output-replacements-xml $$fname | grep -c "<replacement " || true); \
+		changes=$$(clang-format-6.0 -output-replacements-xml $$fname | grep -c "<replacement " || true); \
 		if [ $$changes != 0 ]; then \
-			clang-format -output-replacements-xml $$fname; \
+			clang-format-6.0 -output-replacements-xml $$fname; \
 			echo "$$fname did not pass clang-format, consider running: make clang_format_fix"; \
 			touch .failure; \
 		fi \
