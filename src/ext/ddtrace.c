@@ -4,7 +4,6 @@
 #include <SAPI.h>
 #include <Zend/zend.h>
 #include <Zend/zend_exceptions.h>
-#include <Zend/zend_interfaces.h>
 #include <php.h>
 #include <php_ini.h>
 #include <php_main.h>
@@ -50,130 +49,6 @@
 #define PHP7_UNUSED(...) UNUSED(__VA_ARGS__)
 #endif
 
-/* {{{ arginfo */
-// DDTrace\Contracts\SpanContext
-ZEND_BEGIN_ARG_INFO_EX(arginfo_span_context_get_baggage_item, 0, 0, 1)
-ZEND_ARG_INFO(0, key)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_span_context_with_baggage_item, 0, 0, 2)
-ZEND_ARG_INFO(0, key)
-ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_span_context_get_all_baggage_items, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_span_context_get_propagated_priority_sampling, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_span_context_set_propagated_priority_sampling, 0, 0, 1)
-ZEND_ARG_INFO(0, propagatedPrioritySampling)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_span_context_is_host_root, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_span_context_get_trace_id, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_span_context_get_span_id, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_span_context_get_parent_id, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_span_context_is_dist_tracing_ctx, 0)
-ZEND_END_ARG_INFO()
-
-// DDTrace\Contracts\Tracer
-ZEND_BEGIN_ARG_INFO(arginfo_tracer_get_scope_manager, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_tracer_get_active_span, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_tracer_start_active_span, 0, 0, 1)
-ZEND_ARG_INFO(0, operationName)
-ZEND_ARG_INFO(0, options)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_tracer_start_integration_scope_and_span, 0, 0, 2)
-ZEND_ARG_OBJ_INFO(0, integration, DDTrace\\Integrations\\Integration, 0)
-ZEND_ARG_INFO(0, operationName)
-ZEND_ARG_INFO(0, options)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_tracer_start_span, 0, 0, 1)
-ZEND_ARG_INFO(0, operationName)
-ZEND_ARG_INFO(0, options)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_tracer_inject, 0, 0, 3)
-ZEND_ARG_OBJ_INFO(0, spanContext, DDTrace\\Contracts\\SpanContext, 0)
-ZEND_ARG_INFO(0, format)
-ZEND_ARG_INFO(1, carrier)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_tracer_extract, 0, 0, 2)
-ZEND_ARG_INFO(0, format)
-ZEND_ARG_INFO(0, carrier)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_tracer_flush, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_tracer_get_priority_sampling, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_tracer_start_root_span, 0, 0, 1)
-ZEND_ARG_INFO(0, operationName)
-ZEND_ARG_INFO(0, options)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_tracer_get_root_scope, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_tracer_get_safe_root_scope, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_tracer_as_array, 0)
-ZEND_END_ARG_INFO()
-/* }}} */
-
-/* {{{ Function table */
-static const zend_function_entry php_ddtrace_span_context_funcs_interface[] = {
-    PHP_ABSTRACT_ME(SpanContext, getBaggageItem, arginfo_span_context_get_baggage_item) PHP_ABSTRACT_ME(
-        SpanContext, withBaggageItem, arginfo_span_context_with_baggage_item)
-        PHP_ABSTRACT_ME(SpanContext, getAllBaggageItems, arginfo_span_context_get_all_baggage_items) PHP_ABSTRACT_ME(
-            SpanContext, getPropagatedPrioritySampling, arginfo_span_context_get_propagated_priority_sampling)
-            PHP_ABSTRACT_ME(SpanContext, setPropagatedPrioritySampling,
-                            arginfo_span_context_set_propagated_priority_sampling)
-                PHP_ABSTRACT_ME(SpanContext, isHostRoot, arginfo_span_context_is_host_root)
-                    PHP_ABSTRACT_ME(SpanContext, getTraceId, arginfo_span_context_get_trace_id)
-                        PHP_ABSTRACT_ME(SpanContext, getSpanId, arginfo_span_context_get_span_id)
-                            PHP_ABSTRACT_ME(SpanContext, getParentId, arginfo_span_context_get_parent_id)
-                                PHP_ABSTRACT_ME(SpanContext, isDistributedTracingActivationContext,
-                                                arginfo_span_context_is_dist_tracing_ctx) PHP_FE_END};
-
-static const zend_function_entry php_ddtrace_tracer_funcs_interface[] = {
-    PHP_ABSTRACT_ME(Tracer, getScopeManager, arginfo_tracer_get_scope_manager)
-        PHP_ABSTRACT_ME(Tracer, getActiveSpan, arginfo_tracer_get_active_span)
-            PHP_ABSTRACT_ME(Tracer, startActiveSpan, arginfo_tracer_start_active_span)
-                PHP_ABSTRACT_ME(Tracer, startIntegrationScopeAndSpan, arginfo_tracer_start_integration_scope_and_span)
-                    PHP_ABSTRACT_ME(Tracer, startSpan, arginfo_tracer_start_span) PHP_ABSTRACT_ME(
-                        Tracer, inject, arginfo_tracer_inject) PHP_ABSTRACT_ME(Tracer, extract, arginfo_tracer_extract)
-                        PHP_ABSTRACT_ME(Tracer, flush, arginfo_tracer_flush)
-                            PHP_ABSTRACT_ME(Tracer, getPrioritySampling, arginfo_tracer_get_priority_sampling)
-                                PHP_ABSTRACT_ME(Tracer, startRootSpan, arginfo_tracer_start_root_span)
-                                    PHP_ABSTRACT_ME(Tracer, getRootScope, arginfo_tracer_get_root_scope)
-                                        PHP_ABSTRACT_ME(Tracer, getSafeRootSpan, arginfo_tracer_get_safe_root_scope)
-                                            PHP_ABSTRACT_ME(Tracer, asArray, arginfo_tracer_as_array) PHP_FE_END};
-/* }}} */
-
-zend_class_entry *php_ddtrace_span_context_ce_interface;
-zend_class_entry *php_ddtrace_tracer_ce_interface;
-
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
@@ -190,23 +65,10 @@ PHP_INI_END()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
-static void php_ddtrace_register_interfaces(TSRMLS_D) {
-    zend_class_entry span_context_ce_interface, tracer_ce_interface;
-
-    INIT_NS_CLASS_ENTRY(span_context_ce_interface, "DDTrace\\Contracts", "SpanContext",
-                        php_ddtrace_span_context_funcs_interface);
-    php_ddtrace_span_context_ce_interface = zend_register_internal_interface(&span_context_ce_interface TSRMLS_CC);
-    zend_class_implements(php_ddtrace_span_context_ce_interface TSRMLS_CC, 1, zend_ce_aggregate);
-
-    INIT_NS_CLASS_ENTRY(tracer_ce_interface, "DDTrace\\Contracts", "Tracer", php_ddtrace_tracer_funcs_interface);
-    php_ddtrace_tracer_ce_interface = zend_register_internal_interface(&tracer_ce_interface TSRMLS_CC);
-}
-
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     ZEND_INIT_MODULE_GLOBALS(ddtrace, php_ddtrace_init_globals, NULL);
     REGISTER_INI_ENTRIES();
-    php_ddtrace_register_interfaces(TSRMLS_C);
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
