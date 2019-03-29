@@ -16,7 +16,7 @@ static void ddtrace_hash_table_to_writer(mpack_writer_t *writer, HashTable *ht) 
     bool first_time = true;
 
     zend_hash_internal_pointer_reset_ex(ht, &iterator);
-    while (zend_hash_get_current_data_ex(ht, (void **) &tmp, &iterator) == SUCCESS) {
+    while (zend_hash_get_current_data_ex(ht, (void **)&tmp, &iterator) == SUCCESS) {
         key_type = zend_hash_get_current_key_ex(ht, &string_key, &str_len, &num_key, 0, &iterator);
         if (first_time == true) {
             first_time = false;
