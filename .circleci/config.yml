@@ -458,7 +458,7 @@ workflows:
             - "Compile PHP 56"
             - "Compile PHP 70"
             - "Compile PHP 71"
-            - "Compile PHP 72"
+            # - "Compile PHP 72"
             # - "Compile PHP 73"
             - "Compile PHP 56-zts"
             - "Compile PHP 70-zts"
