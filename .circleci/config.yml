@@ -417,11 +417,11 @@ workflows:
           name: "Compile PHP 71"
           docker_image: "datadog/docker-library:ddtrace_centos_7_php_71"
           so_suffix: "20160303"
-      - compile_extension:
-          requires: [ 'Code Checkout' ]
-          name: "Compile PHP 72"
-          docker_image: "datadog/docker-library:ddtrace_centos_7_php_72"
-          so_suffix: "20170718"
+      # - compile_extension:
+      #     requires: [ 'Code Checkout' ]
+      #     name: "Compile PHP 72"
+      #     docker_image: "datadog/docker-library:ddtrace_centos_7_php_72"
+      #     so_suffix: "20170718"
       # - compile_extension:
       #     requires: [ 'Code Checkout' ]
       #     name: "Compile PHP 73"
