@@ -176,6 +176,12 @@ class IntegrationsLoader
         self::get()->loadAll();
     }
 
+    public static function reload()
+    {
+        self::$instance = null;
+        self::load();
+    }
+
     public function reset()
     {
         $this->integrations = [];
