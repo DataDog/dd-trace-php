@@ -23,15 +23,15 @@ trait SpanAssertionTrait
      * Checks that the provide span exists in the provided traces and matches expectations.
      *
      * @param TestCase $testCase
-     * @param Span[][] $traces
+     * @param array[] $traces
      * @param SpanAssertion $expectedSpan
      */
     public function assertOneExpectedSpan($testCase, $traces, SpanAssertion $expectedSpan)
     {
         $spanChecker = new SpanChecker($testCase);
 
-        $found = array_filter($spanChecker->flattenTraces($traces), function (Span $span) use ($expectedSpan) {
-            return $span->getOperationName() === $expectedSpan->getOperationName();
+        $found = array_filter($spanChecker->flattenTraces($traces), function ($span) use ($expectedSpan) {
+            return $span['name'] === $expectedSpan->getOperationName();
         });
 
         if (empty($found)) {
