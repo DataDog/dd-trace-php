@@ -250,6 +250,7 @@ final class SpanAssertion
     public function setTraceAnalyticsCandidate()
     {
         $this->isTraceAnalyticsCandidate = true;
+        $this->exactMetrics[Tag::ANALYTICS_KEY] = 1.0;
         return $this;
     }
 

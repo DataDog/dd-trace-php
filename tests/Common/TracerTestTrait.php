@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Common;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Encoders\SpanEncoder;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
@@ -40,7 +41,7 @@ trait TracerTestTrait
      *
      * @param $fn
      * @param null $tracer
-     * @return Span[][]
+     * @return array[]
      * @throws \Exception
      */
     public function simulateAgent($fn, $tracer = null)
@@ -149,7 +150,7 @@ trait TracerTestTrait
                 $this->setRawPropertyFromArray($span, $rawSpan, 'tags', 'meta');
                 $this->setRawPropertyFromArray($span, $rawSpan, 'metrics', 'metrics');
 
-                $spans[] = $span;
+                $spans[] = SpanEncoder::encode($span);
             }
             $traces[] = $spans;
         }
