@@ -7,7 +7,6 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Predis\Configuration\Options;
 
-
 final class PredisTest extends IntegrationTestCase
 {
     private $host = 'redis_integration';
@@ -38,7 +37,6 @@ final class PredisTest extends IntegrationTestCase
         $this->assertCount(1, $traces);
         $trace = $traces[0];
 
-        $this->assertContainsOnlyInstancesOf("\DDTrace\Contracts\Span", $trace);
         $this->assertGreaterThan(2, count($trace)); # two Redis operations -> at least 2 spans
     }
 
