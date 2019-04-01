@@ -51,6 +51,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         return [
             'DD_TEST_INTEGRATION' => 'true',
+            'DD_ENCODER' => 'json',
         ];
     }
 
