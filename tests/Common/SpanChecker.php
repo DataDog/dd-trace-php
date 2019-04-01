@@ -103,7 +103,11 @@ final class SpanChecker
         if ($exp->getExactMetrics() !== SpanAssertion::NOT_TESTED) {
             $this->testCase->assertEquals(
                 self::filterArrayByKey($exp->getExactMetrics(), $exp->getNotTestedMetricNames(), false),
-                self::filterArrayByKey($span['metrics'], $exp->getNotTestedMetricNames(), false),
+                self::filterArrayByKey(
+                    isset($span['metrics']) ? $span['metrics'] : [],
+                    $exp->getNotTestedMetricNames(),
+                    false
+                ),
                 $namePrefix . "Wrong value for 'metrics'"
             );
         }

@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Encoders\Json;
 use DDTrace\Encoders\MessagePack;
 use DDTrace\Http\Request;
 use DDTrace\Integrations\IntegrationsLoader;
@@ -56,8 +57,9 @@ final class Bootstrap
      */
     public static function resetTracer()
     {
+        $encoder = getenv('APP_ENV') !== 'dd_testing' ? new MessagePack() : new Json();
         GlobalTracer::set(
-            new Tracer(new Http(new MessagePack()))
+            new Tracer(new Http($encoder))
         );
     }
 
