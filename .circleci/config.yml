@@ -398,29 +398,29 @@ workflows:
 #              ignore: /^(?!master).*/
       - compile_extension:
           name: "Compile PHP 54"
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
+          docker_image: "datadog/docker-library:ddtrace_centos_7_php_54"
           catch_warnings: false
           so_suffix: "20100412"
           requires: [ 'Code Checkout' ]
       - compile_extension:
           requires: [ 'Code Checkout' ]
           name: "Compile PHP 56"
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_6"
+          docker_image: "datadog/docker-library:ddtrace_centos_7_php_56"
           so_suffix: "20131106"
       - compile_extension:
           requires: [ 'Code Checkout' ]
           name: "Compile PHP 70"
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_0"
+          docker_image: "datadog/docker-library:ddtrace_centos_7_php_70"
           so_suffix: "20151012"
       - compile_extension:
           requires: [ 'Code Checkout' ]
           name: "Compile PHP 71"
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_1"
+          docker_image: "datadog/docker-library:ddtrace_centos_7_php_71"
           so_suffix: "20160303"
       - compile_extension:
           requires: [ 'Code Checkout' ]
           name: "Compile PHP 72"
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
+          docker_image: "datadog/docker-library:ddtrace_centos_7_php_72"
           so_suffix: "20170718"
       # - compile_extension:
       #     requires: [ 'Code Checkout' ]
