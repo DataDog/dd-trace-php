@@ -132,14 +132,14 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         });
 
         // trace is: custom
-        $this->assertSame($traces[0][0]->getContext()->getSpanId(), $found['headers']['X-Datadog-Trace-Id']);
+        $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec, used under the hood
 
         if (Versions::phpVersionMatches('5.4')) {
             // in 5.4 curl_exec is not included in the trace due to being run through `call_func_array`
-            $this->assertSame($traces[0][1]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
+            $this->assertSame($traces[0][1]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
         } else {
-            $this->assertSame($traces[0][2]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
+            $this->assertSame($traces[0][2]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
         }
 
         $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
