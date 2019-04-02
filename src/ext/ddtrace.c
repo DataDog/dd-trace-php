@@ -294,7 +294,7 @@ static PHP_FUNCTION(dd_trace_serialize_msgpack) {
         RETURN_BOOL(0);
     }
 
-    if (ddtrace_serialize_simple_array(trace_array, return_value) != 1) {
+    if (ddtrace_serialize_simple_array(trace_array, return_value TSRMLS_CC) != 1) {
         RETURN_BOOL(0);
     }
 } /* }}} */

@@ -1,11 +1,16 @@
 #include <php.h>
 #include <stdio.h>
+#include <Zend/zend_exceptions.h>
+#include <ext/spl/spl_exceptions.h>
+#include "ddtrace.h"
 #include "mpack/mpack.h"
 
-static void msgpack_write_zval(mpack_writer_t *writer, zval *trace);
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC);
 
 #if PHP_VERSION_ID < 70000
-static void write_hash_table(mpack_writer_t *writer, HashTable *ht) /* {{{ */
+static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) /* {{{ */
 {
     zval **tmp;
     char *string_key;
@@ -29,7 +34,9 @@ static void write_hash_table(mpack_writer_t *writer, HashTable *ht) /* {{{ */
         if (key_type == HASH_KEY_IS_STRING) {
             mpack_write_cstr(writer, string_key);
         }
-        msgpack_write_zval(writer, *tmp);
+        if (msgpack_write_zval(writer, *tmp TSRMLS_CC) != 1) {
+            return 0;
+        }
         zend_hash_move_forward_ex(ht, &iterator);
     }
 
@@ -38,9 +45,10 @@ static void write_hash_table(mpack_writer_t *writer, HashTable *ht) /* {{{ */
     } else {
         mpack_finish_array(writer);
     }
+    return 1;
 }
 #else
-static void write_hash_table(mpack_writer_t *writer, HashTable *ht) /* {{{ */
+static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) /* {{{ */
 {
     zval *tmp;
     zend_string *string_key;
@@ -59,7 +67,9 @@ static void write_hash_table(mpack_writer_t *writer, HashTable *ht) /* {{{ */
         if (is_assoc == 1) {
             mpack_write_cstr(writer, ZSTR_VAL(string_key));
         }
-        msgpack_write_zval(writer, tmp);
+        if (msgpack_write_zval(writer, tmp TSRMLS_CC) != 1) {
+            return 0;
+        }
     }
     ZEND_HASH_FOREACH_END();
 
@@ -68,14 +78,17 @@ static void write_hash_table(mpack_writer_t *writer, HashTable *ht) /* {{{ */
     } else {
         mpack_finish_array(writer);
     }
+    return 1;
 }
 #endif
 
-static void msgpack_write_zval(mpack_writer_t *writer, zval *trace) /* {{{ */
+static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) /* {{{ */
 {
     switch (Z_TYPE_P(trace)) {
         case IS_ARRAY:
-            write_hash_table(writer, Z_ARRVAL_P(trace));
+            if (write_hash_table(writer, Z_ARRVAL_P(trace) TSRMLS_CC) != 1) {
+                return 0;
+            }
             break;
         case IS_DOUBLE:
             mpack_write_double(writer, Z_DVAL_P(trace));
@@ -102,22 +115,30 @@ static void msgpack_write_zval(mpack_writer_t *writer, zval *trace) /* {{{ */
             mpack_write_cstr(writer, ZSTR_VAL(Z_STR_P(trace)));
             break;
 #endif
-        default: {
-            // @TODO Error message
-            mpack_write_cstr(writer, "unknown type");
-        } break;
+        default:
+            if (DDTRACE_G(strict_mode)) {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Serialize values must be of type array, string, int, float, bool or null");
+            }
+            return 0;
+            break;
     }
+    return 1;
 }
 
-int ddtrace_serialize_simple_array(zval *trace, zval *retval) {
+int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
     // encode to memory buffer
     char *data;
     size_t size;
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
-    msgpack_write_zval(&writer, trace);
+    if (msgpack_write_zval(&writer, trace TSRMLS_CC) != 1) {
+        mpack_writer_destroy(&writer);
+        free(data);
+        return 0;
+    }
     // finish writing
     if (mpack_writer_destroy(&writer) != mpack_ok) {
+        free(data);
         return 0;
     }
 #if PHP_VERSION_ID < 70000
