@@ -1,6 +1,6 @@
+#include <Zend/zend_exceptions.h>
 #include <php.h>
 #include <stdio.h>
-#include <Zend/zend_exceptions.h>
 #include <ext/spl/spl_exceptions.h>
 #include "ddtrace.h"
 #include "mpack/mpack.h"
@@ -117,7 +117,8 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) /* 
 #endif
         default:
             if (DDTRACE_G(strict_mode)) {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Serialize values must be of type array, string, int, float, bool or null");
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                        "Serialize values must be of type array, string, int, float, bool or null");
             }
             return 0;
             break;
