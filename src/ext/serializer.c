@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include "mpack/mpack.h"
 
-static void ddtrace_zval_to_writer(mpack_writer_t *writer, zval *trace);
+static void msgpack_write_zval(mpack_writer_t *writer, zval *trace);
 
 #if PHP_VERSION_ID < 70000
-static void ddtrace_hash_table_to_writer(mpack_writer_t *writer, HashTable *ht) /* {{{ */
+static void write_hash_table(mpack_writer_t *writer, HashTable *ht) /* {{{ */
 {
     zval **tmp;
     char *string_key;
@@ -29,7 +29,7 @@ static void ddtrace_hash_table_to_writer(mpack_writer_t *writer, HashTable *ht) 
         if (key_type == HASH_KEY_IS_STRING) {
             mpack_write_cstr(writer, string_key);
         }
-        ddtrace_zval_to_writer(writer, *tmp);
+        msgpack_write_zval(writer, *tmp);
         zend_hash_move_forward_ex(ht, &iterator);
     }
 
@@ -40,7 +40,7 @@ static void ddtrace_hash_table_to_writer(mpack_writer_t *writer, HashTable *ht) 
     }
 }
 #else
-static void ddtrace_hash_table_to_writer(mpack_writer_t *writer, HashTable *ht) /* {{{ */
+static void write_hash_table(mpack_writer_t *writer, HashTable *ht) /* {{{ */
 {
     zval *tmp;
     zend_string *string_key;
@@ -59,7 +59,7 @@ static void ddtrace_hash_table_to_writer(mpack_writer_t *writer, HashTable *ht) 
         if (is_assoc == 1) {
             mpack_write_cstr(writer, ZSTR_VAL(string_key));
         }
-        ddtrace_zval_to_writer(writer, tmp);
+        msgpack_write_zval(writer, tmp);
     }
     ZEND_HASH_FOREACH_END();
 
@@ -71,11 +71,11 @@ static void ddtrace_hash_table_to_writer(mpack_writer_t *writer, HashTable *ht) 
 }
 #endif
 
-static void ddtrace_zval_to_writer(mpack_writer_t *writer, zval *trace) /* {{{ */
+static void msgpack_write_zval(mpack_writer_t *writer, zval *trace) /* {{{ */
 {
     switch (Z_TYPE_P(trace)) {
         case IS_ARRAY:
-            ddtrace_hash_table_to_writer(writer, Z_ARRVAL_P(trace));
+            write_hash_table(writer, Z_ARRVAL_P(trace));
             break;
         case IS_DOUBLE:
             mpack_write_double(writer, Z_DVAL_P(trace));
@@ -109,13 +109,13 @@ static void ddtrace_zval_to_writer(mpack_writer_t *writer, zval *trace) /* {{{ *
     }
 }
 
-int ddtrace_serialize_trace(zval *trace, zval *retval) {
+int ddtrace_serialize_simple_array(zval *trace, zval *retval) {
     // encode to memory buffer
     char *data;
     size_t size;
     mpack_writer_t writer;
     mpack_writer_init_growable(&writer, &data, &size);
-    ddtrace_zval_to_writer(&writer, trace);
+    msgpack_write_zval(&writer, trace);
     // finish writing
     if (mpack_writer_destroy(&writer) != mpack_ok) {
         return 0;
