@@ -63,7 +63,7 @@ STD_PHP_INI_ENTRY("ddtrace.log_backtrace", "0", PHP_INI_SYSTEM, OnUpdateBool, lo
                   ddtrace_globals)
 PHP_INI_END()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_trace, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_msgpack, 0, 0, 1)
 ZEND_ARG_INFO(0, trace_array)
 ZEND_END_ARG_INFO()
 
@@ -276,8 +276,8 @@ static PHP_FUNCTION(dd_trace_reset) {
     RETURN_BOOL(1);
 }
 
-/* {{{ proto string dd_trace_serialize_trace(array trace_array) */
-static PHP_FUNCTION(dd_trace_serialize_trace) {
+/* {{{ proto string dd_trace_serialize_msgpack(array trace_array) */
+static PHP_FUNCTION(dd_trace_serialize_msgpack) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
 
@@ -313,7 +313,7 @@ static PHP_FUNCTION(dd_trace_noop) {
 
 static const zend_function_entry ddtrace_functions[] = {
     PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL)
-        PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_serialize_trace, arginfo_dd_trace_serialize_trace)
+        PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
             ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
