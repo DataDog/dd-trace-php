@@ -2,6 +2,7 @@
 
 namespace DDTrace;
 
+use DDTrace\Encoders\Json;
 use DDTrace\Encoders\SpanEncoder;
 use DDTrace\Integrations\Integration;
 use DDTrace\Encoders\MessagePack;
@@ -95,7 +96,8 @@ final class Tracer implements TracerInterface
      */
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
-        $this->transport = $transport ?: new Http(new MessagePack());
+        $encoder = getenv('DD_TRACE_ENCODER') === 'json' ? new Json() : new MessagePack();
+        $this->transport = $transport ?: new Http($encoder);
         $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
             Format::TEXT_MAP => $textMapPropagator,

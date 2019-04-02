@@ -57,10 +57,7 @@ final class Bootstrap
      */
     public static function resetTracer()
     {
-        $encoder = getenv('DD_ENCODER') === 'json' ? new Json() : new MessagePack();
-        GlobalTracer::set(
-            new Tracer(new Http($encoder))
-        );
+        GlobalTracer::set(new Tracer());
     }
 
     /**
