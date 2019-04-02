@@ -1,7 +1,7 @@
 #include <php.h>
 #include <Zend/zend_exceptions.h>
-#include <stdio.h>
 #include <ext/spl/spl_exceptions.h>
+
 #include "ddtrace.h"
 #include "mpack/mpack.h"
 
