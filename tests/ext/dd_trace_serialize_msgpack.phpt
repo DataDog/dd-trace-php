@@ -1,5 +1,5 @@
 --TEST--
-Basic functionality of dd_trace_serialize_trace()
+Basic functionality of dd_trace_serialize_msgpack()
 --DESCRIPTION--
 The "EXPECT" section was generated with the following tool:
 https://github.com/ludocode/msgpack-tools
@@ -29,7 +29,7 @@ $traces = [[
 ]];
 echo json_encode($traces) . "\n";
 
-$encoded = dd_trace_serialize_trace($traces);
+$encoded = dd_trace_serialize_msgpack($traces);
 echo dd_trace_unserialize_trace_hex($encoded) . "\n";
 ?>
 --EXPECT--
