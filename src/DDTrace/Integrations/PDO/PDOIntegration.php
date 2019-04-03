@@ -55,6 +55,9 @@ class PDOIntegration extends Integration
             return Integration::NOT_AVAILABLE;
         }
 
+        return Integration::NOT_AVAILABLE;
+
+
         /**
          * Workaround for the Drupal DBAL bug.
          * Delete this `if` block once the bug is fixed.
