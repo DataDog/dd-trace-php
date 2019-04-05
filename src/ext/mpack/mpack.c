@@ -52,6 +52,8 @@
 #include <stdarg.h>
 #endif
 
+// Ignore warnings that we convert to errors for ddtrace
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 
 #if MPACK_DEBUG
