@@ -317,7 +317,7 @@ final class Tracer implements TracerInterface
     /**
      * {@inheritdoc}
      */
-    public function asArray()
+    public function getTracesAsArray()
     {
         $tracesToBeSent = [];
 

@@ -23,7 +23,7 @@ class DebugTransport implements Transport
 
     public function send(Tracer $tracer)
     {
-        $this->traces = array_merge($this->traces, $tracer->asArray());
+        $this->traces = array_merge($this->traces, $tracer->getTracesAsArray());
     }
 
     /**

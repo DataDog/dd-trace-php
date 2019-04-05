@@ -125,7 +125,7 @@ final class NoopTracer implements TracerInterface
     /**
      * {@inheritdoc}
      */
-    public function asArray()
+    public function getTracesAsArray()
     {
         return [];
     }

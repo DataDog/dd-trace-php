@@ -15,7 +15,7 @@ This change should not impact most users.
 ### Changed
 - Request init hook module blacklist now avoids miss matching partial matches #372
 - Add 10MB cap to payloads sent to the Agent #388
-- Added an `asArray()` method to `DDTrace/Contracts/Tracer` which returns an array of spans (which are also encoded as an array.) To encode an instance of `DDTrace\Contracts\Span` as an array, use `DDTrace/Encoders/SpanEncoder::encode($span)` #378
+- Added an `getTracesAsArray()` method to `DDTrace/Contracts/Tracer` which returns an array of spans (which are also encoded as an array.) To encode an instance of `DDTrace\Contracts\Span` as an array, use `DDTrace/Encoders/SpanEncoder::encode($span)` #378
 - `DDTrace/Transport::send()` now takes an instance of `DDTrace/Contracts/Tracer` instead of an `array` #378
 - `DDTrace/Encoder::encodeTraces()` now takes an instance of `DDTrace/Contracts/Tracer` instead of an `array` #378
 - The default encoder is now `DDTrace/Encoders/MessagePack`. You can still use the JSON encoder by setting the environment variable `DD_TRACE_ENCODER=json`. It is generally not recommended to use the JSON encoder as parsing JSON payloads at the Agent level is more CPU & memory intensive.

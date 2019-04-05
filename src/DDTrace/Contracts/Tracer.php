@@ -167,5 +167,5 @@ interface Tracer
      *
      * @return array
      */
-    public function asArray();
+    public function getTracesAsArray();
 }
