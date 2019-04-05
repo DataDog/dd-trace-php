@@ -16,6 +16,9 @@ final class Http implements Transport
 
     // Env variables to configure trace agent. They will be moved to a configuration class once we implement it.
     const AGENT_HOST_ENV = 'DD_AGENT_HOST';
+    // The Agent has a payload cap of 10MB
+    // https://github.com/DataDog/datadog-agent/blob/355a34d610bd1554572d7733454ac4af3acd89cd/pkg/trace/api/api.go#L31
+    const AGENT_REQUEST_BODY_LIMIT = 10485760; // 10 * 1024 * 1024 => 10MB
     const TRACE_AGENT_PORT_ENV = 'DD_TRACE_AGENT_PORT';
 
     // Default values for trace agent configuration
@@ -96,6 +99,15 @@ final class Http implements Transport
 
     private function sendRequest($url, array $headers, $body)
     {
+        $bodySize = strlen($body);
+        // The 10MB payload cap is inclusive, thus we use >, not >=
+        // https://github.com/DataDog/datadog-agent/blob/355a34d610bd1554572d7733454ac4af3acd89cd/pkg/trace/api/limited_reader.go#L37
+        if ($bodySize > self::AGENT_REQUEST_BODY_LIMIT) {
+            self::logError('Agent request payload of {bytes} bytes exceeds 10MB limit; dropping request', [
+                'bytes' => $bodySize,
+            ]);
+            return;
+        }
         $handle = curl_init($url);
         curl_setopt($handle, CURLOPT_POST, true);
         curl_setopt($handle, CURLOPT_POSTFIELDS, $body);
@@ -103,7 +115,7 @@ final class Http implements Transport
 
         $curlHeaders = [
             'Content-Type: ' . $this->encoder->getContentType(),
-            'Content-Length: ' . strlen($body),
+            'Content-Length: ' . $bodySize,
         ];
         foreach ($headers as $key => $value) {
             $curlHeaders[] = "$key: $value";
