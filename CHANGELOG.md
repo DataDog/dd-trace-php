@@ -5,8 +5,8 @@ All notable changes to this project will be documented in this file - [read more
 ## [Unreleased]
 
 ### Changed
-
 - Request init hook module blacklist now avoids miss matching partial matches #372
+- Add 10MB cap to payloads sent to the Agent #388
 
 ## [0.17.0]
 
