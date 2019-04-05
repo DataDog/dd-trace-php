@@ -54,7 +54,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
     {
         putenv('DD_CURL_ANALYTICS_ENABLED');
         Configuration::clear();
-        IntegrationsLoader::reload();
         $traces = $this->simulateAgent(function () {
             $ch = curl_init(self::URL . '/status/200');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
