@@ -35,7 +35,6 @@ int dd_no_blacklisted_modules(TSRMLS_D) {
     int no_blacklisted_modules = 1;
 
     char *blacklist = DDTRACE_G(internal_blacklisted_modules_list);
-    HashPosition pos;
     zend_module_entry *module;
 
     if (blacklist == NULL) {
@@ -43,6 +42,7 @@ int dd_no_blacklisted_modules(TSRMLS_D) {
     }
 
 #if PHP_VERSION_ID < 70000
+    HashPosition pos;
     zend_hash_internal_pointer_reset_ex(&module_registry, &pos);
 
     while (zend_hash_get_current_data_ex(&module_registry, (void *)&module, &pos) != FAILURE) {
