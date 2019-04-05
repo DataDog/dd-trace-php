@@ -324,13 +324,13 @@ jobs:
       - run: mkdir -p extensions
       - run:
           name: Build extension basic .so
-          command: make all CFLAGS="-O2 -std=gnu99 -Wall -Wextra -Wno-unused-but-set-variable -Wno-unused-parameter <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make all CFLAGS="-O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           name: Build extension debug .so
-          command: make clean all CFLAGS="-g -std=gnu99 -Wall -Wextra -Wno-unused-but-set-variable -Wno-unused-parameter <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make clean all CFLAGS="-g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
