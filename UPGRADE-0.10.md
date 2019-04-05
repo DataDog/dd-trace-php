@@ -1,7 +1,7 @@
 # Upgrade to 0.10
 
 <aside class="warning">
-This is a breaking change. Read carefully through the docs for the easy step to migrsate.
+This is a breaking change. Read carefully through the docs for the easy steps to migrate.
 </aside>
 
 ## Composer users
