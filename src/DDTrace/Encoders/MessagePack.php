@@ -6,7 +6,7 @@ use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
 use DDTrace\Log\LoggingTrait;
 
-final class Json implements Encoder
+final class MessagePack implements Encoder
 {
     use LoggingTrait;
 
@@ -15,12 +15,12 @@ final class Json implements Encoder
      */
     public function encodeTraces(Tracer $tracer)
     {
-        $json = json_encode($tracer->getTracesAsArray());
-        if (false === $json) {
-            self::logDebug('Failed to json-encode trace: ' . json_last_error_msg());
-            return '[[]]';
+        $messagePack = dd_trace_serialize_msgpack($tracer->getTracesAsArray());
+        if (false === $messagePack) {
+            self::logDebug('Failed to MessagePack-encode trace');
+            return '';
         }
-        return $json;
+        return $messagePack;
     }
 
     /**
@@ -28,6 +28,6 @@ final class Json implements Encoder
      */
     public function getContentType()
     {
-        return 'application/json';
+        return 'application/msgpack';
     }
 }

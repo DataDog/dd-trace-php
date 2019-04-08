@@ -276,6 +276,7 @@ final class SpanAssertion
     {
         return [
             '_sampling_priority_v1',
+            '_dd1.sr.eausr',
         ];
     }
 }

@@ -2,8 +2,8 @@
 
 namespace DDTrace\Tests;
 
+use DDTrace\Contracts\Tracer;
 use DDTrace\Transport;
-
 
 class DebugTransport implements Transport
 {
@@ -21,9 +21,9 @@ class DebugTransport implements Transport
      */
     private $headers = array();
 
-    public function send(array $traces)
+    public function send(Tracer $tracer)
     {
-        $this->traces = array_merge($this->traces, $traces);
+        $this->traces = array_merge($this->traces, $tracer->getTracesAsArray());
     }
 
     /**

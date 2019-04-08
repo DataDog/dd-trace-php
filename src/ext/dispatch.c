@@ -109,7 +109,7 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, ddtrace_
 }
 
 #if PHP_VERSION_ID < 50500
-zend_function *fcall_fbc(zend_execute_data *execute_data) {
+zend_function *fcall_fbc(zend_execute_data *execute_data TSRMLS_DC) {
     zend_op *opline = EX(opline);
     zend_function *fbc = NULL;
     zval *fname = opline->op1.zv;
@@ -270,7 +270,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             if (CACHED_PTR(opline->op1.literal->cache_slot)) {
                 EX(function_state).function = CACHED_PTR(opline->op1.literal->cache_slot);
             } else {
-                EX(function_state).function = fcall_fbc(execute_data);
+                EX(function_state).function = fcall_fbc(execute_data TSRMLS_CC);
                 CACHE_PTR(opline->op1.literal->cache_slot, EX(function_state).function);
             }
 
@@ -360,7 +360,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     }
 }
 
-static zend_always_inline zend_function *get_current_fbc(zend_execute_data *execute_data) {
+static zend_always_inline zend_function *get_current_fbc(zend_execute_data *execute_data TSRMLS_DC) {
     zend_function *fbc = NULL;
 
 #if PHP_VERSION_ID < 70000
@@ -368,8 +368,11 @@ static zend_always_inline zend_function *get_current_fbc(zend_execute_data *exec
         fbc = FBC();
     } else {
 #if PHP_VERSION_ID < 50500
-        fbc = fcall_fbc(execute_data);
+        fbc = fcall_fbc(execute_data TSRMLS_CC);
 #else
+#ifdef ZTS
+        (void)TSRMLS_C;
+#endif  // ZTS
         fbc = EX(function_state).function;
 #endif
     }
@@ -437,7 +440,7 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     EX(called_scope) = DECODE_CTOR(EX(called_scope));
 
     zend_arg_types_stack_3_pop(&EG(arg_types_stack), &EX(called_scope), &EX(current_object), &EX(fbc));
-    zend_vm_stack_clear_multiple(TSRMLS_CC);
+    zend_vm_stack_clear_multiple(TSRMLS_C);
 #elif PHP_VERSION_ID < 70000
     zend_vm_stack_clear_multiple(0 TSRMLS_CC);
     EX(call)--;
@@ -470,7 +473,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
         return default_dispatch(execute_data TSRMLS_CC);
     }
 
-    zend_function *current_fbc = get_current_fbc(execute_data);
+    zend_function *current_fbc = get_current_fbc(execute_data TSRMLS_CC);
     ddtrace_lookup_data_t lookup_data = {0};
 
     if (!is_function_wrappable(execute_data, current_fbc, &lookup_data)) {

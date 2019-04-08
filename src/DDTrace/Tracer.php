@@ -2,8 +2,10 @@
 
 namespace DDTrace;
 
-use DDTrace\Integrations\Integration;
 use DDTrace\Encoders\Json;
+use DDTrace\Encoders\SpanEncoder;
+use DDTrace\Integrations\Integration;
+use DDTrace\Encoders\MessagePack;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Processing\TraceAnalyticsProcessor;
 use DDTrace\Propagators\CurlHeadersMap;
@@ -94,7 +96,8 @@ final class Tracer implements TracerInterface
      */
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
-        $this->transport = $transport ?: new Http(new Json());
+        $encoder = getenv('DD_TRACE_ENCODER') === 'json' ? new Json() : new MessagePack();
+        $this->transport = $transport ?: new Http($encoder);
         $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
             Format::TEXT_MAP => $textMapPropagator,
@@ -288,22 +291,7 @@ final class Tracer implements TracerInterface
             ]);
         }
 
-        $tracesToBeSent = $this->shiftFinishedTraces();
-
-        if (empty($tracesToBeSent)) {
-            self::logDebug('No finished traces to be sent to the agent');
-            return;
-        }
-
-        // Basic processing. We will do it in a more structured way in the future, but for now we just invoke the
-        // the internal (hard-coded) processors programmatically.
-        foreach ($tracesToBeSent as $trace) {
-            foreach ($trace as $span) {
-                $this->traceAnalyticsProcessor->process($span);
-            }
-        }
-
-        $this->transport->send($tracesToBeSent);
+        $this->transport->send($this);
     }
 
     /**
@@ -326,7 +314,10 @@ final class Tracer implements TracerInterface
         return null;
     }
 
-    private function shiftFinishedTraces()
+    /**
+     * {@inheritdoc}
+     */
+    public function getTracesAsArray()
     {
         $tracesToBeSent = [];
 
@@ -343,7 +334,10 @@ final class Tracer implements TracerInterface
                     }
                     $span->finish();
                 }
-                $traceToBeSent[] = $span;
+                // Basic processing. We will do it in a more structured way in the future, but for now we just invoke
+                // the internal (hard-coded) processors programmatically.
+                $this->traceAnalyticsProcessor->process($span);
+                $traceToBeSent[] = SpanEncoder::encode($span);
             }
 
             if ($traceToBeSent === null) {
@@ -351,7 +345,12 @@ final class Tracer implements TracerInterface
             }
 
             $tracesToBeSent[] = $traceToBeSent;
-            unset($this->traces[$traceToBeSent[0]->getTraceId()]);
+            unset($this->traces[$traceToBeSent[0]['trace_id']]);
+        }
+
+        if (empty($tracesToBeSent)) {
+            self::logDebug('No finished traces to be sent to the agent');
+            return [];
         }
 
         return $tracesToBeSent;

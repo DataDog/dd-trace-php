@@ -71,10 +71,13 @@ final class Http implements Transport
         ], $config);
     }
 
-    public function send(array $traces)
+    /**
+     * {@inheritdoc}
+     */
+    public function send(Tracer $tracer)
     {
-        $tracesPayload = $this->encoder->encodeTraces($traces);
-        self::logDebug('About to send to the agent {count} traces', ['count' => count($traces)]);
+        $tracesPayload = $this->encoder->encodeTraces($tracer);
+        self::logDebug('About to send trace(s) to the agent');
 
         // We keep the endpoint configuration option for backward compatibility instead of moving to an 'agent base url'
         // concept, but this should be probably revisited in the future.
@@ -122,7 +125,7 @@ final class Http implements Transport
         }
         curl_setopt($handle, CURLOPT_HTTPHEADER, $curlHeaders);
 
-        if (curl_exec($handle) === false) {
+        if (($response = curl_exec($handle)) === false) {
             self::logError('Reporting of spans failed: {num} / {error}', [
                 'error' => curl_error($handle),
                 'num' => curl_errno($handle),
@@ -140,7 +143,10 @@ final class Http implements Transport
         }
 
         if ($statusCode !== 200) {
-            self::logError('Reporting of spans failed, status code {code}', ['code' => $statusCode]);
+            self::logError(
+                'Reporting of spans failed, status code {code}: {response}',
+                ['code' => $statusCode, 'response' => $response]
+            );
             return;
         }
 

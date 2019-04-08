@@ -17,6 +17,7 @@
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "request_hooks.h"
+#include "serializer.h"
 
 #define UNUSED_1(x) (void)(x)
 #define UNUSED_2(x, y) \
@@ -51,16 +52,21 @@
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
-STD_PHP_INI_ENTRY("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals, ddtrace_globals)
+STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals,
+                    ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.internal_blacklisted_modules_list", "ionCube Loader,", PHP_INI_SYSTEM, OnUpdateString,
                   internal_blacklisted_modules_list, zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
-                  ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.log_backtrace", "0", PHP_INI_SYSTEM, OnUpdateBool, log_backtrace, zend_ddtrace_globals,
-                  ddtrace_globals)
+STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
+                    ddtrace_globals)
+STD_PHP_INI_BOOLEAN("ddtrace.log_backtrace", "0", PHP_INI_SYSTEM, OnUpdateBool, log_backtrace, zend_ddtrace_globals,
+                    ddtrace_globals)
 PHP_INI_END()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_msgpack, 0, 0, 1)
+ZEND_ARG_INFO(0, trace_array)
+ZEND_END_ARG_INFO()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
@@ -271,6 +277,29 @@ static PHP_FUNCTION(dd_trace_reset) {
     RETURN_BOOL(1);
 }
 
+/* {{{ proto string dd_trace_serialize_msgpack(array trace_array) */
+static PHP_FUNCTION(dd_trace_serialize_msgpack) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
+
+    zval *trace_array;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "a", &trace_array) == FAILURE) {
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected an array");
+        }
+        RETURN_BOOL(0);
+    }
+
+    if (ddtrace_serialize_simple_array(trace_array, return_value TSRMLS_CC) != 1) {
+        RETURN_BOOL(0);
+    }
+} /* }}} */
+
 // method used to be able to easily breakpoint the execution at specific PHP line in GDB
 static PHP_FUNCTION(dd_trace_noop) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
@@ -283,8 +312,10 @@ static PHP_FUNCTION(dd_trace_noop) {
     RETURN_BOOL(1);
 }
 
-static const zend_function_entry ddtrace_functions[] = {PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(
-    dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) ZEND_FE_END};
+static const zend_function_entry ddtrace_functions[] = {
+    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL) PHP_FE(dd_untrace, NULL)
+        PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
+            ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),

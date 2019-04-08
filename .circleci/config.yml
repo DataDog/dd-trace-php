@@ -207,7 +207,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!config.*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' || touch .failure
+          command: node_modules/.bin/eclint check '**/*' '!config.*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!src/ext/mpack/**' || touch .failure
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
@@ -216,16 +216,7 @@ jobs:
           command: sudo apt -y install clang-format-6.0/testing
       - run:
           name: Run clang-format
-          command: |
-            find ./ -path ./vendor -prune -o -iname *.h -o -iname *.c | while read fname; do
-              changes=$(clang-format-6.0 -output-replacements-xml $fname | grep -c "<replacement " || true)
-              if [ $changes != 0 ]
-              then
-                clang-format-6.0 -output-replacements-xml $fname
-                echo "$fname did not pass clang-format, consider running: find ./ -iname '*.h' -o -iname '*.c' | xargs clang-format -i"
-                touch .failure
-              fi
-            done
+          command: make clang_format_check
       - run:
           name: Check linting failure
           command: test -e .failure && exit 1 || true

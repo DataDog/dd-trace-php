@@ -6,7 +6,6 @@ use DDTrace\Configuration;
 use DDTrace\Format;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\Tests\Common\ClearIntegrationNameInSpan;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tracer;
@@ -18,10 +17,17 @@ final class CurlIntegrationTest extends IntegrationTestCase
     const URL = 'http://httpbin_integration';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
 
-    public static function setUpBeforeClass()
+    public function setUp()
     {
-        parent::setUpBeforeClass();
+        parent::setUp();
+        putenv('DD_CURL_ANALYTICS_ENABLED=true');
         IntegrationsLoader::load();
+    }
+
+    public function tearDown()
+    {
+        parent::tearDown();
+        putenv('DD_CURL_ANALYTICS_ENABLED');
     }
 
     public function testLoad200UrlOnInit()
@@ -46,6 +52,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testSampleExternalAgent()
     {
+        putenv('DD_CURL_ANALYTICS_ENABLED');
+        Configuration::clear();
         $traces = $this->simulateAgent(function () {
             $ch = curl_init(self::URL . '/status/200');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -198,9 +206,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
 
         // trace is: custom
-        $this->assertSame($traces[0][0]->getContext()->getSpanId(), $found['headers']['X-Datadog-Trace-Id']);
+        $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec
-        $this->assertSame($traces[0][1]->getContext()->getSpanId(), $found['headers']['X-Datadog-Parent-Id']);
+        $this->assertSame($traces[0][1]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
         $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
         $this->assertSame('preserved_value', $found['headers']['Honored']);

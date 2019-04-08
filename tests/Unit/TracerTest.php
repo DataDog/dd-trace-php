@@ -141,9 +141,7 @@ final class TracerTest extends BaseTestCase
         $span2->finish();
         $span3->finish();
 
-        $transport->send([
-            [$span2, $span3],
-        ])->shouldBeCalled();
+        $transport->send($tracer)->shouldBeCalled();
 
         $tracer->flush();
     }
@@ -194,8 +192,8 @@ final class TracerTest extends BaseTestCase
 
         $tracer->flush();
         $sent = $transport->getTraces();
-        $this->assertSame('root', $sent[0][0]->getOperationName());
-        $this->assertSame('child', $sent[0][1]->getOperationName());
+        $this->assertSame('root', $sent[0][0]['name']);
+        $this->assertSame('child', $sent[0][1]['name']);
     }
 
     public function testSpanStartedAtRootCanBeAccessedLater()

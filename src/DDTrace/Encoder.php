@@ -2,15 +2,15 @@
 
 namespace DDTrace;
 
-use DDTrace\Contracts\Span as SpanInterface;
+use DDTrace\Contracts\Tracer as TracerInterface;
 
 interface Encoder
 {
     /**
-     * @param SpanInterface[][]|array $traces
+     * @param TracerInterface $tracer
      * @return string
      */
-    public function encodeTraces(array $traces);
+    public function encodeTraces(TracerInterface $tracer);
 
     /**
      * @return string
