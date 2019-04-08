@@ -31,4 +31,3 @@ services:
     volumes:
       - ./CurlMissingHttpHeaders:/var/app
     command: php playground.php
-
