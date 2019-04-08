@@ -1,3 +1,9 @@
+From the `ManualTesting` directory execute
+
+```
+docker-compose run --rm curl_missing_http_headers
+```
+
 The expected result should be
 
 ```
