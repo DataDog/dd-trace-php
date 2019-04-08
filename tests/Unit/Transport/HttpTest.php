@@ -2,21 +2,30 @@
 
 namespace DDTrace\Tests\Unit\Transport;
 
+use DDTrace\Contracts\Tracer as TracerInterface;
 use DDTrace\Encoder;
 use DDTrace\Encoders\Json;
 use DDTrace\Log\Logger;
 use DDTrace\Tests\Common\TestLogger;
 use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tests\Unit\CleanEnvTrait;
+use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 
 final class FooEncoder implements Encoder
 {
+    private $data;
+
     public $payload = '';
 
-    public function encodeTraces(array $traces)
+    public function __construct($data)
     {
-        return $this->payload = json_encode($traces);
+        $this->data = $data;
+    }
+
+    public function encodeTraces(TracerInterface $tracer)
+    {
+        return $this->payload = json_encode($this->data);
     }
 
     public function getContentType()
@@ -65,10 +74,10 @@ final class HttpTest extends BaseTestCase
     {
         $logger = new TestLogger();
         Logger::set($logger);
-        $httpTransport = new Http(new FooEncoder());
         // Once encoded, this will send a payload that is 4 bytes over 10MB due to the added: [""]
         $tenMBString = str_repeat('a', Http::AGENT_REQUEST_BODY_LIMIT);
-        $httpTransport->send([$tenMBString]);
+        $httpTransport = new Http(new FooEncoder([$tenMBString]));
+        $httpTransport->send(Tracer::noop());
         $this->assertContains('dropping request', $logger->lastLog);
     }
 
@@ -76,11 +85,11 @@ final class HttpTest extends BaseTestCase
     {
         $logger = new TestLogger();
         Logger::set($logger);
-        $encoder = new FooEncoder();
-        $httpTransport = new Http($encoder);
         // The -4 bytes is to account for the added: [""]
         $tenMBString = str_repeat('a', Http::AGENT_REQUEST_BODY_LIMIT - 4);
-        $httpTransport->send([$tenMBString]);
+        $encoder = new FooEncoder([$tenMBString]);
+        $httpTransport = new Http($encoder);
+        $httpTransport->send(Tracer::noop());
         $this->assertNotContains('dropping request', $logger->lastLog);
         $this->assertSame(Http::AGENT_REQUEST_BODY_LIMIT, strlen($encoder->payload));
     }
