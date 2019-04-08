@@ -372,7 +372,7 @@ static zend_always_inline zend_function *get_current_fbc(zend_execute_data *exec
 #else
 #ifdef ZTS
         (void)TSRMLS_C;
-#endif // ZTS
+#endif  // ZTS
         fbc = EX(function_state).function;
 #endif
     }
