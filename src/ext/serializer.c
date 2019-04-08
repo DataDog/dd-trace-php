@@ -53,10 +53,9 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) /* 
 {
     zval *tmp;
     zend_string *string_key;
-    zend_ulong num_key;
     int is_assoc = -1;
 
-    ZEND_HASH_FOREACH_KEY_VAL_IND(ht, num_key, string_key, tmp) {
+    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, string_key, tmp) {
         if (is_assoc == -1) {
             is_assoc = string_key != NULL ? 1 : 0;
             if (is_assoc == 1) {
