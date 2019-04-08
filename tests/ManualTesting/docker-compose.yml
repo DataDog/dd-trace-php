@@ -1,0 +1,34 @@
+version: '3.6'
+
+services:
+
+  httpbin:
+    image: kennethreitz/httpbin
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /proc/:/host/proc/:ro
+    - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    ports:
+      - 8126:8126
+    environment:
+    - DD_API_KEY=${DATADOG_API_KEY}
+    - DD_APM_ENABLED=true
+
+  curl_missing_http_headers:
+    build:
+      context: CurlMissingHttpHeaders
+    depends_on:
+      - agent
+      - httpbin
+    working_dir: /var/app
+    environment:
+      - DD_TRACE_DEBUG=true
+      - DD_AGENT_HOST=agent
+      - APP_ENV=dd_testing
+    volumes:
+      - ./CurlMissingHttpHeaders:/var/app
+    command: php playground.php
+
