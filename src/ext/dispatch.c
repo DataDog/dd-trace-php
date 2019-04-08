@@ -370,6 +370,9 @@ static zend_always_inline zend_function *get_current_fbc(zend_execute_data *exec
 #if PHP_VERSION_ID < 50500
         fbc = fcall_fbc(execute_data TSRMLS_CC);
 #else
+#ifdef ZTS
+        (void)TSRMLS_C;
+#endif // ZTS
         fbc = EX(function_state).function;
 #endif
     }
