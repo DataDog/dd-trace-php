@@ -4,12 +4,13 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.18.0]
+
 **NOTE: THIS IS A BREAKING CHANGE RELEASE**
 
 This change should not impact most users.
 
 ### Added
-
 - MessagePack serialization for traces sent to the Agent with a new function `dd_trace_serialize_msgpack()` #378
 
 ### Changed
@@ -23,14 +24,12 @@ This change should not impact most users.
 ## [0.17.0]
 
 ### Added
-
 - Integration aware spans #360
 - Trace Analytics Client Configuration #367
 
 ## [0.16.1]
 
 ### Fixed
-
 - Error traces don't appear in "Total Errors" panel #375
 
 ## [0.16.0]
@@ -396,7 +395,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.17.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.18.0...HEAD
+[0.18.0]: https://github.com/DataDog/dd-trace-php/compare/0.17.0...0.18.0
 [0.17.0]: https://github.com/DataDog/dd-trace-php/compare/0.16.1...0.17.0
 [0.16.1]: https://github.com/DataDog/dd-trace-php/compare/0.16.0...0.16.1
 [0.16.0]: https://github.com/DataDog/dd-trace-php/compare/0.15.1...0.16.0
