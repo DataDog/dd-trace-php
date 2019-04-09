@@ -10,7 +10,7 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_SUBST(EXTRA_CFLAGS)
   fi
 
-  PHP_NEW_EXTENSION(ddtrace, src/ext/ddtrace.c src/ext/dispatch_setup.c src/ext/dispatch.c src/ext/request_hooks.c src/ext/compat_zend_string.c src/ext/dispatch_compat_php5.c src/ext/dispatch_compat_php7.c src/ext/backtrace.c src/ext/logging.c src/ext/env_config.c src/ext/serializer.c src/ext/mpack/mpack.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+  PHP_NEW_EXTENSION(ddtrace, src/ext/ddtrace.c src/ext/dispatch_setup.c src/ext/dispatch.c src/ext/request_hooks.c src/ext/compat_zend_string.c src/ext/dispatch_compat_php5.c src/ext/dispatch_compat_php7.c src/ext/backtrace.c src/ext/logging.c src/ext/env_config.c src/ext/serializer.c src/ext/mpack/mpack.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=c99)
   PHP_ADD_BUILD_DIR($ext_builddir/src/ext, 1)
 
   PHP_ADD_INCLUDE($ext_builddir)
