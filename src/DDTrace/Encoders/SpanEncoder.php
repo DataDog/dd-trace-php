@@ -2,7 +2,8 @@
 
 namespace DDTrace\Encoders;
 
-use DDTrace\Contracts\Span;
+use DDTrace\Span;
+use DDTrace\Data\Span as SpanData;
 use DDTrace\GlobalTracer;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Sampling\PrioritySampling;
@@ -15,43 +16,43 @@ final class SpanEncoder
      * @param Span $span
      * @return array
      */
-    public static function encode(Span $span)
+    public static function encode(SpanData $span)
     {
         self::logSpanDetailsIfDebug($span);
 
         $arraySpan = [
-            'trace_id' => (int) $span->getTraceId(),
-            'span_id' => (int) $span->getSpanId(),
-            'name' => $span->getOperationName(),
-            'resource' => $span->getResource(),
-            'service' => $span->getService(),
-            'start' => (int) ($span->getStartTime() . '000'),
-            'error' => $span->hasError() ? 1 : 0,
+            'trace_id' => (int) $span->context->traceId,
+            'span_id' => (int) $span->context->spanId,
+            'name' => $span->operationName,
+            'resource' => $span->resource,
+            'service' => $span->service,
+            'start' => (int) ($span->startTime . '000'),
+            'error' => $span->hasError ? 1 : 0,
         ];
 
-        if ($span->getType() !== null) {
-            $arraySpan['type'] = $span->getType();
+        if ($span->type !== null) {
+            $arraySpan['type'] = $span->type;
         }
 
-        if ($span->isFinished()) {
-            $arraySpan['duration'] = (int) ($span->getDuration() . '000');
+        if ($span->duration != null) { // is span finished ?
+            $arraySpan['duration'] = (int) ($span->duration . '000');
         }
 
-        if ($span->getParentId() !== null) {
-            $arraySpan['parent_id'] = (int) $span->getParentId();
+        if ($span->context->parentId !== null) {
+            $arraySpan['parent_id'] = (int) $span->context->parentId;
         }
 
-        $tags = $span->getAllTags();
+        $tags = $span->tags;
         if (!empty($tags)) {
             $arraySpan['meta'] = $tags;
         }
 
         // Handling metrics
         $metrics = [];
-        foreach ($span->getMetrics() as $metricName => $metricValue) {
+        foreach ($span->metrics as $metricName => $metricValue) {
             $metrics[$metricName] = $metricValue;
         }
-        if ($span->getContext()->isHostRoot()
+        if ($span->context->isHostRoot() //TODO: this is business
                 && ($prioritySampling = GlobalTracer::get()->getPrioritySampling()) !== PrioritySampling::UNKNOWN) {
             $metrics['_sampling_priority_v1'] = $prioritySampling;
         }
@@ -61,10 +62,10 @@ final class SpanEncoder
 
         // This is only for testing purposes and possibly temporary as we may want to add integration name to the span's
         // metadata in a consistent way across various tracers.
-        if (null !== $span->getIntegration()
+        if (null !== $span->integration
                 && false !== ($integrationTest = getenv('DD_TEST_INTEGRATION'))
                 && in_array($integrationTest, ['1', 'true'])) {
-            $arraySpan['meta']['integration.name'] = $span->getIntegration()->getName();
+            $arraySpan['meta']['integration.name'] = $span->integration->getName();
         }
 
         return $arraySpan;

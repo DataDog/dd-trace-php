@@ -19,7 +19,10 @@ use DDTrace\Exceptions\UnsupportedFormat;
 use DDTrace\Contracts\Scope as ScopeInterface;
 use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
+use DDTrace\Data\Span as SpanData;
+use DDTrace\Data\SpanContext as SpanContextData;
 use DDTrace\Contracts\Tracer as TracerInterface;
+use DDTrace\Time;
 
 final class Tracer implements TracerInterface
 {
@@ -320,22 +323,21 @@ final class Tracer implements TracerInterface
     public function getTracesAsArray()
     {
         $tracesToBeSent = [];
-
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
 
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
-
             foreach ($trace as $span) {
-                if (!$span->isFinished()) {
+                if ($span->duration === null) { // is span not finished
                     if (!$autoFinishSpans) {
                         $traceToBeSent = null;
                         break;
                     }
-                    $span->finish();
+                    $span->duration = (Time::now()) - $span->startTime; // finish span
                 }
                 // Basic processing. We will do it in a more structured way in the future, but for now we just invoke
                 // the internal (hard-coded) processors programmatically.
+
                 $this->traceAnalyticsProcessor->process($span);
                 $traceToBeSent[] = SpanEncoder::encode($span);
             }
@@ -345,7 +347,7 @@ final class Tracer implements TracerInterface
             }
 
             $tracesToBeSent[] = $traceToBeSent;
-            unset($this->traces[$traceToBeSent[0]['trace_id']]);
+            unset($this->traces[$traceToBeSent[0]['trace_id']]); //TODO check what is this ?
         }
 
         if (empty($tracesToBeSent)) {
