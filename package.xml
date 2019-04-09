@@ -63,6 +63,14 @@
                     <file name="serializer.c" role="src" />
                     <file name="serializer.h" role="src" />
                     <file name="version.h" role="src" />
+                    <dir name="mpack">
+                        <file name="AUTHORS.md" role="doc" />
+                        <file name="CHANGELOG.md" role="doc" />
+                        <file name="README.md" role="doc" />
+                        <file name="LICENSE" role="doc" />
+                        <file name="mpack.c" role="src" />
+                        <file name="mpack.h" role="src" />
+                    </dir>
                 </dir>
             </dir>
             <dir name="tests">
