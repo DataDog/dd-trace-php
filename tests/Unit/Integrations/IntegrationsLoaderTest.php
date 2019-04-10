@@ -34,6 +34,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
     {
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isEnabled' => false,
+            'isDebugModeEnabled' => false,
         ]));
 
         DummyIntegration1::$value = Integration::LOADED;
