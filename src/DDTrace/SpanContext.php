@@ -6,7 +6,7 @@ use ArrayIterator;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Data\SpanContext as SpanContextData;
 
-final class SpanContext extends SpanContextData implements SpanContextInterface
+final class SpanContext extends SpanContextData
 {
     public function __construct(
         $traceId,
@@ -15,11 +15,7 @@ final class SpanContext extends SpanContextData implements SpanContextInterface
         array $baggageItems = [],
         $isDistributedTracingActivationContext = false
     ) {
-        $this->traceId = $traceId;
-        $this->spanId = $spanId;
-        $this->parentId = $parentId;
-        $this->baggageItems = $baggageItems;
-        $this->isDistributedTracingActivationContext = $isDistributedTracingActivationContext;
+        parent::__construct($traceId, $spanId, $parentId, $baggageItems, $isDistributedTracingActivationContext);
     }
 
     public static function createAsChild(SpanContextInterface $parentContext)

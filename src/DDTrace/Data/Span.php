@@ -4,8 +4,10 @@ namespace DDTrace\Data;
 
 use DDTrace\Time;
 use DDTrace\Data\SpanContext as SpanContextData;
+use DDTrace\Contracts\Span as SpanInterface;
+use DDTrace\Integrations\Integration;
 
-class Span
+abstract class Span implements SpanInterface
 {
     /**
      * Operation Name is the name of the operation being measured. Some examples

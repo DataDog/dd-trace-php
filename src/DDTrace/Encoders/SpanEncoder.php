@@ -52,7 +52,7 @@ final class SpanEncoder
         foreach ($span->metrics as $metricName => $metricValue) {
             $metrics[$metricName] = $metricValue;
         }
-        if ($span->context->isHostRoot() //TODO: this is business
+        if ($span->context->isHostRoot()
                 && ($prioritySampling = GlobalTracer::get()->getPrioritySampling()) !== PrioritySampling::UNKNOWN) {
             $metrics['_sampling_priority_v1'] = $prioritySampling;
         }

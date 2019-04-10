@@ -15,7 +15,7 @@ use Exception;
 use InvalidArgumentException;
 use Throwable;
 
-final class Span extends SpanData implements SpanInterface
+final class Span extends SpanData
 {
     private static $METRIC_NAMES = [ Tag::ANALYTICS_KEY => true ];
     // associative array for quickly checking if tag has special meaning, should include metric_names
@@ -32,7 +32,7 @@ final class Span extends SpanData implements SpanInterface
     /**
      * Span constructor.
      * @param string $operationName
-     * @param SpanContextInterface $context
+     * @param SpanContext $context
      * @param string $service
      * @param string $resource
      * @param int|null $startTime
