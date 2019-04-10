@@ -360,14 +360,14 @@ final class Tracer implements TracerInterface
 
     private function record(Span $span)
     {
-        if (!array_key_exists($span->getTraceId(), $this->traces)) {
-            $this->traces[$span->getTraceId()] = [];
+        if (!array_key_exists($span->context->traceId, $this->traces)) {
+            $this->traces[$span->context->traceId] = [];
         }
 
-        $this->traces[$span->getTraceId()][$span->getSpanId()] = $span;
+        $this->traces[$span->context->traceId][$span->context->spanId] = $span;
         self::logDebug('New span {operation} {resource} recorded.', [
-            'operation' => $span->getOperationName(),
-            'resource' => $span->getResource(),
+            'operation' => $span->operationName,
+            'resource' => $span->resource,
         ]);
     }
 
