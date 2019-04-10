@@ -15,6 +15,7 @@ curl_setopt_array($ch, [
     CURLOPT_FAILONERROR => false,
     CURLOPT_HEADER => false,
 ]);
+//curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json', 'Host: payments.api.com']);
 $found = json_decode(curl_exec($ch), 1);
 
 error_log("Sent headers: " . print_r($found, 1));

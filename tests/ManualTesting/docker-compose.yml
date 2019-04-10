@@ -24,10 +24,16 @@ services:
       - agent
       - httpbin
     working_dir: /var/app
+    ports:
+      - "2000:2000"
+      - "50010:50010"
+    privileged: true
+    container_name: devenv
     environment:
       - DD_TRACE_DEBUG=true
       - DD_AGENT_HOST=agent
       - APP_ENV=dd_testing
     volumes:
       - ./CurlMissingHttpHeaders:/var/app
-    command: php playground.php
+    #command: php playground.php
+    command: bash
