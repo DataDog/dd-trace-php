@@ -17,6 +17,18 @@ use Throwable;
 
 final class Span extends SpanData implements SpanInterface
 {
+    private const METRIC_NAMES = [  Tag::ANALYTICS_KEY => true ];
+    // associative array for quickly checking if tag has special meaning, should include metric_names
+    private const SPECIAL_TAGS = [
+        Tag::ANALYTICS_KEY => true,
+        Tag::ERROR => true,
+        Tag::SERVICE_NAME => true,
+        Tag::RESOURCE_NAME => true,
+        Tag::SPAN_TYPE => true,
+        Tag::HTTP_URL => true,
+        Tag::HTTP_STATUS_CODE => true,
+    ];
+
     /**
      * Span constructor.
      * @param string $operationName
@@ -112,48 +124,49 @@ final class Span extends SpanData implements SpanInterface
      */
     public function setTag($key, $value, $setIfFinished = false)
     {
-        if ($this->isFinished() && !$setIfFinished) {
+        if ($this->duration !== null && !$setIfFinished) { // if finished
             return;
         }
-
         if ($key !== (string)$key) {
             throw InvalidSpanArgument::forTagKey($key);
         }
 
-        if ($key === Tag::ERROR) {
-            $this->setError($value);
-            return;
-        }
-
-        if ($key === Tag::SERVICE_NAME) {
-            $this->service = $value;
-            return;
-        }
-
-        if ($key === Tag::RESOURCE_NAME) {
-            $this->resource = (string)$value;
-            return;
-        }
-
-        if ($key === Tag::SPAN_TYPE) {
-            $this->type = $value;
-            return;
-        }
-
-        if ($key === Tag::HTTP_URL) {
-            $value = Urls::sanitize((string)$value);
-        }
-
-        if ($key === Tag::HTTP_STATUS_CODE && $value >= 500) {
-            $this->hasError = true;
-            if (!isset($this->tags[Tag::ERROR_TYPE])) {
-                $this->tags[Tag::ERROR_TYPE] = 'Internal Server Error';
+        if (array_key_exists($key, self::SPECIAL_TAGS)) {
+            if ($key === Tag::ERROR) {
+                $this->setError($value);
+                return;
             }
-        }
 
-        if (in_array($key, self::getMetricsNames())) {
-            $this->setMetric($key, $value);
-            return;
+            if ($key === Tag::SERVICE_NAME) {
+                $this->service = $value;
+                return;
+            }
+
+            if ($key === Tag::RESOURCE_NAME) {
+                $this->resource = (string)$value;
+                return;
+            }
+
+            if ($key === Tag::SPAN_TYPE) {
+                $this->type = $value;
+                return;
+            }
+
+            if ($key === Tag::HTTP_URL) {
+                $value = Urls::sanitize((string)$value);
+            }
+
+            if ($key === Tag::HTTP_STATUS_CODE && $value >= 500) {
+                $this->hasError = true;
+                if (!isset($this->tags[Tag::ERROR_TYPE])) {
+                    $this->tags[Tag::ERROR_TYPE] = 'Internal Server Error';
+                }
+            }
+
+            if (array_key_exists($key, self::METRIC_NAMES)) {
+                $this->setMetric($key, $value);
+                return;
+            }
         }
 
         $this->tags[$key] = (string)$value;
@@ -224,7 +237,7 @@ final class Span extends SpanData implements SpanInterface
      */
     public function setResource($resource)
     {
-        $this->setTag(Tag::RESOURCE_NAME, $resource);
+        $this->resource = (string)$resource;
     }
 
     /**
@@ -237,7 +250,7 @@ final class Span extends SpanData implements SpanInterface
      */
     public function setError($error)
     {
-        if ($this->isFinished()) {
+        if ($this->duration !== null) { // if finished
             return;
         }
 
