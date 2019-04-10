@@ -30,7 +30,7 @@ final class TraceAnalyticsProcessor
     /**
      * Process the span adding the trace analytics client config option when appropriate.
      *
-     * @param Span $span
+     * @param SpanData $span
      */
     public function process(SpanData $span)
     {

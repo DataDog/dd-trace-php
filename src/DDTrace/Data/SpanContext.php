@@ -2,7 +2,9 @@
 
 namespace DDTrace\Data;
 
-class SpanContext
+use DDTrace\Contracts\SpanContext as SpanContextInterface;
+
+abstract class SpanContext implements SpanContextInterface
 {
     /**
      * The unique integer (64-bit unsigned) ID of the trace containing this span.

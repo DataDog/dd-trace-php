@@ -365,10 +365,12 @@ final class Tracer implements TracerInterface
         }
 
         $this->traces[$span->context->traceId][$span->context->spanId] = $span;
-        self::logDebug('New span {operation} {resource} recorded.', [
-            'operation' => $span->operationName,
-            'resource' => $span->resource,
-        ]);
+        if (Configuration::get()->isDebugModeEnabled()) {
+            self::logDebug('New span {operation} {resource} recorded.', [
+                'operation' => $span->operationName,
+                'resource' => $span->resource,
+            ]);
+        }
     }
 
     /**
