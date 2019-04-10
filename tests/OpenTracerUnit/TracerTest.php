@@ -203,6 +203,7 @@ final class TracerTest extends TestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isAutofinishSpansEnabled' => true,
             'isPrioritySamplingEnabled' => false,
+            'isDebugModeEnabled' => false,
         ]));
 
         $transport = new DebugTransport();

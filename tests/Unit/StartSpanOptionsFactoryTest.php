@@ -46,6 +46,7 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
     {
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isDistributedTracingEnabled' => false,
+            'isDebugModeEnabled' => false,
         ]));
         $this->tracer->shouldReceive('extract')->never();
 

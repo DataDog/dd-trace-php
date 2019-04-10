@@ -347,7 +347,7 @@ final class Tracer implements TracerInterface
             }
 
             $tracesToBeSent[] = $traceToBeSent;
-            unset($this->traces[$traceToBeSent[0]['trace_id']]); //TODO check what is this ?
+            unset($this->traces[$traceToBeSent[0]['trace_id']]);
         }
 
         if (empty($tracesToBeSent)) {
