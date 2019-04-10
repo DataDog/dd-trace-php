@@ -17,9 +17,9 @@ use Throwable;
 
 final class Span extends SpanData implements SpanInterface
 {
-    const METRIC_NAMES = [ Tag::ANALYTICS_KEY => true ];
+    private static $METRIC_NAMES = [ Tag::ANALYTICS_KEY => true ];
     // associative array for quickly checking if tag has special meaning, should include metric_names
-    const SPECIAL_TAGS = [
+    private static $SPECIAL_TAGS = [
         Tag::ANALYTICS_KEY => true,
         Tag::ERROR => true,
         Tag::SERVICE_NAME => true,
@@ -131,7 +131,7 @@ final class Span extends SpanData implements SpanInterface
             throw InvalidSpanArgument::forTagKey($key);
         }
 
-        if (array_key_exists($key, self::SPECIAL_TAGS)) {
+        if (array_key_exists($key, self::$SPECIAL_TAGS)) {
             if ($key === Tag::ERROR) {
                 $this->setError($value);
                 return;
@@ -163,7 +163,7 @@ final class Span extends SpanData implements SpanInterface
                 }
             }
 
-            if (array_key_exists($key, self::METRIC_NAMES)) {
+            if (array_key_exists($key, self::$METRIC_NAMES)) {
                 $this->setMetric($key, $value);
                 return;
             }
@@ -223,16 +223,6 @@ final class Span extends SpanData implements SpanInterface
     }
 
     /**
-     * @return string[] The known metrics names
-     */
-    private static function getMetricsNames()
-    {
-        return [
-            Tag::ANALYTICS_KEY,
-        ];
-    }
-
-    /**
      * {@inheritdoc}
      */
     public function setResource($resource)
@@ -280,7 +270,7 @@ final class Span extends SpanData implements SpanInterface
      */
     public function setRawError($message, $type)
     {
-        if ($this->isFinished()) {
+        if ($this->duration !== null) { // if finished
             return;
         }
 
@@ -299,7 +289,7 @@ final class Span extends SpanData implements SpanInterface
      */
     public function finish($finishTime = null)
     {
-        if ($this->isFinished()) {
+        if ($this->duration !== null) { // if finished
             return;
         }
 
