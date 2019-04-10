@@ -17,9 +17,9 @@ use Throwable;
 
 final class Span extends SpanData implements SpanInterface
 {
-    private const METRIC_NAMES = [  Tag::ANALYTICS_KEY => true ];
+    const METRIC_NAMES = [ Tag::ANALYTICS_KEY => true ];
     // associative array for quickly checking if tag has special meaning, should include metric_names
-    private const SPECIAL_TAGS = [
+    const SPECIAL_TAGS = [
         Tag::ANALYTICS_KEY => true,
         Tag::ERROR => true,
         Tag::SERVICE_NAME => true,
