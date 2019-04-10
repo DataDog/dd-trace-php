@@ -1,5 +1,7 @@
 --TEST--
 dd_trace_serialize_msgpack() error conditions
+--INI--
+display_errors=0
 --FILE--
 <?php
 array_map(function ($data) {

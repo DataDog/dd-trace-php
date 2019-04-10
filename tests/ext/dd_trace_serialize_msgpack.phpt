@@ -5,6 +5,8 @@ The "EXPECT" section was generated with the following tool:
 https://github.com/ludocode/msgpack-tools
 Example command:
 $ echo '{"compact": true, "schema": 0}' | json2msgpack | hexdump
+--SKIPIF--
+<?php if (PHP_INT_SIZE !== 8) die('skip test for 64-bit platforms only'); ?>
 --FILE--
 <?php
 function dd_trace_unserialize_trace_hex($message) {
