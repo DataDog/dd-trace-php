@@ -2,6 +2,7 @@
 dd_trace_serialize_msgpack() error conditions in strict mode
 --INI--
 ddtrace.strict_mode=1
+display_errors=0
 --FILE--
 <?php
 array_map(function ($data) {
