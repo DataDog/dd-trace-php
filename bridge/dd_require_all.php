@@ -52,8 +52,6 @@ require_once __DIR__ . '/../src/DDTrace/Exceptions/InvalidReferencesSet.php';
 require_once __DIR__ . '/../src/DDTrace/Exceptions/InvalidSpanOption.php';
 require_once __DIR__ . '/../src/DDTrace/NoopScope.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/DefaultIntegrationConfiguration.php';
-// require_once __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/V1/TraceRequest.php';
-// require_once __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php';
 
 // Integrations:
 require_once __DIR__ . '/../src/DDTrace/Integrations/Integration.php';
@@ -70,14 +68,10 @@ require_once __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoClientIntegratio
 require_once __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoDBIntegration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoCollectionIntegration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoIntegration.php';
-// require_once __DIR__ . '/../src/DDTrace/Integrations/Symfony/V4/SymfonyBundle.php';
-// require_once __DIR__ . '/../src/DDTrace/Integrations/Symfony/V3/SymfonyBundle.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonyIntegration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchIntegration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php';
-// require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/V5/LaravelIntegrationLoader.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.php';
-// require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelProvider.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleIntegration.php';
 require_once __DIR__ . '/../src/DDTrace/GlobalTracer.php';
 require_once __DIR__ . '/../src/DDTrace/Propagators/TextMap.php';
