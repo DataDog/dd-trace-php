@@ -11,11 +11,6 @@ class EnvVariableRegistry implements Registry
     /**
      * @var array
      */
-    private $keyTranslator = [];
-
-    /**
-     * @var array
-     */
     private $registry;
 
     /**
@@ -40,15 +35,7 @@ class EnvVariableRegistry implements Registry
      */
     protected function get($key)
     {
-        if (array_key_exists($key, $this->keyTranslator)) {
-            $key = $this->keyTranslator[$key];
-        } else {
-            $new_key = $this->convertKeyToEnvVariableName($key);
-            $this->keyTranslator[$key] = $new_key;
-            $key = $new_key;
-        }
-
-        $value = getenv($key);
+        $value = getenv($this->convertKeyToEnvVariableName($key));
         if (false === $value) {
             return null;
         }
