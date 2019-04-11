@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../src/DDTrace/autoload.php';
+// require_once __DIR__ . '/../src/DDTrace/autoload.php';
 require_once __DIR__ . '/../src/DDTrace/NoopTracer.php';
 require_once __DIR__ . '/../src/DDTrace/Tracer.php';
 require_once __DIR__ . '/../src/DDTrace/NoopScopeManager.php';
@@ -67,7 +67,7 @@ require_once __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoIntegration.php'
 require_once __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonyIntegration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchIntegration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php';
-require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/V5/LaravelIntegrationLoader.php';
+// require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/V5/LaravelIntegrationLoader.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.php';
 // require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelProvider.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleIntegration.php';
