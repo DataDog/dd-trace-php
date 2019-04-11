@@ -55,14 +55,6 @@ class ZendFrameworkIntegration extends Integration
             return self::NOT_AVAILABLE;
         }
 
-        if (!class_exists('DDTrace\Integrations\ZendFramework\V1\TraceRequest')) {
-            require_once __DIR__ . '/V1/TraceRequest.php';
-        }
-
-        if (!class_exists('DDTrace_Ddtrace')) {
-            require_once __DIR__ . '/V1/Ddtrace.php';
-        }
-
         // Some frameworks, e.g. Yii registers autoloaders that fails with non-psr4 classes. For this reason the
         // Zend framework integration is not compatible with some of them
         if (Runtime::isAutoloaderRegistered('YiiBase', 'autoload')) {
@@ -73,7 +65,16 @@ class ZendFrameworkIntegration extends Integration
             $args = func_get_args();
             $options = $args[0];
 
+            if (!class_exists('DDTrace_Ddtrace')) {
+                require_once __DIR__ . '/V1/Ddtrace.php';
+            }
+
+            if (!class_exists('DDTrace\Integrations\ZendFramework\V1\TraceRequest')) {
+                require_once __DIR__ . '/V1/TraceRequest.php';
+            }
+
             $classExist = class_exists('DDTrace_Ddtrace');
+
             if (!$classExist && !isset($options['resources']['ddtrace'])) {
                 $options['autoloaderNamespaces'][] = 'DDTrace_';
                 $options['pluginPaths']['DDTrace'] = __DIR__ . '/V1';
