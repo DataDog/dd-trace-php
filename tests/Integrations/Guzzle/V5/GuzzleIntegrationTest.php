@@ -157,6 +157,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             'isDistributedTracingEnabled' => false,
             'isPrioritySamplingEnabled' => false,
             'getGlobalTags' => [],
+            'isDebugModeEnabled' => false,
         ]));
 
         $this->isolateTracer(function () use (&$found, $client) {

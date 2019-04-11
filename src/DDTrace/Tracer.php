@@ -320,22 +320,21 @@ final class Tracer implements TracerInterface
     public function getTracesAsArray()
     {
         $tracesToBeSent = [];
-
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
 
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
-
             foreach ($trace as $span) {
-                if (!$span->isFinished()) {
+                if ($span->duration === null) { // is span not finished
                     if (!$autoFinishSpans) {
                         $traceToBeSent = null;
                         break;
                     }
-                    $span->finish();
+                    $span->duration = (Time::now()) - $span->startTime; // finish span
                 }
                 // Basic processing. We will do it in a more structured way in the future, but for now we just invoke
                 // the internal (hard-coded) processors programmatically.
+
                 $this->traceAnalyticsProcessor->process($span);
                 $traceToBeSent[] = SpanEncoder::encode($span);
             }
@@ -358,15 +357,17 @@ final class Tracer implements TracerInterface
 
     private function record(Span $span)
     {
-        if (!array_key_exists($span->getTraceId(), $this->traces)) {
-            $this->traces[$span->getTraceId()] = [];
+        if (!array_key_exists($span->context->traceId, $this->traces)) {
+            $this->traces[$span->context->traceId] = [];
         }
 
-        $this->traces[$span->getTraceId()][$span->getSpanId()] = $span;
-        self::logDebug('New span {operation} {resource} recorded.', [
-            'operation' => $span->getOperationName(),
-            'resource' => $span->getResource(),
-        ]);
+        $this->traces[$span->context->traceId][$span->context->spanId] = $span;
+        if (Configuration::get()->isDebugModeEnabled()) {
+            self::logDebug('New span {operation} {resource} recorded.', [
+                'operation' => $span->operationName,
+                'resource' => $span->resource,
+            ]);
+        }
     }
 
     /**

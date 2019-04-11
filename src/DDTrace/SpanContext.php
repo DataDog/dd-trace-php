@@ -4,54 +4,10 @@ namespace DDTrace;
 
 use ArrayIterator;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
+use DDTrace\Data\SpanContext as SpanContextData;
 
-final class SpanContext implements SpanContextInterface
+final class SpanContext extends SpanContextData
 {
-    /**
-     * The unique integer (64-bit unsigned) ID of the trace containing this span.
-     * It is stored in hexadecimal representation.
-     *
-     * @var string
-     */
-    private $traceId;
-
-    /**
-     * The span integer (64-bit unsigned) ID.
-     * It is stored in hexadecimal representation.
-     *
-     * @var string
-     */
-    private $spanId;
-
-    /**
-     * The span integer ID of the parent span.
-     * It is stored in hexadecimal representation.
-     *
-     * @var string|null
-     */
-    private $parentId;
-
-    private $baggageItems;
-
-    /**
-     * Whether or not this SpanContext represent a distributed tracing remote context.
-     * When the Tracer::extract() extracts a span context because of distributed tracing then this property is true,
-     * otherwise is false.
-     *
-     * @var bool
-     */
-    private $isDistributedTracingActivationContext;
-
-    /**
-     * @var int
-     */
-    private $propagatedPrioritySampling;
-
-    /**
-     * @var SpanContextInterface
-     */
-    private $parentContext;
-
     public function __construct(
         $traceId,
         $spanId,
@@ -174,6 +130,13 @@ final class SpanContext implements SpanContextInterface
 
     public function isEqual(SpanContextInterface $spanContext)
     {
+        if ($spanContext instanceof SpanContextData) {
+            return $this->traceId === $spanContext->traceId
+                && $this->spanId === $spanContext->spanId
+                && $this->parentId === $spanContext->parentId
+                && $this->baggageItems === $spanContext->baggageItems;
+        }
+
         return
             $this->traceId === $spanContext->getTraceId()
             && $this->spanId === $spanContext->getSpanId()
