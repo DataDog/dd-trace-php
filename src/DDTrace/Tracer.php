@@ -19,10 +19,7 @@ use DDTrace\Exceptions\UnsupportedFormat;
 use DDTrace\Contracts\Scope as ScopeInterface;
 use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
-use DDTrace\Data\Span as SpanData;
-use DDTrace\Data\SpanContext as SpanContextData;
 use DDTrace\Contracts\Tracer as TracerInterface;
-use DDTrace\Time;
 
 final class Tracer implements TracerInterface
 {

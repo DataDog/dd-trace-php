@@ -13,7 +13,7 @@ final class SpanEncoder
     use LoggingTrait;
 
     /**
-     * @param Span $span
+     * @param SpanData $span
      * @return array
      */
     public static function encode(SpanData $span)
