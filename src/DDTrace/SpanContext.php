@@ -15,7 +15,11 @@ final class SpanContext extends SpanContextData
         array $baggageItems = [],
         $isDistributedTracingActivationContext = false
     ) {
-        parent::__construct($traceId, $spanId, $parentId, $baggageItems, $isDistributedTracingActivationContext);
+        $this->traceId = $traceId;
+        $this->spanId = $spanId;
+        $this->parentId = $parentId;
+        $this->baggageItems = $baggageItems;
+        $this->isDistributedTracingActivationContext = $isDistributedTracingActivationContext;
     }
 
     public static function createAsChild(SpanContextInterface $parentContext)
@@ -126,8 +130,8 @@ final class SpanContext extends SpanContextData
 
     public function isEqual(SpanContextInterface $spanContext)
     {
-        if (is_subclass_of($spanContext, "DDTrace\Data\SpanContext")) {
-            return $this->traceId == $spanContext->traceId
+        if ($spanContext instanceof SpanContextData) {
+            return $this->traceId === $spanContext->traceId
                 && $this->spanId === $spanContext->spanId
                 && $this->parentId === $spanContext->parentId
                 && $this->baggageItems === $spanContext->baggageItems;

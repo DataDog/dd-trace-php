@@ -7,16 +7,16 @@ use DDTrace\Contracts\SpanContext as SpanContextInterface;
 abstract class SpanContext implements SpanContextInterface
 {
     /**
-     * The unique integer (64-bit unsigned) ID of the trace containing this span.
-     * It is stored in hexadecimal representation.
+     * The unique integer (63-bit unsigned) ID of the trace containing this span.
+     * It is stored in decimal representation.
      *
      * @var string
      */
     public $traceId;
 
     /**
-     * The span integer (64-bit unsigned) ID.
-     * It is stored in hexadecimal representation.
+     * The span integer (63-bit unsigned) ID.
+     * It is stored in devimal representation.
      *
      * @var string
      */
@@ -24,7 +24,7 @@ abstract class SpanContext implements SpanContextInterface
 
     /**
      * The span integer ID of the parent span.
-     * It is stored in hexadecimal representation.
+     * It is stored in decimal representation.
      *
      * @var string|null
      */
@@ -53,18 +53,4 @@ abstract class SpanContext implements SpanContextInterface
      * @var array
      */
     public $baggageItems;
-
-    public function __construct(
-        $traceId,
-        $spanId,
-        $parentId = null,
-        array $baggageItems = [],
-        $isDistributedTracingActivationContext = false
-    ) {
-        $this->traceId = $traceId;
-        $this->spanId = $spanId;
-        $this->parentId = $parentId;
-        $this->baggageItems = $baggageItems;
-        $this->isDistributedTracingActivationContext = $isDistributedTracingActivationContext;
-    }
 }

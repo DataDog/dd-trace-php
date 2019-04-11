@@ -14,16 +14,17 @@ use DDTrace\Tag;
 final class TraceAnalyticsProcessor
 {
     /**
+    * @param array $metrics
     * @param bool|float $value
     */
-    public static function normalizeAnalyticsValue(&$array, $value)
+    public static function normalizeAnalyticsValue(&$metrics, $value)
     {
-        if (true === $value || null === $value) {
-            $array[Tag::ANALYTICS_KEY] = 1.0;
+        if (true === $value) {
+            $metrics[Tag::ANALYTICS_KEY] = 1.0;
         } elseif (false === $value) {
-            unset($array[Tag::ANALYTICS_KEY]);
+            unset($metrics[Tag::ANALYTICS_KEY]);
         } elseif (is_numeric($value) && 0 <= $value && $value <= 1) {
-            $array[Tag::ANALYTICS_KEY] = (float)$value;
+            $metrics[Tag::ANALYTICS_KEY] = (float)$value;
         }
     }
 

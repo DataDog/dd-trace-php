@@ -31,7 +31,7 @@ abstract class Span implements SpanInterface
      * You can track thousands of resources (not millions or billions) so
      * prefer normalized resources like "/user/{id}" to "/user/123".
      *
-     * Resources should only be set on an app's top level spans.
+     * Note that resource name will be inherited from parent if its not set.
      *
      * @var string
      */
@@ -39,9 +39,9 @@ abstract class Span implements SpanInterface
 
     /**
      * Service is the name of the process doing a particular job. Some
-     * examples might be "user-database" or "datadog-web-app". Services
-     * will be inherited from parents, so only set this in your app's
-     * top level span.
+     * examples might be "user-database" or "datadog-web-app".
+     *
+     * Note that service name will be inherited from parent if its not set.
      *
      * @var string
      */
@@ -87,26 +87,4 @@ abstract class Span implements SpanInterface
      * @var bool Whether or not this trace can be even considered for trace analytics automatic configuration.
      */
     public $isTraceAnalyticsCandidate = false;
-
-    /**
-     * Span constructor.
-     * @param string $operationName
-     * @param SpanContextData $context
-     * @param string $service
-     * @param string $resource
-     * @param int|null $startTime
-     */
-    public function __construct(
-        $operationName,
-        SpanContextData $context,
-        $service,
-        $resource,
-        $startTime = null
-    ) {
-        $this->context = $context;
-        $this->operationName = (string)$operationName;
-        $this->service = (string)$service;
-        $this->resource = (string)$resource;
-        $this->startTime = $startTime ?: Time::now();
-    }
 }

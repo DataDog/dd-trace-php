@@ -13,7 +13,7 @@ final class SpanEncoder
     use LoggingTrait;
 
     /**
-     * @param Span $span
+     * @param SpanData $span
      * @return array
      */
     public static function encode(SpanData $span)
@@ -34,7 +34,7 @@ final class SpanEncoder
             $arraySpan['type'] = $span->type;
         }
 
-        if ($span->duration != null) { // is span finished ?
+        if ($span->duration !== null) { // is span finished ?
             $arraySpan['duration'] = (int) ($span->duration . '000');
         }
 

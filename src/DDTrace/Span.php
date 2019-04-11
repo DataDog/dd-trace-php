@@ -3,10 +3,8 @@
 namespace DDTrace;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Data\Span as SpanData;
 
-use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use DDTrace\SpanContext as SpanContext;
 use DDTrace\Http\Urls;
@@ -17,9 +15,9 @@ use Throwable;
 
 final class Span extends SpanData
 {
-    private static $METRIC_NAMES = [ Tag::ANALYTICS_KEY => true ];
+    private static $metricNames = [ Tag::ANALYTICS_KEY => true ];
     // associative array for quickly checking if tag has special meaning, should include metric_names
-    private static $SPECIAL_TAGS = [
+    private static $specialTags = [
         Tag::ANALYTICS_KEY => true,
         Tag::ERROR => true,
         Tag::SERVICE_NAME => true,
@@ -44,7 +42,11 @@ final class Span extends SpanData
         $resource,
         $startTime = null
     ) {
-        parent::__construct($operationName, $context, $service, $resource, $startTime);
+        $this->context = $context;
+        $this->operationName = (string)$operationName;
+        $this->service = (string)$service;
+        $this->resource = (string)$resource;
+        $this->startTime = $startTime ?: Time::now();
     }
 
     /**
@@ -131,7 +133,7 @@ final class Span extends SpanData
             throw InvalidSpanArgument::forTagKey($key);
         }
 
-        if (array_key_exists($key, self::$SPECIAL_TAGS)) {
+        if (array_key_exists($key, self::$specialTags)) {
             if ($key === Tag::ERROR) {
                 $this->setError($value);
                 return;
@@ -163,7 +165,7 @@ final class Span extends SpanData
                 }
             }
 
-            if (array_key_exists($key, self::$METRIC_NAMES)) {
+            if (array_key_exists($key, self::$metricNames)) {
                 $this->setMetric($key, $value);
                 return;
             }
