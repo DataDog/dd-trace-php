@@ -74,8 +74,11 @@ function extract_autoloader_class_and_method($loader)
  */
 function dd_register_autoloader()
 {
-    require_once __DIR__ . '/dd_require_once_autoloader.php';
-    spl_autoload_register(['\DDTrace\Bridge\RequireOnceAutoloader', 'load'], true, true);
+    require_once __DIR__ . '/dd_required_deps_autoloader.php';
+    require_once __DIR__ . '/dd_optional_deps_autoloader.php';
+
+    spl_autoload_register(['\DDTrace\Bridge\OptionalDepsAutoloader', 'load'], true, true);
+    spl_autoload_register(['\DDTrace\Bridge\RequiredDepsAutoloader', 'load'], true, true);
 }
 
 /**
@@ -83,7 +86,8 @@ function dd_register_autoloader()
  */
 function dd_unregister_autoloader()
 {
-    spl_autoload_unregister(['\DDTrace\Bridge\RequireOnceAutoloader', 'load']);
+    spl_autoload_unregister(['\DDTrace\Bridge\RequiredDepsAutoloader', 'load']);
+    spl_autoload_unregister(['\DDTrace\Bridge\OptionalDepsAutoloader', 'load']);
 }
 
 /**

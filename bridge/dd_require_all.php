@@ -27,7 +27,6 @@ require_once __DIR__ . '/../src/DDTrace/Util/ArrayKVStore.php';
 require_once __DIR__ . '/../src/DDTrace/Util/TryCatchFinally.php';
 require_once __DIR__ . '/../src/DDTrace/Util/CodeTracer.php';
 require_once __DIR__ . '/../src/DDTrace/Processing/TraceAnalyticsProcessor.php';
-require_once __DIR__ . '/../src/DDTrace/NoopSpan.php';
 require_once __DIR__ . '/../src/DDTrace/Tag.php';
 require_once __DIR__ . '/../src/DDTrace/Scope.php';
 require_once __DIR__ . '/../src/DDTrace/Reference.php';
@@ -39,18 +38,23 @@ require_once __DIR__ . '/../src/DDTrace/Configuration.php';
 require_once __DIR__ . '/../src/DDTrace/Bootstrap.php';
 require_once __DIR__ . '/../src/DDTrace/Encoders/SpanEncoder.php';
 require_once __DIR__ . '/../src/DDTrace/Encoders/MessagePack.php';
-require_once __DIR__ . '/../src/DDTrace/Encoders/Json.php';
 require_once __DIR__ . '/../src/DDTrace/Exceptions/InvalidReferenceArgument.php';
 require_once __DIR__ . '/../src/DDTrace/Exceptions/UnsupportedFormat.php';
 require_once __DIR__ . '/../src/DDTrace/Exceptions/InvalidSpanArgument.php';
 require_once __DIR__ . '/../src/DDTrace/Exceptions/InvalidReferencesSet.php';
 require_once __DIR__ . '/../src/DDTrace/Exceptions/InvalidSpanOption.php';
-require_once __DIR__ . '/../src/DDTrace/NoopScope.php';
 
-require_once __DIR__ . '/../src/DDTrace/Integrations/AbstractIntegrationConfiguration.php';
-require_once __DIR__ . '/../src/DDTrace/Integrations/DefaultIntegrationConfiguration.php';
+require_once __DIR__ . '/../src/DDTrace/GlobalTracer.php';
+require_once __DIR__ . '/../src/DDTrace/Propagators/TextMap.php';
+require_once __DIR__ . '/../src/DDTrace/Propagators/CurlHeadersMap.php';
+require_once __DIR__ . '/../src/DDTrace/ID.php';
+require_once __DIR__ . '/../src/DDTrace/Http/Urls.php';
+require_once __DIR__ . '/../src/DDTrace/Http/Request.php';
+require_once __DIR__ . '/../src/DDTrace/ScopeManager.php';
 
 // Integrations:
+require_once __DIR__ . '/../src/DDTrace/Integrations/AbstractIntegrationConfiguration.php';
+require_once __DIR__ . '/../src/DDTrace/Integrations/DefaultIntegrationConfiguration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Integration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/ZendFrameworkIntegration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Web/WebIntegration.php';
@@ -70,16 +74,7 @@ require_once __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSea
 require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleIntegration.php';
-require_once __DIR__ . '/../src/DDTrace/GlobalTracer.php';
-require_once __DIR__ . '/../src/DDTrace/Propagators/TextMap.php';
-require_once __DIR__ . '/../src/DDTrace/Propagators/CurlHeadersMap.php';
-require_once __DIR__ . '/../src/DDTrace/Propagators/Noop.php';
-require_once __DIR__ . '/../src/DDTrace/ID.php';
-require_once __DIR__ . '/../src/DDTrace/Http/Urls.php';
-require_once __DIR__ . '/../src/DDTrace/Http/Request.php';
-require_once __DIR__ . '/../src/DDTrace/Encoders/Json.php';
-require_once __DIR__ . '/../src/DDTrace/Encoders/Noop.php';
-require_once __DIR__ . '/../src/DDTrace/ScopeManager.php';
+
 // Loggers
 require_once __DIR__ . '/../src/DDTrace/Log/Logger.php';
 require_once __DIR__ . '/../src/DDTrace/Log/LoggerInterface.php';
@@ -87,12 +82,6 @@ require_once __DIR__ . '/../src/DDTrace/Log/InterpolateTrait.php';
 require_once __DIR__ . '/../src/DDTrace/Log/LogLevel.php';
 require_once __DIR__ . '/../src/DDTrace/Log/AbstractLogger.php';
 require_once __DIR__ . '/../src/DDTrace/Log/ErrorLogLogger.php';
-require_once __DIR__ . '/../src/DDTrace/Log/NullLogger.php';
-
-require_once __DIR__ . '/../src/DDTrace/NoopTracer.php';
-require_once __DIR__ . '/../src/DDTrace/Transport/Noop.php';
-require_once __DIR__ . '/../src/DDTrace/NoopScopeManager.php';
-require_once __DIR__ . '/../src/DDTrace/NoopSpanContext.php';
 
 require_once __DIR__ . '/../src/DDTrace/Obfuscation.php';
 require_once __DIR__ . '/../src/DDTrace/Format.php';
