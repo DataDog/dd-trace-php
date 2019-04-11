@@ -65,14 +65,6 @@ class ZendFrameworkIntegration extends Integration
             $args = func_get_args();
             $options = $args[0];
 
-            if (!class_exists('DDTrace_Ddtrace')) {
-                require_once __DIR__ . '/V1/Ddtrace.php';
-            }
-
-            if (!class_exists('DDTrace\Integrations\ZendFramework\V1\TraceRequest')) {
-                require_once __DIR__ . '/V1/TraceRequest.php';
-            }
-
             $classExist = class_exists('DDTrace_Ddtrace');
 
             if (!$classExist && !isset($options['resources']['ddtrace'])) {

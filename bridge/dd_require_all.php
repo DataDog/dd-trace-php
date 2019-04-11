@@ -8,21 +8,16 @@ require_once __DIR__ . '/../src/DDTrace/Contracts/Scope.php';
 require_once __DIR__ . '/../src/DDTrace/Contracts/ScopeManager.php';
 require_once __DIR__ . '/../src/DDTrace/Contracts/SpanContext.php';
 require_once __DIR__ . '/../src/DDTrace/Sampling/Sampler.php';
-require_once __DIR__ . '/../src/DDTrace/Integrations/AbstractIntegrationConfiguration.php';
 require_once __DIR__ . '/../src/DDTrace/Transport.php';
-// require_once __DIR__ . '/../src/DDTrace/autoload.php';
 require_once __DIR__ . '/../src/DDTrace/SpanContext.php';
 require_once __DIR__ . '/../src/DDTrace/Span.php';
 require_once __DIR__ . '/../src/DDTrace/Tracer.php';
-require_once __DIR__ . '/../src/DDTrace/NoopTracer.php';
-require_once __DIR__ . '/../src/DDTrace/NoopScopeManager.php';
 require_once __DIR__ . '/../src/DDTrace/Configuration/AbstractConfiguration.php';
 require_once __DIR__ . '/../src/DDTrace/Configuration/EnvVariableRegistry.php';
 require_once __DIR__ . '/../src/DDTrace/StartSpanOptionsFactory.php';
 require_once __DIR__ . '/../src/DDTrace/Time.php';
 require_once __DIR__ . '/../src/DDTrace/Transport/Http.php';
 require_once __DIR__ . '/../src/DDTrace/Transport/Stream.php';
-require_once __DIR__ . '/../src/DDTrace/Transport/Noop.php';
 require_once __DIR__ . '/../src/DDTrace/Type.php';
 require_once __DIR__ . '/../src/DDTrace/Encoder.php';
 require_once __DIR__ . '/../src/DDTrace/Util/Runtime.php';
@@ -51,6 +46,8 @@ require_once __DIR__ . '/../src/DDTrace/Exceptions/InvalidSpanArgument.php';
 require_once __DIR__ . '/../src/DDTrace/Exceptions/InvalidReferencesSet.php';
 require_once __DIR__ . '/../src/DDTrace/Exceptions/InvalidSpanOption.php';
 require_once __DIR__ . '/../src/DDTrace/NoopScope.php';
+
+require_once __DIR__ . '/../src/DDTrace/Integrations/AbstractIntegrationConfiguration.php';
 require_once __DIR__ . '/../src/DDTrace/Integrations/DefaultIntegrationConfiguration.php';
 
 // Integrations:
@@ -91,14 +88,12 @@ require_once __DIR__ . '/../src/DDTrace/Log/LogLevel.php';
 require_once __DIR__ . '/../src/DDTrace/Log/AbstractLogger.php';
 require_once __DIR__ . '/../src/DDTrace/Log/ErrorLogLogger.php';
 require_once __DIR__ . '/../src/DDTrace/Log/NullLogger.php';
-require_once __DIR__ . '/../src/DDTrace/Log/PsrLogger.php';
 
-// require_once __DIR__ . '/../src/DDTrace/OpenTracer/Tracer.php';
-// require_once __DIR__ . '/../src/DDTrace/OpenTracer/Span.php';
-// require_once __DIR__ . '/../src/DDTrace/OpenTracer/Scope.php';
-// require_once __DIR__ . '/../src/DDTrace/OpenTracer/ScopeManager.php';
-// require_once __DIR__ . '/../src/DDTrace/OpenTracer/SpanContext.php';
+require_once __DIR__ . '/../src/DDTrace/NoopTracer.php';
+require_once __DIR__ . '/../src/DDTrace/Transport/Noop.php';
+require_once __DIR__ . '/../src/DDTrace/NoopScopeManager.php';
 require_once __DIR__ . '/../src/DDTrace/NoopSpanContext.php';
+
 require_once __DIR__ . '/../src/DDTrace/Obfuscation.php';
 require_once __DIR__ . '/../src/DDTrace/Format.php';
 require_once __DIR__ . '/../src/DDTrace/StartSpanOptions.php';
