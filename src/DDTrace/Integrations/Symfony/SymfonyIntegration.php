@@ -69,8 +69,16 @@ class SymfonyIntegration extends Integration
 
                 $bundle = null;
                 if (Versions::versionMatches('3.4', $version) || Versions::versionMatches('3.3', $version)) {
+                    if (!class_exists('\DDTrace\Integrations\Symfony\V3\SymfonyBundle')) {
+                        require_once __DIR__ . '/V3/SymfonyBundle.php';
+                    }
+
                     $bundle = new \DDTrace\Integrations\Symfony\V3\SymfonyBundle();
                 } elseif (Versions::versionMatches('4', $version)) {
+                    if (!class_exists('\DDTrace\Integrations\Symfony\V4\SymfonyBundle')) {
+                        require_once __DIR__ . '/V4/SymfonyBundle.php';
+                    }
+
                     $bundle = new \DDTrace\Integrations\Symfony\V4\SymfonyBundle();
                 } elseif (Versions::versionMatches('2', $version)) {
                     // We do not register the bundle as we do not fully support Symfony 2.8 yet. And probably we won't
