@@ -5,8 +5,10 @@ All notable changes to this project will be documented in this file - [read more
 ## [Unreleased]
 
 ### Changed
-- Span and SpanContext main implementation uses public fields to share data to allow speedup serialization and overall Span handling #398
+- Span and SpanContext main implementation uses public fields to share data to allow faster serialization and overall Span overhead #398
 - Improve performance of setTag and setResource #398
+- Load required PHP files in one go #387
+- load optional PHP files without filesystem check #387
 
 ## [0.18.0]
 
