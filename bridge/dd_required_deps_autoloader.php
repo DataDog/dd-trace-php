@@ -7,11 +7,17 @@ namespace DDTrace\Bridge;
  */
 class RequiredDepsAutoloader
 {
+    private static $alreadyRequired = false;
+
     /**
      * @param string $class
      */
     public static function load($class)
     {
+        if (self::$alreadyRequired) {
+            return;
+        }
+
         // project-specific namespace prefix
         $dataDogNamespaceRoot = 'DDTrace\\';
 
@@ -21,8 +27,8 @@ class RequiredDepsAutoloader
             return;
         }
 
-        // load every required depency in one go and unregister
+        // load every required depency in one go
         require __DIR__ . '/dd_require_all.php';
-        spl_autoload_unregister(['\DDTrace\Bridge\RequireOnceAutoloader', 'load']);
+        self::$alreadyRequired = true;
     }
 }

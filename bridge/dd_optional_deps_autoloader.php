@@ -41,7 +41,7 @@ class OptionalDepsAutoloader
     public static function load($class)
     {
         if (array_key_exists($class, self::$autoloaderMapping)) {
-            require __DIR__ . '../src/' . self::$autoloaderMapping[$class];
+            require __DIR__ . '/../src/' . self::$autoloaderMapping[$class];
         }
     }
 }
