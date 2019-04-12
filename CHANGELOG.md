@@ -6,9 +6,11 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Changed
 - Span and SpanContext main implementation uses public fields to share data to allow faster serialization and overall Span overhead #398
+- `DDTrace\Encoders\SpanEncoder::encode()` now takes an instance of `DDTrace\Data\Span` instead of `DDTrace\Contracts\Span` #398
+- `DDTrace\Processing\TraceAnalyticsProcessor::process()` now takes an instance of `DDTrace\Data\Span` instead of `DDTrace\Contracts\Span` #398
 - Improve performance of setTag and setResource #398
 - Load required PHP files in one go #387
-- load optional PHP files without filesystem check #387
+- Load optional PHP files without filesystem check #387
 
 ## [0.18.0]
 
@@ -22,10 +24,10 @@ This change should not impact most users.
 ### Changed
 - Request init hook module blacklist now avoids miss matching partial matches #372
 - Add 10MB cap to payloads sent to the Agent #388
-- Added an `getTracesAsArray()` method to `DDTrace/Contracts/Tracer` which returns an array of spans (which are also encoded as an array.) To encode an instance of `DDTrace\Contracts\Span` as an array, use `DDTrace/Encoders/SpanEncoder::encode($span)` #378
-- `DDTrace/Transport::send()` now takes an instance of `DDTrace/Contracts/Tracer` instead of an `array` #378
-- `DDTrace/Encoder::encodeTraces()` now takes an instance of `DDTrace/Contracts/Tracer` instead of an `array` #378
-- The default encoder is now `DDTrace/Encoders/MessagePack`. You can still use the JSON encoder by setting the environment variable `DD_TRACE_ENCODER=json`. It is generally not recommended to use the JSON encoder as parsing JSON payloads at the Agent level is more CPU & memory intensive.
+- Added an `getTracesAsArray()` method to `DDTrace\Contracts\Tracer` which returns an array of spans (which are also encoded as an array.) To encode an instance of `DDTrace\Contracts\Span` as an array, use `DDTrace\Encoders\SpanEncoder::encode($span)` #378
+- `DDTrace\Transport::send()` now takes an instance of `DDTrace\Contracts\Tracer` instead of an `array` #378
+- `DDTrace\Encoder::encodeTraces()` now takes an instance of `DDTrace\Contracts\Tracer` instead of an `array` #378
+- The default encoder is now `DDTrace\Encoders\MessagePack`. You can still use the JSON encoder by setting the environment variable `DD_TRACE_ENCODER=json`. It is generally not recommended to use the JSON encoder as parsing JSON payloads at the Agent level is more CPU & memory intensive.
 
 ## [0.17.0]
 
@@ -401,7 +403,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.18.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.19.0...HEAD
+[0.19.0]: https://github.com/DataDog/dd-trace-php/compare/0.18.0...0.19.0
 [0.18.0]: https://github.com/DataDog/dd-trace-php/compare/0.17.0...0.18.0
 [0.17.0]: https://github.com/DataDog/dd-trace-php/compare/0.16.1...0.17.0
 [0.16.1]: https://github.com/DataDog/dd-trace-php/compare/0.16.0...0.16.1
