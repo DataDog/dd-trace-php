@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-04-08</date>
+    <date>2019-04-12</date>
     <version>
-        <release>0.18.0</release>
-        <api>0.18.0</api>
+        <release>0.19.0</release>
+        <api>0.19.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,20 +21,13 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        **NOTE: THIS IS A BREAKING CHANGE RELEASE**
-
-        This change should not impact most users.
-
-        ### Added
-        - MessagePack serialization for traces sent to the Agent with a new function `dd_trace_serialize_msgpack()` #378
-
         ### Changed
-        - Request init hook module blacklist now avoids miss matching partial matches #372
-        - Add 10MB cap to payloads sent to the Agent #388
-        - Added an `getTracesAsArray()` method to `DDTrace/Contracts/Tracer` which returns an array of spans (which are also encoded as an array.) To encode an instance of `DDTrace\Contracts\Span` as an array, use `DDTrace/Encoders/SpanEncoder::encode($span)` #378
-        - `DDTrace/Transport::send()` now takes an instance of `DDTrace/Contracts/Tracer` instead of an `array` #378
-        - `DDTrace/Encoder::encodeTraces()` now takes an instance of `DDTrace/Contracts/Tracer` instead of an `array` #378
-        - The default encoder is now `DDTrace/Encoders/MessagePack`. You can still use the JSON encoder by setting the environment variable `DD_TRACE_ENCODER=json`. It is generally not recommended to use the JSON encoder as parsing JSON payloads at the Agent level is more CPU &amp; memory intensive.
+        - Span and SpanContext main implementation uses public fields to share data to allow faster serialization and overall Span overhead #398
+        - `DDTrace\Encoders\SpanEncoder::encode()` now takes an instance of `DDTrace\Data\Span` instead of `DDTrace\Contracts\Span` #398
+        - `DDTrace\Processing\TraceAnalyticsProcessor::process()` now takes an instance of `DDTrace\Data\Span` instead of `DDTrace\Contracts\Span` #398
+        - Improve performance of setTag and setResource #398
+        - Load required PHP files in one go #387
+        - Load optional PHP files without filesystem check #387
     </notes>
     <contents>
         <dir name="/">
