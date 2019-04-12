@@ -22,7 +22,7 @@ class RequiredDepsAutoloader
         }
 
         // load every required depency in one go and unregister
-        require_once __DIR__ . '/dd_require_all.php';
+        require __DIR__ . '/dd_require_all.php';
         spl_autoload_unregister(['\DDTrace\Bridge\RequireOnceAutoloader', 'load']);
     }
 }
