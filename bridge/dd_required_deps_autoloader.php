@@ -7,14 +7,14 @@ namespace DDTrace\Bridge;
  */
 class RequiredDepsAutoloader
 {
-    private static $alreadyRequired = false;
+    private static $skipLoader = false;
 
     /**
      * @param string $class
      */
     public static function load($class)
     {
-        if (self::$alreadyRequired) {
+        if (self::$skipLoader) {
             return;
         }
 
@@ -27,8 +27,8 @@ class RequiredDepsAutoloader
             return;
         }
 
+        self::$skipLoader = true; // avoid hard to debug errors if dd_require_all requires dependencies in wrong order
         // load every required depency in one go
         require __DIR__ . '/dd_require_all.php';
-        self::$alreadyRequired = true;
     }
 }

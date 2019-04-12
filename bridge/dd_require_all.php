@@ -7,6 +7,8 @@ require __DIR__ . '/../src/DDTrace/Contracts/Span.php';
 require __DIR__ . '/../src/DDTrace/Contracts/Scope.php';
 require __DIR__ . '/../src/DDTrace/Contracts/ScopeManager.php';
 require __DIR__ . '/../src/DDTrace/Contracts/SpanContext.php';
+require __DIR__ . '/../src/DDTrace/Data/SpanContext.php';
+require __DIR__ . '/../src/DDTrace/Data/Span.php';
 require __DIR__ . '/../src/DDTrace/Sampling/Sampler.php';
 require __DIR__ . '/../src/DDTrace/Transport.php';
 require __DIR__ . '/../src/DDTrace/SpanContext.php';
