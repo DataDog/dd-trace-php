@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.19.0]
+
 ### Changed
 - Span and SpanContext main implementation uses public fields to share data to allow faster serialization and overall Span overhead #398
 - `DDTrace\Encoders\SpanEncoder::encode()` now takes an instance of `DDTrace\Data\Span` instead of `DDTrace\Contracts\Span` #398
@@ -448,3 +450,4 @@ At an high level here are the breaking changes we introduced:
 [0.2.0]: https://github.com/DataDog/dd-trace-php/compare/v0.1.2...0.2.0
 [0.1.2]: https://github.com/DataDog/dd-trace-php/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/DataDog/dd-trace-php/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/DataDog/dd-trace-php/compare/29ee1d9f9fac5076cd0c96f8b8e9b205f15fb660...v0.1.0
