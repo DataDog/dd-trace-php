@@ -171,6 +171,7 @@ executors:
   with_integrations:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
+      COMPOSER_MEMORY_LIMIT: -1 # disable composer memory limit completely
     parameters:
       tag:
         type: string
