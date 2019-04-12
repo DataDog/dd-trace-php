@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Changed
+- Span and SpanContext main implementation uses public fields to share data to allow speedup serialization and overall Span handling #398
+- Improve performance of setTag and setResource #398
+
 ## [0.18.0]
 
 **NOTE: THIS IS A BREAKING CHANGE RELEASE**
