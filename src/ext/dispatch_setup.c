@@ -72,10 +72,8 @@ void ddtrace_dispatch_inject(TSRMLS_D) {
     DDTRACE_G(ddtrace_old_fcall_handler) = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);
 
-#if PHP_VERSION_ID < 70000
     DDTRACE_G(ddtrace_old_fcall_by_name_handler) = zend_get_user_opcode_handler(ZEND_DO_FCALL_BY_NAME);
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, ddtrace_wrap_fcall);
-#endif
 }
 
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TSRMLS_DC) {
