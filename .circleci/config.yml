@@ -542,6 +542,11 @@ workflows:
           name: "PHP 72 Integration tests"
           integration_testsuite: "test-integrations-72"
           image_tag: "ddtrace_alpine_php-7.2-debug"
+      - integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 72 Integration tests on Ubuntu 16.04"
+          integration_testsuite: "test-integrations-72"
+          image_tag: "ddtrace_ubuntu_16_04_php_7_2"
       # - integration_tests:
       #     requires: [ 'Code Checkout' ]
       #     name: "PHP 73 Integration tests"
