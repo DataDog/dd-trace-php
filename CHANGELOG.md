@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.19.1]
+
+### Fixed
+- Tracing of functions called using DO_FCALL_BY_NAME opcode #404
+- Curl headers not being correctly set #404
+
 ## [0.19.0]
 
 ### Changed
@@ -405,7 +411,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.19.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.19.1...HEAD
+[0.19.1]: https://github.com/DataDog/dd-trace-php/compare/0.19.0...0.19.1
 [0.19.0]: https://github.com/DataDog/dd-trace-php/compare/0.18.0...0.19.0
 [0.18.0]: https://github.com/DataDog/dd-trace-php/compare/0.17.0...0.18.0
 [0.17.0]: https://github.com/DataDog/dd-trace-php/compare/0.16.1...0.17.0
