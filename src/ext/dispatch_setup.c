@@ -13,20 +13,7 @@
 #include <Zend/zend_exceptions.h>
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-user_opcode_handler_t ddtrace_old_fcall_handler;
-user_opcode_handler_t ddtrace_old_icall_handler;
-user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
-
 #if PHP_VERSION_ID >= 70000
-void (*ddtrace_original_execute_ex)(zend_execute_data *TSRMLS_DC);
-
-static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
-    if (ddtrace_original_execute_ex) {
-        ddtrace_original_execute_ex(execute_data TSRMLS_CC);
-    } else
-        execute_ex(execute_data TSRMLS_CC);
-}
-
 static inline void dispatch_table_dtor(zval *zv) {
     zend_hash_destroy(Z_PTR_P(zv));
     efree(Z_PTR_P(zv));
@@ -54,7 +41,7 @@ void ddtrace_dispatch_reset(TSRMLS_D) {
     zend_hash_clean(&DDTRACE_G(function_lookup));
 }
 
-void ddtrace_dispatch_inject(TSRMLS_D) {
+void ddtrace_dispatch_opcode_handler_inject() {
 /**
  * Replacing zend_execute_ex with anything other than original
  * changes some of the bevavior in PHP compilation and execution
@@ -63,17 +50,23 @@ void ddtrace_dispatch_inject(TSRMLS_D) {
  * opcode instead of ZEND_DO_UCALL for user defined functions
  */
 #if PHP_VERSION_ID >= 70000
-    ddtrace_original_execute_ex = zend_execute_ex;
-    zend_execute_ex = php_execute;
-
-    DDTRACE_G(ddtrace_old_icall_handler) = zend_get_user_opcode_handler(ZEND_DO_ICALL);
     zend_set_user_opcode_handler(ZEND_DO_ICALL, ddtrace_wrap_fcall);
+    zend_set_user_opcode_handler(ZEND_DO_UCALL, ddtrace_wrap_fcall);
 #endif
-    DDTRACE_G(ddtrace_old_fcall_handler) = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);
-
-    DDTRACE_G(ddtrace_old_fcall_by_name_handler) = zend_get_user_opcode_handler(ZEND_DO_FCALL_BY_NAME);
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, ddtrace_wrap_fcall);
+}
+
+void ddtrace_dispatch_opcode_handler_reset() {
+/**
+ * Set the opcode handlers back to their original state
+ */
+#if PHP_VERSION_ID >= 70000
+    zend_set_user_opcode_handler(ZEND_DO_ICALL, NULL);
+    zend_set_user_opcode_handler(ZEND_DO_UCALL, NULL);
+#endif
+    zend_set_user_opcode_handler(ZEND_DO_FCALL, NULL);
+    zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, NULL);
 }
 
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TSRMLS_DC) {

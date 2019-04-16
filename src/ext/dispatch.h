@@ -28,7 +28,8 @@ void ddtrace_class_lookup_release(ddtrace_dispatch_t *);
 zend_class_entry *ddtrace_target_class_entry(zval *, zval *TSRMLS_DC);
 int ddtrace_find_function(HashTable *table, zval *name, zend_function **function);
 void ddtrace_dispatch_init(TSRMLS_D);
-void ddtrace_dispatch_inject(TSRMLS_D);
+void ddtrace_dispatch_opcode_handler_inject();
+void ddtrace_dispatch_opcode_handler_reset();
 void ddtrace_dispatch_destroy(TSRMLS_D);
 void ddtrace_dispatch_reset(TSRMLS_D);
 

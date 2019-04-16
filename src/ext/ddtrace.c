@@ -81,7 +81,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_install_backtrace_handler(TSRMLS_C);
 
     ddtrace_dispatch_init(TSRMLS_C);
-    ddtrace_dispatch_inject(TSRMLS_C);
+    ddtrace_dispatch_opcode_handler_inject();
 
     return SUCCESS;
 }
@@ -89,6 +89,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
     UNREGISTER_INI_ENTRIES();
+
+    ddtrace_dispatch_opcode_handler_reset();
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
