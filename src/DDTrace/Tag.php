@@ -8,6 +8,8 @@ class Tag
     const ENV = 'env';
     const SPAN_TYPE = 'span.type';
     const SERVICE_NAME = 'service.name';
+    const MANUAL_KEEP = 'manual.keep';
+    const MANUAL_DROP = 'manual.drop';
     const PID = 'system.pid';
     const RESOURCE_NAME = 'resource.name';
     const DB_STATEMENT = 'sql.query';

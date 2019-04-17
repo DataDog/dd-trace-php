@@ -85,6 +85,13 @@ final class NoopTracer implements TracerInterface
     /**
      * {@inheritdoc}
      */
+    public function setPrioritySampling($prioritySampling)
+    {
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function startRootSpan($operationName, $options = [])
     {
         return NoopScope::create();

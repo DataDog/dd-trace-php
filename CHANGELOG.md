@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Force tracing or discarding trace via special Span tag (manual.keep and manual.drop) #409
+
 ## [0.19.1]
 
 ### Fixed

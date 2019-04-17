@@ -5,6 +5,9 @@ namespace DDTrace\Tests\Unit;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tag;
+use DDTrace\Sampling\PrioritySampling;
+use DDTrace\GlobalTracer;
+use DDTrace\Tracer;
 use Exception;
 use PHPUnit\Framework;
 
@@ -21,6 +24,29 @@ final class SpanTest extends Framework\TestCase
     const TAG_VALUE = 'test_value';
     const EXCEPTION_MESSAGE = 'exception message';
     const DUMMY_STACK_TRACE = 'dummy stack trace';
+
+    /**
+     * @var Tracer|MockInterface
+     */
+    private $tracer;
+
+
+    /**
+     * @var Tracer
+     */
+    private $oldTracer;
+
+    protected function setUp()
+    {
+        parent::setUp();
+        $this->tracer = new Tracer();
+        $this->oldTracer = \DDTrace\GlobalTracer::get();
+        \DDTrace\GlobalTracer::set($this->tracer);
+    }
+    protected function tearDown()
+    {
+        \DDTrace\GlobalTracer::set($this->oldTracer);
+    }
 
     public function testCreateSpanSuccess()
     {
@@ -198,6 +224,22 @@ final class SpanTest extends Framework\TestCase
 
         $span->setTag(Tag::HTTP_URL, $url);
         $this->assertSame('https://example.com/some/path/index.php', $span->getAllTags()[Tag::HTTP_URL]);
+    }
+
+    public function testForceTracingTagKeepsTrace()
+    {
+        $span = $this->createSpan();
+        $this->assertSame(PrioritySampling::UNKNOWN, $this->tracer->getPrioritySampling());
+        $span->setTag(Tag::MANUAL_KEEP, null);
+        $this->assertSame(PrioritySampling::USER_KEEP, $this->tracer->getPrioritySampling());
+    }
+
+    public function testForceDropTracingTagRejectsTrace()
+    {
+        $span = $this->createSpan();
+        $this->assertSame(PrioritySampling::UNKNOWN, $this->tracer->getPrioritySampling());
+        $span->setTag(Tag::MANUAL_DROP, null);
+        $this->assertSame(PrioritySampling::USER_REJECT, $this->tracer->getPrioritySampling());
     }
 
     public function testHasTag()

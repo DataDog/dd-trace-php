@@ -136,6 +136,11 @@ interface Tracer
     public function flush();
 
     /**
+     * @param mixed $prioritySampling
+     */
+    public function setPrioritySampling($prioritySampling);
+
+    /**
      * @return mixed
      */
     public function getPrioritySampling();
