@@ -81,7 +81,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
 
     if (!DDTRACE_G(original_execute_data)
             || !callback_name
-            || !zend_string_equals_literal(callback_name, "dd_trace_callback")) {
+            || !zend_string_equals_literal(callback_name, DDTRACE_CALLBACK_NAME)) {
         zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
                                 "Cannot use dd_trace_forward_call() outside of a tracing closure");
         return;

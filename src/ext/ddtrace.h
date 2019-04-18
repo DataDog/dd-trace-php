@@ -35,4 +35,6 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #define PHP_DDTRACE_VERSION "0.0.0-unknown"
 #endif
 
+#define DDTRACE_CALLBACK_NAME "dd_trace_callback"
+
 #endif  // DDTRACE_H

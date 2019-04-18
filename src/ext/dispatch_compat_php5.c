@@ -149,6 +149,23 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;
 
+    if (!DDTRACE_G(original_execute_data)) {
+        zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
+                                "Cannot use dd_trace_forward_call() outside of a tracing closure");
+        return;
+    }
+
+    // @TODO Refactor this to allow unlimited include contexts (and for PHP 7)
+    zend_execute_data *prev_ex = !EX(prev_execute_data) ? EX(prev_execute_data)->prev_execute_data : EX(prev_execute_data);
+    const char *callback_name = !prev_ex ? NULL : prev_ex->function_state.function->common.function_name;
+
+    if (!callback_name
+            || 0 != strcmp(callback_name, DDTRACE_CALLBACK_NAME)) {
+        zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
+                                "Cannot use dd_trace_forward_call() outside of a tracing closure");
+        return;
+    }
+
     zend_op *opline = *DDTRACE_G(original_opline_ptr);
 
     fcc.initialized = 1;
