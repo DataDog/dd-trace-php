@@ -1,7 +1,12 @@
 <?php
 
+if (!isset($scope)) {
+    return null;
+}
+
 $thrown = null;
 $result = null;
+/** @var DDTrace\Contracts\Scope $scope */
 $span = $scope->getSpan();
 try {
     $result = dd_trace_forward_call();
