@@ -82,7 +82,10 @@ final class Tracer implements TracerInterface
      */
     private $globalConfig;
 
-    private $prioritySampling;
+    /**
+     * @var string
+     */
+    private $prioritySampling = Sampling\PrioritySampling::UNKNOWN;
 
     /**
      * @var TraceAnalyticsProcessor
@@ -166,7 +169,9 @@ final class Tracer implements TracerInterface
             $options->getStartTime()
         );
 
-        $this->handlePrioritySampling($span);
+        if ($this->prioritySampling === Sampling\PrioritySampling::UNKNOWN) {
+            $this->setPrioritySamplingFromSpan($span);
+        }
 
         $tags = $options->getTags() + $this->config['global_tags'];
         if ($reference === null) {
@@ -375,7 +380,7 @@ final class Tracer implements TracerInterface
      *
      * @param Span $span
      */
-    private function handlePrioritySampling(Span $span)
+    private function setPrioritySamplingFromSpan(Span $span)
     {
         if (!$this->globalConfig->isPrioritySamplingEnabled()) {
             return;

@@ -25,6 +25,8 @@ final class Span extends SpanData
         Tag::SPAN_TYPE => true,
         Tag::HTTP_URL => true,
         Tag::HTTP_STATUS_CODE => true,
+        Tag::MANUAL_KEEP => true,
+        Tag::MANUAL_DROP => true,
     ];
 
     /**
@@ -141,6 +143,16 @@ final class Span extends SpanData
 
             if ($key === Tag::SERVICE_NAME) {
                 $this->service = $value;
+                return;
+            }
+
+            if ($key === Tag::MANUAL_KEEP) {
+                GlobalTracer::get()->setPrioritySampling(Sampling\PrioritySampling::USER_KEEP);
+                return;
+            }
+
+            if ($key === Tag::MANUAL_DROP) {
+                GlobalTracer::get()->setPrioritySampling(Sampling\PrioritySampling::USER_REJECT);
                 return;
             }
 
