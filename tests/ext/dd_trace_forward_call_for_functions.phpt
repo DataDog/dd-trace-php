@@ -2,6 +2,7 @@
 The original function call is invoked from the closure
 --FILE--
 <?php
+/*
 dd_trace('foo', function () {
     echo "TRACED\n";
     return dd_trace_forward_call();
@@ -17,8 +18,8 @@ function main()
     echo 'Main: ' . foo() . "\n";
 }
 main();
+*/
 
-/*
 function doStuff($foo, array $bar = [])
 {
     return '[' . $foo . '] ' . array_sum($bar);
@@ -36,7 +37,6 @@ dd_trace('array_sum', function () {
 });
 
 echo doStuff('After', [2, 3]) . "\n";
-*/
 ?>
 --EXPECT--
 [Before] 3

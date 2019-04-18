@@ -15,10 +15,9 @@ HashTable function_lookup;
 zend_bool log_backtrace;
 zend_function *current_fbc;
 zend_execute_data *original_execute_data;
-
+#if PHP_VERSION_ID < 70000
 zend_op **original_opline_ptr;
-zend_op_array *original_active_op_array;
-zval **original_return_value_ptr_ptr;
+#endif
 
 user_opcode_handler_t ddtrace_old_fcall_handler;
 user_opcode_handler_t ddtrace_old_icall_handler;
