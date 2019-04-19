@@ -3,8 +3,8 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\Configuration;
+use DDTrace\Contracts\Span;
 use DDTrace\Tag;
-use DDTrace\Span;
 use DDTrace\GlobalTracer;
 
 abstract class Integration

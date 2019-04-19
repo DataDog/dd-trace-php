@@ -2,7 +2,7 @@
 
 namespace DDTrace\Integrations\Mongo;
 
-use DDTrace\Span;
+use DDTrace\Contracts\Span;
 use DDTrace\Tag;
 use DDTrace\Obfuscation;
 use DDTrace\Integrations\Integration;
