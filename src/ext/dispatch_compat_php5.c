@@ -151,13 +151,13 @@ static int get_args(zval *args, zend_execute_data *ex) {
         return 0;
     }
     void **p = ex->function_state.arguments;
-    int param_count = (int)(zend_uintptr_t) *p;
+    int param_count = (int)(zend_uintptr_t)*p;
 
     array_init_size(args, param_count);
     for (int i = 0; i < param_count; i++) {
         zval *element, *arg;
 
-        arg = *((zval **) (p-(param_count-i)));
+        arg = *((zval **)(p - (param_count - i)));
         if (!Z_ISREF_P(arg)) {
             element = arg;
             Z_ADDREF_P(element);
@@ -189,8 +189,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     }
     const char *callback_name = !prev_ex ? NULL : prev_ex->function_state.function->common.function_name;
 
-    if (!callback_name
-            || 0 != strcmp(callback_name, DDTRACE_CALLBACK_NAME)) {
+    if (!callback_name || 0 != strcmp(callback_name, DDTRACE_CALLBACK_NAME)) {
         zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
                                 "Cannot use dd_trace_forward_call() outside of a tracing closure");
         return;
@@ -217,8 +216,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     zval args;
     if (0 == get_args(&args, prev_ex)) {
         zval_dtor(&args);
-        zend_throw_exception_ex(spl_ce_RuntimeException, 0 TSRMLS_CC,
-                                "Cannot forward original function arguments");
+        zend_throw_exception_ex(spl_ce_RuntimeException, 0 TSRMLS_CC, "Cannot forward original function arguments");
         return;
     }
     zend_fcall_info_args(&fci, &args TSRMLS_CC);
