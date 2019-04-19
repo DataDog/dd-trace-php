@@ -103,8 +103,7 @@ class SymfonyIntegration extends Integration
         $self = $this;
 
         dd_trace('Symfony\Component\HttpKernel\Event\FilterControllerEvent', 'setController', function () use ($self) {
-            $args = func_get_args();
-            $controllerInfo = $args[0];
+            list($controllerInfo) = func_get_args();
             $resourceParts = [];
 
             $tracer = GlobalTracer::get();
@@ -132,7 +131,7 @@ class SymfonyIntegration extends Integration
                 }
             }
 
-            return call_user_func_array([$this, 'setController'], $args);
+            return dd_trace_forward_call();
         });
     }
 }

@@ -41,7 +41,6 @@ class EloquentIntegration extends Integration
 
         // getModels($columns = ['*'])
         dd_trace('Illuminate\Database\Eloquent\Builder', 'getModels', function () use ($integration) {
-            $args = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.get');
             $span = $scope->getSpan();
             $sql = $this->getQuery()->toSql();
@@ -54,8 +53,7 @@ class EloquentIntegration extends Integration
 
         // performInsert(Builder $query)
         dd_trace('Illuminate\Database\Eloquent\Model', 'performInsert', function () use ($integration) {
-            $args = func_get_args();
-            $eloquentQueryBuilder = $args[0];
+            list($eloquentQueryBuilder) = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.insert');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
@@ -68,8 +66,7 @@ class EloquentIntegration extends Integration
 
         // performUpdate(Builder $query)
         dd_trace('Illuminate\Database\Eloquent\Model', 'performUpdate', function () use ($integration) {
-            $args = func_get_args();
-            $eloquentQueryBuilder = $args[0];
+            list($eloquentQueryBuilder) = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.update');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();

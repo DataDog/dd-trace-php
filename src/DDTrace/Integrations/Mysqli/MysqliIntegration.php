@@ -50,7 +50,6 @@ class MysqliIntegration extends Integration
         //      [, int $port = ini_get("mysqli.default_port")
         //      [, string $socket = ini_get("mysqli.default_socket") ]]]]]] )
         dd_trace('mysqli_connect', function () {
-            $args = func_get_args();
             $scope = MysqliIntegration::initScope('mysqli_connect', 'mysqli_connect');
             $span = $scope->getSpan();
 
@@ -86,7 +85,6 @@ class MysqliIntegration extends Integration
         //      [, string $socket = ini_get("mysqli.default_socket") ]]]]]] )
         $mysqli_constructor = PHP_MAJOR_VERSION > 5 ? '__construct' : 'mysqli';
         dd_trace('mysqli', $mysqli_constructor, function () use ($mysqli_constructor) {
-            $args = func_get_args();
             $scope = MysqliIntegration::initScope('mysqli.__construct', 'mysqli.__construct');
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
@@ -116,8 +114,7 @@ class MysqliIntegration extends Integration
 
         // mixed mysqli_query ( mysqli $link , string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
         dd_trace('mysqli_query', function () {
-            $args = func_get_args();
-            list($mysqli, $query) = $args;
+            list($mysqli, $query) = func_get_args();
 
             $scope = MysqliIntegration::initScope('mysqli_query', $query);
             /** @var \DDTrace\Span $span */
@@ -198,8 +195,7 @@ class MysqliIntegration extends Integration
 
         // mixed mysqli::query ( string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
         dd_trace('mysqli', 'query', function () {
-            $args = func_get_args();
-            list($query) = $args;
+            list($query) = func_get_args();
             $scope = MysqliIntegration::initScope('mysqli.query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();

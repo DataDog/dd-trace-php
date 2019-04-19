@@ -66,7 +66,6 @@ class PDOIntegration extends Integration
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         dd_trace('PDO', '__construct', function () {
-            $args = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                 PDOIntegration::getInstance(),
                 'PDO.__construct'
@@ -80,7 +79,7 @@ class PDOIntegration extends Integration
             $thrown = null;
             try {
                 dd_trace_forward_call();
-                PDOIntegration::storeConnectionParams($this, $args);
+                PDOIntegration::storeConnectionParams($this, func_get_args());
                 PDOIntegration::detectError($span, $this);
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
@@ -222,7 +221,6 @@ class PDOIntegration extends Integration
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
         dd_trace('PDOStatement', 'execute', function () {
-            $params = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                 PDOIntegration::getInstance(),
                 'PDOStatement.execute'

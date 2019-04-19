@@ -70,9 +70,8 @@ class SymfonyBundle extends Bundle
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
             function () use ($symfonyRequestSpan, &$request) {
-                $args = func_get_args();
                 /** @var Request $request */
-                $request = $args[0];
+                list($request) = func_get_args();
 
                 $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                     SymfonyIntegration::getInstance(),

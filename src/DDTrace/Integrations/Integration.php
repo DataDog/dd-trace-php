@@ -122,7 +122,6 @@ abstract class Integration
             $postCallHook,
             $integration
         ) {
-            $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
 
@@ -132,7 +131,7 @@ abstract class Integration
 
             $integrationClass::setDefaultTags($span, $method);
             if (null !== $preCallHook) {
-                $preCallHook($span, $args);
+                $preCallHook($span, func_get_args());
             }
 
             $returnVal = null;

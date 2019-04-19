@@ -62,8 +62,7 @@ class ZendFrameworkIntegration extends Integration
         }
 
         dd_trace('Zend_Application', 'setOptions', function () {
-            $args = func_get_args();
-            $options = $args[0];
+            list($options) = func_get_args();
 
             $classExist = class_exists('DDTrace_Ddtrace');
 
@@ -74,7 +73,7 @@ class ZendFrameworkIntegration extends Integration
             }
 
             // We can't use dd_trace_forward_call() here since we're changing the args
-            return call_user_func_array([$this, 'setOptions'], [$options]);
+            return $this->setOptions($options);
         });
 
         return Integration::NOT_LOADED;

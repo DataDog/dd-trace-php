@@ -55,7 +55,6 @@ class PredisIntegration extends Integration
     {
         // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
         dd_trace('Predis\Client', '__construct', function () {
-            $args = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                 PredisIntegration::getInstance(),
                 'Predis.Client.__construct'
@@ -68,7 +67,7 @@ class PredisIntegration extends Integration
             $thrown = null;
             try {
                 dd_trace_forward_call();
-                PredisIntegration::storeConnectionParams($this, $args);
+                PredisIntegration::storeConnectionParams($this, func_get_args());
                 PredisIntegration::setConnectionTags($this, $span);
             } catch (\Exception $e) {
                 $thrown = $e;
