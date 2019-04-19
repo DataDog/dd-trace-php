@@ -112,9 +112,11 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     fcc.object = Z_OBJ(DDTRACE_G(original_execute_data)->This);
 
     if (zend_call_function(&fci, &fcc) == SUCCESS && Z_TYPE(retval) != IS_UNDEF) {
+#if PHP_VERSION_ID >= 70100
         if (Z_ISREF(retval)) {
             zend_unwrap_reference(&retval);
         }
+#endif
         ZVAL_COPY_VALUE(return_value, &retval);
     }
 
