@@ -201,7 +201,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     fcc.function_handler = DDTRACE_G(current_fbc);
     fcc.calling_scope = DDTRACE_G(current_fbc)->common.scope;
     fcc.called_scope = DDTRACE_G(current_fbc)->common.scope;
-    fcc.object_ptr = DDTRACE_G(original_execute_data)->object;
+    fcc.object_ptr = DDTRACE_G(original_execute_data)->call->object;
 
     fci.size = sizeof(fci);
     fci.function_table = EG(function_table);
