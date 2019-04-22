@@ -71,8 +71,8 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
 
 void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
     zval fname, retval;
-    zend_fcall_info fci;
-    zend_fcall_info_cache fcc;
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
 
     if (!DDTRACE_G(original_execute_data) || !EX(prev_execute_data)) {
         zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
