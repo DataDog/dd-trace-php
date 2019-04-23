@@ -188,6 +188,12 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     // Move this to closure zval before zend_fcall_info_init()
     fcc.function_handler->common.function_name = func_name;
 
+#if PHP_VERSION_ID >= 70000
+    zend_class_entry *orig_scope = fcc.function_handler->common.scope;
+    fcc.function_handler->common.scope = DDTRACE_G(calling_fbc)->common.scope;
+    fcc.calling_scope = DDTRACE_G(calling_fbc)->common.scope;
+#endif
+
     zend_execute_data *prev_original_execute_data = DDTRACE_G(original_execute_data);
     DDTRACE_G(original_execute_data) = execute_data;
 #if PHP_VERSION_ID < 70000
@@ -201,6 +207,10 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     DDTRACE_G(original_function_name) = prev_original_function_name;
 #endif
     DDTRACE_G(original_execute_data) = prev_original_execute_data;
+
+#if PHP_VERSION_ID >= 70000
+    fcc.function_handler->common.scope = orig_scope;
+#endif
 
 #if PHP_VERSION_ID < 70000
     if (fci.params) {
@@ -497,9 +507,12 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     }
     zend_function *previous_fbc = DDTRACE_G(current_fbc);
     DDTRACE_G(current_fbc) = current_fbc;
+    zend_function *previous_calling_fbc = DDTRACE_G(calling_fbc);
+    DDTRACE_G(calling_fbc) = execute_data->func && execute_data->func->common.scope ? execute_data->func : current_fbc;
 
     zend_bool wrapped = wrap_and_run(execute_data, &lookup_data TSRMLS_CC);
 
+    DDTRACE_G(calling_fbc) = previous_calling_fbc;
     DDTRACE_G(current_fbc) = previous_fbc;
     if (wrapped) {
         return update_opcode_leave(execute_data TSRMLS_CC);
