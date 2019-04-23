@@ -21,7 +21,6 @@ $a->register();
 
 dd_trace('spl_autoload_register', function () {
     echo "**TRACED**\n";
-    //return call_user_func_array('spl_autoload_register', func_get_args());
     return dd_trace_forward_call();
 });
 
