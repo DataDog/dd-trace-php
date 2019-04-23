@@ -53,8 +53,10 @@ class EnvVariableRegistry implements Registry
         $value = $this->get($key);
         if (null !== $value) {
             return $this->registry[$key] = $value;
+        } else {
+            return $this->registry[$key] = $default;
         }
-        return $default;
+        return $this->registry[$key];
     }
 
     /**
@@ -77,7 +79,7 @@ class EnvVariableRegistry implements Registry
         } elseif ($value === '0' || $value === 'false') {
             $this->registry[$key] = false;
         } else {
-            return $default;
+            $this->registry[$key] = $default;
         }
 
         return $this->registry[$key];
