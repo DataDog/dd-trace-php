@@ -109,7 +109,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     fcc.function_handler = DDTRACE_G(original_execute_data)->func;
     fcc.calling_scope = DDTRACE_G(original_execute_data)->func->common.scope;
     fcc.called_scope = DDTRACE_G(original_execute_data)->func->common.scope;
-    fcc.object = Z_OBJ(DDTRACE_G(original_execute_data)->This);
+    fcc.object = fci.object;
 
     if (zend_call_function(&fci, &fcc) == SUCCESS && Z_TYPE(retval) != IS_UNDEF) {
 #if PHP_VERSION_ID >= 70100
