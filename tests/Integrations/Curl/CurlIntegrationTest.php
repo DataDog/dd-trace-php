@@ -14,21 +14,19 @@ use DDTrace\GlobalTracer;
 
 class PrivateCallbackRequest
 {
-    private function parseResponseHeaders($ch, $headers)
+    private static function parseResponseHeaders($ch, $headers)
     {
-        echo $headers;
-        return 42;
+        return strlen($headers);
     }
 
     public function request()
     {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, CurlIntegrationTest::URL . '/status/200');
+        $ch = curl_init(CurlIntegrationTest::URL . '/status/200');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HEADERFUNCTION, __CLASS__ . '::parseResponseHeaders');
-        curl_exec($ch);
+        $response = curl_exec($ch);
         curl_close($ch);
-        return $ch;
+        return $response;
     }
 }
 
@@ -116,11 +114,13 @@ final class CurlIntegrationTest extends IntegrationTestCase
     {
         $traces = $this->isolateTracer(function () {
             $foo = new PrivateCallbackRequest();
-            $foo->request();
+            $response = $foo->request();
+            $this->assertEmpty($response);
         });
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
+                ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
