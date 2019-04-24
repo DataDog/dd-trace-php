@@ -508,12 +508,25 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     zend_function *previous_fbc = DDTRACE_G(current_fbc);
     DDTRACE_G(current_fbc) = current_fbc;
     zend_function *previous_calling_fbc = DDTRACE_G(calling_fbc);
+#if PHP_VERSION_ID < 70000
+    DDTRACE_G(calling_fbc) = execute_data->function_state.function && execute_data->function_state.function->common.scope ? execute_data->function_state.function : current_fbc;
+#else
     DDTRACE_G(calling_fbc) = execute_data->func && execute_data->func->common.scope ? execute_data->func : current_fbc;
-    zend_object *previous_this = DDTRACE_G(original_this);
+#endif
     zval *this = ddtrace_this(execute_data);
+#if PHP_VERSION_ID < 70000
+    zval *previous_this = DDTRACE_G(original_this);
+    DDTRACE_G(original_this) = this;
+#else
+    zend_object *previous_this = DDTRACE_G(original_this);
     DDTRACE_G(original_this) = this ? Z_OBJ_P(this) : NULL;
+#endif
     zend_class_entry *previous_calling_ce = DDTRACE_G(calling_ce);
+#if PHP_VERSION_ID < 70000
+    DDTRACE_G(calling_ce) = DDTRACE_G(calling_fbc)->common.scope;
+#else
     DDTRACE_G(calling_ce) = Z_OBJ(execute_data->This) ? Z_OBJ(execute_data->This)->ce : NULL;
+#endif
 
     zend_bool wrapped = wrap_and_run(execute_data, &lookup_data TSRMLS_CC);
 
