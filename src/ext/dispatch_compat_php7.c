@@ -100,15 +100,15 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     fci.retval = &retval;
     fci.param_count = ZEND_CALL_NUM_ARGS(DDTRACE_G(original_execute_data));
     fci.params = ZEND_CALL_ARG(DDTRACE_G(original_execute_data), 1);
-    fci.object = Z_OBJ(DDTRACE_G(original_execute_data)->This);
+    fci.object = DDTRACE_G(original_this);
     fci.no_separation = 1;
 
 #if PHP_VERSION_ID < 70300
     fcc.initialized = 1;
 #endif
     fcc.function_handler = DDTRACE_G(original_execute_data)->func;
-    fcc.calling_scope = DDTRACE_G(original_execute_data)->func->common.scope;
-    fcc.called_scope = DDTRACE_G(original_execute_data)->func->common.scope;
+    fcc.calling_scope = DDTRACE_G(calling_ce);
+    fcc.called_scope = fci.object ? fci.object->ce : DDTRACE_G(current_fbc)->common.scope;
     fcc.object = fci.object;
 
     if (zend_call_function(&fci, &fcc) == SUCCESS && Z_TYPE(retval) != IS_UNDEF) {

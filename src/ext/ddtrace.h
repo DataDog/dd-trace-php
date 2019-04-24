@@ -15,6 +15,8 @@ HashTable function_lookup;
 zend_bool log_backtrace;
 zend_function *current_fbc;
 #if PHP_VERSION_ID >= 70000
+zend_object *original_this;
+zend_class_entry *calling_ce;
 zend_function *calling_fbc;
 #endif
 zend_execute_data *original_execute_data;
