@@ -5,12 +5,17 @@ A private method can be used as callback with dd_trace_forward_call()
 
 class Foo
 {
+    protected static function protectedRegister()
+    {
+    }
+
     private static function privateRegister()
     {
     }
 
     public function register()
     {
+        spl_autoload_register(__CLASS__.'::protectedRegister');
         spl_autoload_register(__CLASS__.'::privateRegister');
     }
 }
@@ -30,4 +35,5 @@ $a->register();
 --EXPECT--
 Before:
 After:
+**TRACED**
 **TRACED**
