@@ -16,7 +16,7 @@ zend_bool log_backtrace;
 zend_function *current_fbc;
 zend_execute_data *original_execute_data;
 #if PHP_VERSION_ID < 70000
-zend_op **original_opline_ptr;
+zval *original_function_name;
 #endif
 
 user_opcode_handler_t ddtrace_old_fcall_handler;

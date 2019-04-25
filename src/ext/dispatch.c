@@ -191,14 +191,14 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     zend_execute_data *prev_original_execute_data = DDTRACE_G(original_execute_data);
     DDTRACE_G(original_execute_data) = execute_data;
 #if PHP_VERSION_ID < 70000
-    zend_op **prev_original_opline_ptr = DDTRACE_G(original_opline_ptr);
-    DDTRACE_G(original_opline_ptr) = EG(opline_ptr);
+    zval *prev_original_function_name = DDTRACE_G(original_function_name);
+    DDTRACE_G(original_function_name) = (*EG(opline_ptr))->op1.zv;
 #endif
 
     zend_call_function(&fci, &fcc TSRMLS_CC);
 
 #if PHP_VERSION_ID < 70000
-    DDTRACE_G(original_opline_ptr) = prev_original_opline_ptr;
+    DDTRACE_G(original_function_name) = prev_original_function_name;
 #endif
     DDTRACE_G(original_execute_data) = prev_original_execute_data;
 

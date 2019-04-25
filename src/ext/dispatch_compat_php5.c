@@ -195,8 +195,6 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
         return;
     }
 
-    zend_op *opline = *DDTRACE_G(original_opline_ptr);
-
     fcc.initialized = 1;
     fcc.function_handler = DDTRACE_G(current_fbc);
     fcc.calling_scope = DDTRACE_G(current_fbc)->common.scope;
@@ -210,7 +208,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     fci.size = sizeof(fci);
     fci.function_table = EG(function_table);
     fci.object_ptr = fcc.object_ptr;
-    fci.function_name = opline->op1.zv;
+    fci.function_name = DDTRACE_G(original_function_name);
     fci.retval_ptr_ptr = &retval_ptr;
     fci.param_count = 0;
     fci.params = NULL;
