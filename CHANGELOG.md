@@ -4,8 +4,13 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.20.0]
+
 ### Added
 - Force tracing or discarding trace via special Span tag (manual.keep and manual.drop) #409
+
+### Fixed
+- Resource use by caching configuration values instead of processing data on every access #406
 
 ## [0.19.1]
 
@@ -414,7 +419,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.19.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.20.0...HEAD
+[0.20.0]: https://github.com/DataDog/dd-trace-php/compare/0.19.1...0.20.0
 [0.19.1]: https://github.com/DataDog/dd-trace-php/compare/0.19.0...0.19.1
 [0.19.0]: https://github.com/DataDog/dd-trace-php/compare/0.18.0...0.19.0
 [0.18.0]: https://github.com/DataDog/dd-trace-php/compare/0.17.0...0.18.0
