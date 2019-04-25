@@ -509,7 +509,10 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DDTRACE_G(current_fbc) = current_fbc;
     zend_function *previous_calling_fbc = DDTRACE_G(calling_fbc);
 #if PHP_VERSION_ID < 70000
-    DDTRACE_G(calling_fbc) = execute_data->function_state.function && execute_data->function_state.function->common.scope ? execute_data->function_state.function : current_fbc;
+    DDTRACE_G(calling_fbc) =
+        execute_data->function_state.function && execute_data->function_state.function->common.scope
+            ? execute_data->function_state.function
+            : current_fbc;
 #else
     DDTRACE_G(calling_fbc) = current_fbc->common.scope ? current_fbc : execute_data->func;
 #endif
