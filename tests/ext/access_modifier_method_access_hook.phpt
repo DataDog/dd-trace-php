@@ -11,17 +11,17 @@ class Foo
 
     public function aPublic()
     {
-        return 'Test PUBLIC';
+        return 'Foo PUBLIC';
     }
 
     protected function bProtected()
     {
-        return 'Test PROTECTED';
+        return 'Foo PROTECTED';
     }
 
     private function cPrivate()
     {
-        return 'Test PRIVATE';
+        return 'Foo PRIVATE';
     }
 }
 
