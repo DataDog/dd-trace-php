@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-04-16</date>
+    <date>2019-04-25</date>
     <version>
-        <release>0.19.1</release>
-        <api>0.19.1</api>
+        <release>0.20.0</release>
+        <api>0.20.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,9 +21,11 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
+### Added
+- Force tracing or discarding trace via special Span tag (manual.keep and manual.drop) #409
+
 ### Fixed
-- Tracing of functions called using DO_FCALL_BY_NAME opcode #404
-- Curl headers not being correctly set #404
+- Resource use by caching configuration values instead of processing data on every access #406
     </notes>
     <contents>
         <dir name="/">
