@@ -5,6 +5,8 @@ namespace DDTrace\Integrations\Laravel;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Laravel\V5\LaravelIntegrationLoader;
 use DDTrace\Util\Versions;
+use DDTrace\Time;
+use DDTrace\GlobalTracer;
 
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
@@ -64,6 +66,7 @@ class LaravelIntegration extends Integration
         $kernelClass = null;
 
         dd_trace('Illuminate\Foundation\Application', '__construct', function () {
+            \DDTrace\Integrations\Laravel\LaravelIntegration::updateStartTime();
 
             $version = \Illuminate\Foundation\Application::VERSION;
             if (Versions::versionMatches("4.2", $version)) {
@@ -77,5 +80,16 @@ class LaravelIntegration extends Integration
         });
 
         return Integration::LOADED;
+    }
+
+    public static function updateStartTime()
+    {
+        if (defined('LARAVEL_START')) {
+            $tracer = GlobalTracer::get();
+            $rootSpan = $tracer->getSafeRootSpan();
+            if (is_subclass_of($rootSpan, '\DDTrace\Data\Span')) {
+                $rootSpan->startTime = Time::fromMicrotime(LARAVEL_START);
+            }
+        }
     }
 }
