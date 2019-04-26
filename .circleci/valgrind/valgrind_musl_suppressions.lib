@@ -1,0 +1,36 @@
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Free
+    fun:free
+    obj:/lib/ld-musl-x86_64.so.1
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:strlcpy
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:strlcpy
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    fun:zend_hash_find_bucket
+    obj:*
+    obj:*
+}
