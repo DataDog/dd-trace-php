@@ -176,7 +176,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;
 
-    if (!DDTRACE_G(original_execute_data) || !EX(prev_execute_data)) {
+    if (!DDTRACE_G(original_context).execute_data || !EX(prev_execute_data)) {
         zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
                                 "Cannot use dd_trace_forward_call() outside of a tracing closure");
         return;
@@ -196,19 +196,15 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     }
 
     fcc.initialized = 1;
-    fcc.function_handler = DDTRACE_G(current_fbc);
-    fcc.calling_scope = DDTRACE_G(current_fbc)->common.scope;
-    fcc.called_scope = DDTRACE_G(current_fbc)->common.scope;
-#if PHP_VERSION_ID < 50500
-    fcc.object_ptr = DDTRACE_G(original_execute_data)->object;
-#else
-    fcc.object_ptr = DDTRACE_G(original_execute_data)->call->object;
-#endif
+    fcc.function_handler = DDTRACE_G(original_context).fbc;
+    fcc.object_ptr = DDTRACE_G(original_context).this;
+    fcc.calling_scope = DDTRACE_G(original_context).calling_ce;
+    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : DDTRACE_G(original_context).fbc->common.scope;
 
     fci.size = sizeof(fci);
     fci.function_table = EG(function_table);
     fci.object_ptr = fcc.object_ptr;
-    fci.function_name = DDTRACE_G(original_function_name);
+    fci.function_name = DDTRACE_G(original_context).function_name;
     fci.retval_ptr_ptr = &retval_ptr;
     fci.param_count = 0;
     fci.params = NULL;

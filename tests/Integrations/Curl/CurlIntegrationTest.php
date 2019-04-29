@@ -12,6 +12,24 @@ use DDTrace\Tracer;
 use DDTrace\Util\ArrayKVStore;
 use DDTrace\GlobalTracer;
 
+class PrivateCallbackRequest
+{
+    private static function parseResponseHeaders($ch, $headers)
+    {
+        return strlen($headers);
+    }
+
+    public function request()
+    {
+        $ch = curl_init(CurlIntegrationTest::URL . '/status/200');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HEADERFUNCTION, __CLASS__ . '::parseResponseHeaders');
+        $response = curl_exec($ch);
+        curl_close($ch);
+        return $response;
+    }
+}
+
 final class CurlIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';
@@ -80,6 +98,24 @@ final class CurlIntegrationTest extends IntegrationTestCase
             $response = curl_exec($ch);
             $this->assertSame('', $response);
             curl_close($ch);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.url' => self::URL . '/status/200',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testPrivateCallbackForResponseHeaders()
+    {
+        $traces = $this->isolateTracer(function () {
+            $foo = new PrivateCallbackRequest();
+            $response = $foo->request();
+            $this->assertEmpty($response);
         });
 
         $this->assertSpans($traces, [

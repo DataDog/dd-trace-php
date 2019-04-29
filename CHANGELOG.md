@@ -12,9 +12,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - `parent::` keyword not honored from a subclass when forwarding a call from a tracing closure #284
-
-### Fixed
 - Resource use by caching configuration values instead of processing data on every access #406
+- Private and protected callable strings not resolved properly from a tracing closure #303
 
 ## [0.19.1]
 
