@@ -4,16 +4,20 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
-## [0.20.0]
-
 ### Added
-- Force tracing or discarding trace via special Span tag (manual.keep and manual.drop) #409
 - `dd_trace_forward_call()` to forward the original call from within a tracing closure #284
 
 ### Fixed
 - `parent::` keyword not honored from a subclass when forwarding a call from a tracing closure #284
-- Resource use by caching configuration values instead of processing data on every access #406
 - Private and protected callable strings not resolved properly from a tracing closure #303
+
+## [0.20.0]
+
+### Added
+- Force tracing or discarding trace via special Span tag (manual.keep and manual.drop) #409
+
+### Fixed
+- Resource use by caching configuration values instead of processing data on every access #406
 
 ## [0.19.1]
 
