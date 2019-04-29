@@ -142,7 +142,6 @@ class ElasticSearchIntegration extends Integration
 
         // Endpoints
         dd_trace('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function () {
-            $args = func_get_args();
             $tracer = GlobalTracer::get();
             $scope = $tracer->startIntegrationScopeAndSpan(
                 ElasticSearchIntegration::getInstance(),
@@ -168,7 +167,7 @@ class ElasticSearchIntegration extends Integration
                 if ($this->getMethod() === 'GET' && $body = $this->getBody()) {
                     $span->setTag(Tag::ELASTICSEARCH_BODY, json_encode($this->getBody()));
                 }
-                $result = call_user_func_array([$this, 'performRequest'], $args);
+                $result = dd_trace_forward_call();
             } catch (\Exception $ex) {
                 $thrown = $ex;
                 if ($span instanceof Span) {
@@ -218,7 +217,7 @@ class ElasticSearchIntegration extends Integration
             $thrown = null;
             $result = null;
             try {
-                $result = call_user_func_array([$this, $name], $args);
+                $result = dd_trace_forward_call();
             } catch (\Exception $ex) {
                 $thrown = $ex;
                 if ($span instanceof Span) {
@@ -241,8 +240,6 @@ class ElasticSearchIntegration extends Integration
     public static function traceSimpleMethod($class, $name)
     {
         dd_trace($class, $name, function () use ($class, $name) {
-            $args = func_get_args();
-
             $tracer = GlobalTracer::get();
             $operationName = str_replace('\\', '.', "$class.$name");
             $scope = $tracer->startIntegrationScopeAndSpan(ElasticSearchIntegration::getInstance(), $operationName);
@@ -256,7 +253,7 @@ class ElasticSearchIntegration extends Integration
             $thrown = null;
             $result = null;
             try {
-                $result = call_user_func_array([$this, $name], $args);
+                $result = dd_trace_forward_call();
             } catch (\Exception $ex) {
                 $thrown = $ex;
                 if ($span instanceof Span) {
@@ -301,7 +298,7 @@ class ElasticSearchIntegration extends Integration
             $thrown = null;
             $result = null;
             try {
-                $result = call_user_func_array([$this, $name], $args);
+                $result = dd_trace_forward_call();
             } catch (\Exception $ex) {
                 $thrown = $ex;
                 if ($span instanceof Span) {

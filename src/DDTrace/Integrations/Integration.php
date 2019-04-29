@@ -3,8 +3,8 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\Configuration;
+use DDTrace\Contracts\Span;
 use DDTrace\Tag;
-use DDTrace\Span;
 use DDTrace\GlobalTracer;
 
 abstract class Integration
@@ -122,7 +122,6 @@ abstract class Integration
             $postCallHook,
             $integration
         ) {
-            $args = func_get_args();
             $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
 
@@ -132,13 +131,13 @@ abstract class Integration
 
             $integrationClass::setDefaultTags($span, $method);
             if (null !== $preCallHook) {
-                $preCallHook($span, $args);
+                $preCallHook($span, func_get_args());
             }
 
             $returnVal = null;
             $thrownException = null;
             try {
-                $returnVal = call_user_func_array([$this, $method], $args);
+                $returnVal = dd_trace_forward_call();
             } catch (\Exception $e) {
                 $span->setError($e);
                 $thrownException = $e;

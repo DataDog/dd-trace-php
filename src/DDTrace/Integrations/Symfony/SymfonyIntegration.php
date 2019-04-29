@@ -56,12 +56,11 @@ class SymfonyIntegration extends Integration
         // This is necessary because Symfony\Component\HttpKernel\Kernel::boot it is not properly traced if we do not
         // wrap the context when it is called, which if Symfony\Component\HttpKernel\Kernel::handle.
         dd_trace('Symfony\Component\HttpKernel\Kernel', 'handle', function () {
-            $args =  func_get_args();
-            return call_user_func_array([$this, 'handle'], $args);
+            return dd_trace_forward_call();
         });
 
         dd_trace('Symfony\Component\HttpKernel\Kernel', 'boot', function () use ($self) {
-            $result = call_user_func_array([$this, 'boot'], func_get_args());
+            $result = dd_trace_forward_call();
 
             $name = SymfonyIntegration::BUNDLE_NAME;
             if (!isset($this->bundles[$name]) && defined('\Symfony\Component\HttpKernel\Kernel::VERSION')) {
@@ -104,8 +103,7 @@ class SymfonyIntegration extends Integration
         $self = $this;
 
         dd_trace('Symfony\Component\HttpKernel\Event\FilterControllerEvent', 'setController', function () use ($self) {
-            $args = func_get_args();
-            $controllerInfo = $args[0];
+            list($controllerInfo) = func_get_args();
             $resourceParts = [];
 
             $tracer = GlobalTracer::get();
@@ -133,7 +131,7 @@ class SymfonyIntegration extends Integration
                 }
             }
 
-            return call_user_func_array([$this, 'setController'], $args);
+            return dd_trace_forward_call();
         });
     }
 }

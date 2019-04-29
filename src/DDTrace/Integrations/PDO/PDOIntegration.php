@@ -66,7 +66,6 @@ class PDOIntegration extends Integration
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         dd_trace('PDO', '__construct', function () {
-            $args = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                 PDOIntegration::getInstance(),
                 'PDO.__construct'
@@ -79,8 +78,8 @@ class PDOIntegration extends Integration
             // PHP 5.4 compatible try-catch-finally
             $thrown = null;
             try {
-                call_user_func_array([$this, '__construct'], $args);
-                PDOIntegration::storeConnectionParams($this, $args);
+                dd_trace_forward_call();
+                PDOIntegration::storeConnectionParams($this, func_get_args());
                 PDOIntegration::detectError($span, $this);
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
@@ -109,7 +108,7 @@ class PDOIntegration extends Integration
             $thrown = null;
             $result = null;
             try {
-                $result = $this->exec($statement);
+                $result = dd_trace_forward_call();
                 PDOIntegration::detectError($span, $this);
                 $span->setTag('db.rowcount', $result);
             } catch (\Exception $e) {
@@ -144,7 +143,7 @@ class PDOIntegration extends Integration
             $thrown = null;
             $result = null;
             try {
-                $result =  call_user_func_array([$this, 'query'], $args);
+                $result = dd_trace_forward_call();
                 PDOIntegration::detectError($span, $this);
                 PDOIntegration::storeStatementFromConnection($this, $result);
                 try {
@@ -176,7 +175,7 @@ class PDOIntegration extends Integration
             $thrown = null;
             $result = null;
             try {
-                $result = $this->commit();
+                $result = dd_trace_forward_call();
                 PDOIntegration::detectError($span, $this);
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
@@ -205,7 +204,7 @@ class PDOIntegration extends Integration
             $thrown = null;
             $result = null;
             try {
-                $result = call_user_func_array([$this, 'prepare'], $args);
+                $result = dd_trace_forward_call();
                 PDOIntegration::storeStatementFromConnection($this, $result);
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
@@ -222,7 +221,6 @@ class PDOIntegration extends Integration
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
         dd_trace('PDOStatement', 'execute', function () {
-            $params = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                 PDOIntegration::getInstance(),
                 'PDOStatement.execute'
@@ -238,7 +236,7 @@ class PDOIntegration extends Integration
             $thrown = null;
             $result = null;
             try {
-                $result = call_user_func_array([$this, 'execute'], $params);
+                $result = dd_trace_forward_call();
                 PDOIntegration::detectError($span, $this);
                 try {
                     $span->setTag('db.rowcount', $this->rowCount());

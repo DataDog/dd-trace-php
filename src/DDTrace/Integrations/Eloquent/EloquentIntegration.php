@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\Eloquent;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\TryCatchFinally;
 use DDTrace\GlobalTracer;
 
 class EloquentIntegration extends Integration
@@ -42,7 +41,6 @@ class EloquentIntegration extends Integration
 
         // getModels($columns = ['*'])
         dd_trace('Illuminate\Database\Eloquent\Builder', 'getModels', function () use ($integration) {
-            $args = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.get');
             $span = $scope->getSpan();
             $sql = $this->getQuery()->toSql();
@@ -50,13 +48,12 @@ class EloquentIntegration extends Integration
             $span->setTag(Tag::DB_STATEMENT, $sql);
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
-            return TryCatchFinally::executePublicMethod($scope, $this, 'getModels', $args);
+            return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         // performInsert(Builder $query)
         dd_trace('Illuminate\Database\Eloquent\Model', 'performInsert', function () use ($integration) {
-            $args = func_get_args();
-            $eloquentQueryBuilder = $args[0];
+            list($eloquentQueryBuilder) = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.insert');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
@@ -64,13 +61,12 @@ class EloquentIntegration extends Integration
             $span->setTag(Tag::DB_STATEMENT, $sql);
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
-            return TryCatchFinally::executeAnyMethod($scope, $this, 'performInsert', $args);
+            return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         // performUpdate(Builder $query)
         dd_trace('Illuminate\Database\Eloquent\Model', 'performUpdate', function () use ($integration) {
-            $args = func_get_args();
-            $eloquentQueryBuilder = $args[0];
+            list($eloquentQueryBuilder) = func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.update');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
@@ -78,7 +74,7 @@ class EloquentIntegration extends Integration
             $span->setTag(Tag::DB_STATEMENT, $sql);
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
-            return TryCatchFinally::executeAnyMethod($scope, $this, 'performUpdate', $args);
+            return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         // public function delete()
@@ -86,7 +82,7 @@ class EloquentIntegration extends Integration
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.delete');
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::SQL);
 
-            return TryCatchFinally::executePublicMethod($scope, $this, 'delete', []);
+            return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         return Integration::LOADED;

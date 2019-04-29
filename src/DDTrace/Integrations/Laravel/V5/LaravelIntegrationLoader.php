@@ -9,7 +9,6 @@ use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Scope;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\TryCatchFinally;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Route;
 
@@ -32,9 +31,7 @@ class LaravelIntegrationLoader
         $self = $this;
 
         dd_trace('Illuminate\Routing\Events\RouteMatched', '__construct', function () use ($self) {
-            $args = func_get_args();
-
-            list($route, $request) = $args;
+            list($route, $request) = func_get_args();
             $span = $self->rootScope->getSpan();
             // Overwriting the default web integration
             $span->setIntegration(LaravelIntegration::getInstance());
@@ -48,12 +45,10 @@ class LaravelIntegrationLoader
             $span->setTag('http.url', $request->url());
             $span->setTag('http.method', $request->method());
 
-            return call_user_func_array([$this, '__construct'], $args);
+            return dd_trace_forward_call();
         });
 
         dd_trace('Illuminate\Foundation\Http\Events\RequestHandled', '__construct', function () use ($self) {
-            $args = func_get_args();
-
             $span = $self->rootScope->getSpan();
             try {
                 $user = auth()->user();
@@ -63,7 +58,7 @@ class LaravelIntegrationLoader
             } catch (\Exception $e) {
             }
 
-            return call_user_func_array([$this, '__construct'], $args);
+            return dd_trace_forward_call();
         });
 
         dd_trace('Illuminate\Foundation\ProviderRepository', 'load', function (array $providers) use ($self) {
@@ -89,8 +84,6 @@ class LaravelIntegrationLoader
 
         // Trace middleware
         dd_trace('Illuminate\Pipeline\Pipeline', 'then', function () {
-            $args = func_get_args();
-
             foreach ($this->pipes as $pipe) {
                 // Pipes can be passed both as class to the pipeline and as instances
                 if (is_string($pipe) || is_object($pipe)) {
@@ -111,7 +104,6 @@ class LaravelIntegrationLoader
 
                     $handlerMethod = $this->method;
                     dd_trace($class, $handlerMethod, function () use ($handlerMethod) {
-                        $args = func_get_args();
                         $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                             \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
                             'laravel.pipeline.pipe'
@@ -119,29 +111,29 @@ class LaravelIntegrationLoader
                         $span = $scope->getSpan();
                         $span->setTag(Tag::RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
                         $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
-                        return TryCatchFinally::executePublicMethod($scope, $this, $handlerMethod, $args);
+                        return include __DIR__ . '/../../../try_catch_finally.php';
                     });
                 }
             }
 
-            return call_user_func_array([$this, 'then'], $args);
+            return dd_trace_forward_call();
         });
 
         // Create a trace span for every template rendered
         // public function get($path, array $data = array())
-        dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function ($path, $data = array()) {
+        dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function () {
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                 LaravelIntegration::getInstance(),
                 'laravel.view'
             );
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
-            return TryCatchFinally::executePublicMethod($scope, $this, 'get', [$path, $data]);
+            return include __DIR__ . '/../../../try_catch_finally.php';
         });
 
         dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($self) {
             $args = func_get_args();
             $self->rootScope->getSpan()->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
-            return call_user_func_array([$this, 'setStatusCode'], $args);
+            return dd_trace_forward_call();
         });
     }
 

@@ -66,6 +66,9 @@
             </dir>
             <dir name="tests">
                 <dir name="ext">
+                    <dir name="includes">
+                        <file name="try_catch_finally.php" role="test" />
+                    </dir>
                     <file name="access_modifier_method_access_hook.phpt" role="test" />
                     <file name="access_modifier_property_access_hook.phpt" role="test" />
                     <file name="allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
@@ -77,6 +80,10 @@
                     <file name="dd_trace_serialize_msgpack_error_strict.phpt" role="test" />
                     <file name="disable_tracing_disables_tracing.phpt" role="test" />
                     <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
+                    <file name="dd_trace_forward_call_error.phpt" role="test" />
+                    <file name="dd_trace_forward_call_for_functions.phpt" role="test" />
+                    <file name="dd_trace_forward_call_from_include.phpt" role="test" />
+                    <file name="dd_trace_forward_call_with_inheritance.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="method_invoked_via_reflection.phpt" role="test" />
                     <file name="method_returning_array.phpt" role="test" />

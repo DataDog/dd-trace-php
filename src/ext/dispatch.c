@@ -108,7 +108,7 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, ddtrace_
     }
 }
 
-#if PHP_VERSION_ID < 50500
+#if PHP_VERSION_ID < 70000
 zend_function *fcall_fbc(zend_execute_data *execute_data TSRMLS_DC) {
     zend_op *opline = EX(opline);
     zend_function *fbc = NULL;
@@ -139,7 +139,9 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     }
 
     zend_function *func;
+
 #if PHP_VERSION_ID < 70000
+    const char *func_name = DDTRACE_CALLBACK_NAME;
     func = datadog_current_function(execute_data);
 
     zend_function *callable = (zend_function *)zend_get_closure_method_def(&dispatch->callable TSRMLS_CC);
@@ -151,6 +153,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
 
     zend_create_closure(&closure, callable, executed_method_class, this TSRMLS_CC);
 #else
+    zend_string *func_name = zend_string_init(ZEND_STRL(DDTRACE_CALLBACK_NAME), 0);
     func = EX(func);
     zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable),
                         executed_method_class, executed_method_class, this TSRMLS_CC);
@@ -181,13 +184,30 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     }
 
     ddtrace_setup_fcall(execute_data, &fci, return_value_ptr TSRMLS_CC);
+
+    // Move this to closure zval before zend_fcall_info_init()
+    fcc.function_handler->common.function_name = func_name;
+
+    zend_execute_data *prev_original_execute_data = DDTRACE_G(original_execute_data);
+    DDTRACE_G(original_execute_data) = execute_data;
+#if PHP_VERSION_ID < 70000
+    zval *prev_original_function_name = DDTRACE_G(original_function_name);
+    DDTRACE_G(original_function_name) = (*EG(opline_ptr))->op1.zv;
+#endif
+
     zend_call_function(&fci, &fcc TSRMLS_CC);
+
+#if PHP_VERSION_ID < 70000
+    DDTRACE_G(original_function_name) = prev_original_function_name;
+#endif
+    DDTRACE_G(original_execute_data) = prev_original_execute_data;
 
 #if PHP_VERSION_ID < 70000
     if (fci.params) {
         efree(fci.params);
     }
 #else
+    zend_string_release(func_name);
     if (fci.params) {
         zend_fcall_info_args_clear(&fci, 0);
     }
@@ -367,14 +387,10 @@ static zend_always_inline zend_function *get_current_fbc(zend_execute_data *exec
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         fbc = FBC();
     } else {
-#if PHP_VERSION_ID < 50500
         fbc = fcall_fbc(execute_data TSRMLS_CC);
-#else
 #ifdef ZTS
         (void)TSRMLS_C;
 #endif  // ZTS
-        fbc = EX(function_state).function;
-#endif
     }
 #else
     fbc = EX(call)->func;
