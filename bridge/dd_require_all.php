@@ -75,6 +75,8 @@ require __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonyIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Lumen/LumenIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Lumen/V5/LumenIntegrationLoader.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleIntegration.php';
 
 // Loggers
