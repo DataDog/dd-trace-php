@@ -100,11 +100,6 @@ aliases:
       command: |
         echo "export $(cat .env.circleci | xargs)" >> $HOME/.profile
 
-  - &STEP_RUN_EXTENSION_TESTS
-    run:
-      name: Run extension tests with leak detection
-      command: make test_extension_ci JUNIT_RESULTS_DIR=$(pwd)/test-results
-
   - &STEP_WAIT_AGENT
     run:
       name: Waiting for Dockerized agent
@@ -125,21 +120,12 @@ aliases:
       name: Waiting for Dockerized MongoDB
       command: dockerize -wait tcp://mongodb_integration:27017 -timeout 1m
 
-  - &STEP_RUN_UNIT_TESTS
-    run:
-      name: Run unit tests
-      command: composer test-unit -- --log-junit test-results/php-unit/results.xml
-
   - &STEP_PERSIST_TO_WORKSPACE
     persist_to_workspace:
       root: '.'
       paths:
       - vendor/
       - tmp/build_extension
-
-  - &STEP_STORE_ARTIFACTS
-    store_artifacts:
-      path: test-results
 
   - &STEP_STORE_TEST_RESULTS
     store_test_results:
@@ -225,7 +211,6 @@ jobs:
           name: Verify PECL config and Version files
           command: make verify_all
       - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
 
   "Static Analysis":
     working_directory: ~/datadog
@@ -256,11 +241,27 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_RUN_EXTENSION_TESTS
-      - <<: *STEP_RUN_UNIT_TESTS
+      - run:
+          name: Copy valgrind.rc configuration and suppressions
+          command: |
+            cp .circleci/valgrind/musl_valgrind.rc /home/circleci/.valgrindrc
+            cp .circleci/valgrind/valgrind_musl_suppressions.lib /home/circleci/valgrind_musl_suppressions.lib
+      - run:
+          name: Run extension tests with leak detection
+          command: make test_extension_ci BUILD_DIR=tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
+      - run:
+          name: Run unit tests
+          command: composer test-unit -- --log-junit test-results/php-unit/results.xml
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
 
   integration_tests:
     working_directory: ~/datadog
@@ -292,7 +293,6 @@ jobs:
           command: composer << parameters.integration_testsuite >>
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
-      - <<: *STEP_STORE_ARTIFACTS
 
   verify_package:
     working_directory: ~/datadog

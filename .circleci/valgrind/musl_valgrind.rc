@@ -1,0 +1,2 @@
+--suppressions=/home/circleci/valgrind_musl_suppressions.lib
+--gen-suppressions=all
