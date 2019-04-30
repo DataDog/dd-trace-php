@@ -43,7 +43,7 @@ aliases:
   - &IMAGE_DOCKER_MONGODB
     image: mongo:4
     name: mongodb_integration
-    command: [mongod, --smallfiles]
+    command: --smallfiles
     environment:
       - MONGO_INITDB_ROOT_USERNAME=test
       - MONGO_INITDB_ROOT_PASSWORD=test
