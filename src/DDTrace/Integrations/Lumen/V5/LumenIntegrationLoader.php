@@ -8,6 +8,7 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\Tag;
 use DDTrace\Type;
+use Symfony\Component\HttpFoundation\Request;
 
 final class LumenIntegrationLoader
 {
@@ -23,12 +24,12 @@ final class LumenIntegrationLoader
         $span->setIntegration(LumenIntegration::getInstance());
         $span->setTraceAnalyticsCandidate();
 
-        dd_trace('Laravel\Lumen\Application', 'parseIncomingRequest', function () use ($span) {
-            $routeInfo = dd_trace_forward_call();
-            list($method, $pathInfo) = $routeInfo;
-            $span->setTag(Tag::HTTP_URL, $pathInfo);
-            $span->setTag(Tag::HTTP_METHOD, $method);
-            return $routeInfo;
+        // prepareRequest() was added in Lumen 5.2
+        // https://github.com/laravel/lumen-framework/blob/5.2/src/Application.php#L440
+        dd_trace('Laravel\Lumen\Application', 'prepareRequest', function (Request $request) use ($span) {
+            $span->setTag(Tag::HTTP_URL, $request->getUri());
+            $span->setTag(Tag::HTTP_METHOD, $request->getMethod());
+            return dd_trace_forward_call();
         });
 
         dd_trace('Laravel\Lumen\Application', 'dispatch', function () use ($span) {
@@ -49,6 +50,16 @@ final class LumenIntegrationLoader
         dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function ($code) use ($span) {
             $span->setTag(Tag::HTTP_STATUS_CODE, $code);
             return dd_trace_forward_call();
+        });
+
+        // Trace views
+        dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function () {
+            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                LumenIntegration::getInstance(),
+                'lumen.view'
+            );
+            $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
+            return include __DIR__ . '/../../../try_catch_finally.php';
         });
 
         // Trace middleware

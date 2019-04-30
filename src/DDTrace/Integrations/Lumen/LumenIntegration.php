@@ -58,12 +58,14 @@ final class LumenIntegration extends Integration
     public function doLoad()
     {
         dd_trace('Laravel\Lumen\Application', '__construct', function () {
-
+            // We support Lumen 5.2+
+            if (0 === strpos($this->version(), 'Lumen (5.1')) {
+                return dd_trace_forward_call();
+            }
             if (0 === strpos($this->version(), 'Lumen (5.')) {
                 $loader = new LumenIntegrationLoader();
                 $loader->load();
             }
-
             return dd_trace_forward_call();
         });
 
