@@ -16,7 +16,6 @@
         </testsuite>
     </testsuites>
     <php>
-        <env name="APP_ENV" value="dd_testing"/>
         <env name="LARAVEL_VERSION" value="Version_4_2"/>
         <env name="BOOTSTRAP_SCRIPT" value="bootstrap/start.php"/>
     </php>

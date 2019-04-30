@@ -24,7 +24,6 @@ x-aliases:
       environment:
         - REDIS_HOSTNAME=redis_integration
         - DDAGENT_HOSTNAME=ddagent_integration
-        - APP_ENV=dd_testing
       cap_add:
         - SYS_PTRACE
   - &base_54_service
