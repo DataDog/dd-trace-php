@@ -48,10 +48,6 @@ class SymfonyBundle extends Bundle
             return;
         }
 
-        if (getenv('APP_ENV') != 'dd_testing' && php_sapi_name() == 'cli') {
-            return;
-        }
-
         $tracer = GlobalTracer::get();
 
         // Create a span that starts from when Symfony first boots

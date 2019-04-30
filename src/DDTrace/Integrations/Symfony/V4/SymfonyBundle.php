@@ -48,10 +48,6 @@ class SymfonyBundle extends Bundle
             return;
         }
 
-        if (php_sapi_name() == 'cli') {
-            return;
-        }
-
         $tracer = GlobalTracer::get();
         $appName = $this->getAppName();
 

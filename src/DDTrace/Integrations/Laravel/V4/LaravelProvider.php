@@ -133,9 +133,6 @@ class LaravelProvider extends ServiceProvider
      */
     private function shouldLoad()
     {
-        if ('cli' === PHP_SAPI && 'dd_testing' !== getenv('APP_ENV')) {
-            return false;
-        }
         if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
             return false;
         }
