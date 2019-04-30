@@ -99,7 +99,7 @@ final class SpanTest extends Framework\TestCase
     public function testSpanTagWithObjectIsIgnored()
     {
         $span = $this->createSpan();
-        $span->setTag('foo', new \stdClass);
+        $span->setTag('foo', new \stdClass());
 
         $this->assertNull($span->getTag('foo'));
     }
