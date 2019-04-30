@@ -12,7 +12,7 @@ The test frameworks must support the following routes/endpoints in order to exec
 
 In order to generate the sample Laravel apps we used the default commands from the framework's 'Getting started' guides.
 
-    $ cd tests/Integration/Frameworks/Laravel
+    $ cd tests/Frameworks/Laravel
 
 ### Laravel 4.2
 
@@ -31,6 +31,18 @@ Link: https://laravel.com/docs/5.8/installation
 Link: https://laravel.com/docs/5.7/installation
 
     $ composer create-project --prefer-dist laravel/laravel Version_5_7 5.7.*
+
+## Lumen
+
+In order to generate the sample Lumen apps we used the default commands from the framework's 'Getting started' guides.
+
+    $ cd tests/Frameworks/Lumen
+
+### Lumen 5.8
+
+Link: https://lumen.laravel.com/docs/5.8/installation
+
+    $ composer create-project laravel/lumen Version_5_8 "5.8.*"
 
 ## Symfony
 
