@@ -44,10 +44,6 @@ aliases:
     image: mongo:4
     name: mongodb_integration
     command: --smallfiles
-    restart: always
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=test
-      - MONGO_INITDB_ROOT_PASSWORD=test
 
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: php:7.2
