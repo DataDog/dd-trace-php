@@ -47,6 +47,7 @@ aliases:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=test
       - MONGO_INITDB_ROOT_PASSWORD=test
+      - MONGO_INITDB_DATABASE=test
 
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: php:7.2
