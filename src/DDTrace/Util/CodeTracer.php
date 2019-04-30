@@ -48,8 +48,14 @@ final class CodeTracer
             $integration,
             $isTraceAnalyticsCandidate
         ) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
+            $scope = $tracer->startActiveSpan($className . '.' . $method);
+
             $span = $scope->getSpan();
 
             if ($integration) {
@@ -67,7 +73,7 @@ final class CodeTracer
             $returnVal = null;
             $thrownException = null;
             try {
-                $returnVal = call_user_func_array([$this, $method], $args);
+                $returnVal = dd_trace_forward_call();
             } catch (\Exception $e) {
                 $span->setError($e);
                 $thrownException = $e;

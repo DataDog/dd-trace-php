@@ -44,13 +44,17 @@ class CurlIntegration extends Integration
 
         dd_trace('curl_exec', function ($ch) use ($integration) {
             $tracer = GlobalTracer::get();
+            CurlIntegration::injectDistributedTracingHeaders($ch);
+
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $scope = $tracer->startIntegrationScopeAndSpan($integration, 'curl_exec');
             $span = $scope->getSpan();
             $span->setTraceAnalyticsCandidate();
             $span->setTag(Tag::SERVICE_NAME, 'curl');
             $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
-
-            CurlIntegration::injectDistributedTracingHeaders($ch);
 
             $result = dd_trace_forward_call();
             if ($result === false && $span instanceof Span) {

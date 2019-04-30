@@ -50,6 +50,11 @@ class MysqliIntegration extends Integration
         //      [, int $port = ini_get("mysqli.default_port")
         //      [, string $socket = ini_get("mysqli.default_socket") ]]]]]] )
         dd_trace('mysqli_connect', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $scope = MysqliIntegration::initScope('mysqli_connect', 'mysqli_connect');
             $span = $scope->getSpan();
 
@@ -85,6 +90,11 @@ class MysqliIntegration extends Integration
         //      [, string $socket = ini_get("mysqli.default_socket") ]]]]]] )
         $mysqli_constructor = PHP_MAJOR_VERSION > 5 ? '__construct' : 'mysqli';
         dd_trace('mysqli', $mysqli_constructor, function () use ($mysqli_constructor) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $scope = MysqliIntegration::initScope('mysqli.__construct', 'mysqli.__construct');
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
@@ -114,6 +124,11 @@ class MysqliIntegration extends Integration
 
         // mixed mysqli_query ( mysqli $link , string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
         dd_trace('mysqli_query', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             list($mysqli, $query) = func_get_args();
 
             $scope = MysqliIntegration::initScope('mysqli_query', $query);
@@ -134,6 +149,11 @@ class MysqliIntegration extends Integration
 
         // mysqli_stmt mysqli_prepare ( mysqli $link , string $query )
         dd_trace('mysqli_prepare', function ($mysqli, $query) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $scope = MysqliIntegration::initScope('mysqli_prepare', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
@@ -151,6 +171,11 @@ class MysqliIntegration extends Integration
 
         // bool mysqli_commit ( mysqli $link [, int $flags [, string $name ]] )
         dd_trace('mysqli_commit', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $args = func_get_args();
             list($mysqli) = $args;
             $resource = MysqliIntegration::retrieveQuery($mysqli, 'mysqli_commit');
@@ -172,6 +197,11 @@ class MysqliIntegration extends Integration
 
         // bool mysqli_stmt_execute ( mysqli_stmt $stmt )
         dd_trace('mysqli_stmt_execute', function ($stmt) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $resource = MysqliIntegration::retrieveQuery($stmt, 'mysqli_stmt_execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt_execute', $resource);
 
@@ -184,6 +214,11 @@ class MysqliIntegration extends Integration
 
         // bool mysqli_stmt_get_result ( mysqli_stmt $stmt )
         dd_trace('mysqli_stmt_get_result', function ($stmt) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $resource = MysqliIntegration::retrieveQuery($stmt, 'mysqli_stmt_get_result');
             $result = dd_trace_forward_call();
 
@@ -195,6 +230,11 @@ class MysqliIntegration extends Integration
 
         // mixed mysqli::query ( string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
         dd_trace('mysqli', 'query', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             list($query) = func_get_args();
             $scope = MysqliIntegration::initScope('mysqli.query', $query);
             /** @var \DDTrace\Span $span */
@@ -213,6 +253,11 @@ class MysqliIntegration extends Integration
 
         // mysqli_stmt mysqli::prepare ( string $query )
         dd_trace('mysqli', 'prepare', function ($query) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $scope = MysqliIntegration::initScope('mysqli.prepare', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
@@ -227,6 +272,11 @@ class MysqliIntegration extends Integration
 
         // bool mysqli::commit ([ int $flags [, string $name ]] )
         dd_trace('mysqli', 'commit', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $args = func_get_args();
             $resource = MysqliIntegration::retrieveQuery($this, 'mysqli.commit');
             $scope = MysqliIntegration::initScope('mysqli.commit', $resource);
@@ -243,6 +293,11 @@ class MysqliIntegration extends Integration
 
         // bool mysqli_stmt::execute ( void )
         dd_trace('mysqli_stmt', 'execute', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $resource = MysqliIntegration::retrieveQuery($this, 'mysqli_stmt.execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt.execute', $resource);
             $scope->getSpan()->setTraceAnalyticsCandidate();
@@ -251,6 +306,11 @@ class MysqliIntegration extends Integration
 
         // bool mysqli_stmt::execute ( void )
         dd_trace('mysqli_stmt', 'get_result', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $resource = MysqliIntegration::retrieveQuery($this, 'mysqli_stmt.get_result');
             $scope = MysqliIntegration::initScope('mysqli_stmt.get_result', $resource);
             $afterResult = function ($result) use ($resource) {

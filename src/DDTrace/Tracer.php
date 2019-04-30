@@ -113,6 +113,12 @@ final class Tracer implements TracerInterface
         $this->traceAnalyticsProcessor = new TraceAnalyticsProcessor();
     }
 
+    public function limited()
+    {
+        return false;
+    }
+
+
     /**
      * Resets this tracer to its original state.
      */

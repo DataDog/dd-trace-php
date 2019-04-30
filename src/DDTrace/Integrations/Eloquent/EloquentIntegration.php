@@ -41,7 +41,12 @@ class EloquentIntegration extends Integration
 
         // getModels($columns = ['*'])
         dd_trace('Illuminate\Database\Eloquent\Builder', 'getModels', function () use ($integration) {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.get');
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.get');
             $span = $scope->getSpan();
             $sql = $this->getQuery()->toSql();
             $span->setTag(Tag::RESOURCE_NAME, $sql);
@@ -53,8 +58,13 @@ class EloquentIntegration extends Integration
 
         // performInsert(Builder $query)
         dd_trace('Illuminate\Database\Eloquent\Model', 'performInsert', function () use ($integration) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             list($eloquentQueryBuilder) = func_get_args();
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.insert');
+            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.insert');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
             $span->setTag(Tag::RESOURCE_NAME, $sql);
@@ -67,7 +77,12 @@ class EloquentIntegration extends Integration
         // performUpdate(Builder $query)
         dd_trace('Illuminate\Database\Eloquent\Model', 'performUpdate', function () use ($integration) {
             list($eloquentQueryBuilder) = func_get_args();
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.update');
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.update');
             $span = $scope->getSpan();
             $sql = $eloquentQueryBuilder->getQuery()->toSql();
             $span->setTag(Tag::RESOURCE_NAME, $sql);
@@ -79,7 +94,12 @@ class EloquentIntegration extends Integration
 
         // public function delete()
         dd_trace('Illuminate\Database\Eloquent\Model', 'delete', function () use ($integration) {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan($integration, 'eloquent.delete');
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.delete');
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::SQL);
 
             return include __DIR__ . '/../../try_catch_finally.php';
