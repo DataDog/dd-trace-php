@@ -44,9 +44,9 @@ class CurlIntegration extends Integration
 
         dd_trace('curl_exec', function ($ch) use ($integration) {
             $tracer = GlobalTracer::get();
-            CurlIntegration::injectDistributedTracingHeaders($ch);
-
             if ($tracer->limited()) {
+                CurlIntegration::injectDistributedTracingHeaders($ch);
+
                 return dd_trace_forward_call();
             }
 
@@ -55,6 +55,7 @@ class CurlIntegration extends Integration
             $span->setTraceAnalyticsCandidate();
             $span->setTag(Tag::SERVICE_NAME, 'curl');
             $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
+            CurlIntegration::injectDistributedTracingHeaders($ch);
 
             $result = dd_trace_forward_call();
             if ($result === false && $span instanceof Span) {
@@ -118,10 +119,13 @@ class CurlIntegration extends Integration
         $httpHeaders = ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, []);
         if (is_array($httpHeaders)) {
             $tracer = GlobalTracer::get();
-            $context = $tracer->getActiveSpan()->getContext();
-            $tracer->inject($context, Format::CURL_HTTP_HEADERS, $httpHeaders);
+            $activeSpan = $tracer->getActiveSpan();
+            if ($activeSpan !== null) {
+                $context = $activeSpan->getContext();
+                $tracer->inject($context, Format::CURL_HTTP_HEADERS, $httpHeaders);
 
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeaders);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeaders);
+            }
         }
     }
 }
