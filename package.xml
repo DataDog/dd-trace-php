@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-04-25</date>
+    <date>2019-05-01</date>
     <version>
-        <release>0.20.0</release>
-        <api>0.20.0</api>
+        <release>0.21.0</release>
+        <api>0.21.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,11 +21,12 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-### Added
-- Force tracing or discarding trace via special Span tag (manual.keep and manual.drop) #409
+        ### Added
+        - `dd_trace_forward_call()` to forward the original call from within a tracing closure #284
 
-### Fixed
-- Resource use by caching configuration values instead of processing data on every access #406
+        ### Fixed
+        - `parent::` keyword not honored from a subclass when forwarding a call from a tracing closure #284
+        - Private and protected callable strings not resolved properly from a tracing closure #303
     </notes>
     <contents>
         <dir name="/">

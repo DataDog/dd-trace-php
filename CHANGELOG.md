@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.21.0]
+
 ### Added
 - `dd_trace_forward_call()` to forward the original call from within a tracing closure #284
 
@@ -426,7 +428,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.20.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.21.0...HEAD
+[0.21.0]: https://github.com/DataDog/dd-trace-php/compare/0.20.0...0.21.0
 [0.20.0]: https://github.com/DataDog/dd-trace-php/compare/0.19.1...0.20.0
 [0.19.1]: https://github.com/DataDog/dd-trace-php/compare/0.19.0...0.19.1
 [0.19.0]: https://github.com/DataDog/dd-trace-php/compare/0.18.0...0.19.0
