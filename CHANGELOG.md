@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Error when a subclassed integration returns an object that cannot be cast as a string #423
+
 ## [0.21.0]
 
 ### Added
@@ -12,7 +15,6 @@ All notable changes to this project will be documented in this file - [read more
 ### Fixed
 - `parent::` keyword not honored from a subclass when forwarding a call from a tracing closure #284
 - Private and protected callable strings not resolved properly from a tracing closure #303
-- Error when a subclassed integration returns an object that cannot be cast as a string #423
 
 ## [0.20.0]
 
