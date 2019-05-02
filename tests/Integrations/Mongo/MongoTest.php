@@ -9,6 +9,7 @@ use MongoCollection;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
+use DDTrace\Configuration;
 
 final class MongoTest extends IntegrationTestCase
 {
@@ -648,6 +649,27 @@ final class MongoTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('MongoCollection.' . $method, 'mongo', 'mongodb', $method),
         ]);
+    }
+
+
+    public function testLimitedTracer()
+    {
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
+            'getSpansLimit' => 0
+        ]));
+
+        $traces = $this->isolateCollection(function (MongoCollection $collection) {
+            $collection->distinct('foo', ['foo' => 'bar']);
+            $collection->update(
+                ['foo' => 'bar'],
+                []
+            );
+            $collection->setWriteConcern('majority');
+            $collection->parallelCollectionScan(2);
+            $collection->aggregate([], ['explain' => true]);
+        });
+
+        $this->assertEmpty($traces);
     }
 
     public function collectionMethods()
