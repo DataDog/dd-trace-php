@@ -10,6 +10,7 @@ use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\GlobalTracer;
+use DDTrace\Configuration;
 
 
 trait TracerTestTrait
@@ -31,6 +32,27 @@ trait TracerTestTrait
 
         // Checking spans belong to the proper integration
         $this->assertSpansBelongsToProperIntegration($this->readTraces($tracer));
+
+        return $this->flushAndGetTraces($transport);
+    }
+
+
+    /**
+     * @param $fn
+     * @param null $tracer
+     * @return Span[][]
+     */
+    public function isolateLimitedTracer($fn, $tracer = null)
+    {
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
+            'getSpansLimit' => 0
+        ]));
+
+        $transport = new DebugTransport();
+        $tracer = $tracer ?: new Tracer($transport);
+        GlobalTracer::set($tracer);
+
+        $fn($tracer);
 
         return $this->flushAndGetTraces($transport);
     }
