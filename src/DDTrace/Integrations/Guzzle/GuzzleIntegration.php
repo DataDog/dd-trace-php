@@ -116,9 +116,9 @@ final class GuzzleIntegration extends Integration
     private function setUrlTag(Span $span, $request)
     {
         if (is_a($request, '\GuzzleHttp\Message\RequestInterface')) {
-            $span->setTag(Tag::HTTP_URL, $request->getUrl());
+            $span->setTag(Tag::HTTP_URL, (string) $request->getUrl());
         } elseif (is_a($request, '\Psr\Http\Message\RequestInterface')) {
-            $span->setTag(Tag::HTTP_URL, $request->getUri());
+            $span->setTag(Tag::HTTP_URL, (string) $request->getUri());
         }
     }
 

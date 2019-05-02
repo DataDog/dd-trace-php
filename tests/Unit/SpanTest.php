@@ -96,6 +96,14 @@ final class SpanTest extends Framework\TestCase
         $this->assertFalse($span->hasError());
     }
 
+    public function testSpanTagWithObjectIsIgnored()
+    {
+        $span = $this->createSpan();
+        $span->setTag('foo', new \stdClass());
+
+        $this->assertNull($span->getTag('foo'));
+    }
+
     public function testLogWithErrorBoolProperlyMarksError()
     {
         $span = $this->createSpan();

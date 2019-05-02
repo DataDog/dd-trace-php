@@ -67,7 +67,7 @@ interface Span
      * If the span is already finished, a warning should be logged.
      *
      * @param string $key
-     * @param string|bool|int|float $value
+     * @param mixed $value
      * @param boolean $setIfFinished
      * @return void
      */

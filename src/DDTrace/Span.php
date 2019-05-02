@@ -134,6 +134,11 @@ final class Span extends SpanData
         if ($key !== (string)$key) {
             throw InvalidSpanArgument::forTagKey($key);
         }
+        // Since sub classes can change the return value of a known method,
+        // we quietly ignore values that could cause errors when converting to string
+        if (is_object($value) && $key !== Tag::ERROR) {
+            return;
+        }
 
         if (array_key_exists($key, self::$specialTags)) {
             if ($key === Tag::ERROR) {

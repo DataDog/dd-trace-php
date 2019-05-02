@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Error when a subclassed integration returns an object that cannot be cast as a string #423
+
 ## [0.21.0]
 
 ### Added
