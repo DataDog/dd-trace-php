@@ -259,6 +259,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             'isDistributedTracingEnabled' => false,
             'isPrioritySamplingEnabled' => false,
             'getGlobalTags' => [],
+            'getSpansLimit' => -1,
             'isDebugModeEnabled' => false,
         ]));
 
@@ -278,5 +279,67 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertArrayNotHasKey('X-Datadog-Trace-Id', $found['headers']);
         $this->assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
         $this->assertArrayNotHasKey('X-Datadog-Sampling-Priority', $found['headers']);
+    }
+
+    public function testTracerIsRunningAtLimitedCapacityWeStillPropagateTheSpan()
+    {
+        $found = [];
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
+            'getSpansLimit' => 0
+        ]));
+
+        $traces = $this->isolateTracer(function () use (&$found) {
+            /** @var Tracer $tracer */
+            $tracer = GlobalTracer::get();
+            $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
+            $span = $tracer->startActiveSpan('custom')->getSpan();
+
+            $ch = curl_init(self::URL . '/headers');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'honored: preserved_value',
+            ]);
+            $found = json_decode(curl_exec($ch), 1);
+
+            $span->finish();
+        });
+
+        $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
+        // existing headers are honored
+        $this->assertSame('preserved_value', $found['headers']['Honored']);
+
+        $this->assertEquals(1, sizeof($traces[0]));
+
+        // trace is: custom
+        $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
+        // parent is: custom
+        $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+    }
+
+    public function testTracerRunningAtLimitedCapacityCurlWorksWithoutARootSpan()
+    {
+        $found = [];
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
+            'getSpansLimit' => 0
+        ]));
+
+        $traces = $this->isolateTracer(function () use (&$found) {
+            /** @var Tracer $tracer */
+            $ch = curl_init(self::URL . '/headers');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'honored: preserved_value',
+            ]);
+            $found = json_decode(curl_exec($ch), 1);
+        });
+
+        // existing headers are honored
+        $this->assertSame('preserved_value', $found['headers']['Honored']);
+
+        $this->assertArrayNotHasKey('X-Datadog-Trace-Id', $found['headers']);
+        $this->assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
+        $this->assertArrayNotHasKey('X-Datadog-Sampling-Priority', $found['headers']);
+
+        $this->assertEquals(0, sizeof($traces));
     }
 }

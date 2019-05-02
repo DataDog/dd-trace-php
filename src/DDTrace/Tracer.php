@@ -125,9 +125,8 @@ final class Tracer implements TracerInterface
 
     public function limited()
     {
-        return $this->spansLimit > 0 && ($this->spansCreated > $this->spansLimit);
+        return $this->spansLimit >= 0 && ($this->spansCreated >= $this->spansLimit);
     }
-
 
     /**
      * Resets this tracer to its original state.
