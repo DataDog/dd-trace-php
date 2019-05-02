@@ -191,6 +191,24 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
+    public function testLimitedTracerDeleteMulti()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $this->client->add('key1', 'value1');
+            $this->client->add('key2', 'value2');
+
+            $this->assertSame('value1', $this->client->get('key1'));
+            $this->assertSame('value2', $this->client->get('key2'));
+
+            $this->client->deleteMulti(['key1', 'key2']);
+
+            $this->assertFalse($this->client->get('key1'));
+            $this->assertFalse($this->client->get('key2'));
+        });
+
+        $this->assertEmpty($traces);
+    }
+
     public function testDeleteMulti()
     {
         $traces = $this->isolateTracer(function () {
