@@ -340,6 +340,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
         $this->assertArrayNotHasKey('X-Datadog-Sampling-Priority', $found['headers']);
 
-        $this->assertEquals(0, sizeof($traces));
+        $this->assertEmpty($traces);
     }
 }

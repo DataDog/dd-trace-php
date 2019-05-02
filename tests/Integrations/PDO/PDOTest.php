@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\PDO;
 
+use DDTrace\Configuration;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -293,6 +294,26 @@ final class PDOTest extends IntegrationTestCase
                 ->setError('PDOException', 'Sql error')
                 ->withExactTags($this->baseTags()),
         ]);
+    }
+
+    public function testLimitedTracerPDO()
+    {
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
+            'getSpansLimit' => 0
+        ]));
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = $this->pdoInstance();
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([1]);
+            $results = $stmt->fetchAll();
+            $this->assertEquals('Tom', $results[0]['name']);
+            $stmt->closeCursor();
+            $stmt = null;
+            $pdo = null;
+        });
+        $this->assertEmpty($traces);
     }
 
     private function pdoInstance()
