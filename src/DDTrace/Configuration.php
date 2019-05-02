@@ -61,6 +61,20 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Created Spans limit - integrations can still create spans above this limit but
+     * those should be guaranteed to be low volume.
+     *
+     * -1 means no limit
+     *
+     * @return int
+     */
+    public function getSpansLimit()
+    {
+        return (int)$this->floatValue('spans.limit', 1000);
+    }
+
+
+    /**
      * Whether or not also unfinished spans should be finished (and thus sent) when tracer is flushed.
      * Motivation: We had users reporting that in some cases they have manual end-points that `echo` some content and
      * then just `exit(0)` at the end of action's method. While the shutdown hook that flushes traces would still be
