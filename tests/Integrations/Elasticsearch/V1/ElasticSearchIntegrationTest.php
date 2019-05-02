@@ -224,7 +224,7 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function testLimitedTracer()
     {
         $client = $this->client();
-        $traces = $this->isolateTracer(function () use ($client, $docs) {
+        $traces = $this->isolateLimitedTracer(function () use ($client) {
             $client->indices()->delete(['index' => 'my_index']);
             $client->index([
                 'id' => 1,
