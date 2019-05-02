@@ -162,7 +162,7 @@ final class PredisTest extends IntegrationTestCase
 
     public function testLimitedTracesPredisSetCommand()
     {
-        $traces = $this->isolateTracer(function () {
+        $traces = $this->isolateLimitedTracer(function () {
             $client = new \Predis\Client([ "host" => $this->host ]);
             $client->set('foo', 'value');
         });
