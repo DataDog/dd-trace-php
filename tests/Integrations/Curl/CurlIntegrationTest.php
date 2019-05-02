@@ -319,11 +319,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
     public function testTracerRunningAtLimitedCapacityCurlWorksWithoutARootSpan()
     {
         $found = [];
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'getSpansLimit' => 0
-        ]));
-
-        $traces = $this->isolateTracer(function () use (&$found) {
+        $traces = $this->isolateLimitedTracer(function () use (&$found) {
             /** @var Tracer $tracer */
             $ch = curl_init(self::URL . '/headers');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
