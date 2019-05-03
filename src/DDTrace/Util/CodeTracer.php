@@ -35,6 +35,7 @@ final class CodeTracer
     public function tracePublicMethod(
         $className,
         $method,
+        \Closure $limitedTracerCallHook = null,
         \Closure $preCallHook = null,
         \Closure $postCallHook = null,
         Integration $integration = null,
@@ -43,6 +44,7 @@ final class CodeTracer
         dd_trace($className, $method, function () use (
             $className,
             $method,
+            $limitedTracerCallHook,
             $preCallHook,
             $postCallHook,
             $integration,
@@ -50,6 +52,10 @@ final class CodeTracer
         ) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
+                if ($limitedTracerCallHook){
+                    $limitedTracerCallHook(func_get_args());
+                }
+
                 return dd_trace_forward_call();
             }
 
