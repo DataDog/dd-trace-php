@@ -52,7 +52,7 @@ final class CodeTracer
         ) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
-                if ($limitedTracerCallHook){
+                if ($limitedTracerCallHook) {
                     $limitedTracerCallHook(func_get_args());
                 }
 

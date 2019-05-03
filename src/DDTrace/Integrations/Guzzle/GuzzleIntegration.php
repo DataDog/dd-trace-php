@@ -114,9 +114,10 @@ final class GuzzleIntegration extends Integration
     /**
      * @return \Closure
      */
-    private function buildLimitTracerCallback(){
+    private function buildLimitTracerCallback()
+    {
         $self = $this;
-        return function(array $args) use ($self) {
+        return function (array $args) use ($self) {
             if (!Configuration::get()->isDistributedTracingEnabled()) {
                 return null;
             }
@@ -125,7 +126,7 @@ final class GuzzleIntegration extends Integration
             $tracer = GlobalTracer::get();
             $activeSpan = GlobalTracer::get()->getActiveSpan();
 
-            if ($activeSpan){
+            if ($activeSpan) {
                 $self->applyDistributedTracingHeaders($activeSpan, $request);
             }
         };
