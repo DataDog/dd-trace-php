@@ -279,6 +279,23 @@
             "@custom-framework-autoloaded-update",
             "@custom-framework-autoloaded-test"
         ],
+        "test-web-73": [
+            "@laravel-57-update",
+            "@laravel-57-test",
+            "@laravel-58-update",
+            "@laravel-58-test",
+            "@symfony-28-update",
+            "@symfony-28-test",
+            "@symfony-33-update",
+            "@symfony-33-test",
+            "@symfony-34-update",
+            "@symfony-34-test",
+            "@symfony-42-update",
+            "@symfony-42-test",
+            "@zend-framework-1-test",
+            "@custom-framework-autoloaded-update",
+            "@custom-framework-autoloaded-test"
+        ],
 
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
 

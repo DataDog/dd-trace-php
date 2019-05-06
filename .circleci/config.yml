@@ -563,8 +563,8 @@ workflows:
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Web integration tests"
-          integration_testsuite: "test-web-72" # not yet defined for 7.3
-          docker_image: "circleci/php:7.3"
+          integration_testsuite: "test-web-73"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
       - "Lint files":
           requires: [ 'Code Checkout' ]
       - "Static Analysis":
