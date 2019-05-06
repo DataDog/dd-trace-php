@@ -61,6 +61,7 @@ require __DIR__ . '/../src/DDTrace/Integrations/Integration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/ZendFrameworkIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Web/WebIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Predis/PredisIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Redis/RedisIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/IntegrationsLoader.php';
 require __DIR__ . '/../src/DDTrace/Integrations/PDO/PDOIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Eloquent/EloquentIntegration.php';

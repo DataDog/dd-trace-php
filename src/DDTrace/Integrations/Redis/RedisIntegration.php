@@ -47,7 +47,7 @@ class RedisIntegration extends Integration
     }
 
     /**
-     * Static method to add instrumentation to the Predis library
+     * Static method to add instrumentation to the Redis library
      */
     public static function load()
     {
