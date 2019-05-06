@@ -16,7 +16,6 @@
     obj:*
     obj:*
     obj:*
-    obj:*
 }
 {
     <insert_a_suppression_name_here>
@@ -35,93 +34,7 @@
     obj:*
 }
 {
-   <insert_a_suppression_name_here>
-   Memcheck:Cond
-   fun:zend_string_equal_val
-   fun:zend_string_equal_content
-   fun:zend_hash_find_bucket
-   fun:_zend_hash_add_or_update_i
-   fun:zend_hash_update
-   fun:php_ini_parser_cb
-   fun:ini_parse
-   fun:zend_parse_ini_string
-   fun:php_init_config
-   fun:php_module_startup
-   fun:php_cli_startup
-   fun:main
-}
-{
-   <insert_a_suppression_name_here>
-   Memcheck:Cond
-   fun:zend_string_equal_val
-   fun:zend_string_equal_content
-   fun:zend_hash_find_bucket
-   fun:zend_hash_find
-   fun:cfg_get_entry_ex
-   fun:php_get_configuration_directive_for_zend
-   fun:zend_get_configuration_directive
-   fun:zend_register_ini_entries
-   fun:php_module_startup
-   fun:php_cli_startup
-   fun:main
-}
-{
-   <insert_a_suppression_name_here>
-   Memcheck:Cond
-   fun:zend_string_equal_val
-   fun:zend_string_equal_content
-   fun:zend_interned_string_ht_lookup
-   fun:zend_new_interned_string_permanent
-   fun:zend_register_ini_entries
-   fun:php_module_startup
-   fun:php_cli_startup
-   fun:main
-}
-{
-   <insert_a_suppression_name_here>
-   Memcheck:Cond
-   fun:zend_string_equal_val
-   fun:zend_string_equal_content
-   fun:zend_hash_del
-   fun:zend_declare_property_ex
-   fun:zend_declare_property
-   fun:zend_declare_property_long
-   fun:zm_startup_dom
-   fun:zend_startup_module_ex
-   fun:zend_startup_module_zval
-   fun:zend_hash_apply
-   fun:zend_startup_modules
-   fun:php_module_startup
-}
-{
-   <insert_a_suppression_name_here>
-   Memcheck:Cond
-   fun:zend_string_equal_val
-   fun:zend_string_equal_content
-   fun:zend_interned_string_ht_lookup
-   fun:zend_new_interned_string_request
-   fun:zval_make_interned_string
-   fun:zend_insert_literal
-   fun:zend_add_literal
-   fun:zend_emit_op
-   fun:zend_compile_args
-   fun:zend_compile_call_common
-   fun:zend_compile_call
-   fun:zend_compile_var
-}
-{
-   <insert_a_suppression_name_here>
-   Memcheck:Cond
-   fun:zend_string_equal_val
-   fun:zend_string_equal_content
-   fun:zend_interned_string_ht_lookup
-   fun:zend_new_interned_string_request
-   fun:zval_make_interned_string
-   fun:zend_insert_literal
-   fun:zend_add_literal
-   fun:zend_emit_op
-   fun:zend_compile_call
-   fun:zend_compile_var
-   fun:zend_compile_expr
-   fun:zend_compile_stmt
+    php_zend_string_equal_val false positive due to handcrafted assembly
+    Memcheck:Cond
+    fun:zend_string_equal_val
 }

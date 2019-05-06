@@ -464,6 +464,11 @@ workflows:
           name: "webdevops/php:7.1"
           docker_image: webdevops/php:7.1
           package_type: deb
+      - verify_package:
+          requires: [ "package extension" ]
+          name: "php:7.3"
+          docker_image: php:7.3
+          package_type: deb
   build:
     jobs:
       - "Code Checkout"
@@ -499,10 +504,10 @@ workflows:
           requires: [ 'Code Checkout' ]
           name: "PHP 72 Unit tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
-      - unit_tests:
-          requires: [ 'Code Checkout' ]
-          name: "PHP 70 Unit tests-zts"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-zts-debug"
+      # - unit_tests: # disabled due to posisbly leaking tests
+      #     requires: [ 'Code Checkout' ]
+      #     name: "PHP 70 Unit tests-zts"
+      #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-zts-debug"
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Unit tests"
