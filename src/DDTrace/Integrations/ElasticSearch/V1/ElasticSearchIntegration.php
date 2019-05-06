@@ -143,6 +143,10 @@ class ElasticSearchIntegration extends Integration
         // Endpoints
         dd_trace('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function () {
             $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $scope = $tracer->startIntegrationScopeAndSpan(
                 ElasticSearchIntegration::getInstance(),
                 "Elasticsearch.Endpoint.performRequest"
@@ -194,12 +198,17 @@ class ElasticSearchIntegration extends Integration
         $class = 'Elasticsearch\Client';
 
         dd_trace($class, $name, function () use ($name, $isTraceAnalyticsCandidate) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $args = func_get_args();
             $params = [];
             if (isset($args[0])) {
                 list($params) = $args;
             }
-            $tracer = GlobalTracer::get();
+
             $scope = $tracer->startIntegrationScopeAndSpan(
                 ElasticSearchIntegration::getInstance(),
                 "Elasticsearch.Client.$name"
@@ -241,6 +250,10 @@ class ElasticSearchIntegration extends Integration
     {
         dd_trace($class, $name, function () use ($class, $name) {
             $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $operationName = str_replace('\\', '.', "$class.$name");
             $scope = $tracer->startIntegrationScopeAndSpan(ElasticSearchIntegration::getInstance(), $operationName);
             $span = $scope->getSpan();
@@ -278,12 +291,16 @@ class ElasticSearchIntegration extends Integration
         $class = 'Elasticsearch\Namespaces\\' . $namespace;
 
         dd_trace($class, $name, function () use ($namespace, $name) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $args = func_get_args();
             $params = [];
             if (isset($args[0])) {
                 list($params) = $args;
             }
-            $tracer = GlobalTracer::get();
             $scope = $tracer->startIntegrationScopeAndSpan(
                 ElasticSearchIntegration::getInstance(),
                 "Elasticsearch.$namespace.$name"

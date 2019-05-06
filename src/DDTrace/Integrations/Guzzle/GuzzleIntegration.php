@@ -74,6 +74,7 @@ final class GuzzleIntegration extends Integration
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'send',
+            $this->buildLimitTracerCallback(),
             $this->buildPreCallback('send'),
             $postCallback,
             $integration,
@@ -82,6 +83,7 @@ final class GuzzleIntegration extends Integration
         $this->codeTracer->tracePublicMethod(
             'GuzzleHttp\Client',
             'transfer',
+            $this->buildLimitTracerCallback(),
             $this->buildPreCallback('transfer'),
             $postCallback,
             $integration,
@@ -106,6 +108,27 @@ final class GuzzleIntegration extends Integration
             $span->setTag(Tag::HTTP_METHOD, $request->getMethod());
             $self->setUrlTag($span, $request);
             $span->setTag(Tag::RESOURCE_NAME, $method);
+        };
+    }
+
+    /**
+     * @return \Closure
+     */
+    private function buildLimitTracerCallback()
+    {
+        $self = $this;
+        return function (array $args) use ($self) {
+            if (!Configuration::get()->isDistributedTracingEnabled()) {
+                return null;
+            }
+
+            list($request) = $args;
+            $tracer = GlobalTracer::get();
+            $activeSpan = GlobalTracer::get()->getActiveSpan();
+
+            if ($activeSpan) {
+                $self->applyDistributedTracingHeaders($activeSpan, $request);
+            }
         };
     }
 

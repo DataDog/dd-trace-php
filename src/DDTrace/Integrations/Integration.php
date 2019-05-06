@@ -122,7 +122,12 @@ abstract class Integration
             $postCallHook,
             $integration
         ) {
-            $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
 
             if (null !== $integration) {

@@ -221,6 +221,58 @@ final class ElasticSearchIntegrationTest extends IntegrationTestCase
         ]);
     }
 
+    public function testLimitedTracer()
+    {
+        $client = $this->client();
+        $traces = $this->isolateLimitedTracer(function () use ($client) {
+            $client->indices()->delete(['index' => 'my_index']);
+            $client->index([
+                'id' => 1,
+                'index' => 'my_index',
+                'type' => 'my_type',
+                'body' => ['my' => 'body'],
+            ]);
+            $client->indices()->flush();
+            $docs = $client->search([
+                'search_type' => 'scan',
+                'scroll' => '1s',
+                'size' => 1,
+                'index' => 'my_index',
+                'body' => [
+                    'query' => [
+                        'match_all' => [],
+                    ],
+                ],
+            ]);
+
+            // Now we loop until the scroll "cursors" are exhausted
+            $scroll_id = $docs['_scroll_id'];
+            while (\true) {
+                // Execute a Scroll request
+                $response = $client->scroll(
+                    [
+                        "scroll_id" => $scroll_id,
+                        "scroll" => "1s",
+                    ]
+                );
+
+                // Check to see if we got any search hits from the scroll
+                if (count($response['hits']['hits']) > 0) {
+                    // If yes, Do Work Here
+
+                    // Get new scroll_id
+                    // Must always refresh your _scroll_id!  It can change sometimes
+                    $scroll_id = $response['_scroll_id'];
+                } else {
+                    // No results, scroll cursor is empty.  You've exported all the data
+                    break;
+                }
+            }
+        });
+
+        $this->assertEmpty($traces);
+    }
+
     public function testScroll()
     {
         $client = $this->client();

@@ -160,6 +160,42 @@ final class PredisTest extends IntegrationTestCase
         ]);
     }
 
+    public function testLimitedTracesPredisSetCommand()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client->set('foo', 'value');
+        });
+
+        $this->assertEmpty($traces);
+    }
+
+    public function testLimitedTracesPredisGetCommand()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client->set('key', 'value');
+            $this->assertSame('value', $client->get('key'));
+        });
+
+        $this->assertEmpty($traces);
+    }
+
+    public function testLimitedTracerPredisPipeline()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $client = new \Predis\Client([ "host" => $this->host ]);
+            list($responsePing, $responseFlush) = $client->pipeline(function ($pipe) {
+                $pipe->ping();
+                $pipe->flushdb();
+            });
+            $this->assertInstanceOf('Predis\Response\Status', $responsePing);
+            $this->assertInstanceOf('Predis\Response\Status', $responseFlush);
+        });
+
+        $this->assertEmpty($traces);
+    }
+
     private function baseTags()
     {
         return [

@@ -150,6 +150,45 @@ final class MysqliTest extends IntegrationTestCase
         ]);
     }
 
+    public function testLimitedTracerConstructorQuery()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->query('SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertEmpty($traces);
+    }
+
+    public function testLimitedTracerProceduralCommit()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+            \mysqli_query($mysqli, "INSERT INTO tests (id, name) VALUES (100, 'Tom'");
+            \mysqli_commit($mysqli);
+            $mysqli->close();
+        });
+
+        $this->assertEmpty($traces);
+    }
+
+    public function testLimitedTracerConstructorPreparedStatement()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+            $stmt = $mysqli->prepare("INSERT INTO tests (id, name) VALUES (?, ?)");
+            $id = 100;
+            $name = 100;
+            $stmt->bind_param('is', $id, $name);
+            $stmt->execute();
+            $mysqli->close();
+        });
+
+        $this->assertEmpty($traces);
+    }
+
+
     public function testProceduralPreparedStatement()
     {
         $traces = $this->isolateTracer(function () {

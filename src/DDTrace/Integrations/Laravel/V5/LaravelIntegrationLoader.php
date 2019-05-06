@@ -84,6 +84,11 @@ class LaravelIntegrationLoader
 
         // Trace middleware
         dd_trace('Illuminate\Pipeline\Pipeline', 'then', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             foreach ($this->pipes as $pipe) {
                 // Pipes can be passed both as class to the pipeline and as instances
                 if (is_string($pipe) || is_object($pipe)) {
@@ -103,8 +108,8 @@ class LaravelIntegrationLoader
                     }
 
                     $handlerMethod = $this->method;
-                    dd_trace($class, $handlerMethod, function () use ($handlerMethod) {
-                        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                    dd_trace($class, $handlerMethod, function () use ($tracer, $handlerMethod) {
+                        $scope = $tracer->startIntegrationScopeAndSpan(
                             \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
                             'laravel.pipeline.pipe'
                         );
@@ -122,7 +127,12 @@ class LaravelIntegrationLoader
         // Create a trace span for every template rendered
         // public function get($path, array $data = array())
         dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function () {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan(
                 LaravelIntegration::getInstance(),
                 'laravel.view'
             );
