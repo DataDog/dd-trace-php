@@ -532,7 +532,7 @@ workflows:
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Integration tests"
-          integration_testsuite: "test-integrations-72"
+          integration_testsuite: "test-integrations-73"
           image_tag: "ddtrace_alpine_php-7.3-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
@@ -564,7 +564,7 @@ workflows:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Web integration tests"
           integration_testsuite: "test-web-72" # not yet defined for 7.3
-          image_tag: "ddtrace_alpine_php-7.3-debug"
+          image_tag: "ddtrace_centos_7_php_73"
       - "Lint files":
           requires: [ 'Code Checkout' ]
       - "Static Analysis":
