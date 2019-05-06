@@ -3,14 +3,13 @@
 All notable changes to this project will be documented in this file - [read more](docs/changelog.md).
 
 ## [Unreleased]
+
 ### Added
 - Tracer limited mode where spans are not created to preserve resources #417
+- Tracing support from the CLI SAPI #422
 
 ### Fixed
 - Error when a subclassed integration returns an object that cannot be cast as a string #423
-
-### Added
-- Tracing support from the CLI SAPI #422
 
 ## [0.21.0]
 
