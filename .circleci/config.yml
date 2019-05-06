@@ -410,11 +410,11 @@ workflows:
           name: "Compile PHP 72"
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
           so_suffix: "20170718"
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 73"
-      #     docker_image: "datadog/docker-library:ddtrace_centos_7_php_73"
-      #     so_suffix: "20180731"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 73"
+          docker_image: "datadog/docker-library:ddtrace_centos_7_php_73"
+          so_suffix: "20180731"
       - compile_extension:
           requires: [ 'Code Checkout' ]
           name: "Compile PHP 56-zts"
@@ -435,11 +435,11 @@ workflows:
           name: "Compile PHP 72-zts"
           docker_image: "circleci/php:7.2-zts"
           so_suffix: "20170718-zts"
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 73-zts"
-      #     docker_image: "circleci/php:7.3-zts"
-      #     so_suffix: "20180731-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 73-zts"
+          docker_image: "circleci/php:7.3-zts"
+          so_suffix: "20180731-zts"
       - "package extension":
           requires:
             - "Compile PHP 54"
@@ -447,12 +447,12 @@ workflows:
             - "Compile PHP 70"
             - "Compile PHP 71"
             - "Compile PHP 72"
-            # - "Compile PHP 73"
+            - "Compile PHP 73"
             - "Compile PHP 56-zts"
             - "Compile PHP 70-zts"
             - "Compile PHP 71-zts"
             - "Compile PHP 72-zts"
-            # - "Compile PHP 73-zts"
+            - "Compile PHP 73-zts"
       - "package verification":
           requires:
             - "package extension"
@@ -496,12 +496,14 @@ workflows:
           requires: [ 'Code Checkout' ]
           name: "PHP 72 Unit tests"
           image_tag: ddtrace_alpine_php-7.2-debug
-      # - unit_tests:
-      #     name: "PHP 70 Unit tests-zts"
-      #     image_tag: ddtrace_alpine_php-7.0-zts-debug # zts build is failing atm due to 2 memory leaks
-      # - unit_tests:
-      #     name: "PHP 73 Unit tests"
-      #     version: "7.3" # TODO: unit test for 7.3 are failing due to memory leaks - 7.3 not yet officially supported
+      - unit_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 70 Unit tests-zts"
+          image_tag: ddtrace_alpine_php-7.0-zts-debug
+      - unit_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 73 Unit tests"
+          image_tag: ddtrace_alpine_php-7.3-debug
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Integration tests"
@@ -527,11 +529,11 @@ workflows:
           name: "PHP 72 Integration tests"
           integration_testsuite: "test-integrations-72"
           image_tag: "ddtrace_alpine_php-7.2-debug"
-      # - integration_tests:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "PHP 73 Integration tests"
-      #     integration_testsuite: "test-integrations-72" # not yet defined for 7.3
-      #     image_tag: "ddtrace_alpine_php-7.3-debug" # image is missing proper mcrypt support - to be investigated
+      - integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 73 Integration tests"
+          integration_testsuite: "test-integrations-72"
+          image_tag: "ddtrace_alpine_php-7.3-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Web integration tests"
@@ -558,11 +560,11 @@ workflows:
           name: "PHP 72 Web integration tests"
           integration_testsuite: "test-web-72"
           image_tag: "ddtrace_php_7_2"
-      # - integration_tests:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "PHP 73 Web integration tests"
-      #     integration_testsuite: "test-web-72" # not yet defined for 7.3
-      #     image_tag: "ddtrace_alpine_php-7.3-debug"
+      - integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 73 Web integration tests"
+          integration_testsuite: "test-web-72" # not yet defined for 7.3
+          image_tag: "ddtrace_alpine_php-7.3-debug"
       - "Lint files":
           requires: [ 'Code Checkout' ]
       - "Static Analysis":
