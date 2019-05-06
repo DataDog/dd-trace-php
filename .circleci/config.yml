@@ -136,20 +136,20 @@ executors:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
     parameters:
-      tag:
+      docker_image:
         type: string
     docker:
-      - image: datadog/docker-library:<< parameters.tag >>
+      - image: << parameters.docker_image >>
       - <<: *IMAGE_DOCKER_DD_AGENT
   with_integrations:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       COMPOSER_MEMORY_LIMIT: -1 # disable composer memory limit completely
     parameters:
-      tag:
+      docker_image:
         type: string
     docker:
-      - image: datadog/docker-library:<< parameters.tag >>
+      - image: << parameters.docker_image >>
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
@@ -214,14 +214,14 @@ jobs:
 
   unit_tests:
     parameters:
-      image_tag:
+      docker_image:
         type: string
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
     executor:
       name: with_agent
-      tag: << parameters.image_tag >>
+      docker_image: << parameters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache
@@ -252,13 +252,13 @@ jobs:
   integration_tests:
     working_directory: ~/datadog
     parameters:
-      image_tag:
+      docker_image:
         type: string
       integration_testsuite:
         type: string
     executor:
       name: with_integrations
-      tag: << parameters.image_tag >>
+      docker_image: << parameters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache
@@ -479,92 +479,92 @@ workflows:
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Unit tests"
-          image_tag: ddtrace_alpine_php-5.4-debug
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 56 Unit tests"
-          image_tag: ddtrace_alpine_php-5.6-debug
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug"
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 70 Unit tests"
-          image_tag: ddtrace_alpine_php-7.0-debug
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 71 Unit tests"
-          image_tag: ddtrace_alpine_php-7.1-debug
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 72 Unit tests"
-          image_tag: ddtrace_alpine_php-7.2-debug
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 70 Unit tests-zts"
-          image_tag: ddtrace_alpine_php-7.0-zts-debug
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-zts-debug"
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Unit tests"
-          image_tag: ddtrace_alpine_php-7.3-debug
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Integration tests"
-          image_tag: "ddtrace_alpine_php-5.4-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
           integration_testsuite: "test-integrations-54"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 56 Integration tests"
           integration_testsuite: "test-integrations-56"
-          image_tag: "ddtrace_alpine_php-5.6-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 70 Integration tests"
           integration_testsuite: "test-integrations-70"
-          image_tag: "ddtrace_alpine_php-7.0-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 71 Integration tests"
           integration_testsuite: "test-integrations-71"
-          image_tag: "ddtrace_alpine_php-7.1-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 72 Integration tests"
           integration_testsuite: "test-integrations-72"
-          image_tag: "ddtrace_alpine_php-7.2-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Integration tests"
           integration_testsuite: "test-integrations-73"
-          image_tag: "ddtrace_alpine_php-7.3-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Web integration tests"
-          image_tag: "ddtrace_alpine_php-5.4-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
           integration_testsuite: "test-web-54"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 56 Web integration tests"
           integration_testsuite: "test-web-56"
-          # image_tag: "ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
-          image_tag: "ddtrace_php_5_6"
+          # docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debu
+          docker_image: "datadog/docker-library:ddtrace_php_5_6"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 70 Web integration tests"
           integration_testsuite: "test-web-70"
-          image_tag: "ddtrace_alpine_php-7.0-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 71 Web integration tests"
           integration_testsuite: "test-web-71"
-          image_tag: "ddtrace_alpine_php-7.1-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 72 Web integration tests"
           integration_testsuite: "test-web-72"
-          image_tag: "ddtrace_php_7_2"
+          docker_image: "datadog/docker-library:ddtrace_php_7_2"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Web integration tests"
           integration_testsuite: "test-web-72" # not yet defined for 7.3
-          image_tag: "ddtrace_centos_7_php_73"
+          docker_image: "circleci/php:7.3"
       - "Lint files":
           requires: [ 'Code Checkout' ]
       - "Static Analysis":

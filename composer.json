@@ -192,8 +192,6 @@
             "@composer test -- tests/Integrations/Memcached",
             "@composer test -- tests/Integrations/Mysqli",
             "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch2",
-            "@composer test -- tests/Integrations/Elasticsearch",
             "@composer scenario guzzle5",
             "@composer test -- tests/Integrations/Guzzle/V5",
             "@composer scenario guzzle6",
@@ -334,14 +332,6 @@
             "elasticsearch1": {
                 "require": {
                     "elasticsearch/elasticsearch": "1.2.*"
-                },
-                "scenario-options": {
-                    "create-lockfile": false
-                }
-            },
-            "elasticsearch2": {
-                "require": {
-                    "elasticsearch/elasticsearch": "2.4.*"
                 },
                 "scenario-options": {
                     "create-lockfile": false
