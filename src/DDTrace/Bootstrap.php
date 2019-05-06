@@ -95,7 +95,7 @@ final class Bootstrap
                 $options,
                 Request::getHeaders()
             );
-        $operationName = 'cli' === PHP_SAPI ? 'cli.command' : 'web.request';
+        $operationName = 'cli' === PHP_SAPI ? $_SERVER['argv'][0] : 'web.request';
         $span = $tracer->startRootSpan($operationName, $startSpanOptions)->getSpan();
         $span->setIntegration(WebIntegration::getInstance());
         $span->setTraceAnalyticsCandidate();
