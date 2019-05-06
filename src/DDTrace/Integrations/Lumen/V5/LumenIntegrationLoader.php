@@ -81,7 +81,11 @@ final class LumenIntegrationLoader
                 // See: https://laravel.com/docs/5.7/middleware#middleware-parameters
                 $middleware = explode(':', $middleware)[0];
                 dd_trace($middleware, 'handle', function () {
-                    $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+                    $tracer = GlobalTracer::get();
+                    if ($tracer->limited()) {
+                        return dd_trace_forward_call();
+                    }
+                    $scope = $tracer->startIntegrationScopeAndSpan(
                         LumenIntegration::getInstance(),
                         'lumen.pipeline.pipe'
                     );
