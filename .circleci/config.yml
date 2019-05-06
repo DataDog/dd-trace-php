@@ -216,6 +216,9 @@ jobs:
     parameters:
       docker_image:
         type: string
+      valgrind_config:
+        type: string
+        default: musl
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -230,8 +233,8 @@ jobs:
       - run:
           name: Copy valgrind.rc configuration and suppressions
           command: |
-            cp .circleci/valgrind/musl_valgrind.rc /home/circleci/.valgrindrc
-            cp .circleci/valgrind/valgrind_musl_suppressions.lib /home/circleci/valgrind_musl_suppressions.lib
+            cp .circleci/valgrind/<< parameters.valgrind_config >>_valgrind.rc /home/circleci/.valgrindrc
+            cp .circleci/valgrind/valgrind_<< parameters.valgrind_config >>_suppressions.lib /home/circleci/valgrind_<< parameters.valgrind_config >>_suppressions.lib
       - run:
           name: Run extension tests with leak detection
           command: make test_extension_ci BUILD_DIR=tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
@@ -504,6 +507,7 @@ workflows:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Unit tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
+          valgrind_config: 7_3_musl
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Integration tests"

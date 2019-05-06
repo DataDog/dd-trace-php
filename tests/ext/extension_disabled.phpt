@@ -1,7 +1,7 @@
 --TEST--
 Sanity check when extension is disabled
 --INI--
-ddtrace.enable=false
+ddtrace.disable=true
 --FILE--
 <?php
 function test(){
@@ -16,4 +16,4 @@ echo test();
 
 ?>
 --EXPECT--
-FUNCTION HOOK
+FUNCTION
