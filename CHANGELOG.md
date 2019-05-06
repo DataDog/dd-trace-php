@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Added
 - Support for [Lumen](https://lumen.laravel.com/) 5.2+ #416
+- Tracing support from the CLI SAPI #422
 
 ## [0.22.0]
 
@@ -15,9 +16,6 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - Error when a subclassed integration returns an object that cannot be cast as a string #423
-
-### Added
-- Tracing support from the CLI SAPI #422
 
 ## [0.21.0]
 
