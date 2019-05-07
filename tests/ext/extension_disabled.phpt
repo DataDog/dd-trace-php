@@ -1,5 +1,7 @@
 --TEST--
-Check user defined function can be overriden and we're able to call the original
+Sanity check when extension is disabled
+--INI--
+ddtrace.disable=true
 --FILE--
 <?php
 function test(){
@@ -14,4 +16,4 @@ echo test();
 
 ?>
 --EXPECT--
-FUNCTION HOOK
+FUNCTION

@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 ### Added
+- Official support for PHP 7.3
 - Tracer limited mode where spans are not created to preserve resources #417
 
 ### Fixed
