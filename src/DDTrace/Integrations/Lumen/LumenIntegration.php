@@ -48,8 +48,7 @@ final class LumenIntegration extends Integration
      */
     public static function load()
     {
-        $instance = new self();
-        return $instance->doLoad();
+        return self::getInstance()->doLoad();
     }
 
     /**
