@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-05-01</date>
+    <date>2019-05-07</date>
     <version>
-        <release>0.21.0</release>
-        <api>0.21.0</api>
+        <release>0.22.0</release>
+        <api>0.22.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -22,11 +22,11 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         ### Added
-        - `dd_trace_forward_call()` to forward the original call from within a tracing closure #284
+        - Official support for PHP 7.3 #429
+        - Tracer limited mode where spans are not created to preserve resources #417
 
         ### Fixed
-        - `parent::` keyword not honored from a subclass when forwarding a call from a tracing closure #284
-        - Private and protected callable strings not resolved properly from a tracing closure #303
+        - Error when a subclassed integration returns an object that cannot be cast as a string #423
     </notes>
     <contents>
         <dir name="/">
