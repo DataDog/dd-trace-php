@@ -16,7 +16,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_APP_NAME' => 'test_symfony_34',
+            'DD_SERVICE_NAME' => 'test_symfony_34',
         ]);
     }
 

@@ -125,10 +125,18 @@ class Configuration extends AbstractConfiguration
      */
     public function appName($default = '')
     {
+        // Using the env `DD_SERVICE_NAME` for consistency with other tracers.
+        $appName = $this->stringValue('service.name');
+        if ($appName) {
+            return $appName;
+        }
+
+        // This is deprecated and will be removed in a future release
         $appName = $this->stringValue('trace.app.name');
         if ($appName) {
             return $appName;
         }
+
         $appName = getenv('ddtrace_app_name');
         if (false !== $appName) {
             return trim($appName);
