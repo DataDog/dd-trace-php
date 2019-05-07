@@ -38,6 +38,18 @@ In order to generate the sample Lumen apps we used the default commands from the
 
     $ cd tests/Frameworks/Lumen
 
+### Lumen 5.2
+
+Link: https://lumen.laravel.com/docs/5.2/installation
+
+    $ composer create-project laravel/lumen Version_5_2 "5.2.*"
+
+### Lumen 5.6
+
+Link: https://lumen.laravel.com/docs/5.6/installation
+
+    $ composer create-project laravel/lumen Version_5_6 "5.6.*"
+
 ### Lumen 5.8
 
 Link: https://lumen.laravel.com/docs/5.8/installation

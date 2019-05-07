@@ -151,13 +151,8 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
     {
         $client = new Client();
         $found = [];
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isAutofinishSpansEnabled' => false,
-            'isAnalyticsEnabled' => false,
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
             'isDistributedTracingEnabled' => false,
-            'isPrioritySamplingEnabled' => false,
-            'getGlobalTags' => [],
-            'isDebugModeEnabled' => false,
         ]));
 
         $this->isolateTracer(function () use (&$found, $client) {
@@ -175,5 +170,49 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         $this->assertArrayNotHasKey('X-Datadog-Trace-Id', $found['headers']);
         $this->assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
         $this->assertArrayNotHasKey('X-Datadog-Sampling-Priority', $found['headers']);
+    }
+
+    public function testLimitedTracer()
+    {
+        $traces = $this->isolateLimitedTracer(function () {
+            $this->getMockedClient()->get('http://example.com');
+
+            $request = new Request('put', 'http://example.com');
+            $this->getMockedClient()->send($request);
+        });
+
+        $this->assertEmpty($traces);
+    }
+
+    public function testLimitedTracerDistributedTracingIsPropagated()
+    {
+        $client = new Client();
+        $found = [];
+
+        $traces = $this->isolateLimitedTracer(function () use (&$found, $client) {
+            /** @var Tracer $tracer */
+            $tracer = GlobalTracer::get();
+            $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
+            $span = $tracer->startActiveSpan('custom')->getSpan();
+
+            $response = $client->get(self::URL . '/headers', [
+                'headers' => [
+                    'honored' => 'preserved_value',
+                ],
+            ]);
+
+            $found = $response->json();
+            $span->finish();
+        });
+
+        $this->assertEquals(1, sizeof($traces[0]));
+
+        // trace is: custom
+        $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
+        $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+
+        $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
+        // existing headers are honored
+        $this->assertSame('preserved_value', $found['headers']['Honored']);
     }
 }

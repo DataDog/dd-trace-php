@@ -6,7 +6,6 @@ use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
-use DDTrace\Util\Versions;
 use Predis\Configuration\OptionsInterface;
 use Predis\Pipeline\Pipeline;
 
@@ -55,11 +54,17 @@ class PredisIntegration extends Integration
     {
         // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
         dd_trace('Predis\Client', '__construct', function () {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan(
                 PredisIntegration::getInstance(),
                 'Predis.Client.__construct'
             );
             $span = $scope->getSpan();
+
             $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
             $span->setTag(Tag::SERVICE_NAME, 'redis');
             $span->setTag(Tag::RESOURCE_NAME, 'Predis.Client.__construct');
@@ -84,7 +89,12 @@ class PredisIntegration extends Integration
 
         // public void Predis\Client::connect()
         dd_trace('Predis\Client', 'connect', function () {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan(
                 PredisIntegration::getInstance(),
                 'Predis.Client.connect'
             );
@@ -99,11 +109,16 @@ class PredisIntegration extends Integration
 
         // public mixed Predis\Client::executeCommand(CommandInterface $command)
         dd_trace('Predis\Client', 'executeCommand', function ($command) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $arguments = $command->getArguments();
             array_unshift($arguments, $command->getId());
             $query = PredisIntegration::formatArguments($arguments);
 
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            $scope = $tracer->startIntegrationScopeAndSpan(
                 PredisIntegration::getInstance(),
                 'Predis.Client.executeCommand'
             );
@@ -121,9 +136,14 @@ class PredisIntegration extends Integration
 
         // public mixed Predis\Client::executeRaw(array $arguments, bool &$error)
         dd_trace('Predis\Client', 'executeRaw', function ($arguments, &$error = null) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $query = PredisIntegration::formatArguments($arguments);
 
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            $scope = $tracer->startIntegrationScopeAndSpan(
                 PredisIntegration::getInstance(),
                 'Predis.Client.executeRaw'
             );
@@ -158,7 +178,12 @@ class PredisIntegration extends Integration
 
         // protected array Predis\Pipeline::executePipeline(ConnectionInterface $connection, \SplQueue $commands)
         dd_trace('Predis\Pipeline\Pipeline', 'executePipeline', function ($connection, $commands) {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan(
                 PredisIntegration::getInstance(),
                 'Predis.Pipeline.executePipeline'
             );

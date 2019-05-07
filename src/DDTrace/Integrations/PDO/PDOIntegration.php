@@ -66,7 +66,12 @@ class PDOIntegration extends Integration
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         dd_trace('PDO', '__construct', function () {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan(
                 PDOIntegration::getInstance(),
                 'PDO.__construct'
             );
@@ -96,7 +101,12 @@ class PDOIntegration extends Integration
 
         // public int PDO::exec(string $query)
         dd_trace('PDO', 'exec', function ($statement) {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.exec');
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.exec');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -130,8 +140,13 @@ class PDOIntegration extends Integration
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_INFO, object $object)
         // public int PDO::exec(string $query)
         dd_trace('PDO', 'query', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.query');
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.query');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -165,7 +180,12 @@ class PDOIntegration extends Integration
 
         // public bool PDO::commit ( void )
         dd_trace('PDO', 'commit', function () {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.commit');
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.commit');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -192,8 +212,13 @@ class PDOIntegration extends Integration
 
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
         dd_trace('PDO', 'prepare', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.prepare');
+            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.prepare');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -221,7 +246,12 @@ class PDOIntegration extends Integration
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
         dd_trace('PDOStatement', 'execute', function () {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = $tracer->startIntegrationScopeAndSpan(
                 PDOIntegration::getInstance(),
                 'PDOStatement.execute'
             );

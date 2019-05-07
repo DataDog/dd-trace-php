@@ -184,7 +184,22 @@
             "@composer test -- tests/Integrations/Predis",
             "@composer scenario default"
         ],
-
+        "test-integrations-73": [
+            "sh clean-composer-scenario-locks.sh",
+            "@composer scenario:update",
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Curl",
+            "@composer test -- tests/Integrations/Memcached",
+            "@composer test -- tests/Integrations/Mysqli",
+            "@composer test -- tests/Integrations/PDO",
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle/V5",
+            "@composer scenario guzzle6",
+            "@composer test -- tests/Integrations/Guzzle/V6",
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis",
+            "@composer scenario default"
+        ],
         "test-web-54": [
             "@laravel-42-update",
             "@laravel-42-test",
@@ -258,6 +273,17 @@
             "@symfony-33-test",
             "@symfony-34-update",
             "@symfony-34-test",
+            "@symfony-42-update",
+            "@symfony-42-test",
+            "@zend-framework-1-test",
+            "@custom-framework-autoloaded-update",
+            "@custom-framework-autoloaded-test"
+        ],
+        "test-web-73": [
+            "@laravel-57-update",
+            "@laravel-57-test",
+            "@laravel-58-update",
+            "@laravel-58-test",
             "@symfony-42-update",
             "@symfony-42-test",
             "@zend-framework-1-test",

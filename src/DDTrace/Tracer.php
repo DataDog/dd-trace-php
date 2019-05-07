@@ -25,7 +25,7 @@ final class Tracer implements TracerInterface
 {
     use LoggingTrait;
 
-    const VERSION = '0.21.0';
+    const VERSION = '0.22.0';
 
     /**
      * @var Span[][]
@@ -66,6 +66,16 @@ final class Tracer implements TracerInterface
          */
         'global_tags' => [],
     ];
+
+    /**
+     * @var int
+     * */
+    private $spansCreated = 0;
+
+    /**
+     * @var int
+     * */
+    private $spansLimit = -1;
 
     /**
      * @var ScopeManager
@@ -113,6 +123,11 @@ final class Tracer implements TracerInterface
         $this->traceAnalyticsProcessor = new TraceAnalyticsProcessor();
     }
 
+    public function limited()
+    {
+        return $this->spansLimit >= 0 && ($this->spansCreated >= $this->spansLimit);
+    }
+
     /**
      * Resets this tracer to its original state.
      */
@@ -121,6 +136,8 @@ final class Tracer implements TracerInterface
         $this->scopeManager = new ScopeManager();
         $this->globalConfig = Configuration::get();
         $this->sampler = new ConfigurableSampler();
+        $this->spansLimit = $this->globalConfig->getSpansLimit();
+        $this->spansCreated = 0;
         $this->traces = [];
     }
 
@@ -145,6 +162,8 @@ final class Tracer implements TracerInterface
      */
     public function startSpan($operationName, $options = [])
     {
+        $this->spansCreated++;
+
         if (!$this->config['enabled']) {
             return NoopSpan::create();
         }

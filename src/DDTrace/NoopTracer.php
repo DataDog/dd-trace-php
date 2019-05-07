@@ -18,6 +18,14 @@ final class NoopTracer implements TracerInterface
     /**
      * {@inheritdoc}
      */
+    public function limited()
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function getActiveSpan()
     {
         return NoopSpan::create();

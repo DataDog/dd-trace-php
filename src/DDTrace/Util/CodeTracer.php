@@ -35,6 +35,7 @@ final class CodeTracer
     public function tracePublicMethod(
         $className,
         $method,
+        \Closure $limitedTracerCallHook = null,
         \Closure $preCallHook = null,
         \Closure $postCallHook = null,
         Integration $integration = null,
@@ -43,13 +44,24 @@ final class CodeTracer
         dd_trace($className, $method, function () use (
             $className,
             $method,
+            $limitedTracerCallHook,
             $preCallHook,
             $postCallHook,
             $integration,
             $isTraceAnalyticsCandidate
         ) {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                if ($limitedTracerCallHook) {
+                    $limitedTracerCallHook(func_get_args());
+                }
+
+                return dd_trace_forward_call();
+            }
+
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startActiveSpan($className . '.' . $method);
+            $scope = $tracer->startActiveSpan($className . '.' . $method);
+
             $span = $scope->getSpan();
 
             if ($integration) {
@@ -67,7 +79,7 @@ final class CodeTracer
             $returnVal = null;
             $thrownException = null;
             try {
-                $returnVal = call_user_func_array([$this, $method], $args);
+                $returnVal = dd_trace_forward_call();
             } catch (\Exception $e) {
                 $span->setError($e);
                 $thrownException = $e;

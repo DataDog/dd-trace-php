@@ -16,6 +16,16 @@ use DDTrace\StartSpanOptions;
 interface Tracer
 {
     /**
+     * Checks if Tracer is in limited mode.
+     *
+     * Tracer needs to handle any operation even if its in limited mode,
+     * however users can opt not to use tracer when its in limited mode.
+     *
+     * @return bool
+     */
+    public function limited();
+
+    /**
      * Returns the current {@link ScopeManager}, which may be a noop but may not be null.
      *
      * @return ScopeManager

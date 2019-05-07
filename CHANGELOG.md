@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.22.0]
+
+### Added
+- Official support for PHP 7.3 #429
+- Tracer limited mode where spans are not created to preserve resources #417
+
 ### Fixed
 - Error when a subclassed integration returns an object that cannot be cast as a string #423
 - initial redis auto instrumentation integration (https://pecl.php.net/package/redis)
@@ -432,7 +438,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.21.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.22.0...HEAD
+[0.22.0]: https://github.com/DataDog/dd-trace-php/compare/0.21.0...0.22.0
 [0.21.0]: https://github.com/DataDog/dd-trace-php/compare/0.20.0...0.21.0
 [0.20.0]: https://github.com/DataDog/dd-trace-php/compare/0.19.1...0.20.0
 [0.19.1]: https://github.com/DataDog/dd-trace-php/compare/0.19.0...0.19.1
