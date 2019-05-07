@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Support for [Lumen](https://lumen.laravel.com/) 5.2+ #416
+
 ## [0.22.0]
 
 ### Added

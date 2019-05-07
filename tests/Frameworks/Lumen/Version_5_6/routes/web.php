@@ -14,3 +14,16 @@
 $router->get('/', function () use ($router) {
     return $router->app->version();
 });
+
+$router->get('simple', [
+    'as' => 'simple_route',
+    'uses' => 'ExampleController@simple',
+]);
+
+$router->get('simple_view', [
+    'uses' => 'ExampleController@simpleView',
+]);
+
+$router->get('error', [
+    'uses' => 'ExampleController@error',
+]);
