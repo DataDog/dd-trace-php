@@ -67,6 +67,17 @@ class LaravelIntegrationLoader
             return $response;
         });
 
+        // Update the resource name to contain the artisan command
+        dd_trace('Illuminate\Console\Application', '__construct', function () {
+            if (!isset($_SERVER['argv'][1])) {
+                return dd_trace_forward_call();
+            }
+            $span = GlobalTracer::get()->getRootScope()->getSpan();
+            $span->setTag(Tag::RESOURCE_NAME, 'artisan ' . $_SERVER['argv'][1]);
+
+            return dd_trace_forward_call();
+        });
+
         return Integration::LOADED;
     }
 
