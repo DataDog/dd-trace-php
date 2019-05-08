@@ -59,8 +59,8 @@ abstract class CLITestCase extends IntegrationTestCase
      */
     public function getTracesFromCommand($arguments = '')
     {
-        $envs = (string) new EnvSerializer(self::getEnvs());
-        $inis = (string) new IniSerializer(self::getInis());
+        $envs = (string) new EnvSerializer(static::getEnvs());
+        $inis = (string) new IniSerializer(static::getInis());
         $script = escapeshellarg($this->getScriptLocation());
         $arguments = escapeshellarg($arguments);
         `$envs php $inis $script $arguments`;
