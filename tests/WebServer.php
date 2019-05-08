@@ -2,6 +2,8 @@
 
 namespace DDTrace\Tests;
 
+use DDTrace\Tests\Integrations\CLI\EnvSerializer;
+use DDTrace\Tests\Integrations\CLI\IniSerializer;
 use Symfony\Component\Process\Process;
 
 /**
@@ -120,12 +122,10 @@ class WebServer
      */
     private function getSerializedEnvsForCli()
     {
-        $all = array_merge($this->defaultEnvs, $this->envs);
-        $forCli = [];
-        foreach ($all as $name => $value) {
-            $forCli[] = $name . "=" . escapeshellarg($value);
-        }
-        return implode(' ', $forCli);
+        $serializer = new EnvSerializer(
+            array_merge($this->defaultEnvs, $this->envs)
+        );
+        return (string) $serializer;
     }
 
     /**
@@ -135,11 +135,9 @@ class WebServer
      */
     private function getSerializedIniForCli()
     {
-        $all = array_merge($this->defaultInis, $this->inis);
-        $forCli = [];
-        foreach ($all as $name => $value) {
-            $forCli[] = "-d" . $name . "=" . escapeshellarg($value);
-        }
-        return implode(' ', $forCli);
+        $serializer = new IniSerializer(
+            array_merge($this->defaultInis, $this->inis)
+        );
+        return (string) $serializer;
     }
 }

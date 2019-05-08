@@ -321,7 +321,7 @@
         "laravel-57-test": "@composer test -- tests/Integrations/Laravel/V5_7/CommonScenariosTest.php",
 
         "laravel-58-update": "composer --working-dir=tests/Frameworks/Laravel/Version_5_8 update",
-        "laravel-58-test": "@composer test -- tests/Integrations/Laravel/V5_8/CommonScenariosTest.php",
+        "laravel-58-test": "@composer test -- --testsuite=laravel-58-test",
 
         "lumen-52-update": "composer --working-dir=tests/Frameworks/Lumen/Version_5_2 update",
         "lumen-52-test": "@composer test -- tests/Integrations/Lumen/V5_2/CommonScenariosTest.php",

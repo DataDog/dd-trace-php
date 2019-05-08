@@ -19,6 +19,10 @@
         <testsuite name="integration">
             <directory>tests/Integration/</directory>
         </testsuite>
+        <testsuite name="laravel-58-test">
+            <file>tests/Integrations/Laravel/V5_8/CommonScenariosTest.php</file>
+            <directory>tests/Integrations/CLI/Laravel/V5_8</directory>
+        </testsuite>
         <testsuite name="unit">
             <directory>tests/Unit/</directory>
         </testsuite>
