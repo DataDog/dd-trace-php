@@ -23,6 +23,10 @@
             <file>tests/Integrations/Laravel/V5_8/CommonScenariosTest.php</file>
             <directory>tests/Integrations/CLI/Laravel/V5_8</directory>
         </testsuite>
+        <testsuite name="custom-framework-autoloaded-test">
+            <file>tests/Integrations/Custom/Autoloaded/CommonScenariosTest.php</file>
+            <directory>tests/Integrations/CLI/Custom/Autoloaded</directory>
+        </testsuite>
         <testsuite name="unit">
             <directory>tests/Unit/</directory>
         </testsuite>
