@@ -67,6 +67,27 @@ class LaravelIntegrationLoader
             return $response;
         });
 
+        /**
+         * Artisan traces
+         */
+        dd_trace('Illuminate\Console\Application', '__construct', function () {
+            $span = GlobalTracer::get()->getRootScope()->getSpan();
+            // Overwrite the default web integration
+            $span->setIntegration(LaravelIntegration::getInstance());
+            $span->overwriteOperationName('laravel.artisan');
+            $span->setTag(
+                Tag::RESOURCE_NAME,
+                !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan'
+            );
+            return dd_trace_forward_call();
+        });
+
+        dd_trace('Symfony\Component\Console\Application', 'renderException', function ($e) {
+            $span = GlobalTracer::get()->getActiveSpan();
+            $span->setError($e);
+            return dd_trace_forward_call();
+        });
+
         return Integration::LOADED;
     }
 
