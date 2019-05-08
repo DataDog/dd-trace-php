@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - Support for [Lumen](https://lumen.laravel.com/) 5.2+ #416
 - Tracing support from the CLI SAPI #422
+- Support for Laravel Artisan #422
 
 ## [0.22.0]
 
