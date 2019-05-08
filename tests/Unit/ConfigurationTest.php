@@ -102,6 +102,9 @@ final class ConfigurationTest extends BaseTestCase
 
     public function testServiceName()
     {
+        putenv('DD_SERVICE_NAME');
+        putenv('DD_TRACE_APP_NAME');
+        putenv('ddtrace_app_name');
         Configuration::clear();
 
         $this->assertSame('__default__', Configuration::get()->appName('__default__'));

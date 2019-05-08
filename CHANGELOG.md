@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+**NOTE: we changed the way the service name can be configured. Now you can use `DD_SERVICE_NAME` instead
+of `DD_TRACE_APP_NAME` for consistency with other tracers. The old configuration parameter is now deprecated
+and will be removed in a future release.**
+
+### Changed
+- Now the way to configure service name is through `DD_SERVICE_NAME` instead of `DD_TRACE_APP_NAME` #432
+
 ## [0.22.0]
 
 ### Added
