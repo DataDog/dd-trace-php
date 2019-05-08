@@ -21,9 +21,7 @@ final class CommonScenariosTest extends CLITestCase
 
     public function testCommandWithNoArguments()
     {
-        $traces = $this->isolateTracer(function () {
-            $this->runCommand();
-        });
+        $traces = $this->getTracesFromCommand();
 
         $this->assertSpans($traces, [
             SpanAssertion::build(
