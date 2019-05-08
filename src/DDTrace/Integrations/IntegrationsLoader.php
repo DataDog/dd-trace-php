@@ -8,6 +8,7 @@ use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleIntegration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
+use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
@@ -44,6 +45,7 @@ class IntegrationsLoader
         EloquentIntegration::NAME => '\DDTrace\Integrations\Eloquent\EloquentIntegration',
         GuzzleIntegration::NAME => '\DDTrace\Integrations\Guzzle\GuzzleIntegration',
         LaravelIntegration::NAME => '\DDTrace\Integrations\Laravel\LaravelIntegration',
+        LumenIntegration::NAME => '\DDTrace\Integrations\Lumen\LumenIntegration',
         MemcachedIntegration::NAME => '\DDTrace\Integrations\Memcached\MemcachedIntegration',
         MongoIntegration::NAME => '\DDTrace\Integrations\Mongo\MongoIntegration',
         MysqliIntegration::NAME => '\DDTrace\Integrations\Mysqli\MysqliIntegration',

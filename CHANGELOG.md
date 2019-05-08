@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file - [read more
 of `DD_TRACE_APP_NAME` for consistency with other tracers. The old configuration parameter is now deprecated
 and will be removed in a future release.**
 
+### Added
+- Support for [Lumen](https://lumen.laravel.com/) 5.2+ #416
+
 ### Changed
 - Now the way to configure service name is through `DD_SERVICE_NAME` instead of `DD_TRACE_APP_NAME` #432
 
