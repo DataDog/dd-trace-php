@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
-**NOTE: we changed the way the service name can be configured. Now you can use `DD_SERVICE_NAME` instead
-of `DD_TRACE_APP_NAME` for consistency with other tracers. The old configuration parameter is now deprecated
-and will be removed in a future release.**
+## [0.23.0]
+
+**NOTE: We changed the way the service name can be configured. Now you must use `DD_SERVICE_NAME` instead of `DD_TRACE_APP_NAME` for consistency with other tracers. Usage of `DD_TRACE_APP_NAME` is now deprecated and will be removed in a future release.**
 
 ### Added
 - Support for [Lumen](https://lumen.laravel.com/) 5.2+ #416
@@ -449,7 +449,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.22.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.23.0...HEAD
+[0.23.0]: https://github.com/DataDog/dd-trace-php/compare/0.22.0...0.23.0
 [0.22.0]: https://github.com/DataDog/dd-trace-php/compare/0.21.0...0.22.0
 [0.21.0]: https://github.com/DataDog/dd-trace-php/compare/0.20.0...0.21.0
 [0.20.0]: https://github.com/DataDog/dd-trace-php/compare/0.19.1...0.20.0
