@@ -100,6 +100,29 @@ final class ConfigurationTest extends BaseTestCase
         $this->assertSame('bar_app', Configuration::get()->appName());
     }
 
+    public function testServiceName()
+    {
+        putenv('DD_SERVICE_NAME');
+        putenv('DD_TRACE_APP_NAME');
+        putenv('ddtrace_app_name');
+        Configuration::clear();
+
+        $this->assertSame('__default__', Configuration::get()->appName('__default__'));
+
+        putenv('DD_SERVICE_NAME=my_app');
+        $this->assertSame('my_app', Configuration::get()->appName('my_app'));
+    }
+
+    public function testServiceNameHasPrecedenceOverDeprecatedMethods()
+    {
+        Configuration::clear();
+
+        putenv('DD_SERVICE_NAME=my_app');
+        putenv('DD_TRACE_APP_NAME=wrong_app');
+        putenv('ddtrace_app_name=wrong_app');
+        $this->assertSame('my_app', Configuration::get()->appName('my_app'));
+    }
+
     public function testAnalyticsDisabledByDefault()
     {
         $this->assertFalse(Configuration::get()->isAnalyticsEnabled());

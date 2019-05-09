@@ -3,12 +3,15 @@
 namespace DDTrace;
 
 use DDTrace\Configuration\AbstractConfiguration;
+use DDTrace\Log\LoggingTrait;
 
 /**
  * DDTrace global configuration object.
  */
 class Configuration extends AbstractConfiguration
 {
+    use LoggingTrait;
+
     /**
      * Whether or not tracing is enabled.
      *
@@ -125,12 +128,28 @@ class Configuration extends AbstractConfiguration
      */
     public function appName($default = '')
     {
-        $appName = $this->stringValue('trace.app.name');
+        // Using the env `DD_SERVICE_NAME` for consistency with other tracers.
+        $appName = $this->stringValue('service.name');
         if ($appName) {
             return $appName;
         }
+
+        // This is deprecated and will be removed in a future release
+        $appName = $this->stringValue('trace.app.name');
+        if ($appName) {
+            self::logDebug(
+                'Env variable \'DD_TRACE_APP_NAME\' is deprecated and will be removed soon. ' .
+                'Use \'DD_SERVICE_NAME\' instead'
+            );
+            return $appName;
+        }
+
         $appName = getenv('ddtrace_app_name');
         if (false !== $appName) {
+            self::logDebug(
+                'Env variable \'ddtrace_app_name\' is deprecated and will be removed soon. ' .
+                'Use \'DD_SERVICE_NAME\' instead'
+            );
             return trim($appName);
         }
         return $default;
