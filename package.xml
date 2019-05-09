@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-05-07</date>
+    <date>2019-05-09</date>
     <version>
-        <release>0.22.0</release>
-        <api>0.22.0</api>
+        <release>0.23.0</release>
+        <api>0.23.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,12 +21,15 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        ### Added
-        - Official support for PHP 7.3 #429
-        - Tracer limited mode where spans are not created to preserve resources #417
+        **NOTE: We changed the way the service name can be configured. Now you must use `DD_SERVICE_NAME` instead of `DD_TRACE_APP_NAME` for consistency with other tracers. Usage of `DD_TRACE_APP_NAME` is now deprecated and will be removed in a future release.**
 
-        ### Fixed
-        - Error when a subclassed integration returns an object that cannot be cast as a string #423
+        ### Added
+        - Support for Lumen 5.2+ #416
+        - Tracing support from the CLI SAPI #422
+        - Support for Laravel Artisan #422
+
+        ### Changed
+        - Now the way to configure service name is through `DD_SERVICE_NAME` instead of `DD_TRACE_APP_NAME` #432
     </notes>
     <contents>
         <dir name="/">
