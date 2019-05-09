@@ -8,6 +8,16 @@ The test frameworks must support the following routes/endpoints in order to exec
 * `/simple_view`: GET request that renders a view
 * `/error`: GET request that throws an exception (returns a **500** response)
 
+## CakePHP
+
+In order to generate the sample CakePHP apps we installed it as a new project [using Composer](https://packagist.org/packages/cakephp/cakephp).
+
+    $ cd tests/Frameworks/CakePHP
+
+### CakePHP 2.8
+
+    $ composer create-project cakephp/cakephp Version_2_8 2.8.*
+
 ## Laravel
 
 In order to generate the sample Laravel apps we used the default commands from the framework's 'Getting started' guides.
