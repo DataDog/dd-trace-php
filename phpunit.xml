@@ -19,6 +19,10 @@
         <testsuite name="integration">
             <directory>tests/Integration/</directory>
         </testsuite>
+        <testsuite name="cakephp-28-test">
+            <directory>tests/Integrations/CakePHP/V2_8</directory>
+            <directory>tests/Integrations/CLI/CakePHP/V2_8</directory>
+        </testsuite>
         <testsuite name="laravel-58-test">
             <file>tests/Integrations/Laravel/V5_8/CommonScenariosTest.php</file>
             <directory>tests/Integrations/CLI/Laravel/V5_8</directory>

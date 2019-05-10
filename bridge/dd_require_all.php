@@ -58,6 +58,7 @@ require __DIR__ . '/../src/DDTrace/ScopeManager.php';
 require __DIR__ . '/../src/DDTrace/Integrations/AbstractIntegrationConfiguration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/DefaultIntegrationConfiguration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Integration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/CakePHP/CakePHPIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/ZendFrameworkIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Web/WebIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Predis/PredisIntegration.php';

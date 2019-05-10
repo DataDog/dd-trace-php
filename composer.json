@@ -201,6 +201,8 @@
             "@composer scenario default"
         ],
         "test-web-54": [
+            "@cakephp-28-update",
+            "@cakephp-28-test",
             "@laravel-42-update",
             "@laravel-42-test",
             "@zend-framework-1-test",
@@ -208,6 +210,8 @@
             "@custom-framework-autoloaded-test"
         ],
         "test-web-56": [
+            "@cakephp-28-update",
+            "@cakephp-28-test",
             "@laravel-42-update",
             "@laravel-42-test",
             "@symfony-23-update",
@@ -312,6 +316,9 @@
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
 
         "test-auto-instrumentation": "phpunit --colors=always --configuration=phpunit.xml --testsuite=auto-instrumentation",
+
+        "cakephp-28-update": "composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",
+        "cakephp-28-test": "@composer test -- --testsuite=cakephp-28-test",
 
         "laravel-42-update": "composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
         "laravel-42-optimize": "@php tests/Frameworks/Laravel/Version_4_2/artisan optimize",
