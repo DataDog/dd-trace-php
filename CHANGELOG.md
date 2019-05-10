@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Generation of `E_WARNING` in certain contexts of PHP 5 installs when the `date.timezone` INI setting is not set #435
+
 ## [0.23.0]
 
 **NOTE: We changed the way the service name can be configured. Now you must use `DD_SERVICE_NAME` instead of `DD_TRACE_APP_NAME` for consistency with other tracers. Usage of `DD_TRACE_APP_NAME` is now deprecated and will be removed in a future release.**
