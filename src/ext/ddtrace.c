@@ -12,42 +12,15 @@
 
 #include "backtrace.h"
 #include "compat_zend_string.h"
+#include "compatibility.h"
 #include "ddtrace.h"
+#include "ddtrace_extra.h"
 #include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "request_hooks.h"
 #include "serializer.h"
 
-#define UNUSED_1(x) (void)(x)
-#define UNUSED_2(x, y) \
-    do {               \
-        UNUSED_1(x);   \
-        UNUSED_1(y);   \
-    } while (0)
-#define UNUSED_3(x, y, z) \
-    do {                  \
-        UNUSED_1(x);      \
-        UNUSED_1(y);      \
-        UNUSED_1(z);      \
-    } while (0)
-#define UNUSED_4(x, y, z, q) \
-    do {                     \
-        UNUSED_1(x);         \
-        UNUSED_1(y);         \
-        UNUSED_1(z);         \
-        UNUSED_1(q);         \
-    } while (0)
-#define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, _4, ARITY, ...) UNUSED_##ARITY
-#define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 4, 3, 2, 1)(__VA_ARGS__)
-
-#if PHP_VERSION_ID < 70000
-#define PHP5_UNUSED(...) UNUSED(__VA_ARGS__)
-#define PHP7_UNUSED(...) /* unused unused */
-#else
-#define PHP5_UNUSED(...) /* unused unused */
-#define PHP7_UNUSED(...) UNUSED(__VA_ARGS__)
-#endif
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
@@ -290,41 +263,6 @@ static PHP_FUNCTION(dd_trace_reset) {
     }
 
     ddtrace_dispatch_reset(TSRMLS_C);
-    RETURN_BOOL(1);
-}
-
-/* {{{ proto string dd_trace_serialize_msgpack(array trace_array) */
-static PHP_FUNCTION(dd_trace_serialize_msgpack) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    PHP7_UNUSED(execute_data);
-
-    if (DDTRACE_G(disable)) {
-        RETURN_BOOL(0);
-    }
-
-    zval *trace_array;
-
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "a", &trace_array) == FAILURE) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected an array");
-        }
-        RETURN_BOOL(0);
-    }
-
-    if (ddtrace_serialize_simple_array(trace_array, return_value TSRMLS_CC) != 1) {
-        RETURN_BOOL(0);
-    }
-} /* }}} */
-
-// method used to be able to easily breakpoint the execution at specific PHP line in GDB
-static PHP_FUNCTION(dd_trace_noop) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    PHP7_UNUSED(execute_data);
-
-    if (DDTRACE_G(disable)) {
-        RETURN_BOOL(0);
-    }
-
     RETURN_BOOL(1);
 }
 
