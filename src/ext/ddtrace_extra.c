@@ -12,9 +12,14 @@
 
 #include "compatibility.h"
 #include "ddtrace.h"
+#include "ddtrace_extra.h"
 #include "debug.h"
 #include "env_config.h"
 #include "serializer.h"
+
+#if PHP_VERSION_ID < 70000
+typedef int32_t zend_long;
+#endif
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -52,11 +57,6 @@ PHP_FUNCTION(dd_trace_noop) {
 
     RETURN_BOOL(1);
 }
-
-#define ALLOWED_MAX_MEMORY_USE_IN_PERCENT_OF_MEMORY_LIMIT 0.20
-#if PHP_VERSION_ID < 70000
-typedef int32_t zend_long;
-#endif
 
 static zend_long get_memory_limit() {
     char *raw_memory_limit = ddtrace_get_c_string_config("DD_MEMORY_LIMIT");
@@ -105,7 +105,7 @@ PHP_FUNCTION(dd_trace_check_memory_under_limit) {
 
     static zend_long limit = -1;
     static zend_bool fetched_limit = 0;
-    if (!fetched_limit) { // cache get_memory_limit() result to make this function blazing fast
+    if (!fetched_limit) {  // cache get_memory_limit() result to make this function blazing fast
         fetched_limit = 1;
         limit = get_memory_limit();
     }

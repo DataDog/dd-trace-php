@@ -125,7 +125,11 @@ final class Tracer implements TracerInterface
 
     public function limited()
     {
-        return $this->spansLimit >= 0 && ($this->spansCreated >= $this->spansLimit);
+        if ($this->spansLimit >= 0 && ($this->spansCreated >= $this->spansLimit)) {
+            return true;
+        } else {
+            return function_exists('dd_trace_check_memory_under_limit') && !dd_trace_check_memory_under_limit();
+        }
     }
 
     /**
