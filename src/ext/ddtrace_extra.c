@@ -58,7 +58,7 @@ PHP_FUNCTION(dd_trace_noop) {
     RETURN_BOOL(1);
 }
 
-static zend_long get_memory_limit() {
+static zend_long get_memory_limit(TSRMLS_D) {
     char *raw_memory_limit = ddtrace_get_c_string_config("DD_MEMORY_LIMIT");
     size_t len = 0;
     zend_long limit = -1;
@@ -95,7 +95,7 @@ PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
 
-    RETURN_LONG(get_memory_limit());
+    RETURN_LONG(get_memory_limit(TSRMLS_C));
 }
 
 /* {{{ proto bool dd_trace_check_memory_under_limit() */
@@ -107,7 +107,7 @@ PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     static zend_bool fetched_limit = 0;
     if (!fetched_limit) {  // cache get_memory_limit() result to make this function blazing fast
         fetched_limit = 1;
-        limit = get_memory_limit();
+        limit = get_memory_limit(TSRMLS_C);
     }
 
     if (limit > 0) {
