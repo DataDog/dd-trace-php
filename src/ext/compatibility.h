@@ -31,5 +31,4 @@
 #define PHP7_UNUSED(...) UNUSED(__VA_ARGS__)
 #endif
 
-
-#endif // DD_COMPATIBILITY_H
+#endif  // DD_COMPATIBILITY_H

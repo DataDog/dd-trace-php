@@ -21,7 +21,6 @@
 #include "request_hooks.h"
 #include "serializer.h"
 
-
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()

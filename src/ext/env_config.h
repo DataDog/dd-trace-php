@@ -3,7 +3,6 @@
 #include <php.h>
 
 zend_bool ddtrace_get_bool_config(char *name, zend_bool def);
-char* ddtrace_get_c_string_config(char *name);
-
+char *ddtrace_get_c_string_config(char *name);
 
 #endif  // DD_CONFIG_H
