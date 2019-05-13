@@ -103,7 +103,13 @@ PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
 
-    zend_long limit = get_memory_limit();
+    static zend_long limit = -1;
+    static zend_bool fetched_limit = 0;
+    if (!fetched_limit) { // cache get_memory_limit() result to make this function blazing fast
+        fetched_limit = 1;
+        limit = get_memory_limit();
+    }
+
     if (limit > 0) {
         RETURN_BOOL((zend_ulong)limit > zend_memory_usage(0 TSRMLS_CC));
     } else {
