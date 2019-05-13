@@ -73,8 +73,8 @@ static zend_long get_memory_limit(){
     } else {
         limit = zend_atol(raw_memory_limit, len);
         if (raw_memory_limit[len-1] == '%') {
-            if (PG(memory_limit)) {
-                limit = PG(memory_limit) * (100.0 / (double)limit);
+            if (PG(memory_limit) > 0) {
+                limit = PG(memory_limit) * ((double)limit / 100.0);
             } else {
                 limit = -1;
             }
