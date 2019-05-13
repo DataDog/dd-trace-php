@@ -57,6 +57,7 @@ PHP_FUNCTION(dd_trace_noop) {
 #if PHP_VERSION_ID < 70000
 typedef int32_t zend_long;
 #endif
+
 static zend_long get_memory_limit() {
     char *raw_memory_limit = ddtrace_get_c_string_config("DD_MEMORY_LIMIT");
     size_t len = 0;
@@ -97,21 +98,15 @@ PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
     RETURN_LONG(get_memory_limit());
 }
 
-// /* {{{ proto bool dd_trace_check_memory_pressure() */
-// PHP_FUNCTION(dd_trace_check_memory_pressure) {
-//     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-//     PHP7_UNUSED(execute_data);
+/* {{{ proto bool dd_trace_check_memory_under_limit() */
+PHP_FUNCTION(dd_trace_check_memory_under_limit) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
 
-//     zend_long memory_limit =
-//     char *raw_memory_limit = ddtrace_get_c_string_config("DD_MEMORY_LIMIT");
-//     if (!memory_limit) {
-
-//     }
-
-//     zend_long zend_atoi()
-//     DD_SET_MEMORY_LIMIT=20%
-//     DD_SET_MEMORY_LIMIT=100M
-
-//     if PG(memory_limit)
-
-// }
+    zend_long limit = get_memory_limit();
+    if (limit > 0) {
+        RETURN_BOOL((zend_ulong)limit > zend_memory_usage(0 TSRMLS_CC));
+    } else {
+        RETURN_BOOL(1);
+    }
+}
