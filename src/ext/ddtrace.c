@@ -70,6 +70,12 @@ ZEND_END_ARG_INFO()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
+void (*_original_zend_execute_ex)(zend_execute_data *TSRMLS_DC);
+ZEND_DLEXPORT void ddtrace_execute_ex(zend_execute_data *TSRMLS_DC);
+
+//void (*_original_zend_execute_internal)(zend_execute_data *TSRMLS_DC, zval *return_value);
+//ZEND_DLEXPORT void ddtrace_execute_internal(zend_execute_data *TSRMLS_DC, zval *return_value);
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     ZEND_INIT_MODULE_GLOBALS(ddtrace, php_ddtrace_init_globals, NULL);
@@ -81,7 +87,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_install_backtrace_handler(TSRMLS_C);
 
     ddtrace_dispatch_init(TSRMLS_C);
-    ddtrace_dispatch_inject(TSRMLS_C);
+
+    _original_zend_execute_ex = zend_execute_ex;
+    zend_execute_ex = ddtrace_execute_ex;
 
     return SUCCESS;
 }
@@ -326,6 +334,12 @@ static PHP_FUNCTION(dd_trace_noop) {
     }
 
     RETURN_BOOL(1);
+}
+
+ZEND_DLEXPORT void ddtrace_execute_ex(zend_execute_data *execute_data TSRMLS_DC) {
+    if (ddtrace_wrap_fcall(execute_data) != 1) {
+        _original_zend_execute_ex(execute_data TSRMLS_CC);
+    }
 }
 
 static const zend_function_entry ddtrace_functions[] = {

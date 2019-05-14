@@ -375,7 +375,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         INIT_ZVAL(rv);
 
         zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
-        execute_fcall(dispatch, this, EX(call), &return_value TSRMLS_CC);
+        execute_fcall(dispatch, this, execute_data, &return_value TSRMLS_CC);
 
         if (!RETURN_VALUE_USED(opline)) {
             zval_dtor(&rv);
@@ -403,7 +403,7 @@ static zend_always_inline zend_function *get_current_fbc(zend_execute_data *exec
 #endif  // ZTS
     }
 #else
-    fbc = EX(call)->func;
+    fbc = EX(func);
 #endif
     return fbc;
 }
@@ -427,7 +427,7 @@ static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *exe
         lookup_data->function_name_length = Z_STRLEN_P(fname);
     }
 #else
-    fbc = EX(call)->func;
+    fbc = EX(func);
     if (fbc->common.function_name) {
         lookup_data->function_name = fbc->common.function_name;
     }
@@ -449,61 +449,17 @@ static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *exe
 #define CTOR_USED_BIT 0x2
 #define DECODE_CTOR(ce) ((zend_class_entry *)(((zend_uintptr_t)(ce)) & ~(CTOR_CALL_BIT | CTOR_USED_BIT)))
 
-static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
-    DD_PRINTF("Update opcode leave");
-#if PHP_VERSION_ID < 50500
-    EX(function_state).function = (zend_function *)EX(op_array);
-    EX(function_state).arguments = NULL;
-    EG(opline_ptr) = &EX(opline);
-    EG(active_op_array) = EX(op_array);
-
-    EG(return_value_ptr_ptr) = EX(original_return_value);
-    EX(original_return_value) = NULL;
-
-    EG(active_symbol_table) = EX(symbol_table);
-
-    EX(object) = EX(current_object);
-    EX(called_scope) = DECODE_CTOR(EX(called_scope));
-
-    zend_arg_types_stack_3_pop(&EG(arg_types_stack), &EX(called_scope), &EX(current_object), &EX(fbc));
-    zend_vm_stack_clear_multiple(TSRMLS_C);
-#elif PHP_VERSION_ID < 70000
-    zend_vm_stack_clear_multiple(0 TSRMLS_CC);
-    EX(call)--;
-#else
-    EX(call) = EX(call)->prev_execute_data;
-#endif
-    EX(opline) = EX(opline) + 1;
-
-    return ZEND_USER_OPCODE_LEAVE;
-}
-
-int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
-    DD_PRINTF("calling default dispatch");
-    if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
-        if (DDTRACE_G(ddtrace_old_fcall_by_name_handler)) {
-            return DDTRACE_G(ddtrace_old_fcall_by_name_handler)(execute_data TSRMLS_CC);
-        }
-    } else {
-        if (DDTRACE_G(ddtrace_old_fcall_handler)) {
-            return DDTRACE_G(ddtrace_old_fcall_handler)(execute_data TSRMLS_CC);
-        }
-    }
-
-    return ZEND_USER_OPCODE_DISPATCH;
-}
-
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
-        return default_dispatch(execute_data TSRMLS_CC);
+        return 0;
     }
 
     zend_function *current_fbc = get_current_fbc(execute_data TSRMLS_CC);
     ddtrace_lookup_data_t lookup_data = {0};
 
     if (!is_function_wrappable(execute_data, current_fbc, &lookup_data)) {
-        return default_dispatch(execute_data TSRMLS_CC);
+        return 0;
     }
     zend_function *previous_fbc = DDTRACE_G(original_context).fbc;
     DDTRACE_G(original_context).fbc = current_fbc;
@@ -538,9 +494,9 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DDTRACE_G(original_context).calling_fbc = previous_calling_fbc;
     DDTRACE_G(original_context).fbc = previous_fbc;
     if (wrapped) {
-        return update_opcode_leave(execute_data TSRMLS_CC);
+        return 1;
     } else {
-        return default_dispatch(execute_data TSRMLS_CC);
+        return 0;
     }
 }
 
