@@ -59,7 +59,7 @@ PHP_FUNCTION(dd_trace_noop) {
 }
 
 static zend_long get_memory_limit(TSRMLS_D) {
-    char *raw_memory_limit = ddtrace_get_c_string_config("DD_MEMORY_LIMIT");
+    char *raw_memory_limit = ddtrace_get_c_string_config("DD_TRACE_MEMORY_LIMIT");
     size_t len = 0;
     zend_long limit = -1;
 

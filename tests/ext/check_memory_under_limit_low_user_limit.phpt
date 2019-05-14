@@ -8,7 +8,7 @@ if (getenv("USE_ZEND_ALLOC") !== "1")
     print "skip Need Zend MM enabled";
 ?>
 --ENV--
-DD_MEMORY_LIMIT=100k
+DD_TRACE_MEMORY_LIMIT=100k
 --FILE--
 <?php
 echo dd_trace_check_memory_under_limit() ? 'true' : 'false'. PHP_EOL;
