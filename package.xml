@@ -41,6 +41,8 @@
                     <file name="compat_zend_string.h" role="src" />
                     <file name="ddtrace.c" role="src" />
                     <file name="ddtrace.h" role="src" />
+                    <file name="ddtrace_extra.c" role="src" />
+                    <file name="ddtrace_extra.h" role="src" />
                     <file name="debug.h" role="src" />
                     <file name="dispatch.c" role="src" />
                     <file name="dispatch.h" role="src" />
@@ -58,6 +60,7 @@
                     <file name="serializer.c" role="src" />
                     <file name="serializer.h" role="src" />
                     <file name="version.h" role="src" />
+                    <file name="compatibility.h" role="src">
                     <dir name="mpack">
                         <file name="AUTHORS.md" role="doc" />
                         <file name="CHANGELOG.md" role="doc" />
@@ -110,6 +113,20 @@
                     <file name="segfault_backtrace_disabled_via_env_enabled_in_ini.phpt" role="test" />
                     <file name="segfault_backtrace_enabled.phpt" role="test" />
                     <file name="segfault_backtrace_enabled_via_env_disabled_in_ini.phpt" role="test" />
+                    <file name="get_memory_limit_set_by_percentage.phpt" role="test" />
+                    <file name="get_memory_limit_unlimited_set_by_percentage.phpt" role="test" />
+                    <file name="check_memory_under_limit_high_user_limit.phpt" role="test" />
+                    <file name="get_memory_limit_unlimited_set_by_absolute.phpt" role="test" />
+                    <file name="get_memory_limit_0.phpt" role="test" />
+                    <file name="check_memory_under_limit_high_limit.phpt" role="test" />
+                    <file name="check_memory_under_limit_low_user_limit.phpt" role="test" />
+                    <file name="get_memory_limit_unlimited_default.phpt" role="test" />
+                    <file name="check_memory_under_limit_default.phpt" role="test" />
+                    <file name="get_memory_limit_set_by_absolute.phpt" role="test" />
+                    <file name="get_memory_limit_default.phpt" role="test" />
+                    <file name="check_memory_under_limit_low_limit.phpt" role="test" />
+                    <file name="extension_disabled.phpt" role="test" />
+                    <file name="get_memory_limit_0_percent.phpt" role="test" />
                     <file name="segfault_backtrace_enabled_via_env.phpt" role="test" />
                     <file name="simple_function_hook.phpt" role="test" />
                     <file name="simple_method_hook.phpt" role="test" />
