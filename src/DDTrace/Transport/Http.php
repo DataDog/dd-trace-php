@@ -20,8 +20,8 @@ final class Http implements Transport
     // https://github.com/DataDog/datadog-agent/blob/355a34d610bd1554572d7733454ac4af3acd89cd/pkg/trace/api/api.go#L31
     const AGENT_REQUEST_BODY_LIMIT = 10485760; // 10 * 1024 * 1024 => 10MB
     const TRACE_AGENT_PORT_ENV = 'DD_TRACE_AGENT_PORT';
-    const AGENT_TIMEOUT_ENV = 'DD_AGENT_TIMEOUT';
-    const AGENT_CONNECT_TIMEOUT_ENV = 'DD_AGENT_CONNECT_TIMEOUT';
+    const AGENT_TIMEOUT_ENV = 'DD_TRACE_AGENT_TIMEOUT';
+    const AGENT_CONNECT_TIMEOUT_ENV = 'DD_TRACE_AGENT_CONNECT_TIMEOUT';
 
     // Default values for trace agent configuration
     const DEFAULT_AGENT_HOST = 'localhost';
