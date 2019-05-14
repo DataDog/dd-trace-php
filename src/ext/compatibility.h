@@ -31,4 +31,8 @@
 #define PHP7_UNUSED(...) UNUSED(__VA_ARGS__)
 #endif
 
+#if PHP_VERSION_ID < 70000
+typedef int32_t zend_long;
+#endif
+
 #endif  // DD_COMPATIBILITY_H

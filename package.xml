@@ -41,9 +41,9 @@
                     <file name="compat_zend_string.h" role="src" />
                     <file name="ddtrace.c" role="src" />
                     <file name="ddtrace.h" role="src" />
-                    <file name="ddtrace_extra.c" role="src" />
-                    <file name="ddtrace_extra.h" role="src" />
                     <file name="debug.h" role="src" />
+                    <file name="memory_limit.c" role="src" />
+                    <file name="memory_limit.h" role="src" />
                     <file name="dispatch.c" role="src" />
                     <file name="dispatch.h" role="src" />
                     <file name="dispatch_compat.h" role="src" />
