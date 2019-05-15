@@ -53,7 +53,9 @@
  */
 	Configure::write('Error', array(
 		'handler' => 'ErrorHandler::handleError',
-		'level' => E_ALL & ~E_DEPRECATED,
+		// Prevents the following error on PHP 5.4:
+		// Strict Error: Non-static method ShellDispatcher::_stop() should not be called statically
+		'level' => E_ALL & ~E_DEPRECATED & ~E_STRICT,
 		'trace' => true
 	));
 
