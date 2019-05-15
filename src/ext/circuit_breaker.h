@@ -3,14 +3,13 @@
 
 #include <stdint.h>
 #include "version.h"
-#include <stdatomic.h>
-
+#include "vendor_stdatomic.h"
 
 typedef struct dd_trace_circuit_breaker_t {
-    _Atomic uint32_t consecutive_failures;
-    _Atomic uint32_t total_failures;
-    _Atomic uint32_t flags;
-    _Atomic uint64_t circuit_opened_timestamp;
+    _Atomic(uint32_t) consecutive_failures;
+    _Atomic(uint32_t) total_failures;
+    _Atomic(uint32_t) flags;
+    _Atomic(uint64_t) circuit_opened_timestamp;
 } dd_trace_circuit_breaker_t;
 
 

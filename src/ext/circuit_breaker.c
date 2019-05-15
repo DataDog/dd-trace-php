@@ -1,4 +1,4 @@
-#include "shared_storage.h"
+#include "circuit_breaker.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,10 +7,17 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <stdatomic.h>
 
 dd_trace_circuit_breaker_t *dd_trace_circuit_breaker = NULL;
-dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = { 0 };
+// dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = { 0, 0, 0, 0 };
+
+dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {
+    .consecutive_failures = {0},
+    .total_failures = {0},
+    .flags = {0},
+    .circuit_opened_timestamp = {0}
+
+};
 
 static void handle_perpare_error(const char *call_name) {
     perror(call_name); //TODO add PHP option
