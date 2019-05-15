@@ -12,42 +12,14 @@
 
 #include "backtrace.h"
 #include "compat_zend_string.h"
+#include "compatibility.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
+#include "memory_limit.h"
 #include "request_hooks.h"
 #include "serializer.h"
-
-#define UNUSED_1(x) (void)(x)
-#define UNUSED_2(x, y) \
-    do {               \
-        UNUSED_1(x);   \
-        UNUSED_1(y);   \
-    } while (0)
-#define UNUSED_3(x, y, z) \
-    do {                  \
-        UNUSED_1(x);      \
-        UNUSED_1(y);      \
-        UNUSED_1(z);      \
-    } while (0)
-#define UNUSED_4(x, y, z, q) \
-    do {                     \
-        UNUSED_1(x);         \
-        UNUSED_1(y);         \
-        UNUSED_1(z);         \
-        UNUSED_1(q);         \
-    } while (0)
-#define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, _4, ARITY, ...) UNUSED_##ARITY
-#define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 4, 3, 2, 1)(__VA_ARGS__)
-
-#if PHP_VERSION_ID < 70000
-#define PHP5_UNUSED(...) UNUSED(__VA_ARGS__)
-#define PHP7_UNUSED(...) /* unused unused */
-#else
-#define PHP5_UNUSED(...) /* unused unused */
-#define PHP7_UNUSED(...) UNUSED(__VA_ARGS__)
-#endif
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
@@ -328,10 +300,38 @@ static PHP_FUNCTION(dd_trace_noop) {
     RETURN_BOOL(1);
 }
 
+/* {{{ proto int dd_trace_dd_get_memory_limit() */
+static PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    RETURN_LONG(get_memory_limit(TSRMLS_C));
+}
+
+/* {{{ proto bool dd_trace_check_memory_under_limit() */
+static PHP_FUNCTION(dd_trace_check_memory_under_limit) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    static zend_long limit = -1;
+    static zend_bool fetched_limit = 0;
+    if (!fetched_limit) {  // cache get_memory_limit() result to make this function blazing fast
+        fetched_limit = 1;
+        limit = get_memory_limit(TSRMLS_C);
+    }
+
+    if (limit > 0) {
+        RETURN_BOOL((zend_ulong)limit > zend_memory_usage(0 TSRMLS_CC));
+    } else {
+        RETURN_BOOL(1);
+    }
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
-        PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL)
-            PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
+        PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
+            PHP_FE(dd_trace_check_memory_under_limit, NULL)
+                PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),

@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Tracer limited mode, stopping span creation when memory use raises to 80% of current PHP memory limit #437
+
 ### Fixed
 - Generation of `E_WARNING` in certain contexts of PHP 5 installs when the `date.timezone` INI setting is not set #435
 

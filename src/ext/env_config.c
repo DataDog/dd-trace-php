@@ -38,3 +38,12 @@ zend_bool ddtrace_get_bool_config(char *name, zend_bool def) {
     efree(env);
     return rv;
 }
+
+char *ddtrace_get_c_string_config(char *name) {
+    char *env = get_local_env_or_sapi_env(name);
+    if (!env) {
+        return NULL;
+    } else {
+        return env;
+    }
+}
