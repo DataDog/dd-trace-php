@@ -39,6 +39,24 @@ zend_bool ddtrace_get_bool_config(char *name, zend_bool def) {
     return rv;
 }
 
+int64_t ddtrace_get_int_config(char *name, int64_t def) {
+    char *env = get_local_env_or_sapi_env(name);
+    if (!env) {
+        return def;
+    }
+
+    char *endptr = str;
+
+    long long result = strtoll(str, &endptr, 10);
+    efree(env);
+
+    if (endptr == str) {
+        return def;
+    }
+
+    return result;
+}
+
 char *ddtrace_get_c_string_config(char *name) {
     char *env = get_local_env_or_sapi_env(name);
     if (!env) {

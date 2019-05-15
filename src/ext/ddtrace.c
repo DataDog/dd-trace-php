@@ -19,6 +19,7 @@
 #include "dispatch_compat.h"
 #include "memory_limit.h"
 #include "request_hooks.h"
+#include "circuit_breaker.h"
 #include "serializer.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
@@ -327,10 +328,55 @@ static PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     }
 }
 
+static PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    dd_tracer_circuit_breaker_register_error();
+
+    RETURN_BOOL(1);
+}
+
+static PHP_FUNCTION(dd_tracer_circuit_breaker_register_success) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    dd_tracer_circuit_breaker_register_success();
+
+    RETURN_BOOL(1);
+}
+
+static PHP_FUNCTION(dd_tracer_circuit_breaker_open) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    dd_tracer_circuit_breaker_open();
+
+    RETURN_BOOL(1);
+}
+
+static PHP_FUNCTION(dd_tracer_circuit_breaker_close) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    dd_tracer_circuit_breaker_close();
+
+    RETURN_BOOL(1);
+}
+
+static PHP_FUNCTION(dd_tracer_circuit_breaker_is_closed) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    RETURN_BOOL(dd_tracer_circuit_breaker_is_closed());
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
-            PHP_FE(dd_trace_check_memory_under_limit, NULL)
+            PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(dd_tracer_circuit_breaker_register_error, NULL)
+            PHP_FE(dd_tracer_circuit_breaker_register_success, NULL) PHP_FE(dd_tracer_circuit_breaker_open, NULL)
+            PHP_FE(dd_tracer_circuit_breaker_close, NULL) PHP_FE(dd_tracer_circuit_breaker_is_closed, NULL)
                 PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
