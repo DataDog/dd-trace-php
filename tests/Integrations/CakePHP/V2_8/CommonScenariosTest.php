@@ -53,11 +53,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         'integration.name' => 'cakephp',
                     ]),
-                    SpanAssertion::exists('cakephp.event', 'Dispatcher.beforeDispatch'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.initialize'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.startup'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.shutdown'),
-                    SpanAssertion::exists('cakephp.event', 'Dispatcher.afterDispatch'),
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
@@ -73,12 +68,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         'integration.name' => 'cakephp',
                     ]),
-
-                    SpanAssertion::exists('cakephp.event', 'Dispatcher.beforeDispatch'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.initialize'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.startup'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.beforeRender'),
-
                     SpanAssertion::build(
                         'cakephp.view',
                         'cakephp_test_app',
@@ -88,23 +77,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp.view' => 'SimpleView/index.ctp',
                         'integration.name' => 'cakephp',
                     ]),
-
-                    SpanAssertion::exists('cakephp.event', 'View.beforeRender'),
-                    SpanAssertion::exists('cakephp.event', 'View.beforeRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.afterRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.afterRender'),
-
-                    SpanAssertion::exists('cakephp.event', 'View.beforeLayout'),
-
-                    SpanAssertion::exists('cakephp.event', 'View.beforeRender'),
-                    SpanAssertion::exists('cakephp.event', 'View.beforeRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.afterRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.afterRender'),
-
-                    SpanAssertion::exists('cakephp.event', 'View.afterLayout'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.shutdown'),
-
-                    SpanAssertion::exists('cakephp.event', 'Dispatcher.afterDispatch'),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
@@ -123,14 +95,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     ])->withExistingTagsNames([
                         'error.stack'
                     ])->setError(null, 'Foo error'),
-
-                    SpanAssertion::exists('cakephp.event', 'Dispatcher.beforeDispatch'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.initialize'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.startup'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.initialize'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.startup'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.beforeRender'),
-
                     SpanAssertion::build(
                         'cakephp.view',
                         'cakephp_test_app',
@@ -140,25 +104,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp.view' => 'Errors/index.ctp',
                         'integration.name' => 'cakephp',
                     ]),
-
-                    SpanAssertion::exists('cakephp.event', 'View.beforeRender'),
-                    SpanAssertion::exists('cakephp.event', 'View.beforeRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.beforeRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.afterRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.afterRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.afterRender'),
-
-                    SpanAssertion::exists('cakephp.event', 'View.beforeLayout'),
-
-                    SpanAssertion::exists('cakephp.event', 'View.beforeRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.beforeRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.afterRenderFile'),
-                    SpanAssertion::exists('cakephp.event', 'View.afterRenderFile'),
-
-                    SpanAssertion::exists('cakephp.event', 'View.afterLayout'),
-                    SpanAssertion::exists('cakephp.event', 'Controller.shutdown'),
-
-                    SpanAssertion::exists('cakephp.event', 'Dispatcher.afterDispatch'),
                 ],
             ]
         );

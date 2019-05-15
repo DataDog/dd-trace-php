@@ -71,20 +71,6 @@ class CakePHPIntegrationLoader
             return include __DIR__ . '/../../../try_catch_finally.php';
         });
 
-        // Create a trace span for every event fired
-        dd_trace('CakeEventManager', 'dispatch', function ($event) use ($integration) {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                //return dd_trace_forward_call();
-            }
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'cakephp.event');
-            $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
-            $name = $event instanceof CakeEvent ? $event->name() : $event;
-            $scope->getSpan()->setTag(Tag::RESOURCE_NAME, $name);
-            $scope->getSpan()->setTag('cakephp.event.name', $name);
-            return include __DIR__ . '/../../../try_catch_finally.php';
-        });
-
         /**
          * CakePHP Console
          */
