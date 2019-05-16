@@ -21,7 +21,12 @@ class CakePHPIntegrationLoader
 
     public function load(CakePHPIntegration $integration)
     {
-        echo "This makes it work...\n";
+        // Very strange workaround to get the integration to load in tests
+        // We need to find this bug in the CLI SAPI's built-in web server
+        // Once the bug is fixed we can remove this line block
+        if ('true' === getenv('DD_TEST_INTEGRATION')) {
+            echo ' ';
+        }
         $this->rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
         // Overwrite the default web integration
         $this->rootSpan->setIntegration($integration);
