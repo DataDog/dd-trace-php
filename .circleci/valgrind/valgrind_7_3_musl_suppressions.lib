@@ -39,34 +39,34 @@
     fun:zend_string_equal_val
 }
 {
-   <insert_a_suppression_name_here>
-   Memcheck:Cond
-   fun:memcmp
-   fun:__putenv
-   obj:*
-   obj:*
-   obj:*
-   fun:vgMemCheck_new_block
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   fun:do_cli
-   obj:*
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:memcmp
+    fun:__putenv
+    obj:*
+    obj:*
+    obj:*
+    fun:vgMemCheck_new_block
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    fun:do_cli
+    obj:*
 }
 {
-   <insert_a_suppression_name_here>
-   Memcheck:Cond
-   fun:memcmp
-   fun:unsetenv
-   obj:*
-   obj:*
-   obj:*
-   obj:*
-   fun:do_cli
-   obj:*
-   obj:*
-   fun:unsetenv
-   obj:*
-   obj:*
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:memcmp
+    fun:unsetenv
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    fun:do_cli
+    obj:*
+    obj:*
+    fun:unsetenv
+    obj:*
+    obj:*
 }

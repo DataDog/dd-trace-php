@@ -11,11 +11,16 @@
 #include "env_config.h"
 
 dd_trace_circuit_breaker_t *dd_trace_circuit_breaker = NULL;
+
+#ifndef __clang__
 // disable checks since older GCC is throwing false errors
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {{0}};
 #pragma GCC diagnostic pop
+#else //__clang__
+dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {0};
+#endif
 
 static void handle_perpare_error(const char *call_name) {
     perror(call_name);
