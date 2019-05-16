@@ -18,7 +18,7 @@ dd_trace_circuit_breaker_t *dd_trace_circuit_breaker = NULL;
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {{0}};
 #pragma GCC diagnostic pop
-#else //__clang__
+#else  //__clang__
 dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {0};
 #endif
 
