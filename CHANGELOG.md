@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file - [read more
 - Tracer limited mode, stopping span creation when memory use raises to 80% of current PHP memory limit #437
 - Configurable Curl timeouts `DD_TRACE_AGENT_TIMEOUT` and `DD_TRACE_AGENT_CONNECT_TIMEOUT` when communicating with the agent #150
 - Configurable `DD_TRACE_REPORT_HOSTNAME` reporting of hostname via root span #441
+- Support for CakePHP v2 and Cake Console v2 #436
 
 ### Fixed
 - Generation of `E_WARNING` in certain contexts of PHP 5 installs when the `date.timezone` INI setting is not set #435
