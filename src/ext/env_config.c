@@ -45,14 +45,16 @@ int64_t ddtrace_get_int_config(char *name, int64_t def) {
         return def;
     }
 
-    char *endptr = str;
+    char *endptr = env;
 
-    long long result = strtoll(str, &endptr, 10);
-    efree(env);
+    long long result = strtoll(env, &endptr, 10);
 
-    if (endptr == str) {
+    if (endptr == env) {
+        efree(env);
+
         return def;
     }
+    efree(env);
 
     return result;
 }
