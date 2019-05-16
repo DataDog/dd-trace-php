@@ -67,8 +67,9 @@ class CakePHPIntegration extends Integration
         // Web bootstrap
         dd_trace('Dispatcher', '__construct', $initCakeV2);
         // CLI bootstrap
+        // Once auto-instrumentation has been added for non-autoloaded projects,
+        // uncomment the following line and delete the if block below it
         //dd_trace('ShellDispatcher', 'run', $initCakeV2);
-        // Temporary workaround until we fix request_init_hook for non-autoloaded projects
         if ('cli' === PHP_SAPI) {
             dd_trace('App', 'init', $initCakeV2);
         }

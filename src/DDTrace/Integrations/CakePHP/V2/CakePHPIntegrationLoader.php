@@ -34,18 +34,18 @@ class CakePHPIntegrationLoader
         $this->rootSpan->overwriteOperationName('cakephp.request');
         $this->rootSpan->setTag(Tag::SERVICE_NAME, CakePHPIntegration::getAppName());
 
-        $self = $this;
+        $loader = $this;
 
-        dd_trace('Controller', 'invokeAction', function (CakeRequest $request) use ($self) {
-            $self->rootSpan->setTag(
+        dd_trace('Controller', 'invokeAction', function (CakeRequest $request) use ($loader) {
+            $loader->rootSpan->setTag(
                 Tag::RESOURCE_NAME,
                 $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action']
             );
-            $self->rootSpan->setTag(Tag::HTTP_URL, Router::url($request->here, true));
-            $self->rootSpan->setTag('cakephp.route.controller', $request->params['controller']);
-            $self->rootSpan->setTag('cakephp.route.action', $request->params['action']);
+            $loader->rootSpan->setTag(Tag::HTTP_URL, Router::url($request->here, true));
+            $loader->rootSpan->setTag('cakephp.route.controller', $request->params['controller']);
+            $loader->rootSpan->setTag('cakephp.route.action', $request->params['action']);
             if (isset($request->params['plugin'])) {
-                $self->rootSpan->setTag('cakephp.plugin', $request->params['plugin']);
+                $loader->rootSpan->setTag('cakephp.plugin', $request->params['plugin']);
             }
             return dd_trace_forward_call();
         });
@@ -57,8 +57,8 @@ class CakePHPIntegrationLoader
         // - Controller::appError()
         // - Exception.handler
         // - Exception.renderer
-        dd_trace('ExceptionRenderer', '__construct', function ($exception) use ($self) {
-            $self->rootSpan->setError($exception);
+        dd_trace('ExceptionRenderer', '__construct', function ($exception) use ($loader) {
+            $loader->rootSpan->setError($exception);
             return dd_trace_forward_call();
         });
 
@@ -81,9 +81,9 @@ class CakePHPIntegrationLoader
          */
         //dd_trace('ShellDispatcher', '__construct', function () use ($self) {
         // Temporary workaround until we fix request_init_hook for non-autoloaded projects
-        dd_trace('ShellDispatcher', 'dispatch', function () use ($self) {
-            $self->rootSpan->overwriteOperationName('cakephp.console');
-            $self->rootSpan->setTag(
+        dd_trace('ShellDispatcher', 'dispatch', function () use ($loader) {
+            $loader->rootSpan->overwriteOperationName('cakephp.console');
+            $loader->rootSpan->setTag(
                 Tag::RESOURCE_NAME,
                 !empty($_SERVER['argv'][1]) ? 'cake_console ' . $_SERVER['argv'][1] : 'cake_console'
             );
