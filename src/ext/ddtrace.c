@@ -329,7 +329,7 @@ static PHP_FUNCTION(dd_trace_check_memory_under_limit) {
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
 
     dd_tracer_circuit_breaker_register_error();
@@ -338,7 +338,7 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_register_success) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
 
     dd_tracer_circuit_breaker_register_success();
@@ -347,7 +347,7 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_register_success) {
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_open) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
 
     dd_tracer_circuit_breaker_open();
@@ -356,7 +356,7 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_open) {
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_close) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
 
     dd_tracer_circuit_breaker_close();
@@ -365,14 +365,14 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_close) {
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_is_closed) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
 
     RETURN_BOOL(dd_tracer_circuit_breaker_is_closed());
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_can_retry) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
 
     RETURN_BOOL(dd_tracer_circuit_breaker_can_retry());
