@@ -371,11 +371,11 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_is_closed) {
     RETURN_BOOL(dd_tracer_circuit_breaker_is_closed());
 }
 
-static PHP_FUNCTION(dd_tracer_circuit_breaker_can_retry) {
+static PHP_FUNCTION(dd_tracer_circuit_breaker_can_try) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
 
-    RETURN_BOOL(dd_tracer_circuit_breaker_can_retry());
+    RETURN_BOOL(dd_tracer_circuit_breaker_can_try());
 }
 
 static const zend_function_entry ddtrace_functions[] = {
@@ -384,7 +384,7 @@ static const zend_function_entry ddtrace_functions[] = {
             PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(dd_tracer_circuit_breaker_register_error, NULL)
                 PHP_FE(dd_tracer_circuit_breaker_register_success, NULL) PHP_FE(dd_tracer_circuit_breaker_open, NULL)
                     PHP_FE(dd_tracer_circuit_breaker_close, NULL) PHP_FE(dd_tracer_circuit_breaker_is_closed, NULL)
-                        PHP_FE(dd_tracer_circuit_breaker_can_retry, NULL)
+                        PHP_FE(dd_tracer_circuit_breaker_can_try, NULL)
                             PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,

@@ -84,7 +84,7 @@ static int64_t get_retry_time_usec() {
            1000;
 }
 
-uint32_t dd_tracer_circuit_breaker_can_retry() {
+uint32_t dd_tracer_circuit_breaker_can_try() {
     if (dd_tracer_circuit_breaker_is_closed()) {
         return 1;
     }

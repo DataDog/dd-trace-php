@@ -25,7 +25,7 @@ void dd_tracer_circuit_breaker_register_error();
 void dd_tracer_circuit_breaker_register_success();
 void dd_tracer_circuit_breaker_open();
 void dd_tracer_circuit_breaker_close();
-uint32_t dd_tracer_circuit_breaker_can_retry();
+uint32_t dd_tracer_circuit_breaker_can_try();
 uint32_t dd_tracer_circuit_breaker_is_closed();
 
 #endif  // DD_CIRCUIT_BREAKER_H
