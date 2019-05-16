@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - Support for Slim Framework v3 #446
 - IPC based configurable Circuit breaker `DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC` and `DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES` used when communicating with the agent #440
+- Normalized URL's as resource names; a CSV string of URL-to-resource-name mapping rules with `*` and `$*` wildcards can be set from `DD_TRACE_RESOURCE_URI_MAPPING` #442
 
 ## [0.24.0]
 
