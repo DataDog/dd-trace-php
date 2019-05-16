@@ -2,12 +2,10 @@
 
 namespace DDTrace;
 
-use DDTrace\Encoders\Json;
-use DDTrace\Encoders\MessagePack;
 use DDTrace\Http\Request;
+use DDTrace\Http\Urls;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\Web\WebIntegration;
-use DDTrace\Transport\Http;
 
 /**
  * Bootstrap the the datadog tracer.
@@ -112,6 +110,12 @@ final class Bootstrap
             $span->setTag(Tag::HTTP_URL, $_SERVER['REQUEST_URI']);
             // Status code defaults to 200, will be later on changed when http_response_code will be called
             $span->setTag(Tag::HTTP_STATUS_CODE, 200);
+            // Normalized URL as the resource name
+            $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
+            $span->setTag(
+                Tag::RESOURCE_NAME,
+                $_SERVER['REQUEST_METHOD'] . ' ' . $normalizer->normalize($_SERVER['REQUEST_URI'])
+            );
         }
 
         dd_trace('header', function () use ($span) {
