@@ -69,7 +69,7 @@ static uint64_t current_timestamp_monotonic_msec() {
 }
 
 static int64_t get_max_consecutive_failures() {
-    return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_RETRY_TIME_MSEC, DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES);
+    return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_MAX_CONSECUTIVE_FAILURES, DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES);
 }
 
 static int64_t get_retry_time_msec() {
@@ -77,12 +77,13 @@ static int64_t get_retry_time_msec() {
 }
 
 uint32_t dd_tracer_circuit_breaker_can_retry(){
-    uint64_t opened_timestamp = atomic_load(&dd_trace_circuit_breaker->circuit_opened_timestamp);
-    uint64_t current_time = current_timestamp_monotonic_msec();
-    if ((opened_timestamp + get_retry_time_msec()) < current_time) {
-
+    if (dd_tracer_circuit_breaker_is_closed()) {
+        return 1;
     }
-    return 0;
+    uint64_t opened_timestamp = atomic_load(&dd_trace_circuit_breaker->last_failure_timestamp);
+    uint64_t current_time = current_timestamp_monotonic_msec();
+
+    return (opened_timestamp + get_retry_time_msec()) > current_time;
 }
 
 void dd_tracer_circuit_breaker_register_error(){
