@@ -1,14 +1,14 @@
-#include "circuit_breaker.h"
-#include "env_config.h"
-
-#include <stdlib.h>
-#include <unistd.h>
+#include <fcntl.h>
 #include <stdio.h>
-#include <sys/stat.h>
+#include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
-#include <fcntl.h>
+#include <unistd.h>
+
+#include "circuit_breaker.h"
+#include "env_config.h"
 
 dd_trace_circuit_breaker_t *dd_trace_circuit_breaker = NULL;
 dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {
@@ -38,7 +38,7 @@ static void prepare_cb() {
         // initialize size if not yet initialized
         // fetch stat with shmem size
         struct stat stats;
-        if (fstat( shm_fd, &stats) != 0){
+        if (fstat(shm_fd, &stats) != 0) {
             handle_perpare_error("fstat");
             return;
         }
@@ -50,7 +50,8 @@ static void prepare_cb() {
             }
         }
         // mmap shared memory to local memory
-        dd_trace_circuit_breaker_t *shared_breaker = mmap(NULL, sizeof(dd_trace_circuit_breaker_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        dd_trace_circuit_breaker_t *shared_breaker =
+            mmap(NULL, sizeof(dd_trace_circuit_breaker_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
         if (shared_breaker == MAP_FAILED) {
             handle_perpare_error("mmap");
 
@@ -61,7 +62,7 @@ static void prepare_cb() {
     }
 }
 
-static uint64_t current_timestamp_monotonic_msec() {
+static uint64_t current_timestamp_monotonic_usec() {
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
 
@@ -69,30 +70,33 @@ static uint64_t current_timestamp_monotonic_msec() {
 }
 
 static int64_t get_max_consecutive_failures() {
-    return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_MAX_CONSECUTIVE_FAILURES, DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES);
+    return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_MAX_CONSECUTIVE_FAILURES,
+                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES);
 }
 
-static int64_t get_retry_time_msec() {
-    return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_RETRY_TIME_MSEC, DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC);
+static int64_t get_retry_time_usec() {
+    return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_RETRY_TIME_MSEC,
+                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC) *
+           1000;
 }
 
-uint32_t dd_tracer_circuit_breaker_can_retry(){
+uint32_t dd_tracer_circuit_breaker_can_retry() {
     if (dd_tracer_circuit_breaker_is_closed()) {
         return 1;
     }
-    uint64_t opened_timestamp = atomic_load(&dd_trace_circuit_breaker->last_failure_timestamp);
-    uint64_t current_time = current_timestamp_monotonic_msec();
+    uint64_t last_failure_timestamp = atomic_load(&dd_trace_circuit_breaker->last_failure_timestamp);
+    uint64_t current_time = current_timestamp_monotonic_usec();
 
-    return (opened_timestamp + get_retry_time_msec()) > current_time;
+    return (last_failure_timestamp + get_retry_time_usec()) <= current_time;
 }
 
-void dd_tracer_circuit_breaker_register_error(){
+void dd_tracer_circuit_breaker_register_error() {
     prepare_cb();
 
     atomic_fetch_add(&dd_trace_circuit_breaker->consecutive_failures, 1);
     atomic_fetch_add(&dd_trace_circuit_breaker->total_failures, 1);
 
-    atomic_store(&dd_trace_circuit_breaker->last_failure_timestamp, current_timestamp_monotonic_msec());
+    atomic_store(&dd_trace_circuit_breaker->last_failure_timestamp, current_timestamp_monotonic_usec());
 
     // if circuit breaker is closed attempt to open it if consecutive failures are higher thatn the threshold
     if (dd_tracer_circuit_breaker_is_closed()) {
@@ -113,7 +117,7 @@ void dd_tracer_circuit_breaker_open() {
     prepare_cb();
 
     atomic_fetch_or(&dd_trace_circuit_breaker->flags, DD_TRACE_CIRCUIT_BREAKER_OPENED);
-    atomic_store(&dd_trace_circuit_breaker->circuit_opened_timestamp, current_timestamp_monotonic_msec());
+    atomic_store(&dd_trace_circuit_breaker->circuit_opened_timestamp, current_timestamp_monotonic_usec());
 }
 
 void dd_tracer_circuit_breaker_close() {

@@ -14,7 +14,7 @@ char *get_local_env_or_sapi_env(char *name) {
     return env;
 }
 
-zend_bool ddtrace_get_bool_config(char *name, zend_bool def) {
+zend_bool ddtrace_get_bool_config(char *name, unsigned char def) {
     char *env = get_local_env_or_sapi_env(name);
     if (!env) {
         return def;
