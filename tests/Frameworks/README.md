@@ -66,6 +66,16 @@ Link: https://lumen.laravel.com/docs/5.8/installation
 
     $ composer create-project laravel/lumen Version_5_8 "5.8.*"
 
+## Slim Framework
+
+In order to generate the sample Slim Framework apps we used the default commands from the [framework's 'Getting started' guide](http://www.slimframework.com/).
+
+    $ cd tests/Frameworks/Slim
+
+### Slim 3.12
+
+    $ composer create-project slim/slim-skeleton Version_3_12
+
 ## Symfony
 
 In order to generate the sample Symfony apps we used the default commands from the framework's 'Getting started' guides.
