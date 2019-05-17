@@ -76,9 +76,10 @@ class WebServer
         $host = $this->host;
         $port = $this->port;
         $indexFile = $this->indexFile;
+        $indexDirectory = dirname($this->indexFile);
         $envs = $this->getSerializedEnvsForCli();
         $inis = $this->getSerializedIniForCli();
-        $cmd = "php $inis -S $host:$port $indexFile";
+        $cmd = "php $inis -S $host:$port -t $indexDirectory $indexFile";
         $processCmd = "$envs exec $cmd";
         $this->process = new Process($processCmd);
         $this->process->start();
