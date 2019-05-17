@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Support for Slim Framework v3 #446
+
 ## [0.24.0]
 
 ### Added
