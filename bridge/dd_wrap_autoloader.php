@@ -3,7 +3,7 @@
 namespace DDTrace\Bridge;
 
 if (PHP_VERSION_ID < 70000) {
-    date_default_timezone_set(date_default_timezone_get());
+    date_default_timezone_set(@date_default_timezone_get());
 }
 
 require_once __DIR__ . '/functions.php';

@@ -115,13 +115,13 @@ services:
       - "8126:8126"
 
   request_replayer:
-    image: php:7.2
+    image: php:7.3
     working_dir: /var/www
+    volumes:
+      - ./tests/request_replayer:/var/www
     ports:
-      - 9000:80
-    environment:
-      DD_REQUEST_DUMPER_FILE: dump.json
-    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/master/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
+      - 9090:80
+    command: sh -c "php -S 0.0.0.0:80 index.php"
 
   agent:
     image: datadog/agent:latest

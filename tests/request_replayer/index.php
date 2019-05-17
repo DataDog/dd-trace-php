@@ -1,30 +1,48 @@
 <?php
 
-$filename = basename(getenv('DD_REQUEST_DUMPER_FILE') ?: 'php_request_replayer_' . getmypid() . '.json');
-$requestLog = sys_get_temp_dir() . '/' . $filename;
+if ('cli-server' !== PHP_SAPI) {
+    echo "For use via the CLI SAPI's built-in web server only.\n";
+    exit;
+}
 
-if (php_sapi_name() == 'cli-server') {
-    if ($_SERVER['REQUEST_URI'] == '/replay') {
-        if (file_exists($requestLog)) {
-            $value = file_get_contents($requestLog);
-            error_log("Returning value from $requestLog: " . print_r($value, true));
-            echo $value;
-        } else {
-            error_log("No value to replay in $requestLog");
+define('REQUEST_LOG_FILE', sys_get_temp_dir() . '/dump.json');
+
+function logRequest($message, $data = '')
+{
+    if (!empty($data)) {
+        $message .= ":\n" . $data;
+    }
+    error_log(
+        sprintf('[%s | %s] %s', $_SERVER['REQUEST_URI'], REQUEST_LOG_FILE, $message)
+    );
+}
+
+switch ($_SERVER['REQUEST_URI']) {
+    case '/replay':
+        if (!file_exists(REQUEST_LOG_FILE)) {
+            logRequest('Cannot replay last request; request log does not exist');
+            break;
         }
-        file_put_contents($requestLog, '');
-    } elseif ($_SERVER['REQUEST_URI'] == '/clear-dumped-data') {
-        if (file_exists($requestLog)) {
-            error_log("Clearing dumped data in $requestLog");
-            unlink($requestLog);
+        $request = file_get_contents(REQUEST_LOG_FILE);
+        echo $request;
+        unlink(REQUEST_LOG_FILE);
+        logRequest('Returned last request and deleted request log', $request);
+        break;
+    case '/clear-dumped-data':
+        if (!file_exists(REQUEST_LOG_FILE)) {
+            logRequest('Cannot delete request log; request log does not exist');
+            break;
         }
-    } else {
+        unlink(REQUEST_LOG_FILE);
+        logRequest('Deleted request log');
+        break;
+    default:
         $value = json_encode([
             'uri' => $_SERVER['REQUEST_URI'],
             'headers' => getallheaders(),
             'body' => file_get_contents('php://input'),
         ]);
-        error_log("Dumping data in $requestLog: $value");
-        file_put_contents($requestLog, $value);
-    }
+        file_put_contents(REQUEST_LOG_FILE, $value);
+        logRequest('Logged new request', $value);
+        break;
 }
