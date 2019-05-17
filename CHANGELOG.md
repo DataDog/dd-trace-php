@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.24.0]
+
 ### Added
 - Tracer limited mode, stopping span creation when memory use raises to 80% of current PHP memory limit #437
 - Configurable Curl timeouts `DD_TRACE_AGENT_TIMEOUT` and `DD_TRACE_AGENT_CONNECT_TIMEOUT` when communicating with the agent #150
@@ -458,7 +460,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.23.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.24.0...HEAD
+[0.24.0]: https://github.com/DataDog/dd-trace-php/compare/0.23.0...0.24.0
 [0.23.0]: https://github.com/DataDog/dd-trace-php/compare/0.22.0...0.23.0
 [0.22.0]: https://github.com/DataDog/dd-trace-php/compare/0.21.0...0.22.0
 [0.21.0]: https://github.com/DataDog/dd-trace-php/compare/0.20.0...0.21.0
