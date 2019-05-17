@@ -253,7 +253,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
         $found = [];
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
             'isAutofinishSpansEnabled' => false,
             'isAnalyticsEnabled' => false,
             'isDistributedTracingEnabled' => false,

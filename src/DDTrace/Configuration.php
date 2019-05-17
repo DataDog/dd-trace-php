@@ -121,6 +121,16 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Append hostname as a root span tag
+     *
+     * @return bool
+     */
+    public function isHostnameReportingEnabled()
+    {
+        return $this->boolValue('trace.report.hostname', false);
+    }
+
+    /**
      * The name of the application.
      *
      * @param string $default

@@ -61,7 +61,8 @@ final class Tracer implements TracerInterface
          * Enabled, when false, returns a no-op implementation of the Tracer.
          */
         'enabled' => true,
-        /** GlobalTags holds a set of tags that will be automatically applied to
+        /**
+         * GlobalTags holds a set of tags that will be automatically applied to
          * all spans.
          */
         'global_tags' => [],
@@ -312,6 +313,10 @@ final class Tracer implements TracerInterface
             return;
         }
 
+        if ($this->globalConfig->isHostnameReportingEnabled()) {
+            $this->addHostnameToRootSpan();
+        }
+
         if (self::isLogDebugActive()) {
             self::logDebug('Flushing {count} traces, {spanCount} spans', [
                 'count' => count($this->traces),
@@ -381,6 +386,17 @@ final class Tracer implements TracerInterface
         }
 
         return $tracesToBeSent;
+    }
+
+    private function addHostnameToRootSpan()
+    {
+        $hostname = gethostname();
+        if ($hostname !== false) {
+            $span = $this->getRootScope()->getSpan();
+            if ($span !== null) {
+                $span->setTag(Tag::HOSTNAME, $hostname);
+            }
+        }
     }
 
     private function record(Span $span)

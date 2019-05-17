@@ -178,7 +178,7 @@ final class TracerTest extends BaseTestCase
 
     public function testUnfinishedSpansCanBeFinishedOnFlush()
     {
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
             'isAutofinishSpansEnabled' => true,
             'isPrioritySamplingEnabled' => false,
             'getSpansLimit' => 1000,
@@ -204,6 +204,32 @@ final class TracerTest extends BaseTestCase
         $this->assertSame($scope, $tracer->getRootScope());
     }
 
+    public function testFlushDoesntAddHostnameToRootSpanByDefault()
+    {
+        $tracer = new Tracer(new NoopTransport());
+        $scope = $tracer->startRootSpan(self::OPERATION_NAME);
+        $this->assertNull($tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
+
+        $tracer->flush();
+
+        $this->assertNull($tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
+    }
+
+    public function testFlushAddsHostnameToRootSpanWhenEnabled()
+    {
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
+            'isHostnameReportingEnabled' => true
+        ]));
+
+        $tracer = new Tracer(new NoopTransport());
+        $scope = $tracer->startRootSpan(self::OPERATION_NAME);
+        $this->assertNull($tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
+
+        $tracer->flush();
+
+        $this->assertEquals(gethostname(), $tracer->getRootScope()->getSpan()->getTag(Tag::HOSTNAME));
+    }
+
     public function testIfNoRootScopeExistsItWillBeNull()
     {
         $tracer = new Tracer(new NoopTransport());
@@ -212,7 +238,7 @@ final class TracerTest extends BaseTestCase
 
     public function testHonorGlobalTags()
     {
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
             'isAutofinishSpansEnabled' => true,
             'isPrioritySamplingEnabled' => false,
             'getSpansLimit' => 1000,
