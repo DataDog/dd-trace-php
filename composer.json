@@ -214,6 +214,8 @@
             "@cakephp-28-test",
             "@laravel-42-update",
             "@laravel-42-test",
+            "@slim-312-update",
+            "@slim-312-test",
             "@symfony-23-update",
             "@symfony-23-test",
             "@symfony-28-update",
@@ -229,6 +231,8 @@
         "test-web-70": [
             "@laravel-42-update",
             "@laravel-42-test",
+            "@slim-312-update",
+            "@slim-312-test",
             "@symfony-23-update",
             "@symfony-23-test",
             "@symfony-28-update",
@@ -254,6 +258,8 @@
             "@lumen-56-test",
             "@lumen-58-update",
             "@lumen-58-test",
+            "@slim-312-update",
+            "@slim-312-test",
             "@symfony-23-update",
             "@symfony-23-test",
             "@symfony-28-update",
@@ -281,6 +287,8 @@
             "@lumen-56-test",
             "@lumen-58-update",
             "@lumen-58-test",
+            "@slim-312-update",
+            "@slim-312-test",
             "@symfony-23-update",
             "@symfony-23-test",
             "@symfony-28-update",
@@ -306,6 +314,8 @@
             "@lumen-56-test",
             "@lumen-58-update",
             "@lumen-58-test",
+            "@slim-312-update",
+            "@slim-312-test",
             "@symfony-42-update",
             "@symfony-42-test",
             "@zend-framework-1-test",
@@ -336,6 +346,9 @@
         "lumen-56-test": "@composer test -- tests/Integrations/Lumen/V5_6/CommonScenariosTest.php",
         "lumen-58-update": "composer --working-dir=tests/Frameworks/Lumen/Version_5_8 update",
         "lumen-58-test": "@composer test -- tests/Integrations/Lumen/V5_8/CommonScenariosTest.php",
+
+        "slim-312-update": "composer --working-dir=tests/Frameworks/Slim/Version_3_12 update",
+        "slim-312-test": "@composer test -- --testsuite=slim-312-test",
 
         "symfony-23-update": [
             "php -d memory_limit=-1 /usr/local/bin/composer --working-dir=tests/Frameworks/Symfony/Version_2_3 update"

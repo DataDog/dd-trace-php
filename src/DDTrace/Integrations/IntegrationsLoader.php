@@ -15,6 +15,7 @@ use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
@@ -53,6 +54,7 @@ class IntegrationsLoader
         MysqliIntegration::NAME => '\DDTrace\Integrations\Mysqli\MysqliIntegration',
         PDOIntegration::NAME => '\DDTrace\Integrations\PDO\PDOIntegration',
         PredisIntegration::NAME => '\DDTrace\Integrations\Predis\PredisIntegration',
+        SlimIntegration::NAME => '\DDTrace\Integrations\Slim\SlimIntegration',
         SymfonyIntegration::NAME => '\DDTrace\Integrations\Symfony\SymfonyIntegration',
         WebIntegration::NAME => '\DDTrace\Integrations\Web\WebIntegration',
         ZendFrameworkIntegration::NAME => '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration',
