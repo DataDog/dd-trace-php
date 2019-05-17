@@ -378,13 +378,29 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_can_try) {
     RETURN_BOOL(dd_tracer_circuit_breaker_can_try());
 }
 
+static PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+
+	array_init_size(return_value, 5);
+
+
+    add_assoc_bool(return_value, "closed", dd_tracer_circuit_breaker_is_closed());
+    add_assoc_long(return_value, "total_failures", dd_tracer_circuit_breaker_total_failures());
+    add_assoc_long(return_value, "consecutive_failures", dd_tracer_circuit_breaker_consecutive_failures());
+    add_assoc_long(return_value, "opened_timestamp", dd_tracer_circuit_breaker_opened_timestamp());
+    add_assoc_long(return_value, "last_failure_timestamp", dd_tracer_circuit_breaker_last_failure_timestamp());
+    return;
+}
+
+
 static const zend_function_entry ddtrace_functions[] = {
     PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
             PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(dd_tracer_circuit_breaker_register_error, NULL)
                 PHP_FE(dd_tracer_circuit_breaker_register_success, NULL) PHP_FE(dd_tracer_circuit_breaker_open, NULL)
                     PHP_FE(dd_tracer_circuit_breaker_close, NULL) PHP_FE(dd_tracer_circuit_breaker_is_closed, NULL)
-                        PHP_FE(dd_tracer_circuit_breaker_can_try, NULL)
+                        PHP_FE(dd_tracer_circuit_breaker_can_try, NULL) PHP_FE(dd_tracer_circuit_breaker_info, NULL)
                             PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,

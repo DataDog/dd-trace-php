@@ -27,5 +27,9 @@ void dd_tracer_circuit_breaker_open();
 void dd_tracer_circuit_breaker_close();
 uint32_t dd_tracer_circuit_breaker_can_try();
 uint32_t dd_tracer_circuit_breaker_is_closed();
+uint32_t dd_tracer_circuit_breaker_total_failures();
+uint32_t dd_tracer_circuit_breaker_consecutive_failures();
+uint64_t dd_tracer_circuit_breaker_opened_timestamp();
+uint64_t dd_tracer_circuit_breaker_last_failure_timestamp();
 
 #endif  // DD_CIRCUIT_BREAKER_H
