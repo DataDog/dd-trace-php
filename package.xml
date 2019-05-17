@@ -12,8 +12,8 @@
     </lead>
     <date>2019-05-09</date>
     <version>
-        <release>0.23.0</release>
-        <api>0.23.0</api>
+        <release>0.24.0</release>
+        <api>0.24.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,15 +21,14 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        **NOTE: We changed the way the service name can be configured. Now you must use `DD_SERVICE_NAME` instead of `DD_TRACE_APP_NAME` for consistency with other tracers. Usage of `DD_TRACE_APP_NAME` is now deprecated and will be removed in a future release.**
-
         ### Added
-        - Support for Lumen 5.2+ #416
-        - Tracing support from the CLI SAPI #422
-        - Support for Laravel Artisan #422
+        - Tracer limited mode, stopping span creation when memory use raises to 80% of current PHP memory limit #437
+        - Configurable Curl timeouts `DD_TRACE_AGENT_TIMEOUT` and `DD_TRACE_AGENT_CONNECT_TIMEOUT` when communicating with the agent #150
+        - Configurable `DD_TRACE_REPORT_HOSTNAME` reporting of hostname via root span #441
+        - Support for CakePHP v2 and Cake Console v2 #436
 
-        ### Changed
-        - Now the way to configure service name is through `DD_SERVICE_NAME` instead of `DD_TRACE_APP_NAME` #432
+        ### Fixed
+        - Generation of `E_WARNING` in certain contexts of PHP 5 installs when the `date.timezone` INI setting is not set #435
     </notes>
     <contents>
         <dir name="/">
