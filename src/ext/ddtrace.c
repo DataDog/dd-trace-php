@@ -16,6 +16,7 @@
 #include "compatibility.h"
 #include "ddtrace.h"
 #include "debug.h"
+#include "curling.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "memory_limit.h"
@@ -55,6 +56,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);
+    dd_trace_coms_initialize();
 
     return SUCCESS;
 }
@@ -365,6 +367,43 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
     add_assoc_long(return_value, "opened_timestamp", dd_tracer_circuit_breaker_opened_timestamp());
     add_assoc_long(return_value, "last_failure_timestamp", dd_tracer_circuit_breaker_last_failure_timestamp());
     return;
+
+#define FUNCTION_NAME_MATCHES(function, fn_name, fn_len) ((sizeof(function) -1) == fn_len && strncmp(fn_name, function, fn_len) == 0)
+
+static PHP_FUNCTION(dd_trace_internal_fn) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+    zval *params = NULL;
+    uint32_t params_count = 0;
+
+    zval *function_val = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z*", &function_val, &params, &params_count) != SUCCESS) {
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "unexpected parameter. the function name must be provided");
+        }
+        RETURN_BOOL(0);
+    }
+
+    if (!function_val || Z_TYPE_P(function_val) != IS_STRING) {
+        RETURN_BOOL(0);
+    }
+    char *fn = Z_STRVAL_P(function_val);
+    size_t fn_len = Z_STRLEN_P(function_val);
+    if (fn_len == 0 && fn) {
+        fn_len = strlen(fn);
+    }
+
+    if (fn) {
+        if (params_count == 1 && Z_TYPE(params[0]) == IS_STRING && FUNCTION_NAME_MATCHES("flush_data", fn, fn_len)) {
+            RETURN_BOOL(dd_trace_flush_data(Z_STRVAL(params[0]), Z_STRLEN(params[0])));
+        } else if (FUNCTION_NAME_MATCHES("consumer", fn, fn_len)) {
+            dd_trace_coms_consumer();
+            RETURN_BOOL(1);
+        }
+    }
+
+    RETURN_BOOL(0);
 }
 
 static const zend_function_entry ddtrace_functions[] = {
@@ -372,7 +411,7 @@ static const zend_function_entry ddtrace_functions[] = {
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
             PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(dd_tracer_circuit_breaker_register_error, NULL)
                 PHP_FE(dd_tracer_circuit_breaker_register_success, NULL) PHP_FE(dd_tracer_circuit_breaker_can_try, NULL)
-                    PHP_FE(dd_tracer_circuit_breaker_info, NULL)
+                    PHP_FE(dd_tracer_circuit_breaker_info, NULL) PHP_FE(dd_trace_internal_fn, NULL)
                         PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
