@@ -1,5 +1,5 @@
 --TEST--
-wip
+Correctness of circuit breaker info
 --FILE--
 <?php
 dd_tracer_circuit_breaker_register_success();

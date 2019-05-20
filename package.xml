@@ -84,7 +84,7 @@
                     <file name="case_insensitive_method_hook.phpt" role="test" />
                     <file name="closure_accessing_outside_variables.phpt" role="test" />
                     <file name="closure_set_inside_object_methods.phpt" role="test" />
-                    <file name="circuit_breaker_low_level.phpt" role="test" />
+                    <file name="circuit_breaker_info.phpt" role="test" />
                     <file name="circuit_breaker_retry_time.phpt" role="test" />
                     <file name="circuit_breaker_max_failures.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack.phpt" role="test" />

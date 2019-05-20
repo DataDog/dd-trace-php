@@ -1,15 +1,14 @@
 --TEST--
-Test circuit_breaker functionality
+Test circuit breaker retrying functionality
 --FILE--
 <?php
 function print_dd_tracer_circuit_breaker_is_closed(){
-    echo (dd_tracer_circuit_breaker_is_closed() ? 'true' : 'false') . PHP_EOL;
+    echo (dd_tracer_circuit_breaker_info()['closed'] ? 'true' : 'false') . PHP_EOL;
 }
 
 dd_tracer_circuit_breaker_register_success();
-dd_tracer_circuit_breaker_close();
-// we should be able to immediately retry when circuit breaker was artificially closed
-echo 'artificially closed CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL;
+// we should be able to immediately retry when circuit breaker was closed
+echo 'closed CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL;
 
 putenv('DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES=1');
 dd_tracer_circuit_breaker_register_error();
@@ -41,7 +40,7 @@ usleep(300000);
 echo 'another 0.3 seconds has passed CAN_RETRY ' . (dd_tracer_circuit_breaker_can_try() ? 'true' : 'false') . PHP_EOL; // another 0.3 seconds passed lets retry
 ?>
 --EXPECT--
-artificially closed CAN_RETRY true
+closed CAN_RETRY true
 just tripped CAN_RETRY false
 min time set CAN_RETRY true
 garbage time set CAN_RETRY false

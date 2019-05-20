@@ -74,18 +74,18 @@ final class HttpTest extends BaseTestCase
         GlobalTracer::set($tracer);
         $tracer->startSpan('test', [])->finish();
 
-        $this->assertTrue(\dd_tracer_circuit_breaker_is_closed());
+        $this->assertTrue(\dd_tracer_circuit_breaker_info()['closed']);
         $badHttpTransport->send($tracer); // bad transport will immediately open the circuit
-        $this->assertFalse(\dd_tracer_circuit_breaker_is_closed());
+        $this->assertFalse(\dd_tracer_circuit_breaker_info()['closed']);
 
         $goodHttpTransport->send($tracer); // good transport
-        $this->assertFalse(\dd_tracer_circuit_breaker_is_closed());
+        $this->assertFalse(\dd_tracer_circuit_breaker_info()['closed']);
 
         // should close the circuit once retry time has passed
         putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=0');
         $goodHttpTransport->send($tracer);
 
-        $this->assertTrue(\dd_tracer_circuit_breaker_is_closed());
+        $this->assertTrue(\dd_tracer_circuit_breaker_info()['closed']);
 
         $this->assertTrue($logger->has(
             'error',

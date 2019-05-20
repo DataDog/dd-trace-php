@@ -136,7 +136,7 @@ uint32_t dd_tracer_circuit_breaker_is_closed() {
     return (atomic_load(&dd_trace_circuit_breaker->flags) ^ DD_TRACE_CIRCUIT_BREAKER_OPENED) != 0;
 }
 
-uint32_t dd_tracer_circuit_breaker_total_failures(){
+uint32_t dd_tracer_circuit_breaker_total_failures() {
     prepare_cb();
 
     return atomic_load(&dd_trace_circuit_breaker->total_failures);
