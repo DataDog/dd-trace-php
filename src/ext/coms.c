@@ -6,23 +6,15 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "curling.h"
+#include "coms.h"
 
-typedef struct dd_trace_coms_stack_t {
-    size_t size;
-    _Atomic(size_t) position;
-    _Atomic(size_t) bytes_written;
-    _Atomic(int32_t) refcount;
-    int32_t gc_cycles_count;
-    char *data;
-} dd_trace_coms_stack_t;
 
 typedef struct dd_trace_coms_state_t {
     _Atomic(dd_trace_coms_stack_t *)current_stack;
     dd_trace_coms_stack_t **stacks;
 } dd_trace_coms_state_t;
 
-dd_trace_coms_state_t dd_trace_global_state = {0};
+dd_trace_coms_state_t dd_trace_global_state = { .stacks = NULL, .current_stack = NULL };
 
 uint32_t store_data(const char *src, size_t size) {
     dd_trace_coms_stack_t *stack = atomic_load(&dd_trace_global_state.current_stack);
@@ -38,6 +30,7 @@ uint32_t store_data(const char *src, size_t size) {
     size_t position = atomic_fetch_add(&stack->position, size_to_alloc);
     if ((position + size_to_alloc) > stack->size) {
         //allocation failed
+        atomic_fetch_sub(&stack->refcount, 1);
         return ENOMEM;
     }
 
@@ -48,12 +41,9 @@ uint32_t store_data(const char *src, size_t size) {
     memcpy(destination, src, size);
 
     atomic_fetch_add(&stack->bytes_written, size_to_alloc);
-    atomic_fetch_add(&stack->refcount, - 1);
+    atomic_fetch_sub(&stack->refcount, 1);
     return 0;
 }
-
-#define DD_TRACE_COMS_STACK_SIZE 1024*1024*5 // 5 MB
-#define DD_TRACE_COMS_STACKS_BACKLOG_SIZE 10
 
 dd_trace_coms_stack_t *new_stack() {
     dd_trace_coms_stack_t *stack = calloc(1, sizeof(dd_trace_coms_stack_t));
@@ -164,34 +154,3 @@ uint32_t dd_trace_coms_initialize(){
     return 1;
 }
 
-uint32_t dd_trace_coms_consumer(){
-    if (rotate_stack() != 0) {
-        //error
-    }
-
-    for(int i = 0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        dd_trace_coms_stack_t *stack = dd_trace_global_state.stacks[i];
-        if (!stack || !is_stack_unused(stack)){
-            continue;
-        }
-
-        size_t position = 0;
-        size_t bytes_written = atomic_load(&stack->bytes_written);
-        while (position < bytes_written) {
-            size_t size = 0;
-            memcpy(&size, stack->data + position, sizeof(size_t));
-
-            position += sizeof(size_t);
-            if (size == 0) {
-
-            }
-            char *data = stack->data + position;
-            printf("s: %lu > %.*s \n", size, 4, data);
-            printf("s: %lu\n", atomic_load(&stack->bytes_written));
-            position += size;
-            printf("%lu>> \n", position);
-        }
-    }
-
-    return 1;
-}
