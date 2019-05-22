@@ -43,6 +43,9 @@
                     <file name="debug.h" role="src" />
                     <file name="memory_limit.c" role="src" />
                     <file name="memory_limit.h" role="src" />
+                    <file name="circuit_breaker.c" role="src" />
+                    <file name="circuit_breaker.h" role="src" />
+                    <file name="vendor_stdatomic.h" role="src" />
                     <file name="dispatch.c" role="src" />
                     <file name="dispatch.h" role="src" />
                     <file name="dispatch_compat.h" role="src" />
@@ -81,6 +84,9 @@
                     <file name="case_insensitive_method_hook.phpt" role="test" />
                     <file name="closure_accessing_outside_variables.phpt" role="test" />
                     <file name="closure_set_inside_object_methods.phpt" role="test" />
+                    <file name="circuit_breaker_info.phpt" role="test" />
+                    <file name="circuit_breaker_retry_time.phpt" role="test" />
+                    <file name="circuit_breaker_max_failures.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error_strict.phpt" role="test" />

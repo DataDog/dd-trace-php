@@ -82,6 +82,17 @@ final class Http implements Transport
      */
     public function send(Tracer $tracer)
     {
+        if ($this->isLogDebugActive() && function_exists('dd_tracer_circuit_breaker_info')) {
+            self::logDebug('circuit breaker status: closed => {closed}, total_failures => {total_failures},'
+            . 'consecutive_failures => {consecutive_failures}, opened_timestamp => {opened_timestamp}, '
+            . 'last_failure_timestamp=> {last_failure_timestamp}', dd_tracer_circuit_breaker_info());
+        }
+
+        if (function_exists('dd_tracer_circuit_breaker_can_try') && !dd_tracer_circuit_breaker_can_try()) {
+            self::logError('Reporting of spans skipped due to open circuit breaker');
+            return;
+        }
+
         $tracesPayload = $this->encoder->encodeTraces($tracer);
         self::logDebug('About to send trace(s) to the agent');
 
@@ -138,6 +149,7 @@ final class Http implements Transport
                 'error' => curl_error($handle),
                 'num' => curl_errno($handle),
             ]);
+            function_exists('dd_tracer_circuit_breaker_register_error') && dd_tracer_circuit_breaker_register_error();
 
             return;
         }
@@ -147,6 +159,8 @@ final class Http implements Transport
 
         if ($statusCode === 415) {
             self::logError('Reporting of spans failed, upgrade your client library');
+
+            function_exists('dd_tracer_circuit_breaker_register_error') && dd_tracer_circuit_breaker_register_error();
             return;
         }
 
@@ -155,9 +169,11 @@ final class Http implements Transport
                 'Reporting of spans failed, status code {code}: {response}',
                 ['code' => $statusCode, 'response' => $response]
             );
+            function_exists('dd_tracer_circuit_breaker_register_error') && dd_tracer_circuit_breaker_register_error();
             return;
         }
 
+        function_exists('dd_tracer_circuit_breaker_register_success') && dd_tracer_circuit_breaker_register_success();
         self::logDebug('Traces successfully sent to the agent');
     }
 

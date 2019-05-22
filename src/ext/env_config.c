@@ -14,7 +14,7 @@ char *get_local_env_or_sapi_env(char *name) {
     return env;
 }
 
-zend_bool ddtrace_get_bool_config(char *name, zend_bool def) {
+zend_bool ddtrace_get_bool_config(char *name, unsigned char def) {
     char *env = get_local_env_or_sapi_env(name);
     if (!env) {
         return def;
@@ -37,6 +37,26 @@ zend_bool ddtrace_get_bool_config(char *name, zend_bool def) {
 
     efree(env);
     return rv;
+}
+
+int64_t ddtrace_get_int_config(char *name, int64_t def) {
+    char *env = get_local_env_or_sapi_env(name);
+    if (!env) {
+        return def;
+    }
+
+    char *endptr = env;
+
+    long long result = strtoll(env, &endptr, 10);
+
+    if (endptr == env) {
+        efree(env);
+
+        return def;
+    }
+    efree(env);
+
+    return result;
 }
 
 char *ddtrace_get_c_string_config(char *name) {

@@ -12,6 +12,14 @@ use DDTrace\GlobalTracer;
 final class HttpTest extends BaseTestCase
 {
     use AgentReplayerTrait;
+    protected function tearDown()
+    {
+        // reset the circuit breker consecutive failures count and close it
+        \dd_tracer_circuit_breaker_register_success();
+        putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=default');
+
+        parent::tearDown();
+    }
 
     public function agentUrl()
     {
@@ -45,6 +53,48 @@ final class HttpTest extends BaseTestCase
         $this->assertTrue($logger->has(
             'error',
             'Reporting of spans failed: 7 / Failed to connect to 0.0.0.0 port 8127: Connection refused'
+        ));
+    }
+
+    public function testCircuitBreakerBehavingAsExpected()
+    {
+        // make the circuit breaker fail fast
+        putenv('DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES=1');
+
+        $logger = $this->withDebugLogger();
+
+        $badHttpTransport = new Http(new Json(), [
+            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
+        ]);
+        $goodHttpTransport = new Http(new Json(), [
+            'endpoint' => $this->agentTracesUrl()
+        ]);
+
+        $tracer = new Tracer(null);
+        GlobalTracer::set($tracer);
+        $tracer->startSpan('test', [])->finish();
+
+        $this->assertTrue(\dd_tracer_circuit_breaker_info()['closed']);
+        $badHttpTransport->send($tracer); // bad transport will immediately open the circuit
+        $this->assertFalse(\dd_tracer_circuit_breaker_info()['closed']);
+
+        $goodHttpTransport->send($tracer); // good transport
+        $this->assertFalse(\dd_tracer_circuit_breaker_info()['closed']);
+
+        // should close the circuit once retry time has passed
+        putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=0');
+        $goodHttpTransport->send($tracer);
+
+        $this->assertTrue(\dd_tracer_circuit_breaker_info()['closed']);
+
+        $this->assertTrue($logger->has(
+            'error',
+            'Reporting of spans failed: 7 / Failed to connect to 0.0.0.0 port 8127: Connection refused'
+        ));
+
+        $this->assertTrue($logger->has(
+            'error',
+            'Reporting of spans skipped due to open circuit breaker'
         ));
     }
 
