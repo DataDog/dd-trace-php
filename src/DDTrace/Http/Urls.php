@@ -2,6 +2,8 @@
 
 namespace DDTrace\Http;
 
+use DDTrace\Configuration\WildcardToRegex;
+
 /**
  * A utility class that provides methods to work on urls
  */
@@ -30,10 +32,9 @@ class Urls
      */
     public function __construct(array $patternsWithWildcards = [])
     {
-        $this->replacementPatterns = array_map(
-            '\DDTrace\Configuration\WildcardToRegex::convert',
-            $patternsWithWildcards
-        );
+        foreach ($patternsWithWildcards as $pattern) {
+            $this->replacementPatterns[] = WildcardToRegex::convert($pattern);
+        }
     }
 
     /**
