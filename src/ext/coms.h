@@ -27,5 +27,6 @@ inline static uint32_t dd_trace_coms_is_stack_unused(dd_trace_coms_stack_t *stac
 uint32_t dd_trace_coms_rotate_stack();
 uint32_t dd_trace_coms_flush_data(const char *data, size_t size);
 uint32_t dd_trace_coms_initialize();
+uint32_t curl_ze_data_out();
 
 #endif //DD_COMS_H

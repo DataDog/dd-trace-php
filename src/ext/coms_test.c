@@ -45,7 +45,7 @@ uint32_t dd_trace_coms_test_writers() {
 
 uint32_t dd_trace_coms_test_consumer(){
     if (dd_trace_coms_rotate_stack() != 0) {
-        //error
+        printf("error rotating stacks");
     }
 
     for(int i = 0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
@@ -75,6 +75,7 @@ uint32_t dd_trace_coms_test_consumer(){
         }
         printf("bytes_written %lu\n", bytes_written);
     }
+
 
     return 1;
 }

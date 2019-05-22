@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <curl/curl.h>
 
 #include "coms.h"
 
@@ -89,33 +90,35 @@ static void init() {
 
 uint32_t dd_trace_coms_rotate_stack(){
     dd_trace_coms_stack_t *stack = NULL;
-    dd_trace_coms_stack_t *old_stack = atomic_load(&dd_trace_coms_global_state.current_stack);
+    dd_trace_coms_stack_t *current_stack = atomic_load(&dd_trace_coms_global_state.current_stack);
 
     for(int i = 0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        if (dd_trace_coms_global_state.stacks[i]) {
-            if (atomic_load(&dd_trace_coms_global_state.stacks[i]->refcount) == 0) {
-                stack = dd_trace_coms_global_state.stacks[i];
-                recycle_stack(stack);
-                dd_trace_coms_global_state.stacks[i] = old_stack;
-                old_stack = NULL;
+        dd_trace_coms_stack_t *stack_tmp = dd_trace_coms_global_state.stacks[i];
+        if (stack_tmp) {
+            if (atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) == 0) {
+                stack = stack_tmp;
+                recycle_stack(stack_tmp);
+                dd_trace_coms_global_state.stacks[i] = current_stack;
+                current_stack = NULL;
                 break;
             }
         }
     }
 
+    //attempt to freeup stack storage
     gc_stacks();
 
-    if (old_stack != NULL) {
+    if (current_stack != NULL) {
         for(int i=0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
             if (!dd_trace_coms_global_state.stacks[i]){
-                dd_trace_coms_global_state.stacks[i] = old_stack;
-                old_stack = NULL;
+                dd_trace_coms_global_state.stacks[i] = current_stack;
+                current_stack = NULL;
             }
         }
     }
 
-    // old stack was stored
-    if (old_stack == NULL) {
+    // old current stack was stored so set a new stack
+    if (current_stack == NULL) {
         if (!stack) {
             stack = new_stack();
         }
@@ -123,13 +126,17 @@ uint32_t dd_trace_coms_rotate_stack(){
         atomic_store(&dd_trace_coms_global_state.current_stack, stack);
         return 0;
     }
-
+    // if we couldn't store new stack i tem
     return ENOMEM;
 }
 
 uint32_t dd_trace_coms_flush_data(const char *data, size_t size){
     if (data && size == 0) {
         size = strlen(data);
+    }
+
+    if (size == 0) {
+        return 0;
     }
 
     if (store_data(data, size) == 0) {
@@ -141,6 +148,33 @@ uint32_t dd_trace_coms_flush_data(const char *data, size_t size){
 
 uint32_t dd_trace_coms_initialize(){
     init();
+    curl_global_init();
     return 1;
 }
 
+uint32_t curl_ze_data_out() {
+    dd_trace_coms_rotate_stack();
+    dd_trace_coms_stack_t *stack = NULL;
+
+    for(int i = 0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+        dd_trace_coms_stack_t *stack_tmp = dd_trace_coms_global_state.stacks[i];
+        if (atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) == 0) {
+            stack = stack_tmp;
+            break;
+        }
+    }
+    CURL *curl = curl_easy_init();
+    if(curl) {
+        CURLcode res;
+        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8126/v0.4/traces");
+        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+
+        curl_easy_setopt(curl, CURLOPT_READDATA, hd_src);
+        curl_easy_setopt(curl, CURLOPT_READFUNCTION, hd_src);
+
+        res = curl_easy_perform(curl);
+        curl_easy_cleanup(curl);
+    }
+
+    return 1;
+}

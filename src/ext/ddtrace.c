@@ -404,6 +404,9 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
         } else if (FUNCTION_NAME_MATCHES("test_writers", fn, fn_len)) {
             dd_trace_coms_test_writers();
             RETURN_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("curl_ze_data_out", fn, fn_len)) {
+            curl_ze_data_out();
+            RETURN_TRUE;
         }
     }
 
