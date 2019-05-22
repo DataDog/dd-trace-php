@@ -2,7 +2,7 @@
 
 namespace DDTrace\Http;
 
-use DDTrace\Configuration\WildcardToRegex;
+use DDTrace\Obfuscation\WildcardToRegex;
 
 /**
  * A utility class that provides methods to work on urls

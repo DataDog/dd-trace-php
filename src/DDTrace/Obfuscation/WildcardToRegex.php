@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Configuration;
+namespace DDTrace\Obfuscation;
 
 /**
  * Converts strings with wildcards into search/replace regex arrays

@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Unit\Configuration;
 
-use DDTrace\Configuration\WildcardToRegex;
+use DDTrace\Obfuscation\WildcardToRegex;
 use DDTrace\Tests\Unit\BaseTestCase;
 
 final class WildcardToRegexTest extends BaseTestCase

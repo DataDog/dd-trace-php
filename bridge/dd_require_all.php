@@ -16,7 +16,7 @@ require __DIR__ . '/../src/DDTrace/Span.php';
 require __DIR__ . '/../src/DDTrace/Tracer.php';
 require __DIR__ . '/../src/DDTrace/Configuration/AbstractConfiguration.php';
 require __DIR__ . '/../src/DDTrace/Configuration/EnvVariableRegistry.php';
-require __DIR__ . '/../src/DDTrace/Configuration/WildcardToRegex.php';
+require __DIR__ . '/../src/DDTrace/Obfuscation/WildcardToRegex.php';
 require __DIR__ . '/../src/DDTrace/StartSpanOptionsFactory.php';
 require __DIR__ . '/../src/DDTrace/Time.php';
 require __DIR__ . '/../src/DDTrace/Transport/Http.php';
