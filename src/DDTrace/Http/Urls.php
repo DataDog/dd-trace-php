@@ -15,8 +15,8 @@ class Urls
         // [89ab] = UUID variant
         // @see https://en.wikipedia.org/wiki/Universally_unique_identifier#Format
         '|\b([0-9a-f]{8}-?[0-9a-f]{4}-?[1-5][0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12})\b|i',
-        // 16-512 bit hex hashes
-        '|\b([0-9a-f]{4,128})\b|i',
+        // 32-512 bit hex hashes
+        '|\b([0-9a-f]{8,128})\b|i',
         // int's
         '|\b([0-9]+)\b|',
     ];
