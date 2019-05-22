@@ -8,16 +8,10 @@
 
 #include "coms.h"
 
+dd_trace_coms_state_t dd_trace_coms_global_state = { .stacks = NULL, .current_stack = NULL };
 
-typedef struct dd_trace_coms_state_t {
-    _Atomic(dd_trace_coms_stack_t *)current_stack;
-    dd_trace_coms_stack_t **stacks;
-} dd_trace_coms_state_t;
-
-dd_trace_coms_state_t dd_trace_global_state = { .stacks = NULL, .current_stack = NULL };
-
-uint32_t store_data(const char *src, size_t size) {
-    dd_trace_coms_stack_t *stack = atomic_load(&dd_trace_global_state.current_stack);
+static uint32_t store_data(const char *src, size_t size) {
+    dd_trace_coms_stack_t *stack = atomic_load(&dd_trace_coms_global_state.current_stack);
     if (stack == NULL) {
         // no stack to save data to
         return ENOMEM;
@@ -69,17 +63,13 @@ void recycle_stack(dd_trace_coms_stack_t *stack) {
     stack->size = size;
 }
 
-inline static uint32_t is_stack_unused(dd_trace_coms_stack_t *stack) {
-    return atomic_load(&stack->refcount) == 0;
-}
-
 void gc_stacks() {
     for(int i = 0; i < DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        dd_trace_coms_stack_t *stack = dd_trace_global_state.stacks[i];
+        dd_trace_coms_stack_t *stack = dd_trace_coms_global_state.stacks[i];
 
         if (stack) {
-            if (is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0) {
-                dd_trace_global_state.stacks[i] = NULL;
+            if (dd_trace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0) {
+                dd_trace_coms_global_state.stacks[i] = NULL;
                 free(stack);
             } else {
                 stack->gc_cycles_count++;
@@ -90,23 +80,23 @@ void gc_stacks() {
 
 static void init() {
     dd_trace_coms_stack_t *stack = new_stack();
-    if (!dd_trace_global_state.stacks) {
-        dd_trace_global_state.stacks = calloc(DD_TRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(dd_trace_coms_stack_t*));
+    if (!dd_trace_coms_global_state.stacks) {
+        dd_trace_coms_global_state.stacks = calloc(DD_TRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(dd_trace_coms_stack_t*));
     }
 
-    atomic_store(&dd_trace_global_state.current_stack, stack);
+    atomic_store(&dd_trace_coms_global_state.current_stack, stack);
 }
 
-uint32_t rotate_stack(){
+uint32_t dd_trace_coms_rotate_stack(){
     dd_trace_coms_stack_t *stack = NULL;
-    dd_trace_coms_stack_t *old_stack = atomic_load(&dd_trace_global_state.current_stack);
+    dd_trace_coms_stack_t *old_stack = atomic_load(&dd_trace_coms_global_state.current_stack);
 
     for(int i = 0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        if (dd_trace_global_state.stacks[i]) {
-            if (atomic_load(&dd_trace_global_state.stacks[i]->refcount) == 0) {
-                stack = dd_trace_global_state.stacks[i];
+        if (dd_trace_coms_global_state.stacks[i]) {
+            if (atomic_load(&dd_trace_coms_global_state.stacks[i]->refcount) == 0) {
+                stack = dd_trace_coms_global_state.stacks[i];
                 recycle_stack(stack);
-                dd_trace_global_state.stacks[i] = old_stack;
+                dd_trace_coms_global_state.stacks[i] = old_stack;
                 old_stack = NULL;
                 break;
             }
@@ -117,8 +107,8 @@ uint32_t rotate_stack(){
 
     if (old_stack != NULL) {
         for(int i=0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-            if (!dd_trace_global_state.stacks[i]){
-                dd_trace_global_state.stacks[i] = old_stack;
+            if (!dd_trace_coms_global_state.stacks[i]){
+                dd_trace_coms_global_state.stacks[i] = old_stack;
                 old_stack = NULL;
             }
         }
@@ -130,14 +120,14 @@ uint32_t rotate_stack(){
             stack = new_stack();
         }
 
-        atomic_store(&dd_trace_global_state.current_stack, stack);
+        atomic_store(&dd_trace_coms_global_state.current_stack, stack);
         return 0;
     }
 
     return ENOMEM;
 }
 
-uint32_t dd_trace_flush_data(const char *data, size_t size){
+uint32_t dd_trace_coms_flush_data(const char *data, size_t size){
     if (data && size == 0) {
         size = strlen(data);
     }

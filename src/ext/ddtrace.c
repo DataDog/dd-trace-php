@@ -17,6 +17,7 @@
 #include "ddtrace.h"
 #include "debug.h"
 #include "coms.h"
+#include "coms_test.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "memory_limit.h"
@@ -396,7 +397,7 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 
     if (fn) {
         if (params_count == 1 && Z_TYPE(params[0]) == IS_STRING && FUNCTION_NAME_MATCHES("flush_data", fn, fn_len)) {
-            RETURN_BOOL(dd_trace_flush_data(Z_STRVAL(params[0]), Z_STRLEN(params[0])));
+            RETURN_BOOL(dd_trace_coms_flush_data(Z_STRVAL(params[0]), Z_STRLEN(params[0])));
         } else if (FUNCTION_NAME_MATCHES("test_consumer", fn, fn_len)) {
             dd_trace_coms_test_consumer();
             RETURN_TRUE;

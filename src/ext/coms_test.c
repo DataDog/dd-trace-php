@@ -1,5 +1,7 @@
 #include <pthread.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "coms.h"
 #include "coms_test.h"
@@ -7,10 +9,12 @@
 #define DDTRACE_NUMBER_OF_DATA_TO_WRITE 2000
 #define DDTRACE_DATA_TO_WRITE "0123456789"
 
+extern dd_trace_coms_state_t dd_trace_coms_global_state;
+
 static void *test_writer_function(void *_){
     (void)_;
     for (int i =0; i < DDTRACE_NUMBER_OF_DATA_TO_WRITE; i++) {
-        store_data(DDTRACE_DATA_TO_WRITE, sizeof(DDTRACE_DATA_TO_WRITE) - 1);
+        dd_trace_coms_flush_data(DDTRACE_DATA_TO_WRITE, sizeof(DDTRACE_DATA_TO_WRITE) - 1);
     }
     pthread_exit(NULL);
     return NULL;
@@ -25,8 +29,7 @@ uint32_t dd_trace_coms_test_writers() {
         ret = pthread_create(&thread[i], NULL, &test_writer_function, NULL);
 
         if(ret != 0) {
-            printf ("Create pthread error!\n");
-            exit (1);
+            printf("Create pthread error!\n");
         }
     }
 
@@ -41,16 +44,16 @@ uint32_t dd_trace_coms_test_writers() {
 }
 
 uint32_t dd_trace_coms_test_consumer(){
-    if (rotate_stack() != 0) {
+    if (dd_trace_coms_rotate_stack() != 0) {
         //error
     }
 
     for(int i = 0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        dd_trace_coms_stack_t *stack = dd_trace_global_state.stacks[i];
+        dd_trace_coms_stack_t *stack = dd_trace_coms_global_state.stacks[i];
         if (!stack) continue;
         size_t bytes_written = atomic_load(&stack->bytes_written);
 
-        if (!stack || !is_stack_unused(stack)){
+        if (!stack || !dd_trace_coms_is_stack_unused(stack)){
             continue;
         }
 
@@ -65,10 +68,7 @@ uint32_t dd_trace_coms_test_consumer(){
 
             }
             char *data = stack->data + position;
-            // printf("s: %lu > %.*s \n", size, (int) size, data);
-            // printf("s: %lu\n", atomic_load(&stack->bytes_written));
             position += size;
-            // printf("%lu>> \n", position);
             if (strncmp(data, "0123456789", sizeof("0123456789") - 1) != 0){
                 printf("%.*s\n",(int) size, data);
             }
