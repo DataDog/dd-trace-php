@@ -34,7 +34,7 @@ final class LumenIntegrationLoader
 
         dd_trace('Laravel\Lumen\Application', 'dispatch', function () use ($span) {
             $response = dd_trace_forward_call();
-            $resourceName = 'unnamed_route';
+            $resourceName = null;
             if (isset($this->currentRoute[1]['uses'])) {
                 $span->setTag('lumen.route.action', $this->currentRoute[1]['uses']);
                 $resourceName = $this->currentRoute[1]['uses'];
@@ -43,7 +43,9 @@ final class LumenIntegrationLoader
                 $span->setTag('lumen.route.name', $this->currentRoute[1]['as']);
                 $resourceName = $this->currentRoute[1]['as'];
             }
-            $span->setTag(Tag::RESOURCE_NAME, $span->getTag(Tag::HTTP_METHOD) . ' ' . $resourceName);
+            if (null !== $resourceName) {
+                $span->setTag(Tag::RESOURCE_NAME, $span->getTag(Tag::HTTP_METHOD) . ' ' . $resourceName);
+            }
             return $response;
         });
 
