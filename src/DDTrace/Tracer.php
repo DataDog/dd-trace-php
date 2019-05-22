@@ -4,6 +4,7 @@ namespace DDTrace;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Encoders\SpanEncoder;
+use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
 use DDTrace\Encoders\MessagePack;
 use DDTrace\Log\LoggingTrait;
@@ -313,8 +314,12 @@ final class Tracer implements TracerInterface
             return;
         }
 
+        // We should refactor these blocks to use a pre-flush hook
         if ($this->globalConfig->isHostnameReportingEnabled()) {
             $this->addHostnameToRootSpan();
+        }
+        if ('cli' !== PHP_SAPI) {
+            $this->addUrlAsResourceNameToRootSpan();
         }
 
         if (self::isLogDebugActive()) {
@@ -397,6 +402,25 @@ final class Tracer implements TracerInterface
                 $span->setTag(Tag::HOSTNAME, $hostname);
             }
         }
+    }
+
+    private function addUrlAsResourceNameToRootSpan()
+    {
+        $scope = $this->getRootScope();
+        if (null === $scope) {
+            return;
+        }
+        $span = $scope->getSpan();
+        if ('web.request' !== $span->getResource()) {
+            return;
+        }
+        // Normalized URL as the resource name
+        $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
+        $span->setTag(
+            Tag::RESOURCE_NAME,
+            $_SERVER['REQUEST_METHOD'] . ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']),
+            true
+        );
     }
 
     private function record(Span $span)
