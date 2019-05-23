@@ -104,6 +104,8 @@ final class Http implements Transport
             $this->config['endpoint']
         ) : $this->config['endpoint'];
 
+        dd_trace_internal_fn('curl_ze_data_out');
+
         $this->sendRequest($endpoint, $this->headers, $tracesPayload);
     }
 

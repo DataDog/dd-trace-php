@@ -8,17 +8,25 @@
 #include <curl/curl.h>
 
 #include "coms.h"
+#include "mpack.h"
 
-dd_trace_coms_state_t dd_trace_coms_global_state = { .stacks = NULL, .current_stack = NULL };
+typedef uint32_t group_id_t;
+#define BOOL_T uint8_t
+#define TRUE 1
+#define FALSE 0
 
-static uint32_t store_data(const char *src, size_t size) {
+#define GROUP_ID_PROCESSED (1 << 31)
+
+dd_trace_coms_state_t dd_trace_coms_global_state = { .stacks = NULL, .current_stack = NULL, .next_group_id = 0};
+
+static uint32_t store_data( group_id_t group_id, const char *src, size_t size) {
     dd_trace_coms_stack_t *stack = atomic_load(&dd_trace_coms_global_state.current_stack);
     if (stack == NULL) {
         // no stack to save data to
         return ENOMEM;
     }
 
-    size_t size_to_alloc = size + sizeof(size_t);
+    size_t size_to_alloc = size + sizeof(size_t) + sizeof(group_id_t);
 
     atomic_fetch_add(&stack->refcount, 1);
 
@@ -29,11 +37,13 @@ static uint32_t store_data(const char *src, size_t size) {
         return ENOMEM;
     }
 
-    char *destination = stack->data + position;
-    memcpy(destination, &size, sizeof(size_t));
+    memcpy(stack->data + position, &size, sizeof(size_t));
+    position += sizeof(size_t);
 
-    destination += sizeof(size_t);
-    memcpy(destination, src, size);
+    memcpy(stack->data + position, &group_id, sizeof(group_id_t));
+    position += sizeof(group_id_t);
+
+    memcpy(stack->data + position, src, size);
 
     atomic_fetch_add(&stack->bytes_written, size_to_alloc);
     atomic_fetch_sub(&stack->refcount, 1);
@@ -85,6 +95,7 @@ static void init() {
         dd_trace_coms_global_state.stacks = calloc(DD_TRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(dd_trace_coms_stack_t*));
     }
 
+    atomic_store(&dd_trace_coms_global_state.next_group_id, 1);
     atomic_store(&dd_trace_coms_global_state.current_stack, stack);
 }
 
@@ -130,7 +141,11 @@ uint32_t dd_trace_coms_rotate_stack(){
     return ENOMEM;
 }
 
-uint32_t dd_trace_coms_flush_data(const char *data, size_t size){
+uint32_t dd_trace_coms_flush_data(uint32_t group_id, const char *data, size_t size){
+    if (!data) {
+        return 0;
+    }
+
     if (data && size == 0) {
         size = strlen(data);
     }
@@ -139,41 +154,323 @@ uint32_t dd_trace_coms_flush_data(const char *data, size_t size){
         return 0;
     }
 
-    if (store_data(data, size) == 0) {
+    if (store_data(group_id, data, size) == 0) {
         return 1;
     } else {
         return 0;
     }
 }
 
+group_id_t dd_trace_coms_next_group_id() {
+    return atomic_fetch_add(&dd_trace_coms_global_state.next_group_id, 1);
+}
+
 uint32_t dd_trace_coms_initialize(){
     init();
-    curl_global_init();
+
     return 1;
 }
 
-uint32_t curl_ze_data_out() {
-    dd_trace_coms_rotate_stack();
+struct _grouped_stack_t {
+    size_t position, total_bytes, total_groups;
+    size_t bytes_to_write;
+
+    char *dest_data;
+    size_t dest_size;
+};
+
+static size_t write_array_header(char *buffer, size_t buffer_size, size_t position, uint32_t array_size){
+    size_t free_space = buffer_size - position;
+    char *data = buffer + position;
+    if (array_size < 16) {
+        if (free_space >= 1) {
+            mpack_store_u8(data, (uint8_t)(0x90 | array_size));
+            return 1;
+        }
+    } else if (array_size < UINT16_MAX) {
+        if (free_space >= 3) {
+            mpack_store_u8(data, 0xdc);
+            mpack_store_u16(data + 1, array_size);
+            return 3;
+        }
+    } else {
+        if (free_space >= 5) {
+            mpack_store_u8(data, 0xdd);
+            mpack_store_u32(data + 1, array_size);
+            return 5;
+        }
+    }
+
+    return 0;
+}
+
+static size_t write_to_buffer(char *buffer, size_t buffer_size, size_t position, struct _grouped_stack_t *read) {
+    size_t write_size = read->bytes_to_write;
+    if (write_size > 0) {
+        if (write_size > (buffer_size - position)){
+            write_size = buffer_size - position;
+        }
+        if (write_size > (read->total_bytes - read->position)){
+            write_size = read->total_bytes - read->position;
+        }
+
+        memcpy(buffer + position, read->dest_data + read->position, write_size);
+
+        read->position += write_size;
+        read->bytes_to_write -= write_size;
+    }
+
+    return write_size;
+}
+
+static inline BOOL_T ensure_correct_dest_capacity(struct _grouped_stack_t *dest, size_t position, size_t write_size) {
+    size_t requested_size = position + write_size;
+
+    if (requested_size > dest->dest_size) {
+        requested_size += requested_size/10; // addd 10% to reduce possible reallocations on next data chunk
+
+        char *new_ptr = realloc(dest->dest_data, requested_size);
+        if (new_ptr) {
+            dest->dest_data = new_ptr;
+            dest->dest_size = requested_size;
+        } else {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+void write_metadata(struct _grouped_stack_t *dest, size_t position, size_t elements_in_group, size_t bytes_in_group) {
+    ensure_correct_dest_capacity(dest, position, sizeof(size_t)*2);
+
+    memcpy(dest->dest_data + position, &elements_in_group, sizeof(size_t));
+    position += sizeof(size_t);
+    memcpy(dest->dest_data + position, &bytes_in_group, sizeof(size_t));
+}
+
+void read_metadata(struct _grouped_stack_t *dest, size_t position, size_t *elements_in_group, size_t *bytes_in_group) {
+    memcpy(elements_in_group, dest->dest_data + position, sizeof(size_t));
+
+    position += sizeof(size_t);
+    memcpy(bytes_in_group, dest->dest_data + position, sizeof(size_t));
+}
+
+size_t dd_trace_coms_read_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
+    if (!userdata) {
+        return 0;
+    }
+    struct _grouped_stack_t *read = userdata;
+
+    size_t written = 0;
+    size_t buffer_size = size * nitems;
+
+    if (read->total_groups > 0) {
+        written += write_array_header(buffer, buffer_size, written, read->total_groups);
+        read->total_groups = 0;
+    }
+
+    // write the remainder from previous iteration
+    written += write_to_buffer(buffer, buffer_size, written, read);
+
+    while (written < buffer_size) {
+        // safe read size  check position + metadata
+        if ((read->position + sizeof(size_t)*2) > read->total_bytes) {
+            break;
+        }
+        size_t num_elements = 0;
+
+        read_metadata(read, read->position, &num_elements, &read->bytes_to_write);
+
+        if (read->bytes_to_write == 0) {
+            break;
+        }
+        written += write_array_header(buffer, buffer_size, written, num_elements);
+        read->position += sizeof(size_t) * 2;
+
+        written += write_to_buffer(buffer, buffer_size, written, read);
+    }
+
+    return written;
+}
+
+struct _entry_t {
+    size_t size;
+    group_id_t group_id;
+    size_t next_entry_offset;
+    char *data;
+    char *raw_entry;
+};
+
+static inline struct _entry_t create_entry(dd_trace_coms_stack_t *stack, size_t position) {
+    struct _entry_t rv = { .size = 0, .group_id = 0, .data = NULL, .next_entry_offset = 0};
+    size_t bytes_written = atomic_load(&stack->bytes_written);
+
+    if ((position + sizeof(size_t) + sizeof(group_id_t)) > bytes_written) {
+        // wrong size available skip this entry
+        return rv;
+    }
+    rv.raw_entry = stack->data + position; // set pointer to beginning of the whole entry containing metadata
+
+    memcpy(&rv.size, stack->data + position, sizeof(size_t));
+    position += sizeof(size_t);
+
+    memcpy(&rv.group_id, stack->data + position, sizeof(group_id_t));
+    position += sizeof(group_id_t);
+
+    if (rv.size > 0 && (rv.size + position) <= bytes_written) {
+        // size is valid - save entry
+        rv.data = stack->data + position;
+        rv.next_entry_offset = sizeof(size_t) + sizeof(group_id_t) + rv.size;
+    }
+    return rv;
+}
+
+static inline void mark_entry_as_processed(struct _entry_t *entry) {
+    group_id_t processed_special_id = GROUP_ID_PROCESSED;
+    memcpy(entry->raw_entry + sizeof(size_t), &processed_special_id, sizeof(group_id_t));
+}
+
+static inline size_t append_entry(struct _entry_t *entry, struct _grouped_stack_t *dest, size_t position) {
+    if (ensure_correct_dest_capacity(dest, position, entry->size)){
+        memcpy(dest->dest_data + position, entry->data, entry->size);
+        return entry->size;
+    } else {
+        return 0;
+    }
+}
+
+void dd_trace_msgpack_group_stack_by_id(dd_trace_coms_stack_t *stack, struct _grouped_stack_t *dest){
+    // perform an insertion sort by group_id
+    uint32_t current_group_id = 0;
+    struct _entry_t first_entry = create_entry(stack, 0);
+    dest->total_bytes = 0;
+    dest->total_groups = 0;
+
+    if (!first_entry.data) {
+        return; // no entries
+    }
+
+    struct _entry_t next_group_entry = first_entry;
+
+    current_group_id = first_entry.group_id;
+    dest->total_groups++;
+    size_t current_src_beginning = 0, next_src_beginning = 0, group_dest_beginning_position = 0;
+
+    size_t bytes_written = atomic_load(&stack->bytes_written);
+
+    while (current_src_beginning < bytes_written){
+        size_t current_src_position = current_src_beginning;
+        size_t group_dest_position = group_dest_beginning_position;
+
+        // group metadata
+        size_t elements_in_group = 0;
+        size_t bytes_in_group = 0;
+        group_dest_position += sizeof(size_t) * 2; // leave place for group meta data
+
+        while (current_src_position < bytes_written) {
+            struct _entry_t entry = create_entry(stack, current_src_position);
+            if (entry.size == 0) {
+                break;
+            }
+
+            if (entry.group_id == current_group_id) {
+                size_t copied = append_entry(&entry, dest, group_dest_position);
+                if (copied > 0) {
+                    mark_entry_as_processed(&entry);
+                    elements_in_group++;
+                    group_dest_position += copied;
+                    bytes_in_group += copied;
+                }
+            } else if (next_group_entry.group_id == current_group_id && entry.group_id != GROUP_ID_PROCESSED){
+                dest->total_groups++; // add unique group count
+                next_group_entry = entry;
+                next_src_beginning = current_src_position;
+            }
+            current_src_position += entry.next_entry_offset;
+        }
+
+        write_metadata(dest, group_dest_beginning_position, elements_in_group, bytes_in_group);
+        group_dest_beginning_position = group_dest_position;
+
+        // no new groups - exit loop
+        if (next_group_entry.group_id == current_group_id) {
+            break;
+        }
+
+        current_group_id = next_group_entry.group_id;
+        current_src_beginning = next_src_beginning;
+    }
+    dest->total_bytes = group_dest_beginning_position; //save total bytes count after conversion
+
+    return ;
+}
+
+void *dd_trace_init_read_userdata(dd_trace_coms_stack_t *stack) {
+    size_t total_bytes = atomic_load(&stack->bytes_written);
+
+    struct _grouped_stack_t *readstack_ptr = malloc(sizeof(struct _grouped_stack_t));
+    struct _grouped_stack_t readstack = {.position = 0, .total_bytes = total_bytes};
+
+    readstack.dest_size = atomic_load(&stack->bytes_written) + 2000;
+    readstack.dest_data = malloc(readstack.dest_size);
+
+    dd_trace_msgpack_group_stack_by_id(stack, &readstack);
+    *readstack_ptr = readstack;
+
+    return readstack_ptr;
+}
+
+dd_trace_coms_stack_t *dd_trace_coms_attempt_acquire_stack() {
     dd_trace_coms_stack_t *stack = NULL;
 
     for(int i = 0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
         dd_trace_coms_stack_t *stack_tmp = dd_trace_coms_global_state.stacks[i];
-        if (atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) == 0) {
+        if (stack_tmp && atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) > 0) {
             stack = stack_tmp;
+            dd_trace_coms_global_state.stacks[i] = NULL;
             break;
         }
     }
+
+    return stack;
+}
+
+uint32_t curl_ze_data_out() {
+    dd_trace_coms_rotate_stack();
+    dd_trace_coms_stack_t *stack = dd_trace_coms_attempt_acquire_stack();
+
+    if (!stack){
+        return 0;
+    }
+
     CURL *curl = curl_easy_init();
     if(curl) {
         CURLcode res;
-        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8126/v0.4/traces");
-        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+        curl_easy_setopt(curl, CURLOPT_URL, "http://ddagent_integration:8126/v0.4/traces");
+        struct curl_slist *chunk = NULL;
+        chunk = curl_slist_append(chunk, "Transfer-Encoding: chunked");
+        chunk = curl_slist_append(chunk, "Content-Type: application/msgpack");
 
-        curl_easy_setopt(curl, CURLOPT_READDATA, hd_src);
-        curl_easy_setopt(curl, CURLOPT_READFUNCTION, hd_src);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+        void *read_data = dd_trace_init_read_userdata(stack);
+        struct _grouped_stack_t *d = read_data;
+
+        curl_easy_setopt(curl, CURLOPT_READDATA, read_data);
+        curl_easy_setopt(curl, CURLOPT_READFUNCTION, dd_trace_coms_read_callback);
 
         res = curl_easy_perform(curl);
         curl_easy_cleanup(curl);
+        printf("%lu\n", d->position);
+
+        free(read_data);
+
+
+        if(res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed: %s\n",
+            curl_easy_strerror(res));
+        }
     }
 
     return 1;

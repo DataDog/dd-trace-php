@@ -374,7 +374,10 @@ final class Tracer implements TracerInterface
                 // the internal (hard-coded) processors programmatically.
 
                 $this->traceAnalyticsProcessor->process($span);
-                $traceToBeSent[] = SpanEncoder::encode($span);
+                $encodedSpan = SpanEncoder::encode($span);
+                // $traceToBeSent[] = $encodedSpan;
+                $messagePack = dd_trace_serialize_msgpack($encodedSpan);
+                dd_trace_internal_fn('flush_span', 0, $messagePack);
             }
 
             if ($traceToBeSent === null) {

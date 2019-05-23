@@ -396,8 +396,10 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
     }
 
     if (fn) {
-        if (params_count == 1 && Z_TYPE(params[0]) == IS_STRING && FUNCTION_NAME_MATCHES("flush_data", fn, fn_len)) {
-            RETURN_BOOL(dd_trace_coms_flush_data(Z_STRVAL(params[0]), Z_STRLEN(params[0])));
+        if (params_count == 2  && Z_TYPE(params[0]) == IS_LONG && Z_TYPE(params[1]) == IS_STRING && FUNCTION_NAME_MATCHES("flush_span", fn, fn_len)) {
+            RETURN_BOOL(dd_trace_coms_flush_data(Z_LVAL(params[0]), Z_STRVAL(params[1]), Z_STRLEN(params[1])));
+        } else if (FUNCTION_NAME_MATCHES("next_span_group_id", fn, fn_len)) {
+            RETURN_LONG(dd_trace_coms_next_group_id());
         } else if (FUNCTION_NAME_MATCHES("test_consumer", fn, fn_len)) {
             dd_trace_coms_test_consumer();
             RETURN_TRUE;
@@ -407,7 +409,11 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
         } else if (FUNCTION_NAME_MATCHES("curl_ze_data_out", fn, fn_len)) {
             curl_ze_data_out();
             RETURN_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("test_msgpack_consumer", fn, fn_len)) {
+            dd_trace_coms_test_msgpack_consumer();
+            RETURN_TRUE;
         }
+
     }
 
     RETURN_FALSE;
