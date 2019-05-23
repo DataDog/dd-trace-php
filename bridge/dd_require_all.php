@@ -50,7 +50,6 @@ require __DIR__ . '/../src/DDTrace/Exceptions/InvalidSpanOption.php';
 require __DIR__ . '/../src/DDTrace/GlobalTracer.php';
 require __DIR__ . '/../src/DDTrace/Propagators/TextMap.php';
 require __DIR__ . '/../src/DDTrace/Propagators/CurlHeadersMap.php';
-require __DIR__ . '/../src/DDTrace/ID.php';
 require __DIR__ . '/../src/DDTrace/Http/Urls.php';
 require __DIR__ . '/../src/DDTrace/Http/Request.php';
 require __DIR__ . '/../src/DDTrace/ScopeManager.php';
