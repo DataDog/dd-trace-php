@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Unit\Configuration;
+namespace DDTrace\Tests\Unit\Obfuscation;
 
 use DDTrace\Obfuscation\WildcardToRegex;
 use DDTrace\Tests\Unit\BaseTestCase;
