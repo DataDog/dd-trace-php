@@ -318,7 +318,7 @@ final class Tracer implements TracerInterface
         if ($this->globalConfig->isHostnameReportingEnabled()) {
             $this->addHostnameToRootSpan();
         }
-        if ('cli' !== PHP_SAPI) {
+        if ('cli' !== PHP_SAPI && $this->globalConfig->isURLAsResourceNameEnabled()) {
             $this->addUrlAsResourceNameToRootSpan();
         }
 
