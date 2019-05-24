@@ -44,7 +44,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web.request',
                         'web.request',
                         'web',
-                        'web.request'
+                        'GET /simple'
                     )->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => '/simple',
@@ -57,7 +57,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web.request',
                         'web.request',
                         'web',
-                        'web.request'
+                        'GET /simple_view'
                     )->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => '/simple_view',
@@ -70,7 +70,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web.request',
                         'web.request',
                         'web',
-                        'web.request'
+                        'GET /error'
                     )->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => '/error',

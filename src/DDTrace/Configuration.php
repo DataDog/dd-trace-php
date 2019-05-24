@@ -131,6 +131,16 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Use normalized URL as resource name
+     *
+     * @return bool
+     */
+    public function isURLAsResourceNameEnabled()
+    {
+        return $this->boolValue('trace.url.as.resource.names.enabled', false);
+    }
+
+    /**
      * The name of the application.
      *
      * @param string $default

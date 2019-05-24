@@ -2,12 +2,9 @@
 
 namespace DDTrace;
 
-use DDTrace\Encoders\Json;
-use DDTrace\Encoders\MessagePack;
 use DDTrace\Http\Request;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\Web\WebIntegration;
-use DDTrace\Transport\Http;
 
 /**
  * Bootstrap the the datadog tracer.
