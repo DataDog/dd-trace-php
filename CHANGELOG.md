@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.25.0]
+
 ### Added
 - Support for Slim Framework v3 #446
 - IPC based configurable Circuit breaker `DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC` and `DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES` used when communicating with the agent #440
@@ -465,7 +467,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.24.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.25.0...HEAD
+[0.25.0]: https://github.com/DataDog/dd-trace-php/compare/0.24.0...0.25.0
 [0.24.0]: https://github.com/DataDog/dd-trace-php/compare/0.23.0...0.24.0
 [0.23.0]: https://github.com/DataDog/dd-trace-php/compare/0.22.0...0.23.0
 [0.22.0]: https://github.com/DataDog/dd-trace-php/compare/0.21.0...0.22.0

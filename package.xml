@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-05-17</date>
+    <date>2019-05-27</date>
     <version>
-        <release>0.24.0</release>
-        <api>0.24.0</api>
+        <release>0.25.0</release>
+        <api>0.25.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -22,13 +22,9 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         ### Added
-        - Tracer limited mode, stopping span creation when memory use raises to 80% of current PHP memory limit #437
-        - Configurable Curl timeouts `DD_TRACE_AGENT_TIMEOUT` and `DD_TRACE_AGENT_CONNECT_TIMEOUT` when communicating with the agent #150
-        - Configurable `DD_TRACE_REPORT_HOSTNAME` reporting of hostname via root span #441
-        - Support for CakePHP v2 and Cake Console v2 #436
-
-        ### Fixed
-        - Generation of `E_WARNING` in certain contexts of PHP 5 installs when the `date.timezone` INI setting is not set #435
+        - Support for Slim Framework v3 #446
+        - IPC based configurable Circuit breaker `DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC` and `DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES` used when communicating with the agent #440
+        - Normalized URL's as resource names; a CSV string of URL-to-resource-name mapping rules with `*` and `$*` wildcards can be set from `DD_TRACE_RESOURCE_URI_MAPPING`. This feature is disabled by default to reduce cardinality in resource names; to enable this feature set `DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=true` #442
     </notes>
     <contents>
         <dir name="/">
