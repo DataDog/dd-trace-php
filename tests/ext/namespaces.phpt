@@ -2,7 +2,7 @@
 Verify functions and methods can be overriden even when in namespaces.
 --FILE--
 <?php
-namespace Fn {
+namespace Func {
     function test($c, $end){
         echo "FUNCTION START " . $c . PHP_EOL;
 
@@ -21,8 +21,8 @@ namespace Klass {
     class Test {
         public function m($c, $end){
             echo "METHOD START " . $c .  PHP_EOL;
-            \Fn\test(1, 2);
-            \Fn\test_va(1,2);
+            \Func\test(1, 2);
+            \Func\test_va(1,2);
 
             if ($c < $end) {
                 $this->m($c + 1, $end);
@@ -42,15 +42,15 @@ namespace Klass {
 }
 
 namespace {
-    dd_trace("Fn\\test", function($c, $end){
+    dd_trace("Func\\test", function($c, $end){
         echo "F HOOK START " . $c . PHP_EOL;
-        Fn\test($c, $end);
+        Func\test($c, $end);
         echo "F HOOK END " . $c . PHP_EOL;
     });
 
-    dd_trace("Fn\\test_va", function($c, $end){
+    dd_trace("Func\\test_va", function($c, $end){
         echo "FVA HOOK START " . $c . PHP_EOL;
-        Fn\test_va($c, $end);
+        Func\test_va($c, $end);
         echo "FVA HOOK END " . $c . PHP_EOL;
     });
 
@@ -60,9 +60,9 @@ namespace {
         echo "M2 HOOK END " . $c . PHP_EOL;
     });
 
-    Fn\test(1, 3);
+    Func\test(1, 3);
     echo PHP_EOL;
-    Fn\test_va(1,3);
+    Func\test_va(1,3);
     echo PHP_EOL;
     (new Klass\Test())->m(1,3);
     echo PHP_EOL;
