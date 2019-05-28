@@ -101,7 +101,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-    dd_trace_seed_prng();
+    dd_trace_seed_prng(TSRMLS_C);
 
     if (DDTRACE_G(request_init_hook)) {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));
@@ -499,7 +499,7 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 
 /* {{{ proto string dd_trace_generate_id() */
 static PHP_FUNCTION(dd_trace_generate_id) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
 
 #if PHP_VERSION_ID >= 70200

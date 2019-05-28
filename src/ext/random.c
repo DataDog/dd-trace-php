@@ -5,7 +5,7 @@
 #include "random.h"
 #include "third-party/mt19937-64.h"
 
-void dd_trace_seed_prng() {
+void dd_trace_seed_prng(TSRMLS_D) {
     unsigned long long seed = (unsigned long long)ddtrace_get_int_config(DD_TRACE_DEBUG_PRNG_SEED, GENERATE_SEED());
     init_genrand64((unsigned long long)seed);
 }

@@ -4,7 +4,7 @@
 
 #define DD_TRACE_DEBUG_PRNG_SEED "DD_TRACE_DEBUG_PRNG_SEED"
 
-void dd_trace_seed_prng();
+void dd_trace_seed_prng(TSRMLS_D);
 #if PHP_VERSION_ID >= 70200
 zend_string *dd_trace_generate_id();
 #else
