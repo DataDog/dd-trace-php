@@ -318,6 +318,22 @@ final class SpanTest extends Framework\TestCase
         $this->assertSame(0.3, $span->getMetrics()[Tag::ANALYTICS_KEY]);
     }
 
+    public function testSpanCreationDoesNotInterfereWithDeterministicRandomness()
+    {
+        // Ensures old mt_rand() behavior before PHP 7.1 changes
+        if (PHP_VERSION >= '70100') {
+            mt_srand(42, MT_RAND_PHP);
+        } else {
+            mt_srand(42);
+        }
+        mt_rand(); // The first number is different on PHP <= 7.0 for some reason...
+        $randInts = [mt_rand()];
+        $this->createSpan();
+        $randInts[] = mt_rand();
+
+        $this->assertSame([1710563033, 2041643438], $randInts);
+    }
+
     private function createSpan()
     {
         $context = SpanContext::createAsRoot();
