@@ -10,8 +10,18 @@ void dd_trace_seed_prng() {
     init_genrand64((unsigned long long) seed);
 }
 
-zend_string* dd_trace_generate_id() {
+static long long generate_id() {
     // We shift one bit to get 63-bit
-    long long id = (long long)(genrand64_int64() >> 1);
-    return zend_strpprintf(0, "%llu", id);
+    return (long long)(genrand64_int64() >> 1);
 }
+
+#if PHP_VERSION_ID >= 70200
+// zend_strpprintf() wasn't exposed until PHP 7.2
+zend_string *dd_trace_generate_id() {
+    return zend_strpprintf(0, "%llu", generate_id());
+}
+#else
+void dd_trace_generate_id(char* buf) {
+    php_sprintf(buf, "%llu", generate_id());
+}
+#endif

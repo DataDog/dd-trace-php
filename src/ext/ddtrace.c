@@ -502,7 +502,17 @@ static PHP_FUNCTION(dd_trace_generate_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
 
+#if PHP_VERSION_ID >= 70200
     RETURN_STR(dd_trace_generate_id());
+#else
+    char buf[20];
+    dd_trace_generate_id(buf);
+#if PHP_VERSION_ID >= 70000
+    RETURN_STRING(buf);
+#else
+    RETURN_STRING(buf, 1);
+#endif
+#endif
 }
 
 static const zend_function_entry ddtrace_functions[] = {
