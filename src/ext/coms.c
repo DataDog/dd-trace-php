@@ -1,14 +1,9 @@
-#include <sys/time.h>
-#include <time.h>
-
 #include <stdint.h>
 #include <stddef.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <curl/curl.h>
-#include <pthread.h>
 
 #include "coms.h"
 #include "mpack.h"
@@ -60,7 +55,7 @@ ddtrace_coms_stack_t *new_stack() {
     return stack;
 }
 
-void free_stack(ddtrace_coms_stack_t *stack) {
+void ddtrace_coms_free_stack(ddtrace_coms_stack_t *stack) {
     free(stack->data);
     free(stack);
 }
@@ -438,123 +433,3 @@ ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack() {
     return stack;
 }
 
-struct _writer_loop_data_t {
-    pthread_mutex_t mutex;
-    pthread_cond_t condition;
-};
-
-static inline struct timespec deadline_in_ms(uint32_t ms) {
-    struct timespec deadline;
-    struct timeval now;
-
-    gettimeofday(&now, NULL);
-    uint32_t sec = ms / 1000UL;
-    uint32_t msec = ms % 1000UL;
-    deadline.tv_sec = now.tv_sec + sec;
-    deadline.tv_nsec = ((now.tv_usec + 1000UL * msec) * 1000UL);
-
-    // carry over full seconds from nsec
-    deadline.tv_sec += deadline.tv_nsec / (1000*1000*1000);
-    deadline.tv_nsec %= (1000*1000*1000);
-
-    return deadline;
-}
-
-#define HOST_FORMAT_STR "http://%s:%u/v0.4/traces"
-
-static void curl_set_hostname(CURL *curl) {
-    char *hostname = ddtrace_get_c_string_config("DD_AGENT_HOST");
-    int64_t port = ddtrace_get_int_config("DD_TRACE_AGENT_PORT", 8126);
-    if (port <= 0 || port > 65535) {
-        port = 8126;
-    }
-
-    if (hostname) {
-        size_t agent_url_len = strlen(hostname) + sizeof(HOST_FORMAT_STR) + 10; // port digit allocation + some headroom
-        char *agent_url = malloc(agent_url_len);
-        snprintf(agent_url, agent_url_len, HOST_FORMAT_STR, hostname, (uint32_t) port);
-
-        curl_easy_setopt(curl, CURLOPT_URL, agent_url);
-        ddtrace_env_free(hostname);
-        free(agent_url);
-    } else {
-        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8126/v0.4/traces");
-    }
-}
-
-
-
-static void curl_send_stack(ddtrace_coms_stack_t *stack) {
-    CURL *curl = curl_easy_init();
-    if  (curl) {
-        CURLcode res;
-        curl_set_hostname(curl);
-
-        struct curl_slist *headers = NULL;
-        headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
-        headers = curl_slist_append(headers, "Content-Type: application/msgpack");
-
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
-        curl_easy_setopt(curl, CURLOPT_INFILESIZE, 10);
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
-
-        void *read_data = ddtrace_init_read_userdata(stack);
-
-        curl_easy_setopt(curl, CURLOPT_READDATA, read_data);
-        curl_easy_setopt(curl, CURLOPT_READFUNCTION, ddtrace_coms_read_callback);
-
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
-
-
-        res = curl_easy_perform(curl);
-        curl_slist_free_all(headers);
-        curl_easy_cleanup(curl);
-
-        free(read_data);
-
-        if(res != CURLE_OK) {
-            fprintf(stderr, "curl_easy_perform() failed: %s\n",
-            curl_easy_strerror(res));
-        } else {
-            double uploaded;
-            curl_easy_getinfo(curl, CURLINFO_SIZE_UPLOAD, &uploaded);
-            printf("%f\n", uploaded);
-        }
-    }
-
-}
-
-void writer_loop() {
-    while TRUE {
-        struct _writer_loop_data_t *writer;
-        struct timespec deadline = deadline_in_ms(5000);
-        int wait_result = pthread_cond_timedwait(&writer->condition, &writer->mutex, &deadline);
-
-        ddtrace_coms_rotate_stack();
-        ddtrace_coms_stack_t *stack = ddtrace_coms_attempt_acquire_stack();
-        if (stack) {
-            curl_send_stack(stack);
-            free_stack(stack);
-        }
-    }
-}
-
-
-BOOL_T init_writer(){
-
-}
-
-uint32_t curl_ze_data_out() {
-    ddtrace_coms_rotate_stack();
-    ddtrace_coms_stack_t *stack = ddtrace_coms_attempt_acquire_stack();
-
-    if (!stack){
-        return 0;
-    }
-
-    curl_send_stack(stack);
-    free_stack(stack);
-
-    return 1;
-}

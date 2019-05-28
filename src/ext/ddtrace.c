@@ -18,6 +18,7 @@
 #include "ddtrace.h"
 #include "debug.h"
 #include "coms.h"
+#include "coms_curl.h"
 #include "coms_test.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"

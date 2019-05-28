@@ -34,6 +34,7 @@ size_t ddtrace_coms_read_callback(char *buffer, size_t size, size_t nitems, void
 void *ddtrace_init_read_userdata(ddtrace_coms_stack_t *stack);
 uint32_t ddtrace_coms_next_group_id();
 
-uint32_t curl_ze_data_out();
+void ddtrace_coms_free_stack();
+
 
 #endif //DD_COMS_H
