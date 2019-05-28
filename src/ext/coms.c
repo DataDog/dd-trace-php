@@ -464,12 +464,15 @@ static inline struct timespec deadline_in_ms(uint32_t ms) {
 
 static void curl_set_hostname(CURL *curl) {
     char *hostname = ddtrace_get_c_string_config("DD_AGENT_HOST");
-    // char *port_s = ddtrace_get_c_string_config("DD_TRACE_AGENT_PORT");
+    int64_t port = ddtrace_get_int_config("DD_TRACE_AGENT_PORT", 8126);
+    if (port <= 0 || port > 65535) {
+        port = 8126;
+    }
 
     if (hostname) {
         size_t agent_url_len = strlen(hostname) + sizeof(HOST_FORMAT_STR) + 10; // port digit allocation + some headroom
         char *agent_url = malloc(agent_url_len);
-        snprintf(agent_url, agent_url_len, HOST_FORMAT_STR, hostname, 8126);
+        snprintf(agent_url, agent_url_len, HOST_FORMAT_STR, hostname, (uint32_t) port);
 
         curl_easy_setopt(curl, CURLOPT_URL, agent_url);
         ddtrace_env_free(hostname);
