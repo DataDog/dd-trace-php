@@ -6,7 +6,7 @@
 #include "third-party/mt19937-64.h"
 
 void dd_trace_seed_prng() {
-    unsigned long long seed = (unsigned long long)ddtrace_get_int_config(DD_TRACE_PRNG_SEED, GENERATE_SEED());
+    unsigned long long seed = (unsigned long long)ddtrace_get_int_config(DD_TRACE_DEBUG_PRNG_SEED, GENERATE_SEED());
     init_genrand64((unsigned long long) seed);
 }
 
