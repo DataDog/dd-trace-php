@@ -16,16 +16,18 @@ Coms test parallel writer consistency
     $encoded = dd_trace_serialize_msgpack($span);
     echo strlen($encoded) . PHP_EOL;
     $str = "";
-    for($i =0 ; $i < 20000; $i++) {
+    $data = [];
+    for($i =0 ; $i < 60000; $i++) {
         $span["span_id"]++;
-        $encoded = dd_trace_serialize_msgpack($span);
+        $sp = $span;
+        // $encoded = dd_trace_serialize_msgpack($span);
         // $str = $str . $encoded;
+        $data []= $sp;
         dd_trace_internal_fn('flush_span', 0, $encoded);
     }
+    // echo "done" ;
 
-    echo strlen($str) . PHP_EOL;
-    echo (dd_trace_internal_fn('flush_span', 0, $encoded) ? 'true' : 'false') . PHP_EOL; // true if success writing 3 + 12 bytes on 64 bit platform
-
+    echo strlen($encoded) . PHP_EOL;
     dd_trace_internal_fn('curl_ze_data_out');
 ?>
 --EXPECT--

@@ -1,26 +1,28 @@
+#include <sys/time.h>
+#include <time.h>
+
 #include <stdint.h>
 #include <stddef.h>
-#include <stdatomic.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <curl/curl.h>
+#include <pthread.h>
 
 #include "coms.h"
 #include "mpack.h"
+#include "vendor_stdatomic.h"
+#include "env_config.h"
 
 typedef uint32_t group_id_t;
-#define BOOL_T uint8_t
-#define TRUE 1
-#define FALSE 0
 
 #define GROUP_ID_PROCESSED (1 << 31)
 
-dd_trace_coms_state_t dd_trace_coms_global_state = { .stacks = NULL, .current_stack = NULL, .next_group_id = 0};
+ddtrace_coms_state_t ddtrace_coms_global_state = { .stacks = NULL, .current_stack = NULL, .next_group_id = 0};
 
 static uint32_t store_data( group_id_t group_id, const char *src, size_t size) {
-    dd_trace_coms_stack_t *stack = atomic_load(&dd_trace_coms_global_state.current_stack);
+    ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_global_state.current_stack);
     if (stack == NULL) {
         // no stack to save data to
         return ENOMEM;
@@ -50,24 +52,24 @@ static uint32_t store_data( group_id_t group_id, const char *src, size_t size) {
     return 0;
 }
 
-dd_trace_coms_stack_t *new_stack() {
-    dd_trace_coms_stack_t *stack = calloc(1, sizeof(dd_trace_coms_stack_t));
+ddtrace_coms_stack_t *new_stack() {
+    ddtrace_coms_stack_t *stack = calloc(1, sizeof(ddtrace_coms_stack_t));
     stack->size = DD_TRACE_COMS_STACK_SIZE;
     stack->data = calloc(1, stack->size);
 
     return stack;
 }
 
-void free_stack(dd_trace_coms_stack_t *stack) {
+void free_stack(ddtrace_coms_stack_t *stack) {
     free(stack->data);
     free(stack);
 }
 
-void recycle_stack(dd_trace_coms_stack_t *stack) {
+void recycle_stack(ddtrace_coms_stack_t *stack) {
     char *data = stack->data;
     size_t size = stack->size;
 
-    memset(stack, 0, sizeof(dd_trace_coms_stack_t));
+    memset(stack, 0, sizeof(ddtrace_coms_stack_t));
     memset(data, 0, size);
 
     stack->data = data;
@@ -76,11 +78,11 @@ void recycle_stack(dd_trace_coms_stack_t *stack) {
 
 void gc_stacks() {
     for(int i = 0; i < DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        dd_trace_coms_stack_t *stack = dd_trace_coms_global_state.stacks[i];
+        ddtrace_coms_stack_t *stack = ddtrace_coms_global_state.stacks[i];
 
         if (stack) {
-            if (dd_trace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0) {
-                dd_trace_coms_global_state.stacks[i] = NULL;
+            if (ddtrace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0) {
+                ddtrace_coms_global_state.stacks[i] = NULL;
                 free(stack);
             } else {
                 stack->gc_cycles_count++;
@@ -90,26 +92,26 @@ void gc_stacks() {
 }
 
 static void init() {
-    dd_trace_coms_stack_t *stack = new_stack();
-    if (!dd_trace_coms_global_state.stacks) {
-        dd_trace_coms_global_state.stacks = calloc(DD_TRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(dd_trace_coms_stack_t*));
+    ddtrace_coms_stack_t *stack = new_stack();
+    if (!ddtrace_coms_global_state.stacks) {
+        ddtrace_coms_global_state.stacks = calloc(DD_TRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(ddtrace_coms_stack_t*));
     }
 
-    atomic_store(&dd_trace_coms_global_state.next_group_id, 1);
-    atomic_store(&dd_trace_coms_global_state.current_stack, stack);
+    atomic_store(&ddtrace_coms_global_state.next_group_id, 1);
+    atomic_store(&ddtrace_coms_global_state.current_stack, stack);
 }
 
-uint32_t dd_trace_coms_rotate_stack(){
-    dd_trace_coms_stack_t *stack = NULL;
-    dd_trace_coms_stack_t *current_stack = atomic_load(&dd_trace_coms_global_state.current_stack);
+uint32_t ddtrace_coms_rotate_stack(){
+    ddtrace_coms_stack_t *stack = NULL;
+    ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
 
     for(int i = 0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        dd_trace_coms_stack_t *stack_tmp = dd_trace_coms_global_state.stacks[i];
+        ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
         if (stack_tmp) {
             if (atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) == 0) {
                 stack = stack_tmp;
                 recycle_stack(stack_tmp);
-                dd_trace_coms_global_state.stacks[i] = current_stack;
+                ddtrace_coms_global_state.stacks[i] = current_stack;
                 current_stack = NULL;
                 break;
             }
@@ -121,8 +123,8 @@ uint32_t dd_trace_coms_rotate_stack(){
 
     if (current_stack != NULL) {
         for(int i=0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-            if (!dd_trace_coms_global_state.stacks[i]){
-                dd_trace_coms_global_state.stacks[i] = current_stack;
+            if (!ddtrace_coms_global_state.stacks[i]){
+                ddtrace_coms_global_state.stacks[i] = current_stack;
                 current_stack = NULL;
             }
         }
@@ -134,14 +136,14 @@ uint32_t dd_trace_coms_rotate_stack(){
             stack = new_stack();
         }
 
-        atomic_store(&dd_trace_coms_global_state.current_stack, stack);
+        atomic_store(&ddtrace_coms_global_state.current_stack, stack);
         return 0;
     }
     // if we couldn't store new stack i tem
     return ENOMEM;
 }
 
-uint32_t dd_trace_coms_flush_data(uint32_t group_id, const char *data, size_t size){
+uint32_t ddtrace_coms_flush_data(uint32_t group_id, const char *data, size_t size){
     if (!data) {
         return 0;
     }
@@ -161,11 +163,11 @@ uint32_t dd_trace_coms_flush_data(uint32_t group_id, const char *data, size_t si
     }
 }
 
-group_id_t dd_trace_coms_next_group_id() {
-    return atomic_fetch_add(&dd_trace_coms_global_state.next_group_id, 1);
+group_id_t ddtrace_coms_next_group_id() {
+    return atomic_fetch_add(&ddtrace_coms_global_state.next_group_id, 1);
 }
 
-uint32_t dd_trace_coms_initialize(){
+uint32_t ddtrace_coms_initialize(){
     init();
 
     return 1;
@@ -256,7 +258,7 @@ void read_metadata(struct _grouped_stack_t *dest, size_t position, size_t *eleme
     memcpy(bytes_in_group, dest->dest_data + position, sizeof(size_t));
 }
 
-size_t dd_trace_coms_read_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
+size_t ddtrace_coms_read_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
     if (!userdata) {
         return 0;
     }
@@ -281,7 +283,6 @@ size_t dd_trace_coms_read_callback(char *buffer, size_t size, size_t nitems, voi
         size_t num_elements = 0;
 
         read_metadata(read, read->position, &num_elements, &read->bytes_to_write);
-
         if (read->bytes_to_write == 0) {
             break;
         }
@@ -302,7 +303,7 @@ struct _entry_t {
     char *raw_entry;
 };
 
-static inline struct _entry_t create_entry(dd_trace_coms_stack_t *stack, size_t position) {
+static inline struct _entry_t create_entry(ddtrace_coms_stack_t *stack, size_t position) {
     struct _entry_t rv = { .size = 0, .group_id = 0, .data = NULL, .next_entry_offset = 0};
     size_t bytes_written = atomic_load(&stack->bytes_written);
 
@@ -340,7 +341,7 @@ static inline size_t append_entry(struct _entry_t *entry, struct _grouped_stack_
     }
 }
 
-void dd_trace_msgpack_group_stack_by_id(dd_trace_coms_stack_t *stack, struct _grouped_stack_t *dest){
+void ddtrace_msgpack_group_stack_by_id(ddtrace_coms_stack_t *stack, struct _grouped_stack_t *dest){
     // perform an insertion sort by group_id
     uint32_t current_group_id = 0;
     struct _entry_t first_entry = create_entry(stack, 0);
@@ -367,9 +368,10 @@ void dd_trace_msgpack_group_stack_by_id(dd_trace_coms_stack_t *stack, struct _gr
         size_t elements_in_group = 0;
         size_t bytes_in_group = 0;
         group_dest_position += sizeof(size_t) * 2; // leave place for group meta data
-
+        size_t i =0;
         while (current_src_position < bytes_written) {
             struct _entry_t entry = create_entry(stack, current_src_position);
+            i++;
             if (entry.size == 0) {
                 break;
             }
@@ -406,7 +408,7 @@ void dd_trace_msgpack_group_stack_by_id(dd_trace_coms_stack_t *stack, struct _gr
     return ;
 }
 
-void *dd_trace_init_read_userdata(dd_trace_coms_stack_t *stack) {
+void *ddtrace_init_read_userdata(ddtrace_coms_stack_t *stack) {
     size_t total_bytes = atomic_load(&stack->bytes_written);
 
     struct _grouped_stack_t *readstack_ptr = malloc(sizeof(struct _grouped_stack_t));
@@ -415,20 +417,20 @@ void *dd_trace_init_read_userdata(dd_trace_coms_stack_t *stack) {
     readstack.dest_size = atomic_load(&stack->bytes_written) + 2000;
     readstack.dest_data = malloc(readstack.dest_size);
 
-    dd_trace_msgpack_group_stack_by_id(stack, &readstack);
+    ddtrace_msgpack_group_stack_by_id(stack, &readstack);
     *readstack_ptr = readstack;
 
     return readstack_ptr;
 }
 
-dd_trace_coms_stack_t *dd_trace_coms_attempt_acquire_stack() {
-    dd_trace_coms_stack_t *stack = NULL;
+ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack() {
+    ddtrace_coms_stack_t *stack = NULL;
 
     for(int i = 0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        dd_trace_coms_stack_t *stack_tmp = dd_trace_coms_global_state.stacks[i];
+        ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
         if (stack_tmp && atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) > 0) {
             stack = stack_tmp;
-            dd_trace_coms_global_state.stacks[i] = NULL;
+            ddtrace_coms_global_state.stacks[i] = NULL;
             break;
         }
     }
@@ -436,42 +438,120 @@ dd_trace_coms_stack_t *dd_trace_coms_attempt_acquire_stack() {
     return stack;
 }
 
+struct _writer_loop_data_t {
+    pthread_mutex_t mutex;
+    pthread_cond_t condition;
+};
+
+static inline struct timespec deadline_in_ms(uint32_t ms) {
+    struct timespec deadline;
+    struct timeval now;
+
+    gettimeofday(&now, NULL);
+    uint32_t sec = ms / 1000UL;
+    uint32_t msec = ms % 1000UL;
+    deadline.tv_sec = now.tv_sec + sec;
+    deadline.tv_nsec = ((now.tv_usec + 1000UL * msec) * 1000UL);
+
+    // carry over full seconds from nsec
+    deadline.tv_sec += deadline.tv_nsec / (1000*1000*1000);
+    deadline.tv_nsec %= (1000*1000*1000);
+
+    return deadline;
+}
+
+#define HOST_FORMAT_STR "http://%s:%u/v0.4/traces"
+
+static void curl_set_hostname(CURL *curl) {
+    char *hostname = ddtrace_get_c_string_config("DD_AGENT_HOST");
+    // char *port_s = ddtrace_get_c_string_config("DD_TRACE_AGENT_PORT");
+
+    if (hostname) {
+        size_t agent_url_len = strlen(hostname) + sizeof(HOST_FORMAT_STR) + 10; // port digit allocation + some headroom
+        char *agent_url = malloc(agent_url_len);
+        snprintf(agent_url, agent_url_len, HOST_FORMAT_STR, hostname, 8126);
+
+        curl_easy_setopt(curl, CURLOPT_URL, agent_url);
+        ddtrace_env_free(hostname);
+        free(agent_url);
+    } else {
+        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8126/v0.4/traces");
+    }
+}
+
+
+
+static void curl_send_stack(ddtrace_coms_stack_t *stack) {
+    CURL *curl = curl_easy_init();
+    if  (curl) {
+        CURLcode res;
+        curl_set_hostname(curl);
+
+        struct curl_slist *headers = NULL;
+        headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
+        headers = curl_slist_append(headers, "Content-Type: application/msgpack");
+
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+        curl_easy_setopt(curl, CURLOPT_INFILESIZE, 10);
+        curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
+
+        void *read_data = ddtrace_init_read_userdata(stack);
+
+        curl_easy_setopt(curl, CURLOPT_READDATA, read_data);
+        curl_easy_setopt(curl, CURLOPT_READFUNCTION, ddtrace_coms_read_callback);
+
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
+
+
+        res = curl_easy_perform(curl);
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+
+        free(read_data);
+
+        if(res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed: %s\n",
+            curl_easy_strerror(res));
+        } else {
+            double uploaded;
+            curl_easy_getinfo(curl, CURLINFO_SIZE_UPLOAD, &uploaded);
+            printf("%f\n", uploaded);
+        }
+    }
+
+}
+
+void writer_loop() {
+    while TRUE {
+        struct _writer_loop_data_t *writer;
+        struct timespec deadline = deadline_in_ms(5000);
+        int wait_result = pthread_cond_timedwait(&writer->condition, &writer->mutex, &deadline);
+
+        ddtrace_coms_rotate_stack();
+        ddtrace_coms_stack_t *stack = ddtrace_coms_attempt_acquire_stack();
+        if (stack) {
+            curl_send_stack(stack);
+            free_stack(stack);
+        }
+    }
+}
+
+
+BOOL_T init_writer(){
+
+}
+
 uint32_t curl_ze_data_out() {
-    dd_trace_coms_rotate_stack();
-    dd_trace_coms_stack_t *stack = dd_trace_coms_attempt_acquire_stack();
+    ddtrace_coms_rotate_stack();
+    ddtrace_coms_stack_t *stack = ddtrace_coms_attempt_acquire_stack();
 
     if (!stack){
         return 0;
     }
 
-    CURL *curl = curl_easy_init();
-    if(curl) {
-        CURLcode res;
-        curl_easy_setopt(curl, CURLOPT_URL, "http://ddagent_integration:8126/v0.4/traces");
-        struct curl_slist *chunk = NULL;
-        chunk = curl_slist_append(chunk, "Transfer-Encoding: chunked");
-        chunk = curl_slist_append(chunk, "Content-Type: application/msgpack");
-
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
-        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
-        void *read_data = dd_trace_init_read_userdata(stack);
-        struct _grouped_stack_t *d = read_data;
-
-        curl_easy_setopt(curl, CURLOPT_READDATA, read_data);
-        curl_easy_setopt(curl, CURLOPT_READFUNCTION, dd_trace_coms_read_callback);
-
-        res = curl_easy_perform(curl);
-        curl_easy_cleanup(curl);
-        printf("%lu\n", d->position);
-
-        free(read_data);
-
-
-        if(res != CURLE_OK) {
-            fprintf(stderr, "curl_easy_perform() failed: %s\n",
-            curl_easy_strerror(res));
-        }
-    }
+    curl_send_stack(stack);
+    free_stack(stack);
 
     return 1;
 }

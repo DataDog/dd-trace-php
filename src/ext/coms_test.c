@@ -9,18 +9,18 @@
 #define DDTRACE_NUMBER_OF_DATA_TO_WRITE 2000
 #define DDTRACE_DATA_TO_WRITE "0123456789"
 
-extern dd_trace_coms_state_t dd_trace_coms_global_state;
+extern ddtrace_coms_state_t ddtrace_coms_global_state;
 
 static void *test_writer_function(void *_){
     (void)_;
     for (int i =0; i < DDTRACE_NUMBER_OF_DATA_TO_WRITE; i++) {
-        dd_trace_coms_flush_data(0, DDTRACE_DATA_TO_WRITE, sizeof(DDTRACE_DATA_TO_WRITE) - 1);
+        ddtrace_coms_flush_data(0, DDTRACE_DATA_TO_WRITE, sizeof(DDTRACE_DATA_TO_WRITE) - 1);
     }
     pthread_exit(NULL);
     return NULL;
 }
 
-uint32_t dd_trace_coms_test_writers() {
+uint32_t ddtrace_coms_test_writers() {
     int threads = 100, ret = -1;
 
     pthread_t *thread = malloc(sizeof(pthread_t)*threads);
@@ -43,16 +43,16 @@ uint32_t dd_trace_coms_test_writers() {
     return 1;
 }
 
-uint32_t dd_trace_coms_test_consumer(){
-    if (dd_trace_coms_rotate_stack() != 0) {
+uint32_t ddtrace_coms_test_consumer(){
+    if (ddtrace_coms_rotate_stack() != 0) {
         printf("error rotating stacks");
     }
 
     for(int i = 0; i< DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        dd_trace_coms_stack_t *stack = dd_trace_coms_global_state.stacks[i];
+        ddtrace_coms_stack_t *stack = ddtrace_coms_global_state.stacks[i];
         if (!stack) continue;
 
-        if (!dd_trace_coms_is_stack_unused(stack)){
+        if (!ddtrace_coms_is_stack_unused(stack)){
             continue;
         }
 
@@ -81,7 +81,6 @@ uint32_t dd_trace_coms_test_consumer(){
     return 1;
 }
 
-
 #define PRINT_PRINTABLE(prefix, previous_ch, ch) do {\
         if (ch >= 0x20 && ch < 0x7f) { \
             if (!(previous_ch >= 0x20 && previous_ch < 0x7f)) { \
@@ -93,18 +92,19 @@ uint32_t dd_trace_coms_test_consumer(){
         } \
     } while (0)
 
-uint32_t dd_trace_coms_test_msgpack_consumer() {
-    dd_trace_coms_rotate_stack();
 
-    dd_trace_coms_stack_t *stack = dd_trace_coms_attempt_acquire_stack();
+uint32_t ddtrace_coms_test_msgpack_consumer() {
+    ddtrace_coms_rotate_stack();
+
+    ddtrace_coms_stack_t *stack = ddtrace_coms_attempt_acquire_stack();
     if (!stack) {
-        return;
+        return 0;
     }
-    void *userdata = dd_trace_init_read_userdata(stack);
+    void *userdata = ddtrace_init_read_userdata(stack);
 
     char *data = calloc(100000, 1);
 
-    size_t written = dd_trace_coms_read_callback(data, 1, 1000, userdata);
+    size_t written = ddtrace_coms_read_callback(data, 1, 1000, userdata);
     int should_print_space = 0;
     if (written > 0) {
         PRINT_PRINTABLE("", 0, data[0]);
@@ -117,4 +117,5 @@ uint32_t dd_trace_coms_test_msgpack_consumer() {
 
     free(data);
     free(userdata);
+    return 1;
 }
