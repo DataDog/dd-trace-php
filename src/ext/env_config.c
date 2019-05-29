@@ -1,5 +1,5 @@
 #include <SAPI.h>
-#include "config.h"
+#include "env_config.h"
 #define EQUALS(stra, strb) (memcmp(stra, strb, sizeof(strb) - 1) == 0)
 
 char *get_local_env_or_sapi_env(char *name) {
@@ -14,7 +14,7 @@ char *get_local_env_or_sapi_env(char *name) {
     return env;
 }
 
-zend_bool ddtrace_get_bool_config(char *name, unsigned char def) {
+BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def) {
     char *env = get_local_env_or_sapi_env(name);
     if (!env) {
         return def;

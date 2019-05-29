@@ -60,6 +60,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);
     ddtrace_coms_initialize();
+    ddtrace_coms_init_and_start_writer();
 
     return SUCCESS;
 }
@@ -409,9 +410,10 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
             RETURN_BOOL(ddtrace_coms_trigger_writer_flush());
         } else if (FUNCTION_NAME_MATCHES("on_request_finished", fn, fn_len)) {
             RETURN_BOOL(ddtrace_coms_on_request_finished());
-        } else if (params_count == 1 && Z_TYPE(params[0]) == _IS_BOOL &&
-            FUNCTION_NAME_MATCHES("set_writer_send_on_flush", fn, fn_len)) {
-            RETURN_BOOL(ddtrace_coms_set_writer_send_on_flush(Z_LVAL(params[0])));
+        } else if (params_count == 1 && FUNCTION_NAME_MATCHES("shutdown_writer", fn, fn_len)) {
+            RETURN_BOOL(ddtrace_coms_shutdown_writer(Z_TYPE(params[0]) == IS_TRUE));
+        } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_writer_send_on_flush", fn, fn_len)) {
+            RETURN_BOOL(ddtrace_coms_set_writer_send_on_flush(Z_TYPE(params[0]) == IS_TRUE));
         } else if (FUNCTION_NAME_MATCHES("next_span_group_id", fn, fn_len)) {
             RETURN_LONG(ddtrace_coms_next_group_id());
         } else if (FUNCTION_NAME_MATCHES("test_consumer", fn, fn_len)) {
