@@ -3,9 +3,9 @@ Coms test parallel writer consistency
 --FILE--
 <?php
 // store two packets separately
-    echo (dd_trace_internal_fn('flush_span', 0, 'foo') ? 'true' : 'false') . PHP_EOL; // true if success writing 3 + 12 bytes on 64 bit platform
-    echo (dd_trace_internal_fn('flush_span', 0, 'bar') ? 'true' : 'false') . PHP_EOL; // ...
-    echo (dd_trace_internal_fn('flush_span', 0, '') ? 'true' : 'false') . PHP_EOL; // 0 length write is not written
+    echo (dd_trace_coms_flush_span(0, 'foo') ? 'true' : 'false') . PHP_EOL; // true if success writing 3 + 12 bytes on 64 bit platform
+    echo (dd_trace_coms_flush_span(0, 'bar') ? 'true' : 'false') . PHP_EOL; // ...
+    echo (dd_trace_coms_flush_span(0, '') ? 'true' : 'false') . PHP_EOL; // 0 length write is not written
 
 // store multiple data concurrently
     dd_trace_internal_fn('test_writers'); // will write 4400000 bytes
@@ -14,7 +14,7 @@ Coms test parallel writer consistency
 
 // read and parse stored data for correctness - prints out all data packets that do not match written pattern "0123456789"
     dd_trace_internal_fn('test_consumer');
-    dd_trace_internal_fn('flush_span', 0, 'a'); // write to a new stack - 1 byte of data + 12 byte size of metadata
+    dd_trace_coms_flush_span(0, 'a'); // write to a new stack - 1 byte of data + 12 byte size of metadata
 // prints out previous "foobar" data and an new 1 byte stack
     echo "----" . PHP_EOL;
     dd_trace_internal_fn('test_consumer');

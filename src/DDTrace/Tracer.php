@@ -367,6 +367,7 @@ final class Tracer implements TracerInterface
             $sendTracesViaThread = strtolower(trim($sendTracesViaThread));
             $sendTracesViaThread = ('true' === $sendTracesViaThread || '1' === $sendTracesViaThread);
         }
+        $groupId = dd_trace_coms_next_span_group_id();
 
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
@@ -385,7 +386,7 @@ final class Tracer implements TracerInterface
                 $encodedSpan = SpanEncoder::encode($span);
                 if ($sendTracesViaThread) {
                     $messagePack = dd_trace_serialize_msgpack($encodedSpan);
-                    dd_trace_internal_fn('flush_span', 0, $messagePack);
+                    dd_trace_coms_flush_span($groupId, $messagePack);
                 } else {
                     $traceToBeSent[] = $encodedSpan;
                 }

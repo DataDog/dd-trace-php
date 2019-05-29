@@ -224,7 +224,7 @@ BOOL_T ddtrace_coms_on_request_finished() {
     atomic_fetch_add(&writer->request_counter, 1);
     uint32_t requests_since_last_flush = atomic_fetch_add(&writer->requests_since_last_flush, 1);
 
-    // simple heurist to flush every n request to reduce the number of memory held
+    // simple heuristic to flush every n request to reduce the number of memory held
     if (requests_since_last_flush > get_flush_after_n_requests()) {
         ddtrace_coms_trigger_writer_flush();
     }

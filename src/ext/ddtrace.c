@@ -73,6 +73,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_coms_shutdown_writer(TRUE);
     return SUCCESS;
 }
 
@@ -109,6 +110,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
     ddtrace_dispatch_destroy(TSRMLS_C);
+    ddtrace_coms_on_request_finished();
+
 
     return SUCCESS;
 }
@@ -373,6 +376,42 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
     return;
 }
 
+static PHP_FUNCTION(dd_trace_coms_flush_span) {
+    zval *group_id = NULL, *payload = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &group_id, &payload) != SUCCESS) {
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "unexpected parameter. the function name must be provided");
+        }
+        RETURN_BOOL(0);
+    }
+
+    if (Z_TYPE_P(group_id) == IS_LONG && Z_TYPE_P(payload) == IS_STRING) {
+        RETURN_BOOL(ddtrace_coms_flush_data(Z_LVAL_P(group_id), Z_STRVAL_P(payload), Z_STRLEN_P(payload)));
+    } else {
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "unexpected parameter. the function name must be provided");
+        }
+        RETURN_BOOL(0);
+    }
+}
+
+static PHP_FUNCTION(dd_trace_coms_next_span_group_id) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+
+    RETURN_LONG(ddtrace_coms_next_group_id());
+}
+
+static PHP_FUNCTION(dd_trace_coms_trigger_writer_flush) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+
+    RETURN_LONG(ddtrace_coms_trigger_writer_flush());
+}
+
 #define FUNCTION_NAME_MATCHES(function, fn_name, fn_len) \
     ((sizeof(function) - 1) == fn_len && strncmp(fn_name, function, fn_len) == 0)
 
@@ -401,21 +440,14 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
     }
 
     if (fn) {
-        if (params_count == 2 && Z_TYPE(params[0]) == IS_LONG && Z_TYPE(params[1]) == IS_STRING &&
-            FUNCTION_NAME_MATCHES("flush_span", fn, fn_len)) {
-            RETURN_BOOL(ddtrace_coms_flush_data(Z_LVAL(params[0]), Z_STRVAL(params[1]), Z_STRLEN(params[1])));
-        } else if (FUNCTION_NAME_MATCHES("init_and_start_writer", fn, fn_len)) {
+        if (FUNCTION_NAME_MATCHES("init_and_start_writer", fn, fn_len)) {
             RETURN_BOOL(ddtrace_coms_init_and_start_writer());
-        } else if (FUNCTION_NAME_MATCHES("trigger_writer_flush", fn, fn_len)) {
-            RETURN_BOOL(ddtrace_coms_trigger_writer_flush());
         } else if (FUNCTION_NAME_MATCHES("on_request_finished", fn, fn_len)) {
             RETURN_BOOL(ddtrace_coms_on_request_finished());
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("shutdown_writer", fn, fn_len)) {
             RETURN_BOOL(ddtrace_coms_shutdown_writer(Z_TYPE(params[0]) == IS_TRUE));
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_writer_send_on_flush", fn, fn_len)) {
             RETURN_BOOL(ddtrace_coms_set_writer_send_on_flush(Z_TYPE(params[0]) == IS_TRUE));
-        } else if (FUNCTION_NAME_MATCHES("next_span_group_id", fn, fn_len)) {
-            RETURN_LONG(ddtrace_coms_next_group_id());
         } else if (FUNCTION_NAME_MATCHES("test_consumer", fn, fn_len)) {
             ddtrace_coms_test_consumer();
             RETURN_TRUE;
@@ -436,8 +468,9 @@ static const zend_function_entry ddtrace_functions[] = {
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
             PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(dd_tracer_circuit_breaker_register_error, NULL)
                 PHP_FE(dd_tracer_circuit_breaker_register_success, NULL) PHP_FE(dd_tracer_circuit_breaker_can_try, NULL)
-                    PHP_FE(dd_tracer_circuit_breaker_info, NULL) PHP_FE(dd_trace_internal_fn, NULL)
-                        PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
+                    PHP_FE(dd_tracer_circuit_breaker_info, NULL) PHP_FE(dd_trace_coms_flush_span, NULL)
+                        PHP_FE(dd_trace_coms_next_span_group_id, NULL) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
+                        PHP_FE(dd_trace_internal_fn, NULL) PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
