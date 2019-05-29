@@ -59,9 +59,15 @@ int64_t ddtrace_get_int_config(char *name, int64_t def) {
     return result;
 }
 
-void ddtrace_env_free(void *ptr) {
-    return efree(ptr);
+uint32_t ddtrace_get_uint32_config(char *name, uint32_t def) {
+    int64_t value = ddtrace_get_int_config(name, def);
+    if (value < 0 || value > UINT32_MAX) {
+        value = def;
+    }
+    return value;
 }
+
+void ddtrace_env_free(void *ptr) { return efree(ptr); }
 
 char *ddtrace_get_c_string_config(char *name) {
     char *env = get_local_env_or_sapi_env(name);

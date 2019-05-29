@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include "vendor_stdatomic.h"
 
-#define DD_TRACE_COMS_STACK_SIZE (1024*1024*10) // 5 MB
+#define DD_TRACE_COMS_STACK_SIZE (1024 * 1024 * 10)  // 5 MB
 #define DD_TRACE_COMS_STACKS_BACKLOG_SIZE 10
 
 typedef struct ddtrace_coms_stack_t {
@@ -16,7 +16,7 @@ typedef struct ddtrace_coms_stack_t {
 } ddtrace_coms_stack_t;
 
 typedef struct ddtrace_coms_state_t {
-    _Atomic(ddtrace_coms_stack_t *)current_stack;
+    _Atomic(ddtrace_coms_stack_t *) current_stack;
     ddtrace_coms_stack_t **stacks;
     _Atomic(uint32_t) next_group_id;
 } ddtrace_coms_state_t;
@@ -36,5 +36,4 @@ uint32_t ddtrace_coms_next_group_id();
 
 void ddtrace_coms_free_stack();
 
-
-#endif //DD_COMS_H
+#endif  // DD_COMS_H
