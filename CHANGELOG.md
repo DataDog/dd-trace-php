@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Changed
+- Replace multiple calls to `mt_rand()` (32-bit) with one call to `dd_trace_generate_id()` which implements [MT19937-64](http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/VERSIONS/C-LANG/mt19937-64.c) and returns a 63-bit unsigned integer as a string #449
+
+### Fixed
+- Traces no longer affect deterministic random from `mt_rand()` #449
+
 ## [0.26.0]
 
 ### Added
