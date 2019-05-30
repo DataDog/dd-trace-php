@@ -361,11 +361,15 @@ final class Tracer implements TracerInterface
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
 
         $sendTracesViaThread = getenv('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD');
+        $spanGroupId = 0;
         if (false !== $sendTracesViaThread) {
             $sendTracesViaThread;
             $sendTracesViaThread = ('true' === $sendTracesViaThread || '1' === $sendTracesViaThread);
+
+            if ($sendTracesViaThread) {
+                $spanGroupId = dd_trace_coms_next_span_group_id();
+            }
         }
-        $groupId = dd_trace_coms_next_span_group_id();
 
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
@@ -383,8 +387,7 @@ final class Tracer implements TracerInterface
                 $this->traceAnalyticsProcessor->process($span);
                 $encodedSpan = SpanEncoder::encode($span);
                 if ($sendTracesViaThread) {
-                    $messagePack = dd_trace_serialize_msgpack($encodedSpan);
-                    dd_trace_coms_flush_span($groupId, $messagePack);
+                    dd_trace_flush_span($spanGroupId, $encodedSpan);
                 } else {
                     $traceToBeSent[] = $encodedSpan;
                 }

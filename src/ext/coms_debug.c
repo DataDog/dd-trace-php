@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "coms.h"
-#include "coms_test.h"
+#include "coms_debug.h"
 
 #define DDTRACE_NUMBER_OF_DATA_TO_WRITE 2000
 #define DDTRACE_DATA_TO_WRITE "0123456789"

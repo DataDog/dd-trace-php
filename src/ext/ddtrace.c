@@ -17,7 +17,7 @@
 #include "compatibility.h"
 #include "coms.h"
 #include "coms_curl.h"
-#include "coms_test.h"
+#include "coms_debug.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
@@ -404,7 +404,8 @@ static PHP_FUNCTION(dd_trace_flush_span) {
     zval *group_id = NULL, *trace_array = NULL;
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "za", &group_id, &trace_array) ==
-            FAILURE || Z_TYPE_P(group_id) != IS_LONG) {
+            FAILURE ||
+        Z_TYPE_P(group_id) != IS_LONG) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected group id and an array");
         }
