@@ -104,7 +104,6 @@ final class Http implements Transport
             $this->config['endpoint']
         ) : $this->config['endpoint'];
 
-        dd_trace_internal_fn('on_request_finished');
         $this->sendRequest($endpoint, $this->headers, $tracesPayload);
     }
 

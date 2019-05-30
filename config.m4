@@ -14,6 +14,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_BUILD_DIR($ext_builddir/src/ext, 1)
 
   PHP_CHECK_LIBRARY(rt, shm_open, [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"])
+  PHP_CHECK_LIBRARY(curl, curl_easy_setopt, [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lcurl"])
   PHP_SUBST(EXTRA_LDFLAGS)
 
   PHP_ADD_INCLUDE($ext_builddir)

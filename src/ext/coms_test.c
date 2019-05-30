@@ -80,7 +80,7 @@ uint32_t ddtrace_coms_test_consumer() {
     return 1;
 }
 
-#define PRINT_PRINTABLE(with_prefix, previous_ch, ch)                \
+#define PRINT_PRINTABLE(with_prefix, previous_ch, ch)           \
     do {                                                        \
         if (ch >= 0x20 && ch < 0x7f) {                          \
             if (!(previous_ch >= 0x20 && previous_ch < 0x7f)) { \
@@ -89,12 +89,12 @@ uint32_t ddtrace_coms_test_consumer() {
                 }                                               \
             }                                                   \
             printf("%c", ch);                                   \
-        } else { \
-            if (with_prefix) { \
-                printf(" %02hhX", ch);                        \
-            } else {                                                \
-                printf("%02hhX", ch);                        \
-            } \
+        } else {                                                \
+            if (with_prefix) {                                  \
+                printf(" %02hhX", ch);                          \
+            } else {                                            \
+                printf("%02hhX", ch);                           \
+            }                                                   \
         }                                                       \
     } while (0)
 

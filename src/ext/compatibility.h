@@ -43,4 +43,10 @@
 typedef int32_t zend_long;
 #endif
 
+#if PHP_VERSION_ID < 70000
+#define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_BOOL && Z_LVAL_P(x) == 1)
+#else
+#define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
+#endif
+
 #endif  // DD_COMPATIBILITY_H

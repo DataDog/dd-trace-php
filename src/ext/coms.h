@@ -1,7 +1,10 @@
 #ifndef DD_COMS_H
 #define DD_COMS_H
 #include <stdint.h>
+
+#include "env_config.h"
 #include "vendor_stdatomic.h"
+
 
 #define DD_TRACE_COMS_STACK_SIZE (1024 * 1024 * 10)  // 5 MB
 #define DD_TRACE_COMS_STACKS_BACKLOG_SIZE 10
@@ -25,11 +28,11 @@ inline static uint32_t ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack)
     return atomic_load(&stack->refcount) == 0;
 }
 
-uint32_t ddtrace_coms_rotate_stack();
+BOOL_T ddtrace_coms_rotate_stack();
 ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack();
 
-uint32_t ddtrace_coms_flush_data(uint32_t group_id, const char *data, size_t size);
-uint32_t ddtrace_coms_initialize();
+BOOL_T ddtrace_coms_flush_data(uint32_t group_id, const char *data, size_t size);
+BOOL_T ddtrace_coms_initialize();
 size_t ddtrace_coms_read_callback(char *buffer, size_t size, size_t nitems, void *userdata);
 void *ddtrace_init_read_userdata(ddtrace_coms_stack_t *stack);
 uint32_t ddtrace_coms_next_group_id();

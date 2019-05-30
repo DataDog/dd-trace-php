@@ -94,7 +94,7 @@ void gc_stacks() {
     }
 }
 
-static void init() {
+BOOL_T ddtrace_coms_initialize() {
     ddtrace_coms_stack_t *stack = new_stack();
     if (!ddtrace_coms_global_state.stacks) {
         ddtrace_coms_global_state.stacks = calloc(DD_TRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(ddtrace_coms_stack_t *));
@@ -102,9 +102,11 @@ static void init() {
 
     atomic_store(&ddtrace_coms_global_state.next_group_id, 1);
     atomic_store(&ddtrace_coms_global_state.current_stack, stack);
+
+    return TRUE;
 }
 
-uint32_t ddtrace_coms_rotate_stack() {
+BOOL_T ddtrace_coms_rotate_stack() {
     ddtrace_coms_stack_t *stack = NULL;
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
 
@@ -146,9 +148,9 @@ uint32_t ddtrace_coms_rotate_stack() {
     return ENOMEM;
 }
 
-uint32_t ddtrace_coms_flush_data(uint32_t group_id, const char *data, size_t size) {
+BOOL_T ddtrace_coms_flush_data(uint32_t group_id, const char *data, size_t size) {
     if (!data) {
-        return 0;
+        return FALSE;
     }
 
     if (data && size == 0) {
@@ -156,23 +158,17 @@ uint32_t ddtrace_coms_flush_data(uint32_t group_id, const char *data, size_t siz
     }
 
     if (size == 0) {
-        return 0;
+        return FALSE;
     }
 
     if (store_data(group_id, data, size) == 0) {
-        return 1;
+        return TRUE;
     } else {
-        return 0;
+        return FALSE;
     }
 }
 
 group_id_t ddtrace_coms_next_group_id() { return atomic_fetch_add(&ddtrace_coms_global_state.next_group_id, 1); }
-
-uint32_t ddtrace_coms_initialize() {
-    init();
-
-    return 1;
-}
 
 struct _grouped_stack_t {
     size_t position, total_bytes, total_groups;

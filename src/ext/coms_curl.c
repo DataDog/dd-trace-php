@@ -1,9 +1,9 @@
 #include <curl/curl.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -33,7 +33,7 @@ inline static uint32_t get_flush_interval() {
     return ddtrace_get_uint32_config("DD_TRACE_AGENT_FLUSH_INTERVAL", DEFAULT_FLUSH_INTERVAL);
 }
 
-inline static uint32_t get_flush_after_n_requests(){
+inline static uint32_t get_flush_after_n_requests() {
     return ddtrace_get_uint32_config("DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS", DEFAULT_FLUSH_AFTER_N_REQUESTS);
 }
 
@@ -86,19 +86,16 @@ inline static struct timespec deadline_in_ms(uint32_t ms) {
     return deadline;
 }
 
-inline static BOOL_T curl_debug() {
-    return ddtrace_get_bool_config("DD_TRACE_DEBUG_CURL_OUTPUT", FALSE);
-}
+inline static BOOL_T curl_debug() { return ddtrace_get_bool_config("DD_TRACE_DEBUG_CURL_OUTPUT", FALSE); }
 
 static size_t dummy_write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     UNUSED(userdata);
     size_t data_length = size * nmemb;
-    if (curl_debug()){
+    if (curl_debug()) {
         printf("%s", ptr);
     }
     return data_length;
 }
-
 
 #ifndef __clang__
 // disable checks since older GCC is throwing false errors
@@ -108,8 +105,8 @@ static struct _writer_loop_data_t global_writer = {
     .mutex = PTHREAD_MUTEX_INITIALIZER, .condition = PTHREAD_COND_INITIALIZER, .shutdown = {0}, .send = {0}};
 #pragma GCC diagnostic pop
 #else  //__clang__
-static struct _writer_loop_data_t global_writer = {
-    .mutex = PTHREAD_MUTEX_INITIALIZER, .condition = PTHREAD_COND_INITIALIZER};
+static struct _writer_loop_data_t global_writer = {.mutex = PTHREAD_MUTEX_INITIALIZER,
+                                                   .condition = PTHREAD_COND_INITIALIZER};
 #endif
 
 inline static struct _writer_loop_data_t *get_writer() { return &global_writer; }
@@ -145,12 +142,12 @@ inline static void curl_send_stack(ddtrace_coms_stack_t *stack) {
         free(read_data);
 
         if (res != CURLE_OK) {
-            if (curl_debug()){
+            if (curl_debug()) {
                 printf("curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
                 fflush(stdout);
             }
         } else {
-            if (curl_debug()){
+            if (curl_debug()) {
                 double uploaded;
                 curl_easy_getinfo(curl, CURLINFO_SIZE_UPLOAD, &uploaded);
                 printf("UPLOADED %.0f bytes\n", uploaded);

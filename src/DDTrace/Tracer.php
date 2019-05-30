@@ -361,10 +361,8 @@ final class Tracer implements TracerInterface
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
 
         $sendTracesViaThread = getenv('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD');
-        if (false === $sendTracesViaThread) {
+        if (false !== $sendTracesViaThread) {
             $sendTracesViaThread;
-        } else {
-            $sendTracesViaThread = strtolower(trim($sendTracesViaThread));
             $sendTracesViaThread = ('true' === $sendTracesViaThread || '1' === $sendTracesViaThread);
         }
         $groupId = dd_trace_coms_next_span_group_id();

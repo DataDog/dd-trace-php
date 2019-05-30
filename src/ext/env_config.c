@@ -1,5 +1,8 @@
+#include <Zend/zend_types.h>
 #include <SAPI.h>
+
 #include "env_config.h"
+
 #define EQUALS(stra, strb) (memcmp(stra, strb, sizeof(strb) - 1) == 0)
 
 char *get_local_env_or_sapi_env(char *name) {
