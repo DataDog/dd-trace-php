@@ -6,6 +6,7 @@
 - [ ] Easily switch between any commit or tag of the PHP tracer
 - [ ] Easily switch between any supported PHP version
 - [ ] Easy to compare benchmark metrics via Datadog UI dashboard
+- [ ] Integrate benchmarks into CI pipeline
 
 ## Setup
 
