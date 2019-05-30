@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Xdebug is not enabled by default since it's only used for profiling
+
+source $(dirname $(readlink -f $0))/env-config
+
+mkdir -p ${BASE_PHP_DIR}/src && cd $_
+
+if [ "$PHP_VERSION" = "5.4" ]; then
+	XDEBUG_VERSION=XDEBUG_2_4_1
+elif [ "$PHP_VERSION" = "5.6" ] || [ "$PHP_VERSION" = "5.5" ]; then
+	XDEBUG_VERSION=XDEBUG_2_5_5
+elif [ "$PHP_VERSION" = "7.0" ]; then
+	XDEBUG_VERSION=2.6.1
+else
+	XDEBUG_VERSION=2.7.2
+fi
+
+TARBALL=${XDEBUG_VERSION}.tar.gz
+echo $TARBALL
+if [ ! -f $TARBALL ]; then
+	wget https://github.com/xdebug/xdebug/archive/${TARBALL} \
+		&& tar -xzf ${TARBALL}
+fi
+
+# We don't do "--enable-xdebug-dev" here since it doesn't allow control over CFLAGS
+# @see https://github.com/xdebug/xdebug/blob/2.7.2/config.m4#L36-L76
+cd xdebug-${XDEBUG_VERSION} \
+	&& ${BIN_DIR}/phpize \
+	&& CFLAGS="-g" ./configure \
+		--enable-xdebug \
+		--with-php-config=${BIN_DIR}/php-config \
+	&& make clean \
+	&& make -j9 \
+	&& make install \
+	&& printf "\n🐛 Xdebug ${XDEBUG_VERSION} successfully installed\n\n"

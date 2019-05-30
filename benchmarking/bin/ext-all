@@ -1,0 +1,19 @@
+#!/bin/bash
+
+SCRIPT_DIR=$(dirname $(readlink -f $0))
+source ${SCRIPT_DIR}/env-config
+
+# pecl config
+${BIN_DIR}/pecl channel-update pecl.php.net
+
+# Xdebug (not enabled by default)
+${SCRIPT_DIR}/ext-xdebug ${PHP_VERSION}
+
+# Opcache
+${SCRIPT_DIR}/ext-opcache ${PHP_VERSION}
+
+# Memcached
+${SCRIPT_DIR}/ext-memcached ${PHP_VERSION}
+
+# MongoDB/Mongo
+#${SCRIPT_DIR}/ext-mongo ${PHP_VERSION}

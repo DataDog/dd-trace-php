@@ -1,0 +1,31 @@
+version: '3.6'
+
+services:
+
+  php:
+    build: './docker'
+    ulimits:
+      core: 99999999999
+    working_dir: '/home/app'
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/home/app
+    depends_on:
+      - ddagent
+    environment:
+      - DDAGENT_HOSTNAME=ddagent
+      #- DD_TRACE_DEBUG=true
+
+  ddagent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true
+      #- DD_LOG_LEVEL=debug
+    ports:
+      - 8126:8126

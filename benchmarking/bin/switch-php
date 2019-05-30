@@ -1,0 +1,12 @@
+#!/bin/bash
+
+source $(dirname $(readlink -f $0))/env-config
+
+PHP_BINS=( "php" "pecl" "php-config" "phpize" "pear" )
+for BIN in "${PHP_BINS[@]}"
+do
+    rm -f /usr/bin/${BIN} \
+        && ln -s ${BASE_PHP_DIR}/bin/${BIN} /usr/bin/${BIN}
+done
+
+printf "\n🐘 Switched to PHP ${PHP_VERSION}\n\n"

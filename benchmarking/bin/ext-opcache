@@ -1,0 +1,10 @@
+#!/bin/bash
+
+source $(dirname $(readlink -f $0))/env-config
+
+if [ "$PHP_VERSION" = "5.4" ]; then
+    ${BIN_DIR}/pecl install zendopcache
+fi
+
+printf "zend_extension=opcache.so" \
+    | tee ${CONF_DIR}/opcache.ini

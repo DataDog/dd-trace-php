@@ -1,0 +1,41 @@
+#!/bin/bash
+
+source $(dirname $(readlink -f $0))/env-config 7.3
+
+# Install deps that we don't need multi-versions of via apt-get
+apt-get update \
+    && apt-get install -y build-essential m4 \
+    autoconf pkg-config libxml2-dev libssl-dev \
+    libcurl4-openssl-dev
+exit;
+
+# Install Bison
+# PHP 5 requires bison v2.6.4
+# @see https://secure.php.net/manual/en/install.unix.php
+BISON_VERSIONS=( "2.6.4" "3.4.1" )
+for VERSION in "${BISON_VERSIONS[@]}"
+do
+    mkdir -p ${BASE_UTILS_DIR}/bison && cd $_ \
+        && rm -f *.tar.gz \
+        && wget http://ftp.gnu.org/gnu/bison/bison-${VERSION}.tar.gz \
+        && tar -xzf bison-${VERSION}.tar.gz && cd bison-${VERSION} \
+        && ./configure --prefix=${BASE_UTILS_DIR}/bison/${VERSION} \
+        && make \
+        && make install \
+        && printf "\n\n✅ Bison ${VERSION} successfully installed\n\n"
+done
+
+# Install PCRE(2)
+# @see https://www.php.net/manual/en/pcre.installation.php
+PCRE_VERSIONS=( "-8.43" "2-10.33" )
+for VERSION in "${PCRE_VERSIONS[@]}"
+do
+    mkdir -p ${BASE_UTILS_DIR}/pcre && cd $_ \
+        && rm -f *.tar.gz \
+        && wget https://ftp.pcre.org/pub/pcre/pcre${VERSION}.tar.gz \
+        && tar -xzf pcre${VERSION}.tar.gz && cd pcre${VERSION} \
+        && ./configure --prefix=${BASE_UTILS_DIR}/pcre/pcre${VERSION} \
+        && make \
+        && make install \
+        && printf "\n\n✅ PCRE${VERSION} successfully installed\n\n"
+done

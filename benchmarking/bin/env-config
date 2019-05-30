@@ -1,0 +1,17 @@
+#!/bin/bash
+
+PHP_VERSION=$1
+
+if [ -z "${PHP_VERSION}" ]; then 
+	echo "Please specify a PHP version"
+	exit 1
+fi
+
+PHP_MAJOR_VERSION=$(echo $PHP_VERSION | head -c 1)
+BASE_UTILS_DIR=/php/utils
+
+# Extensions
+BASE_PHP_DIR=/php/${PHP_VERSION}
+BIN_DIR=${BASE_PHP_DIR}/bin
+EXT_DIR=$(${BIN_DIR}/pecl config-get ext_dir)
+CONF_DIR=${BASE_PHP_DIR}/conf.d

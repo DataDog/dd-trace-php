@@ -1,0 +1,21 @@
+#!/bin/bash
+
+source $(dirname $(readlink -f $0))/env-config
+
+PKG='memcached libmemcached-dev'
+if ! dpkg -s $PKG >/dev/null 2>&1; then
+  apt-get update && apt-get -y install $PKG
+fi
+
+if [ "$PHP_MAJOR_VERSION" = "5" ]; then
+    MEMCACHED=memcached-2.2.0
+else
+    MEMCACHED=memcached
+fi
+
+echo "" | ${BIN_DIR}/pecl install $MEMCACHED \
+    && printf "extension=memcached.so" \
+    | tee ${CONF_DIR}/memcached.ini \
+    && printf "\n" \
+    && ${BIN_DIR}/php --ri=memcached \
+    && printf "\n\n🔆 memcached successfully installed\n\n"

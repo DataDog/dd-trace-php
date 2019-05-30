@@ -1,0 +1,61 @@
+#!/bin/bash
+
+SCRIPT_DIR=$(dirname $(readlink -f $0))
+source ${SCRIPT_DIR}/env-config
+
+# Bison version
+if [ "$PHP_MAJOR_VERSION" = "5" ]; then
+	BISON=${BASE_UTILS_DIR}/bison/2.6.4/bin/bison
+else
+	BISON=${BASE_UTILS_DIR}/bison/3.4.1/bin/bison
+fi
+
+# ext/mbstring
+MBSTRING_FLAG="--enable-mbstring"
+if [ "$PHP_MAJOR_VERSION" = "5" ] || [ "$PHP_VERSION" = "7.0" ]; then
+	MBSTRING_FLAG="" # Does not compile on PHP 5 or 7.0: https://github.com/php/php-src/commit/4072b2787074ee8e247a6639585b49e10c5a55fe
+fi
+
+# PCRE(2) support
+# @see https://www.php.net/manual/en/pcre.installation.php
+PCRE_DIR=${BASE_UTILS_DIR}/pcre/pcre-8.43
+if [ "$PHP_VERSION" = "7.3" ] || [ "$PHP_VERSION" = "7.4" ]; then
+	PCRE_DIR=${BASE_UTILS_DIR}/pcre/pcre2-10.33
+fi
+
+mkdir -p ${BASE_PHP_DIR}/src && cd $_
+
+TARBALL=PHP-${PHP_VERSION}.tar.gz
+echo $TARBALL
+if [ ! -f $TARBALL ]; then
+	wget https://github.com/php/php-src/archive/${TARBALL} \
+		&& tar -xzf ${TARBALL}
+fi
+
+cd php-src-PHP-${PHP_VERSION} \
+  && ./buildconf --force \
+  && YACC=${BISON} ./configure \
+	${MBSTRING_FLAG} \
+	--disable-phpdbg \
+	--enable-cli \
+	--enable-debug \
+	--enable-maintainer-zts \
+	--prefix=${BASE_PHP_DIR} \
+	--with-config-file-path=${BASE_PHP_DIR} \
+	--with-config-file-scan-dir=${CONF_DIR} \
+	--with-curl \
+	--with-iconv \
+	--with-mysqli \
+	--with-openssl \
+	--with-pcre-regex=${PCRE_DIR} \
+	--with-pdo-mysql \
+	--with-zlib \
+  && make clean \
+  && make -j$(nproc) \
+  && make install \
+  && mkdir -p ${CONF_DIR} \
+  && /bin/cp ./php.ini-development ${BASE_PHP_DIR}/php.ini \
+  && echo && ${BIN_DIR}/php -v \
+  && printf "\n\n🐘 PHP ${PHP_VERSION} successfully installed\n\n"
+
+${SCRIPT_DIR}/ext-all ${PHP_VERSION}

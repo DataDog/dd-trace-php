@@ -1,0 +1,16 @@
+#!/bin/bash
+
+source $(dirname $(readlink -f $0))/env-config
+
+if [ "$PHP_MAJOR_VERSION" = "5" ]; then
+    MONGO=mongo
+else
+    MONGO=mongodb
+fi
+
+${BIN_DIR}/pecl install ${MONGO} \
+    && printf "extension=${MONGO}.so" \
+    | tee ${CONF_DIR}/${MONGO}.ini \
+    && printf "\n" \
+    && ${BIN_DIR}/php --ri=${MONGO} \
+    && printf "\n\n🥭 ${MONGO} extension successfully installed\n\n"
