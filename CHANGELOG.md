@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Initial implementation of flushing spans via background thread #450
+
 ## [0.25.0]
 
 ### Added
