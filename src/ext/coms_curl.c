@@ -23,6 +23,7 @@ struct _writer_loop_data_t {
     pthread_t thread;
     pthread_mutex_t mutex;
     pthread_cond_t condition;
+    BOOL_T running; // needs to be guarded by mutex
     _Atomic(BOOL_T) shutdown;
     _Atomic(BOOL_T) send;
     _Atomic(uint32_t) request_counter;
@@ -160,6 +161,9 @@ inline static void curl_send_stack(ddtrace_coms_stack_t *stack) {
 static void *writer_loop(void *_) {
     UNUSED(_);
     struct _writer_loop_data_t *writer = get_writer();
+    pthread_mutex_lock(&writer->mutex);
+    writer->running = TRUE;
+    pthread_mutex_unlock(&writer->mutex);
 
     do {
         if (!atomic_load(&writer->shutdown)) {
@@ -236,8 +240,15 @@ BOOL_T ddtrace_coms_shutdown_writer(BOOL_T immediate) {
         ddtrace_coms_trigger_writer_flush();
     }
 
-    void *ptr;
-    pthread_join(writer->thread, &ptr);
+    if (pthread_mutex_trylock(&writer->mutex) == 0) {
+        BOOL_T should_join = writer->running;
+        writer->running = FALSE;
+        pthread_mutex_unlock(&writer->mutex);
+        if (should_join) {
+            void *ptr;
+            pthread_join(writer->thread, &ptr);
+        }
+    }
 
     return TRUE;
 }
