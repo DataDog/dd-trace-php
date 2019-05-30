@@ -1,3 +1,5 @@
+#include "macros.h"
+
 #include <curl/curl.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -23,7 +25,7 @@ struct _writer_loop_data_t {
     pthread_t thread;
     pthread_mutex_t mutex;
     pthread_cond_t condition;
-    BOOL_T running; // needs to be guarded by mutex
+    BOOL_T running;  // needs to be guarded by mutex
     _Atomic(BOOL_T) shutdown;
     _Atomic(BOOL_T) send;
     _Atomic(uint32_t) request_counter;

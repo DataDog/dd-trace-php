@@ -45,6 +45,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_msgpack, 0, 0, 1)
 ZEND_ARG_INFO(0, trace_array)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_flush_span, 0, 0, 2)
+ZEND_ARG_INFO(0, group_id)
+ZEND_ARG_INFO(1, trace_array)
+ZEND_END_ARG_INFO()
+
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
 static PHP_MINIT_FUNCTION(ddtrace) {
@@ -496,7 +501,7 @@ static const zend_function_entry ddtrace_functions[] = {
                 PHP_FE(dd_tracer_circuit_breaker_register_success, NULL) PHP_FE(dd_tracer_circuit_breaker_can_try, NULL)
                     PHP_FE(dd_tracer_circuit_breaker_info, NULL) PHP_FE(dd_trace_coms_flush_span, NULL)
                         PHP_FE(dd_trace_coms_next_span_group_id, NULL) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
-                            PHP_FE(dd_trace_flush_span, NULL) PHP_FE(dd_trace_internal_fn, NULL)
+                            PHP_FE(dd_trace_flush_span, arginfo_dd_trace_flush_span) PHP_FE(dd_trace_internal_fn, NULL)
                                 PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,

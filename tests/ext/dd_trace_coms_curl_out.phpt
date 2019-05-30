@@ -33,9 +33,7 @@ if (!getenv("DD_AGENT_HOST")) {
     ];
     for($i =0 ; $i < $spans; $i++) {
         $span["span_id"]++;
-        $sp = $span;
-        $encoded = dd_trace_serialize_msgpack($span);
-        dd_trace_coms_flush_span(0, $encoded);
+        dd_trace_flush_span(0, $span);
     }
 
     echo "SPANS " . $spans . PHP_EOL;
