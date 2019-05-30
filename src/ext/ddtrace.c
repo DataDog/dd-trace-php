@@ -379,22 +379,45 @@ static PHP_FUNCTION(dd_trace_coms_flush_span) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     zval *group_id = NULL, *payload = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &group_id, &payload) != SUCCESS) {
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zz", &group_id, &payload) != SUCCESS ||
+        Z_TYPE_P(group_id) != IS_LONG || Z_TYPE_P(payload) != IS_STRING) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameter. the function name must be provided");
+                                    "unexpected parameter. group id and function name must be provided");
         }
         RETURN_BOOL(0);
     }
 
-    if (Z_TYPE_P(group_id) == IS_LONG && Z_TYPE_P(payload) == IS_STRING) {
-        RETURN_BOOL(ddtrace_coms_flush_data(Z_LVAL_P(group_id), Z_STRVAL_P(payload), Z_STRLEN_P(payload)));
-    } else {
+    RETURN_BOOL(ddtrace_coms_flush_data(Z_LVAL_P(group_id), Z_STRVAL_P(payload), Z_STRLEN_P(payload)));
+}
+
+static PHP_FUNCTION(dd_trace_flush_span) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+
+    if (DDTRACE_G(disable)) {
+        RETURN_BOOL(0);
+    }
+    zval *group_id = NULL, *trace_array = NULL;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "za", &group_id, &trace_array) ==
+            FAILURE || Z_TYPE_P(group_id) != IS_LONG) {
         if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameter. the function name must be provided");
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected group id and an array");
         }
         RETURN_BOOL(0);
+    }
+
+    char *data;
+    size_t size;
+    if (ddtrace_serialize_simple_array_into_c_string(trace_array, &data, &size TSRMLS_CC)) {
+        BOOL_T rv = ddtrace_coms_flush_data(Z_LVAL_P(group_id), data, size);
+        free(data);
+
+        RETURN_BOOL(rv);
     }
 }
 
@@ -472,7 +495,7 @@ static const zend_function_entry ddtrace_functions[] = {
                 PHP_FE(dd_tracer_circuit_breaker_register_success, NULL) PHP_FE(dd_tracer_circuit_breaker_can_try, NULL)
                     PHP_FE(dd_tracer_circuit_breaker_info, NULL) PHP_FE(dd_trace_coms_flush_span, NULL)
                         PHP_FE(dd_trace_coms_next_span_group_id, NULL) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
-                            PHP_FE(dd_trace_internal_fn, NULL)
+                            PHP_FE(dd_trace_flush_span, NULL) PHP_FE(dd_trace_internal_fn, NULL)
                                 PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,

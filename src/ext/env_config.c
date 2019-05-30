@@ -1,5 +1,5 @@
-#include <Zend/zend_types.h>
 #include <SAPI.h>
+#include <Zend/zend_types.h>
 
 #include "env_config.h"
 

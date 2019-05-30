@@ -5,7 +5,6 @@
 #include "env_config.h"
 #include "vendor_stdatomic.h"
 
-
 #define DD_TRACE_COMS_STACK_SIZE (1024 * 1024 * 10)  // 5 MB
 #define DD_TRACE_COMS_STACKS_BACKLOG_SIZE 10
 
