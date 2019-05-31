@@ -7,7 +7,6 @@ apt-get update \
     && apt-get install -y build-essential m4 \
     autoconf pkg-config libxml2-dev libssl-dev \
     libcurl4-openssl-dev
-exit;
 
 # Install Bison
 # PHP 5 requires bison v2.6.4

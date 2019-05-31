@@ -56,6 +56,12 @@ cd php-src-PHP-${PHP_VERSION} \
   && mkdir -p ${CONF_DIR} \
   && /bin/cp ./php.ini-development ${BASE_PHP_DIR}/php.ini \
   && echo && ${BIN_DIR}/php -v \
-  && printf "\n\n🐘 PHP ${PHP_VERSION} successfully installed\n\n"
+  && printf "\n\n🐘 PHP ${PHP_VERSION} successfully installed\n\n" \
+  || exit 1
+
+# Set this as the default PHP version if there isn't one already
+if ! [[ -x "$(command -v php)" ]]; then
+  ${SCRIPT_DIR}/switch-php ${PHP_VERSION}
+fi
 
 ${SCRIPT_DIR}/ext-all ${PHP_VERSION}

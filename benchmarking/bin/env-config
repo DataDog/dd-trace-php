@@ -13,5 +13,9 @@ BASE_UTILS_DIR=/php/utils
 # Extensions
 BASE_PHP_DIR=/php/${PHP_VERSION}
 BIN_DIR=${BASE_PHP_DIR}/bin
-EXT_DIR=$(${BIN_DIR}/pecl config-get ext_dir)
 CONF_DIR=${BASE_PHP_DIR}/conf.d
+
+EXT_DIR=""
+if [[ -x "$(command -v ${BIN_DIR}/pecl)" ]]; then
+  EXT_DIR=$(${BIN_DIR}/pecl config-get ext_dir)
+fi

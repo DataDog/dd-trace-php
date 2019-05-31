@@ -9,19 +9,19 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
+COPY bin/ /usr/bin/
+
 # Install PHP dependencies
-RUN ./bin/php-deps
+RUN php-deps
 
 # Install PHP versions
-RUN ./bin/build-php 7.3 \
-  && ./bin/build-php 7.2 \
-  && ./bin/build-php 7.1 \
-  && ./bin/build-php 7.0 \
-  && ./bin/build-php 5.6
+# The default PHP version will be set to the first one installed
+RUN build-php 7.3 \
+  && build-php 7.2 \
+  && build-php 7.1 \
+  && build-php 7.0 \
+  && build-php 5.6
 # TODO: Make PHP 5.4 build
-
-# Set default PHP version
-RUN ./bin/switch-php 7.3
 
 # Install Composer
 RUN php -r "readfile('http://getcomposer.org/installer');" | php -- --install-dir=/usr/bin/ --filename=composer

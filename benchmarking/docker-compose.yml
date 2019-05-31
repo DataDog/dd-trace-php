@@ -3,7 +3,7 @@ version: '3.6'
 services:
 
   php:
-    build: './docker'
+    build: .
     ulimits:
       core: 99999999999
     working_dir: '/home/app'
