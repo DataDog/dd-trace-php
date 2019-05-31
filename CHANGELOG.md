@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Append the hostname of a URL to the service name for curl and Guzzle requests when `DD_TRACE_APPEND_HOSTNAME_TO_SERVICE_NAME=true` #459
+
 ### Fixed
 - Fix API change with Symfony 4.x EventDispatcher #466
 
