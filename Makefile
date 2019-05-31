@@ -81,6 +81,7 @@ strict:
 
 clang_find_files_to_lint:
 	@find ./ \
+	-path ./benchmarking -prune -o \
 	-path ./tmp -prune -o \
 	-path ./vendor -prune -o \
 	-path ./tests -prune -o \
