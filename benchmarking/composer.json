@@ -1,0 +1,14 @@
+{
+    "require": {
+        "php": "^7.3",
+        "symfony/console": "^4.3"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "autoload": {
+        "psr-4": {
+            "DDTrace\\Benchmark\\": "./src/"
+        }
+    }
+}

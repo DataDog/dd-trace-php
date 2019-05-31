@@ -1,0 +1,8 @@
+#!/usr/bin/env php
+<?php
+
+use DDTrace\Benchmark\Runner;
+
+require __DIR__ . '/vendor/autoload.php';
+
+(new Runner('DDTrace Benchmark'))->run();
