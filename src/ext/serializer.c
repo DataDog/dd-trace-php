@@ -126,7 +126,7 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) /* 
     return 1;
 }
 
-int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
+int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p TSRMLS_DC) {
     // encode to memory buffer
     char *data;
     size_t size;
@@ -142,11 +142,31 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
         free(data);
         return 0;
     }
+
+    if (data_p && size_p) {
+        *data_p = data;
+        *size_p = size;
+
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
+    // encode to memory buffer
+    char *data;
+    size_t size;
+
+    if (ddtrace_serialize_simple_array_into_c_string(trace, &data, &size TSRMLS_CC)) {
 #if PHP_VERSION_ID < 70000
-    ZVAL_STRINGL(retval, data, size, 1);
+        ZVAL_STRINGL(retval, data, size, 1);
 #else
-    ZVAL_STRINGL(retval, data, size);
+        ZVAL_STRINGL(retval, data, size);
 #endif
-    free(data);
-    return 1;
+        free(data);
+        return 1;
+    } else {
+        return 0;
+    }
 }

@@ -1,5 +1,8 @@
 #include <SAPI.h>
-#include "config.h"
+#include <Zend/zend_types.h>
+
+#include "env_config.h"
+
 #define EQUALS(stra, strb) (memcmp(stra, strb, sizeof(strb) - 1) == 0)
 
 char *get_local_env_or_sapi_env(char *name) {
@@ -14,7 +17,7 @@ char *get_local_env_or_sapi_env(char *name) {
     return env;
 }
 
-zend_bool ddtrace_get_bool_config(char *name, unsigned char def) {
+BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def) {
     char *env = get_local_env_or_sapi_env(name);
     if (!env) {
         return def;
@@ -58,6 +61,16 @@ int64_t ddtrace_get_int_config(char *name, int64_t def) {
 
     return result;
 }
+
+uint32_t ddtrace_get_uint32_config(char *name, uint32_t def) {
+    int64_t value = ddtrace_get_int_config(name, def);
+    if (value < 0 || value > UINT32_MAX) {
+        value = def;
+    }
+    return value;
+}
+
+void ddtrace_env_free(void *ptr) { return efree(ptr); }
 
 char *ddtrace_get_c_string_config(char *name) {
     char *env = get_local_env_or_sapi_env(name);

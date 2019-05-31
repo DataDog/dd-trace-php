@@ -34,6 +34,13 @@
                     <file name="backtrace.h" role="src" />
                     <file name="compat_zend_string.c" role="src" />
                     <file name="compat_zend_string.h" role="src" />
+                    <file name="coms.c" role="src" />
+                    <file name="coms.h" role="src" />
+                    <file name="coms_debug.c" role="src" />
+                    <file name="coms_debug.h" role="src" />
+                    <file name="coms_curl.c" role="src" />
+                    <file name="coms_curl.h" role="src" />
+                    <file name="macros.h" role="src" />
                     <file name="ddtrace.c" role="src" />
                     <file name="ddtrace.h" role="src" />
                     <file name="debug.h" role="src" />
@@ -86,6 +93,9 @@
                     <file name="dd_trace_serialize_msgpack.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error_strict.phpt" role="test" />
+                    <file name="dd_trace_coms_curl_out.phpt" role="test" />
+                    <file name="dd_trace_coms_test_span_concatenation.phpt" role="test" />
+                    <file name="dd_trace_coms_test_parallel_writer_consistency.phpt" role="test" />
                     <file name="disable_tracing_disables_tracing.phpt" role="test" />
                     <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
                     <file name="dd_trace_forward_call_error.phpt" role="test" />
