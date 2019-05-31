@@ -47,8 +47,8 @@ final class UrlsTest extends Framework\TestCase
             ['/foo/123/bar', '/foo/?/bar'],
             ['/foo/a5b30c6b-8795-4b65-8343-4b08ed49e4da/bar', '/foo/?/bar'],
             ['/foo/a5b30c6b87954b6583434b08ed49e4da/bar', '/foo/?/bar'],
-            ['/talk/b07bb-speaker', '/talk/b07bb-speaker'],
-            ['/talk/b07bbaaf-speaker', '/talk/?-speaker'],
+            ['/talk/b07bbaaf-speaker', '/talk/b07bbaaf-speaker'], // "-" is not a URL boundary
+            ['/v1.0/users/1414', '/v1.0/users/?'],
             ['/city/1337/lexington', '/city/?/lexington'],
             ['/city/1337/london', '/city/?/london'],
             ['/api/v2/widget/42', '/api/v2/widget/?'],
