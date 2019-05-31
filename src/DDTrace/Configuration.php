@@ -141,6 +141,16 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Append URL hostname to service name
+     *
+     * @return bool
+     */
+    public function isAppendHostnameToServiceNameEnabled()
+    {
+        return $this->boolValue('trace.append.hostname.to.service.name', false);
+    }
+
+    /**
      * The name of the application.
      *
      * @param string $default

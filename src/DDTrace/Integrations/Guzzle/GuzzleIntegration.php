@@ -7,6 +7,7 @@ use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
+use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -138,10 +139,16 @@ final class GuzzleIntegration extends Integration
      */
     private function setUrlTag(Span $span, $request)
     {
+        $url = null;
         if (is_a($request, '\GuzzleHttp\Message\RequestInterface')) {
-            $span->setTag(Tag::HTTP_URL, (string) $request->getUrl());
+            $url = (string) $request->getUrl();
+            $span->setTag(Tag::HTTP_URL, $url);
         } elseif (is_a($request, '\Psr\Http\Message\RequestInterface')) {
-            $span->setTag(Tag::HTTP_URL, (string) $request->getUri());
+            $url = (string) $request->getUri();
+            $span->setTag(Tag::HTTP_URL, $url);
+        }
+        if (null !== $url && Configuration::get()->isAppendHostnameToServiceNameEnabled()) {
+            $span->setTag(Tag::SERVICE_NAME, GuzzleIntegration::NAME . '-' . Urls::hostname($url));
         }
     }
 

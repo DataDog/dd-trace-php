@@ -215,4 +215,22 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
         // existing headers are honored
         $this->assertSame('preserved_value', $found['headers']['Honored']);
     }
+
+    public function testAppendHostnameToServiceName()
+    {
+        putenv('DD_TRACE_APPEND_HOSTNAME_TO_SERVICE_NAME=true');
+
+        $traces = $this->isolateTracer(function () {
+            $this->getMockedClient()->get('http://example.com');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle-example.com', 'http', 'send')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://example.com',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
 }

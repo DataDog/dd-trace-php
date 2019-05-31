@@ -42,7 +42,7 @@ class CurlIntegration extends Integration
         $integration = new self();
         $globalConfig = Configuration::get();
 
-        dd_trace('curl_exec', function ($ch) use ($integration) {
+        dd_trace('curl_exec', function ($ch) use ($integration, $globalConfig) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 CurlIntegration::injectDistributedTracingHeaders($ch);
@@ -64,6 +64,9 @@ class CurlIntegration extends Integration
 
             $info = curl_getinfo($ch);
             $sanitizedUrl = Urls::sanitize($info['url']);
+            if ($globalConfig->isAppendHostnameToServiceNameEnabled()) {
+                $span->setTag(Tag::SERVICE_NAME, 'curl-' . Urls::hostname($sanitizedUrl));
+            }
             $span->setTag(Tag::RESOURCE_NAME, $sanitizedUrl);
             $span->setTag(Tag::HTTP_URL, $sanitizedUrl);
             $span->setTag(Tag::HTTP_STATUS_CODE, $info['http_code']);

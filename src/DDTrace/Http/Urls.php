@@ -49,6 +49,17 @@ class Urls
     }
 
     /**
+     * Extracts the hostname of a given URL
+     *
+     * @param string $url
+     * @return string
+     */
+    public static function hostname($url)
+    {
+        return (string) parse_url($url, PHP_URL_HOST);
+    }
+
+    /**
      * Reduces cardinality of a url.
      *
      * @param string $url
