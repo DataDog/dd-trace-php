@@ -14,11 +14,11 @@ class Urls
         // [1-5] = UUID version
         // [89ab] = UUID variant
         // @see https://en.wikipedia.org/wiki/Universally_unique_identifier#Format
-        '|\b([0-9a-f]{8}-?[0-9a-f]{4}-?[1-5][0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12})\b|i',
+        '<(/)([0-9a-f]{8}-?[0-9a-f]{4}-?[1-5][0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12})(/|$)>i',
         // 32-512 bit hex hashes
-        '|\b([0-9a-f]{8,128})\b|i',
+        '<(/)([0-9a-f]{8,128})(/|$)>i',
         // int's
-        '|\b([0-9]+)\b|',
+        '<(/)([0-9]+)(/|$)>',
     ];
 
     private $replacementPatterns = [];
@@ -66,6 +66,6 @@ class Urls
             }
         }
         // Fall back to default replacement rules
-        return preg_replace(self::$defaultPatterns, '?', $url);
+        return preg_replace(self::$defaultPatterns, '$1?$3', $url);
     }
 }

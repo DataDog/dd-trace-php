@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file - [read more
 ### Added
 - Initial implementation of flushing spans via background thread #450
 
+### Changed
+- URL-normalization rule boundaries #457
+
 ## [0.25.0]
 
 ### Added
