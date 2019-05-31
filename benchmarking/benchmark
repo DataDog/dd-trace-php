@@ -1,8 +1,13 @@
 #!/usr/bin/env php
 <?php
 
+use DDTrace\Benchmark\Commands\RunBenchmarks;
 use DDTrace\Benchmark\Runner;
 
 require __DIR__ . '/vendor/autoload.php';
 
-(new Runner('DDTrace Benchmark'))->run();
+$app = new Runner('DDTrace Benchmark');
+$command = new RunBenchmarks();
+$app->add($command);
+$app->setDefaultCommand($command->getName());
+$app->run();
