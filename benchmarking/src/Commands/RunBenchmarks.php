@@ -6,6 +6,7 @@ use DDTrace\Benchmark\Crawler;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 final class RunBenchmarks extends Command
 {
@@ -18,7 +19,7 @@ final class RunBenchmarks extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $crawler = new Crawler($output);
+        $crawler = new Crawler(new SymfonyStyle($input, $output));
         $crawler->crawl();
     }
 }
