@@ -142,9 +142,14 @@ class SymfonyBundle extends Bundle
             'dispatch',
             function () use ($symfonyRequestSpan, &$request) {
                 $args = func_get_args();
+                if (isset($args[1]) && is_string($args[1])) {
+                    $eventName = $args[1];
+                } else {
+                    $eventName = is_object($args[0]) ? get_class($args[0]) : $args[0];
+                }
                 $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                     SymfonyIntegration::getInstance(),
-                    'symfony.' . $args[0]
+                    'symfony.' . $eventName
                 );
                 SymfonyBundle::injectRouteInfo($args, $request, $symfonyRequestSpan);
                 return include __DIR__ . '/../../../try_catch_finally.php';
@@ -177,12 +182,15 @@ class SymfonyBundle extends Bundle
      */
     public static function injectRouteInfo($args, $request, Span $requestSpan)
     {
-        $eventName = $args[0];
+        if (is_object($args[0])) {
+            list($event, $eventName) = $args;
+        } else {
+            list($eventName, $event) = $args;
+        }
         if ($eventName !== KernelEvents::CONTROLLER_ARGUMENTS) {
             return;
         }
 
-        $event = $args[1];
         if (!method_exists($event, 'getController')) {
             return;
         }
