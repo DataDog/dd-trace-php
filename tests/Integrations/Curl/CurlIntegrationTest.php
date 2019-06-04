@@ -341,7 +341,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testAppendHostnameToServiceName()
     {
-        putenv('DD_TRACE_APPEND_HOSTNAME_TO_SERVICE_NAME=true');
+        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
 
         $traces = $this->isolateTracer(function () {
             $ch = curl_init(self::URL . '/status/200');
@@ -354,7 +354,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build(
                 'curl_exec',
-                'curl-httpbin_integration',
+                'httpbin_integration',
                 'http',
                 'http://httpbin_integration/status/200'
             )

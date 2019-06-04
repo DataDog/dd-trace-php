@@ -147,8 +147,8 @@ final class GuzzleIntegration extends Integration
             $url = (string) $request->getUri();
             $span->setTag(Tag::HTTP_URL, $url);
         }
-        if (null !== $url && Configuration::get()->isAppendHostnameToServiceNameEnabled()) {
-            $span->setTag(Tag::SERVICE_NAME, GuzzleIntegration::NAME . '-' . Urls::hostname($url));
+        if (null !== $url && Configuration::get()->isHttpClientSplitByDomain()) {
+            $span->setTag(Tag::SERVICE_NAME, Urls::hostname($url));
         }
     }
 

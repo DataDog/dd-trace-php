@@ -141,13 +141,13 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
-     * Append URL hostname to service name
+     * Set URL hostname as service name
      *
      * @return bool
      */
-    public function isAppendHostnameToServiceNameEnabled()
+    public function isHttpClientSplitByDomain()
     {
-        return $this->boolValue('trace.append.hostname.to.service.name', false);
+        return $this->boolValue('trace.http.client.split.by.domain', false);
     }
 
     /**

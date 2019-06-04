@@ -202,13 +202,13 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testAppendHostnameToServiceName()
     {
-        putenv('DD_TRACE_APPEND_HOSTNAME_TO_SERVICE_NAME=true');
+        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
 
         $traces = $this->isolateTracer(function () {
             $this->getMockedClient()->get('http://example.com');
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle-example.com', 'http', 'transfer')
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'example.com', 'http', 'transfer')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'GET',

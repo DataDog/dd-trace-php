@@ -64,8 +64,8 @@ class CurlIntegration extends Integration
 
             $info = curl_getinfo($ch);
             $sanitizedUrl = Urls::sanitize($info['url']);
-            if ($globalConfig->isAppendHostnameToServiceNameEnabled()) {
-                $span->setTag(Tag::SERVICE_NAME, 'curl-' . Urls::hostname($sanitizedUrl));
+            if ($globalConfig->isHttpClientSplitByDomain()) {
+                $span->setTag(Tag::SERVICE_NAME, Urls::hostname($sanitizedUrl));
             }
             $span->setTag(Tag::RESOURCE_NAME, $sanitizedUrl);
             $span->setTag(Tag::HTTP_URL, $sanitizedUrl);
