@@ -141,6 +141,16 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Set URL hostname as service name
+     *
+     * @return bool
+     */
+    public function isHttpClientSplitByDomain()
+    {
+        return $this->boolValue('trace.http.client.split.by.domain', false);
+    }
+
+    /**
      * The name of the application.
      *
      * @param string $default

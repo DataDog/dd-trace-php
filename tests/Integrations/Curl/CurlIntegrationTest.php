@@ -338,4 +338,31 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertEmpty($traces);
     }
+
+    public function testAppendHostnameToServiceName()
+    {
+        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
+
+        $traces = $this->isolateTracer(function () {
+            $ch = curl_init(self::URL . '/status/200');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            $this->assertSame('', $response);
+            curl_close($ch);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build(
+                'curl_exec',
+                'httpbin_integration',
+                'http',
+                'http://httpbin_integration/status/200'
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.url' => self::URL . '/status/200',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
 }

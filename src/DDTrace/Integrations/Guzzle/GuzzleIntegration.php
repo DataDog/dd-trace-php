@@ -7,6 +7,7 @@ use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
+use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -106,8 +107,16 @@ final class GuzzleIntegration extends Integration
             $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
             $span->setTag(Tag::SERVICE_NAME, GuzzleIntegration::NAME);
             $span->setTag(Tag::HTTP_METHOD, $request->getMethod());
-            $self->setUrlTag($span, $request);
             $span->setTag(Tag::RESOURCE_NAME, $method);
+
+            $url = $self->getRequestUrl($request);
+            if (null !== $url) {
+                $span->setTag(Tag::HTTP_URL, $url);
+
+                if (Configuration::get()->isHttpClientSplitByDomain()) {
+                    $span->setTag(Tag::SERVICE_NAME, Urls::hostname($url));
+                }
+            }
         };
     }
 
@@ -133,16 +142,18 @@ final class GuzzleIntegration extends Integration
     }
 
     /**
-     * @param Span $span
      * @param mixed $request
      */
-    private function setUrlTag(Span $span, $request)
+    private function getRequestUrl($request)
     {
+        $url = null;
         if (is_a($request, '\GuzzleHttp\Message\RequestInterface')) {
-            $span->setTag(Tag::HTTP_URL, (string) $request->getUrl());
+            $url = (string) $request->getUrl();
         } elseif (is_a($request, '\Psr\Http\Message\RequestInterface')) {
-            $span->setTag(Tag::HTTP_URL, (string) $request->getUri());
+            $url = (string) $request->getUri();
         }
+
+        return $url;
     }
 
     /**
