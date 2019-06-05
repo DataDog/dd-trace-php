@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.27.0]
+
 ### Added
 - Set the hostname of a URL as the service name for curl and Guzzle requests when `DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true` #459
 
@@ -485,7 +487,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.26.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.27.0...HEAD
+[0.27.0]: https://github.com/DataDog/dd-trace-php/compare/0.26.0...0.27.0
 [0.26.0]: https://github.com/DataDog/dd-trace-php/compare/0.25.0...0.26.0
 [0.25.0]: https://github.com/DataDog/dd-trace-php/compare/0.24.0...0.25.0
 [0.24.0]: https://github.com/DataDog/dd-trace-php/compare/0.23.0...0.24.0
