@@ -355,23 +355,23 @@
         "symfony-23-update": "@fast-update -- --working-dir=tests/Frameworks/Symfony/Version_2_3 update",
         "symfony-23-test": "@composer test -- tests/Integrations/Symfony/V2_3",
 
-        "symfony-28-update": "@fast-update -- --working-dir=tests/Frameworks/Symfony/Version_2_8 update",
+        "symfony-28-update": "SYMFONY_ENV=prod php -d memory_limit=-1 /usr/local/bin/composer --prefer-dist --no-dev --no-suggest --working-dir=tests/Frameworks/Symfony/Version_2_8 update",
         "symfony-28-test": "@composer test -- tests/Integrations/Symfony/V2_8",
 
         "symfony-33-update": [
-            "@fast-update -- --working-dir=tests/Frameworks/Symfony/Version_3_3 update",
+            "SYMFONY_ENV=prod php -d memory_limit=-1 /usr/local/bin/composer --prefer-dist --no-dev --no-suggest --working-dir=tests/Frameworks/Symfony/Version_3_3 update",
             "php tests/Frameworks/Symfony/Version_3_3/bin/console cache:clear --no-warmup --env=prod"
         ],
         "symfony-33-test": "@composer test -- tests/Integrations/Symfony/V3_3",
 
         "symfony-34-update": [
-            "@fast-update -- --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
+            "SYMFONY_ENV=prod php -d memory_limit=-1 /usr/local/bin/composer --prefer-dist --no-dev --no-suggest --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
             "php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod"
         ],
         "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3_4",
 
         "symfony-42-update": [
-            "@fast-update -- --working-dir=tests/Frameworks/Symfony/Version_4_2 update",
+            "SYMFONY_ENV=prod php -d memory_limit=-1 /usr/local/bin/composer --prefer-dist --no-dev --no-suggest --working-dir=tests/Frameworks/Symfony/Version_4_2 update",
             "php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod"
         ],
         "symfony-42-test": "@composer test -- tests/Integrations/Symfony/V4_2",
