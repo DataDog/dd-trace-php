@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - Traces no longer affect deterministic random from `mt_rand()` #449
+- Fix API change with Symfony 4.x EventDispatcher #466
 
 ## [0.26.0]
 
