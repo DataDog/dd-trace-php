@@ -42,7 +42,7 @@ inline static uint32_t get_flush_after_n_requests() {
 
 inline static void curl_set_timeout(CURL *curl) {
     uint32_t agent_timeout = ddtrace_get_uint32_config("DD_TRACE_AGENT_TIMEOUT", DEFAULT_AGENT_TIMEOUT);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, agent_timeout);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, agent_timeout);
 }
 
 inline static void curl_set_connect_timeout(CURL *curl) {

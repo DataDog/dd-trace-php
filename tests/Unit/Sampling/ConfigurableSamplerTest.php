@@ -29,7 +29,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
         $output = 0;
 
         for ($i = 0; $i < self::REPETITIONS; $i++) {
-            $context = new SpanContext('', ID::generate());
+            $context = new SpanContext('', dd_trace_generate_id());
             $output += $sampler->getPrioritySampling(new Span('', $context, '', ''));
         }
 
