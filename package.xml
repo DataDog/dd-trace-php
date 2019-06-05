@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-05-31</date>
+    <date>2019-06-5</date>
     <version>
-        <release>0.26.0</release>
-        <api>0.26.0</api>
+        <release>0.27.0</release>
+        <api>0.27.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -22,10 +22,14 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         ### Added
-        - Initial implementation of flushing spans via background thread #450
+        - Set the hostname of a URL as the service name for curl and Guzzle requests when `DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true` #459
 
         ### Changed
-        - URL-normalization rule boundaries #457
+        - Replace multiple calls to `mt_rand()` (32-bit) with one call to `dd_trace_generate_id()` which implements [MT19937-64](http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/VERSIONS/C-LANG/mt19937-64.c) and returns a 63-bit unsigned integer as a string #449
+
+        ### Fixed
+        - Traces no longer affect deterministic random from `mt_rand()` #449
+        - Fix API change with Symfony 4.x EventDispatcher #466
     </notes>
     <contents>
         <dir name="/">
