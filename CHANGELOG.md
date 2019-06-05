@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Memory leak when garbage collecting span stacks #469
+
 ## [0.27.0]
 
 ### Added
