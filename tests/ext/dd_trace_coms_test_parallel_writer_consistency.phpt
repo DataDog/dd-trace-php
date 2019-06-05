@@ -46,7 +46,6 @@ bar
 bytes_written 4400030
 a
 bytes_written 13
-bytes_written 0
 foo
 bar
 bytes_written 4400030

@@ -5,7 +5,7 @@
 #include "env_config.h"
 #include "vendor_stdatomic.h"
 
-#define DD_TRACE_COMS_STACK_SIZE (1024 * 1024 * 10)  // 5 MB
+#define DD_TRACE_COMS_STACK_SIZE (1024 * 1024 * 10)  // 10 MB
 #define DD_TRACE_COMS_STACKS_BACKLOG_SIZE 10
 
 typedef struct ddtrace_coms_stack_t {
@@ -23,8 +23,12 @@ typedef struct ddtrace_coms_state_t {
     _Atomic(uint32_t) next_group_id;
 } ddtrace_coms_state_t;
 
-inline static uint32_t ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack) {
+inline static BOOL_T ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack) {
     return atomic_load(&stack->refcount) == 0;
+}
+
+inline static BOOL_T ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
+    return ddtrace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0;
 }
 
 BOOL_T ddtrace_coms_rotate_stack();
