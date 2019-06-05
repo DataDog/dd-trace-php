@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Fix API change with Symfony 4.x EventDispatcher #466
+
 ## [0.26.0]
 
 ### Added
