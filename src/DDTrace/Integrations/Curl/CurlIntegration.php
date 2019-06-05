@@ -53,7 +53,6 @@ class CurlIntegration extends Integration
             $scope = $tracer->startIntegrationScopeAndSpan($integration, 'curl_exec');
             $span = $scope->getSpan();
             $span->setTraceAnalyticsCandidate();
-            $span->setTag(Tag::SERVICE_NAME, 'curl');
             $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
             CurlIntegration::injectDistributedTracingHeaders($ch);
 
@@ -66,6 +65,8 @@ class CurlIntegration extends Integration
             $sanitizedUrl = Urls::sanitize($info['url']);
             if ($globalConfig->isHttpClientSplitByDomain()) {
                 $span->setTag(Tag::SERVICE_NAME, Urls::hostname($sanitizedUrl));
+            } else {
+                $span->setTag(Tag::SERVICE_NAME, 'curl');
             }
             $span->setTag(Tag::RESOURCE_NAME, $sanitizedUrl);
             $span->setTag(Tag::HTTP_URL, $sanitizedUrl);
