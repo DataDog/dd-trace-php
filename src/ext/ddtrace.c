@@ -23,6 +23,7 @@
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "memory_limit.h"
+#include "random.h"
 #include "request_hooks.h"
 #include "serializer.h"
 
@@ -99,6 +100,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
         return SUCCESS;
     }
+
+    dd_trace_seed_prng(TSRMLS_C);
 
     if (DDTRACE_G(request_init_hook)) {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));
@@ -494,6 +497,24 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
     RETURN_FALSE;
 }
 
+/* {{{ proto string dd_trace_generate_id() */
+static PHP_FUNCTION(dd_trace_generate_id) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+
+#if PHP_VERSION_ID >= 70200
+    RETURN_STR(dd_trace_generate_id());
+#else
+    char buf[20];
+    dd_trace_generate_id(buf);
+#if PHP_VERSION_ID >= 70000
+    RETURN_STRING(buf);
+#else
+    RETURN_STRING(buf, 1);
+#endif
+#endif
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
@@ -502,7 +523,8 @@ static const zend_function_entry ddtrace_functions[] = {
                     PHP_FE(dd_tracer_circuit_breaker_info, NULL) PHP_FE(dd_trace_coms_flush_span, NULL)
                         PHP_FE(dd_trace_coms_next_span_group_id, NULL) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
                             PHP_FE(dd_trace_flush_span, arginfo_dd_trace_flush_span) PHP_FE(dd_trace_internal_fn, NULL)
-                                PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack) ZEND_FE_END};
+                                PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
+                                    PHP_FE(dd_trace_generate_id, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),

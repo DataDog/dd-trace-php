@@ -85,6 +85,7 @@ clang_find_files_to_lint:
 	-path ./vendor -prune -o \
 	-path ./tests -prune -o \
 	-path ./src/ext/mpack -prune -o \
+	-path ./src/ext/third-party -prune -o \
 	-iname "*.h" -o -iname "*.c" \
 	-type f
 

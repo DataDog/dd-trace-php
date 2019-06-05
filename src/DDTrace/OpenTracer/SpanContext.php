@@ -3,7 +3,6 @@
 namespace DDTrace\OpenTracer;
 
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
-use DDTrace\ID;
 use DDTrace\SpanContext as DDSpanContext;
 use OpenTracing\SpanContext as OTSpanContext;
 
@@ -69,8 +68,8 @@ final class SpanContext implements OTSpanContext
         return new DDSpanContext(
             // Since the OT interface doesn't give us access to the
             // trace and span ID's, we need to regenerate them
-            ID::generate(),
-            ID::generate(),
+            dd_trace_generate_id(),
+            dd_trace_generate_id(),
             null,
             $baggage
         );

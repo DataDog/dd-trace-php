@@ -11,4 +11,5 @@ RELEASING.md        export-ignore
 .circleci           export-ignore
 .clang-format       export-ignore
 src/ext/mpack/*     linguist-generated=true
+src/ext/third-party/*     linguist-generated=true
 src/ext/vendor_stdatomic.h     linguist-generated=true
