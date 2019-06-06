@@ -2,10 +2,10 @@
 <?php
 
 use DDTrace\Benchmark\Commands\RunBenchmarks;
-use DDTrace\Benchmark\Runner;
+use DDTrace\Benchmark\App;
 
 require __DIR__ . '/vendor/autoload.php';
 
-$app = new Runner('DDTrace Benchmark');
+$app = new App('DDTrace Benchmark');
 $app->add(new RunBenchmarks());
 $app->run();
