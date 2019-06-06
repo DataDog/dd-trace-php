@@ -425,6 +425,14 @@ void *ddtrace_init_read_userdata(ddtrace_coms_stack_t *stack) {
     return readstack_ptr;
 }
 
+void ddtrace_deinit_read_userdata(void *userdata) {
+    struct _grouped_stack_t *data = userdata;
+    if (data->dest_data) {
+        free(data->dest_data);
+    }
+    free(userdata);
+}
+
 ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack() {
     ddtrace_coms_stack_t *stack = NULL;
 

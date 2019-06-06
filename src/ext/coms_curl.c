@@ -139,10 +139,6 @@ inline static void curl_send_stack(ddtrace_coms_stack_t *stack) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, dummy_write_callback);
 
         res = curl_easy_perform(curl);
-        curl_slist_free_all(headers);
-        curl_easy_cleanup(curl);
-
-        free(read_data);
 
         if (res != CURLE_OK) {
             if (curl_debug()) {
@@ -157,6 +153,11 @@ inline static void curl_send_stack(ddtrace_coms_stack_t *stack) {
                 fflush(stdout);
             }
         }
+
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+
+        ddtrace_deinit_read_userdata(read_data);
     }
 }
 
