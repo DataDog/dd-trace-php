@@ -7,7 +7,5 @@ use DDTrace\Benchmark\Runner;
 require __DIR__ . '/vendor/autoload.php';
 
 $app = new Runner('DDTrace Benchmark');
-$command = new RunBenchmarks();
-$app->add($command);
-$app->setDefaultCommand($command->getName());
+$app->add(new RunBenchmarks());
 $app->run();

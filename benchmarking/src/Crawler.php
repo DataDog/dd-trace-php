@@ -17,9 +17,15 @@ final class Crawler
         $this->output = $output;
     }
 
-    public function crawl(): void
+    public function crawl(string $phpVersion, array $tracerVersions): void
     {
-        $this->output->writeln('Running scripts from <info>' . $this->dir . '</info>');
+        $this->output->writeln('Running benchmarks on ddtrace');
+        $this->output->listing([
+            "PHP Version: <info>$phpVersion</info>",
+            'Tracer Version(s): <info>' . implode(', ', $tracerVersions) . '</info>',
+            "Benchmark scripts: <info>$this->dir</info>",
+        ]);
+
         foreach (glob($this->dir . '/*', GLOB_ONLYDIR) as $dir) {
             $config = $this->loadConfig($dir);
             if (!$config) {
@@ -44,10 +50,11 @@ final class Crawler
     {
         $this->output->title($config['name'] ?? 'Untitled');
         foreach (glob($dir . '/*.php') as $script) {
-            if ('config.php' === basename($script)) {
+            $fileName = basename($script);
+            if ('config.php' === $fileName) {
                 continue;
             }
-            $this->output->section($script);
+            $this->output->section(basename($dir) . '/' . $fileName);
             // Run benchmark script here
         }
     }
