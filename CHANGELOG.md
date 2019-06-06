@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Changed
+- Valgrind configuration to perform more thorough memory consistency verification #472
+
+### Fixed
+- Memory leak detected in tests #472
+
 ## [0.27.1]
 
 ### Fixed

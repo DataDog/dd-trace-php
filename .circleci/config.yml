@@ -237,6 +237,7 @@ jobs:
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
+      DD_AGENT_HOST: 127.0.0.1
     executor:
       name: with_agent
       docker_image: << parameters.docker_image >>

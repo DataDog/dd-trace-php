@@ -97,6 +97,7 @@
                     <file name="dd_trace_serialize_msgpack.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error_strict.phpt" role="test" />
+                    <file name="dd_trace_coms_empty_stacks_correctly_recycled.phpt" role="test" />
                     <file name="dd_trace_coms_curl_out.phpt" role="test" />
                     <file name="dd_trace_coms_test_span_concatenation.phpt" role="test" />
                     <file name="dd_trace_coms_test_parallel_writer_consistency.phpt" role="test" />
