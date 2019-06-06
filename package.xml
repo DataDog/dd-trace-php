@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-06-05</date>
+    <date>2019-06-06</date>
     <version>
-        <release>0.27.1</release>
-        <api>0.27.1</api>
+        <release>0.27.2</release>
+        <api>0.27.2</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,8 +21,11 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
+        ### Changed
+        - Valgrind configuration to perform more thorough memory consistency verification #472
+
         ### Fixed
-        - Memory leak when garbage collecting span stacks #469
+        - Memory leak detected in tests #472
     </notes>
     <contents>
         <dir name="/">
