@@ -31,7 +31,6 @@ inline static BOOL_T ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
     return ddtrace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0;
 }
 
-
 BOOL_T ddtrace_coms_rotate_stack();
 ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack();
 

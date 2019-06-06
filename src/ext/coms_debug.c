@@ -40,6 +40,7 @@ uint32_t ddtrace_coms_test_writers() {
     printf("written %lu\n",
            DDTRACE_NUMBER_OF_DATA_TO_WRITE * threads * (sizeof(DDTRACE_DATA_TO_WRITE) - 1 + sizeof(size_t)));
     fflush(stdout);
+    free(thread);
 
     return 1;
 }
@@ -120,6 +121,7 @@ uint32_t ddtrace_coms_test_msgpack_consumer() {
     printf("\n");
 
     free(data);
-    free(userdata);
+    ddtrace_deinit_read_userdata(userdata);
+    ddtrace_coms_free_stack(stack);
     return 1;
 }
