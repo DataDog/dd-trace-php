@@ -11,6 +11,17 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 final class RunBenchmarks extends Command
 {
+    // Move this somewhere else
+    private const SUPPORTED_PHP_VERSIONS = [
+        '7.3',
+        '7.2',
+        '7.1',
+        '7.0',
+        '5.6',
+        //'5.5',
+        '5.4',
+    ];
+
     protected static $defaultName = 'run';
 
     protected function configure()
@@ -39,12 +50,20 @@ final class RunBenchmarks extends Command
         $tracerVersions = $input->getArgument('tracer versions');
         $this->validateTracerVersion($tracerVersions);
 
+        // Compile ddtrace versions here
+
         $crawler = new Crawler(new SymfonyStyle($input, $output));
         $crawler->crawl($phpVersion, $tracerVersions);
     }
 
     private function validatePhpVersion(string $phpVersion): void
     {
+        if (!in_array($phpVersion, self::SUPPORTED_PHP_VERSIONS, true)) {
+            throw new \InvalidArgumentException(
+                'PHP version must be a supported PHP version: ' .
+                implode(', ', self::SUPPORTED_PHP_VERSIONS)
+            );
+        }
     }
 
     private function validateTracerVersion(array $tracerVersions): void
