@@ -12,11 +12,15 @@ final class BenchmarkRunner
     private $phpVersion;
     private $tracerVersions;
     private $output;
+    /**
+     * @var BenchmarkResult[][]
+     */
     private $successResults = [];
     /**
      * @var string[]
      */
     private $errorResults = [];
+    private $totalSuccess = 0;
     private $totalRuns = 0;
 
     public function __construct(
@@ -50,7 +54,7 @@ final class BenchmarkRunner
             ));
             $this->runBenchmarks($dir, $config);
         }
-        $this->showSummary();
+        $this->showFullSummary();
     }
 
     private function loadConfig(string $dir): array
@@ -71,6 +75,7 @@ final class BenchmarkRunner
             if ('config.php' === $fileName) {
                 continue;
             }
+            $results = [];
             foreach ($this->tracerVersions as $tracerVersion) {
                 $this->output->write(sprintf(
                     '<info>%s</info> %02d: %s/%s... ',
@@ -79,15 +84,17 @@ final class BenchmarkRunner
                     basename($dir),
                     $fileName
                 ));
-                $this->output->writeln(
-                    $this->benchmarkScript($tracerVersion, $script, $config) ? '✅' : '❌'
-                );
+                $result = $this->benchmarkScript($tracerVersion, $script, $config);
+                $this->output->writeln($result->wasError() ? '❌' : '✅');
+                $results[$tracerVersion][] = $result;
             }
             $i++;
+            $this->output->writeln('');
+            $this->showTimeSummary($results);
         }
     }
 
-    private function benchmarkScript(string $tracerVersion, string $scriptFile, array $config): bool
+    private function benchmarkScript(string $tracerVersion, string $scriptFile, array $config): BenchmarkResult
     {
         $cli = new CLIRunner($this->phpVersion, $tracerVersion);
         $result = $cli->benchmarkScript($scriptFile, $config);
@@ -105,26 +112,64 @@ final class BenchmarkRunner
         }
         if ($result->wasError()) {
             $this->errorResults[] = $result;
-            return false;
+            return $result;
         }
-        $this->successResults[] = $result;
-        return true;
+        $this->successResults[$tracerVersion][] = $result;
+        $this->totalSuccess++;
+        return $result;
     }
 
-    private function showSummary(): void
+    private function showFullSummary(): void
     {
-        $this->output->title('SUMMARY');
+        $this->output->title('TOTAL BENCHMARK SUMMARY');
+        $this->showTimeSummary($this->successResults);
+        $this->showMemorySummary($this->successResults);
         $this->showErrorSummary();
         $this->output->table(
             ['Success', 'Error', 'Total'],
             [
                 [
-                    count($this->successResults),
+                    $this->totalSuccess,
                     count($this->errorResults),
                     $this->totalRuns,
                 ],
             ]
         );
+    }
+
+    /**
+     * @param BenchmarkResult[][] $benchmarkResults
+     */
+    private function showTimeSummary(array $benchmarkResults): void
+    {
+        if (empty($benchmarkResults)) {
+            return;
+        }
+
+        $headers = [];
+        $rows = [];
+        foreach ($benchmarkResults as $tracerVersion => $results) {
+            $headers[] = $tracerVersion;
+            // Nano or Micro???
+            $totalNano = 0;
+            foreach ($results as $result) {
+                $totalNano += $result->duration();
+            }
+            $rows[] = $totalNano . ' μs';
+        }
+        $this->output->table($headers, [$rows]);
+    }
+
+    /**
+     * @param BenchmarkResult[][] $benchmarkResults
+     */
+    private function showMemorySummary(array $benchmarkResults): void
+    {
+        if (empty($benchmarkResults)) {
+            return;
+        }
+
+        // Show memory results here
     }
 
     private function showErrorSummary(): void
