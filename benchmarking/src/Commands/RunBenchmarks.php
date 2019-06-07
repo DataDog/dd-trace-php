@@ -2,7 +2,7 @@
 
 namespace DDTrace\Benchmark\Commands;
 
-use DDTrace\Benchmark\Crawler;
+use DDTrace\Benchmark\BenchmarkRunner;
 use DDTrace\Benchmark\DDTraceCompiler;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -76,8 +76,12 @@ final class RunBenchmarks extends Command
             }
         }
 
-        $crawler = new Crawler(new SymfonyStyle($input, $output));
-        $crawler->crawl($phpVersion, $tracerVersions);
+        $runner = new BenchmarkRunner(
+            $phpVersion,
+            $tracerVersions,
+            new SymfonyStyle($input, $output)
+        );
+        $runner->run();
     }
 
     private function validatePhpVersion(string $phpVersion): void

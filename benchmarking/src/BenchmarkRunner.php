@@ -4,20 +4,28 @@ namespace DDTrace\Benchmark;
 
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-final class Crawler
+final class BenchmarkRunner
 {
     private const BENCHMARK_SCRIPTS_DIR = 'benchmark-scripts';
 
     private $dir;
+    private $phpVersion;
+    private $tracerVersions;
     private $output;
 
-    public function __construct(SymfonyStyle $output)
+    public function __construct(
+        string $phpVersion,
+        array $tracerVersions,
+        SymfonyStyle $output
+    )
     {
         $this->dir = dirname(__DIR__) . '/' . self::BENCHMARK_SCRIPTS_DIR;
+        $this->phpVersion = $phpVersion;
+        $this->tracerVersions = $tracerVersions;
         $this->output = $output;
     }
 
-    public function crawl(string $phpVersion, array $tracerVersions): void
+    public function run(): void
     {
         $this->output->writeln("Running benchmarks in <info>$this->dir</info>...");
 
