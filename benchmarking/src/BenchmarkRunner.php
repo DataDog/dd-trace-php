@@ -44,7 +44,7 @@ final class BenchmarkRunner
             $config = $this->loadConfig($dir);
             $this->output->section(sprintf(
                 '%s (%d)',
-                $config['name'] ?? basename($dir),
+                !empty($config['name']) ? $config['name'] : basename($dir),
                 count($files)
             ));
             $this->runBenchmarks($dir, $config);
