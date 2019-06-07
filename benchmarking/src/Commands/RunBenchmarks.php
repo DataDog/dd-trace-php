@@ -96,5 +96,6 @@ final class RunBenchmarks extends Command
 
     private function validateTracerVersion(array $tracerVersions): void
     {
+        // Add tracer version validation
     }
 }

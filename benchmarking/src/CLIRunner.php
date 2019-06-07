@@ -5,8 +5,10 @@ namespace DDTrace\Benchmark;
 final class CLIRunner
 {
     private const DEFAULT_ENV = [
+        'DD_TRACE_CLI_ENABLED' => 'true',
         'DD_TRACE_AGENT_PORT' => 8126,
         'DD_AGENT_HOST' => 'ddagent',
+        //'DD_TRACE_DEBUG' => 'true',
     ];
     private const DEFAULT_INI = [
         'log_errors' => 'on',
