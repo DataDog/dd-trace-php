@@ -71,59 +71,43 @@ final class BenchmarkRunner
             if ('config.php' === $fileName) {
                 continue;
             }
-            $this->output->write(sprintf(
-                '%03d: %s/%s... ',
-                $i,
-                basename($dir),
-                $fileName
-            ));
-            $this->output->writeln(
-                $this->benchmarkScript($script) ? '✅' : '❌'
-            );
+            foreach ($this->tracerVersions as $tracerVersion) {
+                $this->output->write(sprintf(
+                    '<info>%s</info> %02d: %s/%s... ',
+                    str_pad($tracerVersion, 8), // Space for 00.00.00
+                    $i,
+                    basename($dir),
+                    $fileName
+                ));
+                $this->output->writeln(
+                    $this->benchmarkScript($tracerVersion, $script, $config) ? '✅' : '❌'
+                );
+            }
             $i++;
         }
     }
 
-    private function benchmarkScript(string $scriptFile): bool
+    private function benchmarkScript(string $tracerVersion, string $scriptFile, array $config): bool
     {
-        $errorLog = sprintf(
-            '%s/%s.log',
-            dirname($scriptFile),
-            basename($scriptFile, '.php')
-        );
-        // Clean up from last run
-        if (file_exists($errorLog)) {
-            unlink($errorLog);
-        }
-
-        $exitCode = 0;
-        $log = [];
-
-        $startTime = hrtime(true);
-        $lastLine = exec(
-            sprintf(
-                'php %s 2>&1',
-                escapeshellarg($scriptFile)
-            ),
-            $log,
-            $exitCode
-        );
-        $endTime = hrtime(true);
+        $cli = new CLIRunner($this->phpVersion, $tracerVersion);
+        $result = $cli->benchmarkScript($scriptFile, $config);
         $this->totalRuns++;
+        if ($this->output->isVerbose()) {
+            $this->output->write("\n<comment>" . $result->command() . "</comment>");
+        }
 
         if ($this->output->isVerbose()) {
-            $this->output->write($lastLine);
+            if ($result->wasError()) {
+                $this->output->writeln("\n<error>" . $result->lastLine() . "</error>");
+            } else {
+                $this->output->writeln("\n" . $result->lastLine());
+            }
         }
-        if (0 !== $exitCode) {
-            file_put_contents($errorLog, implode("\n", $log));
-            $this->errorResults[$scriptFile] = $errorLog;
+        if ($result->wasError()) {
+            $this->errorResults[] = $result;
             return false;
         }
-        // Make an entity to store this
-        $this->successResults[$scriptFile] = [
-            'start_time' => $startTime,
-            'end_time' => $endTime,
-        ];
+        $this->successResults[] = $result;
         return true;
     }
 
@@ -149,6 +133,8 @@ final class BenchmarkRunner
             return;
         }
         $this->output->writeln('<error>Failed benchmarks</error>');
-        $this->output->listing($this->errorResults);
+        $this->output->listing(array_map(function (BenchmarkResult $result) {
+            return $result->errorLog();
+        }, $this->errorResults));
     }
 }
