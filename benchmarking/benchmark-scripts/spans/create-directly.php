@@ -6,7 +6,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 
 $spans = [];
-for ($i = 0; $i < 999; $i++) {
+for ($i = 0; $i < 9999; $i++) {
     $span = new Span(
         'test_span',
         SpanContext::createAsRoot(),
@@ -23,4 +23,4 @@ for ($i = 0; $i < 999; $i++) {
     $spans[] = $span;
 }
 
-printf("Created %d spans\n", count($spans));
+printf("Created %d spans with 'new Span()'\n", count($spans));
