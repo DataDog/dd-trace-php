@@ -17,7 +17,7 @@ final class BenchmarkRunner
      */
     private $successResults = [];
     /**
-     * @var string[]
+     * @var BenchmarkResult[]
      */
     private $errorResults = [];
     private $totalSuccess = 0;
@@ -42,11 +42,6 @@ final class BenchmarkRunner
         $files = glob($this->dir . '/*', GLOB_ONLYDIR);
         foreach ($files as $dir) {
             $config = $this->loadConfig($dir);
-            if (!$config) {
-                $this->output->writeln('<comment>Missing or invalid ' . $dir . '/config.php</comment>');
-                continue;
-            }
-
             $this->output->section(sprintf(
                 '%s (%d)',
                 $config['name'] ?? basename($dir),
