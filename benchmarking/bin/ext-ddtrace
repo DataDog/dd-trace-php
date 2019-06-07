@@ -1,0 +1,33 @@
+#!/bin/bash
+
+source $(dirname $(readlink -f $0))/env-config
+
+TRACER_VERSION=$2
+if [ -z "${TRACER_VERSION}" ]; then
+    echo "Please specify a tracer version" && exit 1
+fi
+
+mkdir -p /src/ddtrace-downloads && cd $_
+
+if [ "${TRACER_VERSION}" = "local" ]; then
+    # Fix this
+    rm -Rf ./local \
+        && mkdir ./local \
+        && cp -a /src/ddtrace/ ./local \
+        && cd $_
+else
+    wget --quiet https://github.com/DataDog/dd-trace-php/archive/${TRACER_VERSION}.tar.gz \
+        && rm -Rf dd-trace-php-${TRACER_VERSION} \
+        && tar -xzf ${TRACER_VERSION}.tar.gz \
+        && rm ${TRACER_VERSION}.tar.gz \
+        && cd dd-trace-php-${TRACER_VERSION}
+fi
+
+${BIN_DIR}/phpize \
+    && ./configure \
+        --enable-ddtrace \
+        --with-php-config=${BIN_DIR}/php-config \
+    && make -j$(nproc) \
+    && mkdir -p ${BASE_PHP_DIR}/lib/php/extensions/ddtrace-${TRACER_VERSION}/ \
+    && cp modules/ddtrace.so $_ \
+    && printf "\n🐶 ddtrace ${TRACER_VERSION} for PHP ${PHP_VERSION} compiled successfully - WOOF!\n"

@@ -19,12 +19,7 @@ final class Crawler
 
     public function crawl(string $phpVersion, array $tracerVersions): void
     {
-        $this->output->writeln('Running benchmarks on ddtrace');
-        $this->output->listing([
-            "PHP Version: <info>$phpVersion</info>",
-            'Tracer Version(s): <info>' . implode(', ', $tracerVersions) . '</info>',
-            "Benchmark scripts: <info>$this->dir</info>",
-        ]);
+        $this->output->writeln("Running benchmarks in <info>$this->dir</info>...");
 
         foreach (glob($this->dir . '/*', GLOB_ONLYDIR) as $dir) {
             $config = $this->loadConfig($dir);

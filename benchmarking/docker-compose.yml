@@ -11,6 +11,7 @@ services:
     tty: true
     volumes:
       - .:/home/app
+      - ..:/src/ddtrace
     depends_on:
       - ddagent
     environment:
