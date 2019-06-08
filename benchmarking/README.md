@@ -60,12 +60,15 @@ A special version called `local` will compile the local copy of the PHP tracer i
 $ ./benchmark run 7.3 0.27.2 local
 ```
 
-Each listed version of the tracer will be downloaded and compiled into the container separately. On consecutive runs, the already-compiled tracer versions will not be recompiled unless supplying the `--force-recompile` (or `-f` for short).
+Each listed version of the tracer will be downloaded and compiled into the container separately. On consecutive runs, the already-compiled tracer versions will not be recompiled unless supplying the `--force-recompile=<tracer version>` (or `-f<tracer version>` for short). To recompile all the versions, use `-fall`.
 
 Any changes made to the `local` tracer version (either at the PHP or C-level code), a recompile is necessary to see the changes.
 
 ```bash
-$ ./benchmark run 7.3 0.20.0 0.27.2 local --force-recompile
+$ ./benchmark run 7.3 0.20.0 0.27.2 local --force-recompile=local # Recompile only the local version
+$ ./benchmark run 7.3 0.20.0 0.27.2 local -flocal # Short syntax
+$ ./benchmark run 7.3 0.20.0 0.27.2 local -f0.20.0 # Recompile version 0.20.0
+$ ./benchmark run 7.3 0.20.0 0.27.2 local -fall # Recompile all listed versions
 ```
 
 To see additional debug info, increase the verbosity level with `-v`.

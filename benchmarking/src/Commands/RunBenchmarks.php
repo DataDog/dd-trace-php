@@ -44,9 +44,9 @@ final class RunBenchmarks extends Command
             ->addOption(
                 'force-recompile',
                 ['f'],
-                InputOption::VALUE_OPTIONAL,
+                InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
                 'Force the ddtrace extension to recompile before running benchmarks',
-                false
+                []
             )
         ;
     }
@@ -66,7 +66,7 @@ final class RunBenchmarks extends Command
             $compiler = new DDTraceCompiler(
                 $phpVersion,
                 $tracerVersion,
-                false !== $input->getOption('force-recompile')
+                $input->getOption('force-recompile')
             );
             if ($compiler->shouldCompile()) {
                 $output->writeln("Compiling ddtrace <info>$tracerVersion</info> for PHP <info>$phpVersion</info>...");

@@ -11,13 +11,13 @@ final class DDTraceCompiler
 
     private $phpVersion;
     private $tracerVersion;
-    private $forceRecompile;
+    private $forceRecompile = [];
     private $soFile;
 
     public function __construct(
         string $phpVersion,
         string $tracerVersion = self::DEFAULT_VERSION,
-        bool $forceRecompile = false
+        array $forceRecompile = []
     )
     {
         $this->phpVersion = $phpVersion;
@@ -36,7 +36,10 @@ final class DDTraceCompiler
 
     public function shouldCompile(): bool
     {
-        if (true === $this->forceRecompile) {
+        if (in_array('all', $this->forceRecompile, true)) {
+            return true;
+        }
+        if (in_array($this->tracerVersion, $this->forceRecompile, true)) {
             return true;
         }
         return !file_exists($this->soFile);
