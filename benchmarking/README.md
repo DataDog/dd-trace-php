@@ -54,10 +54,18 @@ The target PHP version is a required parameter followed by an optional list of t
 $ ./benchmark run 7.3 0.20.0 0.27.2
 ```
 
-Each listed version of the tracer will be downloaded and compiled into the container separately. On consecutive runs, the already-compiled tracer versions will not be recompiled unless supplying the `--force-recompile` (or `-f` for short).
+A special version called `local` will compile the local copy of the PHP tracer in the container.
 
 ```bash
-$ ./benchmark run 7.3 0.20.0 0.27.2 --force-recompile
+$ ./benchmark run 7.3 0.27.2 local
+```
+
+Each listed version of the tracer will be downloaded and compiled into the container separately. On consecutive runs, the already-compiled tracer versions will not be recompiled unless supplying the `--force-recompile` (or `-f` for short).
+
+Any changes made to the `local` tracer version (either at the PHP or C-level code), a recompile is necessary to see the changes.
+
+```bash
+$ ./benchmark run 7.3 0.20.0 0.27.2 local --force-recompile
 ```
 
 To see additional debug info, increase the verbosity level with `-v`.

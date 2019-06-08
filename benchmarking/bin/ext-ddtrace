@@ -10,11 +10,14 @@ fi
 mkdir -p /src/ddtrace-downloads && cd $_
 
 if [ "${TRACER_VERSION}" = "local" ]; then
-    # Fix this
-    rm -Rf ./local \
-        && mkdir ./local \
-        && cp -a /src/ddtrace/ ./local \
-        && cd $_
+    rm -Rf ./dd-trace-php-local && mkdir $_ && cd $_ \
+        && tar --exclude="*.lo" -czf local.tar.gz  -C /src/ddtrace bridge src config.m4 \
+        && tar -xzf local.tar.gz && rm local.tar.gz
+        # The idea was to allow PHP changes without recompiling the extension,
+        # by symlinking to the PHP scripts. But since the Docker-to-Macos
+        # filesystem is slow, symlinking would skew the benchmark results.
+        #&& ln -s /src/ddtrace/bridge ./bridge \
+        #&& ln -s /src/ddtrace/src/DDTrace ./src/DDTrace
 else
     wget --quiet https://github.com/DataDog/dd-trace-php/archive/${TRACER_VERSION}.tar.gz \
         && rm -Rf dd-trace-php-${TRACER_VERSION} \
