@@ -145,12 +145,12 @@ final class BenchmarkRunner
         $rows = [];
         foreach ($benchmarkResults as $tracerVersion => $results) {
             $headers[] = $tracerVersion;
-            // Nano or Micro???
             $totalNano = 0;
             foreach ($results as $result) {
                 $totalNano += $result->duration();
             }
-            $rows[] = $totalNano . ' μs';
+            // Convert nano to microseconds
+            $rows[] = number_format($totalNano/1e+6, 2) . ' μs';
         }
         $this->output->table($headers, [$rows]);
     }
