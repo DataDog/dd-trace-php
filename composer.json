@@ -206,8 +206,7 @@
             "@laravel-42-update",
             "@laravel-42-test",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-update",
-            "@custom-framework-autoloaded-test"
+            "@custom-framework-autoloaded-suite"
         ],
         "test-web-56": [
             "@cakephp-28-update",
@@ -216,34 +215,26 @@
             "@laravel-42-test",
             "@slim-312-update",
             "@slim-312-test",
-            "@symfony-23-update",
-            "@symfony-23-test",
-            "@symfony-28-update",
-            "@symfony-28-test",
-            "@symfony-33-update",
-            "@symfony-33-test",
-            "@symfony-34-update",
-            "@symfony-34-test",
+            "@symfony-23-suite",
+            "@symfony-28-suite",
+            "@symfony-30-suite",
+            "@symfony-33-suite",
+            "@symfony-34-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-update",
-            "@custom-framework-autoloaded-test"
+            "@custom-framework-autoloaded-suite"
         ],
         "test-web-70": [
             "@laravel-42-update",
             "@laravel-42-test",
             "@slim-312-update",
             "@slim-312-test",
-            "@symfony-23-update",
-            "@symfony-23-test",
-            "@symfony-28-update",
-            "@symfony-28-test",
-            "@symfony-33-update",
-            "@symfony-33-test",
-            "@symfony-34-update",
-            "@symfony-34-test",
+            "@symfony-23-suite",
+            "@symfony-28-suite",
+            "@symfony-30-suite",
+            "@symfony-33-suite",
+            "@symfony-34-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-update",
-            "@custom-framework-autoloaded-test"
+            "@custom-framework-autoloaded-suite"
         ],
         "test-web-71": [
             "@laravel-42-update",
@@ -260,19 +251,15 @@
             "@lumen-58-test",
             "@slim-312-update",
             "@slim-312-test",
-            "@symfony-23-update",
-            "@symfony-23-test",
-            "@symfony-28-update",
-            "@symfony-28-test",
-            "@symfony-33-update",
-            "@symfony-33-test",
-            "@symfony-34-update",
-            "@symfony-34-test",
+            "@symfony-23-suite",
+            "@symfony-28-suite",
+            "@symfony-30-suite",
+            "@symfony-33-suite",
+            "@symfony-34-suite",
             "@symfony-40-suite",
             "@symfony-42-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-update",
-            "@custom-framework-autoloaded-test"
+            "@custom-framework-autoloaded-suite"
         ],
         "test-web-72": [
             "@laravel-42-update",
@@ -300,8 +287,7 @@
             "@symfony-40-suite",
             "@symfony-42-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-update",
-            "@custom-framework-autoloaded-test"
+            "@custom-framework-autoloaded-suite"
         ],
         "test-web-73": [
             "@laravel-57-update",
@@ -319,8 +305,7 @@
             "@symfony-40-suite",
             "@symfony-42-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-update",
-            "@custom-framework-autoloaded-test"
+            "@custom-framework-autoloaded-suite"
         ],
 
         "inrease-memory-limit": "export COMPOSER_MEMORY_LIMIT=-1",
@@ -357,23 +342,34 @@
             "@composer --working-dir=tests/Frameworks/Symfony/Version_2_3 update"
         ],
         "symfony-23-test": "@composer test -- tests/Integrations/Symfony/V2_3",
+        "symfony-23-suite": [ "@symfony-23-update", "@symfony-23-test" ],
 
         "symfony-28-update": [
             "@composer --working-dir=tests/Frameworks/Symfony/Version_2_8 update"
         ],
         "symfony-28-test": "@composer test -- tests/Integrations/Symfony/V2_8",
+        "symfony-28-suite": [ "@symfony-28-update", "@symfony-28-test" ],
+
+        "symfony-30-update": [
+            "@composer --working-dir=tests/Frameworks/Symfony/Version_3_0 update",
+            "php tests/Frameworks/Symfony/Version_3_0/bin/console cache:clear --no-warmup --env=prod"
+        ],
+        "symfony-30-test": "@composer test -- tests/Integrations/Symfony/V3_0",
+        "symfony-30-suite": [ "@symfony-30-update", "@symfony-30-test" ],
 
         "symfony-33-update": [
             "@composer --working-dir=tests/Frameworks/Symfony/Version_3_3 update",
             "php tests/Frameworks/Symfony/Version_3_3/bin/console cache:clear --no-warmup --env=prod"
         ],
         "symfony-33-test": "@composer test -- tests/Integrations/Symfony/V3_3",
+        "symfony-33-suite": [ "@symfony-33-update", "@symfony-33-test" ],
 
         "symfony-34-update": [
             "@composer --working-dir=tests/Frameworks/Symfony/Version_3_4 update",
             "php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod"
         ],
         "symfony-34-test": "@composer test -- tests/Integrations/Symfony/V3_4",
+        "symfony-34-suite": [ "@symfony-34-update", "@symfony-34-test" ],
 
         "symfony-40-update": [
             "@inrease-memory-limit",
@@ -382,25 +378,20 @@
             "@php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod"
         ],
         "symfony-40-test": "@composer test -- tests/Integrations/Symfony/V4_0",
-        "symfony-40-suite": [
-            "@symfony-40-update",
-            "@symfony-40-test"
-        ],
+        "symfony-40-suite": [ "@symfony-40-update", "@symfony-40-test" ],
         "symfony-42-update": [
             "@inrease-memory-limit",
             "@composer --working-dir=tests/Frameworks/Symfony/Version_4_2 update",
             "php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod"
         ],
         "symfony-42-test": "@composer test -- tests/Integrations/Symfony/V4_2",
-        "symfony-42-suite": [
-            "@symfony-42-update",
-            "@symfony-42-test"
-        ],
+        "symfony-42-suite": [ "@symfony-42-update", "@symfony-42-test" ],
 
         "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1",
 
         "custom-framework-autoloaded-update": "@composer --working-dir=tests/Frameworks/Custom/Version_Autoloaded update",
-        "custom-framework-autoloaded-test": "@composer test -- --testsuite=custom-framework-autoloaded-test"
+        "custom-framework-autoloaded-test": "@composer test -- --testsuite=custom-framework-autoloaded-test",
+        "custom-framework-autoloaded-suite": [ "@custom-framework-autoloaded-update", "@custom-framework-autoloaded-test" ]
     },
     "extra": {
         "scenarios": {
