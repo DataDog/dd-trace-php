@@ -13,27 +13,43 @@
 #include "coms.h"
 #include "coms_curl.h"
 #include "configuration.h"
+#include "env_config.h"
 #include "vendor_stdatomic.h"
 
 #define HOST_FORMAT_STR "http://%s:%u/v0.4/traces"
 
 struct _writer_loop_data_t {
+    CURL *curl;
     pthread_t thread;
-    pthread_mutex_t mutex;
-    pthread_cond_t condition;
-    BOOL_T running;  // needs to be guarded by mutex
-    _Atomic(BOOL_T) shutdown;
-    _Atomic(BOOL_T) send;
-    _Atomic(uint32_t) request_counter;
-    _Atomic(uint32_t) requests_since_last_flush;
+    pthread_mutex_t interval_flush_mutex, finished_flush_mutex, stack_rotation_mutex;
+    pthread_cond_t interval_flush_condition, finished_flush_condition;
+
+    _Atomic(BOOL_T) running;
+    _Atomic(BOOL_T) shutdown_when_idle, suspended, sending, allocate_new_stacks;
+    _Atomic(uint32_t) flush_interval, request_counter, flush_processed_stacks_total, writer_cycle,
+        requests_since_last_flush;
 };
 
+static struct _writer_loop_data_t global_writer = {.interval_flush_mutex = PTHREAD_MUTEX_INITIALIZER,
+                                                   .finished_flush_mutex = PTHREAD_MUTEX_INITIALIZER,
+                                                   .stack_rotation_mutex = PTHREAD_MUTEX_INITIALIZER,
+                                                   .finished_flush_condition = PTHREAD_COND_INITIALIZER,
+                                                   .interval_flush_condition = PTHREAD_COND_INITIALIZER,
+                                                   .running = ATOMIC_VAR_INIT(0),
+                                                   .shutdown_when_idle = ATOMIC_VAR_INIT(0),
+                                                   .suspended = ATOMIC_VAR_INIT(0),
+                                                   .allocate_new_stacks = ATOMIC_VAR_INIT(0),
+                                                   .sending = ATOMIC_VAR_INIT(0)};
+
+inline static struct _writer_loop_data_t *get_writer() { return &global_writer; }
+
+
 inline static void curl_set_timeout(CURL *curl) {
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, get_dd_trace_agent_timeout);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, get_dd_trace_agent_timeout());
 }
 
 inline static void curl_set_connect_timeout(CURL *curl) {
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, get_dd_trace_agent_connect_timeout);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, get_dd_trace_agent_connect_timeout());
 }
 
 inline static void curl_set_hostname(CURL *curl) {
@@ -74,64 +90,52 @@ inline static struct timespec deadline_in_ms(uint32_t ms) {
     return deadline;
 }
 
-inline static BOOL_T curl_debug() { return ddtrace_get_bool_config("DD_TRACE_DEBUG_CURL_OUTPUT", FALSE); }
-
 static size_t dummy_write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     UNUSED(userdata);
     size_t data_length = size * nmemb;
-    if (curl_debug()) {
+    if (get_dd_trace_debug_curl_output()) {
         printf("%s", ptr);
     }
     return data_length;
 }
 
-#ifndef __clang__
-// disable checks since older GCC is throwing false errors
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-static struct _writer_loop_data_t global_writer = {
-    .mutex = PTHREAD_MUTEX_INITIALIZER, .condition = PTHREAD_COND_INITIALIZER, .shutdown = {0}, .send = {0}};
-#pragma GCC diagnostic pop
-#else  //__clang__
-static struct _writer_loop_data_t global_writer = {.mutex = PTHREAD_MUTEX_INITIALIZER,
-                                                   .condition = PTHREAD_COND_INITIALIZER};
-#endif
-
-inline static struct _writer_loop_data_t *get_writer() { return &global_writer; }
-
-inline static void curl_send_stack(ddtrace_coms_stack_t *stack) {
-    CURL *curl = curl_easy_init();
-    if (curl) {
-        CURLcode res;
-        curl_set_hostname(curl);
-        curl_set_timeout(curl);
-        curl_set_connect_timeout(curl);
+inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
+    if (!writer->curl) {
+        writer->curl = curl_easy_init();
 
         struct curl_slist *headers = NULL;
         headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
         headers = curl_slist_append(headers, "Content-Type: application/msgpack");
+        curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
 
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
-        curl_easy_setopt(curl, CURLOPT_INFILESIZE, 10);
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
+        curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, ddtrace_coms_read_callback);
+        curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, dummy_write_callback);
+    }
+
+    CURL *curl = writer->curl;
+    if (curl) {
+        CURLcode res;
 
         void *read_data = ddtrace_init_read_userdata(stack);
 
         curl_easy_setopt(curl, CURLOPT_READDATA, read_data);
-        curl_easy_setopt(curl, CURLOPT_READFUNCTION, ddtrace_coms_read_callback);
+        curl_set_hostname(writer->curl);
+        curl_set_timeout(writer->curl);
+        curl_set_connect_timeout(writer->curl);
 
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, dummy_write_callback);
+        curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
+        curl_easy_setopt(writer->curl, CURLOPT_INFILESIZE, 10);
+        curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, get_dd_trace_agent_debug_verbose_curl());
 
         res = curl_easy_perform(curl);
 
         if (res != CURLE_OK) {
-            if (curl_debug()) {
+            if (get_dd_trace_debug_curl_output()) {
                 printf("curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
                 fflush(stdout);
             }
         } else {
-            if (curl_debug()) {
+            if (get_dd_trace_debug_curl_output()) {
                 double uploaded;
                 curl_easy_getinfo(curl, CURLINFO_SIZE_UPLOAD, &uploaded);
                 printf("UPLOADED %.0f bytes\n", uploaded);
@@ -139,70 +143,129 @@ inline static void curl_send_stack(ddtrace_coms_stack_t *stack) {
             }
         }
 
-        curl_easy_cleanup(curl);
-        curl_slist_free_all(headers);
+        // curl_easy_cleanup(curl);
+        // curl_slist_free_all(headers);
 
         ddtrace_deinit_read_userdata(read_data);
     }
 }
 
+static inline void signal_data_processed(struct _writer_loop_data_t *writer) {
+    pthread_mutex_lock(&writer->finished_flush_mutex);
+    pthread_cond_signal(&writer->finished_flush_condition);
+    pthread_mutex_unlock(&writer->finished_flush_mutex);
+}
+
 static void *writer_loop(void *_) {
     UNUSED(_);
     struct _writer_loop_data_t *writer = get_writer();
-    pthread_mutex_lock(&writer->mutex);
-    writer->running = TRUE;
-    pthread_mutex_unlock(&writer->mutex);
 
+    BOOL_T running = TRUE;
+    atomic_store(&writer->running, TRUE);
     do {
-        if (!atomic_load(&writer->shutdown)) {
-            struct timespec deadline = deadline_in_ms(get_dd_trace_agent_flush_interval());
-
-            pthread_mutex_lock(&writer->mutex);
-            pthread_cond_timedwait(&writer->condition, &writer->mutex, &deadline);
-            pthread_mutex_unlock(&writer->mutex);
+        atomic_fetch_add(&writer->writer_cycle, 1);
+        uint32_t interval = atomic_load(&writer->flush_interval);
+        if (interval > 0) {
+            struct timespec wait_deadline = deadline_in_ms(interval);
+            pthread_mutex_lock(&writer->interval_flush_mutex);
+            pthread_cond_timedwait(&writer->interval_flush_condition, &writer->interval_flush_mutex, &wait_deadline);
+            pthread_mutex_unlock(&writer->interval_flush_mutex);
         }
 
-        ddtrace_coms_rotate_stack();
+        if (atomic_load(&writer->suspended)) {
+            continue;
+        }
         atomic_store(&writer->requests_since_last_flush, 0);
 
         ddtrace_coms_stack_t *stack;
+        ddtrace_coms_threadsafe_rotate_stack(atomic_load(&writer->allocate_new_stacks));
+
+        uint32_t processed_stacks = 0;
         while ((stack = ddtrace_coms_attempt_acquire_stack())) {
-            if (atomic_load(&writer->send)) {
-                curl_send_stack(stack);
+            processed_stacks++;
+            if (atomic_load(&writer->sending)) {
+                curl_send_stack(writer, stack);
             }
+
             ddtrace_coms_free_stack(stack);
         }
-    } while (!atomic_load(&writer->shutdown));
 
+        if (processed_stacks > 0) {
+            atomic_fetch_add(&writer->flush_processed_stacks_total, processed_stacks);
+        } else if (atomic_load(&writer->shutdown_when_idle)) {
+            running = FALSE;
+        }
+
+        signal_data_processed(writer);
+    } while (running);
+
+    atomic_store(&writer->running, FALSE);
     pthread_exit(NULL);
     return NULL;
 }
 
+#ifdef __APPLE__
+void ddtrace_coms_register_atexit_hook() {}
+#else
+static void at_exit_hook() {
+    // due to apparent bug related to lazy symbol binding. calling function as complex as
+    // ddtrace_coms_flush_shutdown_writer_synchronous is unsafe
+    ddtrace_coms_flush_shutdown_writer_synchronous();
+}
+
+void ddtrace_coms_register_atexit_hook() { atexit(at_exit_hook); }
+#endif
+
 BOOL_T ddtrace_coms_set_writer_send_on_flush(BOOL_T send) {
     struct _writer_loop_data_t *writer = get_writer();
-    BOOL_T previous_value = atomic_load(&writer->send);
-    atomic_store(&writer->send, send);
+    BOOL_T previous_value = atomic_load(&writer->sending);
+    atomic_store(&writer->sending, send);
 
     return previous_value;
 }
 
+static inline void writer_set_shutdown_state(struct _writer_loop_data_t *writer) {
+    // spin the writer without waiting to speedup processing time
+    atomic_store(&writer->flush_interval, 0);
+    // stop allocating new stacks on flush
+    atomic_store(&writer->allocate_new_stacks, FALSE);
+    // make the writer exit once it finishes the processing
+    atomic_store(&writer->shutdown_when_idle, TRUE);
+}
+
+static inline void writer_set_operational_state(struct _writer_loop_data_t *writer) {
+    atomic_store(&writer->sending, TRUE);
+    atomic_store(&writer->flush_interval, get_dd_trace_agent_flush_interval());
+    atomic_store(&writer->allocate_new_stacks, TRUE);
+    atomic_store(&writer->shutdown_when_idle, FALSE);
+}
+
 BOOL_T ddtrace_coms_init_and_start_writer() {
     struct _writer_loop_data_t *writer = get_writer();
-    atomic_store(&writer->send, TRUE);
-    atomic_store(&writer->shutdown, FALSE);
+    writer_set_operational_state(writer);
+
     if (pthread_create(&writer->thread, NULL, &writer_loop, NULL) == 0) {
         return TRUE;
+    } else {
+        return FALSE;
     }
+}
 
-    return FALSE;
+BOOL_T ddtrace_coms_threadsafe_rotate_stack(BOOL_T attempt_allocate_new) {
+    struct _writer_loop_data_t *writer = get_writer();
+
+    pthread_mutex_lock(&writer->stack_rotation_mutex);
+    ddtrace_coms_rotate_stack(attempt_allocate_new);
+    pthread_mutex_unlock(&writer->stack_rotation_mutex);
+    return TRUE;
 }
 
 BOOL_T ddtrace_coms_trigger_writer_flush() {
     struct _writer_loop_data_t *writer = get_writer();
 
-    pthread_mutex_lock(&writer->mutex);
-    pthread_cond_signal(&writer->condition);
-    pthread_mutex_unlock(&writer->mutex);
+    pthread_mutex_lock(&writer->interval_flush_mutex);
+    pthread_cond_signal(&writer->interval_flush_condition);
+    pthread_mutex_unlock(&writer->interval_flush_mutex);
 
     return TRUE;
 }
@@ -213,7 +276,7 @@ BOOL_T ddtrace_coms_on_request_finished() {
     atomic_fetch_add(&writer->request_counter, 1);
     uint32_t requests_since_last_flush = atomic_fetch_add(&writer->requests_since_last_flush, 1);
 
-    // simple heuristic to flush every n request to reduce the number of memory held
+    // simple heuristic to flush every n request to improve memory used
     if (requests_since_last_flush > get_dd_trace_agent_flush_after_n_requests()) {
         ddtrace_coms_trigger_writer_flush();
     }
@@ -221,24 +284,48 @@ BOOL_T ddtrace_coms_on_request_finished() {
     return TRUE;
 }
 
-BOOL_T ddtrace_coms_shutdown_writer(BOOL_T immediate) {
+BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
     struct _writer_loop_data_t *writer = get_writer();
-    atomic_store(&writer->shutdown, TRUE);
-    if (immediate) {
-        ddtrace_coms_trigger_writer_flush();
-    }
+    writer_set_shutdown_state(writer);
+    // wakeup the writer
+    ddtrace_coms_trigger_writer_flush();
 
-    if (pthread_mutex_trylock(&writer->mutex) == 0) {
-        BOOL_T should_join = writer->running;
-        writer->running = FALSE;
-        pthread_mutex_unlock(&writer->mutex);
-        if (should_join) {
-            void *ptr;
-            pthread_join(writer->thread, &ptr);
-        }
-    }
+    if (atomic_load(&writer->running)) {
+        void *ptr;
+        int joined = pthread_join(writer->thread, &ptr);
 
+        return (joined == 0);
+    }
     return TRUE;
+}
+
+BOOL_T ddtrace_coms_synchronous_flush() {
+    struct _writer_loop_data_t *writer = get_writer();
+    uint32_t previous_writer_cycle = atomic_load(&writer->writer_cycle);
+    uint32_t previous_processed_stacks_total = atomic_load(&writer->flush_processed_stacks_total);
+    // immediately flush until
+    atomic_store(&writer->flush_interval, 0);
+
+    ddtrace_coms_trigger_writer_flush();
+
+    while (previous_writer_cycle == atomic_load(&writer->writer_cycle)) {
+        if (!atomic_load(&writer->running)) {
+            // writer stopped there is  no way the counter will be increaseed
+            return FALSE;
+        }
+        pthread_mutex_lock(&writer->finished_flush_mutex);
+        struct timespec deadline = deadline_in_ms(100);
+        pthread_cond_timedwait(&writer->finished_flush_condition, &writer->finished_flush_mutex, &deadline);
+        pthread_mutex_unlock(&writer->finished_flush_mutex);
+    }
+
+    // reset the flush interval
+    atomic_store(&writer->flush_interval, get_dd_trace_agent_flush_interval());
+
+    uint32_t processed_stacks_total =
+        atomic_load(&writer->flush_processed_stacks_total) - previous_processed_stacks_total;
+
+    return processed_stacks_total > 0;
 }
 
 BOOL_T ddtrace_in_writer_thread() {

@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "coms.h"
+#include "coms_curl.h"
 #include "env_config.h"
 #include "mpack.h"
 #include "vendor_stdatomic.h"
@@ -13,6 +14,7 @@
 typedef uint32_t group_id_t;
 
 #define GROUP_ID_PROCESSED (1UL << 31UL)
+#define MEMORY_PRESSURE_LEVEL (0.8)
 
 #ifndef __clang__
 // disable checks since older GCC is throwing false errors
@@ -23,6 +25,16 @@ ddtrace_coms_state_t ddtrace_coms_global_state = {{0}};
 #else  //__clang__
 ddtrace_coms_state_t ddtrace_coms_global_state = {.stacks = NULL};
 #endif
+
+static inline BOOL_T is_memory_pressure_high() {
+    ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_global_state.current_stack);
+    if (stack) {
+        double used = (double)atomic_load(&stack->position) / (double)stack->size;
+        return (used > MEMORY_PRESSURE_LEVEL);
+    } else {
+        return FALSE;
+    }
+}
 
 static uint32_t store_data(group_id_t group_id, const char *src, size_t size) {
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_global_state.current_stack);
@@ -106,7 +118,12 @@ BOOL_T ddtrace_coms_initialize() {
     return TRUE;
 }
 
-BOOL_T ddtrace_coms_rotate_stack() {
+void printf_stack_info(ddtrace_coms_stack_t *stack) {
+    printf("stack (%p) refcount: (%d) bytes_written: (%lu)\n", stack, atomic_load(&stack->refcount),
+           atomic_load(&stack->bytes_written));
+}
+
+BOOL_T ddtrace_coms_rotate_stack(BOOL_T attempt_allocate_new) {
     ddtrace_coms_stack_t *next_stack = NULL;
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
     if (current_stack && ddtrace_coms_is_stack_free(current_stack)) {
@@ -141,7 +158,7 @@ BOOL_T ddtrace_coms_rotate_stack() {
 
     // old current stack was stored so set a new stack
     if (current_stack == NULL) {
-        if (!next_stack) {
+        if (!next_stack && attempt_allocate_new) {
             next_stack = new_stack();
         }
 
@@ -153,7 +170,7 @@ BOOL_T ddtrace_coms_rotate_stack() {
     return ENOMEM;
 }
 
-BOOL_T ddtrace_coms_flush_data(uint32_t group_id, const char *data, size_t size) {
+BOOL_T ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) {
     if (!data) {
         return FALSE;
     }
@@ -165,8 +182,19 @@ BOOL_T ddtrace_coms_flush_data(uint32_t group_id, const char *data, size_t size)
     if (size == 0) {
         return FALSE;
     }
+    BOOL_T store_result = store_data(group_id, data, size);
 
-    if (store_data(group_id, data, size) == 0) {
+    if (is_memory_pressure_high()) {
+        ddtrace_coms_trigger_writer_flush();
+    }
+
+    if (store_result == ENOMEM) {
+        ddtrace_coms_threadsafe_rotate_stack(TRUE);
+        ddtrace_coms_trigger_writer_flush();
+        store_result = store_data(group_id, data, size);
+    }
+
+    if (store_result == 0) {
         return TRUE;
     } else {
         return FALSE;

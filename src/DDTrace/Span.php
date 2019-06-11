@@ -8,6 +8,7 @@ use DDTrace\Data\Span as SpanData;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use DDTrace\SpanContext as SpanContext;
 use DDTrace\Http\Urls;
+use DDTrace\Encoders\SpanEncoder;
 use DDTrace\Processing\TraceAnalyticsProcessor;
 use Exception;
 use InvalidArgumentException;
@@ -313,8 +314,14 @@ final class Span extends SpanData
         }
 
         $this->duration = ($finishTime ?: Time::now()) - $this->startTime;
+        $data = SpanEncoder::encode($this);
+        dd_trace_buffer_span($data);
     }
 
+    public function __destruct()
+    {
+        $this->finish();
+    }
     /**
      * @param Throwable|Exception $error
      * @return void
