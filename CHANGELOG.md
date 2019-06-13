@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Stack level too deep error due to changes in how PHP interprets Opcodes caused by the extension #477
+
 ## [0.27.2]
 
 ### Changed
