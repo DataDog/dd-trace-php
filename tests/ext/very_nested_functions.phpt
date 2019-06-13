@@ -13,7 +13,8 @@ dd_trace("test", function($a){
 
 function callNested($nestLevel, $counter){
     if ($nestLevel > 0) {
-        if ($nestLevel == 50) {
+        // call another hooked function in the middle of the stack to check for possible edgecases
+        if ($nestLevel == 50000) {
             return test(callNested($nestLevel - 1, $counter + 1));
         } else {
             return callNested($nestLevel - 1, $counter + 1);
