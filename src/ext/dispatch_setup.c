@@ -18,13 +18,35 @@ user_opcode_handler_t ddtrace_old_icall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
 #if PHP_VERSION_ID >= 70000
-void (*ddtrace_original_execute_ex)(zend_execute_data *TSRMLS_DC);
+static void (*ddtrace_original_execute_ex)(zend_execute_data *TSRMLS_DC);
+zend_op_array * (*ddtrace_original_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
+
 
 static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
+    // static nested_counter = 0;
+
+    zend_execute_ex = execute_ex;
+
     if (ddtrace_original_execute_ex) {
         ddtrace_original_execute_ex(execute_data TSRMLS_CC);
-    } else
+    } else {
         execute_ex(execute_data TSRMLS_CC);
+    }
+}
+
+static zend_op_array *php_compile(zend_file_handle *file_handle, int type TSRMLS_DC){
+	zend_op_array *op_array;
+    zend_execute_ex = php_execute;
+
+	op_array = ddtrace_original_compile_file(file_handle, type TSRMLS_CC);
+
+    if (ddtrace_original_execute_ex) {
+        zend_execute_ex = ddtrace_original_execute_ex;
+    } else {
+        zend_execute_ex = execute_ex;
+    }
+
+	return op_array;
 }
 
 static inline void dispatch_table_dtor(zval *zv) {
@@ -64,7 +86,9 @@ void ddtrace_dispatch_inject(TSRMLS_D) {
  */
 #if PHP_VERSION_ID >= 70000
     ddtrace_original_execute_ex = zend_execute_ex;
-    zend_execute_ex = php_execute;
+
+    ddtrace_original_compile_file = zend_compile_file;
+	zend_compile_file = php_compile;
 
     DDTRACE_G(ddtrace_old_icall_handler) = zend_get_user_opcode_handler(ZEND_DO_ICALL);
     zend_set_user_opcode_handler(ZEND_DO_ICALL, ddtrace_wrap_fcall);
