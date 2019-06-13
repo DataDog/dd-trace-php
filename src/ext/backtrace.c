@@ -14,13 +14,27 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+struct _backtrace_data_t {
+    BOOL_T handler_already_run;
+    BOOL_T handler_installed;
+};
+
+static struct _backtrace_data_t backtrace_globals = {FALSE, FALSE};
+
 void ddtrace_backtrace_handler(int sig) {
+    if (backtrace_globals.handler_already_run) {
+        exit(sig);
+    }
+    backtrace_globals.handler_already_run = TRUE;
     TSRMLS_FETCH();
 
     ddtrace_log_err("Datadog PHP Trace extension (DEBUG MODE)");
     ddtrace_log_errf("Received Signal %d", sig);
     void *array[MAX_STACK_SIZE];
     size_t size = backtrace(array, MAX_STACK_SIZE);
+    if (size == MAX_STACK_SIZE) {
+        ddtrace_log_err("Note: max stacktrace size reached");
+    }
 
     ddtrace_log_err("Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
     ddtrace_log_err("Backtrace:");
@@ -44,10 +58,8 @@ void ddtrace_install_backtrace_handler(TSRMLS_D) {
 
     static int handler_installed = 0;
     if (!handler_installed) {
-        fflush(stderr);
-
         signal(SIGSEGV, ddtrace_backtrace_handler);
-        handler_installed = 1;
+        backtrace_globals.handler_installed = TRUE;
     }
 }
 #else  // defined(__GLIBC__) || defined(__APPLE__)
