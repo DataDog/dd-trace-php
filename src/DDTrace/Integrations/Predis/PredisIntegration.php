@@ -225,7 +225,7 @@ class PredisIntegration extends Integration
             $connection = $predis->getConnection();
 
             if ($connection instanceof \Predis\Connection\Aggregate\MasterSlaveReplication) {
-                $connection = $connection->getCurrent() ?? $connection->getMaster();
+                $connection = $connection->getCurrent() ? $connection->getCurrent() : $connection->getMaster();
             }
             $identifier = (string)$connection;
 
