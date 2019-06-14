@@ -222,7 +222,13 @@ class PredisIntegration extends Integration
         $tags = [];
 
         try {
-            $identifier = (string)$predis->getConnection();
+            $connection = $predis->getConnection();
+
+            if ($connection instanceof \Predis\Connection\Aggregate\MasterSlaveReplication) {
+                $connection = $connection->getCurrent() ?? $connection->getMaster();
+            }
+            $identifier = (string)$connection;
+
             list($host, $port) = explode(':', $identifier);
             $tags[Tag::TARGET_HOST] = $host;
             $tags[Tag::TARGET_PORT] = $port;
