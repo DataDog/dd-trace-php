@@ -41,12 +41,15 @@ aliases:
       - MYSQL_DATABASE=test
 
   - &IMAGE_DOCKER_MONGODB
-    image: mongo:4
+    image: circleci/mongo:4.0
     name: mongodb_integration
-    command: [mongod, --smallfiles]
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=test
-      - MONGO_INITDB_ROOT_PASSWORD=test
+    command: |
+      sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+      echo "deb http://repo.mongodb.org/apt/debian stretch/mongodb-org/4.0 main" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.0.list
+      sudo apt-get install -y apt-transport-https
+      sudo apt-get update
+      sudo apt-get install -y mongodb-org-shell
+      mongo --eval 'db.createUser({ user: "test", pwd: "test", roles: [ { role: "userAdminAnyDatabase", db: "admin" } ] });'
 
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: php:7.2
