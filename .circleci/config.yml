@@ -40,6 +40,14 @@ aliases:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
+  - &IMAGE_DOCKER_MONGODB
+    image: mongo:4
+    name: mongodb_integration
+    command: [mongod, --smallfiles]
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=test
+      - MONGO_INITDB_ROOT_PASSWORD=test
+
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: php:7.2
     name: request_replayer
@@ -107,6 +115,11 @@ aliases:
       name: Waiting for Dockerized request replayer
       command: dockerize -wait tcp://request_replayer:80/clear-dumped-data -timeout 2m
 
+  - &STEP_WAIT_MONGODB
+    run:
+      name: Waiting for Dockerized MongoDB
+      command: dockerize -wait tcp://mongodb_integration:27017 -timeout 1m
+
   - &STEP_PERSIST_TO_WORKSPACE
     persist_to_workspace:
       root: '.'
@@ -165,6 +178,7 @@ executors:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_MONGODB
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
 
 jobs:
@@ -291,6 +305,7 @@ jobs:
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_MONGODB
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
           name: Run auto-instrumentation tests
