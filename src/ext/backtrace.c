@@ -56,8 +56,7 @@ void ddtrace_install_backtrace_handler(TSRMLS_D) {
         return;
     }
 
-    static int handler_installed = 0;
-    if (!handler_installed) {
+    if (!backtrace_globals.handler_installed) {
         signal(SIGSEGV, ddtrace_backtrace_handler);
         backtrace_globals.handler_installed = TRUE;
     }
