@@ -210,7 +210,6 @@ class SymfonyBundle extends Bundle
 
         // Controller and action is provided in the form [$controllerInstance, <actionMethodName>]
         $controllerAndAction = $event->getController();
-        echo "$controllerAndAction"  .  PHP_EOL;
 
         if (!is_array($controllerAndAction)
             || count($controllerAndAction) !== 2
