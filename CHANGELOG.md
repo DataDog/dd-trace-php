@@ -4,8 +4,10 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.28.0]
+
 ### Added
-- Officialy support Symfony 3.0 and 4.0 #475
+- Officially support Symfony 3.0 and 4.0 #475
 
 ### Fixed
 - Stack level too deep error due to changes in how PHP interprets Opcodes caused by the extension #477
@@ -509,7 +511,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.27.2...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.28.0...HEAD
+[0.28.0]: https://github.com/DataDog/dd-trace-php/compare/0.27.2...0.28.0
 [0.27.2]: https://github.com/DataDog/dd-trace-php/compare/0.27.1...0.27.2
 [0.27.1]: https://github.com/DataDog/dd-trace-php/compare/0.27.0...0.27.1
 [0.27.0]: https://github.com/DataDog/dd-trace-php/compare/0.26.0...0.27.0
