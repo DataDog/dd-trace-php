@@ -18,19 +18,60 @@ user_opcode_handler_t ddtrace_old_icall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
 #if PHP_VERSION_ID >= 70000
-void (*ddtrace_original_execute_ex)(zend_execute_data *TSRMLS_DC);
+static void (*ddtrace_original_execute_ex)(zend_execute_data *TSRMLS_DC);
+static zend_op_array *(*ddtrace_original_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
+// dummy zend_execute_ex hook - shouldn't actually be used outside of file compilation
+// in PHP 7+ this is used to ensure compilation step creates opcodes necessary for opcode handlers to work
 static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
+    zend_execute_ex = execute_ex;
+
     if (ddtrace_original_execute_ex) {
         ddtrace_original_execute_ex(execute_data TSRMLS_CC);
-    } else
+    } else {
         execute_ex(execute_data TSRMLS_CC);
+    }
+}
+
+static zend_op_array *php_compile(zend_file_handle *file_handle, int type TSRMLS_DC) {
+    zend_op_array *op_array;
+    zend_execute_ex = php_execute;
+
+    op_array = ddtrace_original_compile_file(file_handle, type TSRMLS_CC);
+
+    if (ddtrace_original_execute_ex) {
+        zend_execute_ex = ddtrace_original_execute_ex;
+    } else {
+        zend_execute_ex = execute_ex;
+    }
+
+    return op_array;
 }
 
 static inline void dispatch_table_dtor(zval *zv) {
     zend_hash_destroy(Z_PTR_P(zv));
     efree(Z_PTR_P(zv));
 }
+
+#if PHP_VERSION_ID >= 70300
+static int (*ddtrace_original_post_startup_cb)(void);
+
+static int php_post_startup_cb(void) {
+    if (ddtrace_original_post_startup_cb) {
+        int (*callback)(void) = ddtrace_original_post_startup_cb;
+        ddtrace_original_post_startup_cb =
+            NULL;  // guard against possible recursion if callback is calling zend_post_startup_cb directly
+        if (callback() != SUCCESS) {
+            return FAILURE;
+        }
+    }
+    ddtrace_original_compile_file = zend_compile_file;
+    zend_compile_file = php_compile;
+
+    return SUCCESS;
+}
+#endif  // PHP_VERSION >= 70300
+
 #else
 static inline void dispatch_table_dtor(void *zv) {
     HashTable *ht = *(HashTable **)zv;
@@ -64,8 +105,15 @@ void ddtrace_dispatch_inject(TSRMLS_D) {
  */
 #if PHP_VERSION_ID >= 70000
     ddtrace_original_execute_ex = zend_execute_ex;
-    zend_execute_ex = php_execute;
 
+// for PHP 7.3+ this needs to be set in zend_post_startup_cb
+#if PHP_VERSION_ID < 70300
+    ddtrace_original_compile_file = zend_compile_file;
+    zend_compile_file = php_compile;
+#else
+    ddtrace_original_post_startup_cb = zend_post_startup_cb;
+    zend_post_startup_cb = php_post_startup_cb;
+#endif  // PHP_VERSION_ID < 70300
     DDTRACE_G(ddtrace_old_icall_handler) = zend_get_user_opcode_handler(ZEND_DO_ICALL);
     zend_set_user_opcode_handler(ZEND_DO_ICALL, ddtrace_wrap_fcall);
 #endif

@@ -156,6 +156,7 @@
                     <file name="trace_static_method.phpt" role="test" />
                     <file name="used_dispatch_shouldn_t_be_freed.phpt" role="test" />
                     <file name="variable_length_parameter_list.phpt" role="test" />
+                    <file name="very_nested_functions.phpt" role="test" />
                     <file name="with_params_function_hook.phpt" role="test" />
                     <file name="with_params_method_hook.phpt" role="test" />
                 </dir>
