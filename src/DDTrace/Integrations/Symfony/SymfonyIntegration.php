@@ -67,7 +67,8 @@ class SymfonyIntegration extends Integration
                 $version = \Symfony\Component\HttpKernel\Kernel::VERSION;
 
                 $bundle = null;
-                if (Versions::versionMatches('3.4', $version) || Versions::versionMatches('3.3', $version)) {
+                if (Versions::versionMatches('3.4', $version) || Versions::versionMatches('3.3', $version)
+                    || Versions::versionMatches('3.0', $version)) {
                     $bundle = new \DDTrace\Integrations\Symfony\V3\SymfonyBundle();
                 } elseif (Versions::versionMatches('4', $version)) {
                     $bundle = new \DDTrace\Integrations\Symfony\V4\SymfonyBundle();

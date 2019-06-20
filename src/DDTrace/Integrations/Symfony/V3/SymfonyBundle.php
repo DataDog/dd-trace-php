@@ -195,7 +195,11 @@ class SymfonyBundle extends Bundle
     public static function injectRouteInfo($args, $request, Span $requestSpan)
     {
         $eventName = $args[0];
-        if ($eventName !== KernelEvents::CONTROLLER_ARGUMENTS) {
+        if (defined("KernelEvents::CONTROLLER_ARGUMENTS")) {
+            if ($eventName !== KernelEvents::CONTROLLER_ARGUMENTS) {
+                return;
+            }
+        } elseif ($eventName !== KernelEvents::CONTROLLER) {
             return;
         }
 
@@ -206,6 +210,7 @@ class SymfonyBundle extends Bundle
 
         // Controller and action is provided in the form [$controllerInstance, <actionMethodName>]
         $controllerAndAction = $event->getController();
+        echo "$controllerAndAction"  .  PHP_EOL;
 
         if (!is_array($controllerAndAction)
             || count($controllerAndAction) !== 2

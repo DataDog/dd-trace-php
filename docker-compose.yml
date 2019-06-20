@@ -24,6 +24,7 @@ x-aliases:
       environment:
         - REDIS_HOSTNAME=redis_integration
         - DDAGENT_HOSTNAME=ddagent_integration
+        - COMPOSER_MEMORY_LIMIT=-1
       cap_add:
         - SYS_PTRACE
   - &base_54_service

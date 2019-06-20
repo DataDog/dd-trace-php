@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Officialy support Symfony 3.0 and 4.0 #475
+
 ### Fixed
 - Stack level too deep error due to changes in how PHP interprets Opcodes caused by the extension #477
 

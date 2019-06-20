@@ -90,6 +90,12 @@ In order to generate the sample Symfony apps we used the default commands from t
 
     $ composer create-project symfony/framework-standard-edition Version_2_8 "2.8.*"
 
+### Symfony 3.0
+
+Link: https://symfony.com/doc/3.0/setup.html
+
+    $ composer create-project symfony/framework-standard-edition Version_3_0 "3.0.*"
+
 ### Symfony 3.3
 
 Link: https://symfony.com/doc/3.3/setup.html
@@ -101,6 +107,14 @@ Link: https://symfony.com/doc/3.3/setup.html
 Link: https://symfony.com/doc/3.4/setup.html
 
     $ composer create-project symfony/framework-standard-edition Version_3_4 "3.4.*"
+
+### Symfony 4.0
+
+Generating project requires older composer version. Known working version can be downloaded frome here: https://getcomposer.org/download/1.1.3/composer.phar
+
+Link: https://symfony.com/doc/4.0/setup.html
+
+    $ composer create-project symfony/website-skeleton Version_4_0 "4.0.*"
 
 ### Symfony 4.2
 
