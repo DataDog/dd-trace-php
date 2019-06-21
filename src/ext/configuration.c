@@ -3,7 +3,15 @@
 #include "configuration.h"
 #include "env_config.h"
 
-struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration = {0};
+struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration = {
+#define CHAR(...) NULL, FALSE,
+#define BOOL(...) FALSE, FALSE,
+#define INT(...) 0, FALSE,
+    DD_CONFIGURATION
+#undef CHAR
+#undef BOOL
+#undef INT
+        PTHREAD_MUTEX_INITIALIZER};
 
 void ddtrace_initialize_config() {
     // read all values to memoize them
