@@ -241,3 +241,8 @@ BOOL_T ddtrace_coms_shutdown_writer(BOOL_T immediate) {
 
     return TRUE;
 }
+
+BOOL_T ddtrace_in_writer_thread() {
+    struct _writer_loop_data_t *writer = get_writer();
+    return (pthread_self() == writer->thread);
+}

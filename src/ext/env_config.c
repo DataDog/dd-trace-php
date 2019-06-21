@@ -2,16 +2,22 @@
 #include <Zend/zend_types.h>
 
 #include "env_config.h"
+#include "coms_curl.h"
 
 #define EQUALS(stra, stra_len, literal_strb) \
     (stra_len == (sizeof(literal_strb) - 1) && memcmp(stra, literal_strb, sizeof(literal_strb) - 1) == 0)
 
 char *get_local_env_or_sapi_env(char *name) {
-    TSRMLS_FETCH();
     char *env = NULL, *tmp = getenv(name);
     if (tmp) {
         env = ddtrace_strdup(tmp);
     } else {
+        // reading sapi_getenv from within writer thread can and will lead to undefined behaviour
+        if (ddtrace_in_writer_thread()){
+            return NULL;
+        }
+
+        TSRMLS_FETCH();
         env = sapi_getenv(name, strlen(name) TSRMLS_CC);
         if (env) {
             // convert PHP memory to pure C memory since this could be used in non request contexts too
