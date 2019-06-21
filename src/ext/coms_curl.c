@@ -65,7 +65,7 @@ inline static void curl_set_hostname(CURL *curl) {
         snprintf(agent_url, agent_url_len, HOST_FORMAT_STR, hostname, (uint32_t)port);
 
         curl_easy_setopt(curl, CURLOPT_URL, agent_url);
-        ddtrace_env_free(hostname);
+        free(hostname);
         free(agent_url);
     } else {
         curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8126/v0.4/traces");
