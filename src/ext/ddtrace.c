@@ -15,11 +15,11 @@
 #include "circuit_breaker.h"
 #include "compat_zend_string.h"
 #include "compatibility.h"
-#include "configuration_php_iface.h"
-#include "configuration.h"
 #include "coms.h"
 #include "coms_curl.h"
 #include "coms_debug.h"
+#include "configuration.h"
+#include "configuration_php_iface.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
@@ -471,8 +471,7 @@ static PHP_FUNCTION(dd_trace_coms_trigger_writer_flush) {
     RETURN_LONG(ddtrace_coms_trigger_writer_flush());
 }
 
-#define FUNCTION_NAME_MATCHES(function) \
-    ((sizeof(function) - 1) == fn_len && strncmp(fn, function, fn_len) == 0)
+#define FUNCTION_NAME_MATCHES(function) ((sizeof(function) - 1) == fn_len && strncmp(fn, function, fn_len) == 0)
 
 static PHP_FUNCTION(dd_trace_internal_fn) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
@@ -555,9 +554,10 @@ static const zend_function_entry ddtrace_functions[] = {
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
             PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(dd_tracer_circuit_breaker_register_error, NULL)
                 PHP_FE(dd_tracer_circuit_breaker_register_success, NULL) PHP_FE(dd_tracer_circuit_breaker_can_try, NULL)
-                    PHP_FE(dd_tracer_circuit_breaker_info, NULL) PHP_FE(dd_trace_coms_flush_span, NULL) PHP_FE(dd_trace_cfg, arginfo_dd_trace_cfg)
-                        PHP_FE(dd_trace_coms_next_span_group_id, NULL) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
-                            PHP_FE(dd_trace_flush_span, arginfo_dd_trace_flush_span) PHP_FE(dd_trace_internal_fn, NULL)
+                    PHP_FE(dd_tracer_circuit_breaker_info, NULL) PHP_FE(dd_trace_coms_flush_span, NULL)
+                        PHP_FE(dd_trace_cfg, arginfo_dd_trace_cfg) PHP_FE(dd_trace_coms_next_span_group_id, NULL)
+                            PHP_FE(dd_trace_coms_trigger_writer_flush, NULL) PHP_FE(
+                                dd_trace_flush_span, arginfo_dd_trace_flush_span) PHP_FE(dd_trace_internal_fn, NULL)
                                 PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
                                     PHP_FE(dd_trace_generate_id, NULL) ZEND_FE_END};
 

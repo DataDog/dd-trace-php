@@ -10,9 +10,9 @@
 #include <time.h>
 
 #include "compatibility.h"
-#include "configuration.h"
 #include "coms.h"
 #include "coms_curl.h"
+#include "configuration.h"
 #include "env_config.h"
 #include "vendor_stdatomic.h"
 
