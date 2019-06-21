@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Race condition when reading configuration from within writer thread context #486
+
 ## [0.28.0]
 
 ### Added
