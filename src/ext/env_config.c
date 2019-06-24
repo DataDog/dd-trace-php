@@ -1,5 +1,7 @@
 #include <SAPI.h>
 #include <Zend/zend_types.h>
+#include <php.h>
+#include <stdint.h>
 
 #include "coms_curl.h"
 #include "env_config.h"
@@ -31,8 +33,8 @@ char *get_local_env_or_sapi_env(char *name TSRMLS_DC) {
     return env;
 }
 
-BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def TSRMLS_CC) {
-    char *env = get_local_env_or_sapi_env(name);
+BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def TSRMLS_DC) {
+    char *env = get_local_env_or_sapi_env(name TSRMLS_CC);
     if (!env) {
         return def;
     }
@@ -56,8 +58,8 @@ BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def TSRMLS_CC) {
     return rv;
 }
 
-int64_t ddtrace_get_int_config(char *name, int64_t def TSRMLS_CC) {
-    char *env = get_local_env_or_sapi_env(name);
+int64_t ddtrace_get_int_config(char *name, int64_t def TSRMLS_DC) {
+    char *env = get_local_env_or_sapi_env(name TSRMLS_CC);
     if (!env) {
         return def;
     }
@@ -76,16 +78,16 @@ int64_t ddtrace_get_int_config(char *name, int64_t def TSRMLS_CC) {
     return result;
 }
 
-uint32_t ddtrace_get_uint32_config(char *name, uint32_t def TSRMLS_CC) {
-    int64_t value = ddtrace_get_int_config(name, def);
+uint32_t ddtrace_get_uint32_config(char *name, uint32_t def TSRMLS_DC) {
+    int64_t value = ddtrace_get_int_config(name, def TSRMLS_CC);
     if (value < 0 || value > UINT32_MAX) {
         value = def;
     }
     return value;
 }
 
-char *ddtrace_get_c_string_config(char *name TSRMLS_CC) {
-    char *env = get_local_env_or_sapi_env(name);
+char *ddtrace_get_c_string_config(char *name TSRMLS_DC) {
+    char *env = get_local_env_or_sapi_env(name TSRMLS_CC);
     if (!env) {
         return NULL;
     } else {
@@ -93,8 +95,8 @@ char *ddtrace_get_c_string_config(char *name TSRMLS_CC) {
     }
 }
 
-char *ddtrace_get_c_string_config_with_default(char *name, const char *def TSRMLS_CC) {
-    char *env = get_local_env_or_sapi_env(name);
+char *ddtrace_get_c_string_config_with_default(char *name, const char *def TSRMLS_DC) {
+    char *env = get_local_env_or_sapi_env(name TSRMLS_CC);
     if (!env) {
         if (def) {
             return ddtrace_strdup(def);

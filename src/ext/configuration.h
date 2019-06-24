@@ -16,7 +16,8 @@ void ddtrace_reload_config();
     INT(get_dd_trace_agent_flush_interval, "DD_TRACE_AGENT_FLUSH_INTERVAL", 5000)               \
     INT(get_dd_trace_agent_flush_after_n_requests, "DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS", 10) \
     INT(get_dd_trace_agent_timeout, "DD_TRACE_AGENT_TIMEOUT", 500)                              \
-    INT(get_dd_trace_agent_connect_timeout, "DEFAULT_AGENT_CONNECT_TIMEOUT", 100)
+    INT(get_dd_trace_agent_connect_timeout, "DD_TRACE_AGENT_CONNECT_TIMEOUT", 100)              \
+    INT(get_dd_trace_debug_prng_seed, "DD_TRACE_DEBUG_PRNG_SEED", -1)
 
 // render all configuration getters and define memoization struct
 #include "configuration_render.h"
