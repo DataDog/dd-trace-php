@@ -53,7 +53,7 @@ ZEND_ARG_INFO(0, group_id)
 ZEND_ARG_INFO(1, trace_array)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_cfg, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_env_config, 0, 0, 1)
 ZEND_ARG_INFO(0, env_name)
 ZEND_END_ARG_INFO()
 
@@ -233,7 +233,7 @@ static PHP_FUNCTION(dd_trace_forward_call) {
 #endif
 }
 
-static PHP_FUNCTION(dd_trace_cfg) {
+static PHP_FUNCTION(dd_trace_env_config) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
     zval *env_name = NULL;
@@ -241,7 +241,7 @@ static PHP_FUNCTION(dd_trace_cfg) {
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &env_name) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameter. the function name must be provided");
+                                    "unexpected parameter. the environment variable name must be provided");
         }
         RETURN_FALSE;
     }

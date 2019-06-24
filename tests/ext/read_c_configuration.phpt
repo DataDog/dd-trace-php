@@ -6,35 +6,35 @@ DD_TRACE_MEMORY_LIMIT=9999
 --FILE--
 
 <?php
-echo dd_trace_cfg("DD_AGENT_HOST");
+echo dd_trace_env_config("DD_AGENT_HOST");
 echo PHP_EOL;
-echo dd_trace_cfg("DD_TRACE_AGENT_PORT");
+echo dd_trace_env_config("DD_TRACE_AGENT_PORT");
 echo PHP_EOL;
-echo dd_trace_cfg("DD_TRACE_AGENT_DEBUG_VERBOSE_CURL") ? 'TRUE' : 'FALSE';
+echo dd_trace_env_config("DD_TRACE_AGENT_DEBUG_VERBOSE_CURL") ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
-echo dd_trace_cfg("DD_TRACE_DEBUG_CURL_OUTPUT") ? 'TRUE' : 'FALSE';
+echo dd_trace_env_config("DD_TRACE_DEBUG_CURL_OUTPUT") ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
-echo dd_trace_cfg("DD_TRACE_BETA_SEND_TRACES_VIA_THREAD") ? 'TRUE' : 'FALSE';
+echo dd_trace_env_config("DD_TRACE_BETA_SEND_TRACES_VIA_THREAD") ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
-echo dd_trace_cfg("DD_TRACE_MEMORY_LIMIT");
+echo dd_trace_env_config("DD_TRACE_MEMORY_LIMIT");
 echo PHP_EOL;
-echo dd_trace_cfg("DD_NON_EXISTING_ENTRY") === NULL ? 'NULL' : 'NOT_NULL' ;
+echo dd_trace_env_config("DD_NON_EXISTING_ENTRY") === NULL ? 'NULL' : 'NOT_NULL' ;
 echo PHP_EOL;
 
 // this format is for compatibility with existing configuration registry
-echo dd_trace_cfg("agent.host");
+echo dd_trace_env_config("agent.host");
 echo PHP_EOL;
-echo dd_trace_cfg("trace.agent.port");
+echo dd_trace_env_config("trace.agent.port");
 echo PHP_EOL;
-echo dd_trace_cfg("trace.agent.debug.verbose.curl") ? 'TRUE' : 'FALSE';
+echo dd_trace_env_config("trace.agent.debug.verbose.curl") ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
-echo dd_trace_cfg("trace.debug.curl.output") ? 'TRUE' : 'FALSE';
+echo dd_trace_env_config("trace.debug.curl.output") ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
-echo dd_trace_cfg("trace.beta.send.traces.via.thread") ? 'TRUE' : 'FALSE';
+echo dd_trace_env_config("trace.beta.send.traces.via.thread") ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
-echo dd_trace_cfg("trace.memory.limit");
+echo dd_trace_env_config("trace.memory.limit");
 echo PHP_EOL;
-echo dd_trace_cfg("non.existing.entry") === NULL ? 'NULL' : 'NOT_NULL' ;
+echo dd_trace_env_config("non.existing.entry") === NULL ? 'NULL' : 'NOT_NULL' ;
 
 ?>
 --EXPECT--
