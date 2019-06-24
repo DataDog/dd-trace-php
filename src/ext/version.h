@@ -1,3 +1,3 @@
 #ifndef PHP_DDTRACE_VERSION
-#define PHP_DDTRACE_VERSION "0.28.0"
+#define PHP_DDTRACE_VERSION "0.28.1"
 #endif

@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-06-20</date>
+    <date>2019-06-24</date>
     <version>
-        <release>0.28.0</release>
-        <api>0.28.0</api>
+        <release>0.28.1</release>
+        <api>0.28.1</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,14 +21,8 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        ### Added
-        - Officially support Symfony 3.0 and 4.0 #475
-
         ### Fixed
-        - Stack level too deep error due to changes in how PHP interprets Opcodes caused by the extension #477
-
-        ### Changed
-        - Backtrace handler will be run only once and will display information about maximum stack size being reached #478
+        - Race condition when reading configuration from within writer thread context #486
     </notes>
     <contents>
         <dir name="/">
@@ -139,9 +133,7 @@
                     <file name="return_value_passed.phpt" role="test" />
                     <file name="run_file_before_request_handling.phpt" role="test" />
                     <file name="segfault_backtrace_disabled.phpt" role="test" />
-                    <file name="segfault_backtrace_disabled_via_env_enabled_in_ini.phpt" role="test" />
                     <file name="segfault_backtrace_enabled.phpt" role="test" />
-                    <file name="segfault_backtrace_enabled_via_env_disabled_in_ini.phpt" role="test" />
                     <file name="get_memory_limit_set_by_percentage.phpt" role="test" />
                     <file name="get_memory_limit_unlimited_set_by_percentage.phpt" role="test" />
                     <file name="check_memory_under_limit_high_user_limit.phpt" role="test" />
@@ -156,7 +148,6 @@
                     <file name="check_memory_under_limit_low_limit.phpt" role="test" />
                     <file name="extension_disabled.phpt" role="test" />
                     <file name="get_memory_limit_0_percent.phpt" role="test" />
-                    <file name="segfault_backtrace_enabled_via_env.phpt" role="test" />
                     <file name="simple_function_hook.phpt" role="test" />
                     <file name="simple_method_hook.phpt" role="test" />
                     <file name="simple_sanity_check.phpt" role="test" />
