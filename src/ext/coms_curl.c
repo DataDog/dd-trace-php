@@ -12,14 +12,10 @@
 #include "compatibility.h"
 #include "coms.h"
 #include "coms_curl.h"
-#include "env_config.h"
+#include "configuration.h"
 #include "vendor_stdatomic.h"
 
 #define HOST_FORMAT_STR "http://%s:%u/v0.4/traces"
-#define DEFAULT_FLUSH_INTERVAL (5000)
-#define DEFAULT_FLUSH_AFTER_N_REQUESTS (10)
-#define DEFAULT_AGENT_CONNECT_TIMEOUT (100)
-#define DEFAULT_AGENT_TIMEOUT (500)
 
 struct _writer_loop_data_t {
     pthread_t thread;
@@ -32,28 +28,17 @@ struct _writer_loop_data_t {
     _Atomic(uint32_t) requests_since_last_flush;
 };
 
-inline static uint32_t get_flush_interval() {
-    return ddtrace_get_uint32_config("DD_TRACE_AGENT_FLUSH_INTERVAL", DEFAULT_FLUSH_INTERVAL);
-}
-
-inline static uint32_t get_flush_after_n_requests() {
-    return ddtrace_get_uint32_config("DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS", DEFAULT_FLUSH_AFTER_N_REQUESTS);
-}
-
 inline static void curl_set_timeout(CURL *curl) {
-    uint32_t agent_timeout = ddtrace_get_uint32_config("DD_TRACE_AGENT_TIMEOUT", DEFAULT_AGENT_TIMEOUT);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, agent_timeout);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, get_dd_trace_agent_timeout);
 }
 
 inline static void curl_set_connect_timeout(CURL *curl) {
-    uint32_t agent_connect_timeout =
-        ddtrace_get_uint32_config("DD_TRACE_AGENT_CONNECT_TIMEOUT", DEFAULT_AGENT_CONNECT_TIMEOUT);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, agent_connect_timeout);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, get_dd_trace_agent_connect_timeout);
 }
 
 inline static void curl_set_hostname(CURL *curl) {
-    char *hostname = ddtrace_get_c_string_config("DD_AGENT_HOST");
-    int64_t port = ddtrace_get_int_config("DD_TRACE_AGENT_PORT", 8126);
+    char *hostname = get_dd_agent_host();
+    int64_t port = get_dd_trace_agent_port();
     if (port <= 0 || port > 65535) {
         port = 8126;
     }
@@ -65,7 +50,7 @@ inline static void curl_set_hostname(CURL *curl) {
         snprintf(agent_url, agent_url_len, HOST_FORMAT_STR, hostname, (uint32_t)port);
 
         curl_easy_setopt(curl, CURLOPT_URL, agent_url);
-        ddtrace_env_free(hostname);
+        free(hostname);
         free(agent_url);
     } else {
         curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8126/v0.4/traces");
@@ -170,7 +155,7 @@ static void *writer_loop(void *_) {
 
     do {
         if (!atomic_load(&writer->shutdown)) {
-            struct timespec deadline = deadline_in_ms(get_flush_interval());
+            struct timespec deadline = deadline_in_ms(get_dd_trace_agent_flush_interval());
 
             pthread_mutex_lock(&writer->mutex);
             pthread_cond_timedwait(&writer->condition, &writer->mutex, &deadline);
@@ -229,7 +214,7 @@ BOOL_T ddtrace_coms_on_request_finished() {
     uint32_t requests_since_last_flush = atomic_fetch_add(&writer->requests_since_last_flush, 1);
 
     // simple heuristic to flush every n request to reduce the number of memory held
-    if (requests_since_last_flush > get_flush_after_n_requests()) {
+    if (requests_since_last_flush > get_dd_trace_agent_flush_after_n_requests()) {
         ddtrace_coms_trigger_writer_flush();
     }
 
@@ -254,4 +239,9 @@ BOOL_T ddtrace_coms_shutdown_writer(BOOL_T immediate) {
     }
 
     return TRUE;
+}
+
+BOOL_T ddtrace_in_writer_thread() {
+    struct _writer_loop_data_t *writer = get_writer();
+    return (pthread_self() == writer->thread);
 }

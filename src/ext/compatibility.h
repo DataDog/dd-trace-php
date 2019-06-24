@@ -46,9 +46,28 @@ typedef int32_t zend_long;
 #if PHP_VERSION_ID < 70000
 #define ZVAL_VARARG_PARAM(list, arg_num) (*list[arg_num])
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_BOOL && Z_LVAL_P(x) == 1)
+#define COMPAT_RETVAL_STRING(c) RETVAL_STRING(c, 1)
 #else
+#define COMPAT_RETVAL_STRING(c) RETVAL_STRING(c)
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval*)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
+#endif
+
+// make code with optional thread context portable
+#if ZTS
+// D - define (define)
+#define COMPAT_CTX_D TSRMLS_D
+// DC - defone with comma (..., define)
+#define COMPAT_CTX_DC TSRMLS_DC
+// C - pass context (ctx)
+#define COMPAT_CTX_C TSRMLS_C
+// DC - pass context with comma (..., ctx)
+#define COMPAT_CTX_CC TSRMLS_CC
+#else
+#define COMPAT_CTX_D
+#define COMPAT_CTX_DC
+#define COMPAT_CTX_C
+#define COMPAT_CTX_CC
 #endif
 
 #endif  // DD_COMPATIBILITY_H

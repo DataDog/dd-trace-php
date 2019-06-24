@@ -7,5 +7,6 @@ BOOL_T ddtrace_coms_trigger_writer_flush();
 BOOL_T ddtrace_coms_on_request_finished();
 BOOL_T ddtrace_coms_set_writer_send_on_flush(BOOL_T send);
 BOOL_T ddtrace_coms_shutdown_writer(BOOL_T immediate);
+BOOL_T ddtrace_in_writer_thread();
 
 #endif  // DD_COMS_CURL_H

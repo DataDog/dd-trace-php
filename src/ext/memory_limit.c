@@ -11,16 +11,16 @@
 #include <ext/standard/info.h>
 
 #include "compatibility.h"
+#include "configuration.h"
 #include "ddtrace.h"
 #include "debug.h"
-#include "env_config.h"
 #include "memory_limit.h"
 #include "serializer.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 zend_long get_memory_limit(TSRMLS_D) {
-    char *raw_memory_limit = ddtrace_get_c_string_config("DD_TRACE_MEMORY_LIMIT");
+    char *raw_memory_limit = get_dd_trace_memory_limit();
     size_t len = 0;
     zend_long limit = -1;
 
@@ -45,7 +45,7 @@ zend_long get_memory_limit(TSRMLS_D) {
     }
 
     if (raw_memory_limit) {
-        efree(raw_memory_limit);
+        free(raw_memory_limit);
     }
 
     return limit;

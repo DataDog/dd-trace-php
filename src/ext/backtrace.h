@@ -4,6 +4,6 @@
 #if defined(__GLIBC__) || defined(__APPLE__)
 void ddtrace_backtrace_handler(int sig);
 #endif
-void ddtrace_install_backtrace_handler(TSRMLS_D);
+void ddtrace_install_backtrace_handler();
 
 #endif  // DD_BACKTRACE_H

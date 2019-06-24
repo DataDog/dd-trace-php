@@ -21,7 +21,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
      */
     public function testSpansAreKept($samplingRate, $lower, $upper)
     {
-        Configuration::replace(\Mockery::mock('DDtrace\Configuration', [
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
             'getSamplingRate' => $samplingRate,
         ]));
         $sampler = new ConfigurableSampler();

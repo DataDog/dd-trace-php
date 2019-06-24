@@ -8,8 +8,8 @@
 
 #include <execinfo.h>
 #include "backtrace.h"
+#include "configuration.h"
 #include "ddtrace.h"
-#include "env_config.h"
 #include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -51,8 +51,8 @@ void ddtrace_backtrace_handler(int sig) {
     exit(sig);
 }
 
-void ddtrace_install_backtrace_handler(TSRMLS_D) {
-    if (!ddtrace_get_bool_config("DD_LOG_BACKTRACE", DDTRACE_G(log_backtrace))) {
+void ddtrace_install_backtrace_handler() {
+    if (!get_dd_log_backtrace()) {
         return;
     }
 
@@ -61,12 +61,8 @@ void ddtrace_install_backtrace_handler(TSRMLS_D) {
         backtrace_globals.handler_installed = TRUE;
     }
 }
-#else  // defined(__GLIBC__) || defined(__APPLE__)
-#if defined(ZTS) && PHP_VERSION_ID < 70000
-void ddtrace_install_backtrace_handler(TSRMLS_D) { (void)(TSRMLS_C); }
-#else   // ZTS
+#else   // defined(__GLIBC__) || defined(__APPLE__)
 void ddtrace_install_backtrace_handler() {
     // NOOP
 }
-#endif  // ZTS
 #endif  // GLIBC
