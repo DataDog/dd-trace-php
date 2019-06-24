@@ -13,7 +13,6 @@
 #include "coms.h"
 #include "coms_curl.h"
 #include "configuration.h"
-#include "env_config.h"
 #include "vendor_stdatomic.h"
 
 #define HOST_FORMAT_STR "http://%s:%u/v0.4/traces"

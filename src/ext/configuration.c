@@ -2,6 +2,7 @@
 
 #include "configuration.h"
 #include "env_config.h"
+#include "TSRM.h"
 
 struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration = {
 #define CHAR(...) NULL, FALSE,
@@ -13,7 +14,7 @@ struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration = {
 #undef INT
         PTHREAD_MUTEX_INITIALIZER};
 
-void ddtrace_reload_config() {
+void ddtrace_reload_config(TSRMLS_D) {
 #define CHAR(getter_name, ...)                            \
     if (ddtrace_memoized_configuration.getter_name) {     \
         free(ddtrace_memoized_configuration.getter_name); \
@@ -28,5 +29,5 @@ void ddtrace_reload_config() {
 #undef INT
 #undef BOOL
     // repopulate config
-    ddtrace_initialize_config();
+    ddtrace_initialize_config(TSRMLS_C);
 }

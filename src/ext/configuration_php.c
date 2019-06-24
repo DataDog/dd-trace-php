@@ -1,8 +1,13 @@
+#include <errno.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include <php.h>
 #include "configuration.h"
 #include "env_config.h"
+#include "TSRM.h"
 
 void ddtrace_initialize_config(TSRMLS_D) {
     // read all values to memoize them
