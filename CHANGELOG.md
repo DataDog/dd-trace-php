@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.28.1]
+
 ### Fixed
 - Race condition when reading configuration from within writer thread context #486
 
@@ -514,7 +516,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.28.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.28.1...HEAD
+[0.28.1]: https://github.com/DataDog/dd-trace-php/compare/0.28.0...0.28.1
 [0.28.0]: https://github.com/DataDog/dd-trace-php/compare/0.27.2...0.28.0
 [0.27.2]: https://github.com/DataDog/dd-trace-php/compare/0.27.1...0.27.2
 [0.27.1]: https://github.com/DataDog/dd-trace-php/compare/0.27.0...0.27.1
