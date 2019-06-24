@@ -40,8 +40,6 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
                     ddtrace_globals)
-STD_PHP_INI_BOOLEAN("ddtrace.log_backtrace", "0", PHP_INI_SYSTEM, OnUpdateBool, log_backtrace, zend_ddtrace_globals,
-                    ddtrace_globals)
 PHP_INI_END()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_msgpack, 0, 0, 1)
@@ -67,9 +65,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
-    ddtrace_install_backtrace_handler(TSRMLS_C);
+    // config initialization needs to be at the top
     ddtrace_initialize_config(TSRMLS_C);
 
+    ddtrace_install_backtrace_handler();
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);
     ddtrace_coms_initialize();
