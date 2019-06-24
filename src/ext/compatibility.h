@@ -53,4 +53,21 @@ typedef int32_t zend_long;
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 #endif
 
+// make code with optional thread context portable
+#if ZTS
+// D - define (define)
+#define COMPAT_CTX_D TSRMLS_D
+// DC - defone with comma (..., define)
+#define COMPAT_CTX_DC TSRMLS_DC
+// C - pass context (ctx)
+#define COMPAT_CTX_C TSRMLS_C
+// DC - pass context with comma (..., ctx)
+#define COMPAT_CTX_CC TSRMLS_CC
+#else
+#define COMPAT_CTX_D
+#define COMPAT_CTX_DC
+#define COMPAT_CTX_C
+#define COMPAT_CTX_CC
+#endif
+
 #endif  // DD_COMPATIBILITY_H
