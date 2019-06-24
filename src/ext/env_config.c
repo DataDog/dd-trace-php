@@ -7,7 +7,7 @@
 #define EQUALS(stra, stra_len, literal_strb) \
     (stra_len == (sizeof(literal_strb) - 1) && memcmp(stra, literal_strb, sizeof(literal_strb) - 1) == 0)
 
-char *get_local_env_or_sapi_env(char *name) {
+char *get_local_env_or_sapi_env(char *name TSRMLS_DC) {
     char *env = NULL, *tmp = getenv(name);
     if (tmp) {
         env = ddtrace_strdup(tmp);
@@ -17,7 +17,6 @@ char *get_local_env_or_sapi_env(char *name) {
             return NULL;
         }
 
-        TSRMLS_FETCH();
         env = sapi_getenv(name, strlen(name) TSRMLS_CC);
         if (env) {
             // convert PHP memory to pure C memory since this could be used in non request contexts too
@@ -32,7 +31,7 @@ char *get_local_env_or_sapi_env(char *name) {
     return env;
 }
 
-BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def) {
+BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def TSRMLS_CC) {
     char *env = get_local_env_or_sapi_env(name);
     if (!env) {
         return def;
@@ -57,7 +56,7 @@ BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def) {
     return rv;
 }
 
-int64_t ddtrace_get_int_config(char *name, int64_t def) {
+int64_t ddtrace_get_int_config(char *name, int64_t def TSRMLS_CC) {
     char *env = get_local_env_or_sapi_env(name);
     if (!env) {
         return def;
@@ -77,7 +76,7 @@ int64_t ddtrace_get_int_config(char *name, int64_t def) {
     return result;
 }
 
-uint32_t ddtrace_get_uint32_config(char *name, uint32_t def) {
+uint32_t ddtrace_get_uint32_config(char *name, uint32_t def TSRMLS_CC) {
     int64_t value = ddtrace_get_int_config(name, def);
     if (value < 0 || value > UINT32_MAX) {
         value = def;
@@ -85,7 +84,7 @@ uint32_t ddtrace_get_uint32_config(char *name, uint32_t def) {
     return value;
 }
 
-char *ddtrace_get_c_string_config(char *name) {
+char *ddtrace_get_c_string_config(char *name TSRMLS_CC) {
     char *env = get_local_env_or_sapi_env(name);
     if (!env) {
         return NULL;
@@ -94,7 +93,7 @@ char *ddtrace_get_c_string_config(char *name) {
     }
 }
 
-char *ddtrace_get_c_string_config_with_default(char *name, const char *def) {
+char *ddtrace_get_c_string_config_with_default(char *name, const char *def TSRMLS_CC) {
     char *env = get_local_env_or_sapi_env(name);
     if (!env) {
         if (def) {

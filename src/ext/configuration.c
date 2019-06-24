@@ -13,27 +13,6 @@ struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration = {
 #undef INT
         PTHREAD_MUTEX_INITIALIZER};
 
-void ddtrace_initialize_config() {
-    // read all values to memoize them
-
-    // CHAR returns a copy of a value that we need to free
-#define CHAR(getter_name, ...)   \
-    do {                         \
-        char *p = getter_name(); \
-        if (p) {                 \
-            free(p);             \
-        }                        \
-    } while (0);
-#define INT(getter_name, ...) getter_name();
-#define BOOL(getter_name, ...) getter_name();
-
-    DD_CONFIGURATION
-
-#undef CHAR
-#undef INT
-#undef BOOL
-}
-
 void ddtrace_reload_config() {
 #define CHAR(getter_name, ...)                            \
     if (ddtrace_memoized_configuration.getter_name) {     \
