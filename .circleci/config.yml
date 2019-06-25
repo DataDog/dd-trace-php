@@ -127,7 +127,19 @@ commands:
       - run:
           name: Installing missing libcurl workaround
           command: << parameters.command >>
-
+  copy_valgrind_rc:
+    parameters:
+      valgrind_config:
+        type: string
+        default: ""
+    steps:
+      - run:
+          name: Copy valgrind.rc configuration and suppressions
+          command: |
+            if [ -e ".circleci/valgrind/<< parameters.valgrind_config >>_valgrind.rc" ]; then
+              cp .circleci/valgrind/<< parameters.valgrind_config >>_valgrind.rc /home/circleci/.valgrindrc
+              cp .circleci/valgrind/valgrind_<< parameters.valgrind_config >>_suppressions.lib /home/circleci/valgrind_<< parameters.valgrind_config >>_suppressions.lib
+            fi
   prepare_extension_and_composer_with_cache:
     steps:
       - <<: *STEP_EXT_INSTALL
@@ -251,15 +263,17 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
-          command: << parameters.lib_curl_command >>
+          command: |
+            export command="<< parameters.lib_curl_command >>"
+            if [[ ! $command =~ ^\ +$ ]]; then
+              << parameters.lib_curl_command >>
+              echo
+            fi
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      - run:
-          name: Copy valgrind.rc configuration and suppressions
-          command: |
-            cp .circleci/valgrind/<< parameters.valgrind_config >>_valgrind.rc /home/circleci/.valgrindrc
-            cp .circleci/valgrind/valgrind_<< parameters.valgrind_config >>_suppressions.lib /home/circleci/valgrind_<< parameters.valgrind_config >>_suppressions.lib
+      - copy_valgrind_rc:
+          valgrind_config: << parameters.valgrind_config >>
       - run:
           name: Run extension tests with leak detection
           command: make test_extension_ci BUILD_DIR=tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
@@ -276,6 +290,48 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
+  php_language_tests:
+    parameters:
+      docker_image:
+        type: string
+      valgrind_config:
+        type: string
+        default: musl
+    working_directory: ~/datadog
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+      DD_AGENT_HOST: 127.0.0.1
+    executor:
+      name: with_agent
+      docker_image: << parameters.docker_image >>
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - run:
+          name: Run tests
+          command: |
+            docker-php-source extract
+            cd /usr/src/php
+            export DD_TRACE_CLI_ENABLED=true
+            export REPORT_EXIT_STATUS=1
+            export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
+            mkdir -p /tmp/artifacts/tests
+            php run-tests.php -q \
+              -p /usr/local/bin/php \
+              --show-diff \
+              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests/files
+          when: on_fail
+      - store_test_results:
+          path: /tmp/artifacts/tests/
+      - store_artifacts:
+          path: /tmp/artifacts/tests/files/
 
   integration_tests:
     working_directory: ~/datadog
@@ -439,6 +495,11 @@ jobs:
           command: make -f dockerfiles/verify_packages/Makefile docker_compose_pull all
       - store_test_results:
           path: test-results
+  placeholder:
+    docker:
+      - image: busybox
+    steps:
+      - run: echo "."
 
 workflows:
   version: 2
@@ -549,11 +610,6 @@ workflows:
       - "Code Checkout"
       - compile_extension:
           requires: [ 'Code Checkout' ]
-          name: "PHP 73 Compilation test"
-          docker_image: "datadog/docker-library:ddtrace_centos_7_php_73"
-          lib_curl_command: yum -y install libcurl-devel
-      - compile_extension:
-          requires: [ 'Code Checkout' ]
           name: "PHP 55 Compilation test"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
@@ -594,9 +650,36 @@ workflows:
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Unit tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
-          valgrind_config: 7_3_musl
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+          docker_image: "datadog/dd-trace-php:7.3-buster-debug"
+          valgrind_config: ""
+          lib_curl_command: ""
+      - placeholder:
+          requires: [ 'Code Checkout' ]
+          name: Language tests
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 73 language tests"
+          docker_image: "datadog/dd-trace-php:7.3-buster-debug"
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 72 language tests"
+          docker_image: "datadog/dd-trace-php:7.2-buster-debug"
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 71 language tests"
+          docker_image: "datadog/dd-trace-php:7.1-buster-debug"
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 70 language tests"
+          docker_image: "datadog/dd-trace-php:7.0-buster-debug"
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 56 language tests"
+          docker_image: "datadog/dd-trace-php:5.6-buster-debug"
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 54 language tests"
+          docker_image: "datadog/dd-trace-php:5.4-buster-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Integration tests"
@@ -631,8 +714,8 @@ workflows:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Integration tests"
           integration_testsuite: "test-integrations-73"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+          docker_image: "datadog/dd-trace-php:7.3-buster-debug"
+          lib_curl_command: "echo;"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Web integration tests"
@@ -703,7 +786,6 @@ workflows:
           name: "Hyperfine 73 benchmarks"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
-
       - "Lint files":
           requires: [ 'Code Checkout' ]
       - "Static Analysis":
