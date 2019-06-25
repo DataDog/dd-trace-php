@@ -82,18 +82,34 @@ static inline void dispatch_table_dtor(void *zv) {
 #endif
 
 void ddtrace_dispatch_init(TSRMLS_D) {
-    zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)dispatch_table_dtor, 0);
-    zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_release_compat, 0);
+    ALLOC_HASHTABLE(DDTRACE_G(class_lookup));
+    zend_hash_init(DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)dispatch_table_dtor, 0);
+
+    ALLOC_HASHTABLE(DDTRACE_G(function_lookup));
+    zend_hash_init(DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_release_compat, 0);
 }
 
 void ddtrace_dispatch_destroy(TSRMLS_D) {
-    zend_hash_destroy(&DDTRACE_G(class_lookup));
-    zend_hash_destroy(&DDTRACE_G(function_lookup));
+    if (DDTRACE_G(class_lookup)) {
+        zend_hash_destroy(DDTRACE_G(class_lookup));
+        FREE_HASHTABLE(DDTRACE_G(class_lookup));
+        DDTRACE_G(class_lookup) = NULL;
+    }
+
+    if (DDTRACE_G(function_lookup)) {
+        zend_hash_destroy(DDTRACE_G(function_lookup));
+        FREE_HASHTABLE(DDTRACE_G(function_lookup));
+	    DDTRACE_G(function_lookup) = NULL;
+    }
 }
 
 void ddtrace_dispatch_reset(TSRMLS_D) {
-    zend_hash_clean(&DDTRACE_G(class_lookup));
-    zend_hash_clean(&DDTRACE_G(function_lookup));
+    if (DDTRACE_G(class_lookup)) {
+        zend_hash_clean(DDTRACE_G(class_lookup));
+    }
+    if (DDTRACE_G(function_lookup)) {
+        zend_hash_clean(DDTRACE_G(function_lookup));
+    }
 }
 
 void ddtrace_dispatch_inject(TSRMLS_D) {
@@ -127,12 +143,12 @@ void ddtrace_dispatch_inject(TSRMLS_D) {
 
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TSRMLS_DC) {
     HashTable *overridable_lookup = NULL;
-    if (class_name) {
+    if (class_name && DDTRACE_G(class_lookup)) {
 #if PHP_VERSION_ID < 70000
         overridable_lookup =
-            zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), Z_STRVAL_P(class_name), Z_STRLEN_P(class_name));
+            zend_hash_str_find_ptr(DDTRACE_G(class_lookup), Z_STRVAL_P(class_name), Z_STRLEN_P(class_name));
 #else
-        overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), Z_STR_P(class_name));
+        overridable_lookup = zend_hash_find_ptr(DDTRACE_G(class_lookup), Z_STR_P(class_name));
 #endif
         if (!overridable_lookup) {
             overridable_lookup = ddtrace_new_class_lookup(class_name TSRMLS_CC);
@@ -149,7 +165,7 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TS
             return 0;
         }
 
-        overridable_lookup = &DDTRACE_G(function_lookup);
+        overridable_lookup = DDTRACE_G(function_lookup);
     }
 
     if (!overridable_lookup) {

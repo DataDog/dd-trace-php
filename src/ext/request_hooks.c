@@ -7,6 +7,7 @@
 
 #include "compat_zend_string.h"
 #include "ddtrace.h"
+#include "env_config.h"
 #include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -79,6 +80,10 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     zval *result = NULL;
     int ret;
 
+    BOOL_T rv = FALSE;
+    char *original_open_basedir = PG(open_basedir);
+    PG(open_basedir) = NULL;
+
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE TSRMLS_CC);
 
     if (ret == SUCCESS) {
@@ -109,11 +114,12 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
                     zval_ptr_dtor(EG(return_value_ptr_ptr));
                 }
             }
-
-            return 1;
+            rv = TRUE;
         }
     }
-    return 0;
+
+    PG(open_basedir) = original_open_basedir;
+    return rv;
 }
 #else
 
@@ -126,8 +132,9 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     zend_file_handle file_handle;
     zend_op_array *new_op_array;
     zval result;
-    int ret;
-
+    int ret, rv = FALSE;
+    char *original_open_basedir = PG(open_basedir);
+    PG(open_basedir) = NULL;
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
 
     if (ret == SUCCESS) {
@@ -154,10 +161,11 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
             if (!EG(exception)) {
                 zval_ptr_dtor(&result);
             }
-
-            return 1;
+            rv = TRUE;
         }
     }
-    return 0;
+
+    PG(open_basedir) = original_open_basedir;
+    return rv;
 }
 #endif

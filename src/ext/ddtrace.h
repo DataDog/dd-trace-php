@@ -26,8 +26,8 @@ char *internal_blacklisted_modules_list;
 zend_bool strict_mode;
 
 uint32_t traces_group_id;
-HashTable class_lookup;
-HashTable function_lookup;
+HashTable *class_lookup;
+HashTable *function_lookup;
 zend_bool log_backtrace;
 ddtrace_original_context original_context;
 

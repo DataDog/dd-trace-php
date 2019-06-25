@@ -53,7 +53,7 @@ HashTable *ddtrace_new_class_lookup(zval *class_name) {
 
     ALLOC_HASHTABLE(class_lookup);
     zend_hash_init(class_lookup, 8, NULL, ddtrace_class_lookup_release_compat, 0);
-    zend_hash_update_ptr(&DDTRACE_G(class_lookup), Z_STR_P(class_name), class_lookup);
+    zend_hash_update_ptr(DDTRACE_G(class_lookup), Z_STR_P(class_name), class_lookup);
 
     return class_lookup;
 }
