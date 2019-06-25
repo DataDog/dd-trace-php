@@ -39,6 +39,6 @@ namespace My\App {
     // Looking for a class that does not exist, will cause the private Symfony 3.3's class loader method to be fired.
     class_exists('I\Dont\Exist');
 
-    echo \DDTrace\Tracer::VERSION;
+    echo \DDTrace\Tracer::version();
 }
 

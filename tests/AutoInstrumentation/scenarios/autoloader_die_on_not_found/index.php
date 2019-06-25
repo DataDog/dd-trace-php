@@ -13,4 +13,4 @@ class AutoloaderDieOnNotFound
 
 spl_autoload_register('AutoloaderDieOnNotFound::load');
 
-echo DDTrace\Tracer::VERSION;
+echo DDTrace\Tracer::version();

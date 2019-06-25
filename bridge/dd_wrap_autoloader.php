@@ -2,6 +2,16 @@
 
 namespace DDTrace\Bridge;
 
+if (!defined('DD_TRACE_VERSION')
+    || !file_exists(__DIR__ . '/../src/DDTrace/version.php')) {
+    function_exists('dd_trace_disable_in_request') && dd_trace_disable_in_request();
+    return;
+}
+if (DD_TRACE_VERSION !== include __DIR__ . '/../src/DDTrace/version.php') {
+    function_exists('dd_trace_disable_in_request') && dd_trace_disable_in_request();
+    return;
+}
+
 if (PHP_VERSION_ID < 70000) {
     date_default_timezone_set(@date_default_timezone_get());
 }
