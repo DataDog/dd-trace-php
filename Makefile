@@ -4,8 +4,8 @@ BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
-VERSION:=$(shell cat src/DDTrace/Tracer.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2)
-VERSION_WITHOUT_SUFFIX:=$(shell cat src/DDTrace/Tracer.php | grep VERSION | awk '{print $$NF}' | cut -d\' -f2 | cut -d- -f1)
+VERSION:=$(shell cat src/DDTrace/version.php | grep return | awk '{print $$2}' | cut -d\' -f2)
+VERSION_WITHOUT_SUFFIX:=$(shell cat src/DDTrace/version.php | grep return | awk '{print $$2}' | cut -d\' -f2 | cut -d- -f1)
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 
@@ -143,6 +143,7 @@ verify_version:
 	@grep -q "<release>$(VERSION_WITHOUT_SUFFIX)</release>" package.xml || (echo package.xml release version missmatch && exit 1)
 	@grep -q "<api>$(VERSION_WITHOUT_SUFFIX)</api>" package.xml || (echo package.xml api version missmatch && exit 1)
 	@grep -q "#define PHP_DDTRACE_VERSION \"$(VERSION)" src/ext/version.h || (echo src/ext/version.h Version missmatch && exit 1)
+	@grep -q "const VERSION = '$(VERSION)" src/DDTrace/Tracer.php || (echo src/DDTrace/Tracer.php Version missmatch && exit 1)
 	@echo "All version files match"
 
 verify_package_xml:
