@@ -10,6 +10,7 @@
     1. Make sure that the changelog is up to date, if not fix it.
     1. Make sure bottom links are up to date.
     1. Update the version number in `src/DDTrace/Tracer.php`.
+    1. Update the version number in `src/DDTrace/version.php`.
     1. Update the version number in `src/ext/version.h`.
     1. Update `package.xml` (versions, date, notes) and run `$ pear package-validate package.xml`.
     1. Create the PR and ask for code review.

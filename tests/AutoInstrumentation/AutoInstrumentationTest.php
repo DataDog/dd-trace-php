@@ -25,7 +25,7 @@ class AutoInstrumentationTest extends BaseTestCase
 
     public function autoInstrumentationScenarios()
     {
-        $currentTracerVersion = Tracer::VERSION;
+        $currentTracerVersion = Tracer::version();
         return [
             // In a typical scenario, when the user does not declare a dependency on datadog/dd-trace in the composer
             // file we should pick the tracer from the installed bundle

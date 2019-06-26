@@ -59,6 +59,7 @@ static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, s
 
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
+    REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
     ZEND_INIT_MODULE_GLOBALS(ddtrace, php_ddtrace_init_globals, NULL);
     REGISTER_INI_ENTRIES();
 

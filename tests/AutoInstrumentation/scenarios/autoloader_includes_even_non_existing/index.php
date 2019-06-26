@@ -18,4 +18,4 @@ spl_autoload_register('AutoloaderTryAlwaysToLoadFile::load');
 // such classes are not found and we get to the `AutoloaderTryAlwaysToLoadFile` it tries to include a non existing
 // files, causing and error.
 
-echo DDTrace\Tracer::VERSION;
+echo DDTrace\Tracer::version();

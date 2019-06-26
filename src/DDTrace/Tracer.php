@@ -26,7 +26,10 @@ final class Tracer implements TracerInterface
 {
     use LoggingTrait;
 
-    const VERSION = '0.28.1';
+    /**
+     * @deprecated Use Tracer::version() instead
+     */
+    const VERSION = '0.28.1'; // Update ./version.php too
 
     /**
      * @var Span[][]
@@ -103,6 +106,11 @@ final class Tracer implements TracerInterface
      * @var TraceAnalyticsProcessor
      */
     private $traceAnalyticsProcessor;
+
+    /**
+     * @var string|null
+     */
+    private static $version;
 
     /**
      * @param Transport $transport
@@ -521,5 +529,16 @@ final class Tracer implements TracerInterface
         }
 
         return $rootScope->getSpan();
+    }
+
+    /**
+     * @return string
+     */
+    public static function version()
+    {
+        if (empty(self::$version)) {
+            self::$version = include __DIR__ . '/version.php';
+        }
+        return self::$version;
     }
 }

@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Edge case where the extension version and userland version can get out of sync #488
+
 ## [0.28.1]
 
 ### Fixed
