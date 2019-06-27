@@ -54,11 +54,47 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_env_config, 0, 0, 1)
 ZEND_ARG_INFO(0, env_name)
 ZEND_END_ARG_INFO()
 
+zend_class_entry *ddtrace_ce_span_data;
+
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
+
+    /* DDTrace\SpanData */
+    zend_class_entry ce_span_data;
+    INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", NULL);
+#if PHP_VERSION_ID < 70000
+    ddtrace_ce_span_data = zend_register_internal_class_ex(&ce_span_data, NULL, NULL TSRMLS_CC);
+#else
+    ddtrace_ce_span_data = zend_register_internal_class_ex(&ce_span_data, NULL);
+#endif
+    
+    // TODO Add the rest of these
+    // TODO Generate from array of meta keys
+    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_ENV", sizeof("META_ENV") - 1, 0 TSRMLS_CC);
+    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_SPAN_TYPE", sizeof("META_SPAN_TYPE") - 1, 1 TSRMLS_CC);
+    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_MANUAL_KEEP", sizeof("META_MANUAL_KEEP") - 1, 2 TSRMLS_CC);
+    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_MANUAL_DROP", sizeof("META_MANUAL_DROP") - 1, 3 TSRMLS_CC);
+    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_PID", sizeof("META_PID") - 1, 4 TSRMLS_CC);
+
+    // TODO Generate from array of metric keys when we get a lot more of these
+    zend_declare_class_constant_long(ddtrace_ce_span_data, "METRIC_ANALYTICS_KEY", sizeof("METRIC_ANALYTICS_KEY") - 1, 0 TSRMLS_CC);
+
+    zend_declare_property_null(ddtrace_ce_span_data, "trace_id", sizeof("trace_id") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "span_id", sizeof("span_id") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "parent_id", sizeof("parent_id") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "service", sizeof("service") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "type", sizeof("type") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(ddtrace_ce_span_data, "start", sizeof("start") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(ddtrace_ce_span_data, "duration", sizeof("duration") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_long(ddtrace_ce_span_data, "error", sizeof("error") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+
     ZEND_INIT_MODULE_GLOBALS(ddtrace, php_ddtrace_init_globals, NULL);
     REGISTER_INI_ENTRIES();
 

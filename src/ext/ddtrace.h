@@ -5,6 +5,8 @@
 #include "version.h"
 extern zend_module_entry ddtrace_module_entry;
 
+extern zend_class_entry *ddtrace_ce_span_data;
+
 typedef struct _ddtrace_original_context {
     zend_function *fbc;
     zend_function *calling_fbc;
