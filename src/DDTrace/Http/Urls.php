@@ -60,6 +60,22 @@ class Urls
     }
 
     /**
+     * Metadata keys must start with [a-zA-Z:] so IP addresses,
+     * for example, need to be prefixed with a valid character
+     *
+     * @param string $url
+     * @return string
+     */
+    public static function hostnameForTag($url)
+    {
+        $hostname = self::hostname($url);
+        if (0 === preg_match('/^\d.*$/', $hostname)) {
+            return $hostname;
+        }
+        return ':' . $hostname;
+    }
+
+    /**
      * Reduces cardinality of a url.
      *
      * @param string $url

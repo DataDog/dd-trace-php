@@ -114,7 +114,7 @@ final class GuzzleIntegration extends Integration
                 $span->setTag(Tag::HTTP_URL, $url);
 
                 if (Configuration::get()->isHttpClientSplitByDomain()) {
-                    $span->setTag(Tag::SERVICE_NAME, Urls::hostname($url));
+                    $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($url));
                 }
             }
         };

@@ -233,4 +233,22 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
                 ]),
         ]);
     }
+
+    public function testHostnameWithLeadingNumberWillHavePrefixedServiceName()
+    {
+        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true');
+
+        $traces = $this->isolateTracer(function () {
+            $this->getMockedClient()->get('http://1337example.com');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.send', ':1337example.com', 'http', 'send')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => 'http://1337example.com',
+                    'http.status_code' => '200',
+                ]),
+        ]);
+    }
 }
