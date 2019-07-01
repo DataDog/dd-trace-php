@@ -117,7 +117,9 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
 
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zval_dtor(&dispatch->function_name);
+    zval_dtor(&dispatch->callable_prepend);
     zval_dtor(&dispatch->callable);
+    zval_dtor(&dispatch->expected_arg_types);
 }
 
 void ddtrace_class_lookup_release_compat(void *zv) {
@@ -226,5 +228,41 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
 
     zend_fcall_info_args_clear(&fci, 1);
     zval_dtor(&args);
+}
+
+// function (DDTrace\SpanData $span, array $args)
+void ddtrace_alloc_tracing_closure_args(zend_fcall_info *fci, zend_fcall_info_cache *fcc, zval *span_data, zend_execute_data *execute_data) {
+    void **p;
+    int arg_count;
+    int i;
+    zval **args = NULL;
+
+    fci->param_count = 2;
+    fci->params = safe_emalloc(fci->param_count, sizeof(zval **), 0);
+    args = safe_emalloc(fci->param_count, sizeof(zval *), 0);
+    // Param 0: DDTrace\SpanData $span
+    MAKE_STD_ZVAL(args[0]);
+    ZVAL_COPY_VALUE(args[0], span_data);
+    zval_copy_ctor(args[0]);
+    fci->params[0] = &args[0];
+
+    // Param 1: array $args
+    MAKE_STD_ZVAL(args[1]);
+    // @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_builtin_functions.c#L447-L473
+    p = execute_data->function_state.arguments;
+    arg_count = (int)(zend_uintptr_t) *p;
+    array_init_size(args[1], arg_count);
+    for (i=0; i<arg_count; i++) {
+        zval *element;
+
+        ALLOC_ZVAL(element);
+        *element = **((zval **) (p-(arg_count-i)));
+        zval_copy_ctor(element);
+        INIT_PZVAL(element);
+        zend_hash_next_index_insert(Z_ARRVAL_P(args[1]), &element, sizeof(zval *), NULL);
+    }
+    fci->params[1] = &args[1];
+    // We need to free args from outside
+    //efree(args);
 }
 #endif  // PHP 5

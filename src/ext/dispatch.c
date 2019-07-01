@@ -101,6 +101,110 @@ zend_function *fcall_fbc(zend_execute_data *execute_data TSRMLS_DC) {
 }
 #endif
 
+static int init_tracing_closure_from_callable(zend_fcall_info *fci, zend_fcall_info_cache *fcc, zval *callable, zend_execute_data *execute_data TSRMLS_DC) {
+    zval closure;
+    char *error = NULL;
+    int status;
+    zend_class_entry *executed_method_class = NULL;
+    zend_function *func;
+    zval *this = ddtrace_this(execute_data);
+    if (this) {
+        executed_method_class = Z_OBJCE_P(this);
+    }
+
+#if PHP_VERSION_ID < 70000
+    zend_function *callable_fn = (zend_function *)zend_get_closure_method_def(callable TSRMLS_CC);
+
+    // convert passed callable to not be static as we're going to bind it to *this
+    if (this) {
+        callable_fn->common.fn_flags &= ~ZEND_ACC_STATIC;
+    }
+
+    zend_create_closure(&closure, callable_fn, executed_method_class, this TSRMLS_CC);
+#else
+    zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(callable),
+                        executed_method_class, executed_method_class, this TSRMLS_CC);
+#endif
+
+    status = zend_fcall_info_init(&closure, 0, fci, fcc, NULL, &error TSRMLS_CC);
+    if (status != SUCCESS) {
+        if (DDTRACE_G(strict_mode)) {
+            const char *scope_name, *function_name;
+#if PHP_VERSION_ID < 70000
+            func = datadog_current_function(execute_data);
+            scope_name = (func->common.scope) ? func->common.scope->name : NULL;
+            function_name = func->common.function_name;
+#else
+            func = EX(func);
+            scope_name = (func->common.scope) ? ZSTR_VAL(func->common.scope->name) : NULL;
+            function_name = ZSTR_VAL(func->common.function_name);
+#endif
+            if (scope_name) {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                        "cannot set override for %s::%s - %s", scope_name, function_name, error);
+            } else {
+                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "cannot set override for %s - %s",
+                                        function_name, error);
+            }
+        }
+
+        if (error) {
+            efree(error);
+        }
+    }
+    Z_DELREF(closure);
+    return status;
+}
+
+static void free_tracing_closure_args(zend_fcall_info *fci) {
+#if PHP_VERSION_ID < 70000
+    if (fci->params) {
+        efree(fci->params);
+        fci->params = NULL;
+    }
+    fci->param_count = 0;
+#else
+    zend_fcall_info_args_clear(fci, 1);
+#endif
+}
+
+static int execute_tracing_closure(enum ddtrace_callback_behavior behavior, zval *callable, zval *span_data, zend_execute_data *execute_data TSRMLS_DC) {
+#if PHP_VERSION_ID < 70000
+    if (!execute_data->function_state.arguments) {
+        return 1;
+    }
+#else
+    if (!execute_data->call) {
+        return 1;
+    }
+#endif
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
+    int status;
+    if (init_tracing_closure_from_callable(&fci, &fcc, callable, execute_data TSRMLS_CC) != SUCCESS) {
+        return 0;
+    }
+    ddtrace_alloc_tracing_closure_args(&fci, &fcc, span_data, execute_data);
+#if PHP_VERSION_ID < 70000
+    zval *retval = NULL;
+    fci.retval_ptr_ptr = &retval;
+#else
+    zval retval;
+    ZVAL_UNDEF(&retval);
+    fci.retval = &retval;
+#endif
+    status = zend_call_function(&fci, &fcc TSRMLS_CC);
+    // We currently don't do anything with the return values from a
+    // tracing callback, but we could possibly use this in the future.
+#if PHP_VERSION_ID < 70000
+    zval_ptr_dtor(retval);
+#else
+    zval_ptr_dtor(&retval);
+#endif
+    free_tracing_closure_args(&fci);
+    return status;
+}
+
 static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute_data *execute_data,
                           zval **return_value_ptr TSRMLS_DC) {
     zend_fcall_info fci = {0};
@@ -268,11 +372,38 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     } else {
         dispatch = lookup_dispatch(DDTRACE_G(function_lookup), lookup_data);
     }
+    if (!dispatch || dispatch->busy == 1) {
+        return 0;
+    }
+    ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
+    dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
-    if (dispatch && !dispatch->busy) {
-        ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
-        dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
+    // TODO: Replace with SpanData object only if !dispatch
+#if PHP_VERSION_ID < 70000
+    zval *span_data;
+    MAKE_STD_ZVAL(span_data);
+    ZVAL_LONG(span_data, 42);
+#else
+    zval _span_data, *span_data;
+    ZVAL_LONG(&_span_data, 42);
+    span_data = &_span_data;
+#endif
 
+    if (Z_TYPE_P(&dispatch->callable_prepend) != IS_NULL) {
+        // TODO Check for expected argument types
+        if (!execute_tracing_closure(PrependTrace, &dispatch->callable_prepend, span_data, execute_data TSRMLS_CC)) {
+            dispatch->busy = 0;
+            ddtrace_class_lookup_release(dispatch);
+            return 0;
+        }
+    }
+
+    // TODO: Push this to stack and add post-flush dtor
+    // For unflushed, dtor on RSHUTDOWN
+    // We'll need to move this after append() when we add it
+    zval_dtor(span_data);
+
+    if (Z_TYPE_P(&dispatch->callable) != IS_NULL) {
 #if PHP_VERSION_ID < 50500
         if (EX(opline)->opcode == ZEND_DO_FCALL) {
             zend_op *opline = EX(opline);

@@ -42,6 +42,13 @@ STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, st
                     ddtrace_globals)
 PHP_INI_END()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method_prepend, 0, 0, 4)
+ZEND_ARG_INFO(0, class_name)
+ZEND_ARG_INFO(0, method_name)
+ZEND_ARG_INFO(0, expected_arg_types)
+ZEND_ARG_INFO(0, tracing_callback)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_msgpack, 0, 0, 1)
 ZEND_ARG_INFO(0, trace_array)
 ZEND_END_ARG_INFO()
@@ -256,7 +263,44 @@ static PHP_FUNCTION(dd_trace) {
         }
     }
 
-    zend_bool rv = ddtrace_trace(class_name, function, callable TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(class_name, function, NULL, EmbedTrace, callable TSRMLS_CC);
+    RETURN_BOOL(rv);
+}
+
+static PHP_FUNCTION(dd_trace_method_prepend) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
+    zval *class_name = NULL;
+    zval *function = NULL;
+    zval *expected_arg_types = NULL;
+    zval *tracing_callback = NULL;
+
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+        RETURN_BOOL(0);
+    }
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzzz", &class_name, &function,
+                                 &expected_arg_types, &tracing_callback) != SUCCESS) {
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(
+                spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                "unexpected parameter combination, expected (class_name, method_name, expected_args, tracing_callback)");
+        }
+        RETURN_BOOL(0);
+    }
+
+    if (Z_TYPE_P(class_name) != IS_STRING || Z_TYPE_P(function) != IS_STRING  || Z_TYPE_P(expected_arg_types) != IS_STRING) {
+        ddtrace_zval_ptr_dtor(class_name);
+        ddtrace_zval_ptr_dtor(function);
+        ddtrace_zval_ptr_dtor(expected_arg_types);
+        ddtrace_zval_ptr_dtor(tracing_callback);
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "class_name, method_name and expected_args must be a string");
+        }
+        RETURN_BOOL(0);
+    }
+
+    zend_bool rv = ddtrace_trace(class_name, function, expected_arg_types, PrependTrace, tracing_callback TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
@@ -591,7 +635,7 @@ static PHP_FUNCTION(dd_trace_generate_id) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {
-    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
+    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method_prepend, arginfo_dd_trace_method_prepend) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
             PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(
                 dd_tracer_circuit_breaker_register_error, NULL) PHP_FE(dd_tracer_circuit_breaker_register_success, NULL)

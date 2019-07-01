@@ -39,7 +39,9 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
 
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zval_ptr_dtor(&dispatch->function_name);
+    zval_ptr_dtor(&dispatch->callable_prepend);
     zval_ptr_dtor(&dispatch->callable);
+    zval_ptr_dtor(&dispatch->expected_arg_types);
 }
 
 void ddtrace_class_lookup_release_compat(zval *zv) {
@@ -48,7 +50,7 @@ void ddtrace_class_lookup_release_compat(zval *zv) {
     ddtrace_class_lookup_release(dispatch);
 }
 
-HashTable *ddtrace_new_class_lookup(zval *class_name) {
+HashTable *ddtrace_new_class_lookup(zval *class_name TSRMLS_DC) {
     HashTable *class_lookup;
 
     ALLOC_HASHTABLE(class_lookup);
@@ -122,5 +124,63 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     }
 
     zval_ptr_dtor(&fname);
+}
+
+// function (DDTrace\SpanData $span, array $args)
+void ddtrace_alloc_tracing_closure_args(zend_fcall_info *fci, zend_fcall_info_cache *fcc, zval *span_data, zend_execute_data *execute_data) {
+    zval *p, *q;
+    uint32_t arg_count, first_extra_arg;
+    uint32_t i;
+    zend_execute_data *ex = execute_data->call;
+
+    fci->param_count = 2;
+    fci->params = safe_emalloc(fci->param_count, sizeof(zval), 0);
+    // Param 0: DDTrace\SpanData $span
+    ZVAL_COPY(&fci->params[0], span_data);
+
+    // Param 1: array $args
+    // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
+    arg_count = ZEND_CALL_NUM_ARGS(ex);
+    array_init_size(&fci->params[1], arg_count);
+    if (arg_count) {
+        first_extra_arg = ex->func->op_array.num_args;
+        zend_hash_real_init(Z_ARRVAL_P(&fci->params[1]), 1);
+        ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(&fci->params[1])) {
+            i = 0;
+            p = ZEND_CALL_ARG(ex, 1);
+            if (arg_count > first_extra_arg) {
+                while (i < first_extra_arg) {
+                    q = p;
+                    if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
+                        ZVAL_DEREF(q);
+                        if (Z_OPT_REFCOUNTED_P(q)) { 
+                            Z_ADDREF_P(q);
+                        }
+                    } else {
+                        q = &EG(uninitialized_zval);
+                    }
+                    ZEND_HASH_FILL_ADD(q);
+                    p++;
+                    i++;
+                }
+                p = ZEND_CALL_VAR_NUM(ex, ex->func->op_array.last_var + ex->func->op_array.T);
+            }
+            while (i < arg_count) {
+                q = p;
+                if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
+                    ZVAL_DEREF(q);
+                    if (Z_OPT_REFCOUNTED_P(q)) { 
+                        Z_ADDREF_P(q);
+                    }
+                } else {
+                    q = &EG(uninitialized_zval);
+                }
+                ZEND_HASH_FILL_ADD(q);
+                p++;
+                i++;
+            }
+        } ZEND_HASH_FILL_END();
+        Z_ARRVAL_P(&fci->params[1])->nNumOfElements = arg_count;
+    }
 }
 #endif  // PHP_VERSION_ID >= 70000

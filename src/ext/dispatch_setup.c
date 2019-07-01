@@ -89,7 +89,7 @@ void ddtrace_dispatch_inject(TSRMLS_D) {
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, ddtrace_wrap_fcall);
 }
 
-zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TSRMLS_DC) {
+zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *expected_types, enum ddtrace_callback_behavior behavior, zval *callable TSRMLS_DC) {
     HashTable *overridable_lookup = NULL;
     if (class_name && DDTRACE_G(class_lookup)) {
 #if PHP_VERSION_ID < 70000
@@ -122,14 +122,28 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TS
 
     ddtrace_dispatch_t dispatch;
     memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
-    dispatch.callable = *callable;
+    ZVAL_NULL(&dispatch.callable_prepend);
+    ZVAL_NULL(&dispatch.callable);
+    switch (behavior) {
+        case PrependTrace:
+            dispatch.callable_prepend = *callable;
+            zval_copy_ctor(&dispatch.callable_prepend);
+            if (expected_types) {
+                dispatch.expected_arg_types = *expected_types;
+                zval_copy_ctor(&dispatch.expected_arg_types);
+            }
+            break;
+        case EmbedTrace:
+            dispatch.callable = *callable;
+            zval_copy_ctor(&dispatch.callable);
+            break;
+    }
 
 #if PHP_VERSION_ID < 70000
     ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);
 #else
     ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name));
 #endif
-    zval_copy_ctor(&dispatch.callable);
 
     ddtrace_downcase_zval(&dispatch.function_name);  // method/function names are case insensitive in PHP
 

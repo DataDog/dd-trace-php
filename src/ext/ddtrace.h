@@ -20,6 +20,11 @@ typedef struct _ddtrace_original_context {
 #endif
 } ddtrace_original_context;
 
+// "EmbedTrace" is for BC.
+// Once all the integrations have been updated to use prepend/append,
+// we can remove "EmbedTrace" from the enum and also the dd_trace() function
+enum ddtrace_callback_behavior{PrependTrace, EmbedTrace};//, AppendTrace};
+
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 zend_bool disable;
 zend_bool disable_in_current_request;
