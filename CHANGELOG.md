@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file - [read more
 ### Fixed
 - Edge case where the extension version and userland version can get out of sync #488
 
+### Changed
+- Prefix hostnames as service names with `host-` to ensure compatibility with the Agent #490
+
 ## [0.28.1]
 
 ### Fixed
