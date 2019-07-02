@@ -109,6 +109,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     dd_trace_seed_prng(TSRMLS_C);
+    ddtrace_coms_on_pid_change();
 
     if (DDTRACE_G(request_init_hook)) {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));
