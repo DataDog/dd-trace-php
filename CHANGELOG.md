@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.29.0]
+
 ### Fixed
 - Edge case where the extension version and userland version can get out of sync #488
 
@@ -522,7 +524,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.28.1...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.29.0...HEAD
+[0.29.0]: https://github.com/DataDog/dd-trace-php/compare/0.28.1...0.29.0
 [0.28.1]: https://github.com/DataDog/dd-trace-php/compare/0.28.0...0.28.1
 [0.28.0]: https://github.com/DataDog/dd-trace-php/compare/0.27.2...0.28.0
 [0.27.2]: https://github.com/DataDog/dd-trace-php/compare/0.27.1...0.27.2

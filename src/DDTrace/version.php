@@ -1,3 +1,3 @@
 <?php
 
-return '0.28.1'; // Update Tracer::VERSION too
+return '0.29.0'; // Update Tracer::VERSION too
