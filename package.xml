@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-06-24</date>
+    <date>2019-07-02</date>
     <version>
-        <release>0.28.1</release>
-        <api>0.28.1</api>
+        <release>0.29.0</release>
+        <api>0.29.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -22,7 +22,10 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         ### Fixed
-        - Race condition when reading configuration from within writer thread context #486
+        - Edge case where the extension version and userland version can get out of sync #488
+
+        ### Changed
+        - Prefix hostnames as service names with `host-` to ensure compatibility with the Agent #490
     </notes>
     <contents>
         <dir name="/">
