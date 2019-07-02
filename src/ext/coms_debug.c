@@ -46,7 +46,7 @@ uint32_t ddtrace_coms_test_writers() {
 }
 
 uint32_t ddtrace_coms_test_consumer() {
-    if (ddtrace_coms_rotate_stack(TRUE) != 0) {
+    if (!ddtrace_coms_rotate_stack(TRUE)) {
         printf("error rotating stacks");
     }
 

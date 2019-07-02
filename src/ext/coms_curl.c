@@ -23,6 +23,7 @@
 struct _writer_loop_data_t {
     CURL *curl;
     pthread_t thread;
+    ddtrace_coms_stack_t *tmp_stack;
     pthread_mutex_t interval_flush_mutex, finished_flush_mutex, stack_rotation_mutex;
     pthread_cond_t interval_flush_condition, finished_flush_condition;
 
@@ -147,9 +148,6 @@ inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_c
             }
         }
 
-        // curl_easy_cleanup(curl);
-        // curl_slist_free_all(headers);
-
         ddtrace_deinit_read_userdata(read_data);
     }
 }
@@ -158,6 +156,16 @@ static inline void signal_data_processed(struct _writer_loop_data_t *writer) {
     pthread_mutex_lock(&writer->finished_flush_mutex);
     pthread_cond_signal(&writer->finished_flush_condition);
     pthread_mutex_unlock(&writer->finished_flush_mutex);
+}
+
+static inline void reinit_mutex(pthread_mutex_t *mutex) {
+    pthread_mutex_t new_mutex = PTHREAD_MUTEX_INITIALIZER;
+    *mutex=new_mutex;
+    pthread_mutex_init(mutex, NULL);
+}
+
+static inline void reset_thread_variable(pthread_t *thread) {
+    memset(thread, 0, sizeof(pthread_t));
 }
 
 static void *writer_loop(void *_) {
@@ -181,17 +189,23 @@ static void *writer_loop(void *_) {
         }
         atomic_store(&writer->requests_since_last_flush, 0);
 
-        ddtrace_coms_stack_t *stack;
+        ddtrace_coms_stack_t **stack = &writer->tmp_stack;
         ddtrace_coms_threadsafe_rotate_stack(atomic_load(&writer->allocate_new_stacks));
 
         uint32_t processed_stacks = 0;
-        while ((stack = ddtrace_coms_attempt_acquire_stack())) {
+        if (!*stack) {
+            *stack = ddtrace_coms_attempt_acquire_stack();
+        }
+        while (*stack) {
             processed_stacks++;
             if (atomic_load(&writer->sending)) {
-                curl_send_stack(writer, stack);
+                curl_send_stack(writer, *stack);
             }
 
-            ddtrace_coms_free_stack(stack);
+            ddtrace_coms_stack_t *to_free = *stack;
+
+            *stack = ddtrace_coms_attempt_acquire_stack();
+            ddtrace_coms_free_stack(to_free);
         }
 
         if (processed_stacks > 0) {
@@ -264,18 +278,28 @@ BOOL_T ddtrace_coms_on_pid_change(){
     if (current_pid == previous_pid){
         return TRUE;
     }
-    if (atomic_compare_exchange_strong(&writer->current_pid, previous_pid, current_pid)){
+
+    // ensure this reinitialization is done only once on pid change
+    if (atomic_compare_exchange_strong(&writer->current_pid, &previous_pid, current_pid)){
+        reinit_mutex(&writer->finished_flush_mutex);
+        reinit_mutex(&writer->interval_flush_mutex);
+        reinit_mutex(&writer->stack_rotation_mutex);
+        reset_thread_variable(&writer->thread);
+
         ddtrace_coms_init_and_start_writer();
+        return TRUE;
     }
+
+    return FALSE;
 }
 
 BOOL_T ddtrace_coms_threadsafe_rotate_stack(BOOL_T attempt_allocate_new) {
     struct _writer_loop_data_t *writer = get_writer();
 
     pthread_mutex_lock(&writer->stack_rotation_mutex);
-    ddtrace_coms_rotate_stack(attempt_allocate_new);
+    BOOL_T rv = ddtrace_coms_rotate_stack(attempt_allocate_new);
     pthread_mutex_unlock(&writer->stack_rotation_mutex);
-    return TRUE;
+    return rv;
 }
 
 BOOL_T ddtrace_coms_trigger_writer_flush() {
