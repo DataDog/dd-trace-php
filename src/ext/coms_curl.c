@@ -8,6 +8,8 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 #include "compatibility.h"
 #include "coms.h"
@@ -25,6 +27,7 @@ struct _writer_loop_data_t {
     pthread_cond_t interval_flush_condition, finished_flush_condition;
 
     _Atomic(BOOL_T) running;
+    _Atomic(pid_t) current_pid;
     _Atomic(BOOL_T) shutdown_when_idle, suspended, sending, allocate_new_stacks;
     _Atomic(uint32_t) flush_interval, request_counter, flush_processed_stacks_total, writer_cycle,
         requests_since_last_flush;
@@ -36,6 +39,7 @@ static struct _writer_loop_data_t global_writer = {.interval_flush_mutex = PTHRE
                                                    .finished_flush_condition = PTHREAD_COND_INITIALIZER,
                                                    .interval_flush_condition = PTHREAD_COND_INITIALIZER,
                                                    .running = ATOMIC_VAR_INIT(0),
+                                                   .current_pid = ATOMIC_VAR_INIT(0),
                                                    .shutdown_when_idle = ATOMIC_VAR_INIT(0),
                                                    .suspended = ATOMIC_VAR_INIT(0),
                                                    .allocate_new_stacks = ATOMIC_VAR_INIT(0),
@@ -205,11 +209,12 @@ static void *writer_loop(void *_) {
 }
 
 #ifdef __APPLE__
-void ddtrace_coms_register_atexit_hook() {}
-#else
-static void at_exit_hook() {
+void ddtrace_coms_register_atexit_hook() {
     // due to apparent bug related to lazy symbol binding. calling function as complex as
     // ddtrace_coms_flush_shutdown_writer_synchronous is unsafe
+}
+#else
+static void at_exit_hook() {
     ddtrace_coms_flush_shutdown_writer_synchronous();
 }
 
@@ -248,6 +253,19 @@ BOOL_T ddtrace_coms_init_and_start_writer() {
         return TRUE;
     } else {
         return FALSE;
+    }
+}
+
+BOOL_T ddtrace_coms_on_pid_change(){
+    struct _writer_loop_data_t *writer = get_writer();
+
+    pid_t current_pid = getpid();
+    pid_t previous_pid = atomic_load(&writer->current_pid);
+    if (current_pid == previous_pid){
+        return TRUE;
+    }
+    if (atomic_compare_exchange_strong(&writer->current_pid, previous_pid, current_pid)){
+        ddtrace_coms_init_and_start_writer();
     }
 }
 
@@ -291,10 +309,7 @@ BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
     ddtrace_coms_trigger_writer_flush();
 
     if (atomic_load(&writer->running)) {
-        void *ptr;
-        int joined = pthread_join(writer->thread, &ptr);
-
-        return (joined == 0);
+        ddtrace_coms_synchronous_flush();
     }
     return TRUE;
 }

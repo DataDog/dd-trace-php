@@ -10,6 +10,7 @@ BOOL_T ddtrace_in_writer_thread();
 BOOL_T ddtrace_coms_threadsafe_rotate_stack(BOOL_T attempt_allocate_new);
 BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous();
 BOOL_T ddtrace_coms_synchronous_flush();
+BOOL_T ddtrace_coms_on_pid_change();
 void ddtrace_coms_register_atexit_hook();
 
 #endif  // DD_COMS_CURL_H
