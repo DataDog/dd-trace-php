@@ -383,7 +383,7 @@ final class Tracer implements TracerInterface
 
                 $this->traceAnalyticsProcessor->process($span);
                 $encodedSpan = SpanEncoder::encode($span);
-                if (dd_trace_cfg('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
+                if (dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
                     dd_trace_buffer_span($encodedSpan);
                 } else {
                     $traceToBeSent[] = $encodedSpan;

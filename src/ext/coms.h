@@ -13,12 +13,12 @@ typedef struct ddtrace_coms_stack_t {
     _Atomic(size_t) position;
     _Atomic(size_t) bytes_written;
     _Atomic(int32_t) refcount;
-    int32_t gc_cycles_count;
     char *data;
 } ddtrace_coms_stack_t;
 
 typedef struct ddtrace_coms_state_t {
     _Atomic(ddtrace_coms_stack_t *) current_stack;
+    ddtrace_coms_stack_t *tmp_stack;
     ddtrace_coms_stack_t **stacks;
     _Atomic(uint32_t) next_group_id;
 } ddtrace_coms_state_t;
