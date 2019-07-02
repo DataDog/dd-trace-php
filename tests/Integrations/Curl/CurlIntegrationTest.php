@@ -354,7 +354,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build(
                 'curl_exec',
-                'httpbin_integration',
+                'host-httpbin_integration',
                 'http',
                 'http://httpbin_integration/status/200'
             )

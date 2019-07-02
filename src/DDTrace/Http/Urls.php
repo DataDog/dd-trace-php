@@ -68,11 +68,7 @@ class Urls
      */
     public static function hostnameForTag($url)
     {
-        $hostname = self::hostname($url);
-        if (0 === preg_match('/^\d.*$/', $hostname)) {
-            return $hostname;
-        }
-        return ':' . $hostname;
+        return 'host-' . self::hostname($url);
     }
 
     /**

@@ -208,7 +208,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $this->getMockedClient()->get('http://example.com');
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('GuzzleHttp\Client.transfer', 'example.com', 'http', 'transfer')
+            SpanAssertion::build('GuzzleHttp\Client.transfer', 'host-example.com', 'http', 'transfer')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.method' => 'GET',
