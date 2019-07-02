@@ -4,6 +4,114 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+<<<<<<< HEAD
+=======
+## [0.29.0]
+
+### Fixed
+- Edge case where the extension version and userland version can get out of sync #488
+
+### Changed
+- Prefix hostnames as service names with `host-` to ensure compatibility with the Agent #490
+
+## [0.28.1]
+
+### Fixed
+- Race condition when reading configuration from within writer thread context #486
+
+## [0.28.0]
+
+### Added
+- Officially support Symfony 3.0 and 4.0 #475
+
+### Fixed
+- Stack level too deep error due to changes in how PHP interprets Opcodes caused by the extension #477
+
+### Changed
+- Backtrace handler will be run only once and will display information about maximum stack size being reached #478
+
+## [0.27.2]
+
+### Changed
+- Valgrind configuration to perform more thorough memory consistency verification #472
+
+### Fixed
+- Memory leak detected in tests #472
+
+## [0.27.1]
+
+### Fixed
+- Memory leak when garbage collecting span stacks #469
+
+## [0.27.0]
+
+### Added
+- Set the hostname of a URL as the service name for curl and Guzzle requests when `DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN=true` #459
+
+### Changed
+- Replace multiple calls to `mt_rand()` (32-bit) with one call to `dd_trace_generate_id()` which implements [MT19937-64](http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/VERSIONS/C-LANG/mt19937-64.c) and returns a 63-bit unsigned integer as a string #449
+
+### Fixed
+- Traces no longer affect deterministic random from `mt_rand()` #449
+- Fix API change with Symfony 4.x EventDispatcher #466
+
+## [0.26.0]
+
+### Added
+- Initial implementation of flushing spans via background thread #450
+
+### Changed
+- URL-normalization rule boundaries #457
+
+## [0.25.0]
+
+### Added
+- Support for Slim Framework v3 #446
+- IPC based configurable Circuit breaker `DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC` and `DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES` used when communicating with the agent #440
+- Normalized URL's as resource names; a CSV string of URL-to-resource-name mapping rules with `*` and `$*` wildcards can be set from `DD_TRACE_RESOURCE_URI_MAPPING`. This feature is disabled by default to reduce cardinality in resource names; to enable this feature set `DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=true` #442
+
+## [0.24.0]
+
+### Added
+- Tracer limited mode, stopping span creation when memory use raises to 80% of current PHP memory limit #437
+- Configurable Curl timeouts `DD_TRACE_AGENT_TIMEOUT` and `DD_TRACE_AGENT_CONNECT_TIMEOUT` when communicating with the agent #150
+- Configurable `DD_TRACE_REPORT_HOSTNAME` reporting of hostname via root span #441
+- Support for CakePHP v2 and Cake Console v2 #436
+
+### Fixed
+- Generation of `E_WARNING` in certain contexts of PHP 5 installs when the `date.timezone` INI setting is not set #435
+
+## [0.23.0]
+
+**NOTE: We changed the way the service name can be configured. Now you must use `DD_SERVICE_NAME` instead of `DD_TRACE_APP_NAME` for consistency with other tracers. Usage of `DD_TRACE_APP_NAME` is now deprecated and will be removed in a future release.**
+
+### Added
+- Support for [Lumen](https://lumen.laravel.com/) 5.2+ #416
+- Tracing support from the CLI SAPI #422
+- Support for Laravel Artisan #422
+
+### Changed
+- Now the way to configure service name is through `DD_SERVICE_NAME` instead of `DD_TRACE_APP_NAME` #432
+
+## [0.22.0]
+
+### Added
+- Official support for PHP 7.3 #429
+- Tracer limited mode where spans are not created to preserve resources #417
+
+### Fixed
+- Error when a subclassed integration returns an object that cannot be cast as a string #423
+
+## [0.21.0]
+
+### Added
+- `dd_trace_forward_call()` to forward the original call from within a tracing closure #284
+
+### Fixed
+- `parent::` keyword not honored from a subclass when forwarding a call from a tracing closure #284
+- Private and protected callable strings not resolved properly from a tracing closure #303
+
+>>>>>>> 22010a31... Merge pull request #492 from DataDog/sammyk/version-bump-0.29.0
 ## [0.20.0]
 
 ### Added
@@ -419,7 +527,23 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
+<<<<<<< HEAD
 [Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.20.0...HEAD
+=======
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.29.0...HEAD
+[0.29.0]: https://github.com/DataDog/dd-trace-php/compare/0.28.1...0.29.0
+[0.28.1]: https://github.com/DataDog/dd-trace-php/compare/0.28.0...0.28.1
+[0.28.0]: https://github.com/DataDog/dd-trace-php/compare/0.27.2...0.28.0
+[0.27.2]: https://github.com/DataDog/dd-trace-php/compare/0.27.1...0.27.2
+[0.27.1]: https://github.com/DataDog/dd-trace-php/compare/0.27.0...0.27.1
+[0.27.0]: https://github.com/DataDog/dd-trace-php/compare/0.26.0...0.27.0
+[0.26.0]: https://github.com/DataDog/dd-trace-php/compare/0.25.0...0.26.0
+[0.25.0]: https://github.com/DataDog/dd-trace-php/compare/0.24.0...0.25.0
+[0.24.0]: https://github.com/DataDog/dd-trace-php/compare/0.23.0...0.24.0
+[0.23.0]: https://github.com/DataDog/dd-trace-php/compare/0.22.0...0.23.0
+[0.22.0]: https://github.com/DataDog/dd-trace-php/compare/0.21.0...0.22.0
+[0.21.0]: https://github.com/DataDog/dd-trace-php/compare/0.20.0...0.21.0
+>>>>>>> 22010a31... Merge pull request #492 from DataDog/sammyk/version-bump-0.29.0
 [0.20.0]: https://github.com/DataDog/dd-trace-php/compare/0.19.1...0.20.0
 [0.19.1]: https://github.com/DataDog/dd-trace-php/compare/0.19.0...0.19.1
 [0.19.0]: https://github.com/DataDog/dd-trace-php/compare/0.18.0...0.19.0

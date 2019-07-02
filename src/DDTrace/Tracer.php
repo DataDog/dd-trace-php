@@ -25,7 +25,14 @@ final class Tracer implements TracerInterface
 {
     use LoggingTrait;
 
+<<<<<<< HEAD
     const VERSION = '0.20.0';
+=======
+    /**
+     * @deprecated Use Tracer::version() instead
+     */
+    const VERSION = '0.29.0'; // Update ./version.php too
+>>>>>>> 22010a31... Merge pull request #492 from DataDog/sammyk/version-bump-0.29.0
 
     /**
      * @var Span[][]
