@@ -20,6 +20,16 @@ typedef struct _ddtrace_original_context {
 #endif
 } ddtrace_original_context;
 
+typedef struct _ddtrace_span_stack_t {
+    zval *span;
+    unsigned long long span_id;
+    unsigned long long trace_id;
+    unsigned long long parent_id;
+    unsigned long long start;
+    unsigned long long duration;
+    struct _ddtrace_span_stack_t *next;
+} ddtrace_span_stack_t;
+
 // "EmbedTrace" is for BC.
 // Once all the integrations have been updated to use prepend/append,
 // we can remove "EmbedTrace" from the enum and also the dd_trace() function
@@ -42,6 +52,10 @@ user_opcode_handler_t ddtrace_old_fcall_handler;
 user_opcode_handler_t ddtrace_old_icall_handler;
 user_opcode_handler_t ddtrace_old_ucall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
+
+unsigned long long root_span_id;
+unsigned long long active_span_id;
+ddtrace_span_stack_t *span_stack_root;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 
 #ifdef ZTS

@@ -67,6 +67,22 @@ void ddtrace_dispatch_reset(TSRMLS_D) {
     }
 }
 
+void ddtrace_span_stack_init(TSRMLS_D) {
+    DDTRACE_G(root_span_id) = 0;
+    DDTRACE_G(active_span_id) = 0;
+    DDTRACE_G(span_stack_root) = NULL;
+}
+
+void ddtrace_span_stack_destroy(TSRMLS_D) {
+    while (DDTRACE_G(span_stack_root) != NULL) {
+        ddtrace_span_stack_t *stack = DDTRACE_G(span_stack_root);
+        zval_ptr_dtor(stack->span);
+        efree(stack->span);
+        DDTRACE_G(span_stack_root) = stack->next;
+        efree(stack);
+    }
+}
+
 void ddtrace_dispatch_inject(TSRMLS_D) {
 /**
  * Replacing zend_execute_ex with anything other than original

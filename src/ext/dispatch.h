@@ -33,6 +33,9 @@ void ddtrace_dispatch_init(TSRMLS_D);
 void ddtrace_dispatch_inject(TSRMLS_D);
 void ddtrace_dispatch_destroy(TSRMLS_D);
 void ddtrace_dispatch_reset(TSRMLS_D);
+void ddtrace_span_stack_init(TSRMLS_D);
+void ddtrace_span_stack_destroy(TSRMLS_D);
+zval *ddtrace_span_stack_create_and_push(TSRMLS_D);
 void ddtrace_alloc_tracing_closure_args(zend_fcall_info *fci, zend_fcall_info_cache *fcc, zval *span_data, zend_execute_data *execute_data);
 
 #endif  // DISPATCH_H

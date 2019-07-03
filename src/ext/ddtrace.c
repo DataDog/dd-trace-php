@@ -89,15 +89,12 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     // TODO Generate from array of metric keys when we get a lot more of these
     zend_declare_class_constant_long(ddtrace_ce_span_data, "METRIC_ANALYTICS_KEY", sizeof("METRIC_ANALYTICS_KEY") - 1, 0 TSRMLS_CC);
 
-    zend_declare_property_null(ddtrace_ce_span_data, "trace_id", sizeof("trace_id") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "span_id", sizeof("span_id") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "parent_id", sizeof("parent_id") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
+    // trace_id, span_id, parent_id, start & duration are stored directly on
+    // ddtrace_span_stack_t so we don't need to make them properties on DDTrace\SpanData
     zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "service", sizeof("service") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "type", sizeof("type") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(ddtrace_ce_span_data, "start", sizeof("start") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_long(ddtrace_ce_span_data, "duration", sizeof("duration") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_long(ddtrace_ce_span_data, "error", sizeof("error") - 1, 0, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
@@ -148,6 +145,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     ddtrace_dispatch_init(TSRMLS_C);
+    ddtrace_span_stack_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
 
     if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
@@ -175,6 +173,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_dispatch_destroy(TSRMLS_C);
+    ddtrace_span_stack_destroy(TSRMLS_C);
     ddtrace_coms_on_request_finished();
 
     return SUCCESS;
@@ -622,10 +621,10 @@ static PHP_FUNCTION(dd_trace_generate_id) {
     PHP7_UNUSED(execute_data);
 
 #if PHP_VERSION_ID >= 70200
-    RETURN_STR(dd_trace_generate_id());
+    RETURN_STR(dd_trace_generate_id(TSRMLS_C));
 #else
     char buf[20];
-    dd_trace_generate_id(buf);
+    dd_trace_generate_id(buf TSRMLS_CC);
 #if PHP_VERSION_ID >= 70000
     RETURN_STRING(buf);
 #else

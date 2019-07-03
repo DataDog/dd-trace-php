@@ -1,4 +1,5 @@
 #include "dispatch.h"
+#include "random.h"
 
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
@@ -346,6 +347,25 @@ static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *looku
 #endif
 }
 
+zval *ddtrace_span_stack_create_and_push(TSRMLS_DC) {
+    ddtrace_span_stack_t *stack = ecalloc(1, sizeof(ddtrace_span_stack_t));
+    stack->start = 0;
+    stack->duration = 0;
+    stack->next = DDTRACE_G(span_stack_root);
+    stack->span = ecalloc(1, sizeof(zval));
+    object_init_ex(stack->span, ddtrace_ce_span_data);
+    stack->span_id = dd_trace_raw_generate_id(TSRMLS_C);
+    stack->trace_id = DDTRACE_G(root_span_id);
+    // When span_id != root_span_id, it will have a parent
+    if (stack->span_id != stack->trace_id) {
+        stack->parent_id = DDTRACE_G(active_span_id);
+    } else {
+        stack->parent_id = 0;
+    }
+    DDTRACE_G(span_stack_root) = stack;
+    return stack->span;
+}
+
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data,
                                                  ddtrace_lookup_data_t *lookup_data TSRMLS_DC) {
 #if PHP_VERSION_ID < 50500
@@ -378,16 +398,10 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
-    // TODO: Replace with SpanData object only if !dispatch
-#if PHP_VERSION_ID < 70000
-    zval *span_data;
-    MAKE_STD_ZVAL(span_data);
-    ZVAL_LONG(span_data, 42);
-#else
-    zval _span_data, *span_data;
-    ZVAL_LONG(&_span_data, 42);
-    span_data = &_span_data;
-#endif
+    zval *span_data = NULL;
+    if (Z_TYPE_P(&dispatch->callable_prepend) != IS_NULL/* || Z_TYPE_P(&dispatch->callable_append) != IS_NULL*/) {
+        span_data = ddtrace_span_stack_create_and_push();
+    }
 
     if (Z_TYPE_P(&dispatch->callable_prepend) != IS_NULL) {
         // TODO Check for expected argument types
@@ -397,11 +411,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             return 0;
         }
     }
-
-    // TODO: Push this to stack and add post-flush dtor
-    // For unflushed, dtor on RSHUTDOWN
-    // We'll need to move this after append() when we add it
-    zval_dtor(span_data);
 
     if (Z_TYPE_P(&dispatch->callable) != IS_NULL) {
 #if PHP_VERSION_ID < 50500
