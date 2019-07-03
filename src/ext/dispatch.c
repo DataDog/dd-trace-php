@@ -347,7 +347,7 @@ static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *looku
 #endif
 }
 
-zval *ddtrace_span_stack_create_and_push(TSRMLS_DC) {
+ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_DC) {
     ddtrace_span_stack_t *stack = ecalloc(1, sizeof(ddtrace_span_stack_t));
     stack->start = 0;
     stack->duration = 0;
@@ -362,7 +362,7 @@ zval *ddtrace_span_stack_create_and_push(TSRMLS_DC) {
         stack->parent_id = 0;
     }
     DDTRACE_G(span_stack_root) = stack;
-    return stack->span;
+    return stack;
 }
 
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data,
@@ -397,20 +397,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
-    zval *span_data = NULL;
-    if (Z_TYPE_P(&dispatch->callable_prepend) != IS_NULL/* || Z_TYPE_P(&dispatch->callable_append) != IS_NULL*/) {
-        span_data = ddtrace_span_stack_create_and_push();
-    }
-
-    if (Z_TYPE_P(&dispatch->callable_prepend) != IS_NULL) {
-        // TODO Check for expected argument types
-        if (!execute_tracing_closure(PrependTrace, &dispatch->callable_prepend, span_data, execute_data TSRMLS_CC)) {
-            dispatch->busy = 0;
-            ddtrace_class_lookup_release(dispatch);
-            return 0;
-        }
-    }
-
+    // Original dd_trace() embed tracing closure
     if (Z_TYPE_P(&dispatch->callable) != IS_NULL) {
 #if PHP_VERSION_ID < 50500
         if (EX(opline)->opcode == ZEND_DO_FCALL) {
@@ -505,9 +492,30 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         dispatch->busy = 0;
         ddtrace_class_lookup_release(dispatch);
         return 1;
-    } else {
-        return 0;
     }
+
+    // Prepend tracing closure
+    ddtrace_span_stack_t *stack = ddtrace_span_stack_create_and_push();
+    //zval *return_value = NULL;
+
+    if (Z_TYPE_P(&dispatch->callable_prepend) != IS_NULL) {
+        // TODO Check for expected argument types
+        if (execute_tracing_closure(PrependTrace, &dispatch->callable_prepend, stack->span, execute_data TSRMLS_CC) != SUCCESS) {
+            dispatch->busy = 0;
+            ddtrace_class_lookup_release(dispatch);
+            // TODO ddtrace_span_stack_free_top()
+            return 0;
+        }
+        stack->start = 42;
+        //ddtrace_forward_call(execute_data, return_value);
+        stack->duration = 420;
+        //zval_dtor(&return_value);
+        // Check for errors & exceptions here or use hook
+        return 1;
+    }
+
+    // TODO ddtrace_span_stack_free_top()
+    return 0;
 }
 
 static zend_always_inline zend_function *get_current_fbc(zend_execute_data *execute_data TSRMLS_DC) {
