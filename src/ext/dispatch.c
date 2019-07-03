@@ -355,9 +355,8 @@ zval *ddtrace_span_stack_create_and_push(TSRMLS_DC) {
     stack->span = ecalloc(1, sizeof(zval));
     object_init_ex(stack->span, ddtrace_ce_span_data);
     stack->span_id = dd_trace_raw_generate_id(TSRMLS_C);
-    stack->trace_id = DDTRACE_G(root_span_id);
     // When span_id != root_span_id, it will have a parent
-    if (stack->span_id != stack->trace_id) {
+    if (stack->span_id != DDTRACE_G(root_span_id)) {
         stack->parent_id = DDTRACE_G(active_span_id);
     } else {
         stack->parent_id = 0;

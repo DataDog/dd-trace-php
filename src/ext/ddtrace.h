@@ -20,10 +20,11 @@ typedef struct _ddtrace_original_context {
 #endif
 } ddtrace_original_context;
 
+// We don't store trace_id since it is added at
+// serialization from DDTRACE_G(root_span_id)
 typedef struct _ddtrace_span_stack_t {
     zval *span;
     unsigned long long span_id;
-    unsigned long long trace_id;
     unsigned long long parent_id;
     unsigned long long start;
     unsigned long long duration;
