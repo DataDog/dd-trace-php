@@ -24,10 +24,16 @@ final class SpanContext extends SpanContextData
 
     public static function createAsChild(SpanContextInterface $parentContext)
     {
+        // Since `dd_trace_generate_id()` updates the return value of
+        // `dd_trace_active_span_id()`, we need to access the existing
+        // value before generating a new ID
+        $activeSpanId = dd_trace_active_span_id();
         $instance = new self(
             $parentContext->getTraceId(),
             dd_trace_generate_id(),
-            $parentContext->getSpanId(),
+            // Since the last span could have been generated internally,
+            // we can't use `$parentContext->getSpanId()` here
+            $activeSpanId,
             $parentContext->getAllBaggageItems(),
             false
         );
