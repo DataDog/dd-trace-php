@@ -34,7 +34,7 @@ struct _writer_loop_data_t {
 
     struct _writer_thread_variables_t *thread;
 
-    _Atomic(BOOL_T) running;
+    _Atomic(BOOL_T) running, starting_up;
     _Atomic(pid_t) current_pid;
     _Atomic(BOOL_T) shutdown_when_idle, suspended, sending, allocate_new_stacks;
     _Atomic(uint32_t) flush_interval, request_counter, flush_processed_stacks_total, writer_cycle,
@@ -107,6 +107,28 @@ static size_t dummy_write_callback(char *ptr, size_t size, size_t nmemb, void *u
     return data_length;
 }
 
+static void (*ptr_at_exit_callback)(void) = 0;
+
+static void at_exit_callback() {
+    ddtrace_coms_flush_shutdown_writer_synchronous();
+    fprintf(stderr, "X");
+}
+
+static void at_exit_hook() {
+    if (ptr_at_exit_callback) {
+        ptr_at_exit_callback();
+    }
+}
+
+void ddtrace_coms_setup_atexit_hook() {
+    ptr_at_exit_callback = at_exit_callback;
+    atexit(at_exit_hook);
+}
+
+void ddtrace_coms_disable_atexit_hook() {
+    ptr_at_exit_callback = NULL;
+}
+
 inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
     if (!writer->curl) {
         writer->curl = curl_easy_init();
@@ -157,7 +179,9 @@ inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_c
 static inline void signal_writer_started(struct _writer_loop_data_t *writer) {
     if (writer->thread) {
         // at the moment no actual signal is sent but we will set a threadsafe state variable
-        atomic_store(&writer->running, FALSE);
+        // ordering is important to correctly state that writer is either running or stil is starting up
+        atomic_store(&writer->running, TRUE);
+        atomic_store(&writer->starting_up, FALSE);
     }
 }
 
@@ -288,7 +312,7 @@ BOOL_T ddtrace_coms_init_and_start_writer() {
     }
     struct _writer_thread_variables_t *thread = create_thread_variables();
     writer->thread = thread;
-
+    atomic_store(&writer->starting_up, TRUE);
     if (pthread_create(&thread->self, NULL, &writer_loop, NULL) == 0) {
         return TRUE;
     } else {
@@ -356,7 +380,6 @@ BOOL_T ddtrace_coms_on_request_finished() {
 }
 
 BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
-    uint32_t timeout = 100; // TODO
     struct _writer_loop_data_t *writer = get_writer();
     if (!writer->thread) {
         return FALSE;
@@ -366,21 +389,20 @@ BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
 
     // wait for writer cycle to to complete before exiting
     pthread_mutex_lock(&writer->thread->writer_shutdown_signal_mutex);
+    ddtrace_coms_trigger_writer_flush();
 
-    if (atomic_load(&writer->running)) {
-        ddtrace_coms_trigger_writer_flush();
-        struct timespec deadline = deadline_in_ms(timeout);
+    // see signal_writer_started
+    if (atomic_load(&writer->starting_up) || atomic_load(&writer->running)) {
+        struct timespec deadline = deadline_in_ms(get_dd_trace_shutdown_timeout());
 
-        int rv = pthread_cond_timedwait(&writer->thread->writer_shutdown_signal_condition, &writer->thread->writer_shutdown_signal_mutex, &deadline);
-        if (rv != 0) fprintf(stdout, "timedwait exited with: %i\n", rv);
+        pthread_cond_timedwait(&writer->thread->writer_shutdown_signal_condition, &writer->thread->writer_shutdown_signal_mutex, &deadline);
     }
     pthread_mutex_unlock(&writer->thread->writer_shutdown_signal_mutex);
 
     return TRUE;
 }
 
-BOOL_T ddtrace_coms_synchronous_flush() {
-    uint32_t timeout = 100; //TODO make this a configurable timeout
+BOOL_T ddtrace_coms_synchronous_flush(uint32_t timeout) {
     struct _writer_loop_data_t *writer = get_writer();
     uint32_t previous_writer_cycle = atomic_load(&writer->writer_cycle);
     uint32_t previous_processed_stacks_total = atomic_load(&writer->flush_processed_stacks_total);
@@ -398,8 +420,7 @@ BOOL_T ddtrace_coms_synchronous_flush() {
             break;
         }
         struct timespec deadline = deadline_in_ms(timeout);
-        int rv = pthread_cond_timedwait(&writer->thread->finished_flush_condition, &writer->thread->finished_flush_mutex, &deadline);
-        if (rv != 0) fprintf(stdout, "timedwait exited with: %i\n", rv);
+        pthread_cond_timedwait(&writer->thread->finished_flush_condition, &writer->thread->finished_flush_mutex, &deadline);
     }
     pthread_mutex_unlock(&writer->thread->finished_flush_mutex);
 

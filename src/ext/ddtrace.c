@@ -71,9 +71,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_install_backtrace_handler();
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);
-    ddtrace_coms_initialize();
-    ddtrace_coms_init_and_start_writer();
 
+    ddtrace_coms_initialize();
+    ddtrace_coms_setup_atexit_hook();
+    ddtrace_coms_init_and_start_writer();
 
     return SUCCESS;
 }
@@ -87,6 +88,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    // when extension is properly unloaded disable the at_exit hook
+    ddtrace_coms_disable_atexit_hook();
     ddtrace_coms_flush_shutdown_writer_synchronous();
     return SUCCESS;
 }
@@ -517,7 +520,11 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
             ddtrace_coms_test_msgpack_consumer();
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
-            ddtrace_coms_synchronous_flush();
+            uint32_t timeout = 100;
+            if (params_count == 1) {
+                timeout = Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+            ddtrace_coms_synchronous_flush(timeout);
             RETVAL_TRUE;
         }
     }
