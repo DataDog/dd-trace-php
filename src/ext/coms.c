@@ -126,7 +126,7 @@ static void unsafe_store_or_discard_stack(ddtrace_coms_stack_t *stack) {
     ddtrace_coms_free_stack(stack);
 }
 
-static inline void unsafe_cleanup_dirty_stack_area(){
+static inline void unsafe_cleanup_dirty_stack_area() {
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
     if (!ddtrace_coms_global_state.tmp_stack) {
         return;
@@ -159,7 +159,6 @@ static void unsafe_store_or_swap_current_stack_for_empty_stack() {
         for (int i = 0; i < DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
             ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
             if (stack_tmp && ddtrace_coms_is_stack_free(stack_tmp)) {
-
                 // order is important due to ability to restore state on thread restart
                 recycle_stack(stack_tmp);
                 atomic_store(&ddtrace_coms_global_state.current_stack, stack_tmp);
@@ -193,7 +192,7 @@ BOOL_T ddtrace_coms_rotate_stack(BOOL_T attempt_allocate_new) {
 
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
 
-    if (current_stack && ddtrace_coms_is_stack_free(current_stack)){
+    if (current_stack && ddtrace_coms_is_stack_free(current_stack)) {
         return TRUE;
     }
 
