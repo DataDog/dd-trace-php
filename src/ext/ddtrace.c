@@ -74,6 +74,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_coms_initialize();
     ddtrace_coms_init_and_start_writer();
 
+
     return SUCCESS;
 }
 

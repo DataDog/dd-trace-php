@@ -20,12 +20,19 @@
 
 #define HOST_FORMAT_STR "http://%s:%u/v0.4/traces"
 
+struct _writer_thread_variables_t {
+    pthread_t self;
+    pthread_mutex_t interval_flush_mutex, finished_flush_mutex, stack_rotation_mutex;
+    pthread_mutex_t writer_shutdown_signal_mutex;
+    pthread_cond_t writer_shutdown_signal_condition;
+    pthread_cond_t interval_flush_condition, finished_flush_condition;
+};
+
 struct _writer_loop_data_t {
     CURL *curl;
-    pthread_t thread;
     ddtrace_coms_stack_t *tmp_stack;
-    pthread_mutex_t interval_flush_mutex, finished_flush_mutex, stack_rotation_mutex;
-    pthread_cond_t interval_flush_condition, finished_flush_condition;
+
+    struct _writer_thread_variables_t *thread;
 
     _Atomic(BOOL_T) running;
     _Atomic(pid_t) current_pid;
@@ -34,11 +41,7 @@ struct _writer_loop_data_t {
         requests_since_last_flush;
 };
 
-static struct _writer_loop_data_t global_writer = {.interval_flush_mutex = PTHREAD_MUTEX_INITIALIZER,
-                                                   .finished_flush_mutex = PTHREAD_MUTEX_INITIALIZER,
-                                                   .stack_rotation_mutex = PTHREAD_MUTEX_INITIALIZER,
-                                                   .finished_flush_condition = PTHREAD_COND_INITIALIZER,
-                                                   .interval_flush_condition = PTHREAD_COND_INITIALIZER,
+static struct _writer_loop_data_t global_writer = { .thread = NULL,
                                                    .running = ATOMIC_VAR_INIT(0),
                                                    .current_pid = ATOMIC_VAR_INIT(0),
                                                    .shutdown_when_idle = ATOMIC_VAR_INIT(0),
@@ -151,21 +154,29 @@ inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_c
         ddtrace_deinit_read_userdata(read_data);
     }
 }
+static inline void signal_writer_started(struct _writer_loop_data_t *writer) {
+    if (writer->thread) {
+        // at the moment no actual signal is sent but we will set a threadsafe state variable
+        atomic_store(&writer->running, FALSE);
+    }
+}
+
+static inline void signal_writer_finished(struct _writer_loop_data_t *writer) {
+    if (writer->thread) {
+        pthread_mutex_lock(&writer->thread->writer_shutdown_signal_mutex);
+        atomic_store(&writer->running, FALSE);
+
+        pthread_cond_signal(&writer->thread->writer_shutdown_signal_condition);
+        pthread_mutex_unlock(&writer->thread->writer_shutdown_signal_mutex);
+    }
+}
 
 static inline void signal_data_processed(struct _writer_loop_data_t *writer) {
-    pthread_mutex_lock(&writer->finished_flush_mutex);
-    pthread_cond_signal(&writer->finished_flush_condition);
-    pthread_mutex_unlock(&writer->finished_flush_mutex);
-}
-
-static inline void reinit_mutex(pthread_mutex_t *mutex) {
-    pthread_mutex_t new_mutex = PTHREAD_MUTEX_INITIALIZER;
-    *mutex=new_mutex;
-    pthread_mutex_init(mutex, NULL);
-}
-
-static inline void reset_thread_variable(pthread_t *thread) {
-    memset(thread, 0, sizeof(pthread_t));
+    if (writer->thread) {
+        pthread_mutex_lock(&writer->thread->finished_flush_mutex);
+        pthread_cond_signal(&writer->thread->finished_flush_condition);
+        pthread_mutex_unlock(&writer->thread->finished_flush_mutex);
+    }
 }
 
 static void *writer_loop(void *_) {
@@ -173,15 +184,19 @@ static void *writer_loop(void *_) {
     struct _writer_loop_data_t *writer = get_writer();
 
     BOOL_T running = TRUE;
-    atomic_store(&writer->running, TRUE);
+    signal_writer_started(writer);
     do {
         atomic_fetch_add(&writer->writer_cycle, 1);
         uint32_t interval = atomic_load(&writer->flush_interval);
+        // fprintf(stderr, "interval %lu\n", interval);
         if (interval > 0) {
             struct timespec wait_deadline = deadline_in_ms(interval);
-            pthread_mutex_lock(&writer->interval_flush_mutex);
-            pthread_cond_timedwait(&writer->interval_flush_condition, &writer->interval_flush_mutex, &wait_deadline);
-            pthread_mutex_unlock(&writer->interval_flush_mutex);
+            if (writer->thread){
+                pthread_mutex_lock(&writer->thread->interval_flush_mutex);
+                pthread_cond_timedwait(&writer->thread->interval_flush_condition, &writer->thread->interval_flush_mutex, &wait_deadline);
+                pthread_mutex_unlock(&writer->thread->interval_flush_mutex);
+            }
+
         }
 
         if (atomic_load(&writer->suspended)) {
@@ -203,9 +218,12 @@ static void *writer_loop(void *_) {
             }
 
             ddtrace_coms_stack_t *to_free = *stack;
+            // successfully sent stack is no longer needed
+            // ensure no one will refernce freed stack when thread restarts after fork
+            *stack = NULL;
+            ddtrace_coms_free_stack(to_free);
 
             *stack = ddtrace_coms_attempt_acquire_stack();
-            ddtrace_coms_free_stack(to_free);
         }
 
         if (processed_stacks > 0) {
@@ -217,8 +235,7 @@ static void *writer_loop(void *_) {
         signal_data_processed(writer);
     } while (running);
 
-    atomic_store(&writer->running, FALSE);
-    pthread_exit(NULL);
+    signal_writer_finished(writer);
     return NULL;
 }
 
@@ -246,11 +263,33 @@ static inline void writer_set_operational_state(struct _writer_loop_data_t *writ
     atomic_store(&writer->shutdown_when_idle, FALSE);
 }
 
+static inline struct _writer_thread_variables_t *create_thread_variables() {
+    struct _writer_thread_variables_t *thread = calloc(1, sizeof(struct _writer_thread_variables_t));
+    pthread_mutex_init(&thread->interval_flush_mutex, NULL);
+    pthread_mutex_init(&thread->finished_flush_mutex, NULL);
+    pthread_mutex_init(&thread->stack_rotation_mutex, NULL);
+
+    pthread_mutex_init(&thread->writer_shutdown_signal_mutex, NULL);
+    pthread_cond_init(&thread->writer_shutdown_signal_condition, NULL);
+
+    pthread_cond_init(&thread->interval_flush_condition, NULL);
+    pthread_cond_init(&thread->finished_flush_condition, NULL);
+
+    return thread;
+}
+
 BOOL_T ddtrace_coms_init_and_start_writer() {
     struct _writer_loop_data_t *writer = get_writer();
     writer_set_operational_state(writer);
+    atomic_store(&writer->current_pid, getpid());
 
-    if (pthread_create(&writer->thread, NULL, &writer_loop, NULL) == 0) {
+    if (writer->thread) {
+        return FALSE;
+    }
+    struct _writer_thread_variables_t *thread = create_thread_variables();
+    writer->thread = thread;
+
+    if (pthread_create(&thread->self, NULL, &writer_loop, NULL) == 0) {
         return TRUE;
     } else {
         return FALSE;
@@ -268,10 +307,10 @@ BOOL_T ddtrace_coms_on_pid_change(){
 
     // ensure this reinitialization is done only once on pid change
     if (atomic_compare_exchange_strong(&writer->current_pid, &previous_pid, current_pid)){
-        reinit_mutex(&writer->finished_flush_mutex);
-        reinit_mutex(&writer->interval_flush_mutex);
-        reinit_mutex(&writer->stack_rotation_mutex);
-        reset_thread_variable(&writer->thread);
+        if (writer->thread) {
+            free(writer->thread);
+            writer->thread = NULL;
+        }
 
         ddtrace_coms_init_and_start_writer();
         return TRUE;
@@ -282,19 +321,22 @@ BOOL_T ddtrace_coms_on_pid_change(){
 
 BOOL_T ddtrace_coms_threadsafe_rotate_stack(BOOL_T attempt_allocate_new) {
     struct _writer_loop_data_t *writer = get_writer();
-
-    pthread_mutex_lock(&writer->stack_rotation_mutex);
-    BOOL_T rv = ddtrace_coms_rotate_stack(attempt_allocate_new);
-    pthread_mutex_unlock(&writer->stack_rotation_mutex);
+    BOOL_T rv = FALSE;
+    if (writer->thread) {
+    pthread_mutex_lock(&writer->thread->stack_rotation_mutex);
+    rv = ddtrace_coms_rotate_stack(attempt_allocate_new);
+    pthread_mutex_unlock(&writer->thread->stack_rotation_mutex);
+    }
     return rv;
 }
 
 BOOL_T ddtrace_coms_trigger_writer_flush() {
     struct _writer_loop_data_t *writer = get_writer();
-
-    pthread_mutex_lock(&writer->interval_flush_mutex);
-    pthread_cond_signal(&writer->interval_flush_condition);
-    pthread_mutex_unlock(&writer->interval_flush_mutex);
+    if (writer->thread) {
+    pthread_mutex_lock(&writer->thread->interval_flush_mutex);
+    pthread_cond_signal(&writer->thread->interval_flush_condition);
+    pthread_mutex_unlock(&writer->thread->interval_flush_mutex);
+    }
 
     return TRUE;
 }
@@ -314,39 +356,55 @@ BOOL_T ddtrace_coms_on_request_finished() {
 }
 
 BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
+    uint32_t timeout = 100; // TODO
     struct _writer_loop_data_t *writer = get_writer();
+    if (!writer->thread) {
+        return FALSE;
+    }
+
     writer_set_shutdown_state(writer);
-    // wakeup the writer
-    ddtrace_coms_trigger_writer_flush();
+
+    // wait for writer cycle to to complete before exiting
+    pthread_mutex_lock(&writer->thread->writer_shutdown_signal_mutex);
 
     if (atomic_load(&writer->running)) {
-        ddtrace_coms_synchronous_flush();
+        ddtrace_coms_trigger_writer_flush();
+        struct timespec deadline = deadline_in_ms(timeout);
+
+        int rv = pthread_cond_timedwait(&writer->thread->writer_shutdown_signal_condition, &writer->thread->writer_shutdown_signal_mutex, &deadline);
+        if (rv != 0) fprintf(stdout, "timedwait exited with: %i\n", rv);
     }
+    pthread_mutex_unlock(&writer->thread->writer_shutdown_signal_mutex);
+
     return TRUE;
 }
 
 BOOL_T ddtrace_coms_synchronous_flush() {
+    uint32_t timeout = 100; //TODO make this a configurable timeout
     struct _writer_loop_data_t *writer = get_writer();
     uint32_t previous_writer_cycle = atomic_load(&writer->writer_cycle);
     uint32_t previous_processed_stacks_total = atomic_load(&writer->flush_processed_stacks_total);
-    // immediately flush until
+    int64_t old_flush_interval = atomic_load(&writer->flush_interval);
+
+    // ensure we immediately flush all data
     atomic_store(&writer->flush_interval, 0);
 
+    pthread_mutex_lock(&writer->thread->finished_flush_mutex);
     ddtrace_coms_trigger_writer_flush();
 
     while (previous_writer_cycle == atomic_load(&writer->writer_cycle)) {
-        if (!atomic_load(&writer->running)) {
-            // writer stopped there is  no way the counter will be increaseed
-            return FALSE;
+        if (!atomic_load(&writer->running) || !writer->thread) {
+            // writer stopped there is no way the counter will be increaseed
+            break;
         }
-        pthread_mutex_lock(&writer->finished_flush_mutex);
-        struct timespec deadline = deadline_in_ms(100);
-        pthread_cond_timedwait(&writer->finished_flush_condition, &writer->finished_flush_mutex, &deadline);
-        pthread_mutex_unlock(&writer->finished_flush_mutex);
+        struct timespec deadline = deadline_in_ms(timeout);
+        int rv = pthread_cond_timedwait(&writer->thread->finished_flush_condition, &writer->thread->finished_flush_mutex, &deadline);
+        if (rv != 0) fprintf(stdout, "timedwait exited with: %i\n", rv);
     }
+    pthread_mutex_unlock(&writer->thread->finished_flush_mutex);
 
-    // reset the flush interval
-    atomic_store(&writer->flush_interval, get_dd_trace_agent_flush_interval());
+    // restore the flush interval
+    atomic_store(&writer->flush_interval, old_flush_interval);
 
     uint32_t processed_stacks_total =
         atomic_load(&writer->flush_processed_stacks_total) - previous_processed_stacks_total;
@@ -356,5 +414,9 @@ BOOL_T ddtrace_coms_synchronous_flush() {
 
 BOOL_T ddtrace_in_writer_thread() {
     struct _writer_loop_data_t *writer = get_writer();
-    return (pthread_self() == writer->thread);
+    if (!writer->thread) {
+        return FALSE;
+    }
+
+    return (pthread_self() == writer->thread->self);
 }
