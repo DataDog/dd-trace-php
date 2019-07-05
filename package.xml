@@ -109,6 +109,7 @@
                     <file name="dd_trace_coms_curl_out.phpt" role="test" />
                     <file name="dd_trace_coms_test_span_concatenation.phpt" role="test" />
                     <file name="dd_trace_coms_test_parallel_writer_consistency.phpt" role="test" />
+                    <file name="dd_trace_coms_writer_shutdown_and_flush_on_exit.phpt" role="test" />
                     <file name="disable_tracing_disables_tracing.phpt" role="test" />
                     <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
                     <file name="dd_trace_forward_call_error.phpt" role="test" />

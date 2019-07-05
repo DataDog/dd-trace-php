@@ -411,10 +411,11 @@ BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
     pthread_mutex_unlock(&writer->thread->writer_shutdown_signal_mutex);
 
     if (should_join && !has_pid_changed()) {
-        void *ptr = NULL;
         // when timeout was not reached and we haven't forked (without restarting thread)
         // this ensures situation when join is safe from being deadlocked
-        pthread_join(writer->thread->self, &ptr);
+        pthread_join(writer->thread->self, NULL);
+        free(writer->thread);
+        writer->thread = NULL;
     }
     return TRUE;
 }
