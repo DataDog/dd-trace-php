@@ -4,8 +4,6 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
-<<<<<<< HEAD
-=======
 ## [0.29.0]
 
 ### Fixed
@@ -111,7 +109,6 @@ All notable changes to this project will be documented in this file - [read more
 - `parent::` keyword not honored from a subclass when forwarding a call from a tracing closure #284
 - Private and protected callable strings not resolved properly from a tracing closure #303
 
->>>>>>> 22010a31... Merge pull request #492 from DataDog/sammyk/version-bump-0.29.0
 ## [0.20.0]
 
 ### Added
@@ -527,9 +524,6 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-<<<<<<< HEAD
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.20.0...HEAD
-=======
 [Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.29.0...HEAD
 [0.29.0]: https://github.com/DataDog/dd-trace-php/compare/0.28.1...0.29.0
 [0.28.1]: https://github.com/DataDog/dd-trace-php/compare/0.28.0...0.28.1
@@ -543,7 +537,6 @@ At an high level here are the breaking changes we introduced:
 [0.23.0]: https://github.com/DataDog/dd-trace-php/compare/0.22.0...0.23.0
 [0.22.0]: https://github.com/DataDog/dd-trace-php/compare/0.21.0...0.22.0
 [0.21.0]: https://github.com/DataDog/dd-trace-php/compare/0.20.0...0.21.0
->>>>>>> 22010a31... Merge pull request #492 from DataDog/sammyk/version-bump-0.29.0
 [0.20.0]: https://github.com/DataDog/dd-trace-php/compare/0.19.1...0.20.0
 [0.19.1]: https://github.com/DataDog/dd-trace-php/compare/0.19.0...0.19.1
 [0.19.0]: https://github.com/DataDog/dd-trace-php/compare/0.18.0...0.19.0

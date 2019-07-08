@@ -10,17 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-<<<<<<< HEAD
-    <date>2019-04-25</date>
-    <version>
-        <release>0.20.0</release>
-        <api>0.20.0</api>
-=======
     <date>2019-07-02</date>
     <version>
         <release>0.29.0</release>
         <api>0.29.0</api>
->>>>>>> 22010a31... Merge pull request #492 from DataDog/sammyk/version-bump-0.29.0
     </version>
     <stability>
         <release>stable</release>
@@ -28,19 +21,11 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-<<<<<<< HEAD
-### Added
-- Force tracing or discarding trace via special Span tag (manual.keep and manual.drop) #409
-
-### Fixed
-- Resource use by caching configuration values instead of processing data on every access #406
-=======
         ### Fixed
         - Edge case where the extension version and userland version can get out of sync #488
 
         ### Changed
         - Prefix hostnames as service names with `host-` to ensure compatibility with the Agent #490
->>>>>>> 22010a31... Merge pull request #492 from DataDog/sammyk/version-bump-0.29.0
     </notes>
     <contents>
         <dir name="/">
