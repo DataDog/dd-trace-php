@@ -279,6 +279,10 @@ jobs:
         type: string
       lib_curl_command:
         type: string
+      resource_class:
+        type: string
+        default: medium
+    resource_class: << parameters.resource_class >>
     executor:
       name: with_integrations
       docker_image: << parameters.docker_image >>
@@ -617,18 +621,21 @@ workflows:
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 71 Web integration tests"
+          resource_class: medium+
           integration_testsuite: "test-web-71"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 72 Web integration tests"
+          resource_class: medium+
           integration_testsuite: "test-web-72"
           docker_image: "datadog/docker-library:ddtrace_php_7_2"
           lib_curl_command: sudo apt update ; sudo apt-get -y install libcurl4-nss-dev
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Web integration tests"
+          resource_class: medium+
           integration_testsuite: "test-web-73"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
