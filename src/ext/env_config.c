@@ -1,4 +1,9 @@
+// clang-format off
+#include <php.h>
+#include "compatibility.h"
+
 #include "env_config.h"
+// clang-format on
 
 #include <SAPI.h>
 #include <Zend/zend_types.h>

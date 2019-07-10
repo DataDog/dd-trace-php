@@ -20,10 +20,10 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-zend_long get_memory_limit(TSRMLS_D) {
+int64_t ddtrace_get_memory_limit(TSRMLS_D) {
     char *raw_memory_limit = get_dd_trace_memory_limit();
     size_t len = 0;
-    zend_long limit = -1;
+    int64_t limit = -1;
 
     if (raw_memory_limit) {
         len = strlen(raw_memory_limit);

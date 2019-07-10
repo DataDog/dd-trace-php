@@ -1,7 +1,9 @@
+// clang-format off
+#include <php.h>
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
-#include <php.h>
+// clang-format on
 
 #include <ext/spl/spl_exceptions.h>
 

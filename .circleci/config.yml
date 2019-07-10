@@ -351,14 +351,14 @@ jobs:
       - run:
           shell: /bin/bash -eo pipefail -l
           name: Build extension basic .so
-          command: make all CFLAGS="-std=c11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make all CFLAGS="-std=gnu11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           shell: /bin/bash -eo pipefail -l
           name: Build extension debug .so
-          command: make clean all CFLAGS="-std=c11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make clean all CFLAGS="-std=gnu11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
