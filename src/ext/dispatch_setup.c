@@ -1,16 +1,15 @@
+#include <Zend/zend.h>
+#include <Zend/zend_closures.h>
+#include <Zend/zend_exceptions.h>
 #include <php.h>
+
 #include <ext/spl/spl_exceptions.h>
 
+#include "compat_zend_string.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
-
-#include <Zend/zend.h>
-#include "compat_zend_string.h"
 #include "dispatch_compat.h"
-
-#include <Zend/zend_closures.h>
-#include <Zend/zend_exceptions.h>
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 user_opcode_handler_t ddtrace_old_fcall_handler;

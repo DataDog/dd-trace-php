@@ -1,8 +1,9 @@
+#include "configuration_php_iface.h"
+
 #include <php.h>
 
 #include "compatibility.h"
 #include "configuration.h"
-#include "configuration_php_iface.h"
 
 // eventually this will need to be rewritten to use hashmap populated at startup to perform lookup for performance
 // reasons however for low cardinality of envs of the same name this should be fast enough

@@ -1,10 +1,11 @@
+#include "env_config.h"
+
 #include <SAPI.h>
 #include <Zend/zend_types.h>
 #include <php.h>
 #include <stdint.h>
 
 #include "coms_curl.h"
-#include "env_config.h"
 
 #define EQUALS(stra, stra_len, literal_strb) \
     (stra_len == (sizeof(literal_strb) - 1) && memcmp(stra, literal_strb, sizeof(literal_strb) - 1) == 0)

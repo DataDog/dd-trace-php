@@ -1,7 +1,8 @@
+#include "configuration.h"
+
 #include <stdlib.h>
 
 #include "TSRM.h"
-#include "configuration.h"
 #include "env_config.h"
 
 struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration = {

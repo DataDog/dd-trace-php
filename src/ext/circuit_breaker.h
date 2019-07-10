@@ -2,6 +2,7 @@
 #define DD_CIRCUIT_BREAKER_H
 
 #include <stdint.h>
+
 #include "vendor_stdatomic.h"
 #include "version.h"
 
