@@ -196,11 +196,18 @@ jobs:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
       - run:
-          name: Install clang-format 6.0
-          command: sudo apt -y install clang-format-6.0/testing
+          name: Install Clang
+          command: |
+              wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+              (
+                echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
+                echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
+              ) | sudo tee /etc/apt/sources.list.d/llvm-toolchain.list
+              sudo apt-get update
+              sudo apt-get -y install clang-format
       - run:
           name: Run clang-format
-          command: make clang_format_check
+          command: make clang_format_check CLANG_FORMAT=clang-format
       - run:
           name: Check linting failure
           command: test -e .failure && exit 1 || true
