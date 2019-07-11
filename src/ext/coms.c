@@ -7,10 +7,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "coms_curl.h"
+#include "configuration.h"
 #include "env_config.h"
 #include "mpack.h"
 #include "vendor_stdatomic.h"
-#include "configuration.h"
 
 typedef uint32_t group_id_t;
 

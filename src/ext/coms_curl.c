@@ -107,9 +107,7 @@ static size_t dummy_write_callback(char *ptr, size_t size, size_t nmemb, void *u
 
 static void (*ptr_at_exit_callback)(void) = 0;
 
-static void at_exit_callback() {
-    ddtrace_coms_flush_shutdown_writer_synchronous();
-}
+static void at_exit_callback() { ddtrace_coms_flush_shutdown_writer_synchronous(); }
 
 static void at_exit_hook() {
     if (ptr_at_exit_callback) {

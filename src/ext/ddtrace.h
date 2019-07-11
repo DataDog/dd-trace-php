@@ -1,6 +1,7 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
 #include <stdint.h>
+
 #include "version.h"
 extern zend_module_entry ddtrace_module_entry;
 
