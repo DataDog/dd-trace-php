@@ -1,3 +1,5 @@
+#include "coms.h"
+
 #include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -5,8 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "coms.h"
-#include "coms_curl.h"
 #include "env_config.h"
 #include "mpack.h"
 #include "vendor_stdatomic.h"

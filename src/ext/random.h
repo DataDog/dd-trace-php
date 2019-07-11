@@ -1,6 +1,7 @@
 #ifndef DD_RANDOM_H
 #define DD_RANDOM_H
 #include <Zend/zend_types.h>
+#include <php.h>
 
 #define DD_TRACE_DEBUG_PRNG_SEED "DD_TRACE_DEBUG_PRNG_SEED"
 

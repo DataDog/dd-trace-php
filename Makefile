@@ -89,11 +89,13 @@ clang_find_files_to_lint:
 	-iname "*.h" -o -iname "*.c" \
 	-type f
 
+CLANG_FORMAT := clang-format-6.0
+
 clang_format_check:
 	@while read fname; do \
-		changes=$$(clang-format-6.0 -output-replacements-xml $$fname | grep -c "<replacement " || true); \
+		changes=$$($(CLANG_FORMAT) -output-replacements-xml $$fname | grep -c "<replacement " || true); \
 		if [ $$changes != 0 ]; then \
-			clang-format-6.0 -output-replacements-xml $$fname; \
+			$(CLANG_FORMAT) -output-replacements-xml $$fname; \
 			echo "$$fname did not pass clang-format, consider running: make clang_format_fix"; \
 			touch .failure; \
 		fi \

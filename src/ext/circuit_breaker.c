@@ -1,4 +1,4 @@
-#include "macros.h"
+#include "circuit_breaker.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -9,8 +9,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "circuit_breaker.h"
 #include "env_config.h"
+#include "macros.h"
 
 dd_trace_circuit_breaker_t *dd_trace_circuit_breaker = NULL;
 

@@ -196,11 +196,18 @@ jobs:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
       - run:
-          name: Install clang-format 6.0
-          command: sudo apt -y install clang-format-6.0/testing
+          name: Install Clang
+          command: |
+              wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+              (
+                echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
+                echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
+              ) | sudo tee /etc/apt/sources.list.d/llvm-toolchain.list
+              sudo apt-get update
+              sudo apt-get -y install clang-format
       - run:
           name: Run clang-format
-          command: make clang_format_check
+          command: make clang_format_check CLANG_FORMAT=clang-format
       - run:
           name: Check linting failure
           command: test -e .failure && exit 1 || true
@@ -279,6 +286,10 @@ jobs:
         type: string
       lib_curl_command:
         type: string
+      resource_class:
+        type: string
+        default: medium
+    resource_class: << parameters.resource_class >>
     executor:
       name: with_integrations
       docker_image: << parameters.docker_image >>
@@ -367,14 +378,14 @@ jobs:
       - run:
           shell: /bin/bash -eo pipefail -l
           name: Build extension basic .so
-          command: make all CFLAGS="-std=c11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make all CFLAGS="-std=gnu11 -O2 -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           shell: /bin/bash -eo pipefail -l
           name: Build extension debug .so
-          command: make clean all CFLAGS="-std=c11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
+          command: make clean all CFLAGS="-std=gnu11 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>" ECHO_ARG="-e"
       - run:
           name: Copy extension basic .so
           command: cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
@@ -644,18 +655,21 @@ workflows:
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 71 Web integration tests"
+          resource_class: medium+
           integration_testsuite: "test-web-71"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 72 Web integration tests"
+          resource_class: medium+
           integration_testsuite: "test-web-72"
           docker_image: "datadog/docker-library:ddtrace_php_7_2"
           lib_curl_command: sudo apt update ; sudo apt-get -y install libcurl4-nss-dev
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Web integration tests"
+          resource_class: medium+
           integration_testsuite: "test-web-73"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev

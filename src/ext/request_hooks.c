@@ -1,12 +1,13 @@
 #include "request_hooks.h"
-#include "compat_zend_string.h"
-#include "ddtrace.h"
-#include "logging.h"
 
 #include <Zend/zend.h>
 #include <Zend/zend_compile.h>
 #include <php_main.h>
 #include <string.h>
+
+#include "compat_zend_string.h"
+#include "ddtrace.h"
+#include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

@@ -2,6 +2,7 @@
 #define DD_CONFIGURATION_REDER_H
 #include <pthread.h>
 #include <string.h>
+
 #include "env_config.h"
 
 // this file uses X-Macro concept to render all helpful APIs for automatic setup and cleanup

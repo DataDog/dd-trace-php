@@ -8,6 +8,7 @@
 #include <php.h>
 #include <php_ini.h>
 #include <php_main.h>
+
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
@@ -357,7 +358,7 @@ static PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
 
-    RETURN_LONG(get_memory_limit(TSRMLS_C));
+    RETURN_LONG(ddtrace_get_memory_limit(TSRMLS_C));
 }
 
 /* {{{ proto bool dd_trace_check_memory_under_limit() */
@@ -365,11 +366,11 @@ static PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
 
-    static zend_long limit = -1;
+    static int64_t limit = -1;
     static zend_bool fetched_limit = 0;
     if (!fetched_limit) {  // cache get_memory_limit() result to make this function blazing fast
         fetched_limit = 1;
-        limit = get_memory_limit(TSRMLS_C);
+        limit = ddtrace_get_memory_limit(TSRMLS_C);
     }
 
     if (limit > 0) {

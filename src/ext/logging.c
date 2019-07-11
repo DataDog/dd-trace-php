@@ -1,4 +1,5 @@
 #include "logging.h"
+
 #include <php.h>
 
 void _ddtrace_log_errf(TSRMLS_FC const char *format, ...) {
