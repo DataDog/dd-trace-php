@@ -10,11 +10,11 @@
 #include "env_config.h"
 #include "mpack.h"
 #include "vendor_stdatomic.h"
+#include "configuration.h"
 
 typedef uint32_t group_id_t;
 
 #define GROUP_ID_PROCESSED (1UL << 31UL)
-#define MEMORY_PRESSURE_LEVEL (0.8)
 
 #ifndef __clang__
 // disable checks since older GCC is throwing false errors
@@ -29,8 +29,8 @@ ddtrace_coms_state_t ddtrace_coms_global_state = {.stacks = NULL};
 static inline BOOL_T is_memory_pressure_high() {
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_global_state.current_stack);
     if (stack) {
-        double used = (double)atomic_load(&stack->position) / (double)stack->size;
-        return (used > MEMORY_PRESSURE_LEVEL);
+        int64_t used = (((double)atomic_load(&stack->position) / (double)stack->size) * 100);
+        return (used > get_dd_trace_beta_high_memory_pressure_percent());
     } else {
         return FALSE;
     }

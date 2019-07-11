@@ -8,13 +8,13 @@
 
 // define memoization struct
 struct ddtrace_memoized_configuration_t {
-#define CHAR(getter_name, env_name, default) \
+#define CHAR(getter_name, env_name, default, ...) \
     char* getter_name;                       \
     BOOL_T __is_set_##getter_name;
-#define INT(getter_name, env_name, default) \
+#define INT(getter_name, env_name, default, ...) \
     int64_t getter_name;                    \
     BOOL_T __is_set_##getter_name;
-#define BOOL(getter_name, env_name, default) \
+#define BOOL(getter_name, env_name, default, ...) \
     BOOL_T getter_name;                      \
     BOOL_T __is_set_##getter_name;
 
@@ -30,7 +30,7 @@ struct ddtrace_memoized_configuration_t {
 };
 
 // define configuration getters macros
-#define CHAR(getter_name, env_name, default)                                           \
+#define CHAR(getter_name, env_name, default, ...)                                           \
     inline static char* getter_name() {                                                \
         if (ddtrace_memoized_configuration.__is_set_##getter_name) {                   \
             if (ddtrace_memoized_configuration.getter_name) {                          \
@@ -50,7 +50,7 @@ struct ddtrace_memoized_configuration_t {
         }                                                                              \
     }
 
-#define INT(getter_name, env_name, default)                          \
+#define INT(getter_name, env_name, default, ...)                          \
     inline static int64_t getter_name() {                            \
         if (ddtrace_memoized_configuration.__is_set_##getter_name) { \
             return ddtrace_memoized_configuration.getter_name;       \
@@ -59,7 +59,7 @@ struct ddtrace_memoized_configuration_t {
         }                                                            \
     }
 
-#define BOOL(getter_name, env_name, default)                         \
+#define BOOL(getter_name, env_name, default, ...)                    \
     inline static BOOL_T getter_name() {                             \
         if (ddtrace_memoized_configuration.__is_set_##getter_name) { \
             return ddtrace_memoized_configuration.getter_name;       \
