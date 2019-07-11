@@ -110,7 +110,6 @@ static void (*ptr_at_exit_callback)(void) = 0;
 
 static void at_exit_callback() {
     ddtrace_coms_flush_shutdown_writer_synchronous();
-    fprintf(stderr, "X");
 }
 
 static void at_exit_hook() {
@@ -139,13 +138,12 @@ inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_c
         curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, dummy_write_callback);
     }
 
-    CURL *curl = writer->curl;
-    if (curl) {
+    if (writer->curl) {
         CURLcode res;
 
         void *read_data = ddtrace_init_read_userdata(stack);
 
-        curl_easy_setopt(curl, CURLOPT_READDATA, read_data);
+        curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
         curl_set_hostname(writer->curl);
         curl_set_timeout(writer->curl);
         curl_set_connect_timeout(writer->curl);
@@ -154,7 +152,7 @@ inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_c
         curl_easy_setopt(writer->curl, CURLOPT_INFILESIZE, 10);
         curl_easy_setopt(writer->curl, CURLOPT_VERBOSE, get_dd_trace_agent_debug_verbose_curl());
 
-        res = curl_easy_perform(curl);
+        res = curl_easy_perform(writer->curl);
 
         if (res != CURLE_OK) {
             if (get_dd_trace_debug_curl_output()) {
@@ -164,7 +162,7 @@ inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_c
         } else {
             if (get_dd_trace_debug_curl_output()) {
                 double uploaded;
-                curl_easy_getinfo(curl, CURLINFO_SIZE_UPLOAD, &uploaded);
+                curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
                 printf("UPLOADED %.0f bytes\n", uploaded);
                 fflush(stdout);
             }
