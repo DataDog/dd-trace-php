@@ -1,3 +1,3 @@
 <?php
 
-return '0.29.0'; // Update Tracer::VERSION too
+return 'nightly'; // Update Tracer::VERSION too
