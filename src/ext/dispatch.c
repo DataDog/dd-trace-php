@@ -597,7 +597,9 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     zend_vm_stack_clear_multiple(0 TSRMLS_CC);
     EX(call)--;
 #else
-    EX(call) = EX(call)->prev_execute_data;
+    if (EX(call)) {
+        EX(call) = EX(call)->prev_execute_data;
+    }
 #endif
     EX(opline) = EX(opline) + 1;
 
