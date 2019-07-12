@@ -5,6 +5,7 @@
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
 #include <php.h>
+#include <time.h>
 
 #include <ext/spl/spl_exceptions.h>
 
@@ -365,6 +366,14 @@ ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_DC) {
     return stack;
 }
 
+static unsigned long long get_time_in_ms() {
+    struct timespec time;
+    if (clock_gettime(CLOCK_MONOTONIC, &time) == 0) {
+        return time.tv_sec * 1000000 + time.tv_nsec / 1000;
+    }
+    return 0;
+}
+
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data,
                                                  ddtrace_lookup_data_t *lookup_data TSRMLS_DC) {
 #if PHP_VERSION_ID < 50500
@@ -513,9 +522,9 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         zend_execute_data *orig_ex = DDTRACE_G(original_context).execute_data;
         DDTRACE_G(original_context).execute_data = EX(call);
 
-        stack->start = 42;
+        stack->start = get_time_in_ms();
         ddtrace_forward_call(return_value);
-        stack->duration = 420;
+        stack->duration = get_time_in_ms() - stack->start;
         
         DDTRACE_G(original_context).execute_data = orig_ex;
 
