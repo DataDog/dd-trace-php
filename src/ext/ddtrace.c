@@ -45,8 +45,8 @@ PHP_INI_END()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method_prepend, 0, 0, 4)
 ZEND_ARG_INFO(0, class_name)
 ZEND_ARG_INFO(0, method_name)
-ZEND_ARG_INFO(0, expected_arg_types)
 ZEND_ARG_INFO(0, tracing_callback)
+ZEND_ARG_INFO(0, expected_arg_types)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_msgpack, 0, 0, 1)
@@ -270,19 +270,20 @@ static PHP_FUNCTION(dd_trace_method_prepend) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *class_name = NULL;
     zval *function = NULL;
-    zval *expected_arg_types = NULL;
     zval *tracing_callback = NULL;
+    zval *expected_arg_types = NULL;
 
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
+    // TODO Support "O" with variadic args of class-entry names for expected_arg_types
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzzz", &class_name, &function,
-                                 &expected_arg_types, &tracing_callback) != SUCCESS) {
+                                 &tracing_callback, &expected_arg_types) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(
                 spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                "unexpected parameter combination, expected (class_name, method_name, expected_args, tracing_callback)");
+                "unexpected parameter combination, expected (class_name, method_name, tracing_callback, expected_args)");
         }
         RETURN_BOOL(0);
     }
@@ -290,8 +291,8 @@ static PHP_FUNCTION(dd_trace_method_prepend) {
     if (Z_TYPE_P(class_name) != IS_STRING || Z_TYPE_P(function) != IS_STRING  || Z_TYPE_P(expected_arg_types) != IS_STRING) {
         ddtrace_zval_ptr_dtor(class_name);
         ddtrace_zval_ptr_dtor(function);
-        ddtrace_zval_ptr_dtor(expected_arg_types);
         ddtrace_zval_ptr_dtor(tracing_callback);
+        ddtrace_zval_ptr_dtor(expected_arg_types);
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
                                     "class_name, method_name and expected_args must be a string");
