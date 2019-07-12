@@ -67,6 +67,7 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name);
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch);
 HashTable *ddtrace_new_class_lookup(zval *class_name TSRMLS_DC);
 zend_bool ddtrace_dispatch_store(HashTable *class_lookup, ddtrace_dispatch_t *dispatch);
-void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TSRMLS_DC);
+int ddtrace_validate_context_for_call_forwarding(zend_execute_data *execute_data TSRMLS_DC);
+void ddtrace_forward_call(zval *return_value TSRMLS_DC);
 
 #endif  // DISPATCH_COMPAT_H

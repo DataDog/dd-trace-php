@@ -72,15 +72,11 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
     return zend_hash_update_ptr(lookup, Z_STR(dispatch->function_name), dispatch) != NULL;
 }
 
-void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
-    zval fname, retval;
-    zend_fcall_info fci = {0};
-    zend_fcall_info_cache fcc = {0};
-
+int ddtrace_validate_context_for_call_forwarding(zend_execute_data *execute_data TSRMLS_DC) {
     if (!DDTRACE_G(original_context).execute_data || !EX(prev_execute_data)) {
         zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
                                 "Cannot use dd_trace_forward_call() outside of a tracing closure");
-        return;
+        return 0;
     }
 
     // Jump out of any include files
@@ -93,8 +89,15 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     if (!callback_name || !zend_string_equals_literal(callback_name, DDTRACE_CALLBACK_NAME)) {
         zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
                                 "Cannot use dd_trace_forward_call() outside of a tracing closure");
-        return;
+        return 0;
     }
+    return 1;
+}
+
+void ddtrace_forward_call(zval *return_value TSRMLS_DC) {
+    zval fname, retval;
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
 
     ZVAL_STR_COPY(&fname, DDTRACE_G(original_context).execute_data->func->common.function_name);
 

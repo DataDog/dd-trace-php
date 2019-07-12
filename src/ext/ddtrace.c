@@ -313,10 +313,15 @@ static PHP_FUNCTION(dd_trace_forward_call) {
     }
 
 #if PHP_VERSION_ID >= 70000
-    ddtrace_forward_call(execute_data, return_value TSRMLS_CC);
+    if (!ddtrace_validate_context_for_call_forwarding(execute_data)) {
+        return;
+    }
 #else
-    ddtrace_forward_call(EG(current_execute_data), return_value TSRMLS_CC);
+    if (!ddtrace_validate_context_for_call_forwarding(EG(current_execute_data))) {
+        return;
+    }
 #endif
+    ddtrace_forward_call(return_value TSRMLS_CC);
 }
 
 static PHP_FUNCTION(dd_trace_env_config) {
