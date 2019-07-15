@@ -60,18 +60,9 @@ static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_look
 }
 #else
 static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_lookup_data_t *lookup_data) {
-    zend_string *to_free = NULL, *key = lookup_data->function_name;
-
-    if (!ddtrace_is_all_lower(key)) {
-        key = zend_string_tolower(key);
-        to_free = key;
-    }
-
+    zend_string *key = zend_string_tolower(lookup_data->function_name);
     ddtrace_dispatch_t *dispatch = zend_hash_find_ptr(lookup, key);
-
-    if (to_free) {
-        zend_string_free(key);
-    }
+    zend_string_release(key);
     return dispatch;
 }
 #endif
