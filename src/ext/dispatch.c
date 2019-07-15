@@ -232,6 +232,11 @@ static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *looku
     if (!(fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !lookup->function_name) {
         return 0;
     }
+
+    /* This checks for a "{closure}" prefix, not a complete string. PHP adds
+     * null characters to the closure name to separate different parts, which
+     * is why this works at all. */
+    /* todo: why do we do this check at all? */
 #if PHP_VERSION_ID < 70000
     if (lookup->function_name_length == 0) {
         lookup->function_name_length = strlen(lookup->function_name);
