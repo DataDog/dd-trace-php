@@ -7,6 +7,7 @@
 #if defined(__GLIBC__) || defined(__APPLE__)
 
 #include <execinfo.h>
+
 #include "backtrace.h"
 #include "configuration.h"
 #include "ddtrace.h"

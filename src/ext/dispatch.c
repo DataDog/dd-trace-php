@@ -1,16 +1,16 @@
-#include <php.h>
-#include <ext/spl/spl_exceptions.h>
-
-#include "ddtrace.h"
 #include "dispatch.h"
 
 #include <Zend/zend.h>
-#include "compat_zend_string.h"
-#include "dispatch_compat.h"
-
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
+#include <php.h>
+
+#include <ext/spl/spl_exceptions.h>
+
+#include "compat_zend_string.h"
+#include "ddtrace.h"
 #include "debug.h"
+#include "dispatch_compat.h"
 
 // avoid Older GCC being overly cautious over {0} struct initializer
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"

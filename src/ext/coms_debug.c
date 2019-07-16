@@ -1,10 +1,11 @@
+#include "coms_debug.h"
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "coms.h"
-#include "coms_debug.h"
 
 #define DDTRACE_NUMBER_OF_DATA_TO_WRITE 2000
 #define DDTRACE_DATA_TO_WRITE "0123456789"

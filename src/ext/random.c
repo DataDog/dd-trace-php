@@ -1,8 +1,10 @@
+#include "random.h"
+
 #include <php.h>
+
 #include <ext/standard/php_rand.h>
 
 #include "configuration.h"
-#include "random.h"
 #include "third-party/mt19937-64.h"
 
 void dd_trace_seed_prng(TSRMLS_D) {

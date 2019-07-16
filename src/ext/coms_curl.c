@@ -1,4 +1,4 @@
-#include "macros.h"
+#include "coms_curl.h"
 
 #include <curl/curl.h>
 #include <pthread.h>
@@ -11,8 +11,8 @@
 
 #include "compatibility.h"
 #include "coms.h"
-#include "coms_curl.h"
 #include "configuration.h"
+#include "macros.h"
 #include "vendor_stdatomic.h"
 
 #define HOST_FORMAT_STR "http://%s:%u/v0.4/traces"

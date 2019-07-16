@@ -2,6 +2,7 @@
 #define DISPATCH_H
 
 #include <Zend/zend_types.h>
+#include <php.h>
 #include <stdint.h>
 
 #include "compat_zend_string.h"
