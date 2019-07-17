@@ -272,7 +272,6 @@ static PHP_FUNCTION(dd_untrace) {
     }
 
     zval *function = NULL;
-    DD_PRINTF("Untracing function: %s", Z_STRVAL_P(function));
 
     // Remove the traced function from the global lookup
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "z", &function) != SUCCESS) {
@@ -287,6 +286,8 @@ static PHP_FUNCTION(dd_untrace) {
     if (!function || Z_TYPE_P(function) != IS_STRING) {
         RETURN_BOOL(0);
     }
+
+    DD_PRINTF("Untracing function: %s", Z_STRVAL_P(function));
 
 #if PHP_VERSION_ID < 70000
     zend_hash_del(&DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
