@@ -1,5 +1,7 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
+#include <stdint.h>
+
 #include "version.h"
 extern zend_module_entry ddtrace_module_entry;
 
@@ -23,6 +25,7 @@ char *request_init_hook;
 char *internal_blacklisted_modules_list;
 zend_bool strict_mode;
 
+uint32_t traces_group_id;
 HashTable class_lookup;
 HashTable function_lookup;
 zend_bool log_backtrace;

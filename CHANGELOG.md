@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Fixed
+- Shutdown span flushing blocking the process when forked #493
+
 ## [0.29.0]
 
 ### Fixed

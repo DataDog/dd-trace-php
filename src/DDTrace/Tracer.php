@@ -368,17 +368,6 @@ final class Tracer implements TracerInterface
         $tracesToBeSent = [];
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
 
-        $sendTracesViaThread = getenv('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD');
-        $spanGroupId = 0;
-        if (false !== $sendTracesViaThread) {
-            $sendTracesViaThread;
-            $sendTracesViaThread = ('true' === $sendTracesViaThread || '1' === $sendTracesViaThread);
-
-            if ($sendTracesViaThread) {
-                $spanGroupId = dd_trace_coms_next_span_group_id();
-            }
-        }
-
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
             foreach ($trace as $span) {
@@ -394,8 +383,8 @@ final class Tracer implements TracerInterface
 
                 $this->traceAnalyticsProcessor->process($span);
                 $encodedSpan = SpanEncoder::encode($span);
-                if ($sendTracesViaThread) {
-                    dd_trace_flush_span($spanGroupId, $encodedSpan);
+                if (dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
+                    dd_trace_buffer_span($encodedSpan);
                 } else {
                     $traceToBeSent[] = $encodedSpan;
                 }
@@ -406,7 +395,9 @@ final class Tracer implements TracerInterface
             }
 
             $tracesToBeSent[] = $traceToBeSent;
-            unset($this->traces[$traceToBeSent[0]['trace_id']]);
+            if (isset($traceToBeSent[0]['trace_id'])) {
+                unset($this->traces[$traceToBeSent[0]['trace_id']]);
+            }
         }
 
         if (empty($tracesToBeSent)) {
@@ -452,7 +443,6 @@ final class Tracer implements TracerInterface
         if (!array_key_exists($span->context->traceId, $this->traces)) {
             $this->traces[$span->context->traceId] = [];
         }
-
         $this->traces[$span->context->traceId][$span->context->spanId] = $span;
         if (Configuration::get()->isDebugModeEnabled()) {
             self::logDebug('New span {operation} {resource} recorded.', [

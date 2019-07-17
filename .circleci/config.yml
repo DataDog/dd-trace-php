@@ -314,6 +314,33 @@ jobs:
           command: DD_TRACE_AGENT_TIMEOUT=2000 composer << parameters.integration_testsuite >>
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
+  hyperfine_tests:
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      lib_curl_command:
+        type: string
+    executor:
+      name: with_agent
+      docker_image: << parameters.docker_image >>
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - lib_curl_workaround:
+          command: << parameters.lib_curl_command >>
+      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_AGENT
+      - run: |
+          set -xe
+          curl -q -o hyperfine.tgz -L https://github.com/sharkdp/hyperfine/releases/download/v1.6.0/hyperfine-v1.6.0-x86_64-unknown-linux-musl.tar.gz
+          tar xf hyperfine.tgz --strip-component=1
+          php -m | grep ddtrace
+          sudo rm /usr/local/etc/php/conf.d/ddtrace.ini
+          php -m | grep ddtrace || true
+          ./hyperfine -s basic 'php -m' 'php -m -dextension=ddtrace.so' --min-runs 10000 --export-markdown hyperfine.md
+      - store_artifacts: { path: 'hyperfine.md', destination: /hyperfine.md }
 
   verify_package:
     working_directory: ~/datadog
@@ -646,6 +673,37 @@ workflows:
           integration_testsuite: "test-web-73"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - hyperfine_tests:
+          requires: [ 'Code Checkout' ]
+          name: "Hyperfine 54 benchmarks"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - hyperfine_tests:
+          requires: [ 'Code Checkout' ]
+          name: "Hyperfine 56 benchmarks"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug"
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - hyperfine_tests:
+          requires: [ 'Code Checkout' ]
+          name: "Hyperfine 70 benchmarks"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - hyperfine_tests:
+          requires: [ 'Code Checkout' ]
+          name: "Hyperfine 71 benchmarks"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - hyperfine_tests:
+          requires: [ 'Code Checkout' ]
+          name: "Hyperfine 72 benchmarks"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - hyperfine_tests:
+          requires: [ 'Code Checkout' ]
+          name: "Hyperfine 73 benchmarks"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+
       - "Lint files":
           requires: [ 'Code Checkout' ]
       - "Static Analysis":
