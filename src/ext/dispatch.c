@@ -413,9 +413,7 @@ static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *exe
 
 #if PHP_VERSION_ID < 70000
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
-        if (fbc) {
-            lookup_data->function_name = fbc->common.function_name;
-        }
+        lookup_data->function_name = fbc->common.function_name;
     } else {
         zval *fname = EX(opline)->op1.zv;
 
