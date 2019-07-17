@@ -551,7 +551,8 @@ void ddtrace_class_lookup_release(ddtrace_dispatch_t *dispatch) {
         efree(dispatch);
     }
 }
-int find_method(zend_class_entry *ce, zval *name, zend_function **function) {
+
+static int _find_method(zend_class_entry *ce, zval *name, zend_function **function) {
     return ddtrace_find_function(&ce->function_table, name, function);
 }
 
@@ -565,7 +566,7 @@ zend_class_entry *ddtrace_target_class_entry(zval *class_name, zval *method_name
 #endif
     zend_function *method = NULL;
 
-    if (class && find_method(class, method_name, &method) == SUCCESS) {
+    if (class && _find_method(class, method_name, &method) == SUCCESS) {
         if (method->common.scope != class) {
             class = method->common.scope;
             DD_PRINTF("Overriding Parent class method");
