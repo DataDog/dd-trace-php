@@ -450,7 +450,7 @@ workflows:
               only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
             branches:
               # Always build on master
-              only: /^.*(master|build).*$/
+              only: /^.*(master|build|[0-9]+.[0-9]+.[0-9]+).*$/
       - compile_extension:
           name: "Compile PHP 54"
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
