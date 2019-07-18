@@ -21,6 +21,7 @@ class OptionalDepsAutoloader
         "DDTrace\\OpenTracer\\ScopeManager" => 'DDTrace/OpenTracer/ScopeManager.php',
         "DDTrace\\OpenTracer\\SpanContext" => 'DDTrace/OpenTracer/SpanContext.php',
         "DDTrace\\Integrations\\CakePHP\\V2\\CakePHPIntegrationLoader" => 'DDTrace/Integrations/CakePHP/V2/CakePHPIntegrationLoader.php',
+        "DDTrace\\Integrations\\Nette\\NetteLoader" => 'DDTrace/Integrations/Nette/NetteLoader.php',
         "DDTrace\\Integrations\\Slim\\V3\\SlimIntegrationLoader" => 'DDTrace/Integrations/Slim/V3/SlimIntegrationLoader.php',
         "DDTrace\\Integrations\\Symfony\\V4\\SymfonyBundle" => 'DDTrace/Integrations/Symfony/V4/SymfonyBundle.php',
         "DDTrace\\Integrations\\Symfony\\V3\\SymfonyBundle" => 'DDTrace/Integrations/Symfony/V3/SymfonyBundle.php',
