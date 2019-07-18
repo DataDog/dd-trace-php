@@ -28,21 +28,6 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #if PHP_VERSION_ID < 70000
 #undef EX
 #define EX(x) ((execute_data)->x)
-
-#else  // PHP7.0+
-// imported from PHP 7.2 as 7.0 missed this method
-zend_class_entry *get_executed_scope(void) {
-    zend_execute_data *ex = EG(current_execute_data);
-
-    while (1) {
-        if (!ex) {
-            return NULL;
-        } else if (ex->func && (ZEND_USER_CODE(ex->func->type) || ex->func->common.scope)) {
-            return ex->func->common.scope;
-        }
-        ex = ex->prev_execute_data;
-    }
-}
 #endif
 
 #if PHP_VERSION_ID < 70000
@@ -60,18 +45,9 @@ static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_look
 }
 #else
 static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_lookup_data_t *lookup_data) {
-    zend_string *to_free = NULL, *key = lookup_data->function_name;
-
-    if (!ddtrace_is_all_lower(key)) {
-        key = zend_string_tolower(key);
-        to_free = key;
-    }
-
+    zend_string *key = zend_string_tolower(lookup_data->function_name);
     ddtrace_dispatch_t *dispatch = zend_hash_find_ptr(lookup, key);
-
-    if (to_free) {
-        zend_string_free(key);
-    }
+    zend_string_release(key);
     return dispatch;
 }
 #endif
@@ -241,6 +217,11 @@ static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *looku
     if (!(fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !lookup->function_name) {
         return 0;
     }
+
+    /* This checks for a "{closure}" prefix, not a complete string. PHP adds
+     * null characters to the closure name to separate different parts, which
+     * is why this works at all. */
+    /* todo: why do we do this check at all? */
 #if PHP_VERSION_ID < 70000
     if (lookup->function_name_length == 0) {
         lookup->function_name_length = strlen(lookup->function_name);
@@ -417,9 +398,7 @@ static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *exe
 
 #if PHP_VERSION_ID < 70000
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
-        if (fbc) {
-            lookup_data->function_name = fbc->common.function_name;
-        }
+        lookup_data->function_name = fbc->common.function_name;
     } else {
         zval *fname = EX(opline)->op1.zv;
 
@@ -557,7 +536,8 @@ void ddtrace_class_lookup_release(ddtrace_dispatch_t *dispatch) {
         efree(dispatch);
     }
 }
-int find_method(zend_class_entry *ce, zval *name, zend_function **function) {
+
+static int _find_method(zend_class_entry *ce, zval *name, zend_function **function) {
     return ddtrace_find_function(&ce->function_table, name, function);
 }
 
@@ -571,7 +551,7 @@ zend_class_entry *ddtrace_target_class_entry(zval *class_name, zval *method_name
 #endif
     zend_function *method = NULL;
 
-    if (class && find_method(class, method_name, &method) == SUCCESS) {
+    if (class && _find_method(class, method_name, &method) == SUCCESS) {
         if (method->common.scope != class) {
             class = method->common.scope;
             DD_PRINTF("Overriding Parent class method");
