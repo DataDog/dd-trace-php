@@ -6,6 +6,10 @@ ddtrace.internal_blacklisted_modules_list=ddtrace_its_not,some_other_module
 
 --FILE--
 <?php
+function test() {
+}
+test(); // calling first function will cause request init hook to be loaded
+
 echo "Request start" . PHP_EOL;
 
 ?>

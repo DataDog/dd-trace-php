@@ -112,14 +112,10 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
         return SUCCESS;
     }
+    DDTRACE_G(rih_run) = FALSE;
 
     dd_trace_seed_prng(TSRMLS_C);
     ddtrace_coms_on_pid_change();
-
-    if (DDTRACE_G(request_init_hook)) {
-        DD_PRINTF("%s", DDTRACE_G(request_init_hook));
-        dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
-    }
 
     DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
 
