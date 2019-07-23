@@ -8,6 +8,7 @@
 #include <ext/spl/spl_exceptions.h>
 
 #include "compat_zend_string.h"
+#include "request_hooks.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch_compat.h"
@@ -474,8 +475,8 @@ int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
 
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
-    if (!DDTRACE_G(disable) && !DDTRACE_G(rih_run)) {
-        DDTRACE_G(rih_run) = 1;
+    if (!DDTRACE_G(disable) && !DDTRACE_G(request_hook_included)) {
+        DDTRACE_G(request_hook_included) = 1;
 
         if (DDTRACE_G(request_init_hook)) {
             DD_PRINTF("%s", DDTRACE_G(request_init_hook));

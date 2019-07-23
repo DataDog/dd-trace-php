@@ -24,7 +24,7 @@ zend_bool disable_in_current_request;
 char *request_init_hook;
 char *internal_blacklisted_modules_list;
 zend_bool strict_mode;
-zend_bool rih_run;
+zend_bool request_hook_included;
 
 uint32_t traces_group_id;
 HashTable class_lookup;

@@ -27,7 +27,6 @@
 #include "dispatch_compat.h"
 #include "memory_limit.h"
 #include "random.h"
-#include "request_hooks.h"
 #include "serializer.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
@@ -112,7 +111,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
         return SUCCESS;
     }
-    DDTRACE_G(rih_run) = FALSE;
+    DDTRACE_G(request_hook_included) = FALSE;
 
     dd_trace_seed_prng(TSRMLS_C);
     ddtrace_coms_on_pid_change();
