@@ -474,8 +474,8 @@ int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
 
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
-    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)
-        || DDTRACE_G(class_lookup) == NULL || DDTRACE_G(function_lookup) == NULL) {
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
+        DDTRACE_G(function_lookup) == NULL) {
         return default_dispatch(execute_data TSRMLS_CC);
     }
 
