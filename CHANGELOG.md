@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - Shutdown span flushing blocking the process when forked #493
+- Request init hook being executed too early #506
 
 ## [0.29.0]
 
