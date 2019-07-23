@@ -69,7 +69,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_initialize_config(TSRMLS_C);
 
     ddtrace_install_backtrace_handler();
-    ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);
 
     ddtrace_coms_initialize();
