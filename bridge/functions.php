@@ -35,13 +35,19 @@ function dd_tracing_enabled()
 /**
  * Checks if any of the provided classes exists.
  *
- * @param string[] $sentinelClasses
+ * @param string[]|string $sentinelClasses
  * @return bool
  */
-function any_class_exists(array $sentinelClasses)
+function any_class_exists($sentinelClasses)
 {
-    foreach ($sentinelClasses as $sentinelClass) {
-        if (class_exists($sentinelClass)) {
+    if (is_array($sentinelClasses)) {
+        foreach ($sentinelClasses as $sentinelClass) {
+            if (class_exists($sentinelClass)) {
+                return true;
+            }
+        }
+    } else {
+        if (is_string($sentinelClasses) && class_exists($sentinelClasses)) {
             return true;
         }
     }
