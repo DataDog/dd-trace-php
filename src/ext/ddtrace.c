@@ -108,9 +108,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_dispatch_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
 
-    if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
-        return SUCCESS;
-    }
     DDTRACE_G(request_hook_included) = FALSE;
 
     dd_trace_seed_prng(TSRMLS_C);

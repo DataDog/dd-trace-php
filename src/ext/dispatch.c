@@ -8,10 +8,10 @@
 #include <ext/spl/spl_exceptions.h>
 
 #include "compat_zend_string.h"
-#include "request_hooks.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch_compat.h"
+#include "request_hooks.h"
 
 // avoid Older GCC being overly cautious over {0} struct initializer
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -477,10 +477,11 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
     if (!DDTRACE_G(disable) && !DDTRACE_G(request_hook_included)) {
         DDTRACE_G(request_hook_included) = 1;
-
         if (DDTRACE_G(request_init_hook)) {
-            DD_PRINTF("%s", DDTRACE_G(request_init_hook));
-            dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
+            if (DDTRACE_G(internal_blacklisted_modules_list) && dd_no_blacklisted_modules(TSRMLS_C)) {
+                DD_PRINTF("%s", DDTRACE_G(request_init_hook));
+                dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
+            }
         }
     }
 
