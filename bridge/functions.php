@@ -33,29 +33,6 @@ function dd_tracing_enabled()
 }
 
 /**
- * Checks if any of the provided classes exists.
- *
- * @param string[]|string $sentinelClasses
- * @return bool
- */
-function any_class_exists($sentinelClasses)
-{
-    if (is_array($sentinelClasses)) {
-        foreach ($sentinelClasses as $sentinelClass) {
-            if (class_exists($sentinelClass)) {
-                return true;
-            }
-        }
-    } else {
-        if (is_string($sentinelClasses) && class_exists($sentinelClasses)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/**
  * Extracts an array ['My\Autoloader\Class', 'method'] if the loader class and methods are in a known format, otherwise
  * it returns null.
  *
