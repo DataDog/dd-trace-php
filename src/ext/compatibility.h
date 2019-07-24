@@ -50,6 +50,7 @@
 #endif
 
 // make code with optional thread context portable
+#include "TSRM/TSRM.h"
 #if ZTS
 // D - define (define)
 #define COMPAT_CTX_D TSRMLS_D
