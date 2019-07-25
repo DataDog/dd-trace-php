@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ### Fixed
 - Shutdown span flushing blocking the process when forked #493
+- Memory access errors in cases when PHP code was run after extension data was freed on request shutdown #505
+- Request init hook working when open_basedir restriction is in effect #505
 
 ## [0.29.0]
 

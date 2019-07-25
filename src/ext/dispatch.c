@@ -63,9 +63,9 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, ddtrace_
     size_t class_name_length = 0;
     class_name = class->name;
     class_name_length = class->name_length;
-    class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), class_name, class_name_length);
+    class_lookup = zend_hash_str_find_ptr(DDTRACE_G(class_lookup), class_name, class_name_length);
 #else
-    class_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), class->name);
+    class_lookup = zend_hash_find_ptr(DDTRACE_G(class_lookup), class->name);
 #endif
 
     ddtrace_dispatch_t *dispatch = NULL;
@@ -266,7 +266,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     if (class) {
         dispatch = find_dispatch(class, lookup_data TSRMLS_CC);
     } else {
-        dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), lookup_data);
+        dispatch = lookup_dispatch(DDTRACE_G(function_lookup), lookup_data);
     }
 
     if (dispatch && !dispatch->busy) {
@@ -474,7 +474,8 @@ int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
 
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
-    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
+        DDTRACE_G(function_lookup) == NULL) {
         return default_dispatch(execute_data TSRMLS_CC);
     }
 

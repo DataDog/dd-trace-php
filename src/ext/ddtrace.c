@@ -1,7 +1,6 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
 #include <SAPI.h>
 #include <Zend/zend.h>
 #include <Zend/zend_exceptions.h>
@@ -70,7 +69,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_initialize_config(TSRMLS_C);
 
     ddtrace_install_backtrace_handler();
-    ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_dispatch_inject(TSRMLS_C);
 
     ddtrace_coms_initialize();
@@ -288,12 +286,13 @@ static PHP_FUNCTION(dd_untrace) {
     }
 
     DD_PRINTF("Untracing function: %s", Z_STRVAL_P(function));
-
+    if (DDTRACE_G(function_lookup)) {
 #if PHP_VERSION_ID < 70000
-    zend_hash_del(&DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
+        zend_hash_del(DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
 #else
-    zend_hash_del(&DDTRACE_G(function_lookup), Z_STR_P(function));
+        zend_hash_del(DDTRACE_G(function_lookup), Z_STR_P(function));
 #endif
+    }
 
     RETURN_BOOL(1);
 }
