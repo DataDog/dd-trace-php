@@ -20,7 +20,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void ddtrace_serialize_span_stack_to_array(zval *retval TSRMLS_DC) {
     array_init(retval);
-    ddtrace_span_stack_t *stack = DDTRACE_G(span_stack_root);
+    ddtrace_span_stack_t *stack = DDTRACE_G(span_stack_top);
     while (stack != NULL) {
         zval element;
         array_init(&element);

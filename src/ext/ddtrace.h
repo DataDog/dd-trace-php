@@ -56,7 +56,7 @@ user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
 unsigned long long root_span_id;
 unsigned long long active_span_id;
-ddtrace_span_stack_t *span_stack_root;
+ddtrace_span_stack_t *span_stack_top;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 
 #ifdef ZTS

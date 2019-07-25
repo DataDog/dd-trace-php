@@ -352,7 +352,7 @@ ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_DC) {
     ddtrace_span_stack_t *stack = ecalloc(1, sizeof(ddtrace_span_stack_t));
     stack->start = 0;
     stack->duration = 0;
-    stack->next = DDTRACE_G(span_stack_root);
+    stack->next = DDTRACE_G(span_stack_top);
     stack->span = ecalloc(1, sizeof(zval));
     object_init_ex(stack->span, ddtrace_ce_span_data);
     stack->span_id = dd_trace_raw_generate_id(TSRMLS_C);
@@ -362,7 +362,7 @@ ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_DC) {
     } else {
         stack->parent_id = 0;
     }
-    DDTRACE_G(span_stack_root) = stack;
+    DDTRACE_G(span_stack_top) = stack;
     return stack;
 }
 
