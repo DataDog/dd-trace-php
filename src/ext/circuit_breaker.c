@@ -77,12 +77,14 @@ static uint64_t current_timestamp_monotonic_usec() {
 
 static int64_t get_max_consecutive_failures() {
     return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_MAX_CONSECUTIVE_FAILURES,
-                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES);
+                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES
+                                  COMPAT_CTX_CC);
 }
 
 static int64_t get_retry_time_usec() {
     return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_RETRY_TIME_MSEC,
-                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC) *
+                                  DD_TRACE_CIRCUIT_BREAKER_DEFAULT_RETRY_TIME_MSEC
+                                  COMPAT_CTX_CC) *
            1000;
 }
 
