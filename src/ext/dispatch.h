@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "compat_zend_string.h"
+#include "ddtrace.h"
 
 typedef struct _ddtrace_dispatch_t {
     zval function_name, expected_arg_types;//, expected_return_type
