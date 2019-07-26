@@ -138,12 +138,12 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *expected_ty
 
     ddtrace_dispatch_t dispatch;
     memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
-    ZVAL_NULL(&dispatch.callable_prepend);
+    ZVAL_NULL(&dispatch.callable_append);
     ZVAL_NULL(&dispatch.callable);
     switch (behavior) {
-        case PrependTrace:
-            dispatch.callable_prepend = *callable;
-            zval_copy_ctor(&dispatch.callable_prepend);
+        case AppendTrace:
+            dispatch.callable_append = *callable;
+            zval_copy_ctor(&dispatch.callable_append);
             if (expected_types) {
                 dispatch.expected_arg_types = *expected_types;
                 zval_copy_ctor(&dispatch.expected_arg_types);

@@ -42,7 +42,7 @@ STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, st
                     ddtrace_globals)
 PHP_INI_END()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method_prepend, 0, 0, 4)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 4)
 ZEND_ARG_INFO(0, class_name)
 ZEND_ARG_INFO(0, method_name)
 ZEND_ARG_INFO(0, tracing_callback)
@@ -266,7 +266,7 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
-static PHP_FUNCTION(dd_trace_method_prepend) {
+static PHP_FUNCTION(dd_trace_method) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *class_name = NULL;
     zval *function = NULL;
@@ -300,7 +300,7 @@ static PHP_FUNCTION(dd_trace_method_prepend) {
         RETURN_BOOL(0);
     }
 
-    zend_bool rv = ddtrace_trace(class_name, function, expected_arg_types, PrependTrace, tracing_callback TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(class_name, function, expected_arg_types, AppendTrace, tracing_callback TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
@@ -669,7 +669,7 @@ static PHP_FUNCTION(dd_trace_reset_span_stack) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {
-    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method_prepend, arginfo_dd_trace_method_prepend) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
+    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
             PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(
                 dd_tracer_circuit_breaker_register_error, NULL) PHP_FE(dd_tracer_circuit_breaker_register_success, NULL)

@@ -503,17 +503,10 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         return 1;
     }
 
-    // Prepend tracing closure
+    // Append tracing closure
     ddtrace_span_stack_t *stack = ddtrace_span_stack_create_and_push();
 
-    if (Z_TYPE_P(&dispatch->callable_prepend) != IS_NULL) {
-        // TODO Check for expected argument types
-        if (execute_tracing_closure(PrependTrace, &dispatch->callable_prepend, stack->span, execute_data TSRMLS_CC) != SUCCESS) {
-            dispatch->busy = 0;
-            ddtrace_class_lookup_release(dispatch);
-            // TODO ddtrace_span_stack_free_top()
-            return 0;
-        }
+    if (Z_TYPE_P(&dispatch->callable_append) != IS_NULL) {
         const zend_op *opline = EX(opline);
         zval rv;
         INIT_ZVAL(rv);
@@ -532,6 +525,13 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             zval_dtor(&rv);
         }
 
+        // TODO: Pass return_value to tracing closure
+        if (execute_tracing_closure(AppendTrace, &dispatch->callable_append, stack->span, execute_data TSRMLS_CC) != SUCCESS) {
+            dispatch->busy = 0;
+            ddtrace_class_lookup_release(dispatch);
+            // TODO ddtrace_span_stack_free_top()
+            return 0;
+        }
         // TODO: Check for errors & exceptions here or use hook
 
         dispatch->busy = 0;

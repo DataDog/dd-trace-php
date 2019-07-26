@@ -32,9 +32,10 @@ typedef struct _ddtrace_span_stack_t {
 } ddtrace_span_stack_t;
 
 // "EmbedTrace" is for BC.
-// Once all the integrations have been updated to use prepend/append,
-// we can remove "EmbedTrace" from the enum and also the dd_trace() function
-enum ddtrace_callback_behavior{PrependTrace, EmbedTrace};//, AppendTrace};
+// Once all the integrations have been updated to use,
+// `dd_trace_method()` and `dd_trace_function()`,
+// we can remove this enum and also the `dd_trace()` function
+enum ddtrace_callback_behavior{EmbedTrace, AppendTrace};
 
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 zend_bool disable;

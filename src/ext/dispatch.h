@@ -10,7 +10,7 @@
 
 typedef struct _ddtrace_dispatch_t {
     zval function_name, expected_arg_types;//, expected_return_type
-    zval callable_prepend, callable;//, callable_append;
+    zval callable, callable_append;
     zend_bool busy;
     uint32_t acquired;
 } ddtrace_dispatch_t;

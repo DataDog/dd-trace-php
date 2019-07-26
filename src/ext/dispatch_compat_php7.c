@@ -39,7 +39,7 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
 
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zval_ptr_dtor(&dispatch->function_name);
-    zval_ptr_dtor(&dispatch->callable_prepend);
+    zval_ptr_dtor(&dispatch->callable_append);
     zval_ptr_dtor(&dispatch->callable);
     zval_ptr_dtor(&dispatch->expected_arg_types);
 }
