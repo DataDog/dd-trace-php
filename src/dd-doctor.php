@@ -1,4 +1,3 @@
-* PHP script text, ASCII text
 <?php
 function result($check)
 {
@@ -14,7 +13,13 @@ function check_agent_connectivity()
     $host = "localhost";
     if (function_exists('dd_trace_env_config')) {
         $host = dd_trace_env_config('DD_AGENT_HOST');
+    } else {
+        $_host = getenv('DD_AGENT_HOST');
+        if ($_host) {
+            $host = $_host;
+        }
     }
+
     echo "- configured agent host\t\t\t\t" . $host . PHP_EOL;
     echo "- agent can receive traces\t\t";
 
@@ -50,9 +55,16 @@ echo "- ddtrace extension version \t\t\t" . phpversion('ddtrace') . PHP_EOL;
 echo "- dd_trace function available\t\t" . result(function_exists('dd_trace'));
 echo "- request_init_hook set\t\t\t" . result(!empty(ini_get('ddtrace.request_init_hook')));
 echo "- request_init_hook reachable\t\t" . result(file_exists(ini_get('ddtrace.request_init_hook')));
+echo "- DDTrace\Tracer class exists\t\t" . result(class_exists('\DDTrace\Tracer'));
+
 echo "- dd_trace_env_config function available" . result(function_exists('dd_trace_env_config'));
 check_agent_connectivity();
+if (file_exists(ini_get('ddtrace.request_init_hook'))) {
+    // TODO how to check if this was already loaded ?
 
+    echo '- requiring dd_init' . PHP_EOL;
+    require dirname(ini_get('ddtrace.request_init_hook')) . '/dd_init.php';
+}
 echo PHP_EOL;
 
 ?>
