@@ -1,3 +1,4 @@
+* PHP script text, ASCII text
 <?php
 function result($check)
 {
@@ -10,8 +11,15 @@ function result($check)
 
 function check_agent_connectivity()
 {
+    $host = "localhost";
+    if (function_exists('dd_trace_env_config')) {
+        $host = dd_trace_env_config('DD_AGENT_HOST');
+    }
+    echo "- configured agent host\t\t\t\t" . $host . PHP_EOL;
+    echo "- agent can receive traces\t\t";
+
     $verbose = fopen('php://temp', 'w+');
-    $ch = curl_init("http://" . dd_trace_env_config('DD_AGENT_HOST') . ":8126/v0.3/traces");
+    $ch = curl_init("http://" . $host . ":8126/v0.3/traces");
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -43,8 +51,6 @@ echo "- dd_trace function available\t\t" . result(function_exists('dd_trace'));
 echo "- request_init_hook set\t\t\t" . result(!empty(ini_get('ddtrace.request_init_hook')));
 echo "- request_init_hook reachable\t\t" . result(file_exists(ini_get('ddtrace.request_init_hook')));
 echo "- dd_trace_env_config function available" . result(function_exists('dd_trace_env_config'));
-echo "- configured agent host\t\t\t\t" . dd_trace_env_config('DD_AGENT_HOST') . PHP_EOL;
-echo "- agent can receive traces\t\t";
 check_agent_connectivity();
 
 echo PHP_EOL;
