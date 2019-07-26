@@ -142,8 +142,10 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *service, en
     ZVAL_NULL(&dispatch.callable);
     switch (behavior) {
         case AppendTrace:
-            dispatch.callable_append = *callable;
-            zval_copy_ctor(&dispatch.callable_append);
+            if (callable) {
+                dispatch.callable_append = *callable;
+                zval_copy_ctor(&dispatch.callable_append);
+            }
             if (service) {
                 dispatch.service = *service;
                 zval_copy_ctor(&dispatch.service);
