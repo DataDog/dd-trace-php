@@ -506,25 +506,25 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     // Append tracing closure
     ddtrace_span_stack_t *stack = ddtrace_span_stack_create_and_push();
 
+    const zend_op *opline = EX(opline);
+    zval rv;
+    INIT_ZVAL(rv);
+    zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
+
+    zend_execute_data *orig_ex = DDTRACE_G(original_context).execute_data;
+    DDTRACE_G(original_context).execute_data = EX(call);
+
+    stack->start = get_time_in_ns();
+    ddtrace_forward_call(return_value);
+    stack->duration = get_time_in_ns() - stack->start;
+    
+    DDTRACE_G(original_context).execute_data = orig_ex;
+
+    if (!RETURN_VALUE_USED(opline)) {
+        zval_dtor(&rv);
+    }
+
     if (Z_TYPE_P(&dispatch->callable_append) != IS_NULL) {
-        const zend_op *opline = EX(opline);
-        zval rv;
-        INIT_ZVAL(rv);
-        zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
-
-        zend_execute_data *orig_ex = DDTRACE_G(original_context).execute_data;
-        DDTRACE_G(original_context).execute_data = EX(call);
-
-        stack->start = get_time_in_ns();
-        ddtrace_forward_call(return_value);
-        stack->duration = get_time_in_ns() - stack->start;
-        
-        DDTRACE_G(original_context).execute_data = orig_ex;
-
-        if (!RETURN_VALUE_USED(opline)) {
-            zval_dtor(&rv);
-        }
-
         // TODO: Pass return_value to tracing closure
         if (execute_tracing_closure(AppendTrace, &dispatch->callable_append, stack->span, execute_data TSRMLS_CC) != SUCCESS) {
             dispatch->busy = 0;
@@ -532,15 +532,13 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
             // TODO ddtrace_span_stack_free_top()
             return 0;
         }
-        // TODO: Check for errors & exceptions here or use hook
-
-        dispatch->busy = 0;
-        ddtrace_class_lookup_release(dispatch);
-        return 1;
     }
-
+    // TODO: Check for errors & exceptions here or use hook
     // TODO ddtrace_span_stack_free_top()
-    return 0;
+
+    dispatch->busy = 0;
+    ddtrace_class_lookup_release(dispatch);
+    return 1;
 }
 
 static zend_always_inline zend_function *get_current_fbc(zend_execute_data *execute_data TSRMLS_DC) {

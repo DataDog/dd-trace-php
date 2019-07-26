@@ -46,7 +46,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 4)
 ZEND_ARG_INFO(0, class_name)
 ZEND_ARG_INFO(0, method_name)
 ZEND_ARG_INFO(0, tracing_callback)
-ZEND_ARG_INFO(0, expected_arg_types)
+ZEND_ARG_INFO(0, service)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_msgpack, 0, 0, 1)
@@ -271,36 +271,35 @@ static PHP_FUNCTION(dd_trace_method) {
     zval *class_name = NULL;
     zval *function = NULL;
     zval *tracing_callback = NULL;
-    zval *expected_arg_types = NULL;
+    zval *service = NULL;
 
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
-    // TODO Support "O" with variadic args of class-entry names for expected_arg_types
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzzz", &class_name, &function,
-                                 &tracing_callback, &expected_arg_types) != SUCCESS) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zz|zz", &class_name, &function,
+                                 &tracing_callback, &service) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(
                 spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                "unexpected parameter combination, expected (class_name, method_name, tracing_callback, expected_args)");
+                "unexpected parameter combination, expected (class_name, method_name[, tracing_callback, service])");
         }
         RETURN_BOOL(0);
     }
 
-    if (Z_TYPE_P(class_name) != IS_STRING || Z_TYPE_P(function) != IS_STRING  || Z_TYPE_P(expected_arg_types) != IS_STRING) {
+    if (Z_TYPE_P(class_name) != IS_STRING || Z_TYPE_P(function) != IS_STRING) {
         ddtrace_zval_ptr_dtor(class_name);
         ddtrace_zval_ptr_dtor(function);
         ddtrace_zval_ptr_dtor(tracing_callback);
-        ddtrace_zval_ptr_dtor(expected_arg_types);
+        ddtrace_zval_ptr_dtor(service);
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "class_name, method_name and expected_args must be a string");
+                                    "class_name and method_name must be a string");
         }
         RETURN_BOOL(0);
     }
 
-    zend_bool rv = ddtrace_trace(class_name, function, expected_arg_types, AppendTrace, tracing_callback TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(class_name, function, service, AppendTrace, tracing_callback TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 

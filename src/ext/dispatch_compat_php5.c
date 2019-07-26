@@ -119,7 +119,7 @@ void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zval_dtor(&dispatch->function_name);
     zval_dtor(&dispatch->callable_append);
     zval_dtor(&dispatch->callable);
-    zval_dtor(&dispatch->expected_arg_types);
+    zval_dtor(&dispatch->service);
 }
 
 void ddtrace_class_lookup_release_compat(void *zv) {

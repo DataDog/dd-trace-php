@@ -105,7 +105,7 @@ void ddtrace_dispatch_inject(TSRMLS_D) {
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, ddtrace_wrap_fcall);
 }
 
-zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *expected_types, enum ddtrace_callback_behavior behavior, zval *callable TSRMLS_DC) {
+zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *service, enum ddtrace_callback_behavior behavior, zval *callable TSRMLS_DC) {
     HashTable *overridable_lookup = NULL;
     if (class_name && DDTRACE_G(class_lookup)) {
 #if PHP_VERSION_ID < 70000
@@ -144,9 +144,9 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *expected_ty
         case AppendTrace:
             dispatch.callable_append = *callable;
             zval_copy_ctor(&dispatch.callable_append);
-            if (expected_types) {
-                dispatch.expected_arg_types = *expected_types;
-                zval_copy_ctor(&dispatch.expected_arg_types);
+            if (service) {
+                dispatch.service = *service;
+                zval_copy_ctor(&dispatch.service);
             }
             break;
         case EmbedTrace:

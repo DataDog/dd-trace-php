@@ -9,7 +9,7 @@
 #include "ddtrace.h"
 
 typedef struct _ddtrace_dispatch_t {
-    zval function_name, expected_arg_types;//, expected_return_type
+    zval function_name, service;
     zval callable, callable_append;
     zend_bool busy;
     uint32_t acquired;
