@@ -77,18 +77,22 @@ void ddtrace_span_stack_init(TSRMLS_D) {
 void ddtrace_span_stack_destroy(TSRMLS_D) {
     while (DDTRACE_G(span_stack_top) != NULL) {
         ddtrace_span_stack_t *stack = DDTRACE_G(span_stack_top);
-        zval_ptr_dtor(stack->span);
-        efree(stack->span);
         DDTRACE_G(span_stack_top) = stack->next;
-        efree(stack);
+        ddtrace_free_stack_span(stack);
     }
     while (DDTRACE_G(closed_spans_top) != NULL) {
         ddtrace_closed_spans_t *stack = DDTRACE_G(closed_spans_top);
-        DDTRACE_G(span_stack_top) = stack->next;
+        DDTRACE_G(closed_spans_top) = stack->next;
         zval_ptr_dtor(stack->span);
         efree(stack->span);
         efree(stack);
     }
+}
+
+void ddtrace_free_stack_span(ddtrace_span_stack_t *stack) {
+    zval_ptr_dtor(stack->span);
+    efree(stack->span);
+    efree(stack);
 }
 
 void ddtrace_dispatch_inject(TSRMLS_D) {

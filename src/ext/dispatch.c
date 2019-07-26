@@ -13,6 +13,7 @@
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch_compat.h"
+#include "serializer.h"
 
 // avoid Older GCC being overly cautious over {0} struct initializer
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -348,7 +349,29 @@ static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *looku
 #endif
 }
 
-ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_DC) {
+ddtrace_closed_spans_t *push_closed_span(TSRMLS_D) {
+    ddtrace_closed_spans_t *stack = ecalloc(1, sizeof(ddtrace_closed_spans_t));
+    stack->next = DDTRACE_G(closed_spans_top);
+    stack->span = ecalloc(1, sizeof(zval));
+    DDTRACE_G(closed_spans_top) = stack;
+    return stack;
+}
+
+void ddtrace_span_stack_close_top(TSRMLS_D) {
+    ddtrace_span_stack_t *top = DDTRACE_G(span_stack_top);
+    if (!top) {
+        return;
+    }
+    ddtrace_closed_spans_t *closed = push_closed_span(TSRMLS_C);
+    ddtrace_serialize_span_to_array(top, closed->span);
+    DDTRACE_G(span_stack_top) = top->next;
+    if (top->next) {
+        DDTRACE_G(active_span_id) = top->next->span_id;
+    }
+    ddtrace_free_stack_span(top);
+}
+
+ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_D) {
     ddtrace_span_stack_t *stack = ecalloc(1, sizeof(ddtrace_span_stack_t));
     stack->start = 0;
     stack->duration = 0;
@@ -504,7 +527,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     }
 
     // Append tracing closure
-    ddtrace_span_stack_t *stack = ddtrace_span_stack_create_and_push();
+    ddtrace_span_stack_t *stack = ddtrace_span_stack_create_and_push(TSRMLS_C);
 
     const zend_op *opline = EX(opline);
     zval rv;
@@ -526,16 +549,11 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
 
     if (Z_TYPE_P(&dispatch->callable_append) != IS_NULL) {
         // TODO: Pass return_value to tracing closure
-        if (execute_tracing_closure(AppendTrace, &dispatch->callable_append, stack->span, execute_data TSRMLS_CC) != SUCCESS) {
-            dispatch->busy = 0;
-            ddtrace_class_lookup_release(dispatch);
-            // TODO ddtrace_span_stack_free_top()
-            return 0;
-        }
+        execute_tracing_closure(AppendTrace, &dispatch->callable_append, stack->span, execute_data TSRMLS_CC);
+        // TODO: Ignore exceptions thrown or errors raised in callback
     }
-    // TODO: Check for errors & exceptions here or use hook
-    // TODO ddtrace_span_stack_free_top()
 
+    ddtrace_span_stack_close_top(TSRMLS_C);
     dispatch->busy = 0;
     ddtrace_class_lookup_release(dispatch);
     return 1;

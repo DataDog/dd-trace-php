@@ -14,33 +14,35 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
         zval rv; \
         zval *prop = zend_read_property(ddtrace_ce_span_data, stack->span, (name), sizeof((name)) - 1, 1, &rv TSRMLS_CC); \
         if (Z_TYPE_P(prop) == (type)) { \
-            add_assoc_zval(&element, (name), prop); \
+            add_assoc_zval(serialized, (name), prop); \
         } \
     } while (0);
 
+void ddtrace_serialize_span_to_array(ddtrace_span_stack_t *stack, zval *serialized TSRMLS_DC) {
+    array_init(serialized);
+
+    add_assoc_long(serialized, "trace_id", DDTRACE_G(root_span_id));
+    add_assoc_long(serialized, "span_id", stack->span_id);
+    if (stack->parent_id > 0) {
+        add_assoc_long(serialized, "parent_id", stack->parent_id);
+    }
+    add_assoc_long(serialized, "start", stack->start);
+    add_assoc_long(serialized, "duration", stack->duration);
+    ADD_ELEMENT_IF_PROP_TYPE("name", IS_STRING);
+    ADD_ELEMENT_IF_PROP_TYPE("resource", IS_STRING);
+    ADD_ELEMENT_IF_PROP_TYPE("service", IS_STRING);
+    ADD_ELEMENT_IF_PROP_TYPE("type", IS_STRING);
+    // TODO Move this to struct
+    ADD_ELEMENT_IF_PROP_TYPE("error", IS_LONG);
+    ADD_ELEMENT_IF_PROP_TYPE("meta", IS_ARRAY);
+    ADD_ELEMENT_IF_PROP_TYPE("metrics", IS_ARRAY);
+}
+
 void ddtrace_serialize_span_stack_to_array(zval *retval TSRMLS_DC) {
     array_init(retval);
-    ddtrace_span_stack_t *stack = DDTRACE_G(span_stack_top);
+    ddtrace_closed_spans_t *stack = DDTRACE_G(closed_spans_top);
     while (stack != NULL) {
-        zval element;
-        array_init(&element);
-
-        add_assoc_long(&element, "trace_id", DDTRACE_G(root_span_id));
-        add_assoc_long(&element, "span_id", stack->span_id);
-        if (stack->parent_id > 0) {
-            add_assoc_long(&element, "parent_id", stack->parent_id);
-        }
-        add_assoc_long(&element, "start", stack->start);
-        add_assoc_long(&element, "duration", stack->duration);
-        ADD_ELEMENT_IF_PROP_TYPE("name", IS_STRING);
-        ADD_ELEMENT_IF_PROP_TYPE("resource", IS_STRING);
-        ADD_ELEMENT_IF_PROP_TYPE("service", IS_STRING);
-        ADD_ELEMENT_IF_PROP_TYPE("type", IS_STRING);
-        ADD_ELEMENT_IF_PROP_TYPE("error", IS_LONG);
-        ADD_ELEMENT_IF_PROP_TYPE("meta", IS_ARRAY);
-        ADD_ELEMENT_IF_PROP_TYPE("metrics", IS_ARRAY);
-
-        add_next_index_zval(retval, &element);
+        add_next_index_zval(retval, stack->span);
         stack = stack->next;
     }
 }

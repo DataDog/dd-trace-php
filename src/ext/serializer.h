@@ -2,6 +2,7 @@
 #define DD_SERIALIZER_H
 
 // Plain-old PHP serialization
+void ddtrace_serialize_span_to_array(ddtrace_span_stack_t *stack, zval *serialized TSRMLS_DC);
 void ddtrace_serialize_span_stack_to_array(zval *retval TSRMLS_DC);
 // MessagePack serialization
 int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC);
