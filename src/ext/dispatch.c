@@ -366,7 +366,7 @@ ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_DC) {
     return stack;
 }
 
-static unsigned long long get_time_in_ms() {
+static unsigned long long get_time_in_ns() {
     struct timespec time;
     if (clock_gettime(CLOCK_MONOTONIC, &time) == 0) {
         return time.tv_sec * 1000000 + time.tv_nsec / 1000;
@@ -522,9 +522,9 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         zend_execute_data *orig_ex = DDTRACE_G(original_context).execute_data;
         DDTRACE_G(original_context).execute_data = EX(call);
 
-        stack->start = get_time_in_ms();
+        stack->start = get_time_in_ns();
         ddtrace_forward_call(return_value);
-        stack->duration = get_time_in_ms() - stack->start;
+        stack->duration = get_time_in_ns() - stack->start;
         
         DDTRACE_G(original_context).execute_data = orig_ex;
 
