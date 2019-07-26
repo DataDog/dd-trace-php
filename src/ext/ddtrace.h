@@ -31,6 +31,11 @@ typedef struct _ddtrace_span_stack_t {
     struct _ddtrace_span_stack_t *next;
 } ddtrace_span_stack_t;
 
+typedef struct _ddtrace_closed_spans_t {
+    zval *span;
+    struct _ddtrace_closed_spans_t *next;
+} ddtrace_closed_spans_t;
+
 // "EmbedTrace" is for BC.
 // Once all the integrations have been updated to use,
 // `dd_trace_method()` and `dd_trace_function()`,
@@ -58,6 +63,7 @@ user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 unsigned long long root_span_id;
 unsigned long long active_span_id;
 ddtrace_span_stack_t *span_stack_top;
+ddtrace_closed_spans_t *closed_spans_top;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 
 #ifdef ZTS
