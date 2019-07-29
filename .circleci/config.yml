@@ -317,7 +317,7 @@ jobs:
               cp "<<parameters.xfail_list>>" /usr/src/php/xfail_tests.list
               (
                 cd /usr/src/php
-                cat xfail_tests.list | xargs -n 1 sed -i -e $'s/--FILE--/--XFAIL--\\\nvar_dump missmatch\\\n--FILE--/g'
+                cat xfail_tests.list | xargs -n 1 sed -i -e $'s/\(--FILE.*--\)/--XFAIL--\\\nvar_dump missmatch\\\n\\1/g'
               )
             fi
             cd /usr/src/php
@@ -334,7 +334,6 @@ jobs:
             cd /usr/src/php
             mkdir -p /tmp/artifacts/core_dumps
             find ./ -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
-            cp -a tests/ext /tmp/artifacts/tests/files
           when: on_fail
       - store_test_results:
           path: /tmp/artifacts/tests/
@@ -659,8 +658,8 @@ workflows:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Unit tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
-          valgrind_config: ""
-          lib_curl_command: ""
+          valgrind_config: 7_3_musl
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - placeholder:
           requires: [ 'Code Checkout' ]
           name: Language tests
@@ -729,7 +728,7 @@ workflows:
           name: "PHP 73 Integration tests"
           integration_testsuite: "test-integrations-73"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
-          lib_curl_command: "echo;"
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Web integration tests"
