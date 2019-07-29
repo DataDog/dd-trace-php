@@ -12,6 +12,7 @@ void ddtrace_reload_config();
     BOOL(get_dd_trace_agent_debug_verbose_curl, "DD_TRACE_AGENT_DEBUG_VERBOSE_CURL", FALSE)               \
     BOOL(get_dd_trace_debug_curl_output, "DD_TRACE_DEBUG_CURL_OUTPUT", FALSE)                             \
     CHAR(get_dd_trace_memory_limit, "DD_TRACE_MEMORY_LIMIT", NULL)                                        \
+    CHAR(get_dd_trace_service_name, "DD_SERVICE_NAME", "php")                                             \
     INT(get_dd_trace_agent_flush_interval, "DD_TRACE_AGENT_FLUSH_INTERVAL", 5000)                         \
     INT(get_dd_trace_agent_flush_after_n_requests, "DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS", 10)           \
     INT(get_dd_trace_agent_timeout, "DD_TRACE_AGENT_TIMEOUT", 500)                                        \

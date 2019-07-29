@@ -553,6 +553,26 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         // TODO: Ignore exceptions thrown or errors raised in callback
     }
 
+    zval rv1, rv2, rv3;
+    zval *name, *resource, *service;
+
+    // Default "name" to function or method name
+    name = zend_read_property(ddtrace_ce_span_data, stack->span, "name", sizeof("name") - 1, 1, &rv1 TSRMLS_CC);
+    if (Z_TYPE_P(name) == IS_NULL) {
+        // TODO: Add class name "Class::methodName"
+        zend_update_property(ddtrace_ce_span_data, stack->span, "name", sizeof("name") - 1, &dispatch->function_name TSRMLS_CC);
+    }
+    // Default "resource" to "name"
+    resource = zend_read_property(ddtrace_ce_span_data, stack->span, "resource", sizeof("resource") - 1, 1, &rv2 TSRMLS_CC);
+    if (Z_TYPE_P(resource) == IS_NULL) {
+        zend_update_property(ddtrace_ce_span_data, stack->span, "resource", sizeof("resource") - 1, name TSRMLS_CC);
+    }
+    // Default "service" to "DD_SERVICE_NAME" env var
+    service = zend_read_property(ddtrace_ce_span_data, stack->span, "service", sizeof("service") - 1, 1, &rv3 TSRMLS_CC);
+    if (Z_TYPE_P(service) == IS_NULL) {
+        zend_update_property(ddtrace_ce_span_data, stack->span, "service", sizeof("service") - 1, &DDTRACE_G(service_name) TSRMLS_CC);
+    }
+
     ddtrace_span_stack_close_top(TSRMLS_C);
     dispatch->busy = 0;
     ddtrace_class_lookup_release(dispatch);

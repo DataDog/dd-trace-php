@@ -60,6 +60,7 @@ user_opcode_handler_t ddtrace_old_icall_handler;
 user_opcode_handler_t ddtrace_old_ucall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
+zval service_name;
 unsigned long long root_span_id;
 unsigned long long active_span_id;
 ddtrace_span_stack_t *span_stack_top;

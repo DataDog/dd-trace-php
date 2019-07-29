@@ -155,6 +155,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     dd_trace_seed_prng(TSRMLS_C);
     ddtrace_coms_on_pid_change();
 
+    ZVAL_STRING(&DDTRACE_G(service_name), get_dd_trace_service_name());
+
     if (DDTRACE_G(request_init_hook)) {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));
         dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
@@ -175,6 +177,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_dispatch_destroy(TSRMLS_C);
     ddtrace_span_stack_destroy(TSRMLS_C);
     ddtrace_coms_on_request_finished();
+    zval_ptr_dtor(&DDTRACE_G(service_name));
 
     return SUCCESS;
 }
