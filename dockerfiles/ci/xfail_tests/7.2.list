@@ -1,4 +1,3 @@
-ext/pdo_sqlite/tests/common.phpt
 tests/classes/__call_004.phpt
 tests/classes/__call_005.phpt
 tests/classes/__call_007.phpt
@@ -56,8 +55,6 @@ Zend/tests/generators/generator_with_nonscalar_keys.phpt
 Zend/tests/get_defined_functions_basic.phpt
 Zend/tests/get_defined_vars.phpt
 Zend/tests/get_required_files.phpt
-Zend/tests/list/list_reference_006.phpt
-Zend/tests/list/list_reference_007.phpt
 Zend/tests/list_001.phpt
 Zend/tests/list_002.phpt
 Zend/tests/list_keyed_conversions.phpt
@@ -67,7 +64,6 @@ Zend/tests/object_array_cast.phpt
 Zend/tests/objects_019.phpt
 Zend/tests/objects_032.phpt
 Zend/tests/offset_array.phpt
-Zend/tests/overloaded_prop_assign_op_refs.phpt
 Zend/tests/recursive_debug_info.phpt
 Zend/tests/return_types/012.phpt
 Zend/tests/return_types/025.phpt
@@ -88,6 +84,7 @@ ext/date/tests/DateTime_modify_variation1.phpt
 ext/date/tests/bug41523-64bit.phpt
 ext/date/tests/bug48097.phpt
 ext/date/tests/bug52113.phpt
+ext/date/tests/bug53437.phpt
 ext/date/tests/bug53437_var2.phpt
 ext/date/tests/bug54316.phpt
 ext/date/tests/bug54340.phpt
@@ -104,8 +101,6 @@ ext/date/tests/test-parse-from-format.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
 ext/json/tests/bug45791.phpt
 ext/json/tests/bug77843.phpt
-ext/json/tests/json_decode_exceptions.phpt
-ext/json/tests/json_encode_exceptions.phpt
 ext/json/tests/pass001.phpt
 ext/mbstring/tests/zend_multibyte-01.phpt
 ext/mbstring/tests/zend_multibyte-02.phpt
@@ -121,10 +116,8 @@ ext/openssl/tests/bug68879.phpt
 ext/openssl/tests/bug68920.phpt
 ext/openssl/tests/bug69215.phpt
 ext/openssl/tests/bug72333.phpt
-ext/openssl/tests/bug74159.phpt
 ext/openssl/tests/bug77390.phpt
 ext/openssl/tests/capture_peer_cert_001.phpt
-ext/openssl/tests/openssl_encrypt_ccm.phpt
 ext/openssl/tests/openssl_peer_fingerprint_basic.phpt
 ext/openssl/tests/openssl_pkcs7_decrypt_error.phpt
 ext/openssl/tests/peer_verification.phpt
@@ -140,11 +133,7 @@ ext/openssl/tests/stream_verify_peer_name_001.phpt
 ext/openssl/tests/stream_verify_peer_name_002.phpt
 ext/openssl/tests/stream_verify_peer_name_003.phpt
 ext/openssl/tests/streams_crypto_method.phpt
-ext/openssl/tests/tls_min_v1.0_max_v1.1_wrapper.phpt
 ext/openssl/tests/tls_wrapper.phpt
-ext/openssl/tests/tlsv1.0_wrapper.phpt
-ext/openssl/tests/tlsv1.1_wrapper.phpt
-ext/openssl/tests/tlsv1.2_wrapper.phpt
 ext/pdo_sqlite/tests/pdo_sqlite_lastinsertid.phpt
 ext/phar/tests/031.phpt
 ext/phar/tests/032.phpt
@@ -154,6 +143,7 @@ ext/phar/tests/fatal_error_webphar.phpt
 ext/phar/tests/phar_oo_002.phpt
 ext/phar/tests/phar_oo_005.phpt
 ext/phar/tests/phar_oo_007.phpt
+ext/posix/tests/posix_errno_variation2.phpt
 ext/reflection/tests/009.phpt
 ext/reflection/tests/025.phpt
 ext/reflection/tests/ReflectionClassConstant_basic1.phpt
@@ -173,7 +163,6 @@ ext/session/tests/session_decode_basic.phpt
 ext/session/tests/session_decode_basic_serialize.phpt
 ext/session/tests/session_name_error.phpt
 ext/simplexml/tests/SimpleXMLElement_addAttribute_basic.phpt
-ext/simplexml/tests/bug54973.phpt
 ext/simplexml/tests/bug62639.phpt
 ext/simplexml/tests/bug66084_0.phpt
 ext/simplexml/tests/bug69491.phpt
@@ -245,7 +234,6 @@ ext/spl/tests/bug70168.phpt
 ext/spl/tests/bug71617.phpt
 ext/spl/tests/bug74669.phpt
 ext/spl/tests/bug75049.phpt
-ext/spl/tests/bug77298.phpt
 ext/spl/tests/heap_008.phpt
 ext/spl/tests/iterator_044.phpt
 ext/spl/tests/observer_006.phpt
@@ -276,7 +264,6 @@ ext/standard/tests/general_functions/print_r_64bit.phpt
 ext/standard/tests/general_functions/strval.phpt
 ext/standard/tests/general_functions/type.phpt
 ext/standard/tests/general_functions/var_dump_64bit.phpt
-ext/standard/tests/misc/bug77338.phpt
 ext/standard/tests/misc/get_browser_variation2.phpt
 ext/standard/tests/serialize/005.phpt
 ext/standard/tests/serialize/006.phpt
@@ -291,7 +278,5 @@ ext/standard/tests/serialize/bug69425.phpt
 ext/standard/tests/serialize/bug70213.phpt
 ext/standard/tests/serialize/bug70219_1.phpt
 ext/standard/tests/serialize/bug72785.phpt
-ext/standard/tests/serialize/serialize_globals_var_refs.phpt
 ext/standard/tests/strings/implode1.phpt
-ext/phar/tests/fatal_error_webphar.phpt
-ext/standard/tests/file/disk_free_space_basic.phpt
+sapi/cli/tests/upload_2G.phpt

@@ -333,8 +333,8 @@ jobs:
           command: |
             cd /usr/src/php
             mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
-            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests/files
+            find ./ -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tests/ext /tmp/artifacts/tests/files
           when: on_fail
       - store_test_results:
           path: /tmp/artifacts/tests/
@@ -658,7 +658,7 @@ workflows:
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Unit tests"
-          docker_image: "datadog/dd-trace-php:7.3-buster-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           valgrind_config: ""
           lib_curl_command: ""
       - placeholder:
@@ -672,22 +672,27 @@ workflows:
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 72 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/7.2.list
           docker_image: "datadog/dd-trace-php:7.2-buster-debug"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 71 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/7.1.list
           docker_image: "datadog/dd-trace-php:7.1-buster-debug"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 70 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/7.0.list
           docker_image: "datadog/dd-trace-php:7.0-buster-debug"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 56 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/5.6.list
           docker_image: "datadog/dd-trace-php:5.6-buster-debug"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 54 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/5.4.list
           docker_image: "datadog/dd-trace-php:5.4-buster-debug"
       - integration_tests:
           requires: [ 'Code Checkout' ]
@@ -723,7 +728,7 @@ workflows:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Integration tests"
           integration_testsuite: "test-integrations-73"
-          docker_image: "datadog/dd-trace-php:7.3-buster-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           lib_curl_command: "echo;"
       - integration_tests:
           requires: [ 'Code Checkout' ]
