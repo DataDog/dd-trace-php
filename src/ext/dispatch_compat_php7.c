@@ -130,13 +130,13 @@ void ddtrace_forward_call(zval *return_value TSRMLS_DC) {
 }
 
 // function (DDTrace\SpanData $span, array $args)
-void ddtrace_alloc_tracing_closure_args(zend_fcall_info *fci, zend_fcall_info_cache *fcc, zval *span_data, zend_execute_data *execute_data) {
+void ddtrace_alloc_tracing_closure_args(zend_fcall_info *fci, zend_fcall_info_cache *fcc, zval *span_data, zend_execute_data *execute_data, zval *return_value) {
     zval *p, *q;
     uint32_t arg_count, first_extra_arg;
     uint32_t i;
     zend_execute_data *ex = execute_data->call;
 
-    fci->param_count = 2;
+    fci->param_count = 3;
     fci->params = safe_emalloc(fci->param_count, sizeof(zval), 0);
     // Param 0: DDTrace\SpanData $span
     ZVAL_COPY(&fci->params[0], span_data);
@@ -185,5 +185,8 @@ void ddtrace_alloc_tracing_closure_args(zend_fcall_info *fci, zend_fcall_info_ca
         } ZEND_HASH_FILL_END();
         Z_ARRVAL_P(&fci->params[1])->nNumOfElements = arg_count;
     }
+
+    // Param 2: mixed $return_value
+    ZVAL_COPY(&fci->params[2], return_value);
 }
 #endif  // PHP_VERSION_ID >= 70000

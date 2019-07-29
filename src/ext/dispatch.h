@@ -39,6 +39,6 @@ void ddtrace_span_stack_destroy(TSRMLS_D);
 void ddtrace_free_stack_span(ddtrace_span_stack_t *stack);
 ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_D);
 void ddtrace_span_stack_close_top(TSRMLS_D);
-void ddtrace_alloc_tracing_closure_args(zend_fcall_info *fci, zend_fcall_info_cache *fcc, zval *span_data, zend_execute_data *execute_data);
+void ddtrace_alloc_tracing_closure_args(zend_fcall_info *fci, zend_fcall_info_cache *fcc, zval *span_data, zend_execute_data *execute_data, zval *return_value);
 
 #endif  // DISPATCH_H

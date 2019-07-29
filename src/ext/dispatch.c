@@ -171,7 +171,7 @@ static void free_tracing_closure_args(zend_fcall_info *fci) {
 #endif
 }
 
-static int execute_tracing_closure(enum ddtrace_callback_behavior behavior, zval *callable, zval *span_data, zend_execute_data *execute_data TSRMLS_DC) {
+static int execute_tracing_closure(enum ddtrace_callback_behavior behavior, zval *callable, zval *span_data, zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
 #if PHP_VERSION_ID < 70000
     if (!execute_data->function_state.arguments) {
         return 1;
@@ -187,7 +187,7 @@ static int execute_tracing_closure(enum ddtrace_callback_behavior behavior, zval
     if (init_tracing_closure_from_callable(&fci, &fcc, callable, execute_data TSRMLS_CC) != SUCCESS) {
         return 0;
     }
-    ddtrace_alloc_tracing_closure_args(&fci, &fcc, span_data, execute_data);
+    ddtrace_alloc_tracing_closure_args(&fci, &fcc, span_data, execute_data, return_value);
 #if PHP_VERSION_ID < 70000
     zval *retval = NULL;
     fci.retval_ptr_ptr = &retval;
@@ -543,14 +543,13 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
     
     DDTRACE_G(original_context).execute_data = orig_ex;
 
-    if (!RETURN_VALUE_USED(opline)) {
-        zval_dtor(&rv);
+    if (Z_TYPE_P(&dispatch->callable_append) != IS_NULL) {
+        execute_tracing_closure(AppendTrace, &dispatch->callable_append, stack->span, execute_data, return_value TSRMLS_CC);
+        // TODO: Ignore exceptions thrown or errors raised in callback
     }
 
-    if (Z_TYPE_P(&dispatch->callable_append) != IS_NULL) {
-        // TODO: Pass return_value to tracing closure
-        execute_tracing_closure(AppendTrace, &dispatch->callable_append, stack->span, execute_data TSRMLS_CC);
-        // TODO: Ignore exceptions thrown or errors raised in callback
+    if (!RETURN_VALUE_USED(opline)) {
+        zval_dtor(&rv);
     }
 
     zval rv1, rv2, rv3;

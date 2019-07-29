@@ -231,7 +231,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
 }
 
 // function (DDTrace\SpanData $span, array $args)
-void ddtrace_alloc_tracing_closure_args(zend_fcall_info *fci, zend_fcall_info_cache *fcc, zval *span_data, zend_execute_data *execute_data) {
+void ddtrace_alloc_tracing_closure_args(zend_fcall_info *fci, zend_fcall_info_cache *fcc, zval *span_data, zend_execute_data *execute_data, zval *return_value) {
     void **p;
     int arg_count;
     int i;
