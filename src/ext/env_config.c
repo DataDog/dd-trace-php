@@ -118,7 +118,7 @@ char *ddtrace_get_c_string_config_with_default(char *name, const char *def TSRML
 // disable checks since some GCC trigger false positives
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
-#endif  //! defined(__clang__) && __GNUC__ >= 7
+#endif  // !defined(__clang__) && (__GNUC__ >= 7)
 
 char *ddtrace_strdup(const char *c) {
     size_t len = strlen(c);

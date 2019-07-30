@@ -28,4 +28,3 @@ services:
   '7.1-zts-alpine':  { <<: *base_image, image: 'php:7.1-zts-alpine' }
   '7.2-zts-alpine':  { <<: *base_image, image: 'php:7.2-zts-alpine' }
   '7.3-zts-alpine':  { <<: *base_image, image: 'php:7.3-zts-alpine' }
-
