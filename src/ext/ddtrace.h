@@ -33,6 +33,7 @@ ddtrace_original_context original_context;
 
 user_opcode_handler_t ddtrace_old_fcall_handler;
 user_opcode_handler_t ddtrace_old_icall_handler;
+user_opcode_handler_t ddtrace_old_ucall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 
