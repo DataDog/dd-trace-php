@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file - [read more
 - Memory access errors in cases when PHP code was run after extension data was freed on request shutdown #505
 - Request init hook working when open_basedir restriction is in effect #505
 
+### Changed
+- Remove `zend_execute_ex` override and trace `ZEND_DO_UCALL` #519
+
 ## [0.29.0]
 
 ### Fixed
