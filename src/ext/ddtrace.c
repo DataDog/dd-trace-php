@@ -42,9 +42,15 @@ STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, st
                     ddtrace_globals)
 PHP_INI_END()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 4)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 2)
 ZEND_ARG_INFO(0, class_name)
 ZEND_ARG_INFO(0, method_name)
+ZEND_ARG_INFO(0, tracing_callback)
+ZEND_ARG_INFO(0, service)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_function, 0, 0, 1)
+ZEND_ARG_INFO(0, function_name)
 ZEND_ARG_INFO(0, tracing_callback)
 ZEND_ARG_INFO(0, service)
 ZEND_END_ARG_INFO()
@@ -303,6 +309,41 @@ static PHP_FUNCTION(dd_trace_method) {
     }
 
     zend_bool rv = ddtrace_trace(class_name, function, service, AppendTrace, tracing_callback TSRMLS_CC);
+    RETURN_BOOL(rv);
+}
+
+static PHP_FUNCTION(dd_trace_function) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
+    zval *function = NULL;
+    zval *tracing_callback = NULL;
+    zval *service = NULL;
+
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+        RETURN_BOOL(0);
+    }
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "z|zz", &function,
+                                 &tracing_callback, &service) != SUCCESS) {
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(
+                spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                "unexpected parameter combination, expected (function_name[, tracing_callback, service])");
+        }
+        RETURN_BOOL(0);
+    }
+
+    if (Z_TYPE_P(function) != IS_STRING) {
+        ddtrace_zval_ptr_dtor(function);
+        ddtrace_zval_ptr_dtor(tracing_callback);
+        ddtrace_zval_ptr_dtor(service);
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "function_name must be a string");
+        }
+        RETURN_BOOL(0);
+    }
+
+    zend_bool rv = ddtrace_trace(NULL, function, service, AppendTrace, tracing_callback TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
@@ -689,7 +730,7 @@ static PHP_FUNCTION(dd_trace_reset_span_stack) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {
-    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
+    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method) PHP_FE(dd_trace_function, arginfo_dd_trace_function) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
             PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(
                 dd_tracer_circuit_breaker_register_error, NULL) PHP_FE(dd_tracer_circuit_breaker_register_success, NULL)
