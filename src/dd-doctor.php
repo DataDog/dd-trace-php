@@ -1,5 +1,4 @@
 <?php
-
 function result($check)
 {
     if ($check) {
