@@ -1,0 +1,15 @@
+Environment variable, Type, Default value, Description
+DD_AGENT_HOST, "string", localhost, 
+DD_TRACE_AGENT_PORT, "numeric", "8126", 
+DD_TRACE_AGENT_DEBUG_VERBOSE_CURL, "boolean", false, 
+DD_TRACE_DEBUG_CURL_OUTPUT, "boolean", false, 
+DD_TRACE_MEMORY_LIMIT, "string", (null), 
+DD_TRACE_AGENT_FLUSH_INTERVAL, "numeric", "5000", 
+DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "numeric", "10", 
+DD_TRACE_AGENT_TIMEOUT, "numeric", "500", 
+DD_TRACE_AGENT_CONNECT_TIMEOUT, "numeric", "100", 
+DD_TRACE_DEBUG_PRNG_SEED, "numeric", "-1", 
+DD_LOG_BACKTRACE, "boolean", false, 
+DD_TRACE_SHUTDOWN_TIMEOUT, "numeric", "5000", 
+DD_TRACE_BETA_SEND_TRACES_VIA_THREAD, "boolean", false, use background thread to send traces to the agent
+DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT, "numeric", "80", reaching this percent threshold of a span buffer will trigger background thread to attempt to flush existing data to trace agent

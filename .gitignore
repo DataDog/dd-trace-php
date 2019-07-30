@@ -1,6 +1,7 @@
 **/vendor/
 tmp/build_extension/
 composer.lock
+docs/generate/c_config_csv
 .scenarios.lock/
 .vscode/
 .libs

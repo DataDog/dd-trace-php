@@ -145,6 +145,12 @@ verify_pecl_file_definitions:
 	done
 	@echo "PECL file definitions are correct"
 
+docs/generate/c_config_csv: docs/generate/c_config_csv.c src/ext/configuration.h
+	@gcc -I src/ext docs/generate/c_config_csv.c -o $@
+
+docs/configuration.csv: docs/generate/c_config_csv
+	@docs/generate/c_config_csv > $@
+
 verify_version:
 	@grep -q "#define PHP_DDTRACE_VERSION \"$(VERSION)" src/ext/version.h || (echo src/ext/version.h Version missmatch && exit 1)
 	@grep -q "const VERSION = '$(VERSION)" src/DDTrace/Tracer.php || (echo src/DDTrace/Tracer.php Version missmatch && exit 1)
