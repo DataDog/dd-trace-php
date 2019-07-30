@@ -13,16 +13,16 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void dd_trace_seed_prng(TSRMLS_D) {
     if (get_dd_trace_debug_prng_seed() > 0) {
-        init_genrand64((unsigned long long)get_dd_trace_debug_prng_seed());
+        init_genrand64((uint64_t)get_dd_trace_debug_prng_seed());
     } else {
-        init_genrand64((unsigned long long)GENERATE_SEED());
+        init_genrand64((uint64_t)GENERATE_SEED());
     }
 }
 
-long long dd_trace_raw_generate_id(TSRMLS_D) {
+uint64_t dd_trace_raw_generate_id(TSRMLS_D) {
     ddtrace_span_ids_t *stack = ecalloc(1, sizeof(ddtrace_span_ids_t));
     // We shift one bit to get 63-bit
-    stack->id = (long long)(genrand64_int64() >> 1);
+    stack->id = (uint64_t)(genrand64_int64() >> 1);
     stack->next = DDTRACE_G(span_ids_top);
     DDTRACE_G(span_ids_top) = stack;
     // Assuming the first call to dd_trace_raw_generate_id() is for the root span
@@ -32,11 +32,11 @@ long long dd_trace_raw_generate_id(TSRMLS_D) {
     return stack->id;
 }
 
-long long dd_trace_pop_span_id(TSRMLS_D) {
+uint64_t dd_trace_pop_span_id(TSRMLS_D) {
     if (DDTRACE_G(span_ids_top) == NULL) {
         return 0;
     }
-    long long id;
+    uint64_t id;
     ddtrace_span_ids_t *stack = DDTRACE_G(span_ids_top);
     DDTRACE_G(span_ids_top) = stack->next;
     id = stack->id;
@@ -47,7 +47,7 @@ long long dd_trace_pop_span_id(TSRMLS_D) {
     return id;
 }
 
-long long dd_trace_active_span_id(TSRMLS_D) {
+uint64_t dd_trace_active_span_id(TSRMLS_D) {
     if (DDTRACE_G(span_ids_top) == NULL) {
         return 0;
     }

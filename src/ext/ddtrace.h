@@ -25,10 +25,10 @@ typedef struct _ddtrace_original_context {
 // serialization from DDTRACE_G(root_span_id)
 typedef struct _ddtrace_span_stack_t {
     zval *span;
-    unsigned long long span_id;
-    unsigned long long parent_id;
-    unsigned long long start;
-    unsigned long long duration;
+    uint64_t span_id;
+    uint64_t parent_id;
+    uint64_t start;
+    uint64_t duration;
     struct _ddtrace_span_stack_t *next;
 } ddtrace_span_stack_t;
 
@@ -62,7 +62,7 @@ user_opcode_handler_t ddtrace_old_ucall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
 zval service_name;
-unsigned long long root_span_id;
+uint64_t root_span_id;
 ddtrace_span_ids_t *span_ids_top;
 ddtrace_span_stack_t *span_stack_top;
 ddtrace_closed_spans_t *closed_spans_top;

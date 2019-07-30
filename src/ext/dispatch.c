@@ -384,7 +384,7 @@ ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_D) {
     return stack;
 }
 
-static unsigned long long get_time_in_ns() {
+static uint64_t get_time_in_ns() {
     struct timespec time;
     if (clock_gettime(CLOCK_MONOTONIC, &time) == 0) {
         return time.tv_sec * 1000000 + time.tv_nsec / 1000;
