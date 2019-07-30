@@ -365,9 +365,8 @@ void ddtrace_span_stack_close_top(TSRMLS_D) {
     ddtrace_closed_spans_t *closed = push_closed_span(TSRMLS_C);
     ddtrace_serialize_span_to_array(top, closed->span);
     DDTRACE_G(span_stack_top) = top->next;
-    if (top->next) {
-        DDTRACE_G(active_span_id) = top->next->span_id;
-    }
+    // Sync with span ID stack
+    dd_trace_pop_span_id(TSRMLS_C);
     ddtrace_free_stack_span(top);
 }
 
@@ -381,7 +380,7 @@ ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_D) {
     stack->span_id = dd_trace_raw_generate_id(TSRMLS_C);
     // When span_id != root_span_id, it will have a parent
     if (stack->span_id != DDTRACE_G(root_span_id)) {
-        stack->parent_id = DDTRACE_G(active_span_id);
+        stack->parent_id = dd_trace_active_span_id(TSRMLS_C);
     } else {
         stack->parent_id = 0;
     }

@@ -2,6 +2,7 @@
 #define DDTRACE_H
 #include <stdint.h>
 
+#include "random.h"
 #include "version.h"
 extern zend_module_entry ddtrace_module_entry;
 
@@ -62,7 +63,7 @@ user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
 zval service_name;
 unsigned long long root_span_id;
-unsigned long long active_span_id;
+ddtrace_span_ids_t *span_ids_top;
 ddtrace_span_stack_t *span_stack_top;
 ddtrace_closed_spans_t *closed_spans_top;
 ZEND_END_MODULE_GLOBALS(ddtrace)

@@ -647,10 +647,28 @@ static PHP_FUNCTION(dd_trace_active_span_id) {
     PHP7_UNUSED(execute_data);
 
 #if PHP_VERSION_ID >= 70200
-    RETURN_STR(zend_strpprintf(0, "%llu", DDTRACE_G(active_span_id)));
+    RETURN_STR(zend_strpprintf(0, "%llu", dd_trace_active_span_id(TSRMLS_C)));
 #else
     char buf[20];
-    php_sprintf(buf, "%llu", DDTRACE_G(active_span_id))
+    php_sprintf(buf, "%llu", dd_trace_active_span_id(TSRMLS_C))
+#if PHP_VERSION_ID >= 70000
+    RETURN_STRING(buf);
+#else
+    RETURN_STRING(buf, 1);
+#endif
+#endif
+}
+
+/* {{{ proto string dd_trace_pop_span_id() */
+static PHP_FUNCTION(dd_trace_pop_span_id) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+
+#if PHP_VERSION_ID >= 70200
+    RETURN_STR(zend_strpprintf(0, "%llu", dd_trace_pop_span_id(TSRMLS_C)));
+#else
+    char buf[20];
+    php_sprintf(buf, "%llu", dd_trace_pop_span_id(TSRMLS_C))
 #if PHP_VERSION_ID >= 70000
     RETURN_STRING(buf);
 #else
@@ -679,7 +697,8 @@ static const zend_function_entry ddtrace_functions[] = {
                     dd_trace_env_config, arginfo_dd_trace_env_config) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
                     PHP_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span) PHP_FE(dd_trace_internal_fn, NULL)
                         PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
-                            PHP_FE(dd_trace_generate_id, NULL) PHP_FE(dd_trace_active_span_id, NULL) PHP_FE(dd_trace_reset_span_stack, NULL) ZEND_FE_END};
+                            PHP_FE(dd_trace_generate_id, NULL) PHP_FE(dd_trace_active_span_id, NULL) PHP_FE(dd_trace_pop_span_id, NULL)
+                                PHP_FE(dd_trace_reset_span_stack, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
