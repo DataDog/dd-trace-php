@@ -123,10 +123,24 @@ commands:
     parameters:
       command:
         type: string
+        default: none
     steps:
       - run:
           name: Installing missing libcurl workaround
-          command: << parameters.command >>
+          command: |
+              if [[ ! "<<parameters.command>>" == "none" ]]; then
+                << parameters.command >>
+              fi;
+  install_extension:
+    parameters:
+      lib_curl_command:
+        type: string
+        default: none
+    steps:
+      - lib_curl_workaround:
+          command: << parameters.lib_curl_command >>
+      - <<: *STEP_EXT_INSTALL
+
   copy_valgrind_rc:
     parameters:
       valgrind_config:
@@ -253,6 +267,7 @@ jobs:
         default: musl
       lib_curl_command:
         type: string
+        default: none
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -263,12 +278,7 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
-          command: |
-            export command="<< parameters.lib_curl_command >>"
-            if [[ ! $command =~ ^\ +$ ]]; then
-              << parameters.lib_curl_command >>
-              echo
-            fi
+          command: << parameters.lib_curl_command >>
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
@@ -356,11 +366,15 @@ jobs:
     executor:
       name: with_integrations
       docker_image: << parameters.docker_image >>
+    environment:
+      COMPOSER_PROCESS_TIMEOUT: 0
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - lib_curl_workaround:
-          command: << parameters.lib_curl_command >>
-      - prepare_extension_and_composer_with_cache
+      - install_extension:
+          lib_curl_command: << parameters.lib_curl_command >>
+      - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
+          key: 'betav1-composer-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+      - run: composer install --no-interaction --prefer-dist
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_AGENT
@@ -375,8 +389,14 @@ jobs:
       - run:
           name: Run << parameters.integration_testsuite >> integration test
           command: DD_TRACE_AGENT_TIMEOUT=2000 composer << parameters.integration_testsuite >>
+      - save_cache:
+          <<: *INTEGRATION_COMPOSER_CACHE_KEY
+          paths:
+            - vendor/
+            - ~/.composer/cache
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
+
   hyperfine_tests:
     working_directory: ~/datadog
     parameters:
