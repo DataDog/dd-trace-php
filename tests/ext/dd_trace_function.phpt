@@ -46,8 +46,8 @@ dd_trace_function(
             'retval.rand' => isset($retval['rand']) ? $retval['rand'] : '',
         ];
         $span->metrics = [
-            'foo' => isset($args[1]) ? $args[1] : '',
-            'bar' => isset($args[2]) ? $args[2] : '',
+            'foo' => isset($args[1][0]) ? $args[1][0] : '',
+            'bar' => isset($args[1][1]) ? $args[1][1] : '',
         ];
     },
     'foo_service'
