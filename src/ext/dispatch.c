@@ -377,13 +377,9 @@ ddtrace_span_stack_t *ddtrace_span_stack_create_and_push(TSRMLS_D) {
     stack->next = DDTRACE_G(span_stack_top);
     stack->span = ecalloc(1, sizeof(zval));
     object_init_ex(stack->span, ddtrace_ce_span_data);
+    // We need to get the active span ID before we generate a new one
+    stack->parent_id = dd_trace_active_span_id(TSRMLS_C);
     stack->span_id = dd_trace_raw_generate_id(TSRMLS_C);
-    // When span_id != root_span_id, it will have a parent
-    if (stack->span_id != DDTRACE_G(root_span_id)) {
-        stack->parent_id = dd_trace_active_span_id(TSRMLS_C);
-    } else {
-        stack->parent_id = 0;
-    }
     DDTRACE_G(span_stack_top) = stack;
     return stack;
 }
