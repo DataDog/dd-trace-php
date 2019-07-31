@@ -11,6 +11,7 @@
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch_compat.h"
+#include "span.h"
 
 // avoid Older GCC being overly cautious over {0} struct initializer
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -163,7 +164,9 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     DDTRACE_G(original_context).function_name = (*EG(opline_ptr))->op1.zv;
 #endif
 
+    dd_trace_open_span(TSRMLS_C);
     zend_call_function(&fci, &fcc TSRMLS_CC);
+    dd_trace_close_span(TSRMLS_C);
 
 #if PHP_VERSION_ID < 70000
     DDTRACE_G(original_context).function_name = prev_original_function_name;

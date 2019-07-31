@@ -3,8 +3,10 @@
 #include <stdint.h>
 
 #include "random.h"
+#include "span.h"
 #include "version.h"
 extern zend_module_entry ddtrace_module_entry;
+extern zend_class_entry *ddtrace_ce_span_data;
 
 typedef struct _ddtrace_original_context {
     zend_function *fbc;
@@ -39,6 +41,8 @@ user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
 uint64_t root_span_id;
 ddtrace_span_ids_t *span_ids_top;
+ddtrace_span_stack_t *open_spans_top;
+ddtrace_span_stack_t *closed_spans_top;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 
 #ifdef ZTS

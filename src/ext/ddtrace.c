@@ -29,6 +29,7 @@
 #include "random.h"
 #include "request_hooks.h"
 #include "serializer.h"
+#include "span.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
@@ -153,6 +154,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     dd_trace_seed_prng(TSRMLS_C);
     dd_trace_init_span_id_stack(TSRMLS_C);
+    dd_trace_init_span_stacks(TSRMLS_C);
     ddtrace_coms_on_pid_change();
 
     if (DDTRACE_G(request_init_hook)) {
@@ -174,6 +176,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_dispatch_destroy(TSRMLS_C);
     dd_trace_free_span_id_stack(TSRMLS_C);
+    dd_trace_free_span_stacks(TSRMLS_C);
     ddtrace_coms_on_request_finished();
 
     return SUCCESS;

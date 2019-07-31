@@ -66,6 +66,8 @@
                     <file name="request_hooks.h" role="src" />
                     <file name="serializer.c" role="src" />
                     <file name="serializer.h" role="src" />
+                    <file name="span.c" role="src" />
+                    <file name="span.h" role="src" />
                     <file name="version.h" role="src" />
                     <file name="compatibility.h" role="src" />
                     <dir name="mpack">
