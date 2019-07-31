@@ -19,6 +19,7 @@ void dd_trace_seed_prng(TSRMLS_D) {
 }
 
 void dd_trace_init_span_id_stack(TSRMLS_D) {
+    DDTRACE_G(root_span_id) = 0;
     DDTRACE_G(span_ids_top) = NULL;
 }
 

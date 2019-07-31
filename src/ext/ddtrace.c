@@ -579,7 +579,6 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 }
 
 /* {{{ proto string dd_trace_push_span_id() */
-// TODO Add alias to dd_trace_generate_id()
 static PHP_FUNCTION(dd_trace_push_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
@@ -602,7 +601,7 @@ static const zend_function_entry ddtrace_functions[] = {
                     dd_trace_env_config, arginfo_dd_trace_env_config) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
                     PHP_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span) PHP_FE(dd_trace_internal_fn, NULL)
                         PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
-                            PHP_FE(dd_trace_push_span_id, NULL) ZEND_FE_END};
+                            PHP_FE(dd_trace_push_span_id, NULL) PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
