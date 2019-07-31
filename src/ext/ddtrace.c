@@ -7,6 +7,7 @@
 #include <php.h>
 #include <php_ini.h>
 #include <php_main.h>
+#include <inttypes.h>
 
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
@@ -151,6 +152,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     dd_trace_seed_prng(TSRMLS_C);
+    dd_trace_init_span_id_stack(TSRMLS_C);
     ddtrace_coms_on_pid_change();
 
     if (DDTRACE_G(request_init_hook)) {
@@ -171,6 +173,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_dispatch_destroy(TSRMLS_C);
+    dd_trace_free_span_id_stack(TSRMLS_C);
     ddtrace_coms_on_request_finished();
 
     return SUCCESS;
@@ -575,21 +578,18 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 #endif
 }
 
-/* {{{ proto string dd_trace_generate_id() */
-static PHP_FUNCTION(dd_trace_generate_id) {
+/* {{{ proto string dd_trace_push_span_id() */
+// TODO Add alias to dd_trace_generate_id()
+static PHP_FUNCTION(dd_trace_push_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
 
-#if PHP_VERSION_ID >= 70200
-    RETURN_STR(dd_trace_generate_id());
-#else
     char buf[20];
-    dd_trace_generate_id(buf);
+    php_sprintf(buf, "%" PRIu64, dd_trace_push_span_id());
 #if PHP_VERSION_ID >= 70000
     RETURN_STRING(buf);
 #else
     RETURN_STRING(buf, 1);
-#endif
 #endif
 }
 
@@ -602,7 +602,7 @@ static const zend_function_entry ddtrace_functions[] = {
                     dd_trace_env_config, arginfo_dd_trace_env_config) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
                     PHP_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span) PHP_FE(dd_trace_internal_fn, NULL)
                         PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
-                            PHP_FE(dd_trace_generate_id, NULL) ZEND_FE_END};
+                            PHP_FE(dd_trace_push_span_id, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),

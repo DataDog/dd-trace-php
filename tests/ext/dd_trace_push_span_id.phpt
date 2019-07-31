@@ -1,11 +1,11 @@
 --TEST--
-dd_trace_generate_id() Generates a 63-bit unsigned int as a string
+dd_trace_push_span_id() Generates a 63-bit unsigned int as a string
 --ENV--
 DD_TRACE_DEBUG_PRNG_SEED=42
 --FILE--
 <?php
 foreach (range(0, 9) as $i) {
-    echo dd_trace_generate_id() . "\n";
+    echo dd_trace_push_span_id() . "\n";
 }
 ?>
 --EXPECT--
