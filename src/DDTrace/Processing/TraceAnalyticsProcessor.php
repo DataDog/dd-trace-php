@@ -2,7 +2,7 @@
 
 namespace DDTrace\Processing;
 
-use DDTrace\Data\Span as SpanData;
+use DDTrace\Data\Span as DataSpan;
 use DDTrace\Tag;
 
 /**
@@ -31,9 +31,9 @@ final class TraceAnalyticsProcessor
     /**
      * Process the span adding the trace analytics client config option when appropriate.
      *
-     * @param SpanData $span
+     * @param DataSpan $span
      */
-    public function process(SpanData $span)
+    public function process(DataSpan $span)
     {
         // var_dump($span);
         // We only consider spans that are marked as trace analytics candidates, otherwise the customer bill would
