@@ -52,7 +52,7 @@ uint64_t dd_trace_pop_span_id(TSRMLS_D) {
     ddtrace_span_ids_t *stack = DDTRACE_G(span_ids_top);
     DDTRACE_G(span_ids_top) = stack->next;
     id = stack->id;
-    if(stack->next == NULL) {
+    if (stack->next == NULL) {
         DDTRACE_G(root_span_id) = 0;
     }
     efree(stack);

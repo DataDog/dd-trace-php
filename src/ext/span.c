@@ -1,7 +1,7 @@
 #include "span.h"
 
 #include <php.h>
-#include <time.h> // TODO Add config check
+#include <time.h>  // TODO Add config check
 
 #include "ddtrace.h"
 

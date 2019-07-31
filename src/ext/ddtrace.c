@@ -4,10 +4,10 @@
 #include <SAPI.h>
 #include <Zend/zend.h>
 #include <Zend/zend_exceptions.h>
+#include <inttypes.h>
 #include <php.h>
 #include <php_ini.h>
 #include <php_main.h>
-#include <inttypes.h>
 
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
@@ -69,17 +69,20 @@ static void register_span_data_ce(TSRMLS_D) {
 #else
     ddtrace_ce_span_data = zend_register_internal_class_ex(&ce_span_data, NULL);
 #endif
-    
+
     // TODO Add the rest of these
     // TODO Generate from array of meta keys
     zend_declare_class_constant_long(ddtrace_ce_span_data, "META_ENV", sizeof("META_ENV") - 1, 0 TSRMLS_CC);
     zend_declare_class_constant_long(ddtrace_ce_span_data, "META_SPAN_TYPE", sizeof("META_SPAN_TYPE") - 1, 1 TSRMLS_CC);
-    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_MANUAL_KEEP", sizeof("META_MANUAL_KEEP") - 1, 2 TSRMLS_CC);
-    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_MANUAL_DROP", sizeof("META_MANUAL_DROP") - 1, 3 TSRMLS_CC);
+    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_MANUAL_KEEP", sizeof("META_MANUAL_KEEP") - 1,
+                                     2 TSRMLS_CC);
+    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_MANUAL_DROP", sizeof("META_MANUAL_DROP") - 1,
+                                     3 TSRMLS_CC);
     zend_declare_class_constant_long(ddtrace_ce_span_data, "META_PID", sizeof("META_PID") - 1, 4 TSRMLS_CC);
 
     // TODO Generate from array of metric keys when we get a lot more of these
-    zend_declare_class_constant_long(ddtrace_ce_span_data, "METRIC_ANALYTICS_KEY", sizeof("METRIC_ANALYTICS_KEY") - 1, 0 TSRMLS_CC);
+    zend_declare_class_constant_long(ddtrace_ce_span_data, "METRIC_ANALYTICS_KEY", sizeof("METRIC_ANALYTICS_KEY") - 1,
+                                     0 TSRMLS_CC);
 
     // trace_id, span_id, parent_id, start & duration are stored directly on
     // ddtrace_span_stack_t so we don't need to make them properties on DDTrace\SpanData
@@ -604,7 +607,8 @@ static const zend_function_entry ddtrace_functions[] = {
                     dd_trace_env_config, arginfo_dd_trace_env_config) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
                     PHP_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span) PHP_FE(dd_trace_internal_fn, NULL)
                         PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
-                            PHP_FE(dd_trace_push_span_id, NULL) PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL) ZEND_FE_END};
+                            PHP_FE(dd_trace_push_span_id, NULL)
+                                PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
