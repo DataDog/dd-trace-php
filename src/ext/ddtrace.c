@@ -61,7 +61,7 @@ static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, s
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
 
-static void register_span_data_ce() {
+static void register_span_data_ce(TSRMLS_D) {
     zend_class_entry ce_span_data;
     INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", NULL);
 #if PHP_VERSION_ID < 70000
@@ -101,7 +101,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-    register_span_data_ce();
+    register_span_data_ce(TSRMLS_C);
     // config initialization needs to be at the top
     ddtrace_initialize_config(TSRMLS_C);
 
@@ -587,7 +587,7 @@ static PHP_FUNCTION(dd_trace_push_span_id) {
     PHP7_UNUSED(execute_data);
 
     char buf[20];
-    php_sprintf(buf, "%" PRIu64, dd_trace_push_span_id());
+    php_sprintf(buf, "%" PRIu64, dd_trace_push_span_id(TSRMLS_C));
 #if PHP_VERSION_ID >= 70000
     RETURN_STRING(buf);
 #else

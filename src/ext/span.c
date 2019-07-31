@@ -16,7 +16,19 @@ void _free_span_stack(ddtrace_span_stack_t *stack) {
     while (stack != NULL) {
         ddtrace_span_stack_t *tmp = stack;
         stack = tmp->next;
+#if PHP_VERSION_ID >= 70000
         zval_ptr_dtor(tmp->span);
+#else
+        zval_dtor(tmp->span);
+#endif
+        if (tmp->exception) {
+#if PHP_VERSION_ID >= 70000
+            zval_ptr_dtor(tmp->exception);
+#else
+            zval_dtor(tmp->exception);
+#endif
+            efree(tmp->exception);
+        }
         efree(tmp->span);
         efree(tmp);
     }
