@@ -1,0 +1,16 @@
+Component,Origin,License,Copyright
+file,Dockerfile_buster,MIT,"Docker, Inc."
+file,docker-php-ext-configure,MIT,"Docker, Inc."
+file,docker-php-ext-enable,MIT,"Docker, Inc."
+file,docker-php-ext-install,MIT,"Docker, Inc."
+file,docker-php-source,MIT,"Docker, Inc."
+file,mpack.c,MIT,Nicholas Fraser
+file,mpack.h,MIT,Nicholas Fraser
+file,mt19937-64.c,BSD-3-Clause,Takuji Nishimura and Makoto Matsumoto
+file,mt19937-64.h,BSD-3-Clause,Takuji Nishimura and Makoto Matsumoto
+file,vendor_stdatomic.h,2-Clause BSD,"Ed Schouten, David Chisnall"
+dev,g1a/composer-test-scenarios,MIT,"Greg Anderson"
+dev,mockery/mockery,BSD-3-Clause,"Pádraic Brady, Dave Marshall"
+dev,phpunit/phpunit,BSD-3-Clause,"Sebastian Bergmann"
+dev,"squizlabs/php_codesniffer",BSD-3-Clause,"Greg Sherwood"
+dev,"symfony/process",MIT,"Fabien Potencier, Symfony Community"
