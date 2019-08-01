@@ -2,6 +2,7 @@
 #define DD_CONFIGURATION_REDER_H
 #include <pthread.h>
 #include <string.h>
+#include "vendor_stdatomic.h"
 
 #include "env_config.h"
 
@@ -22,7 +23,7 @@ struct ddtrace_memoized_configuration_t {
     // render configuration struct
     DD_CONFIGURATION
 
-// cleanup macros
+    // cleanup macros
 #undef CHAR
 #undef INT
 #undef BOOL

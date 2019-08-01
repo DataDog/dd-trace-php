@@ -25,14 +25,13 @@ char *get_local_env_or_sapi_env(char *name TSRMLS_DC) {
             return NULL;
         }
 
-        env = sapi_getenv(name, strlen(name) TSRMLS_CC);
-        if (env) {
+        tmp = sapi_getenv(name, strlen(name) TSRMLS_CC);
+        if (tmp) {
             // convert PHP memory to pure C memory since this could be used in non request contexts too
             // currently we're not using permanent C memory anywhere, while this could be applied here
             // it seems more practical to simply use "C memory" instead of having 3rd way to free and allocate memory
-            char *oldenv = env;
-            env = ddtrace_strdup(env);
-            efree(oldenv);
+            env = ddtrace_strdup(tmp);
+            efree(tmp);
         }
     }
 
