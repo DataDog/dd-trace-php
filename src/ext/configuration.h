@@ -16,17 +16,19 @@ void ddtrace_reload_config();
     BOOL(get_dd_trace_agent_debug_verbose_curl, "DD_TRACE_AGENT_DEBUG_VERBOSE_CURL", FALSE, "")
 #endif
 
-#define DD_CONFIGURATION DD_INTERNAL_CONFIGURATION                      \
-    CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost", "DataDog agent hostname")                                             \
-    INT(get_dd_trace_agent_port, "DD_TRACE_AGENT_POSRT", 8126, "DataDog agent port")                                         \
-    CHAR(get_dd_trace_encoder, "DD_TRACE_ENCODER", NULL, "Possible values: json, msgpack. Defaults to msgpack on values other than `json`")\
+#define DD_APPNAME_CONFIG \
     CHAR(get_dd_service_name, "DD_SERVICE_NAME", NULL, "Service name override") \
     CHAR(get_dd_trace_app_name, "DD_TRACE_APP_NAME", NULL, "Deprecated service name override") \
-    CHAR(get_ddtrace_app_name, "DDTRACE_APP_NAME", NULL, "Deprecated service name override") \
+    CHAR(get_ddtrace_app_name, "DDTRACE_APP_NAME", NULL, "Deprecated service name override")
+
+#define DD_CONFIGURATION DD_APPNAME_CONFIG DD_INTERNAL_CONFIGURATION                      \
+    CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost", "DataDog agent hostname")                                             \
+    INT(get_dd_trace_agent_port, "DD_TRACE_AGENT_PORT", 8126, "DataDog agent port")                                         \
+    CHAR(get_dd_trace_encoder, "DD_TRACE_ENCODER", NULL, "Possible values: json, msgpack. Defaults to msgpack on values other than `json`")\
     BOOL(get_dd_trace_cli_enabled, "DD_TRACE_CLI_ENABLED", FALSE, "Enable tracing in CLI") \
     BOOL(get_dd_trace_enabled, "DD_TRACE_ENABLED", TRUE, "Enable tracing globally") \
     BOOL(get_dd_trace_debug, "DD_TRACE_DEBUG", FALSE, "Enable tracer debugging") \
-    INT(get_dd_trace_distributed_tracing, "DD_TRACE_DISTRIBUTED_TRACING", TRUE, "Enable distributed tracing")\
+    BOOL(get_dd_distributed_tracing, "DD_DISTRIBUTED_TRACING", TRUE, "Enable distributed tracing")\
     CHAR(get_dd_trace_memory_limit, "DD_TRACE_MEMORY_LIMIT", NULL, "")                                    \
     INT(get_dd_trace_agent_flush_interval, "DD_TRACE_AGENT_FLUSH_INTERVAL", 5000, "")                     \
     INT(get_dd_trace_agent_flush_after_n_requests, "DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS", 10, "")       \

@@ -32,7 +32,7 @@ void ddtrace_php_get_configuration(zval *return_value, zval *zenv_name) {
         return;
     } else {
         if (get_untyped_configuration(return_value, env_name)) {
-            printf("Untyped env detected: %s\n", env_name);
+            fprintf(stderr, "Untyped env detected: %s\n", env_name);
             return;
         }
         char *tmp_envname = NULL;
@@ -40,7 +40,7 @@ void ddtrace_php_get_configuration(zval *return_value, zval *zenv_name) {
         if (env_name_len > 0 && tmp_envname) {
             if (!get_configuration(return_value, tmp_envname, tmp_envname_len)) {
                 if (get_untyped_configuration(return_value, tmp_envname)) {
-                    printf("Untyped env detected: %s\n", tmp_envname);
+                    fprintf(stderr, "Untyped env detected: %s\n", tmp_envname);
                 } else {
                     RETVAL_NULL();
                 }
@@ -125,6 +125,8 @@ BOOL_T get_configuration(zval *return_value, char *env_name, size_t env_name_len
     // did not match any configuration getter
     return FALSE;
 }
+
+#include <assert.h>
 
 BOOL_T get_untyped_configuration(zval *return_value, char* env_name) {
     char *entry = ddtrace_get_c_string_config(env_name);

@@ -19,7 +19,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isEnabled()
     {
-        return $this->boolValue('trace.enabled', true);
+        return dd_trace_env_config('DD_TRACE_ENABLED');
     }
 
     /**
@@ -29,7 +29,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDebugModeEnabled()
     {
-        return $this->boolValue('trace.debug', false);
+        return dd_trace_env_config('DD_TRACE_DEBUG');
     }
 
     /**
@@ -39,7 +39,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDistributedTracingEnabled()
     {
-        return $this->boolValue('distributed.tracing', true);
+        return dd_trace_env_config('DD_DISTRIBUTED_TRACING');
     }
 
     /**
@@ -159,13 +159,13 @@ class Configuration extends AbstractConfiguration
     public function appName($default = '')
     {
         // Using the env `DD_SERVICE_NAME` for consistency with other tracers.
-        $appName = dd_trace_env_config('service.name');
+        $appName = dd_trace_env_config('DD_SERVICE_NAME');
         if ($appName) {
             return $appName;
         }
 
         // This is deprecated and will be removed in a future release
-        $appName = dd_trace_env_config('trace.app.name');
+        $appName = dd_trace_env_config('DD_TRACE_APP_NAME');
         if ($appName) {
             self::logDebug(
                 'Env variable \'DD_TRACE_APP_NAME\' is deprecated and will be removed soon. ' .

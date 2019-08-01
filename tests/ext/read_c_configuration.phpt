@@ -4,7 +4,6 @@ Ensure we can read C configuration data
 DD_AGENT_HOST=some_known_host
 DD_TRACE_MEMORY_LIMIT=9999
 --FILE--
-
 <?php
 echo dd_trace_env_config("DD_AGENT_HOST");
 echo PHP_EOL;
@@ -35,6 +34,7 @@ echo PHP_EOL;
 echo dd_trace_env_config("trace.memory.limit");
 echo PHP_EOL;
 echo dd_trace_env_config("non.existing.entry") === NULL ? 'NULL' : 'NOT_NULL' ;
+
 
 ?>
 --EXPECT--

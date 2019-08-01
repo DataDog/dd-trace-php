@@ -12,10 +12,11 @@
 
 #include "coms_curl.h"
 
+char *ddtrace_strdup(const char *c);
 #define EQUALS(stra, stra_len, literal_strb) \
     (stra_len == (sizeof(literal_strb) - 1) && memcmp(stra, literal_strb, sizeof(literal_strb) - 1) == 0)
 
-char *get_local_env_or_sapi_env(char *name TSRMLS_DC) {
+static inline char *get_local_env_or_sapi_env_cased(char *name TSRMLS_DC) {
     char *env = NULL, *tmp = getenv(name);
     if (tmp) {
         env = ddtrace_strdup(tmp);
@@ -33,6 +34,26 @@ char *get_local_env_or_sapi_env(char *name TSRMLS_DC) {
             env = ddtrace_strdup(tmp);
             efree(tmp);
         }
+    }
+
+    return env;
+}
+
+static inline char *get_local_env_or_sapi_env(char *name TSRMLS_DC) {
+    char *env = get_local_env_or_sapi_env_cased(name TSRMLS_C);
+
+    if (!env) {
+        char *envname = ddtrace_strdup(name);
+        char *cptr = envname;
+        size_t envname_length = strlen(name);
+        while (*cptr && (size_t)(cptr - envname) < envname_length) {
+            *cptr = tolower((unsigned char)*cptr);
+            cptr++;
+        }
+        env = get_local_env_or_sapi_env_cased(envname);
+        // fprintf(stderr, "aa %s: %s\n", envname, env);
+
+        free(envname);
     }
 
     return env;
