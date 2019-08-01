@@ -159,13 +159,13 @@ class Configuration extends AbstractConfiguration
     public function appName($default = '')
     {
         // Using the env `DD_SERVICE_NAME` for consistency with other tracers.
-        $appName = $this->stringValue('service.name');
+        $appName = dd_trace_env_config('service.name');
         if ($appName) {
             return $appName;
         }
 
         // This is deprecated and will be removed in a future release
-        $appName = $this->stringValue('trace.app.name');
+        $appName = dd_trace_env_config('trace.app.name');
         if ($appName) {
             self::logDebug(
                 'Env variable \'DD_TRACE_APP_NAME\' is deprecated and will be removed soon. ' .
@@ -174,13 +174,13 @@ class Configuration extends AbstractConfiguration
             return $appName;
         }
 
-        $appName = getenv('ddtrace_app_name');
-        if (false !== $appName) {
+        $appName = dd_trace_env_config('DDTRACE_APP_NAME');
+        if ($appName) {
             self::logDebug(
                 'Env variable \'ddtrace_app_name\' is deprecated and will be removed soon. ' .
                 'Use \'DD_SERVICE_NAME\' instead'
             );
-            return trim($appName);
+            return $appName;
         }
         return $default;
     }

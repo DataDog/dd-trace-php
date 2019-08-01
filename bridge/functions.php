@@ -10,26 +10,10 @@ namespace DDTrace\Bridge;
 function dd_tracing_enabled()
 {
     if ('cli' === PHP_SAPI) {
-        $cliEnabled = getenv('DD_TRACE_CLI_ENABLED');
-        if (false === $cliEnabled) {
-            return false;
-        }
-        $cliEnabled = strtolower(trim($cliEnabled));
-        return 'true' === $cliEnabled || '1' === $cliEnabled;
+        return dd_trace_env_config('DD_TRACE_CLI_ENABLED');
     }
 
-    $value = getenv('DD_TRACE_ENABLED');
-    if (false === $value) {
-        // Not setting the env means we default to enabled.
-        return true;
-    }
-
-    $value = trim(strtolower($value));
-    if ($value === '0' || $value === 'false') {
-        return false;
-    } else {
-        return true;
-    }
+    return dd_trace_env_config('DD_TRACE_ENABLED');
 }
 
 /**

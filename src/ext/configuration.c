@@ -44,7 +44,6 @@ void ddtrace_reload_config(COMPAT_CTX_D) {
 #undef CHAR
 #undef INT
 #undef BOOL
-    // repopulate config
 }
 
 void ddtrace_reload_on_version_change(COMPAT_CTX_D) {
