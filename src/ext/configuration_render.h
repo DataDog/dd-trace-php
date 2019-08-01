@@ -2,6 +2,7 @@
 #define DD_CONFIGURATION_REDER_H
 #include <pthread.h>
 #include <string.h>
+#include <stdint.h>
 #include "vendor_stdatomic.h"
 
 #include "env_config.h"
@@ -29,6 +30,8 @@ struct ddtrace_memoized_configuration_t {
 #undef BOOL
     // configuration mutex
     pthread_mutex_t mutex;
+    _Atomic(uint32_t) next_version;
+    _Atomic(uint32_t) current_version;
 };
 
 // define configuration getters macros

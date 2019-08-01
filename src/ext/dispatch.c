@@ -82,7 +82,7 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, ddtrace_
 }
 
 #if PHP_VERSION_ID < 70000
-zend_function *fcall_fbc(zend_execute_data *execute_data TSRMLS_DC) {
+static zend_function *fcall_fbc(zend_execute_data *execute_data TSRMLS_DC) {
     zend_op *opline = EX(opline);
     zend_function *fbc = NULL;
     zval *fname = opline->op1.zv;
@@ -215,7 +215,7 @@ _exit_cleanup:
 
 static int _is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *lookup_data) {
     if (!(fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !lookup_data->function_name) {
-        return 0;
+        return FALSE;
     }
 
     /* This checks for a "{closure}" prefix, not a complete string. PHP adds
@@ -225,11 +225,9 @@ static int _is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *look
     return IS_FUNCTION(lookup_data, "{closure}");
 }
 
-static void _on_putenv(ddtrace_lookup_data_t *lookup_data) {
+static void _on_putenv(ddtrace_lookup_data_t *lookup_data TSRMLS_DC) {
     if (IS_FUNCTION(lookup_data, "putenv")){
-        printf("%s\n", _lookup_data_function_name(lookup_data));
-        fflush(stdout);
-        ddtrace_reload_config();
+        DDTRACE_G(reload_config_once) = TRUE;
     }
 }
 
@@ -449,7 +447,7 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     return ZEND_USER_OPCODE_LEAVE;
 }
 
-int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
+static int _default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("calling default dispatch");
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         if (DDTRACE_G(ddtrace_old_fcall_by_name_handler)) {
@@ -463,19 +461,27 @@ int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
 
     return ZEND_USER_OPCODE_DISPATCH;
 }
+static void _reload_config_once(TSRMLS_D){
+    if (DDTRACE_G(reload_config_once)){
+        ddtrace_reload_config(TSRMLS_C);
+        DDTRACE_G(reload_config_once) = FALSE;
+    }
+}
 
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
+    _reload_config_once(TSRMLS_C);
+
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
         DDTRACE_G(function_lookup) == NULL) {
-        return default_dispatch(execute_data TSRMLS_CC);
+        return _default_dispatch(execute_data TSRMLS_CC);
     }
 
     zend_function *current_fbc = get_current_fbc(execute_data TSRMLS_CC);
     ddtrace_lookup_data_t lookup_data = {0};
 
     if (!is_function_wrappable(execute_data, current_fbc, &lookup_data)) {
-        return default_dispatch(execute_data TSRMLS_CC);
+        return _default_dispatch(execute_data TSRMLS_CC);
     }
     zend_function *previous_fbc = DDTRACE_G(original_context).fbc;
     DDTRACE_G(original_context).fbc = current_fbc;
@@ -512,7 +518,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     if (wrapped) {
         return update_opcode_leave(execute_data TSRMLS_CC);
     } else {
-        return default_dispatch(execute_data TSRMLS_CC);
+        return _default_dispatch(execute_data TSRMLS_CC);
     }
 }
 
