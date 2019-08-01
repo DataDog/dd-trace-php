@@ -6,13 +6,13 @@ extern struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration;
 void ddtrace_initialize_config();
 void ddtrace_reload_config();
 
-#define DD_CONFIGURATION                                                                                  \
+#define DD_CONFIGURATION                         \
+    CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost", "")                                             \
     CHAR(get_dd_service_name, "DD_SERVICE_NAME", NULL, "Service name override") \
     CHAR(get_dd_trace_app_name, "DD_TRACE_APP_NAME", NULL, "Deprecated service name override") \
     CHAR(get_ddtrace_app_name, "DDTRACE_APP_NAME", NULL, "Deprecated service name override") \
-    BOOL(get_dd_trace_cli_enabled, "DD_TRACE_CLI_ENABLED", "false", "Enable tracing in CLI") \
-    BOOL(get_dd_trace_enabled, "DD_TRACE_ENABLED", "true", "Enable tracing globally") \
-    CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost", "")                                             \
+    BOOL(get_dd_trace_cli_enabled, "DD_TRACE_CLI_ENABLED", FALSE, "Enable tracing in CLI") \
+    BOOL(get_dd_trace_enabled, "DD_TRACE_ENABLED", TRUE, "Enable tracing globally") \
     INT(get_dd_trace_agent_port, "DD_TRACE_AGENT_PORT", 8126, "")                                         \
     BOOL(get_dd_trace_agent_debug_verbose_curl, "DD_TRACE_AGENT_DEBUG_VERBOSE_CURL", FALSE, "")           \
     BOOL(get_dd_trace_debug_curl_output, "DD_TRACE_DEBUG_CURL_OUTPUT", FALSE, "")                         \
