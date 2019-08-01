@@ -4,6 +4,7 @@
 
 #include "compatibility.h"
 #include "configuration.h"
+#include "env_config.h"
 
 // eventually this will need to be rewritten to use hashmap populated at startup to perform lookup for performance
 // reasons however for low cardinality of envs of the same name this should be fast enough
@@ -12,6 +13,7 @@
 
 // forward declarations
 BOOL_T get_configuration(zval *return_value, char *env_name, size_t env_name_len);
+BOOL_T get_untyped_configuration(zval *return_value, char* env_name);
 size_t convert_cfg_id_to_envname(char **envname_p, char *id, size_t id_length);
 
 // implementations
@@ -29,11 +31,19 @@ void ddtrace_php_get_configuration(zval *return_value, zval *zenv_name) {
     if (get_configuration(return_value, env_name, env_name_len)) {
         return;
     } else {
+        if (get_untyped_configuration(return_value, env_name)) {
+            printf("Untyped env detected: %s\n", env_name);
+            return;
+        }
         char *tmp_envname = NULL;
         size_t tmp_envname_len = convert_cfg_id_to_envname(&tmp_envname, env_name, env_name_len);
         if (env_name_len > 0 && tmp_envname) {
             if (!get_configuration(return_value, tmp_envname, tmp_envname_len)) {
-                RETVAL_NULL();
+                if (get_untyped_configuration(return_value, tmp_envname)) {
+                    printf("Untyped env detected: %s\n", tmp_envname);
+                } else {
+                    RETVAL_NULL();
+                }
             }
             free(tmp_envname);
             return;
@@ -113,5 +123,15 @@ BOOL_T get_configuration(zval *return_value, char *env_name, size_t env_name_len
     DD_CONFIGURATION
 
     // did not match any configuration getter
+    return FALSE;
+}
+
+BOOL_T get_untyped_configuration(zval *return_value, char* env_name) {
+    char *entry = ddtrace_get_c_string_config(env_name);
+    if (entry){
+        COMPAT_RETVAL_STRING(entry);
+        free(entry);
+        return TRUE;
+    }
     return FALSE;
 }

@@ -6,8 +6,10 @@ extern struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration;
 void ddtrace_initialize_config();
 void ddtrace_reload_config();
 
+
 #define DD_CONFIGURATION                         \
-    CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost", "")                                             \
+    CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost", "DataDog agent hostname")                                             \
+    CHAR(get_dd_trace_encoder, "DD_TRACE_ENCODER", NULL, "Possible values: json, msgpack. Defaults to msgpack on values other than `json`")\
     CHAR(get_dd_service_name, "DD_SERVICE_NAME", NULL, "Service name override") \
     CHAR(get_dd_trace_app_name, "DD_TRACE_APP_NAME", NULL, "Deprecated service name override") \
     CHAR(get_ddtrace_app_name, "DDTRACE_APP_NAME", NULL, "Deprecated service name override") \
