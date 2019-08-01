@@ -19,7 +19,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isEnabled()
     {
-        return dd_trace_env_config('DD_TRACE_ENABLED');
+        return dd_trace_env_config('trace.enabled');
     }
 
     /**
@@ -29,7 +29,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDebugModeEnabled()
     {
-        return dd_trace_env_config('DD_TRACE_DEBUG');
+        return dd_trace_env_config('trace.debug');
     }
 
     /**
@@ -39,7 +39,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDistributedTracingEnabled()
     {
-        return dd_trace_env_config('DD_DISTRIBUTED_TRACING');
+        return dd_trace_env_config('distributed.tracing');
     }
 
     /**
@@ -49,7 +49,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isAnalyticsEnabled()
     {
-        return $this->boolValue('trace.analytics.enabled', false);
+        return dd_trace_env_config('trace.analytics.enabled');
     }
 
     /**
@@ -60,7 +60,7 @@ class Configuration extends AbstractConfiguration
     public function isPrioritySamplingEnabled()
     {
         return $this->isDistributedTracingEnabled()
-            && $this->boolValue('priority.sampling', true);
+            && dd_trace_env_config('priority.sampling');
     }
 
     /**
@@ -73,7 +73,7 @@ class Configuration extends AbstractConfiguration
      */
     public function getSpansLimit()
     {
-        return (int)$this->floatValue('spans.limit', 1000);
+        return dd_trace_env_config('spans.limit');
     }
 
 
@@ -88,7 +88,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isAutofinishSpansEnabled()
     {
-        return $this->boolValue('autofinish.spans', false);
+        return dd_trace_env_config('autofinish.spans');
     }
 
     /**
@@ -127,7 +127,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isHostnameReportingEnabled()
     {
-        return $this->boolValue('trace.report.hostname', false);
+        return dd_trace_env_config('trace.report.hostname');
     }
 
     /**
@@ -137,7 +137,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isURLAsResourceNameEnabled()
     {
-        return $this->boolValue('trace.url.as.resource.names.enabled', false);
+        return dd_trace_env_config('trace.url.as.resource.names.enabled');
     }
 
     /**
@@ -147,7 +147,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isHttpClientSplitByDomain()
     {
-        return $this->boolValue('trace.http.client.split.by.domain', false);
+        return dd_trace_env_config('trace.http.client.split.by.domain');
     }
 
     /**

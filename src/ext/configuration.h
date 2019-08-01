@@ -8,6 +8,7 @@ void ddtrace_reload_config();
 
 #ifndef DD_INTERNAL_CONFIGURATION
 #define DD_INTERNAL_CONFIGURATION  \
+    INT(get_dd_spans_limit, "DD_SPANS_LIMIT", 1000, "DataDog default spans limit")                                         \
     BOOL(get_dd_test_integration, "DD_TEST_INTEGRATION", FALSE, "Internal test intergation") \
     INT(get_dd_trace_debug_prng_seed, "DD_TRACE_DEBUG_PRNG_SEED", -1, "")   \
     BOOL(get_dd_trace_send_traces_via_thread, "DD_TRACE_BETA_SEND_TRACES_VIA_THREAD", FALSE,              \
@@ -27,6 +28,14 @@ void ddtrace_reload_config();
     CHAR(get_dd_trace_encoder, "DD_TRACE_ENCODER", NULL, "Possible values: json, msgpack. Defaults to msgpack on values other than `json`")\
     BOOL(get_dd_trace_cli_enabled, "DD_TRACE_CLI_ENABLED", FALSE, "Enable tracing in CLI") \
     BOOL(get_dd_trace_enabled, "DD_TRACE_ENABLED", TRUE, "Enable tracing globally") \
+    BOOL(get_dd_trace_analytics_enabled, "DD_TRACE_ANALYTICS_ENABLED", FALSE, "Enable trace analytics") \
+    BOOL(get_dd_priority_sampling, "DD_PRIORITY_SAMPLING", TRUE, "Enable priority sampling") \
+    BOOL(get_dd_autofinish_spans,"DD_AUTOFINISH_SPANS", FALSE, "Automaticaly close unfinished spans when request ends") \
+    BOOL(get_dd_trace_report_hostname, "DD_TRACE_REPORT_HOSTNAME", FALSE, "Enable hostname reporting") \
+    BOOL(get_dd_trace_url_as_resource_names_enabled, "DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED", FALSE, "Set urls as resource names") \
+    BOOL(get_dd_trace_http_client_split_by_domain, "DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN", FALSE, "Split curl service by connected domains") \
+\
+    \
     BOOL(get_dd_trace_debug, "DD_TRACE_DEBUG", FALSE, "Enable tracer debugging") \
     BOOL(get_dd_distributed_tracing, "DD_DISTRIBUTED_TRACING", TRUE, "Enable distributed tracing")\
     CHAR(get_dd_trace_memory_limit, "DD_TRACE_MEMORY_LIMIT", NULL, "")                                    \
