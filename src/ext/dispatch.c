@@ -11,6 +11,7 @@
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch_compat.h"
+#include "configuration.h"
 
 // avoid Older GCC being overly cautious over {0} struct initializer
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -32,13 +33,9 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 #if PHP_VERSION_ID < 70000
 static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_lookup_data_t *lookup_data) {
-    if (lookup_data->function_name_length == 0) {
-        lookup_data->function_name_length = strlen(lookup_data->function_name);
-    }
-
-    char *key = zend_str_tolower_dup(lookup_data->function_name, lookup_data->function_name_length);
+    char *key = zend_str_tolower_dup(_lookup_data_function_name(lookup_data), _lookup_data_function_name_length(lookup_data));
     ddtrace_dispatch_t *dispatch = NULL;
-    dispatch = zend_hash_str_find_ptr(lookup, key, lookup_data->function_name_length);
+    dispatch = zend_hash_str_find_ptr(lookup, key, _lookup_data_function_name_length(lookup_data));
 
     efree(key);
     return dispatch;
@@ -213,8 +210,11 @@ _exit_cleanup:
     Z_DELREF(closure);
 }
 
-static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *lookup) {
-    if (!(fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !lookup->function_name) {
+#define IS_FUNCTION(lookup_data, fn_name) ((_lookup_data_function_name_length(lookup_data) == sizeof(fn_name) - 1) \
+                                        && strcmp(_lookup_data_function_name(lookup_data), fn_name) == 0)
+
+static int _is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *lookup_data) {
+    if (!(fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !lookup_data->function_name) {
         return 0;
     }
 
@@ -222,24 +222,15 @@ static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *looku
      * null characters to the closure name to separate different parts, which
      * is why this works at all. */
     /* todo: why do we do this check at all? */
-#if PHP_VERSION_ID < 70000
-    if (lookup->function_name_length == 0) {
-        lookup->function_name_length = strlen(lookup->function_name);
+    return IS_FUNCTION(lookup_data, "{closure}");
+}
+
+static void _on_putenv(ddtrace_lookup_data_t *lookup_data) {
+    if (IS_FUNCTION(lookup_data, "putenv")){
+        printf("%s\n", _lookup_data_function_name(lookup_data));
+        fflush(stdout);
+        ddtrace_reload_config();
     }
-    if ((lookup->function_name_length == (sizeof("{closure}") - 1)) &&
-        strcmp(lookup->function_name, "{closure}") == 0) {
-        return 1;
-    } else {
-        return 0;
-    }
-#else
-    if ((ZSTR_LEN(lookup->function_name) == (sizeof("{closure}") - 1)) &&
-        strcmp((ZSTR_VAL(lookup->function_name)), "{closure}") == 0) {
-        return 1;
-    } else {
-        return 0;
-    }
-#endif
 }
 
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data,
@@ -267,6 +258,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         dispatch = find_dispatch(class, lookup_data TSRMLS_CC);
     } else {
         dispatch = lookup_dispatch(DDTRACE_G(function_lookup), lookup_data);
+        _on_putenv(lookup_data);
     }
 
     if (dispatch && !dispatch->busy) {
@@ -416,7 +408,7 @@ static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *exe
         return 0;
     }
 
-    if (is_anonymous_closure(fbc, lookup_data)) {
+    if (_is_anonymous_closure(fbc, lookup_data)) {
         DD_PRINTF("Anonymous closure, skipping lookup");
         return 0;
     }
