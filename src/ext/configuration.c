@@ -14,9 +14,7 @@ struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration = {
 #undef CHAR
 #undef BOOL
 #undef INT
-        PTHREAD_MUTEX_INITIALIZER,
-        ATOMIC_VAR_INIT(0),
-        ATOMIC_VAR_INIT(0)
+        PTHREAD_MUTEX_INITIALIZER
         };
 
 void ddtrace_reload_config(COMPAT_CTX_D) {
@@ -44,10 +42,6 @@ void ddtrace_reload_config(COMPAT_CTX_D) {
 #undef CHAR
 #undef INT
 #undef BOOL
-}
-
-void ddtrace_reload_on_version_change(COMPAT_CTX_D) {
-
 }
 
 void ddtrace_initialize_config(COMPAT_CTX_D) {

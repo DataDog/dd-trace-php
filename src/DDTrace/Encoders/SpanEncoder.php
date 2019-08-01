@@ -62,9 +62,7 @@ final class SpanEncoder
 
         // This is only for testing purposes and possibly temporary as we may want to add integration name to the span's
         // metadata in a consistent way across various tracers.
-        if (null !== $span->integration
-                && false !== ($integrationTest = getenv('DD_TEST_INTEGRATION'))
-                && in_array($integrationTest, ['1', 'true'])) {
+        if (null !== $span->integration && dd_trace_env_config('DD_TEST_INTEGRATION')) {
             $arraySpan['meta']['integration.name'] = $span->integration->getName();
         }
 
