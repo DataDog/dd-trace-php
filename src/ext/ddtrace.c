@@ -529,6 +529,9 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
             }
             ddtrace_coms_synchronous_flush(timeout);
             RETVAL_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("increase_trace_id")) {
+            DDTRACE_G(traces_group_id)++;
+            RETVAL_TRUE;
         }
     }
 #if PHP_VERSION_ID < 70000
