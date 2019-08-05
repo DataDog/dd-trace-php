@@ -104,6 +104,13 @@ BOOL_T ddtrace_coms_initialize() {
     return TRUE;
 }
 
+void ddtrace_coms_shutdown() {
+    if (ddtrace_coms_global_state.stacks) {
+        free(ddtrace_coms_global_state.stacks);
+        ddtrace_coms_global_state.stacks = NULL;
+    }
+}
+
 #if 0
 static void printf_stack_info(ddtrace_coms_stack_t *stack) {
     printf("stack (%p) refcount: (%d) bytes_written: (%lu)\n", stack, atomic_load(&stack->refcount),
