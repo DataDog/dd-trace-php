@@ -108,7 +108,7 @@ void ddtrace_coms_shutdown() {
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
     if (current_stack) {
         if (current_stack->data) {
-	    free(current_stack->data);
+            free(current_stack->data);
         }
         free(current_stack);
     }
