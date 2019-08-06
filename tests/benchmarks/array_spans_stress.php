@@ -1,9 +1,11 @@
 <?php
+// phpcs:disable PSR1.Files.SideEffects
+
 putenv('DD_TRACE_CLI_ENABLED=true');
 putenv('DD_SPANS_LIMIT=9999999');
 putenv('DD_AGENT_HOST=ddagent_integration');
-putenv('DD_TRACE_DEBUG_CURL_OUTPUT=1');
-putenv("DD_TRACE_DEBUG_CURL_OUTPUT=1");
+putenv('DD_TRACE_DEBUG_CURL_OUTPUT=0');
+putenv("DD_TRACE_DEBUG_CURL_OUTPUT=0");
 putenv('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=1');
 putenv('DD_TRACE_AGENT_TIMEOUT=500');
 putenv('DD_TRACE_AGENT_CONNECT_TIMEOUT=500');
@@ -24,10 +26,9 @@ function start_span($trace_id, $parent_id)
         "parent_id" => $parent_id,
         "span_id" => (int)dd_trace_generate_id(),
         "start" => $start_time,
-        "duration" => ((int) (microtime(true) * 1000 * 1000 * 1000)) - $span["start"]
+        "duration" => ((int) (microtime(true) * 1000 * 1000 * 1000)) - $start_time
     ];
-    $span["duration"] = ((int) (microtime(true) * 1000 * 1000 * 1000)) - $span["start"];
-    if ($span["duration"] === 0) {
+    if ($span["duration"] <= 0) {
         $span["duration"] = 1;
     }
     return $span;
@@ -36,7 +37,18 @@ function start_span($trace_id, $parent_id)
 $num_traces = 1000000;
 $spans_in_trace = 50;
 
+$traces_sent = 0;
+$started = (int) (microtime(true) * 1000 );
+
 for ($trace_i = 0; $trace_i < $num_traces; $trace_i++) {
+    $elapsed = (int) (microtime(true) * 1000) - $started;
+    if ($elapsed > 1000) {
+        $started = (int) (microtime(true) * 1000);
+        echo "RPS: " . ($traces_sent / ($elapsed / 1000.0)) . PHP_EOL;
+
+        $traces_sent = 0;
+    }
+    $traces_sent++;
     $root_span = [
         "name" => "root_name",
         "resource" => "root_resource",
@@ -56,8 +68,9 @@ for ($trace_i = 0; $trace_i < $num_traces; $trace_i++) {
         dd_trace_buffer_span($s);
     }
     $root_span["duration"] = ((int) (microtime(true) * 1000 * 1000 * 1000)) - $root_span["start"];
-    echo "Trace: $trace_i" . PHP_EOL;
+    // echo "Trace: $trace_i" . PHP_EOL;
     dd_trace_buffer_span($root_span);
     dd_trace_internal_fn('increase_trace_id');
     dd_trace_internal_fn('synchronous_flush');
+    // usleep(1500);
 }
