@@ -90,7 +90,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     // when extension is properly unloaded disable the at_exit hook
     ddtrace_coms_disable_atexit_hook();
     ddtrace_coms_flush_shutdown_writer_synchronous();
-    ddtrace_coms_shutdown();
+    ddtrace_config_shutdown();
 
     return SUCCESS;
 }

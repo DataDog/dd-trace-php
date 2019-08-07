@@ -251,6 +251,7 @@ static void *writer_loop(void *_) {
         signal_data_processed(writer);
     } while (running);
 
+    ddtrace_coms_shutdown();
     signal_writer_finished(writer);
     return NULL;
 }
