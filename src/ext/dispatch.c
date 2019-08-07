@@ -200,7 +200,7 @@ _exit_cleanup:
 }
 
 static zend_always_inline void wrap_and_run(zend_execute_data *execute_data,
-                                                 zend_function *fbc, ddtrace_dispatch_t *dispatch TSRMLS_DC) {
+                                                 ddtrace_dispatch_t *dispatch TSRMLS_DC) {
     zval *this = ddtrace_this(execute_data);
 
 #if PHP_VERSION_ID < 50500
@@ -212,7 +212,7 @@ static zend_always_inline void wrap_and_run(zend_execute_data *execute_data,
         if (CACHED_PTR(opline->op1.literal->cache_slot)) {
             EX(function_state).function = CACHED_PTR(opline->op1.literal->cache_slot);
         } else {
-            EX(function_state).function = fbc;
+            EX(function_state).function = DDTRACE_G(original_context).fbc;
             CACHE_PTR(opline->op1.literal->cache_slot, EX(function_state).function);
         }
 
@@ -378,7 +378,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DDTRACE_G(original_context).calling_ce = Z_OBJ(execute_data->This) ? Z_OBJ(execute_data->This)->ce : NULL;
 #endif
 
-    wrap_and_run(execute_data, current_fbc, dispatch TSRMLS_CC);
+    wrap_and_run(execute_data, dispatch TSRMLS_CC);
 
     // Restore original context
     DDTRACE_G(original_context).calling_ce = previous_calling_ce;
