@@ -29,6 +29,7 @@ struct _writer_thread_variables_t {
 
 struct _writer_loop_data_t {
     CURL *curl;
+    struct curl_slist *headers;
     ddtrace_coms_stack_t *tmp_stack;
 
     struct _writer_thread_variables_t *thread;
@@ -122,23 +123,45 @@ void ddtrace_coms_setup_atexit_hook() {
 
 void ddtrace_coms_disable_atexit_hook() { ptr_at_exit_callback = NULL; }
 
-inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
-    if (!writer->curl) {
-        writer->curl = curl_easy_init();
-
+#define MAX_TRACE_COUNT_HEADER_LENGTH 255
+inline static void _curl_set_headers(struct _writer_loop_data_t *writer, size_t traces_count) {
+    if (writer->curl) {
         struct curl_slist *headers = NULL;
         headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
         headers = curl_slist_append(headers, "Content-Type: application/msgpack");
-        curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
+        char trace_count_header[MAX_TRACE_COUNT_HEADER_LENGTH];
+        snprintf(trace_count_header, MAX_TRACE_COUNT_HEADER_LENGTH - 1, "X-Datadog-Trace-Count: %lu", traces_count);
 
+        headers = curl_slist_append(headers, trace_count_header);
+        curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
+        if (writer->headers) {
+            curl_slist_free_all(writer->headers);
+        }
+        writer->headers = headers;
+    }
+}
+inline static void _curl_free(struct _writer_loop_data_t *writer) {
+    if (writer->curl) {
+        curl_easy_cleanup(writer->curl);
+        writer->curl = NULL;
+    }
+    if (writer->headers) {
+        curl_slist_free_all(writer->headers);
+        writer->headers = NULL;
+    }
+}
+
+inline static void _curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
+    if (!writer->curl) {
+        writer->curl = curl_easy_init();
         curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, ddtrace_coms_read_callback);
         curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, dummy_write_callback);
     }
 
     if (writer->curl) {
         CURLcode res;
-
         void *read_data = ddtrace_init_read_userdata(stack);
+        _curl_set_headers(writer, ddtrace_read_userdata_get_total_groups(read_data));
 
         curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
         curl_set_hostname(writer->curl);
@@ -168,7 +191,7 @@ inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_c
         ddtrace_deinit_read_userdata(read_data);
     }
 }
-static inline void signal_writer_started(struct _writer_loop_data_t *writer) {
+static inline void _signal_writer_started(struct _writer_loop_data_t *writer) {
     if (writer->thread) {
         // at the moment no actual signal is sent but we will set a threadsafe state variable
         // ordering is important to correctly state that writer is either running or stil is starting up
@@ -177,7 +200,7 @@ static inline void signal_writer_started(struct _writer_loop_data_t *writer) {
     }
 }
 
-static inline void signal_writer_finished(struct _writer_loop_data_t *writer) {
+static inline void _signal_writer_finished(struct _writer_loop_data_t *writer) {
     if (writer->thread) {
         pthread_mutex_lock(&writer->thread->writer_shutdown_signal_mutex);
         atomic_store(&writer->running, FALSE);
@@ -187,7 +210,7 @@ static inline void signal_writer_finished(struct _writer_loop_data_t *writer) {
     }
 }
 
-static inline void signal_data_processed(struct _writer_loop_data_t *writer) {
+static inline void _signal_data_processed(struct _writer_loop_data_t *writer) {
     if (writer->thread) {
         pthread_mutex_lock(&writer->thread->finished_flush_mutex);
         pthread_cond_signal(&writer->thread->finished_flush_condition);
@@ -200,7 +223,7 @@ static void *writer_loop(void *_) {
     struct _writer_loop_data_t *writer = get_writer();
 
     BOOL_T running = TRUE;
-    signal_writer_started(writer);
+    _signal_writer_started(writer);
     do {
         atomic_fetch_add(&writer->writer_cycle, 1);
         uint32_t interval = atomic_load(&writer->flush_interval);
@@ -230,7 +253,7 @@ static void *writer_loop(void *_) {
         while (*stack) {
             processed_stacks++;
             if (atomic_load(&writer->sending)) {
-                curl_send_stack(writer, *stack);
+                _curl_send_stack(writer, *stack);
             }
 
             ddtrace_coms_stack_t *to_free = *stack;
@@ -248,10 +271,11 @@ static void *writer_loop(void *_) {
             running = FALSE;
         }
 
-        signal_data_processed(writer);
+        _signal_data_processed(writer);
     } while (running);
 
-    signal_writer_finished(writer);
+    _curl_free(writer);
+    _signal_writer_finished(writer);
     return NULL;
 }
 

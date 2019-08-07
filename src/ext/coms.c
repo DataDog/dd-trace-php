@@ -420,7 +420,7 @@ static inline size_t append_entry(struct _entry_t *entry, struct _grouped_stack_
     }
 }
 
-void ddtrace_msgpack_group_stack_by_id(ddtrace_coms_stack_t *stack, struct _grouped_stack_t *dest) {
+static inline void _msgpack_group_stack_by_id(ddtrace_coms_stack_t *stack, struct _grouped_stack_t *dest) {
     // perform an insertion sort by group_id
     uint32_t current_group_id = 0;
     struct _entry_t first_entry = create_entry(stack, 0);
@@ -490,16 +490,19 @@ void ddtrace_msgpack_group_stack_by_id(ddtrace_coms_stack_t *stack, struct _grou
 void *ddtrace_init_read_userdata(ddtrace_coms_stack_t *stack) {
     size_t total_bytes = atomic_load(&stack->bytes_written);
 
-    struct _grouped_stack_t *readstack_ptr = malloc(sizeof(struct _grouped_stack_t));
-    struct _grouped_stack_t readstack = {.position = 0, .total_bytes = total_bytes};
+    struct _grouped_stack_t *readstack = calloc(sizeof(struct _grouped_stack_t), 1);
+    readstack->total_bytes = total_bytes;
+    readstack->dest_size = atomic_load(&stack->bytes_written) + 2000;
+    readstack->dest_data = malloc(readstack->dest_size);
 
-    readstack.dest_size = atomic_load(&stack->bytes_written) + 2000;
-    readstack.dest_data = malloc(readstack.dest_size);
+    _msgpack_group_stack_by_id(stack, readstack);
 
-    ddtrace_msgpack_group_stack_by_id(stack, &readstack);
-    *readstack_ptr = readstack;
+    return readstack;
+}
 
-    return readstack_ptr;
+size_t ddtrace_read_userdata_get_total_groups(void *userdata) {
+    struct _grouped_stack_t *data = userdata;
+    return data->total_groups;
 }
 
 void ddtrace_deinit_read_userdata(void *userdata) {
