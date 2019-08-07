@@ -124,7 +124,8 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     zval_ptr_dtor(&fname);
 }
 
-int ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc, ddtrace_dispatch_t **dispatch TSRMLS_DC) {
+int ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
+                              ddtrace_dispatch_t **dispatch TSRMLS_DC) {
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
         DDTRACE_G(function_lookup) == NULL) {
         return 0;
@@ -150,7 +151,7 @@ int ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **f
     zval *this = ddtrace_this(execute_data);
     *dispatch = ddtrace_find_dispatch(this, *fbc, &fname TSRMLS_CC);
     zval_ptr_dtor(&fname);
-    if(!*dispatch || (*dispatch)->busy) {
+    if (!*dispatch || (*dispatch)->busy) {
         return 0;
     }
 

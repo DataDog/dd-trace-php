@@ -246,7 +246,8 @@ static zend_function *_get_current_fbc(zend_execute_data *execute_data TSRMLS_DC
     }
 }
 
-int ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc, ddtrace_dispatch_t **dispatch TSRMLS_DC) {
+int ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
+                              ddtrace_dispatch_t **dispatch TSRMLS_DC) {
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
         DDTRACE_G(function_lookup) == NULL) {
         return 0;
@@ -261,7 +262,7 @@ int ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **f
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         ZVAL_STRING(fname, (*fbc)->common.function_name, 0);
     } else if (EX(opline)->op1.zv) {
-        fname = EX(opline)->op1.zv; 
+        fname = EX(opline)->op1.zv;
     } else {
         return 0;
     }
@@ -273,7 +274,7 @@ int ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **f
 
     zval *this = ddtrace_this(execute_data);
     *dispatch = ddtrace_find_dispatch(this, *fbc, fname TSRMLS_CC);
-    if(!*dispatch || (*dispatch)->busy) {
+    if (!*dispatch || (*dispatch)->busy) {
         return 0;
     }
 

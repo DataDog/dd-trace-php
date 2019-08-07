@@ -199,8 +199,7 @@ _exit_cleanup:
     Z_DELREF(closure);
 }
 
-static zend_always_inline void wrap_and_run(zend_execute_data *execute_data,
-                                                 ddtrace_dispatch_t *dispatch TSRMLS_DC) {
+static zend_always_inline void wrap_and_run(zend_execute_data *execute_data, ddtrace_dispatch_t *dispatch TSRMLS_DC) {
     zval *this = ddtrace_this(execute_data);
 
 #if PHP_VERSION_ID < 50500
