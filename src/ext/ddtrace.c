@@ -3,6 +3,7 @@
 #endif
 #include <SAPI.h>
 #include <Zend/zend.h>
+#include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
 #include <inttypes.h>
 #include <php.h>
@@ -43,6 +44,17 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
 STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
                     ddtrace_globals)
 PHP_INI_END()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 3)
+ZEND_ARG_INFO(0, class_name)
+ZEND_ARG_INFO(0, method_name)
+ZEND_ARG_INFO(0, tracing_closure)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_function, 0, 0, 2)
+ZEND_ARG_INFO(0, function_name)
+ZEND_ARG_INFO(0, tracing_closure)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_msgpack, 0, 0, 1)
 ZEND_ARG_INFO(0, trace_array)
@@ -268,7 +280,75 @@ static PHP_FUNCTION(dd_trace) {
         }
     }
 
-    zend_bool rv = ddtrace_trace(class_name, function, callable TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(class_name, function, callable, 0 TSRMLS_CC);
+    RETURN_BOOL(rv);
+}
+
+static PHP_FUNCTION(dd_trace_method) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
+    zval *class_name = NULL;
+    zval *function = NULL;
+    zval *tracing_closure = NULL;
+
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+        RETURN_BOOL(0);
+    }
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzO", &class_name, &function,
+                                 &tracing_closure, zend_ce_closure) != SUCCESS) {
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(
+                spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                "unexpected parameters, expected (class_name, method_name, tracing_closure)");
+        }
+        RETURN_BOOL(0);
+    }
+
+    if (Z_TYPE_P(class_name) != IS_STRING || Z_TYPE_P(function) != IS_STRING) {
+        ddtrace_zval_ptr_dtor(class_name);
+        ddtrace_zval_ptr_dtor(function);
+        ddtrace_zval_ptr_dtor(tracing_closure);
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "class_name and method_name must be a string");
+        }
+        RETURN_BOOL(0);
+    }
+
+    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, 1 TSRMLS_CC);
+    RETURN_BOOL(rv);
+}
+
+static PHP_FUNCTION(dd_trace_function) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
+    zval *function = NULL;
+    zval *tracing_closure = NULL;
+
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+        RETURN_BOOL(0);
+    }
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zO", &function,
+                                 &tracing_closure, zend_ce_closure) != SUCCESS) {
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(
+                spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                "unexpected parameters, expected (function_name, tracing_closure)");
+        }
+        RETURN_BOOL(0);
+    }
+
+    if (Z_TYPE_P(function) != IS_STRING) {
+        ddtrace_zval_ptr_dtor(function);
+        ddtrace_zval_ptr_dtor(tracing_closure);
+        if (DDTRACE_G(strict_mode)) {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "function_name must be a string");
+        }
+        RETURN_BOOL(0);
+    }
+
+    zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, 1 TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
@@ -599,7 +679,7 @@ static PHP_FUNCTION(dd_trace_push_span_id) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {
-    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
+    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method) PHP_FE(dd_trace_function, arginfo_dd_trace_function) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
             PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(
                 dd_tracer_circuit_breaker_register_error, NULL) PHP_FE(dd_tracer_circuit_breaker_register_success, NULL)
