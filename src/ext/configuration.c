@@ -70,27 +70,27 @@ void ddtrace_config_shutdown(void) {
     // read all values to memoize them
 
     // CHAR returns a copy of a value that we need to free
-#define CHAR(getter_name, env_name, default, ...)                                      \
-    do {                                                                               \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);                     \
-        if (ddtrace_memoized_configuration.getter_name) {                              \
-            free(ddtrace_memoized_configuration.getter_name);                          \
-            ddtrace_memoized_configuration.getter_name = NULL;                         \
-        }                                                                              \
-        ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;                 \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);                   \
+#define CHAR(getter_name, env_name, default, ...)                      \
+    do {                                                               \
+        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);     \
+        if (ddtrace_memoized_configuration.getter_name) {              \
+            free(ddtrace_memoized_configuration.getter_name);          \
+            ddtrace_memoized_configuration.getter_name = NULL;         \
+        }                                                              \
+        ddtrace_memoized_configuration.__is_set_##getter_name = FALSE; \
+        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);   \
     } while (0);
-#define INT(getter_name, env_name, default, ...)                                                              \
-    do {                                                                                                      \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);                                            \
-        ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;                                         \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);                                          \
+#define INT(getter_name, env_name, default, ...)                       \
+    do {                                                               \
+        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);     \
+        ddtrace_memoized_configuration.__is_set_##getter_name = FALSE; \
+        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);   \
     } while (0);
-#define BOOL(getter_name, env_name, default, ...)                                                              \
-    do {                                                                                                       \
-        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);                                             \
-        ddtrace_memoized_configuration.__is_set_##getter_name = FALSE;                                          \
-        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);                                           \
+#define BOOL(getter_name, env_name, default, ...)                      \
+    do {                                                               \
+        pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);     \
+        ddtrace_memoized_configuration.__is_set_##getter_name = FALSE; \
+        pthread_mutex_unlock(&ddtrace_memoized_configuration.mutex);   \
     } while (0);
 
     DD_CONFIGURATION
