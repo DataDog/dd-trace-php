@@ -244,10 +244,6 @@ static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *looku
 
 static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data,
                                                  ddtrace_lookup_data_t *lookup_data TSRMLS_DC) {
-#if PHP_VERSION_ID < 50500
-    zval *original_object = EX(object);
-#endif
-
     zval *this = ddtrace_this(execute_data);
     DD_PRINTF("Loaded $this object ptr: %p", (void *)this);
 
@@ -259,6 +255,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         class = Z_OBJCE_P(this);
     }
 
+    // Check for class on static method static
     if (!this && (DDTRACE_G(original_context).fbc->common.fn_flags & ZEND_ACC_STATIC) != 0) {
         class = DDTRACE_G(original_context).fbc->common.scope;
     }
@@ -274,6 +271,7 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
 #if PHP_VERSION_ID < 50500
+        zval *original_object = EX(object);
         if (EX(opline)->opcode == ZEND_DO_FCALL) {
             zend_op *opline = EX(opline);
             zend_ptr_stack_3_push(&EG(arg_types_stack), FBC(), EX(object), EX(called_scope));
@@ -309,8 +307,6 @@ static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data
         } else {
             return_value = &rv_ptr;
         }
-
-        DD_PRINTF("Starting handler for %s#%s", common_scope, lookup_data->function_name);
 
         if (RETURN_VALUE_USED(opline)) {
             temp_variable *ret = &EX_T(opline->result.var);
@@ -457,7 +453,7 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     return ZEND_USER_OPCODE_LEAVE;
 }
 
-int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
+static int _default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("calling default dispatch");
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         if (DDTRACE_G(ddtrace_old_fcall_by_name_handler)) {
@@ -468,6 +464,7 @@ int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
             return DDTRACE_G(ddtrace_old_fcall_handler)(execute_data TSRMLS_CC);
         }
     }
+    // PHP 7: Handle ZEND_DO_UCALL & ZEND_DO_ICALL
 
     return ZEND_USER_OPCODE_DISPATCH;
 }
@@ -476,15 +473,16 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
         DDTRACE_G(function_lookup) == NULL) {
-        return default_dispatch(execute_data TSRMLS_CC);
+        return _default_dispatch(execute_data TSRMLS_CC);
     }
 
     zend_function *current_fbc = get_current_fbc(execute_data TSRMLS_CC);
     ddtrace_lookup_data_t lookup_data = {0};
 
     if (!is_function_wrappable(execute_data, current_fbc, &lookup_data)) {
-        return default_dispatch(execute_data TSRMLS_CC);
+        return _default_dispatch(execute_data TSRMLS_CC);
     }
+    // Store original context for forwarding the call from userland
     zend_function *previous_fbc = DDTRACE_G(original_context).fbc;
     DDTRACE_G(original_context).fbc = current_fbc;
     zend_function *previous_calling_fbc = DDTRACE_G(original_context).calling_fbc;
@@ -513,6 +511,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
 
     zend_bool wrapped = wrap_and_run(execute_data, &lookup_data TSRMLS_CC);
 
+    // Restore original context
     DDTRACE_G(original_context).calling_ce = previous_calling_ce;
     DDTRACE_G(original_context).this = previous_this;
     DDTRACE_G(original_context).calling_fbc = previous_calling_fbc;
@@ -520,7 +519,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     if (wrapped) {
         return update_opcode_leave(execute_data TSRMLS_CC);
     } else {
-        return default_dispatch(execute_data TSRMLS_CC);
+        return _default_dispatch(execute_data TSRMLS_CC);
     }
 }
 
