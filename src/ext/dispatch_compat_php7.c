@@ -123,4 +123,37 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
 
     zval_ptr_dtor(&fname);
 }
+
+int ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc, ddtrace_dispatch_t **dispatch TSRMLS_DC) {
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
+        DDTRACE_G(function_lookup) == NULL) {
+        return 0;
+    }
+    *fbc = EX(call)->func;
+    if (!*fbc) {
+        return 0;
+    }
+
+    zval fname;
+    if ((*fbc)->common.function_name) {
+        ZVAL_STR_COPY(&fname, (*fbc)->common.function_name);
+    } else {
+        return 0;
+    }
+
+    // Don't trace closures
+    if ((*fbc)->common.fn_flags & ZEND_ACC_CLOSURE) {
+        zval_ptr_dtor(&fname);
+        return 0;
+    }
+
+    zval *this = ddtrace_this(execute_data);
+    *dispatch = ddtrace_find_dispatch(this, *fbc, &fname TSRMLS_CC);
+    zval_ptr_dtor(&fname);
+    if(!*dispatch || (*dispatch)->busy) {
+        return 0;
+    }
+
+    return 1;
+}
 #endif  // PHP_VERSION_ID >= 70000
