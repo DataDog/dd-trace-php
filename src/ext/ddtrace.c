@@ -488,7 +488,7 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (fn && fn_len > 0) {
         if (FUNCTION_NAME_MATCHES("ddtrace_reload_config")) {
-            ddtrace_reload_config(COMPAT_CTX_CC);
+            ddtrace_reload_config(COMPAT_CTX_C);
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
             RETVAL_BOOL(ddtrace_coms_init_and_start_writer());
