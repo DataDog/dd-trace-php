@@ -144,4 +144,12 @@ final class NoopTracer implements TracerInterface
     {
         return [];
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getTracesCount()
+    {
+        return 0 ;
+    }
 }

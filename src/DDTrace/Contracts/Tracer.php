@@ -183,4 +183,11 @@ interface Tracer
      * @return array
      */
     public function getTracesAsArray();
+
+    /**
+     * Returns the count of currently stored traces
+     *
+     * @return int
+     */
+    public function getTracesCount();
 }
