@@ -13,15 +13,6 @@ typedef struct _ddtrace_dispatch_t {
     uint32_t acquired;
 } ddtrace_dispatch_t;
 
-typedef struct _ddtrace_lookup_data_t {
-#if PHP_VERSION_ID < 70000
-    const char *function_name;
-    uint32_t function_name_length;
-#else
-    zend_string *function_name;
-#endif
-} ddtrace_lookup_data_t;
-
 ddtrace_dispatch_t *ddtrace_find_dispatch(zval *this, zend_function *fbc, zval *fname TSRMLS_DC);
 zend_bool ddtrace_trace(zval *, zval *, zval *TSRMLS_DC);
 int ddtrace_wrap_fcall(zend_execute_data *TSRMLS_DC);
