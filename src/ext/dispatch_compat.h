@@ -3,6 +3,7 @@
 #include "Zend/zend_types.h"
 #include "compat_zend_string.h"
 #include "dispatch.h"
+#include "env_config.h"
 
 #if PHP_VERSION_ID < 70000
 #include "dispatch_compat_php5.h"
@@ -68,7 +69,7 @@ void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch);
 HashTable *ddtrace_new_class_lookup(zval *clazz TSRMLS_DC);
 zend_bool ddtrace_dispatch_store(HashTable *class_lookup, ddtrace_dispatch_t *dispatch);
 void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TSRMLS_DC);
-int ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
+BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
                               ddtrace_dispatch_t **dispatch TSRMLS_DC);
 
 #endif  // DISPATCH_COMPAT_H
