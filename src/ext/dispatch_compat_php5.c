@@ -173,7 +173,9 @@ static int get_args(zval *args, zend_execute_data *ex) {
     return 1;
 }
 
-void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
+// This function is used by dd_trace_forward_call() from userland and can be removed
+// when we remove dd_trace() and dd_trace_forward_call() from userland.
+void ddtrace_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
     zval *retval_ptr = NULL;
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;
