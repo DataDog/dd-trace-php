@@ -272,6 +272,12 @@ int ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **f
         return 0;
     }
 
+    if (strncmp("{closure}", Z_STRVAL_P(fname), sizeof("{closure}") - 1) == 0) {
+        fprintf(stderr, "Closure detected\n");
+        fflush(stderr);
+        exit(1);
+    }
+
     zval *this = ddtrace_this(execute_data);
     *dispatch = ddtrace_find_dispatch(this, *fbc, fname TSRMLS_CC);
     if (!*dispatch || (*dispatch)->busy) {
