@@ -379,10 +379,11 @@ BOOL_T ddtrace_coms_on_request_finished() {
     return TRUE;
 }
 
+// Returns TRUE if writer is shutdown completely
 BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
     struct _writer_loop_data_t *writer = get_writer();
     if (!writer->thread) {
-        return FALSE;
+        return TRUE;
     }
 
     writer_set_shutdown_state(writer);
@@ -412,8 +413,9 @@ BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
         pthread_join(writer->thread->self, NULL);
         free(writer->thread);
         writer->thread = NULL;
+        return TRUE;
     }
-    return TRUE;
+    return FALSE;
 }
 
 BOOL_T ddtrace_coms_synchronous_flush(uint32_t timeout) {
