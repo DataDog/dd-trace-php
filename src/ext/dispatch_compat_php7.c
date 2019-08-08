@@ -126,7 +126,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
 }
 
 BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
-                              ddtrace_dispatch_t **dispatch TSRMLS_DC) {
+                                 ddtrace_dispatch_t **dispatch TSRMLS_DC) {
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
         DDTRACE_G(function_lookup) == NULL) {
         return FALSE;
