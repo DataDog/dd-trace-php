@@ -105,6 +105,13 @@ BOOL_T ddtrace_coms_initialize() {
 }
 
 void ddtrace_coms_shutdown() {
+    ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
+    if (current_stack) {
+        if (current_stack->data) {
+            free(current_stack->data);
+        }
+        free(current_stack);
+    }
     if (ddtrace_coms_global_state.stacks) {
         free(ddtrace_coms_global_state.stacks);
         ddtrace_coms_global_state.stacks = NULL;

@@ -1,10 +1,14 @@
 #ifndef DD_CONFIGURATION_H
 #define DD_CONFIGURATION_H
+
+#include "compatibility.h"
+
 struct ddtrace_memoized_configuration_t;
 extern struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration;
 
-void ddtrace_initialize_config();
-void ddtrace_reload_config();
+void ddtrace_initialize_config(COMPAT_CTX_D);
+void ddtrace_reload_config(COMPAT_CTX_D);
+void ddtrace_config_shutdown(void);
 
 #define DD_CONFIGURATION                                                                                  \
     CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost")                                                 \
