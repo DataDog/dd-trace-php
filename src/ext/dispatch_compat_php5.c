@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
+#include "env_config.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
@@ -226,5 +227,58 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
 
     zend_fcall_info_args_clear(&fci, 1);
     zval_dtor(&args);
+}
+
+static zend_function *_get_current_fbc(zend_execute_data *execute_data TSRMLS_DC) {
+    if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
+        return FBC();
+    }
+    zend_op *opline = EX(opline);
+    zend_function *fbc = NULL;
+    zval *fname = opline->op1.zv;
+
+    if (CACHED_PTR(opline->op1.literal->cache_slot)) {
+        return CACHED_PTR(opline->op1.literal->cache_slot);
+    } else if (EXPECTED(zend_hash_quick_find(EG(function_table), Z_STRVAL_P(fname), Z_STRLEN_P(fname) + 1,
+                                             Z_HASH_P(fname), (void **)&fbc) == SUCCESS)) {
+        return fbc;
+    } else {
+        return NULL;
+    }
+}
+
+BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
+                                 ddtrace_dispatch_t **dispatch TSRMLS_DC) {
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
+        DDTRACE_G(function_lookup) == NULL) {
+        return FALSE;
+    }
+    *fbc = _get_current_fbc(execute_data TSRMLS_CC);
+    if (!*fbc) {
+        return FALSE;
+    }
+
+    zval zv, *fname;
+    fname = &zv;
+    if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
+        ZVAL_STRING(fname, (*fbc)->common.function_name, 0);
+    } else if (EX(opline)->op1.zv) {
+        fname = EX(opline)->op1.zv;
+    } else {
+        return FALSE;
+    }
+
+    // Don't trace closures
+    if ((*fbc)->common.fn_flags & ZEND_ACC_CLOSURE) {
+        return FALSE;
+    }
+
+    zval *this = ddtrace_this(execute_data);
+    *dispatch = ddtrace_find_dispatch(this, *fbc, fname TSRMLS_CC);
+    if (!*dispatch || (*dispatch)->busy) {
+        return FALSE;
+    }
+
+    return TRUE;
 }
 #endif  // PHP 5

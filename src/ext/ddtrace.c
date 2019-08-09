@@ -89,8 +89,10 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     // when extension is properly unloaded disable the at_exit hook
     ddtrace_coms_disable_atexit_hook();
-    ddtrace_coms_flush_shutdown_writer_synchronous();
-    ddtrace_coms_shutdown();
+    if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
+        // if writer is ensured to be shutdown we can free up config resources safely
+        ddtrace_config_shutdown();
+    }
 
     return SUCCESS;
 }
@@ -488,7 +490,7 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (fn && fn_len > 0) {
         if (FUNCTION_NAME_MATCHES("ddtrace_reload_config")) {
-            ddtrace_reload_config();
+            ddtrace_reload_config(COMPAT_CTX_C);
             RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
             RETVAL_BOOL(ddtrace_coms_init_and_start_writer());
