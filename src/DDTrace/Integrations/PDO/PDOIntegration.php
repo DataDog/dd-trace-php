@@ -245,7 +245,7 @@ class PDOIntegration extends Integration
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
-        dd_trace('PDOStatement', 'execute', function () {
+        dd_trace('PDOStatement', 'execute_disabled_to_test_symfony_further', function () {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
