@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.30.0]
+
 ### Fixed
 - Shutdown span flushing blocking the process when forked #493
 - Memory access errors in cases when PHP code was run after extension data was freed on request shutdown #505
@@ -534,7 +536,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.29.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.30.0...HEAD
+[0.30.0]: https://github.com/DataDog/dd-trace-php/compare/0.29.1...0.30.0
 [0.29.0]: https://github.com/DataDog/dd-trace-php/compare/0.28.1...0.29.0
 [0.28.1]: https://github.com/DataDog/dd-trace-php/compare/0.28.0...0.28.1
 [0.28.0]: https://github.com/DataDog/dd-trace-php/compare/0.27.2...0.28.0
