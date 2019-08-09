@@ -1,6 +1,7 @@
 #include "php.h"
 #if PHP_VERSION_ID < 70000
 
+#include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
 
 #include <ext/spl/spl_exceptions.h>
@@ -282,5 +283,36 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
     }
 
     return TRUE;
+}
+
+/**
+ * trace.c
+ */
+void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC) {
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
+    zval *retval_ptr = NULL;
+
+    fcc.initialized = 1;
+    fcc.function_handler = fbc;
+    fcc.object_ptr = ddtrace_this(execute_data);
+    fcc.calling_scope = fbc->common.scope; // EG(scope);
+    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : fbc->common.scope;
+
+    ddtrace_setup_fcall(execute_data, &fci, &retval_ptr TSRMLS_CC);
+    fci.size = sizeof(fci);
+    fci.no_separation = 1;
+    fci.object_ptr = fcc.object_ptr;
+
+    if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS && fci.retval_ptr_ptr && *fci.retval_ptr_ptr) {
+        COPY_PZVAL_TO_ZVAL(*return_value, *fci.retval_ptr_ptr);
+    }
+
+    zend_fcall_info_args_clear(&fci, 1);
+}
+
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
+    // TODO Inject return value as $_dd_trace_return_value into tracing closure
+    // TODO Save array returned from tracing closure to serialize onto span
 }
 #endif  // PHP 5

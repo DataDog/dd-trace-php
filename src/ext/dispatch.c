@@ -12,6 +12,7 @@
 #include "debug.h"
 #include "dispatch_compat.h"
 #include "span.h"
+#include "trace.h"
 
 // avoid Older GCC being overly cautious over {0} struct initializer
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -164,9 +165,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
     DDTRACE_G(original_context).function_name = (*EG(opline_ptr))->op1.zv;
 #endif
 
-    dd_trace_open_span(TSRMLS_C);
     zend_call_function(&fci, &fcc TSRMLS_CC);
-    dd_trace_close_span(TSRMLS_C);
 
 #if PHP_VERSION_ID < 70000
     DDTRACE_G(original_context).function_name = prev_original_function_name;
@@ -299,7 +298,7 @@ static zend_always_inline void wrap_and_run(zend_execute_data *execute_data, ddt
 #define CTOR_USED_BIT 0x2
 #define DECODE_CTOR(ce) ((zend_class_entry *)(((zend_uintptr_t)(ce)) & ~(CTOR_CALL_BIT | CTOR_USED_BIT)))
 
-static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
+static void update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("Update opcode leave");
 #if PHP_VERSION_ID < 50500
     EX(function_state).function = (zend_function *)EX(op_array);
@@ -323,9 +322,6 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 #else
     EX(call) = EX(call)->prev_execute_data;
 #endif
-    EX(opline) = EX(opline) + 1;
-
-    return ZEND_USER_OPCODE_LEAVE;
 }
 
 static int _default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
@@ -353,45 +349,53 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
-    // Store original context for forwarding the call from userland
-    zend_function *previous_fbc = DDTRACE_G(original_context).fbc;
-    DDTRACE_G(original_context).fbc = current_fbc;
-    zend_function *previous_calling_fbc = DDTRACE_G(original_context).calling_fbc;
+    if (dispatch->append) {
+        ddtrace_trace_dispatch(dispatch, current_fbc, execute_data TSRMLS_CC);
+    } else {
+        // Store original context for forwarding the call from userland
+        zend_function *previous_fbc = DDTRACE_G(original_context).fbc;
+        DDTRACE_G(original_context).fbc = current_fbc;
+        zend_function *previous_calling_fbc = DDTRACE_G(original_context).calling_fbc;
 #if PHP_VERSION_ID < 70000
-    DDTRACE_G(original_context).calling_fbc =
-        execute_data->function_state.function && execute_data->function_state.function->common.scope
-            ? execute_data->function_state.function
-            : current_fbc;
+        DDTRACE_G(original_context).calling_fbc =
+            execute_data->function_state.function && execute_data->function_state.function->common.scope
+                ? execute_data->function_state.function
+                : current_fbc;
 #else
-    DDTRACE_G(original_context).calling_fbc = current_fbc->common.scope ? current_fbc : execute_data->func;
+        DDTRACE_G(original_context).calling_fbc = current_fbc->common.scope ? current_fbc : execute_data->func;
 #endif
-    zval *this = ddtrace_this(execute_data);
+        zval *this = ddtrace_this(execute_data);
 #if PHP_VERSION_ID < 70000
-    zval *previous_this = DDTRACE_G(original_context).this;
-    DDTRACE_G(original_context).this = this;
+        zval *previous_this = DDTRACE_G(original_context).this;
+        DDTRACE_G(original_context).this = this;
 #else
-    zend_object *previous_this = DDTRACE_G(original_context).this;
-    DDTRACE_G(original_context).this = this ? Z_OBJ_P(this) : NULL;
+        zend_object *previous_this = DDTRACE_G(original_context).this;
+        DDTRACE_G(original_context).this = this ? Z_OBJ_P(this) : NULL;
 #endif
-    zend_class_entry *previous_calling_ce = DDTRACE_G(original_context).calling_ce;
+        zend_class_entry *previous_calling_ce = DDTRACE_G(original_context).calling_ce;
 #if PHP_VERSION_ID < 70000
-    DDTRACE_G(original_context).calling_ce = DDTRACE_G(original_context).calling_fbc->common.scope;
+        DDTRACE_G(original_context).calling_ce = DDTRACE_G(original_context).calling_fbc->common.scope;
 #else
-    DDTRACE_G(original_context).calling_ce = Z_OBJ(execute_data->This) ? Z_OBJ(execute_data->This)->ce : NULL;
+        DDTRACE_G(original_context).calling_ce = Z_OBJ(execute_data->This) ? Z_OBJ(execute_data->This)->ce : NULL;
 #endif
 
-    wrap_and_run(execute_data, dispatch TSRMLS_CC);
+        wrap_and_run(execute_data, dispatch TSRMLS_CC);
 
-    // Restore original context
-    DDTRACE_G(original_context).calling_ce = previous_calling_ce;
-    DDTRACE_G(original_context).this = previous_this;
-    DDTRACE_G(original_context).calling_fbc = previous_calling_fbc;
-    DDTRACE_G(original_context).fbc = previous_fbc;
+        // Restore original context
+        DDTRACE_G(original_context).calling_ce = previous_calling_ce;
+        DDTRACE_G(original_context).this = previous_this;
+        DDTRACE_G(original_context).calling_fbc = previous_calling_fbc;
+        DDTRACE_G(original_context).fbc = previous_fbc;
+
+        update_opcode_leave(execute_data TSRMLS_CC);
+    }
 
     dispatch->busy = 0;
     ddtrace_class_lookup_release(dispatch);
 
-    return update_opcode_leave(execute_data TSRMLS_CC);
+    EX(opline)++;
+
+    return ZEND_USER_OPCODE_LEAVE;
 }
 
 void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }

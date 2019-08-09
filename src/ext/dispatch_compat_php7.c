@@ -160,4 +160,41 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
 
     return TRUE;
 }
+
+/**
+ * trace.c
+ */
+void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC) {
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
+
+#if PHP_VERSION_ID < 70300
+    fcc.initialized = 1;
+#endif
+    fcc.function_handler = fbc;
+    fcc.object = Z_TYPE(EX(This)) == IS_OBJECT ? Z_OBJ(EX(This)) : NULL;
+    fcc.calling_scope = fbc->common.scope; // EG(scope);
+    fcc.called_scope = fcc.object ? fcc.object->ce : fbc->common.scope;
+
+    fci.size = sizeof(fci);
+    fci.no_separation = 1;
+    fci.object = fcc.object;
+
+    ddtrace_setup_fcall(execute_data, &fci, &return_value);
+
+    if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS && Z_TYPE_P(return_value) != IS_UNDEF) {
+#if PHP_VERSION_ID >= 70100
+        if (Z_ISREF_P(return_value)) {
+            zend_unwrap_reference(return_value);
+        }
+#endif
+    }
+
+    zend_fcall_info_args_clear(&fci, 0);
+}
+
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
+    // TODO Inject return value as $_dd_trace_return_value into tracing closure
+    // TODO Save array returned from tracing closure to serialize onto span
+}
 #endif  // PHP_VERSION_ID >= 70000

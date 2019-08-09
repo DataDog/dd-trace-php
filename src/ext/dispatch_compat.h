@@ -72,4 +72,10 @@ void ddtrace_forward_call_from_userland(zend_execute_data *execute_data, zval *r
 BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
                                  ddtrace_dispatch_t **dispatch TSRMLS_DC);
 
+/**
+ * trace.c
+ */
+void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC);
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *return_value TSRMLS_DC);
+
 #endif  // DISPATCH_COMPAT_H
