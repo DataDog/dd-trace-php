@@ -2,18 +2,19 @@ version: "3.6"
 
 services:
   symfony:
-    depends_on: ['redis']
+    depends_on: ['redis', 'nginx_file_server']
     build: symfony
     image: 'datadog/dd-trace-php:symfony-4.3-php-7.3'
-    volumes:
-      - .:/shared
     ulimits:
       core: 99999999999
     cap_add:
       - SYS_PTRACE
 
   redis:
-    image: redis
-    container_name: cache
+    image: redis:5.0.5
     expose:
       - 6379
+
+  nginx_file_server:
+    build: nginx_file_server
+    expose: ["80"]

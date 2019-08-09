@@ -50,6 +50,8 @@ WORKDIR /home/symfony
 ENV COMPOSER_MEMORY_LIMIT -1
 
 ADD entrypoint.sh /usr/local/bin/entrypoint.sh
+
+RUN set -xe; apt-get install curl
 ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
 
 CMD [ "bash" ]

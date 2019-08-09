@@ -1,0 +1,6 @@
+version: "3.6"
+
+services:
+  nginx_file_server:
+    build: nginx_file_server
+    expose: ["80"]
