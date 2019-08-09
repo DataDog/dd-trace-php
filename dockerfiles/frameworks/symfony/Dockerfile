@@ -49,5 +49,7 @@ RUN set -xe; \
 WORKDIR /home/symfony
 ENV COMPOSER_MEMORY_LIMIT -1
 
-ENTRYPOINT [ ]
+ADD entrypoint.sh /usr/local/bin/entrypoint.sh
+ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
+
 CMD [ "bash" ]

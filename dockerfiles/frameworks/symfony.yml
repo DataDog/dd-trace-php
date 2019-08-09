@@ -5,15 +5,15 @@ services:
     depends_on: ['redis']
     build: symfony
     image: 'datadog/dd-trace-php:symfony-4.3-php-7.3'
+    volumes:
+      - .:/shared
     ulimits:
       core: 99999999999
     cap_add:
       - SYS_PTRACE
+
   redis:
     image: redis
     container_name: cache
     expose:
       - 6379
-
-  redis:
-    image: redis
