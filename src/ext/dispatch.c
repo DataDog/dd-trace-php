@@ -31,30 +31,17 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #define EX(x) ((execute_data)->x)
 #endif
 
-#if PHP_VERSION_ID < 70000
-static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_lookup_data_t *lookup_data) {
-    if (lookup_data->function_name_length == 0) {
-        lookup_data->function_name_length = strlen(lookup_data->function_name);
-    }
-
-    char *key = zend_str_tolower_dup(lookup_data->function_name, lookup_data->function_name_length);
+static ddtrace_dispatch_t *find_function_dispatch(const HashTable *lookup, zval *fname) {
+    char *key = zend_str_tolower_dup(Z_STRVAL_P(fname), Z_STRLEN_P(fname));
     ddtrace_dispatch_t *dispatch = NULL;
-    dispatch = zend_hash_str_find_ptr(lookup, key, lookup_data->function_name_length);
+    dispatch = zend_hash_str_find_ptr(lookup, key, Z_STRLEN_P(fname));
 
     efree(key);
     return dispatch;
 }
-#else
-static ddtrace_dispatch_t *lookup_dispatch(const HashTable *lookup, ddtrace_lookup_data_t *lookup_data) {
-    zend_string *key = zend_string_tolower(lookup_data->function_name);
-    ddtrace_dispatch_t *dispatch = zend_hash_find_ptr(lookup, key);
-    zend_string_release(key);
-    return dispatch;
-}
-#endif
 
-static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, ddtrace_lookup_data_t *lookup_data TSRMLS_DC) {
-    if (!lookup_data->function_name) {
+static ddtrace_dispatch_t *find_method_dispatch(const zend_class_entry *class, zval *fname TSRMLS_DC) {
+    if (!fname || !Z_STRVAL_P(fname)) {
         return NULL;
     }
     HashTable *class_lookup = NULL;
@@ -64,14 +51,14 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, ddtrace_
     size_t class_name_length = 0;
     class_name = class->name;
     class_name_length = class->name_length;
-    class_lookup = zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), class_name, class_name_length);
+    class_lookup = zend_hash_str_find_ptr(DDTRACE_G(class_lookup), class_name, class_name_length);
 #else
-    class_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), class->name);
+    class_lookup = zend_hash_find_ptr(DDTRACE_G(class_lookup), class->name);
 #endif
 
     ddtrace_dispatch_t *dispatch = NULL;
     if (class_lookup) {
-        dispatch = lookup_dispatch(class_lookup, lookup_data);
+        dispatch = find_function_dispatch(class_lookup, fname);
     }
 
     if (dispatch) {
@@ -79,28 +66,27 @@ static ddtrace_dispatch_t *find_dispatch(const zend_class_entry *class, ddtrace_
     }
 
     if (class->parent) {
-        return find_dispatch(class->parent, lookup_data TSRMLS_CC);
+        return find_method_dispatch(class->parent, fname TSRMLS_CC);
     } else {
         return NULL;
     }
 }
 
-#if PHP_VERSION_ID < 70000
-zend_function *fcall_fbc(zend_execute_data *execute_data TSRMLS_DC) {
-    zend_op *opline = EX(opline);
-    zend_function *fbc = NULL;
-    zval *fname = opline->op1.zv;
+ddtrace_dispatch_t *ddtrace_find_dispatch(zval *this, zend_function *fbc, zval *fname TSRMLS_DC) {
+    zend_class_entry *class = NULL;
 
-    if (CACHED_PTR(opline->op1.literal->cache_slot)) {
-        return CACHED_PTR(opline->op1.literal->cache_slot);
-    } else if (EXPECTED(zend_hash_quick_find(EG(function_table), Z_STRVAL_P(fname), Z_STRLEN_P(fname) + 1,
-                                             Z_HASH_P(fname), (void **)&fbc) == SUCCESS)) {
-        return fbc;
-    } else {
-        return NULL;
+    if (this) {
+        class = Z_OBJCE_P(this);
+    } else if ((fbc->common.fn_flags & ZEND_ACC_STATIC) != 0) {
+        // Check for class on static method static
+        class = fbc->common.scope;
     }
+
+    if (class) {
+        return find_method_dispatch(class, fname TSRMLS_CC);
+    }
+    return find_function_dispatch(DDTRACE_G(function_lookup), fname);
 }
-#endif
 
 static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute_data *execute_data,
                           zval **return_value_ptr TSRMLS_DC) {
@@ -214,215 +200,97 @@ _exit_cleanup:
     Z_DELREF(closure);
 }
 
-static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *lookup) {
-    if (!(fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !lookup->function_name) {
-        return 0;
-    }
+static zend_always_inline void wrap_and_run(zend_execute_data *execute_data, ddtrace_dispatch_t *dispatch TSRMLS_DC) {
+    zval *this = ddtrace_this(execute_data);
 
-    /* This checks for a "{closure}" prefix, not a complete string. PHP adds
-     * null characters to the closure name to separate different parts, which
-     * is why this works at all. */
-    /* todo: why do we do this check at all? */
-#if PHP_VERSION_ID < 70000
-    if (lookup->function_name_length == 0) {
-        lookup->function_name_length = strlen(lookup->function_name);
-    }
-    if ((lookup->function_name_length == (sizeof("{closure}") - 1)) &&
-        strcmp(lookup->function_name, "{closure}") == 0) {
-        return 1;
-    } else {
-        return 0;
-    }
-#else
-    if ((ZSTR_LEN(lookup->function_name) == (sizeof("{closure}") - 1)) &&
-        strcmp((ZSTR_VAL(lookup->function_name)), "{closure}") == 0) {
-        return 1;
-    } else {
-        return 0;
-    }
-#endif
-}
-
-static zend_always_inline zend_bool wrap_and_run(zend_execute_data *execute_data,
-                                                 ddtrace_lookup_data_t *lookup_data TSRMLS_DC) {
 #if PHP_VERSION_ID < 50500
     zval *original_object = EX(object);
-#endif
+    if (EX(opline)->opcode == ZEND_DO_FCALL) {
+        zend_op *opline = EX(opline);
+        zend_ptr_stack_3_push(&EG(arg_types_stack), FBC(), EX(object), EX(called_scope));
 
-    zval *this = ddtrace_this(execute_data);
-    DD_PRINTF("Loaded $this object ptr: %p", (void *)this);
+        if (CACHED_PTR(opline->op1.literal->cache_slot)) {
+            EX(function_state).function = CACHED_PTR(opline->op1.literal->cache_slot);
+        } else {
+            EX(function_state).function = DDTRACE_G(original_context).fbc;
+            CACHE_PTR(opline->op1.literal->cache_slot, EX(function_state).function);
+        }
 
-    ddtrace_dispatch_t *dispatch = NULL;
-
-    zend_class_entry *class = NULL;
-
+        EX(object) = NULL;
+    }
     if (this) {
-        class = Z_OBJCE_P(this);
+        EX(object) = original_object;
     }
-
-    if (!this && (DDTRACE_G(original_context).fbc->common.fn_flags & ZEND_ACC_STATIC) != 0) {
-        class = DDTRACE_G(original_context).fbc->common.scope;
-    }
-
-    if (class) {
-        dispatch = find_dispatch(class, lookup_data TSRMLS_CC);
-    } else {
-        dispatch = lookup_dispatch(&DDTRACE_G(function_lookup), lookup_data);
-    }
-
-    if (dispatch && !dispatch->busy) {
-        ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
-        dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
-
-#if PHP_VERSION_ID < 50500
-        if (EX(opline)->opcode == ZEND_DO_FCALL) {
-            zend_op *opline = EX(opline);
-            zend_ptr_stack_3_push(&EG(arg_types_stack), FBC(), EX(object), EX(called_scope));
-
-            if (CACHED_PTR(opline->op1.literal->cache_slot)) {
-                EX(function_state).function = CACHED_PTR(opline->op1.literal->cache_slot);
-            } else {
-                EX(function_state).function = fcall_fbc(execute_data TSRMLS_CC);
-                CACHE_PTR(opline->op1.literal->cache_slot, EX(function_state).function);
-            }
-
-            EX(object) = NULL;
-        }
-        if (this) {
-            EX(object) = original_object;
-        }
 #endif
-        const zend_op *opline = EX(opline);
+    const zend_op *opline = EX(opline);
 
 #if PHP_VERSION_ID < 50500
 #define EX_T(offset) (*(temp_variable *)((char *)EX(Ts) + offset))
-        zval rv;
-        INIT_ZVAL(rv);
+    zval rv;
+    INIT_ZVAL(rv);
 
-        zval **return_value = NULL;
-        zval *rv_ptr = &rv;
+    zval **return_value = NULL;
+    zval *rv_ptr = &rv;
 
-        if (RETURN_VALUE_USED(opline)) {
-            EX_T(opline->result.var).var.ptr = &EG(uninitialized_zval);
-            EX_T(opline->result.var).var.ptr_ptr = NULL;
+    if (RETURN_VALUE_USED(opline)) {
+        EX_T(opline->result.var).var.ptr = &EG(uninitialized_zval);
+        EX_T(opline->result.var).var.ptr_ptr = NULL;
 
-            return_value = NULL;
+        return_value = NULL;
+    } else {
+        return_value = &rv_ptr;
+    }
+
+    if (RETURN_VALUE_USED(opline)) {
+        temp_variable *ret = &EX_T(opline->result.var);
+
+        if (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) {
+            ret->var.ptr = *EG(return_value_ptr_ptr);
+            ret->var.ptr_ptr = EG(return_value_ptr_ptr);
         } else {
-            return_value = &rv_ptr;
+            ret->var.ptr = NULL;
+            ret->var.ptr_ptr = &ret->var.ptr;
         }
 
-        DD_PRINTF("Starting handler for %s#%s", common_scope, lookup_data->function_name);
+        ret->var.fcall_returned_reference =
+            (DDTRACE_G(original_context).fbc->common.fn_flags & ZEND_ACC_RETURN_REFERENCE) != 0;
+        return_value = ret->var.ptr_ptr;
+    }
 
-        if (RETURN_VALUE_USED(opline)) {
-            temp_variable *ret = &EX_T(opline->result.var);
+    execute_fcall(dispatch, this, execute_data, return_value TSRMLS_CC);
+    EG(return_value_ptr_ptr) = EX(original_return_value);
 
-            if (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) {
-                ret->var.ptr = *EG(return_value_ptr_ptr);
-                ret->var.ptr_ptr = EG(return_value_ptr_ptr);
-            } else {
-                ret->var.ptr = NULL;
-                ret->var.ptr_ptr = &ret->var.ptr;
-            }
-
-            ret->var.fcall_returned_reference =
-                (DDTRACE_G(original_context).fbc->common.fn_flags & ZEND_ACC_RETURN_REFERENCE) != 0;
-            return_value = ret->var.ptr_ptr;
+    if (!RETURN_VALUE_USED(opline) && return_value && *return_value) {
+        zval_delref_p(*return_value);
+        if (Z_REFCOUNT_PP(return_value) == 0) {
+            efree(*return_value);
+            *return_value = NULL;
         }
-
-        execute_fcall(dispatch, this, execute_data, return_value TSRMLS_CC);
-        EG(return_value_ptr_ptr) = EX(original_return_value);
-
-        if (!RETURN_VALUE_USED(opline) && return_value && *return_value) {
-            zval_delref_p(*return_value);
-            if (Z_REFCOUNT_PP(return_value) == 0) {
-                efree(*return_value);
-                *return_value = NULL;
-            }
-        }
+    }
 
 #elif PHP_VERSION_ID < 70000
-        zval *return_value = NULL;
-        execute_fcall(dispatch, this, execute_data, &return_value TSRMLS_CC);
+    zval *return_value = NULL;
+    execute_fcall(dispatch, this, execute_data, &return_value TSRMLS_CC);
 
-        if (return_value != NULL) {
-            if (RETURN_VALUE_USED(opline)) {
-                EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
-            } else {
-                zval_ptr_dtor(&return_value);
-            }
+    if (return_value != NULL) {
+        if (RETURN_VALUE_USED(opline)) {
+            EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = return_value;
+        } else {
+            zval_ptr_dtor(&return_value);
         }
+    }
 
 #else
-        zval rv;
-        INIT_ZVAL(rv);
+    zval rv;
+    INIT_ZVAL(rv);
 
-        zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
-        execute_fcall(dispatch, this, EX(call), &return_value TSRMLS_CC);
+    zval *return_value = (RETURN_VALUE_USED(opline) ? EX_VAR(EX(opline)->result.var) : &rv);
+    execute_fcall(dispatch, this, EX(call), &return_value TSRMLS_CC);
 
-        if (!RETURN_VALUE_USED(opline)) {
-            zval_dtor(&rv);
-        }
-#endif
-
-        dispatch->busy = 0;
-        ddtrace_class_lookup_release(dispatch);
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-static zend_always_inline zend_function *get_current_fbc(zend_execute_data *execute_data TSRMLS_DC) {
-    zend_function *fbc = NULL;
-
-#if PHP_VERSION_ID < 70000
-    if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
-        fbc = FBC();
-    } else {
-        fbc = fcall_fbc(execute_data TSRMLS_CC);
-#ifdef ZTS
-        (void)TSRMLS_C;
-#endif  // ZTS
-    }
-#else
-    fbc = EX(call)->func;
-#endif
-    return fbc;
-}
-
-static zend_always_inline zend_bool is_function_wrappable(zend_execute_data *execute_data, zend_function *fbc,
-                                                          ddtrace_lookup_data_t *lookup_data) {
-    if (!fbc) {
-        DD_PRINTF("No function obj found, skipping lookup");
-        return 0;
-    }
-
-#if PHP_VERSION_ID < 70000
-    if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
-        lookup_data->function_name = fbc->common.function_name;
-    } else {
-        zval *fname = EX(opline)->op1.zv;
-
-        lookup_data->function_name = Z_STRVAL_P(fname);
-        lookup_data->function_name_length = Z_STRLEN_P(fname);
-    }
-#else
-    fbc = EX(call)->func;
-    if (fbc->common.function_name) {
-        lookup_data->function_name = fbc->common.function_name;
+    if (!RETURN_VALUE_USED(opline)) {
+        zval_dtor(&rv);
     }
 #endif
-    if (!lookup_data->function_name) {
-        DD_PRINTF("No function name, skipping lookup");
-        return 0;
-    }
-
-    if (is_anonymous_closure(fbc, lookup_data)) {
-        DD_PRINTF("Anonymous closure, skipping lookup");
-        return 0;
-    }
-
-    return 1;
 }
 
 #define CTOR_CALL_BIT 0x1
@@ -458,7 +326,7 @@ static int update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     return ZEND_USER_OPCODE_LEAVE;
 }
 
-int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
+static int _default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("calling default dispatch");
     if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
         if (DDTRACE_G(ddtrace_old_fcall_by_name_handler)) {
@@ -469,12 +337,12 @@ int default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
             return DDTRACE_G(ddtrace_old_fcall_handler)(execute_data TSRMLS_CC);
         }
     }
+    // PHP 7: Handle ZEND_DO_UCALL & ZEND_DO_ICALL
 
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
-    DD_PRINTF("OPCODE: %s", zend_get_opcode_name(EX(opline)->opcode));
     if (!DDTRACE_G(disable) && !DDTRACE_G(request_hook_included)) {
         DDTRACE_G(request_hook_included) = 1;
         if (DDTRACE_G(request_init_hook)) {
@@ -485,16 +353,15 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
         }
     }
 
-    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
-        return default_dispatch(execute_data TSRMLS_CC);
+    zend_function *current_fbc = NULL;
+    ddtrace_dispatch_t *dispatch = NULL;
+    if (!ddtrace_should_trace_call(execute_data, &current_fbc, &dispatch TSRMLS_CC)) {
+        return _default_dispatch(execute_data TSRMLS_CC);
     }
+    ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
+    dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
-    zend_function *current_fbc = get_current_fbc(execute_data TSRMLS_CC);
-    ddtrace_lookup_data_t lookup_data = {0};
-
-    if (!is_function_wrappable(execute_data, current_fbc, &lookup_data)) {
-        return default_dispatch(execute_data TSRMLS_CC);
-    }
+    // Store original context for forwarding the call from userland
     zend_function *previous_fbc = DDTRACE_G(original_context).fbc;
     DDTRACE_G(original_context).fbc = current_fbc;
     zend_function *previous_calling_fbc = DDTRACE_G(original_context).calling_fbc;
@@ -521,17 +388,18 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     DDTRACE_G(original_context).calling_ce = Z_OBJ(execute_data->This) ? Z_OBJ(execute_data->This)->ce : NULL;
 #endif
 
-    zend_bool wrapped = wrap_and_run(execute_data, &lookup_data TSRMLS_CC);
+    wrap_and_run(execute_data, dispatch TSRMLS_CC);
 
+    // Restore original context
     DDTRACE_G(original_context).calling_ce = previous_calling_ce;
     DDTRACE_G(original_context).this = previous_this;
     DDTRACE_G(original_context).calling_fbc = previous_calling_fbc;
     DDTRACE_G(original_context).fbc = previous_fbc;
-    if (wrapped) {
-        return update_opcode_leave(execute_data TSRMLS_CC);
-    } else {
-        return default_dispatch(execute_data TSRMLS_CC);
-    }
+
+    dispatch->busy = 0;
+    ddtrace_class_lookup_release(dispatch);
+
+    return update_opcode_leave(execute_data TSRMLS_CC);
 }
 
 void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }

@@ -92,7 +92,7 @@ final class Http implements Transport
             self::logError('Reporting of spans skipped due to open circuit breaker');
             return;
         }
-
+        $tracesCount = $tracer->getTracesCount();
         $tracesPayload = $this->encoder->encodeTraces($tracer);
         self::logDebug('About to send trace(s) to the agent');
 
@@ -104,7 +104,7 @@ final class Http implements Transport
             $this->config['endpoint']
         ) : $this->config['endpoint'];
 
-        $this->sendRequest($endpoint, $this->headers, $tracesPayload);
+        $this->sendRequest($endpoint, $this->headers, $tracesPayload, $tracesCount);
     }
 
     public function setHeader($key, $value)
@@ -117,7 +117,7 @@ final class Http implements Transport
         return $this->config;
     }
 
-    private function sendRequest($url, array $headers, $body)
+    private function sendRequest($url, array $headers, $body, $tracesCount)
     {
         $bodySize = strlen($body);
         // The 10MB payload cap is inclusive, thus we use >, not >=
@@ -138,6 +138,7 @@ final class Http implements Transport
         $curlHeaders = [
             'Content-Type: ' . $this->encoder->getContentType(),
             'Content-Length: ' . $bodySize,
+            'X-Datadog-Trace-Count: ' . $tracesCount,
         ];
         foreach ($headers as $key => $value) {
             $curlHeaders[] = "$key: $value";

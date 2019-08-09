@@ -29,7 +29,7 @@ final class Tracer implements TracerInterface
     /**
      * @deprecated Use Tracer::version() instead
      */
-    const VERSION = 'nightly'; // Update ./version.php too
+    const VERSION = '1.0.0-nightly'; // Update ./version.php too
 
     /**
      * @var Span[][]
@@ -332,7 +332,7 @@ final class Tracer implements TracerInterface
 
         if (self::isLogDebugActive()) {
             self::logDebug('Flushing {count} traces, {spanCount} spans', [
-                'count' => count($this->traces),
+                'count' => $this->getTracesCount(),
                 'spanCount' => $this->getSpanCount(),
             ]);
         }
@@ -530,5 +530,13 @@ final class Tracer implements TracerInterface
             self::$version = include __DIR__ . '/version.php';
         }
         return self::$version;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getTracesCount()
+    {
+        return count($this->traces);
     }
 }

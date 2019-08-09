@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
+#include "env_config.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
@@ -53,7 +54,7 @@ HashTable *ddtrace_new_class_lookup(zval *class_name) {
 
     ALLOC_HASHTABLE(class_lookup);
     zend_hash_init(class_lookup, 8, NULL, ddtrace_class_lookup_release_compat, 0);
-    zend_hash_update_ptr(&DDTRACE_G(class_lookup), Z_STR_P(class_name), class_lookup);
+    zend_hash_update_ptr(DDTRACE_G(class_lookup), Z_STR_P(class_name), class_lookup);
 
     return class_lookup;
 }
@@ -122,5 +123,39 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TS
     }
 
     zval_ptr_dtor(&fname);
+}
+
+BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
+                                 ddtrace_dispatch_t **dispatch TSRMLS_DC) {
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
+        DDTRACE_G(function_lookup) == NULL) {
+        return FALSE;
+    }
+    *fbc = EX(call)->func;
+    if (!*fbc) {
+        return FALSE;
+    }
+
+    zval fname;
+    if ((*fbc)->common.function_name) {
+        ZVAL_STR_COPY(&fname, (*fbc)->common.function_name);
+    } else {
+        return FALSE;
+    }
+
+    // Don't trace closures
+    if ((*fbc)->common.fn_flags & ZEND_ACC_CLOSURE) {
+        zval_ptr_dtor(&fname);
+        return FALSE;
+    }
+
+    zval *this = ddtrace_this(execute_data);
+    *dispatch = ddtrace_find_dispatch(this, *fbc, &fname TSRMLS_CC);
+    zval_ptr_dtor(&fname);
+    if (!*dispatch || (*dispatch)->busy) {
+        return FALSE;
+    }
+
+    return TRUE;
 }
 #endif  // PHP_VERSION_ID >= 70000

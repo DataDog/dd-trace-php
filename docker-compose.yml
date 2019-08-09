@@ -64,7 +64,7 @@ services:
   '7.2-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-debug' }
   '7.2-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-zts' }
   '7.3': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3' }
-  '7.3-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-debug' }
+  '7.3-debug': { <<: *base_php_service, image: 'pawelchcki/ddtrace_php:7.3-stretch-debug' }
   '7.3-zts-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-zts-debug' }
   '7.3-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-zts' }
   'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }

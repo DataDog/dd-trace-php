@@ -16,63 +16,14 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 user_opcode_handler_t ddtrace_old_fcall_handler;
 user_opcode_handler_t ddtrace_old_icall_handler;
+user_opcode_handler_t ddtrace_old_ucall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
 #if PHP_VERSION_ID >= 70000
-static void (*ddtrace_original_execute_ex)(zend_execute_data *TSRMLS_DC);
-static zend_op_array *(*ddtrace_original_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
-
-// dummy zend_execute_ex hook - shouldn't actually be used outside of file compilation
-// in PHP 7+ this is used to ensure compilation step creates opcodes necessary for opcode handlers to work
-static void php_execute(zend_execute_data *execute_data TSRMLS_DC) {
-    zend_execute_ex = execute_ex;
-
-    if (ddtrace_original_execute_ex) {
-        ddtrace_original_execute_ex(execute_data TSRMLS_CC);
-    } else {
-        execute_ex(execute_data TSRMLS_CC);
-    }
-}
-
-static zend_op_array *php_compile(zend_file_handle *file_handle, int type TSRMLS_DC) {
-    zend_op_array *op_array;
-    zend_execute_ex = php_execute;
-
-    op_array = ddtrace_original_compile_file(file_handle, type TSRMLS_CC);
-
-    if (ddtrace_original_execute_ex) {
-        zend_execute_ex = ddtrace_original_execute_ex;
-    } else {
-        zend_execute_ex = execute_ex;
-    }
-
-    return op_array;
-}
-
 static inline void dispatch_table_dtor(zval *zv) {
     zend_hash_destroy(Z_PTR_P(zv));
     efree(Z_PTR_P(zv));
 }
-
-#if PHP_VERSION_ID >= 70300
-static int (*ddtrace_original_post_startup_cb)(void);
-
-static int php_post_startup_cb(void) {
-    if (ddtrace_original_post_startup_cb) {
-        int (*callback)(void) = ddtrace_original_post_startup_cb;
-        ddtrace_original_post_startup_cb =
-            NULL;  // guard against possible recursion if callback is calling zend_post_startup_cb directly
-        if (callback() != SUCCESS) {
-            return FAILURE;
-        }
-    }
-    ddtrace_original_compile_file = zend_compile_file;
-    zend_compile_file = php_compile;
-
-    return SUCCESS;
-}
-#endif  // PHP_VERSION >= 70300
-
 #else
 static inline void dispatch_table_dtor(void *zv) {
     HashTable *ht = *(HashTable **)zv;
@@ -82,18 +33,38 @@ static inline void dispatch_table_dtor(void *zv) {
 #endif
 
 void ddtrace_dispatch_init(TSRMLS_D) {
-    zend_hash_init(&DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)dispatch_table_dtor, 0);
-    zend_hash_init(&DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_release_compat, 0);
+    if (!DDTRACE_G(class_lookup)) {
+        ALLOC_HASHTABLE(DDTRACE_G(class_lookup));
+        zend_hash_init(DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)dispatch_table_dtor, 0);
+    }
+
+    if (!DDTRACE_G(function_lookup)) {
+        ALLOC_HASHTABLE(DDTRACE_G(function_lookup));
+        zend_hash_init(DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_release_compat, 0);
+    }
 }
 
 void ddtrace_dispatch_destroy(TSRMLS_D) {
-    zend_hash_destroy(&DDTRACE_G(class_lookup));
-    zend_hash_destroy(&DDTRACE_G(function_lookup));
+    if (DDTRACE_G(class_lookup)) {
+        zend_hash_destroy(DDTRACE_G(class_lookup));
+        FREE_HASHTABLE(DDTRACE_G(class_lookup));
+        DDTRACE_G(class_lookup) = NULL;
+    }
+
+    if (DDTRACE_G(function_lookup)) {
+        zend_hash_destroy(DDTRACE_G(function_lookup));
+        FREE_HASHTABLE(DDTRACE_G(function_lookup));
+        DDTRACE_G(function_lookup) = NULL;
+    }
 }
 
 void ddtrace_dispatch_reset(TSRMLS_D) {
-    zend_hash_clean(&DDTRACE_G(class_lookup));
-    zend_hash_clean(&DDTRACE_G(function_lookup));
+    if (DDTRACE_G(class_lookup)) {
+        zend_hash_clean(DDTRACE_G(class_lookup));
+    }
+    if (DDTRACE_G(function_lookup)) {
+        zend_hash_clean(DDTRACE_G(function_lookup));
+    }
 }
 
 void ddtrace_dispatch_inject(TSRMLS_D) {
@@ -105,18 +76,11 @@ void ddtrace_dispatch_inject(TSRMLS_D) {
  * opcode instead of ZEND_DO_UCALL for user defined functions
  */
 #if PHP_VERSION_ID >= 70000
-    ddtrace_original_execute_ex = zend_execute_ex;
-
-// for PHP 7.3+ this needs to be set in zend_post_startup_cb
-#if PHP_VERSION_ID < 70300
-    ddtrace_original_compile_file = zend_compile_file;
-    zend_compile_file = php_compile;
-#else
-    ddtrace_original_post_startup_cb = zend_post_startup_cb;
-    zend_post_startup_cb = php_post_startup_cb;
-#endif  // PHP_VERSION_ID < 70300
     DDTRACE_G(ddtrace_old_icall_handler) = zend_get_user_opcode_handler(ZEND_DO_ICALL);
     zend_set_user_opcode_handler(ZEND_DO_ICALL, ddtrace_wrap_fcall);
+
+    DDTRACE_G(ddtrace_old_ucall_handler) = zend_get_user_opcode_handler(ZEND_DO_UCALL);
+    zend_set_user_opcode_handler(ZEND_DO_UCALL, ddtrace_wrap_fcall);
 #endif
     DDTRACE_G(ddtrace_old_fcall_handler) = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);
@@ -127,12 +91,12 @@ void ddtrace_dispatch_inject(TSRMLS_D) {
 
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TSRMLS_DC) {
     HashTable *overridable_lookup = NULL;
-    if (class_name) {
+    if (class_name && DDTRACE_G(class_lookup)) {
 #if PHP_VERSION_ID < 70000
         overridable_lookup =
-            zend_hash_str_find_ptr(&DDTRACE_G(class_lookup), Z_STRVAL_P(class_name), Z_STRLEN_P(class_name));
+            zend_hash_str_find_ptr(DDTRACE_G(class_lookup), Z_STRVAL_P(class_name), Z_STRLEN_P(class_name));
 #else
-        overridable_lookup = zend_hash_find_ptr(&DDTRACE_G(class_lookup), Z_STR_P(class_name));
+        overridable_lookup = zend_hash_find_ptr(DDTRACE_G(class_lookup), Z_STR_P(class_name));
 #endif
         if (!overridable_lookup) {
             overridable_lookup = ddtrace_new_class_lookup(class_name TSRMLS_CC);
@@ -149,7 +113,7 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable TS
             return 0;
         }
 
-        overridable_lookup = &DDTRACE_G(function_lookup);
+        overridable_lookup = DDTRACE_G(function_lookup);
     }
 
     if (!overridable_lookup) {

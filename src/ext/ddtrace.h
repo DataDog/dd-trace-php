@@ -27,13 +27,14 @@ zend_bool strict_mode;
 zend_bool request_hook_included;
 
 uint32_t traces_group_id;
-HashTable class_lookup;
-HashTable function_lookup;
+HashTable *class_lookup;
+HashTable *function_lookup;
 zend_bool log_backtrace;
 ddtrace_original_context original_context;
 
 user_opcode_handler_t ddtrace_old_fcall_handler;
 user_opcode_handler_t ddtrace_old_icall_handler;
+user_opcode_handler_t ddtrace_old_ucall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 

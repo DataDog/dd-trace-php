@@ -7,6 +7,13 @@ All notable changes to this project will be documented in this file - [read more
 ### Fixed
 - Shutdown span flushing blocking the process when forked #493
 - Request init hook being executed too early #506
+- Memory access errors in cases when PHP code was run after extension data was freed on request shutdown #505
+- Request init hook working when open_basedir restriction is in effect #505
+- Ensure global resources are freed in shutdown #521 #523
+- Http transport not setting required `X-Datadog-Trace-Count` header #525
+
+### Changed
+- Remove `zend_execute_ex` override and trace `ZEND_DO_UCALL` #519
 
 ## [0.29.0]
 
