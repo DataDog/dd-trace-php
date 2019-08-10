@@ -193,8 +193,25 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, z
     zend_fcall_info_args_clear(&fci, 0);
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
-    // TODO Inject return value as $_dd_trace_return_value into tracing closure
-    // TODO Save array returned from tracing closure to serialize onto span
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_retval TSRMLS_DC) {
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
+    zval rv;
+    INIT_ZVAL(rv);
+
+    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
+        // TODO Log error
+        return;
+    }
+    // TODO Inject [ ] $span, [ ] $args, and [ ] $return_value into tracing closure
+    //fci.param_count = 3;
+    //fci.params = args;
+    fci.retval = &rv;
+    if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
+        // TODO Log error
+    }
+
+    zval_ptr_dtor(&rv);
+    zend_fcall_info_args_clear(&fci, 1);
 }
 #endif  // PHP_VERSION_ID >= 70000

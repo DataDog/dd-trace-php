@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 typedef struct _ddtrace_span_stack_t {
-    zval *span;
+    zval *span_data;
     zval *exception;
     uint64_t trace_id;
     uint64_t parent_id;

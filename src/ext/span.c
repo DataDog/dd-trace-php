@@ -17,11 +17,11 @@ void _free_span_stack(ddtrace_span_stack_t *stack) {
         ddtrace_span_stack_t *tmp = stack;
         stack = tmp->next;
 #if PHP_VERSION_ID >= 70000
-        zval_ptr_dtor(tmp->span);
+        zval_ptr_dtor(tmp->span_data);
 #else
-        zval_ptr_dtor(&tmp->span);
+        zval_ptr_dtor(&tmp->span_data);
 #endif
-        efree(tmp->span);
+        efree(tmp->span_data);
         if (tmp->exception) {
 #if PHP_VERSION_ID >= 70000
             zval_ptr_dtor(tmp->exception);
@@ -52,8 +52,8 @@ ddtrace_span_stack_t *dd_trace_open_span(TSRMLS_D) {
     stack->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = stack;
 
-    stack->span = ecalloc(1, sizeof(zval));
-    object_init_ex(stack->span, ddtrace_ce_span_data);
+    stack->span_data = (zval *) ecalloc(1, sizeof(zval));
+    object_init_ex(stack->span_data, ddtrace_ce_span_data);
 
     stack->trace_id = DDTRACE_G(root_span_id);
     // We need to peek at the active span ID before we push a new one onto the stack

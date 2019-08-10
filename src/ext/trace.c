@@ -41,7 +41,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc, ze
 
     if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
         // TODO Ignore errors/exceptions from closure - zend_try_catch??
-        ddtrace_execute_tracing_closure(&dispatch->callable, stack->span, execute_data, user_retval TSRMLS_CC);
+        ddtrace_execute_tracing_closure(&dispatch->callable, stack->span_data, execute_data, user_retval TSRMLS_CC);
         // TODO Move dd_trace_close_span() here and serialize span_data
     }
 
