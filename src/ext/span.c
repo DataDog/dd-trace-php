@@ -19,7 +19,7 @@ void _free_span_stack(ddtrace_span_stack_t *stack) {
 #if PHP_VERSION_ID >= 70000
         zval_ptr_dtor(tmp->span_data);
 #else
-        zval_ptr_dtor(&tmp->span_data);
+        Z_DELREF_P(tmp->span_data);
 #endif
         efree(tmp->span_data);
         if (tmp->exception) {

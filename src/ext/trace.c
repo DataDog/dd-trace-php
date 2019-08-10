@@ -34,7 +34,9 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc, ze
 #if PHP_VERSION_ID < 70000
     ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
 #else
-    ddtrace_forward_call(EX(call), fbc, user_retval TSRMLS_CC);
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
+    ddtrace_forward_call(EX(call), fbc, user_retval, &fci, &fcc TSRMLS_CC);
 #endif
     // TODO Add dd_trace_stop_span_time() to stop the timer
     dd_trace_close_span(TSRMLS_C);
@@ -55,6 +57,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc, ze
         }
     }
 #else
+    zend_fcall_info_args_clear(&fci, 0);
     if (!RETURN_VALUE_USED(opline)) {
         zval_dtor(&rv);
     }

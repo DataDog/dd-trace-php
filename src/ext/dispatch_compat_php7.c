@@ -164,25 +164,22 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
 /**
  * trace.c
  */
-void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC) {
-    zend_fcall_info fci = {0};
-    zend_fcall_info_cache fcc = {0};
-
+void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci, zend_fcall_info_cache *fcc TSRMLS_DC) {
 #if PHP_VERSION_ID < 70300
-    fcc.initialized = 1;
+    fcc->initialized = 1;
 #endif
-    fcc.function_handler = fbc;
-    fcc.object = Z_TYPE(EX(This)) == IS_OBJECT ? Z_OBJ(EX(This)) : NULL;
-    fcc.calling_scope = fbc->common.scope; // EG(scope);
-    fcc.called_scope = fcc.object ? fcc.object->ce : fbc->common.scope;
+    fcc->function_handler = fbc;
+    fcc->object = Z_TYPE(EX(This)) == IS_OBJECT ? Z_OBJ(EX(This)) : NULL;
+    fcc->calling_scope = fbc->common.scope; // EG(scope);
+    fcc->called_scope = fcc->object ? fcc->object->ce : fbc->common.scope;
 
-    fci.size = sizeof(fci);
-    fci.no_separation = 1;
-    fci.object = fcc.object;
+    fci->size = sizeof(zend_fcall_info);
+    fci->no_separation = 1;
+    fci->object = fcc->object;
 
-    ddtrace_setup_fcall(execute_data, &fci, &return_value);
+    ddtrace_setup_fcall(execute_data, fci, &return_value);
 
-    if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS && Z_TYPE_P(return_value) != IS_UNDEF) {
+    if (zend_call_function(fci, fcc TSRMLS_CC) == SUCCESS && Z_TYPE_P(return_value) != IS_UNDEF) {
 #if PHP_VERSION_ID >= 70100
         if (Z_ISREF_P(return_value)) {
             zend_unwrap_reference(return_value);
@@ -190,7 +187,8 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, z
 #endif
     }
 
-    zend_fcall_info_args_clear(&fci, 0);
+    // We don't want to clear the args with zend_fcall_info_args_clear() yet
+    // since our tracing closure might need them
 }
 
 void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_retval TSRMLS_DC) {
@@ -198,20 +196,75 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     zend_fcall_info_cache fcc = {0};
     zval rv;
     INIT_ZVAL(rv);
+    uint32_t i, first_extra_arg;
+    zval args[3], *p, *q;
+    zend_execute_data *ex = EX(call);
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
         // TODO Log error
         return;
     }
-    // TODO Inject [ ] $span, [ ] $args, and [ ] $return_value into tracing closure
-    //fci.param_count = 3;
-    //fci.params = args;
+    // Arg 0: DDTrace\SpanData $span
+    ZVAL_COPY(&args[0], span_data);
+    // Arg 1: array $args
+    zval user_args;
+    // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
+    uint32_t arg_count = ZEND_CALL_NUM_ARGS(ex);
+	array_init_size(&user_args, arg_count);
+	if (arg_count) {
+		first_extra_arg = ex->func->op_array.num_args;
+		zend_hash_real_init(Z_ARRVAL(user_args), 1);
+		ZEND_HASH_FILL_PACKED(Z_ARRVAL(user_args)) {
+			i = 0;
+			p = ZEND_CALL_ARG(ex, 1);
+			if (arg_count > first_extra_arg) {
+				while (i < first_extra_arg) {
+					q = p;
+					if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
+						ZVAL_DEREF(q);
+						if (Z_OPT_REFCOUNTED_P(q)) { 
+							Z_ADDREF_P(q);
+						}
+					} else {
+						q = &EG(uninitialized_zval);
+					}
+					ZEND_HASH_FILL_ADD(q);
+					p++;
+					i++;
+				}
+				p = ZEND_CALL_VAR_NUM(ex, ex->func->op_array.last_var + ex->func->op_array.T);
+			}
+			while (i < arg_count) {
+				q = p;
+				if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
+					ZVAL_DEREF(q);
+					if (Z_OPT_REFCOUNTED_P(q)) { 
+						Z_ADDREF_P(q);
+					}
+				} else {
+					q = &EG(uninitialized_zval);
+				}
+				ZEND_HASH_FILL_ADD(q);
+				p++;
+				i++;
+			}
+		} ZEND_HASH_FILL_END();
+		Z_ARRVAL(user_args)->nNumOfElements = arg_count;
+	}
+    ZVAL_COPY(&args[1], &user_args);
+
+    // Arg 2: mixed $retval
+    ZVAL_COPY(&args[2], user_retval);
+
+    fci.param_count = 3;
+    fci.params = args;
     fci.retval = &rv;
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
         // TODO Log error
     }
 
+    zval_ptr_dtor(&user_args);
     zval_ptr_dtor(&rv);
-    zend_fcall_info_args_clear(&fci, 1);
+    zend_fcall_info_args_clear(&fci, 0);
 }
 #endif  // PHP_VERSION_ID >= 70000

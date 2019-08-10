@@ -316,22 +316,47 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval *retval_ptr = NULL;
+    zval **args[3];
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
         // TODO Log error
         return;
     }
-    // TODO Inject [ ] $span, [ ] $args, and [ ] $return_value into tracing closure
-    //fci.param_count = 3;
-    //fci.params = args;
+    // Arg 0: DDTrace\SpanData $span
+    args[0] = &span_data;
+    Z_ADDREF_P(span_data);
+    // Arg 1: array $args
+    zval *user_args = NULL;
+    MAKE_STD_ZVAL(user_args);
+    // @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_builtin_functions.c#L447-L473
+    void **p = EX(function_state).arguments;
+    int arg_count = (int)(zend_uintptr_t) *p;
+    array_init_size(user_args, arg_count);
+    for (int i=0; i<arg_count; i++) {
+        zval *element;
+
+        ALLOC_ZVAL(element);
+        *element = **((zval **) (p-(arg_count-i)));
+        zval_copy_ctor(element);
+        INIT_PZVAL(element);
+        zend_hash_next_index_insert(Z_ARRVAL_P(user_args), &element, sizeof(zval *), NULL);
+    }
+    args[1] = &user_args;
+    // Arg 2: mixed $retval
+    args[2] = &user_retval;
+
+    fci.param_count = 3;
+    fci.params = args;
     fci.retval_ptr_ptr = &retval_ptr;
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
         // TODO Log error
     }
 
+    zval_ptr_dtor(&user_args);
+
     if (fci.retval_ptr_ptr && retval_ptr) {
         zval_ptr_dtor(&retval_ptr);
     }
-    zend_fcall_info_args_clear(&fci, 1);
+    zend_fcall_info_args_clear(&fci, 0);
 }
 #endif  // PHP 5
