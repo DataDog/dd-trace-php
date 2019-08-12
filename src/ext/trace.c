@@ -30,7 +30,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc, ze
     user_retval = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
 #endif
 
-    ddtrace_span_stack_t *stack = dd_trace_open_span(TSRMLS_C);
+    ddtrace_span_stack_t *stack = ddtrace_open_span(TSRMLS_C);
 #if PHP_VERSION_ID < 70000
     ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
 #else
@@ -39,12 +39,12 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc, ze
     ddtrace_forward_call(EX(call), fbc, user_retval, &fci, &fcc TSRMLS_CC);
 #endif
     // TODO Add dd_trace_stop_span_time() to stop the timer
-    dd_trace_close_span(TSRMLS_C);
+    ddtrace_close_span(TSRMLS_C);
 
     if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
         // TODO Ignore errors/exceptions from closure - zend_try_catch??
         ddtrace_execute_tracing_closure(&dispatch->callable, stack->span_data, execute_data, user_retval TSRMLS_CC);
-        // TODO Move dd_trace_close_span() here and serialize span_data
+        // TODO Move ddtrace_close_span() here and serialize span_data
     }
 
 #if PHP_VERSION_ID < 70000

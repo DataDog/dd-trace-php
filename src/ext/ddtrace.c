@@ -170,9 +170,9 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-    dd_trace_seed_prng(TSRMLS_C);
-    dd_trace_init_span_id_stack(TSRMLS_C);
-    dd_trace_init_span_stacks(TSRMLS_C);
+    ddtrace_seed_prng(TSRMLS_C);
+    ddtrace_init_span_id_stack(TSRMLS_C);
+    ddtrace_init_span_stacks(TSRMLS_C);
     ddtrace_coms_on_pid_change();
 
     if (DDTRACE_G(request_init_hook)) {
@@ -193,8 +193,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_dispatch_destroy(TSRMLS_C);
-    dd_trace_free_span_id_stack(TSRMLS_C);
-    dd_trace_free_span_stacks(TSRMLS_C);
+    ddtrace_free_span_id_stack(TSRMLS_C);
+    ddtrace_free_span_stacks(TSRMLS_C);
     ddtrace_coms_on_request_finished();
 
     return SUCCESS;
@@ -692,21 +692,21 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 static PHP_FUNCTION(dd_trace_push_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    RETURN_SPAN_ID(dd_trace_push_span_id);
+    RETURN_SPAN_ID(ddtrace_push_span_id);
 }
 
 /* {{{ proto string dd_trace_pop_span_id() */
 static PHP_FUNCTION(dd_trace_pop_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    RETURN_SPAN_ID(dd_trace_pop_span_id);
+    RETURN_SPAN_ID(ddtrace_pop_span_id);
 }
 
 /* {{{ proto string dd_trace_peek_span_id() */
 static PHP_FUNCTION(dd_trace_peek_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    RETURN_SPAN_ID(dd_trace_peek_span_id);
+    RETURN_SPAN_ID(ddtrace_peek_span_id);
 }
 
 static const zend_function_entry ddtrace_functions[] = {

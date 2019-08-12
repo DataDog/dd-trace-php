@@ -13,11 +13,11 @@ typedef struct _ddtrace_span_ids_t {
     struct _ddtrace_span_ids_t *next;
 } ddtrace_span_ids_t;
 
-void dd_trace_seed_prng(TSRMLS_D);
-void dd_trace_init_span_id_stack(TSRMLS_D);
-void dd_trace_free_span_id_stack(TSRMLS_D);
-uint64_t dd_trace_push_span_id(TSRMLS_D);
-uint64_t dd_trace_pop_span_id(TSRMLS_D);
-uint64_t dd_trace_peek_span_id(TSRMLS_D);
+void ddtrace_seed_prng(TSRMLS_D);
+void ddtrace_init_span_id_stack(TSRMLS_D);
+void ddtrace_free_span_id_stack(TSRMLS_D);
+uint64_t ddtrace_push_span_id(TSRMLS_D);
+uint64_t ddtrace_pop_span_id(TSRMLS_D);
+uint64_t ddtrace_peek_span_id(TSRMLS_D);
 
 #endif  // DD_RANDOM_H

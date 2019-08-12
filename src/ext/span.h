@@ -15,10 +15,10 @@ typedef struct _ddtrace_span_stack_t {
     struct _ddtrace_span_stack_t *next;
 } ddtrace_span_stack_t;
 
-void dd_trace_init_span_stacks(TSRMLS_D);
-void dd_trace_free_span_stacks(TSRMLS_D);
-ddtrace_span_stack_t *dd_trace_open_span(TSRMLS_D);
-void dd_trace_close_span(TSRMLS_D);
+void ddtrace_init_span_stacks(TSRMLS_D);
+void ddtrace_free_span_stacks(TSRMLS_D);
+ddtrace_span_stack_t *ddtrace_open_span(TSRMLS_D);
+void ddtrace_close_span(TSRMLS_D);
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC);
 
 #endif  // DD_SPAN_H

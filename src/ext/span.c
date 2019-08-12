@@ -8,7 +8,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-void dd_trace_init_span_stacks(TSRMLS_D) {
+void ddtrace_init_span_stacks(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(closed_spans_top) = NULL;
 }
@@ -39,7 +39,7 @@ static void _free_span_stack(ddtrace_span_stack_t *span) {
     }
 }
 
-void dd_trace_free_span_stacks(TSRMLS_D) {
+void ddtrace_free_span_stacks(TSRMLS_D) {
     _free_span_stack(DDTRACE_G(open_spans_top));
     DDTRACE_G(open_spans_top) = NULL;
     _free_span_stack(DDTRACE_G(closed_spans_top));
@@ -54,7 +54,7 @@ static uint64_t _get_nanoseconds() {
     return 0;
 }
 
-ddtrace_span_stack_t *dd_trace_open_span(TSRMLS_D) {
+ddtrace_span_stack_t *ddtrace_open_span(TSRMLS_D) {
     ddtrace_span_stack_t *stack = ecalloc(1, sizeof(ddtrace_span_stack_t));
     stack->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = stack;
@@ -63,8 +63,8 @@ ddtrace_span_stack_t *dd_trace_open_span(TSRMLS_D) {
     object_init_ex(stack->span_data, ddtrace_ce_span_data);
 
     // Peek at the active span ID before we push a new one onto the stack
-    stack->parent_id = dd_trace_peek_span_id(TSRMLS_C);
-    stack->span_id = dd_trace_push_span_id(TSRMLS_C);
+    stack->parent_id = ddtrace_peek_span_id(TSRMLS_C);
+    stack->span_id = ddtrace_push_span_id(TSRMLS_C);
     // Set the trace_id last so we have ID's on the stack
     stack->trace_id = DDTRACE_G(root_span_id);
     stack->duration = 0;
@@ -73,7 +73,7 @@ ddtrace_span_stack_t *dd_trace_open_span(TSRMLS_D) {
     return stack;
 }
 
-void dd_trace_close_span(TSRMLS_D) {
+void ddtrace_close_span(TSRMLS_D) {
     ddtrace_span_stack_t *stack = DDTRACE_G(open_spans_top);
     if (stack == NULL) {
         return;
@@ -82,7 +82,7 @@ void dd_trace_close_span(TSRMLS_D) {
 
     stack->duration = _get_nanoseconds() - stack->start;
     // Sync with span ID stack
-    dd_trace_pop_span_id(TSRMLS_C);
+    ddtrace_pop_span_id(TSRMLS_C);
     // TODO Serialize the span onto a buffer and free
     stack->next = DDTRACE_G(closed_spans_top);
     DDTRACE_G(closed_spans_top) = stack;
