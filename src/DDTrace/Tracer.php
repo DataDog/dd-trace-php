@@ -369,7 +369,7 @@ final class Tracer implements TracerInterface
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
 
         foreach ($this->traces as $trace) {
-            $traceToBeSent = [];
+            $traceToBeSent = dd_trace_serialize_closed_spans();
             foreach ($trace as $span) {
                 if ($span->duration === null) { // is span not finished
                     if (!$autoFinishSpans) {
@@ -396,7 +396,7 @@ final class Tracer implements TracerInterface
 
             $tracesToBeSent[] = $traceToBeSent;
             if (isset($traceToBeSent[0]['trace_id'])) {
-                unset($this->traces[$traceToBeSent[0]['trace_id']]);
+                unset($this->traces[(string) $traceToBeSent[0]['trace_id']]);
             }
         }
 

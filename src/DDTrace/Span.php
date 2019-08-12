@@ -313,6 +313,8 @@ final class Span extends DataSpan
         }
 
         $this->duration = ($finishTime ?: Time::now()) - $this->startTime;
+        // Sync with span ID stack at the C level
+        dd_trace_pop_span_id();
     }
 
     /**
