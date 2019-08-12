@@ -171,3 +171,56 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
         return 0;
     }
 }
+
+#if PHP_VERSION_ID < 70000
+#define ADD_ELEMENT_IF_PROP_TYPE(name, type)     \
+    do {        \
+        zval *prop = zend_read_property(ddtrace_ce_span_data, span->span_data, (name), sizeof((name)) - 1, 1 TSRMLS_CC); \
+        if (Z_TYPE_P(prop) == (type)) { \
+            add_assoc_zval(el, (name), prop); \
+        } \
+    } while (0);
+#else
+#define ADD_ELEMENT_IF_PROP_TYPE(name, type)     \
+    do {        \
+        zval rv; \
+        zval *prop = zend_read_property(ddtrace_ce_span_data, span->span_data, (name), sizeof((name)) - 1, 1, &rv TSRMLS_CC); \
+        if (Z_TYPE_P(prop) == (type)) { \
+            zval value; \
+            ZVAL_COPY(&value, prop); \
+            add_assoc_zval(el, (name), &value); \
+        } \
+    } while (0);
+#endif
+
+void ddtrace_serialize_span_to_array(ddtrace_span_stack_t *span, zval *array TSRMLS_DC) {
+    zval *el;
+#if PHP_VERSION_ID < 70000
+    ALLOC_INIT_ZVAL(el);
+#else
+    zval zv;
+    el = &zv;
+#endif
+    array_init(el);
+
+    add_assoc_long(el, "trace_id", span->trace_id);
+    add_assoc_long(el, "span_id", span->span_id);
+    if (span->parent_id > 0) {
+        add_assoc_long(el, "parent_id", span->parent_id);
+    }
+    add_assoc_long(el, "start", span->start);
+    add_assoc_long(el, "duration", span->duration);
+
+    ADD_ELEMENT_IF_PROP_TYPE("name", IS_STRING);
+    ADD_ELEMENT_IF_PROP_TYPE("resource", IS_STRING);
+    ADD_ELEMENT_IF_PROP_TYPE("service", IS_STRING);
+    ADD_ELEMENT_IF_PROP_TYPE("type", IS_STRING);
+    ADD_ELEMENT_IF_PROP_TYPE("meta", IS_ARRAY);
+    ADD_ELEMENT_IF_PROP_TYPE("metrics", IS_ARRAY);
+
+    if (span->exception) {
+        // TODO Serialize exception
+    }
+
+    add_next_index_zval(array, el);
+}

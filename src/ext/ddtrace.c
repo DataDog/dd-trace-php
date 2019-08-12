@@ -56,6 +56,9 @@ ZEND_ARG_INFO(0, function_name)
 ZEND_ARG_INFO(0, tracing_closure)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_closed_spans, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_msgpack, 0, 0, 1)
 ZEND_ARG_INFO(0, trace_array)
 ZEND_END_ARG_INFO()
@@ -350,6 +353,11 @@ static PHP_FUNCTION(dd_trace_function) {
 
     zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, 1 TSRMLS_CC);
     RETURN_BOOL(rv);
+}
+
+static PHP_FUNCTION(dd_trace_serialize_closed_spans) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
+    ddtrace_serialize_closed_spans(return_value TSRMLS_CC);
 }
 
 // Invoke the function/method from the original context
@@ -679,7 +687,7 @@ static PHP_FUNCTION(dd_trace_push_span_id) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {
-    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method) PHP_FE(dd_trace_function, arginfo_dd_trace_function) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
+    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method) PHP_FE(dd_trace_function, arginfo_dd_trace_function) PHP_FE(dd_trace_serialize_closed_spans, arginfo_dd_trace_serialize_closed_spans) PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL)
         PHP_FE(dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
             PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(
                 dd_tracer_circuit_breaker_register_error, NULL) PHP_FE(dd_tracer_circuit_breaker_register_success, NULL)

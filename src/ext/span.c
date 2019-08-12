@@ -4,6 +4,7 @@
 #include <time.h>  // TODO Add config check
 
 #include "ddtrace.h"
+#include "serializer.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -12,31 +13,37 @@ void dd_trace_init_span_stacks(TSRMLS_D) {
     DDTRACE_G(closed_spans_top) = NULL;
 }
 
-void _free_span_stack(ddtrace_span_stack_t *stack) {
-    while (stack != NULL) {
-        ddtrace_span_stack_t *tmp = stack;
-        stack = tmp->next;
+static void _free_span(ddtrace_span_stack_t *span) {
 #if PHP_VERSION_ID >= 70000
-        zval_ptr_dtor(tmp->span_data);
+    zval_ptr_dtor(span->span_data);
 #else
-        Z_DELREF_P(tmp->span_data);
+    Z_DELREF_P(span->span_data);
 #endif
-        efree(tmp->span_data);
-        if (tmp->exception) {
+    efree(span->span_data);
+    if (span->exception) {
 #if PHP_VERSION_ID >= 70000
-            zval_ptr_dtor(tmp->exception);
+        zval_ptr_dtor(span->exception);
 #else
-            zval_ptr_dtor(&tmp->exception);
+        zval_ptr_dtor(&span->exception);
 #endif
-            efree(tmp->exception);
-        }
-        efree(tmp);
+        efree(span->exception);
+    }
+    efree(span);
+}
+
+static void _free_span_stack(ddtrace_span_stack_t *span) {
+    while (span != NULL) {
+        ddtrace_span_stack_t *tmp = span;
+        span = tmp->next;
+        _free_span(tmp);
     }
 }
 
 void dd_trace_free_span_stacks(TSRMLS_D) {
     _free_span_stack(DDTRACE_G(open_spans_top));
+    DDTRACE_G(open_spans_top) = NULL;
     _free_span_stack(DDTRACE_G(closed_spans_top));
+    DDTRACE_G(closed_spans_top) = NULL;
 }
 
 static uint64_t _get_nanoseconds() {
@@ -55,10 +62,11 @@ ddtrace_span_stack_t *dd_trace_open_span(TSRMLS_D) {
     stack->span_data = (zval *) ecalloc(1, sizeof(zval));
     object_init_ex(stack->span_data, ddtrace_ce_span_data);
 
-    stack->trace_id = DDTRACE_G(root_span_id);
-    // We need to peek at the active span ID before we push a new one onto the stack
+    // Peek at the active span ID before we push a new one onto the stack
     stack->parent_id = dd_trace_peek_span_id(TSRMLS_C);
     stack->span_id = dd_trace_push_span_id(TSRMLS_C);
+    // Set the trace_id last so we have ID's on the stack
+    stack->trace_id = DDTRACE_G(root_span_id);
     stack->duration = 0;
     stack->exception = NULL;
     stack->start = _get_nanoseconds();
@@ -73,6 +81,21 @@ void dd_trace_close_span(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = stack->next;
 
     stack->duration = _get_nanoseconds() - stack->start;
+    // Sync with span ID stack
+    dd_trace_pop_span_id(TSRMLS_C);
+    // TODO Serialize the span onto a buffer and free
     stack->next = DDTRACE_G(closed_spans_top);
     DDTRACE_G(closed_spans_top) = stack;
+}
+
+void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
+    ddtrace_span_stack_t *span = DDTRACE_G(closed_spans_top);
+    array_init(serialized);
+    while (span != NULL) {
+        ddtrace_span_stack_t *tmp = span;
+        span = tmp->next;
+        ddtrace_serialize_span_to_array(tmp, serialized TSRMLS_CC);
+        _free_span(tmp);
+    }
+    DDTRACE_G(closed_spans_top) = NULL;
 }
