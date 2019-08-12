@@ -4,6 +4,7 @@
 #include "span.h"
 
 #include <php.h>
+#include <Zend/zend_exceptions.h>
 
 /* Move these to a header if dispatch.c still needs it */
 #if PHP_VERSION_ID >= 70100
@@ -42,10 +43,13 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     // TODO Add dd_trace_stop_span_time() to stop the timer
     ddtrace_close_span(TSRMLS_C);
 
-    if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
-        // TODO Ignore errors/exceptions from closure - zend_try_catch??
+    if (!EG(exception) && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         ddtrace_execute_tracing_closure(&dispatch->callable, stack->span_data, execute_data, user_retval TSRMLS_CC);
-        // TODO Move ddtrace_close_span() here and serialize span_data
+        // If the tracing closure threw an exception, ignore it to not impact the original call
+        if (EG(exception)) {
+            // TODO Log the exception
+            zend_clear_exception(TSRMLS_C);
+        }
     }
 
 #if PHP_VERSION_ID < 70000
