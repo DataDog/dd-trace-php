@@ -356,7 +356,7 @@ static PHP_FUNCTION(dd_trace_function) {
 }
 
 static PHP_FUNCTION(dd_trace_serialize_closed_spans) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     ddtrace_serialize_closed_spans(return_value TSRMLS_CC);
 }
 
