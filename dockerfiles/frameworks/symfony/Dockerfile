@@ -29,6 +29,9 @@ RUN set -xe; \
         php-redis \
         php-mysql \
         php-sqlite3 \
+        php-memcached \
+        php-amqp \
+        curl \
         vim;
 
 RUN set -xe; \
@@ -51,7 +54,6 @@ ENV COMPOSER_MEMORY_LIMIT -1
 
 ADD entrypoint.sh /usr/local/bin/entrypoint.sh
 
-RUN set -xe; apt-get install curl
 ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
 
 CMD [ "bash" ]

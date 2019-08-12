@@ -3,6 +3,9 @@ version: "3.6"
 services:
   symfony:
     depends_on: ['redis', 'nginx_file_server']
+    environment:
+      - "REDIS_HOST=redis"
+      - "MEMCACHED_HOST=memcached"
     build: symfony
     image: 'datadog/dd-trace-php:symfony-4.3-php-7.3'
     ulimits:
@@ -14,6 +17,10 @@ services:
     image: redis:5.0.5
     expose:
       - 6379
+  memcached:
+    image: memcached
+    expose:
+      - 11211
 
   nginx_file_server:
     build: nginx_file_server
