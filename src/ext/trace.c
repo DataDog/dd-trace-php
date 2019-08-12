@@ -79,6 +79,8 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc, ze
 #elif PHP_VERSION_ID < 70000
     // Free any remaining args
     zend_vm_stack_clear_multiple(0 TSRMLS_CC);
+    // Restore call for internal functions
+    EX(call)--;
 #else
     // Restore call for internal functions
     EX(call) = EX(call)->prev_execute_data;
