@@ -672,18 +672,41 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 #endif
 }
 
+#if PHP_VERSION_ID >= 70000
+#define RETURN_SPAN_ID(id_fn)     \
+    do {        \
+        char buf[20]; \
+        php_sprintf(buf, "%" PRIu64, (id_fn)(TSRMLS_C)); \
+        RETURN_STRING(buf); \
+    } while (0);
+#else
+#define RETURN_SPAN_ID(id_fn)     \
+    do {        \
+        char buf[20]; \
+        php_sprintf(buf, "%" PRIu64, (id_fn)(TSRMLS_C)); \
+        RETURN_STRING(buf, 1); \
+    } while (0);
+#endif
+
 /* {{{ proto string dd_trace_push_span_id() */
 static PHP_FUNCTION(dd_trace_push_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
+    RETURN_SPAN_ID(dd_trace_push_span_id);
+}
 
-    char buf[20];
-    php_sprintf(buf, "%" PRIu64, dd_trace_push_span_id(TSRMLS_C));
-#if PHP_VERSION_ID >= 70000
-    RETURN_STRING(buf);
-#else
-    RETURN_STRING(buf, 1);
-#endif
+/* {{{ proto string dd_trace_pop_span_id() */
+static PHP_FUNCTION(dd_trace_pop_span_id) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+    RETURN_SPAN_ID(dd_trace_pop_span_id);
+}
+
+/* {{{ proto string dd_trace_peek_span_id() */
+static PHP_FUNCTION(dd_trace_peek_span_id) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+    RETURN_SPAN_ID(dd_trace_peek_span_id);
 }
 
 static const zend_function_entry ddtrace_functions[] = {
@@ -695,7 +718,7 @@ static const zend_function_entry ddtrace_functions[] = {
                     dd_trace_env_config, arginfo_dd_trace_env_config) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
                     PHP_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span) PHP_FE(dd_trace_internal_fn, NULL)
                         PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
-                            PHP_FE(dd_trace_push_span_id, NULL)
+                            PHP_FE(dd_trace_push_span_id, NULL) PHP_FE(dd_trace_pop_span_id, NULL) PHP_FE(dd_trace_peek_span_id, NULL)
                                 PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
