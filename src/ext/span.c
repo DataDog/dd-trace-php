@@ -59,7 +59,7 @@ ddtrace_span_stack_t *ddtrace_open_span(TSRMLS_D) {
     stack->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = stack;
 
-    stack->span_data = (zval *) ecalloc(1, sizeof(zval));
+    stack->span_data = (zval *)ecalloc(1, sizeof(zval));
     object_init_ex(stack->span_data, ddtrace_ce_span_data);
 
     // Peek at the active span ID before we push a new one onto the stack

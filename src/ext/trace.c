@@ -1,7 +1,7 @@
+#include "trace.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "span.h"
-#include "trace.h"
 
 #include <php.h>
 
@@ -18,7 +18,8 @@
 #define EX(x) ((execute_data)->x)
 #endif
 
-void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc, zend_execute_data *execute_data TSRMLS_DC) {
+void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
+                            zend_execute_data *execute_data TSRMLS_DC) {
     const zend_op *opline = EX(opline);
     zval *this = ddtrace_this(execute_data);
     zval *user_retval = NULL;
@@ -68,7 +69,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc, ze
         Z_DELREF_P(this);
     }
 #else
-    if (this) { // May need to check: EX_CALL_INFO() & ZEND_CALL_RELEASE_THIS
+    if (this) {  // May need to check: EX_CALL_INFO() & ZEND_CALL_RELEASE_THIS
         OBJ_RELEASE(Z_OBJ_P(this));
     }
 #endif

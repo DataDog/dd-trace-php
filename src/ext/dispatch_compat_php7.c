@@ -164,13 +164,14 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
 /**
  * trace.c
  */
-void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci, zend_fcall_info_cache *fcc TSRMLS_DC) {
+void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
+                          zend_fcall_info_cache *fcc TSRMLS_DC) {
 #if PHP_VERSION_ID < 70300
     fcc->initialized = 1;
 #endif
     fcc->function_handler = fbc;
     fcc->object = Z_TYPE(EX(This)) == IS_OBJECT ? Z_OBJ(EX(This)) : NULL;
-    fcc->calling_scope = fbc->common.scope; // EG(scope);
+    fcc->calling_scope = fbc->common.scope;  // EG(scope);
     fcc->called_scope = fcc->object ? fcc->object->ce : fbc->common.scope;
 
     fci->size = sizeof(zend_fcall_info);
@@ -191,7 +192,8 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, z
     // since our tracing closure might need them
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_retval TSRMLS_DC) {
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+                                     zval *user_retval TSRMLS_DC) {
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval rv;
@@ -210,47 +212,48 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     zval user_args;
     // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
     uint32_t arg_count = ZEND_CALL_NUM_ARGS(ex);
-	array_init_size(&user_args, arg_count);
-	if (arg_count) {
-		first_extra_arg = ex->func->op_array.num_args;
-		zend_hash_real_init(Z_ARRVAL(user_args), 1);
-		ZEND_HASH_FILL_PACKED(Z_ARRVAL(user_args)) {
-			i = 0;
-			p = ZEND_CALL_ARG(ex, 1);
-			if (arg_count > first_extra_arg) {
-				while (i < first_extra_arg) {
-					q = p;
-					if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
-						ZVAL_DEREF(q);
-						if (Z_OPT_REFCOUNTED_P(q)) { 
-							Z_ADDREF_P(q);
-						}
-					} else {
-						q = &EG(uninitialized_zval);
-					}
-					ZEND_HASH_FILL_ADD(q);
-					p++;
-					i++;
-				}
-				p = ZEND_CALL_VAR_NUM(ex, ex->func->op_array.last_var + ex->func->op_array.T);
-			}
-			while (i < arg_count) {
-				q = p;
-				if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
-					ZVAL_DEREF(q);
-					if (Z_OPT_REFCOUNTED_P(q)) { 
-						Z_ADDREF_P(q);
-					}
-				} else {
-					q = &EG(uninitialized_zval);
-				}
-				ZEND_HASH_FILL_ADD(q);
-				p++;
-				i++;
-			}
-		} ZEND_HASH_FILL_END();
-		Z_ARRVAL(user_args)->nNumOfElements = arg_count;
-	}
+    array_init_size(&user_args, arg_count);
+    if (arg_count) {
+        first_extra_arg = ex->func->op_array.num_args;
+        zend_hash_real_init(Z_ARRVAL(user_args), 1);
+        ZEND_HASH_FILL_PACKED(Z_ARRVAL(user_args)) {
+            i = 0;
+            p = ZEND_CALL_ARG(ex, 1);
+            if (arg_count > first_extra_arg) {
+                while (i < first_extra_arg) {
+                    q = p;
+                    if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
+                        ZVAL_DEREF(q);
+                        if (Z_OPT_REFCOUNTED_P(q)) {
+                            Z_ADDREF_P(q);
+                        }
+                    } else {
+                        q = &EG(uninitialized_zval);
+                    }
+                    ZEND_HASH_FILL_ADD(q);
+                    p++;
+                    i++;
+                }
+                p = ZEND_CALL_VAR_NUM(ex, ex->func->op_array.last_var + ex->func->op_array.T);
+            }
+            while (i < arg_count) {
+                q = p;
+                if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
+                    ZVAL_DEREF(q);
+                    if (Z_OPT_REFCOUNTED_P(q)) {
+                        Z_ADDREF_P(q);
+                    }
+                } else {
+                    q = &EG(uninitialized_zval);
+                }
+                ZEND_HASH_FILL_ADD(q);
+                p++;
+                i++;
+            }
+        }
+        ZEND_HASH_FILL_END();
+        Z_ARRVAL(user_args)->nNumOfElements = arg_count;
+    }
     ZVAL_COPY(&args[1], &user_args);
 
     // Arg 2: mixed $retval

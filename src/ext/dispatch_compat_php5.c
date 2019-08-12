@@ -297,7 +297,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, z
     fcc.initialized = 1;
     fcc.function_handler = fbc;
     fcc.object_ptr = ddtrace_this(execute_data);
-    fcc.calling_scope = fbc->common.scope; // EG(scope);
+    fcc.calling_scope = fbc->common.scope;  // EG(scope);
     fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : fbc->common.scope;
 
     ddtrace_setup_fcall(execute_data, &fci, &retval_ptr TSRMLS_CC);
@@ -312,7 +312,8 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, z
     zend_fcall_info_args_clear(&fci, 1);
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_retval TSRMLS_DC) {
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+                                     zval *user_retval TSRMLS_DC) {
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval *retval_ptr = NULL;
@@ -330,13 +331,13 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     MAKE_STD_ZVAL(user_args);
     // @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_builtin_functions.c#L447-L473
     void **p = EX(function_state).arguments;
-    int arg_count = (int)(zend_uintptr_t) *p;
+    int arg_count = (int)(zend_uintptr_t)*p;
     array_init_size(user_args, arg_count);
-    for (int i=0; i<arg_count; i++) {
+    for (int i = 0; i < arg_count; i++) {
         zval *element;
 
         ALLOC_ZVAL(element);
-        *element = **((zval **) (p-(arg_count-i)));
+        *element = **((zval **)(p - (arg_count - i)));
         zval_copy_ctor(element);
         INIT_PZVAL(element);
         zend_hash_next_index_insert(Z_ARRVAL_P(user_args), &element, sizeof(zval *), NULL);

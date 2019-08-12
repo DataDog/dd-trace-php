@@ -173,23 +173,25 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
 }
 
 #if PHP_VERSION_ID < 70000
-#define ADD_ELEMENT_IF_PROP_TYPE(name, type)     \
-    do {        \
-        zval *prop = zend_read_property(ddtrace_ce_span_data, span->span_data, (name), sizeof((name)) - 1, 1 TSRMLS_CC); \
-        if (Z_TYPE_P(prop) == (type)) { \
-            add_assoc_zval(el, (name), prop); \
-        } \
+#define ADD_ELEMENT_IF_PROP_TYPE(name, type)                                                                    \
+    do {                                                                                                        \
+        zval *prop =                                                                                            \
+            zend_read_property(ddtrace_ce_span_data, span->span_data, (name), sizeof((name)) - 1, 1 TSRMLS_CC); \
+        if (Z_TYPE_P(prop) == (type)) {                                                                         \
+            add_assoc_zval(el, (name), prop);                                                                   \
+        }                                                                                                       \
     } while (0);
 #else
-#define ADD_ELEMENT_IF_PROP_TYPE(name, type)     \
-    do {        \
-        zval rv; \
-        zval *prop = zend_read_property(ddtrace_ce_span_data, span->span_data, (name), sizeof((name)) - 1, 1, &rv TSRMLS_CC); \
-        if (Z_TYPE_P(prop) == (type)) { \
-            zval value; \
-            ZVAL_COPY(&value, prop); \
-            add_assoc_zval(el, (name), &value); \
-        } \
+#define ADD_ELEMENT_IF_PROP_TYPE(name, type)                                                                         \
+    do {                                                                                                             \
+        zval rv;                                                                                                     \
+        zval *prop =                                                                                                 \
+            zend_read_property(ddtrace_ce_span_data, span->span_data, (name), sizeof((name)) - 1, 1, &rv TSRMLS_CC); \
+        if (Z_TYPE_P(prop) == (type)) {                                                                              \
+            zval value;                                                                                              \
+            ZVAL_COPY(&value, prop);                                                                                 \
+            add_assoc_zval(el, (name), &value);                                                                      \
+        }                                                                                                            \
     } while (0);
 #endif
 

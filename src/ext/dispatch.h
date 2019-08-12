@@ -9,7 +9,7 @@
 
 typedef struct _ddtrace_dispatch_t {
     zval callable, function_name;
-    zend_bool append; // Remove after removing `dd_trace()`
+    zend_bool append;  // Remove after removing `dd_trace()`
     zend_bool busy;
     uint32_t acquired;
 } ddtrace_dispatch_t;
