@@ -331,16 +331,20 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     MAKE_STD_ZVAL(user_args);
     // @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_builtin_functions.c#L447-L473
     void **p = EX(function_state).arguments;
-    int arg_count = (int)(zend_uintptr_t)*p;
-    array_init_size(user_args, arg_count);
-    for (int i = 0; i < arg_count; i++) {
-        zval *element;
+    if (p && *p) {
+        int arg_count = (int)(zend_uintptr_t)*p;
+        array_init_size(user_args, arg_count);
+        for (int i = 0; i < arg_count; i++) {
+            zval *element;
 
-        ALLOC_ZVAL(element);
-        *element = **((zval **)(p - (arg_count - i)));
-        zval_copy_ctor(element);
-        INIT_PZVAL(element);
-        zend_hash_next_index_insert(Z_ARRVAL_P(user_args), &element, sizeof(zval *), NULL);
+            ALLOC_ZVAL(element);
+            *element = **((zval **)(p - (arg_count - i)));
+            zval_copy_ctor(element);
+            INIT_PZVAL(element);
+            zend_hash_next_index_insert(Z_ARRVAL_P(user_args), &element, sizeof(zval *), NULL);
+        }
+    } else {
+        array_init_size(user_args, 0);
     }
     args[1] = &user_args;
     // Arg 2: mixed $retval
