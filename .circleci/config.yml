@@ -427,13 +427,17 @@ jobs:
 
   framework_tests:
     working_directory: ~/datadog
+    parameters:
+      framework_target:
+        type: string
+        default: all
     executor:
       name: with_agent
       docker_image: circleci/php:7.3
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
-      - run: make -f dockerfiles/frameworks/Makefile all
+      - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
   verify_package:
     working_directory: ~/datadog
@@ -634,7 +638,12 @@ workflows:
             - "package extension"
       - framework_tests:
           requires: [ "package extension" ]
-          name: "Test frameworks"
+          framework_target: symfony
+          name: "Symfony testsuite"
+      - framework_tests:
+          requires: [ "package extension" ]
+          framework_target: symfony_no_ddtrace
+          name: "Symfony baseline testsuite"
       - verify_package:
           requires: [ "package extension" ]
           name: "webdevops/php:7.1"
