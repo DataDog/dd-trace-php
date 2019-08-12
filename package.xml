@@ -117,6 +117,7 @@
                     <file name="dd_trace_forward_call_with_private_callback.phpt" role="test" />
                     <file name="dd_trace_function.phpt" role="test" />
                     <file name="dd_trace_method.phpt" role="test" />
+                    <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
                     <file name="dd_trace_push_span_id.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
