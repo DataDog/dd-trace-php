@@ -1,5 +1,5 @@
 --TEST--
-dd_trace_push_span_id() Generates a 63-bit unsigned int as a string
+dd_trace_push_span_id() Generates a 63-bit unsigned int as a string and stores on a stack
 --ENV--
 DD_TRACE_DEBUG_PRNG_SEED=42
 --FILE--
@@ -7,6 +7,13 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 foreach (range(0, 9) as $i) {
     echo dd_trace_push_span_id() . "\n";
 }
+
+echo "\n";
+
+foreach (range(0, 9) as $i) {
+    echo dd_trace_pop_span_id() . "\n";
+}
+echo dd_trace_pop_span_id() . "\n";
 ?>
 --EXPECT--
 6965080426129060203
@@ -19,3 +26,15 @@ foreach (range(0, 9) as $i) {
 3439281980051283072
 2526042731581341275
 3599613534435262128
+
+3599613534435262128
+2526042731581341275
+3439281980051283072
+5299475676119306768
+867627036267489214
+8331185726714219690
+1256893659602577831
+6937315012233870725
+5894024288751747412
+6965080426129060203
+0
