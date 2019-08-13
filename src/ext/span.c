@@ -4,6 +4,7 @@
 #include <time.h>  // TODO Add config check
 
 #include "ddtrace.h"
+#include "dispatch_compat.h"
 #include "serializer.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -14,18 +15,10 @@ void ddtrace_init_span_stacks(TSRMLS_D) {
 }
 
 static void _free_span(ddtrace_span_stack_t *span) {
-#if PHP_VERSION_ID >= 70000
-    zval_ptr_dtor(span->span_data);
-#else
-    Z_DELREF_P(span->span_data);
-#endif
+    ddtrace_zval_ptr_dtor(span->span_data);
     efree(span->span_data);
     if (span->exception) {
-#if PHP_VERSION_ID >= 70000
-        zval_ptr_dtor(span->exception);
-#else
-        zval_ptr_dtor(&span->exception);
-#endif
+        ddtrace_zval_ptr_dtor(span->exception);
         efree(span->exception);
     }
     efree(span);

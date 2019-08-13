@@ -178,7 +178,11 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
         zval *prop =                                                                                            \
             zend_read_property(ddtrace_ce_span_data, span->span_data, (name), sizeof((name)) - 1, 1 TSRMLS_CC); \
         if (Z_TYPE_P(prop) == (type)) {                                                                         \
-            add_assoc_zval(el, (name), prop);                                                                   \
+            zval *value;                                                                                        \
+            ALLOC_ZVAL(value);                                                                                  \
+            INIT_PZVAL_COPY(value, prop);                                                                       \
+            zval_copy_ctor(value);                                                                              \
+            add_assoc_zval(el, (name), value);                                                                  \
         }                                                                                                       \
     } while (0);
 #else
