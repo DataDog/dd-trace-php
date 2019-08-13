@@ -1,15 +1,15 @@
 version: "3.6"
 
 services:
-  symfony:
-    depends_on: ['redis', 'nginx_file_server']
+  laravel:
+    depends_on: ['redis', 'nginx_file_server', 'memcached']
     environment:
       - "REDIS_HOST=redis"
       - "MEMCACHED_HOST=memcached"
     build:
       context: src
-      target: symfony
-    image: 'datadog/dd-trace-php:symfony-4.3-php-7.3'
+      target: laravel
+    image: 'datadog/dd-trace-php:laravel-5.8-php-7.3'
     ulimits:
       core: 99999999999
     cap_add:
