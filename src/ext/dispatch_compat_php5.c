@@ -289,7 +289,9 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
 /**
  * trace.c
  */
-void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC) {
+int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC) {
+    int fcall_status;
+
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval *retval_ptr = NULL;
@@ -305,11 +307,13 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, z
     fci.no_separation = 1;
     fci.object_ptr = fcc.object_ptr;
 
-    if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS && fci.retval_ptr_ptr && *fci.retval_ptr_ptr) {
+    fcall_status = zend_call_function(&fci, &fcc TSRMLS_CC);
+    if (fcall_status == SUCCESS && fci.retval_ptr_ptr && *fci.retval_ptr_ptr) {
         COPY_PZVAL_TO_ZVAL(*return_value, *fci.retval_ptr_ptr);
     }
 
     zend_fcall_info_args_clear(&fci, 1);
+    return fcall_status;
 }
 
 void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,

@@ -164,8 +164,10 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
 /**
  * trace.c
  */
-void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
+int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
                           zend_fcall_info_cache *fcc TSRMLS_DC) {
+    int fcall_status;
+
 #if PHP_VERSION_ID < 70300
     fcc->initialized = 1;
 #endif
@@ -180,7 +182,8 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, z
 
     ddtrace_setup_fcall(execute_data, fci, &return_value);
 
-    if (zend_call_function(fci, fcc TSRMLS_CC) == SUCCESS && Z_TYPE_P(return_value) != IS_UNDEF) {
+    fcall_status = zend_call_function(fci, fcc TSRMLS_CC);
+    if (fcall_status == SUCCESS && Z_TYPE_P(return_value) != IS_UNDEF) {
 #if PHP_VERSION_ID >= 70100
         if (Z_ISREF_P(return_value)) {
             zend_unwrap_reference(return_value);
@@ -190,6 +193,7 @@ void ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, z
 
     // We don't want to clear the args with zend_fcall_info_args_clear() yet
     // since our tracing closure might need them
+    return fcall_status;
 }
 
 void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
