@@ -3,8 +3,8 @@
 #include "dispatch_compat.h"
 #include "span.h"
 
-#include <php.h>
 #include <Zend/zend_exceptions.h>
+#include <php.h>
 
 /* Move these to a header if dispatch.c still needs it */
 #if PHP_VERSION_ID >= 70100
