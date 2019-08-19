@@ -165,7 +165,7 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
  * trace.c
  */
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
-                          zend_fcall_info_cache *fcc TSRMLS_DC) {
+                         zend_fcall_info_cache *fcc TSRMLS_DC) {
     int fcall_status;
 
 #if PHP_VERSION_ID < 70300
