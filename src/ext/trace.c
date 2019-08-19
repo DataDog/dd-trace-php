@@ -45,7 +45,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     // TODO Add dd_trace_stop_span_time() to stop the timer
     ddtrace_close_span(TSRMLS_C);
 
-    if (fcall_status == SUCCESS && Z_TYPE(dispatch->callable) == IS_OBJECT) {
+    if (fcall_status == SUCCESS && !EG(exception) && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         int orig_error_reporting = EG(error_reporting);
         EG(error_reporting) = 0;
         ddtrace_execute_tracing_closure(&dispatch->callable, stack->span_data, execute_data, user_retval TSRMLS_CC);
