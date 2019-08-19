@@ -57,7 +57,9 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
         }
     }
 
-#if PHP_VERSION_ID < 70000
+#if PHP_VERSION_ID < 50500
+    (void)opline; // TODO Make work on PHP 5.4
+#elif PHP_VERSION_ID < 70000
     // Put the original return value on the opline
     if (user_retval != NULL) {
         if (RETURN_VALUE_USED(opline)) {
