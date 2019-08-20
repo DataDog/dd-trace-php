@@ -76,7 +76,7 @@ void ddtrace_close_span(TSRMLS_D) {
     stack->duration = _get_nanoseconds() - stack->start;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
-    // TODO Serialize the span onto a buffer and free
+    // TODO Assuming the tracing closure has run at this point, we can serialize the span onto a buffer with ddtrace_coms_buffer_data() and free the span
     stack->next = DDTRACE_G(closed_spans_top);
     DDTRACE_G(closed_spans_top) = stack;
 }
