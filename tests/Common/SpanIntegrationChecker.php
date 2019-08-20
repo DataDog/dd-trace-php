@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Common;
 
+use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use PHPUnit\Framework\TestCase;
 
@@ -16,6 +17,10 @@ final class SpanIntegrationChecker
     public function defineIntegrationsByPattern()
     {
         // <regex pattern> => <integration class>
+        $pdoIntegration = 'DDTrace\Integrations\PDO\PDOIntegration';
+        if (Configuration::get()->isSandboxEnabled()) {
+            $pdoIntegration = 'DDTrace\Integrations\PDO\PDOSandboxedIntegration';
+        }
         return [
             // Prepend your operation names with custom for custom spans to have the span check disabled
             '/custom.*/' => null,
@@ -27,7 +32,7 @@ final class SpanIntegrationChecker
             '/Memcached.*/' => 'DDTrace\Integrations\Memcached\MemcachedIntegration',
             '/Mongo(Client)|(DB)|(Collection).*/' => 'DDTrace\Integrations\Mongo\MongoIntegration',
             '/mysqli.*/' => 'DDTrace\Integrations\Mysqli\MysqliIntegration',
-            '/PDO(.)|(Statement).*/' => 'DDTrace\Integrations\PDO\PDOIntegration',
+            '/PDO(.)|(Statement).*/' => $pdoIntegration,
             '/Predis.*/' => 'DDTrace\Integrations\Predis\PredisIntegration',
             '/symfony.*/' => 'DDTrace\Integrations\Symfony\SymfonyIntegration',
             '/web.*/' => 'DDTrace\Integrations\Web\WebIntegration',

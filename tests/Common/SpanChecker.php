@@ -36,13 +36,16 @@ final class SpanChecker
             return $assertion->getOperationName();
         }, $expectedSpans);
         $tracesReferences = array_map(function (array $span) {
-            return $span['name'];
+            return isset($span['name']) ? $span['name'] : '';
         }, $flattenTraces);
 
         $expectedOperationsAndResources = array_map(function (SpanAssertion $assertion) {
             return $assertion->getOperationName() . ' - ' . ($assertion->getResource() ?: 'not specified');
         }, $expectedSpans);
         $actualOperationsAndResources = array_map(function (array $span) {
+            if (!isset($span['name'], $span['resource'])) {
+                return '';
+            }
             return $span['name'] . ' - ' . $span['resource'];
         }, $flattenTraces);
         $this->testCase->assertEquals(
@@ -76,12 +79,12 @@ final class SpanChecker
 
         $this->testCase->assertSame(
             $exp->getOperationName(),
-            $span['name'],
+            isset($span['name']) ? $span['name'] : '',
             $namePrefix . "Wrong value for 'operation name'"
         );
         $this->testCase->assertSame(
             $exp->hasError(),
-            1 === $span['error'],
+            isset($span['error']) && 1 === $span['error'],
             $namePrefix . "Wrong value for 'error'"
         );
         if ($exp->getExactTags() != SpanAssertion::NOT_TESTED) {
@@ -96,7 +99,10 @@ final class SpanChecker
                 $filtered,
                 $namePrefix . "Wrong value for 'tags'"
             );
-            foreach ($exp->getExistingTagNames(isset($span['parent_id'])) as $tagName) {
+            // TODO Auto-add system.pid to root span at C level
+            // @see https://github.com/DataDog/dd-trace-php/blob/968655dfba7c230ed64e247ee1ef91552b1071ac/src/DDTrace/Tracer.php#L211
+            $hasNoPid = isset($span['parent_id']) || !isset($span['error']); // "error" is not exposed for internal spans
+            foreach ($exp->getExistingTagNames($hasNoPid) as $tagName) {
                 $this->testCase->assertArrayHasKey($tagName, $span['meta']);
             }
         }
