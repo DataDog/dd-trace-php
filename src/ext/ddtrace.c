@@ -79,25 +79,7 @@ zend_class_entry *ddtrace_ce_span_data;
 static void register_span_data_ce(TSRMLS_D) {
     zend_class_entry ce_span_data;
     INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", NULL);
-#if PHP_VERSION_ID < 70000
-    ddtrace_ce_span_data = zend_register_internal_class_ex(&ce_span_data, NULL, NULL TSRMLS_CC);
-#else
-    ddtrace_ce_span_data = zend_register_internal_class_ex(&ce_span_data, NULL);
-#endif
-
-    // TODO Add the rest of these
-    // TODO Generate from array of meta keys
-    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_ENV", sizeof("META_ENV") - 1, 0 TSRMLS_CC);
-    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_SPAN_TYPE", sizeof("META_SPAN_TYPE") - 1, 1 TSRMLS_CC);
-    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_MANUAL_KEEP", sizeof("META_MANUAL_KEEP") - 1,
-                                     2 TSRMLS_CC);
-    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_MANUAL_DROP", sizeof("META_MANUAL_DROP") - 1,
-                                     3 TSRMLS_CC);
-    zend_declare_class_constant_long(ddtrace_ce_span_data, "META_PID", sizeof("META_PID") - 1, 4 TSRMLS_CC);
-
-    // TODO Generate from array of metric keys when we get a lot more of these
-    zend_declare_class_constant_long(ddtrace_ce_span_data, "METRIC_ANALYTICS_KEY", sizeof("METRIC_ANALYTICS_KEY") - 1,
-                                     0 TSRMLS_CC);
+    ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data TSRMLS_CC);
 
     // trace_id, span_id, parent_id, start & duration are stored directly on
     // ddtrace_span_stack_t so we don't need to make them properties on DDTrace\SpanData
