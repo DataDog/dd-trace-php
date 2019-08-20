@@ -60,10 +60,22 @@ ddtrace_span_stack_t *ddtrace_open_span(TSRMLS_D) {
     stack->span_id = ddtrace_push_span_id(TSRMLS_C);
     // Set the trace_id last so we have ID's on the stack
     stack->trace_id = DDTRACE_G(root_span_id);
-    stack->duration = 0;
+    // _get_nanoseconds() is subtracted from "duration" when the span is stopped
+    stack->duration = _get_nanoseconds();
     stack->exception = NULL;
-    stack->start = _get_nanoseconds();
+    // Start time is nanoseconds from unix epoch
+    // @see https://docs.datadoghq.com/api/?lang=python#send-traces
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) == 0) {
+        stack->start = tv.tv_sec * 1000000000L + tv.tv_usec * 1000;
+    } else {
+        stack->start = 0;
+    }
     return stack;
+}
+
+void dd_trace_stop_span_time(ddtrace_span_stack_t *span) {
+    span->duration = _get_nanoseconds() - span->duration;
 }
 
 void ddtrace_close_span(TSRMLS_D) {
@@ -72,8 +84,6 @@ void ddtrace_close_span(TSRMLS_D) {
         return;
     }
     DDTRACE_G(open_spans_top) = stack->next;
-
-    stack->duration = _get_nanoseconds() - stack->start;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
     // TODO Assuming the tracing closure has run at this point, we can serialize the span onto a buffer with ddtrace_coms_buffer_data() and free the span

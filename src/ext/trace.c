@@ -35,7 +35,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     user_retval = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
 #endif
 
-    ddtrace_span_stack_t *stack = ddtrace_open_span(TSRMLS_C);
+    ddtrace_span_stack_t *span = ddtrace_open_span(TSRMLS_C);
 #if PHP_VERSION_ID < 70000
     fcall_status = ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
 #else
@@ -43,13 +43,12 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     zend_fcall_info_cache fcc = {0};
     fcall_status = ddtrace_forward_call(EX(call), fbc, user_retval, &fci, &fcc TSRMLS_CC);
 #endif
-    // TODO Add dd_trace_stop_span_time() to stop the timer
-    ddtrace_close_span(TSRMLS_C);
+    dd_trace_stop_span_time(span);
 
     if (fcall_status == SUCCESS && !EG(exception) && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         int orig_error_reporting = EG(error_reporting);
         EG(error_reporting) = 0;
-        ddtrace_execute_tracing_closure(&dispatch->callable, stack->span_data, execute_data, user_retval TSRMLS_CC);
+        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, user_retval TSRMLS_CC);
         EG(error_reporting) = orig_error_reporting;
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
@@ -57,6 +56,8 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
             zend_clear_exception(TSRMLS_C);
         }
     }
+
+    ddtrace_close_span(TSRMLS_C);
 
 #if PHP_VERSION_ID < 50500
     (void)opline;  // TODO Make work on PHP 5.4
