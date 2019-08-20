@@ -349,9 +349,9 @@ static PHP_FUNCTION(dd_trace_forward_call) {
     }
 
 #if PHP_VERSION_ID >= 70000
-    ddtrace_forward_call_from_userland(execute_data, return_value TSRMLS_CC);
+    ddtrace_wrapper_forward_call_from_userland(execute_data, return_value TSRMLS_CC);
 #else
-    ddtrace_forward_call_from_userland(EG(current_execute_data), return_value TSRMLS_CC);
+    ddtrace_wrapper_forward_call_from_userland(EG(current_execute_data), return_value TSRMLS_CC);
 #endif
 }
 

@@ -73,7 +73,7 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
 
 // This function is used by dd_trace_forward_call() from userland and can be removed
 // when we remove dd_trace() and dd_trace_forward_call() from userland.
-void ddtrace_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
+void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
     zval fname, retval;
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
