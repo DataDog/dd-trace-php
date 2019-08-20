@@ -655,14 +655,14 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 #define RETURN_SPAN_ID(id_fn)                            \
     do {                                                 \
         char buf[20];                                    \
-        php_sprintf(buf, "%" PRIu64, (id_fn)(TSRMLS_C)); \
+        snprintf(buf, 20, "%" PRIu64, (id_fn)(TSRMLS_C)); \
         RETURN_STRING(buf);                              \
     } while (0);
 #else
 #define RETURN_SPAN_ID(id_fn)                            \
     do {                                                 \
         char buf[20];                                    \
-        php_sprintf(buf, "%" PRIu64, (id_fn)(TSRMLS_C)); \
+        snprintf(buf, 20, "%" PRIu64, (id_fn)(TSRMLS_C)); \
         RETURN_STRING(buf, 1);                           \
     } while (0);
 #endif
