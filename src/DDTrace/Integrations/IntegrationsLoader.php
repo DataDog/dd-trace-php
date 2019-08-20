@@ -14,6 +14,7 @@ use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
+use DDTrace\Integrations\PDO\PDOSandboxedIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
@@ -71,6 +72,10 @@ class IntegrationsLoader
     public function __construct(array $integrations)
     {
         $this->integrations = $integrations;
+        // Sandboxed integrations - eventually this will replace all the integrations
+        if (Configuration::get()->isSandboxEnabled()) {
+            $this->integrations[PDOSandboxedIntegration::NAME] = '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
+        }
     }
 
     /**
@@ -180,6 +185,12 @@ class IntegrationsLoader
     public static function load()
     {
         self::get()->loadAll();
+    }
+
+    public static function reload()
+    {
+        self::$instance = null;
+        self::load();
     }
 
     public function reset()

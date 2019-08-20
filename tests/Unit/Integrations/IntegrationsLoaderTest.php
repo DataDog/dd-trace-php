@@ -35,6 +35,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isEnabled' => false,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
 
         DummyIntegration1::$value = Integration::LOADED;
@@ -50,6 +51,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             'isEnabled' => true,
             'isIntegrationEnabled' => false,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
 
         DummyIntegration1::$value = Integration::LOADED;
@@ -65,6 +67,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -82,6 +85,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -105,6 +109,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -128,6 +133,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 

@@ -347,11 +347,12 @@ final class Tracer implements TracerInterface
      */
     public function getTracesAsArray()
     {
-        $tracesToBeSent = [];
+        $internalSpans = dd_trace_serialize_closed_spans();
+        $tracesToBeSent = $internalSpans ? [$internalSpans] : [];
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
 
         foreach ($this->traces as $trace) {
-            $traceToBeSent = dd_trace_serialize_closed_spans();
+            $traceToBeSent = [];
             foreach ($trace as $span) {
                 if ($span->duration === null) { // is span not finished
                     if (!$autoFinishSpans) {
