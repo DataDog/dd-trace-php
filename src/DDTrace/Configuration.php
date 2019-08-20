@@ -151,6 +151,16 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Whether or not sandboxed tracing closures are enabled.
+     *
+     * @return bool
+     */
+    public function isSandboxEnabled()
+    {
+        return $this->boolValue('trace.sandbox.enabled', false);
+    }
+
+    /**
      * The name of the application.
      *
      * @param string $default
