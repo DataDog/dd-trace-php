@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+### Added
+- Sandboxing API's for tracing closures: `dd_trace_function()` and `dd_trace_method()` #491
+
 ## [0.30.0]
 
 ### Fixed
