@@ -248,6 +248,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
     zval rv;
     INIT_ZVAL(rv);
     zval args[3];
+    zval *this = ddtrace_this(execute_data);
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
@@ -266,10 +267,22 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
     fci.param_count = 3;
     fci.params = args;
     fci.retval = &rv;
+
+#if PHP_VERSION_ID < 70300
+    fcc.initialized = 1;
+#endif
+    fcc.object = this ? Z_OBJ_P(this) : NULL;
+    fcc.called_scope = fcc.object ? fcc.object->ce : NULL;
+
     if (zend_call_function(&fci, &fcc) == FAILURE) {
         ddtrace_log_debug("Could not execute tracing closure");
     }
 
     zval_ptr_dtor(&rv);
+    zend_fcall_info_args_clear(&fci, 0);
+
+    if (this) {  // May need to check: EX_CALL_INFO() & ZEND_CALL_RELEASE_THIS
+        OBJ_RELEASE(Z_OBJ_P(this));
+    }
 }
 #endif  // PHP_VERSION_ID >= 70000

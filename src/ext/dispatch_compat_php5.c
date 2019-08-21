@@ -338,6 +338,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
     zend_fcall_info_cache fcc = {0};
     zval *retval_ptr = NULL;
     zval **args[3];
+    zval *this = ddtrace_this(execute_data);
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
@@ -356,6 +357,11 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
     fci.param_count = 3;
     fci.params = args;
     fci.retval_ptr_ptr = &retval_ptr;
+
+    fcc.initialized = 1;
+    fcc.object_ptr = this;
+    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : NULL;
+
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not execute tracing closure");
     }
@@ -364,5 +370,9 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
         zval_ptr_dtor(&retval_ptr);
     }
     zend_fcall_info_args_clear(&fci, 0);
+
+    if (this) {
+        Z_DELREF_P(this);
+    }
 }
 #endif  // PHP 5

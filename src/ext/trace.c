@@ -81,16 +81,6 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     }
 #endif
 
-#if PHP_VERSION_ID < 70000
-    if (this) {
-        Z_DELREF_P(this);
-    }
-#else
-    if (this) {  // May need to check: EX_CALL_INFO() & ZEND_CALL_RELEASE_THIS
-        OBJ_RELEASE(Z_OBJ_P(this));
-    }
-#endif
-
 #if PHP_VERSION_ID < 50500
     // Free any remaining args
     zend_vm_stack_clear_multiple(TSRMLS_C);
