@@ -15,6 +15,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_CHECK_LIBRARY(rt, shm_open, [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"])
   PHP_CHECK_LIBRARY(curl, curl_easy_setopt, [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lcurl"])
+  AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
   PHP_SUBST(EXTRA_LDFLAGS)
 
   PHP_ADD_INCLUDE($ext_builddir)
