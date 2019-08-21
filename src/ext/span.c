@@ -7,6 +7,9 @@
 #include "dispatch_compat.h"
 #include "serializer.h"
 
+#define USE_REALTIME_CLOCK 0
+#define USE_MONOTONIC_CLOCK 1
+
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 void ddtrace_init_span_stacks(TSRMLS_D) {
@@ -39,9 +42,9 @@ void ddtrace_free_span_stacks(TSRMLS_D) {
     DDTRACE_G(closed_spans_top) = NULL;
 }
 
-static uint64_t _get_nanoseconds() {
+static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
     struct timespec time;
-    if (clock_gettime(CLOCK_MONOTONIC, &time) == 0) {
+    if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
         return time.tv_sec * 1000000000L + time.tv_nsec;
     }
     return 0;
@@ -60,22 +63,16 @@ ddtrace_span_stack_t *ddtrace_open_span(TSRMLS_D) {
     stack->span_id = ddtrace_push_span_id(TSRMLS_C);
     // Set the trace_id last so we have ID's on the stack
     stack->trace_id = DDTRACE_G(root_span_id);
-    // _get_nanoseconds() is subtracted from "duration" when the span is stopped
-    stack->duration = _get_nanoseconds();
+    stack->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
     stack->exception = NULL;
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    struct timeval tv;
-    if (gettimeofday(&tv, NULL) == 0) {
-        stack->start = tv.tv_sec * 1000000000L + tv.tv_usec * 1000;
-    } else {
-        stack->start = 0;
-    }
+    stack->start = _get_nanoseconds(USE_REALTIME_CLOCK);
     return stack;
 }
 
 void dd_trace_stop_span_time(ddtrace_span_stack_t *span) {
-    span->duration = _get_nanoseconds() - span->duration;
+    span->duration = _get_nanoseconds(USE_MONOTONIC_CLOCK) - span->duration_start;
 }
 
 void ddtrace_close_span(TSRMLS_D) {

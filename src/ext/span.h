@@ -11,7 +11,10 @@ typedef struct _ddtrace_span_stack_t {
     uint64_t parent_id;
     uint64_t span_id;
     uint64_t start;
-    uint64_t duration;
+    union {
+        uint64_t duration_start;
+        uint64_t duration;
+    };
     struct _ddtrace_span_stack_t *next;
 } ddtrace_span_stack_t;
 
