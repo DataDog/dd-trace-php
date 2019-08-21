@@ -89,7 +89,7 @@ void ddtrace_dispatch_inject(TSRMLS_D) {
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, ddtrace_wrap_fcall);
 }
 
-zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, zend_bool append TSRMLS_DC) {
+zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, zend_bool run_as_postprocess TSRMLS_DC) {
     HashTable *overridable_lookup = NULL;
     if (class_name && DDTRACE_G(class_lookup)) {
 #if PHP_VERSION_ID < 70000
@@ -125,7 +125,7 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, z
 
     dispatch.callable = *callable;
     zval_copy_ctor(&dispatch.callable);
-    dispatch.append = append;
+    dispatch.run_as_postprocess = run_as_postprocess;
 
 #if PHP_VERSION_ID < 70000
     ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);
