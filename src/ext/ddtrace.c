@@ -652,18 +652,18 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 }
 
 #if PHP_VERSION_ID >= 70000
-#define RETURN_SPAN_ID(id_fn)                            \
-    do {                                                 \
-        char buf[20];                                    \
+#define RETURN_SPAN_ID(id_fn)                             \
+    do {                                                  \
+        char buf[20];                                     \
         snprintf(buf, 20, "%" PRIu64, (id_fn)(TSRMLS_C)); \
-        RETURN_STRING(buf);                              \
+        RETURN_STRING(buf);                               \
     } while (0);
 #else
-#define RETURN_SPAN_ID(id_fn)                            \
-    do {                                                 \
-        char buf[20];                                    \
+#define RETURN_SPAN_ID(id_fn)                             \
+    do {                                                  \
+        char buf[20];                                     \
         snprintf(buf, 20, "%" PRIu64, (id_fn)(TSRMLS_C)); \
-        RETURN_STRING(buf, 1);                           \
+        RETURN_STRING(buf, 1);                            \
     } while (0);
 #endif
 

@@ -83,7 +83,8 @@ void ddtrace_close_span(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = span->next;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
-    // TODO Assuming the tracing closure has run at this point, we can serialize the span onto a buffer with ddtrace_coms_buffer_data() and free the span
+    // TODO Assuming the tracing closure has run at this point, we can serialize the span onto a buffer with
+    // ddtrace_coms_buffer_data() and free the span
     span->next = DDTRACE_G(closed_spans_top);
     DDTRACE_G(closed_spans_top) = span;
 }
