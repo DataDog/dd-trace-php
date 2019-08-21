@@ -11,6 +11,7 @@
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "env_config.h"
+#include "logging.h"
 #include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
@@ -175,8 +176,6 @@ static int get_args(zval *args, zend_execute_data *ex) {
     return 1;
 }
 
-// This function is used by dd_trace_forward_call() from userland and can be removed
-// when we remove dd_trace() and dd_trace_forward_call() from userland.
 void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
     zval *retval_ptr = NULL;
     zend_fcall_info fci;
@@ -286,9 +285,6 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
     return TRUE;
 }
 
-/**
- * trace.c
- */
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC) {
     int fcall_status;
 
@@ -324,7 +320,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     zval **args[3];
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
-        // TODO Log error
+        ddtrace_log_debug("Could not init tracing closure");
         return;
     }
     // Arg 0: DDTrace\SpanData $span
@@ -358,7 +354,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     fci.params = args;
     fci.retval_ptr_ptr = &retval_ptr;
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
-        // TODO Log error
+        ddtrace_log_debug("Could not execute tracing closure");
     }
 
     zval_ptr_dtor(&user_args);

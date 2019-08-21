@@ -5,6 +5,7 @@
 
 #include "dispatch.h"
 #include "dispatch_compat.h"
+#include "logging.h"
 #include "span.h"
 
 /* Move these to a header if dispatch.c still needs it */
@@ -52,7 +53,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
         EG(error_reporting) = orig_error_reporting;
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
-            // TODO Log the exception
+            ddtrace_log_debug("Exeception thrown in the tracing closure");
             zend_clear_exception(TSRMLS_C);
         }
     }
