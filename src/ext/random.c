@@ -33,8 +33,8 @@ void ddtrace_free_span_id_stack(TSRMLS_D) {
 
 uint64_t ddtrace_push_span_id(TSRMLS_D) {
     ddtrace_span_ids_t *stack = ecalloc(1, sizeof(ddtrace_span_ids_t));
-    // We shift one bit to get 63-bit
-    stack->id = (uint64_t)(genrand64_int64() >> 1);
+    // Shift one bit to get 63-bit; add 1 since "0" can indicate a root span
+    stack->id = (uint64_t)((genrand64_int64() >> 1) + 1);
     stack->next = DDTRACE_G(span_ids_top);
     DDTRACE_G(span_ids_top) = stack;
     // Assuming the first call this function is for the root span
