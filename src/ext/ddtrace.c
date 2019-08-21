@@ -82,7 +82,7 @@ static void register_span_data_ce(TSRMLS_D) {
     ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data TSRMLS_CC);
 
     // trace_id, span_id, parent_id, start & duration are stored directly on
-    // ddtrace_span_stack_t so we don't need to make them properties on DDTrace\SpanData
+    // ddtrace_span_t so we don't need to make them properties on DDTrace\SpanData
     zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
     zend_declare_property_null(ddtrace_ce_span_data, "service", sizeof("service") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);

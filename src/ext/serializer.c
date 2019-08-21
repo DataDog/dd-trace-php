@@ -199,7 +199,7 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
     } while (0);
 #endif
 
-void ddtrace_serialize_span_to_array(ddtrace_span_stack_t *span, zval *array TSRMLS_DC) {
+void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC) {
     zval *el;
 #if PHP_VERSION_ID < 70000
     ALLOC_INIT_ZVAL(el);

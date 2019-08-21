@@ -36,7 +36,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     user_retval = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
 #endif
 
-    ddtrace_span_stack_t *span = ddtrace_open_span(TSRMLS_C);
+    ddtrace_span_t *span = ddtrace_open_span(TSRMLS_C);
 #if PHP_VERSION_ID < 70000
     fcall_status = ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
 #else
