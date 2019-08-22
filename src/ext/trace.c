@@ -56,10 +56,17 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     }
 
     if (fcall_status == SUCCESS && Z_TYPE(dispatch->callable) == IS_OBJECT) {
+        zend_error_handling error_handling;
         int orig_error_reporting = EG(error_reporting);
         EG(error_reporting) = 0;
+#if PHP_VERSION_ID < 70000
+        zend_replace_error_handling(EH_SUPPRESS, NULL, &error_handling TSRMLS_CC);
+#else
+        zend_replace_error_handling(EH_THROW, NULL, &error_handling TSRMLS_CC);
+#endif
         ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, &user_args, user_retval,
                                         exception TSRMLS_CC);
+        zend_restore_error_handling(&error_handling TSRMLS_CC);
         EG(error_reporting) = orig_error_reporting;
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
