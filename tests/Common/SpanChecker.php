@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Common;
 
+use DDTrace\Tag;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -105,6 +106,13 @@ final class SpanChecker
             foreach ($exp->getExistingTagNames($hasNoPid) as $tagName) {
                 $this->testCase->assertArrayHasKey($tagName, $span['meta']);
             }
+        }
+        if ($exp->isSandboxedTraceAnalyticsCandidate()) {
+            TestCase::assertArrayHasKey(
+                Tag::ANALYTICS_KEY,
+                isset($span['metrics']) ? $span['metrics'] : [],
+                $namePrefix . 'Trace Analytics key expected but not found'
+            );
         }
         if ($exp->getExactMetrics() !== SpanAssertion::NOT_TESTED) {
             $this->testCase->assertEquals(
