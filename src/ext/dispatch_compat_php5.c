@@ -1,6 +1,7 @@
 #include "php.h"
 #if PHP_VERSION_ID < 70000
 
+#include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
 
 #include <ext/spl/spl_exceptions.h>
@@ -10,6 +11,8 @@
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "env_config.h"
+#include "logging.h"
+#include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
@@ -173,7 +176,7 @@ static int get_args(zval *args, zend_execute_data *ex) {
     return 1;
 }
 
-void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
+void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
     zval *retval_ptr = NULL;
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;
@@ -280,5 +283,85 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
     }
 
     return TRUE;
+}
+
+int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC) {
+    int fcall_status;
+
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
+    zval *retval_ptr = NULL;
+
+    fcc.initialized = 1;
+    fcc.function_handler = fbc;
+    fcc.object_ptr = ddtrace_this(execute_data);
+    fcc.calling_scope = fbc->common.scope;  // EG(scope);
+    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : fbc->common.scope;
+
+    ddtrace_setup_fcall(execute_data, &fci, &retval_ptr TSRMLS_CC);
+    fci.size = sizeof(fci);
+    fci.no_separation = 1;
+    fci.object_ptr = fcc.object_ptr;
+
+    fcall_status = zend_call_function(&fci, &fcc TSRMLS_CC);
+    if (fcall_status == SUCCESS && fci.retval_ptr_ptr && *fci.retval_ptr_ptr) {
+        COPY_PZVAL_TO_ZVAL(*return_value, *fci.retval_ptr_ptr);
+    }
+
+    zend_fcall_info_args_clear(&fci, 1);
+    return fcall_status;
+}
+
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+                                     zval *user_retval TSRMLS_DC) {
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
+    zval *retval_ptr = NULL;
+    zval **args[3];
+
+    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
+        ddtrace_log_debug("Could not init tracing closure");
+        return;
+    }
+    // Arg 0: DDTrace\SpanData $span
+    args[0] = &span_data;
+    Z_ADDREF_P(span_data);
+    // Arg 1: array $args
+    zval *user_args = NULL;
+    MAKE_STD_ZVAL(user_args);
+    // @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_builtin_functions.c#L447-L473
+    void **p = EX(function_state).arguments;
+    if (p && *p) {
+        int arg_count = (int)(zend_uintptr_t)*p;
+        array_init_size(user_args, arg_count);
+        for (int i = 0; i < arg_count; i++) {
+            zval *element;
+
+            ALLOC_ZVAL(element);
+            *element = **((zval **)(p - (arg_count - i)));
+            zval_copy_ctor(element);
+            INIT_PZVAL(element);
+            zend_hash_next_index_insert(Z_ARRVAL_P(user_args), &element, sizeof(zval *), NULL);
+        }
+    } else {
+        array_init_size(user_args, 0);
+    }
+    args[1] = &user_args;
+    // Arg 2: mixed $retval
+    args[2] = &user_retval;
+
+    fci.param_count = 3;
+    fci.params = args;
+    fci.retval_ptr_ptr = &retval_ptr;
+    if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
+        ddtrace_log_debug("Could not execute tracing closure");
+    }
+
+    zval_ptr_dtor(&user_args);
+
+    if (fci.retval_ptr_ptr && retval_ptr) {
+        zval_ptr_dtor(&retval_ptr);
+    }
+    zend_fcall_info_args_clear(&fci, 0);
 }
 #endif  // PHP 5

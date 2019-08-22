@@ -3,7 +3,7 @@
 namespace DDTrace\Encoders;
 
 use DDTrace\Span;
-use DDTrace\Data\Span as SpanData;
+use DDTrace\Data\Span as DataSpan;
 use DDTrace\GlobalTracer;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Sampling\PrioritySampling;
@@ -13,10 +13,10 @@ final class SpanEncoder
     use LoggingTrait;
 
     /**
-     * @param SpanData $span
+     * @param DataSpan $span
      * @return array
      */
-    public static function encode(SpanData $span)
+    public static function encode(DataSpan $span)
     {
         self::logSpanDetailsIfDebug($span);
 
