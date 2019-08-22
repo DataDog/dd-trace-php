@@ -21,6 +21,7 @@ final class SpanAssertion
     private $resource = SpanAssertion::NOT_TESTED;
     private $onlyCheckExistence = false;
     private $isTraceAnalyticsCandidate = false;
+    private $isSandboxedTraceAnalyticsCandidate = false;
 
     /**
      * @param string $name
@@ -259,6 +260,23 @@ final class SpanAssertion
     public function isTraceAnalyticsCandidate()
     {
         return $this->isTraceAnalyticsCandidate;
+    }
+
+    /**
+     * @return self
+     */
+    public function setSandboxedTraceAnalyticsCandidate()
+    {
+        $this->isSandboxedTraceAnalyticsCandidate = true;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isSandboxedTraceAnalyticsCandidate()
+    {
+        return $this->isSandboxedTraceAnalyticsCandidate;
     }
 
     /**
