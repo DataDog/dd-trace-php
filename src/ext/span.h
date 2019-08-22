@@ -6,9 +6,13 @@
 
 #include "compatibility.h"
 
-typedef struct _ddtrace_span_t {
+typedef struct ddtrace_span_t {
     zval *span_data;
+#if PHP_VERSION_ID < 70000
     zval *exception;
+#else
+    zend_object *exception;
+#endif
     uint64_t trace_id;
     uint64_t parent_id;
     uint64_t span_id;
@@ -17,7 +21,7 @@ typedef struct _ddtrace_span_t {
         uint64_t duration_start;
         uint64_t duration;
     };
-    struct _ddtrace_span_t *next;
+    struct ddtrace_span_t *next;
 } ddtrace_span_t;
 
 void ddtrace_init_span_stacks(TSRMLS_D);

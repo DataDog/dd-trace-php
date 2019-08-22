@@ -18,12 +18,19 @@ void ddtrace_init_span_stacks(TSRMLS_D) {
 }
 
 static void _free_span(ddtrace_span_t *span) {
-    ddtrace_zval_ptr_dtor(span->span_data);
+#if PHP_VERSION_ID < 70000
+    zval_ptr_dtor(&span->span_data);
+    if (span->exception) {
+        zval_ptr_dtor(&span->exception);
+    }
+#else
+    zval_ptr_dtor(span->span_data);
     efree(span->span_data);
     if (span->exception) {
-        ddtrace_zval_ptr_dtor(span->exception);
-        efree(span->exception);
+        OBJ_RELEASE(span->exception);
     }
+#endif
+
     efree(span);
 }
 
@@ -55,11 +62,11 @@ ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
     span->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = span;
 
-    span->span_data = (zval *)ecalloc(1, sizeof(zval));
-
     /* On PHP 5 object_init_ex does not set refcount to 1, but on PHP 7 it does */
 #if PHP_VERSION_ID < 70000
-    Z_ADDREF_P(span->span_data);
+    MAKE_STD_ZVAL(span->span_data);
+#else
+    span->span_data = (zval *)ecalloc(1, sizeof(zval));
 #endif
     object_init_ex(span->span_data, ddtrace_ce_span_data);
 

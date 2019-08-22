@@ -41,6 +41,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     dd_trace_stop_span_time(span);
 
     ddtrace_copy_function_args(execute_data, &user_args);
+    ddtrace_span_attach_exception(span, EG(exception));
 
     if (fcall_status == SUCCESS && !EG(exception) && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         int orig_error_reporting = EG(error_reporting);
