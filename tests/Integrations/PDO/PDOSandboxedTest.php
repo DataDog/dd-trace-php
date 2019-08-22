@@ -17,6 +17,7 @@ final class PDOSandboxedTest extends IntegrationTestCase
     {
         parent::setUpBeforeClass();
         putenv('DD_TRACE_SANDBOX_ENABLED=true');
+        putenv('DD_PDO_ANALYTICS_ENABLED=true');
         IntegrationsLoader::reload();
     }
 
@@ -32,22 +33,20 @@ final class PDOSandboxedTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    public function testPDOContructOk()
+    public function testPDOConstructOk()
     {
         $traces = $this->isolateTracer(function () {
                 $this->pdoInstance();
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('PDO.__construct', 'PDO', 'db', 'PDO.__construct')
-                // TODO Add this back when binding $this
-                //->withExactTags($this->baseTags()),
-                ->withExactTags([]),
+            SpanAssertion::build('PDO.__construct', 'PDO', 'sql', 'PDO.__construct')
+                ->withExactTags($this->baseTags()),
         ]);
     }
 
-    // Add this back after exception PR gets merged
+    // TODO Add this back after exception PR gets merged
     /*
-    public function testPDOContructError()
+    public function testPDOConstructError()
     {
         $traces = $this->isolateTracer(function () {
             try {
@@ -73,16 +72,18 @@ final class PDOSandboxedTest extends IntegrationTestCase
             $pdo = null;
         });
         $this->assertSpans($traces, [
-            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::exists('PDO.commit'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
-                ->setTraceAnalyticsCandidate()
+                ->setSandboxedTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '1',
                 ])),
-            SpanAssertion::exists('PDO.commit'),
+            SpanAssertion::exists('PDO.__construct'),
         ]);
     }
 
+    // TODO Add this back after exception PR gets merged
+    /*
     public function testPDOExecError()
     {
         $query = "WRONG QUERY)";
@@ -107,7 +108,10 @@ final class PDOSandboxedTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.commit'),
         ]);
     }
+    */
 
+    // TODO Add this back after exception PR gets merged
+    /*
     public function testPDOExecException()
     {
         $query = "WRONG QUERY)";
@@ -131,6 +135,7 @@ final class PDOSandboxedTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags()),
         ]);
     }
+    */
 
     public function testPDOQuery()
     {
@@ -141,15 +146,17 @@ final class PDOSandboxedTest extends IntegrationTestCase
             $pdo = null;
         });
         $this->assertSpans($traces, [
-            SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '1',
                 ])),
+            SpanAssertion::exists('PDO.__construct'),
         ]);
     }
 
+    // TODO Add this back after exception PR gets merged
+    /*
     public function testPDOQueryError()
     {
         $query = "WRONG QUERY";
@@ -171,7 +178,10 @@ final class PDOSandboxedTest extends IntegrationTestCase
                 ])),
         ]);
     }
+    */
 
+    // TODO Add this back after exception PR gets merged
+    /*
     public function testPDOQueryException()
     {
         $query = "WRONG QUERY";
@@ -192,6 +202,7 @@ final class PDOSandboxedTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags()),
         ]);
     }
+    */
 
     public function testPDOCommit()
     {
@@ -204,10 +215,10 @@ final class PDOSandboxedTest extends IntegrationTestCase
             $pdo = null;
         });
         $this->assertSpans($traces, [
-            SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::exists('PDO.exec'),
             SpanAssertion::build('PDO.commit', 'PDO', 'sql', 'PDO.commit')
                 ->withExactTags(array_merge($this->baseTags(), [])),
+            SpanAssertion::exists('PDO.exec'),
+            SpanAssertion::exists('PDO.__construct'),
         ]);
     }
 
@@ -225,13 +236,6 @@ final class PDOSandboxedTest extends IntegrationTestCase
             $pdo = null;
         });
         $this->assertSpans($traces, [
-            SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build(
-                'PDO.prepare',
-                'PDO',
-                'sql',
-                "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags(array_merge($this->baseTags(), [])),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'PDO',
@@ -240,11 +244,20 @@ final class PDOSandboxedTest extends IntegrationTestCase
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
-                'db.rowcount' => 1,
+                    'db.rowcount' => '1',
                 ])),
+            SpanAssertion::build(
+                'PDO.prepare',
+                'PDO',
+                'sql',
+                "SELECT * FROM tests WHERE id = ?"
+            )->withExactTags(array_merge($this->baseTags(), [])),
+            SpanAssertion::exists('PDO.__construct'),
         ]);
     }
 
+    // TODO Add this back after exception PR gets merged
+    /*
     public function testPDOStatementError()
     {
         $query = "WRONG QUERY";
@@ -272,7 +285,10 @@ final class PDOSandboxedTest extends IntegrationTestCase
                     ])),
         ]);
     }
+    */
 
+    // TODO Add this back after exception PR gets merged
+    /*
     public function testPDOStatementException()
     {
         $query = "WRONG QUERY";
@@ -299,7 +315,10 @@ final class PDOSandboxedTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags()),
         ]);
     }
+    */
 
+    // TODO Add limited tracer to sandboxed closures
+    /*
     public function testLimitedTracerPDO()
     {
         $query = "SELECT * FROM tests WHERE id = ?";
@@ -315,6 +334,30 @@ final class PDOSandboxedTest extends IntegrationTestCase
         });
 
         $this->assertEmpty($traces);
+    }
+    */
+
+    // @see https://github.com/DataDog/dd-trace-php/issues/510
+    public function testPDOStatementsAreReleased()
+    {
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = new \PDO(
+                $this->mysqlDns(),
+                self::MYSQL_USER,
+                self::MYSQL_PASSWORD,
+                [\PDO::ATTR_EMULATE_PREPARES => false]
+            );
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([1]);
+            unset($stmt);
+
+            $pdo->prepare($query)->execute([2]);
+
+            $closedCount = $pdo->query("SHOW SESSION STATUS LIKE 'Com_stmt_close'")->fetchColumn(1);
+
+            $this->assertEquals(2, $closedCount);
+        });
     }
 
     private function pdoInstance()
