@@ -81,7 +81,9 @@ class SymfonyBundle extends Bundle
 
                 try {
                     $response = dd_trace_forward_call();
-                    $symfonyRequestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
+                    if ($response) {
+                        $symfonyRequestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
+                    }
                 } catch (\Exception $e) {
                     $span = $scope->getSpan();
                     $span->setError($e);
