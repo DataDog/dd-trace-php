@@ -30,9 +30,8 @@ static zend_always_inline zval *ddtrace_this(zend_execute_data *execute_data) {
     }
 #else
     if (_EX(call)) {
-        this = &(_EX(call)->This);
-        if (Z_OBJ_P(this) == NULL) {
-            this = NULL;
+        if (Z_OBJ(_EX(call)->This) != NULL) {
+            this = &(_EX(call)->This);
         }
     }
 #endif
@@ -68,8 +67,20 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name);
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch);
 HashTable *ddtrace_new_class_lookup(zval *clazz TSRMLS_DC);
 zend_bool ddtrace_dispatch_store(HashTable *class_lookup, ddtrace_dispatch_t *dispatch);
-void ddtrace_forward_call(zend_execute_data *execute_data, zval *return_value TSRMLS_DC);
+void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC);
 BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
                                  ddtrace_dispatch_t **dispatch TSRMLS_DC);
+
+/**
+ * trace.c
+ */
+#if PHP_VERSION_ID < 70000
+int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC);
+#else
+int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
+                         zend_fcall_info_cache *fcc TSRMLS_DC);
+#endif
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+                                     zval *user_retval TSRMLS_DC);
 
 #endif  // DISPATCH_COMPAT_H

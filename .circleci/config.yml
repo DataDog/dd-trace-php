@@ -1,4 +1,4 @@
-version: 2.1
+version: "2.1"
 
 aliases:
 
@@ -245,7 +245,7 @@ jobs:
   "Static Analysis":
     working_directory: ~/datadog
     docker:
-      - image: circleci/php:7.2
+      - image: circleci/php:7.3
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
@@ -424,6 +424,20 @@ jobs:
           php -m | grep ddtrace || true
           ./hyperfine -s basic 'php -m' 'php -m -dextension=ddtrace.so' --min-runs 10000 --export-markdown hyperfine.md
       - store_artifacts: { path: 'hyperfine.md', destination: /hyperfine.md }
+
+  framework_tests:
+    working_directory: ~/datadog
+    parameters:
+      framework_target:
+        type: string
+        default: all
+    executor:
+      name: with_agent
+      docker_image: circleci/php:7.3
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - setup_remote_docker
+      - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
   verify_package:
     working_directory: ~/datadog
@@ -622,6 +636,14 @@ workflows:
       - "package verification":
           requires:
             - "package extension"
+      - framework_tests:
+          requires: [ "package extension" ]
+          framework_target: symfony
+          name: "Symfony testsuite"
+      - framework_tests:
+          requires: [ "package extension" ]
+          framework_target: symfony_no_ddtrace
+          name: "Symfony baseline testsuite"
       - verify_package:
           requires: [ "package extension" ]
           name: "webdevops/php:7.1"

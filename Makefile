@@ -62,7 +62,7 @@ test_extension_ci: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test  TESTS="-q --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
-	$(MAKE) -C $(BUILD_DIR) test  TESTS="-q  -m --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean test  TESTS="-q  -m --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
 	)
 
 test_integration: install_ini
