@@ -72,7 +72,7 @@ class IntegrationsLoader
     public function __construct(array $integrations)
     {
         $this->integrations = $integrations;
-        // Sandboxed integrations - eventually this will replace all the integrations
+        // Sandboxed integrations get loaded with a feature flag
         if (Configuration::get()->isSandboxEnabled()) {
             $this->integrations[PDOSandboxedIntegration::NAME] = '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
         }
@@ -126,7 +126,11 @@ class IntegrationsLoader
                 continue;
             }
 
-            $this->loadings[$name] = call_user_func([$class, 'load']);
+            if (strpos($class, 'SandboxedIntegration') !== false) {
+                $this->loadings[$name] = $class::get()->init();
+            } else {
+                $this->loadings[$name] = $class::load();
+            }
             $this->logResult($name, $this->loadings[$name]);
         }
     }
