@@ -2,12 +2,12 @@
 
 namespace DDTrace\Integrations\PDO;
 
-use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class PDOSandboxedIntegration extends Integration
+class PDOSandboxedIntegration extends SandboxedIntegration
 {
     const NAME = 'pdo';
 
@@ -22,22 +22,6 @@ class PDOSandboxedIntegration extends Integration
     private static $statements = [];
 
     /**
-     * @var self
-     */
-    private static $instance;
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
-    /**
      * @return string The integration name.
      */
     public function getName()
@@ -46,13 +30,13 @@ class PDOSandboxedIntegration extends Integration
     }
 
     /**
-     * Static method to add instrumentation to PDO requests
+     * Add instrumentation to PDO requests
      */
-    public static function load()
+    public function init()
     {
         if (!extension_loaded('PDO')) {
             // PDO is provided through an extension and not through a class loader.
-            return Integration::NOT_AVAILABLE;
+            return SandboxedIntegration::NOT_AVAILABLE;
         }
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
@@ -73,7 +57,7 @@ class PDOSandboxedIntegration extends Integration
                 'db.rowcount' => (string) $retval,
             ];
             PDOSandboxedIntegration::setConnectionTags($this, $span);
-            PDOSandboxedIntegration::getInstance()->addTraceAnalyticsIfEnabled($span);
+            PDOSandboxedIntegration::get()->addTraceAnalyticsIfEnabled($span);
         });
 
         // public PDOStatement PDO::query(string $query)
@@ -93,7 +77,7 @@ class PDOSandboxedIntegration extends Integration
                 PDOSandboxedIntegration::storeStatementFromConnection($this, $retval);
             }
             PDOSandboxedIntegration::setConnectionTags($this, $span);
-            PDOSandboxedIntegration::getInstance()->addTraceAnalyticsIfEnabled($span);
+            PDOSandboxedIntegration::get()->addTraceAnalyticsIfEnabled($span);
         });
 
         // public bool PDO::commit ( void )
@@ -124,10 +108,10 @@ class PDOSandboxedIntegration extends Integration
                 'db.rowcount' => (string) $this->rowCount(),
             ];
             PDOSandboxedIntegration::setStatementTags($this, $span);
-            PDOSandboxedIntegration::getInstance()->addTraceAnalyticsIfEnabled($span);
+            PDOSandboxedIntegration::get()->addTraceAnalyticsIfEnabled($span);
         });
 
-        return Integration::LOADED;
+        return SandboxedIntegration::LOADED;
     }
 
     private static function parseDsn($dsn)
