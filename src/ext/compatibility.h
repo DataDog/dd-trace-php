@@ -39,6 +39,11 @@
 #define PHP7_UNUSED(...) UNUSED(__VA_ARGS__)
 #endif
 
+#if PHP_VERSION_ID >= 70000 && PHP_VERSION_ID < 70300
+#define GC_ADDREF(x) (++GC_REFCOUNT(x))
+#define GC_DELREF(x) (--GC_REFCOUNT(x))
+#endif
+
 #if PHP_VERSION_ID < 70000
 #define ZVAL_VARARG_PARAM(list, arg_num) (*list[arg_num])
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_BOOL && Z_LVAL_P(x) == 1)

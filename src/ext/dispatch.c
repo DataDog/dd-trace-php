@@ -8,6 +8,7 @@
 #include <ext/spl/spl_exceptions.h>
 
 #include "compat_zend_string.h"
+#include "compatibility.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch_compat.h"
@@ -200,17 +201,19 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
 #endif
 
 _exit_cleanup:
-    if (this) {
 #if PHP_VERSION_ID < 70000
+    if (this) {
         Z_DELREF_P(this);
-#else
-        if (EX_CALL_INFO() & ZEND_CALL_RELEASE_THIS) {
-            OBJ_RELEASE(Z_OBJ(execute_data->This));
-        }
-#endif
     }
-    DDTRACE_G(original_context).fbc = current_fbc;
     Z_DELREF(closure);
+    zval_dtor(&closure);
+#else
+    if (this && (EX_CALL_INFO() & ZEND_CALL_RELEASE_THIS)) {
+        OBJ_RELEASE(Z_OBJ(execute_data->This));
+    }
+    OBJ_RELEASE(Z_OBJ(closure));
+#endif
+    DDTRACE_G(original_context).fbc = current_fbc;
 }
 
 static int is_anonymous_closure(zend_function *fbc, ddtrace_lookup_data_t *lookup) {
@@ -508,10 +511,31 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
 #if PHP_VERSION_ID < 70000
     DDTRACE_G(original_context).calling_ce = DDTRACE_G(original_context).calling_fbc->common.scope;
 #else
+<<<<<<< HEAD
     DDTRACE_G(original_context).calling_ce = Z_OBJ(execute_data->This) ? Z_OBJ(execute_data->This)->ce : NULL;
 #endif
 
     zend_bool wrapped = wrap_and_run(execute_data, &lookup_data TSRMLS_CC);
+=======
+        if (DDTRACE_G(original_context).this) {
+            GC_ADDREF(DDTRACE_G(original_context).this);
+        }
+        DDTRACE_G(original_context).calling_ce = Z_OBJ(execute_data->This) ? Z_OBJ(execute_data->This)->ce : NULL;
+#endif
+
+        wrap_and_run(execute_data, dispatch TSRMLS_CC);
+#if PHP_VERSION_ID >= 70000
+        if (DDTRACE_G(original_context).this) {
+            GC_DELREF(DDTRACE_G(original_context).this);
+        }
+#endif
+
+        // Restore original context
+        DDTRACE_G(original_context).calling_ce = previous_calling_ce;
+        DDTRACE_G(original_context).this = previous_this;
+        DDTRACE_G(original_context).calling_fbc = previous_calling_fbc;
+        DDTRACE_G(original_context).fbc = previous_fbc;
+>>>>>>> d77b72bc... Merge pull request #536 from DataDog/pawel/build/pdo_error_fix
 
     DDTRACE_G(original_context).calling_ce = previous_calling_ce;
     DDTRACE_G(original_context).this = previous_this;
