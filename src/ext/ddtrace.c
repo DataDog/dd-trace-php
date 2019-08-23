@@ -228,15 +228,6 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
-<<<<<<< HEAD
-=======
-static PHP_FUNCTION(dd_trace_serialize_closed_spans) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    PHP7_UNUSED(execute_data);
-    ddtrace_serialize_closed_spans(return_value TSRMLS_CC);
-}
-
->>>>>>> d77b72bc... Merge pull request #536 from DataDog/pawel/build/pdo_error_fix
 // Invoke the function/method from the original context
 static PHP_FUNCTION(dd_trace_forward_call) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
