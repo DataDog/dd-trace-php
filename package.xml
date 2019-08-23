@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-08-08</date>
+    <date>2019-08-23</date>
     <version>
-        <release>0.30.0</release>
-        <api>0.30.0</api>
+        <release>0.30.1</release>
+        <api>0.30.1</api>
     </version>
     <stability>
         <release>stable</release>
@@ -22,14 +22,7 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         ### Fixed
-        - Shutdown span flushing blocking the process when forked #493
-        - Memory access errors in cases when PHP code was run after extension data was freed on request shutdown #505
-        - Request init hook working when open_basedir restriction is in effect #505
-        - Ensure global resources are freed in shutdown #521 #523
-        - Http transport not setting required `X-Datadog-Trace-Count` header #525
-
-        ### Changed
-        - Remove `zend_execute_ex` override and trace `ZEND_DO_UCALL` #519
+        - releasing This object as soon as it stops being used #536
     </notes>
     <contents>
         <dir name="/">
@@ -122,6 +115,7 @@
                     <file name="dd_trace_forward_call_with_inheritance.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_private_callback.phpt" role="test" />
                     <file name="dd_trace_generate_id.phpt" role="test" />
+                    <file name="desctructor_called_when_this_gets_out_of_scope.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
                     <file name="from_php_7_3_bug61728.phpt" role="test" />

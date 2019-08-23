@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file - [read more
 
 ## [Unreleased]
 
+## [0.30.1]
+### Fixed
+- releasing This object as soon as it stops being used #536
+
 ## [0.30.0]
 
 ### Fixed
@@ -536,7 +540,8 @@ At an high level here are the breaking changes we introduced:
 ### Added
 - OpenTracing compliance tha can be used for manual instrumentation
 
-[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.30.0...HEAD
+[Unreleased]: https://github.com/DataDog/dd-trace-php/compare/0.30.1...HEAD
+[0.30.1]: https://github.com/DataDog/dd-trace-php/compare/0.30.0...0.30.1
 [0.30.0]: https://github.com/DataDog/dd-trace-php/compare/0.29.0...0.30.0
 [0.29.0]: https://github.com/DataDog/dd-trace-php/compare/0.28.1...0.29.0
 [0.28.1]: https://github.com/DataDog/dd-trace-php/compare/0.28.0...0.28.1

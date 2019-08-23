@@ -29,9 +29,8 @@ static zend_always_inline zval *ddtrace_this(zend_execute_data *execute_data) {
     }
 #else
     if (_EX(call)) {
-        this = &(_EX(call)->This);
-        if (Z_OBJ_P(this) == NULL) {
-            this = NULL;
+        if (Z_OBJ(_EX(call)->This) != NULL) {
+            this = &(_EX(call)->This);
         }
     }
 #endif

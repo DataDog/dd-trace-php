@@ -231,7 +231,6 @@ static PHP_FUNCTION(dd_trace) {
 // Invoke the function/method from the original context
 static PHP_FUNCTION(dd_trace_forward_call) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    PHP7_UNUSED(execute_data);
 
     if (DDTRACE_G(disable)) {
         RETURN_BOOL(0);
