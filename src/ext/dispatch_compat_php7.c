@@ -72,13 +72,13 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
     return zend_hash_update_ptr(lookup, Z_STR(dispatch->function_name), dispatch) != NULL;
 }
 
-void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC) {
+void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value) {
     zval fname, retval;
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
 
     if (!DDTRACE_G(original_context).execute_data || !EX(prev_execute_data)) {
-        zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
+        zend_throw_exception_ex(spl_ce_LogicException, 0,
                                 "Cannot use dd_trace_forward_call() outside of a tracing closure");
         return;
     }
@@ -91,7 +91,7 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
     zend_string *callback_name = !prev_ex ? NULL : prev_ex->func->common.function_name;
 
     if (!callback_name || !zend_string_equals_literal(callback_name, DDTRACE_CALLBACK_NAME)) {
-        zend_throw_exception_ex(spl_ce_LogicException, 0 TSRMLS_CC,
+        zend_throw_exception_ex(spl_ce_LogicException, 0,
                                 "Cannot use dd_trace_forward_call() outside of a tracing closure");
         return;
     }
@@ -126,8 +126,7 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
     zval_ptr_dtor(&fname);
 }
 
-BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
-                                 ddtrace_dispatch_t **dispatch TSRMLS_DC) {
+BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc, ddtrace_dispatch_t **dispatch) {
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
         DDTRACE_G(function_lookup) == NULL) {
         return FALSE;
@@ -151,7 +150,7 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
     }
 
     zval *this = ddtrace_this(execute_data);
-    *dispatch = ddtrace_find_dispatch(this, *fbc, &fname TSRMLS_CC);
+    *dispatch = ddtrace_find_dispatch(this, *fbc, &fname);
     zval_ptr_dtor(&fname);
     if (!*dispatch || (*dispatch)->busy) {
         return FALSE;
@@ -161,7 +160,7 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
 }
 
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
-                         zend_fcall_info_cache *fcc TSRMLS_DC) {
+                         zend_fcall_info_cache *fcc) {
     int fcall_status;
 
 #if PHP_VERSION_ID < 70300
@@ -178,7 +177,7 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
 
     ddtrace_setup_fcall(execute_data, fci, &return_value);
 
-    fcall_status = zend_call_function(fci, fcc TSRMLS_CC);
+    fcall_status = zend_call_function(fci, fcc);
     if (fcall_status == SUCCESS && Z_TYPE_P(return_value) != IS_UNDEF) {
 #if PHP_VERSION_ID >= 70100
         if (Z_ISREF_P(return_value)) {
@@ -193,7 +192,7 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
 }
 
 void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
-                                     zval *user_retval TSRMLS_DC) {
+                                     zval *user_retval) {
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval rv;
@@ -202,7 +201,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     zval args[3], *p, *q;
     zend_execute_data *ex = EX(call);
 
-    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
+    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
         return;
     }
@@ -262,7 +261,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     fci.param_count = 3;
     fci.params = args;
     fci.retval = &rv;
-    if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
+    if (zend_call_function(&fci, &fcc) == FAILURE) {
         ddtrace_log_debug("Could not execute tracing closure");
     }
 

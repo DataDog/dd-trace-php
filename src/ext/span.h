@@ -4,6 +4,8 @@
 #include <php.h>
 #include <stdint.h>
 
+#include "compatibility.h"
+
 typedef struct _ddtrace_span_t {
     zval *span_data;
     zval *exception;

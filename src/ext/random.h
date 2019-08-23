@@ -4,6 +4,8 @@
 #include <php.h>
 #include <stdint.h>
 
+#include "compatibility.h"
+
 #define DD_TRACE_DEBUG_PRNG_SEED "DD_TRACE_DEBUG_PRNG_SEED"
 
 // We keep a separate stack for span ID generation since spans are
