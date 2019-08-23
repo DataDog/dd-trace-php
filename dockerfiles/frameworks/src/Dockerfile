@@ -1,4 +1,4 @@
-FROM debian:buster
+FROM debian:buster AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN set -xe; \
@@ -40,6 +40,12 @@ RUN set -xe; \
     php composer-setup.php; \
     php -r "unlink('composer-setup.php');"; \
     mv composer.phar /usr/local/bin/composer;
+ENV COMPOSER_MEMORY_LIMIT -1
+ADD entrypoint.sh /usr/local/bin/entrypoint.sh
+ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
+CMD [ "bash" ]
+
+FROM base AS symfony
 
 ARG SYMFONY_VERSION_TAG=v4.3.3
 RUN set -xe; \
@@ -50,10 +56,15 @@ RUN set -xe; \
     php ./phpunit --list-tests
 
 WORKDIR /home/symfony
-ENV COMPOSER_MEMORY_LIMIT -1
 
-ADD entrypoint.sh /usr/local/bin/entrypoint.sh
+FROM base AS laravel
+ARG LARAVEL_VERSION_TAG=v5.8.17
+RUN set -xe; \
+    git clone --depth 1 --branch ${LARAVEL_VERSION_TAG} https://github.com/laravel/framework /home/laravel; \
+    apt-get -y install php-bcmath;
 
-ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
-
-CMD [ "bash" ]
+RUN set -xe; \
+    cd /home/laravel; \
+    export COMPOSER_MEMORY_LIMIT=-1; \
+    composer install --prefer-dist
+WORKDIR /home/laravel

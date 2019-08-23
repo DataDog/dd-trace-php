@@ -2,7 +2,7 @@ ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 THIS_FILE := $(lastword $(MAKEFILE_LIST))
 VERSION_TO_INSTALL:=0.30.0
 
-JOBS:=symfony symfony_no_ddtrace
+JOBS:=laravel laravel_no_ddtrace symfony symfony_no_ddtrace
 .PHONY: all
 all: $(JOBS)
 
@@ -29,6 +29,18 @@ symfony_no_ddtrace: nginx_file_server
 	@echo Running $@
 	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/symfony.yml pull
 	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/symfony.yml run -e NO_DDTRACE=true symfony php ./phpunit --debug -v
+
+.PHONY: laravel
+laravel: nginx_file_server
+	@echo Running $@
+	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/laravel.yml pull
+	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/laravel.yml run laravel php ./vendor/bin/phpunit -v
+
+.PHONY: laravel_no_ddtrace
+laravel_no_ddtrace: nginx_file_server
+	@echo Running $@
+	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/laravel.yml pull
+	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/laravel.yml run -e NO_DDTRACE=true laravel php ./vendor/bin/phpunit -v
 
 .PHONY: clean
 clean:

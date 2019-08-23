@@ -636,12 +636,23 @@ workflows:
       - "package verification":
           requires:
             - "package extension"
+      - placeholder:
+          requires: [ 'package extension' ]
+          name: Framework tests
       - framework_tests:
-          requires: [ "package extension" ]
+          requires: [ "Framework tests" ]
+          framework_target: laravel
+          name: "Laravel testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: laravel_no_ddtrace
+          name: "Laravel baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
           framework_target: symfony
           name: "Symfony testsuite"
       - framework_tests:
-          requires: [ "package extension" ]
+          requires: [ "Framework tests" ]
           framework_target: symfony_no_ddtrace
           name: "Symfony baseline testsuite"
       - verify_package:
