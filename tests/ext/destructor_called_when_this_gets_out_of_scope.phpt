@@ -16,18 +16,18 @@ class Test {
 dd_trace("Test", "m", function() {
     return dd_trace_forward_call() . " OVERRIDE";
 });
-function fn() {
+function func() {
     $test = new Test();
     echo $test->m() . PHP_EOL;
-    echo "FN" . PHP_EOL;
+    echo "FUNC" . PHP_EOL;
 }
 
-fn();
+func();
 echo "FINISH" . PHP_EOL;
 ?>
 
 --EXPECT--
 M OVERRIDE
-FN
+FUNC
 DESTRUCT
 FINISH
