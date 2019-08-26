@@ -29,6 +29,7 @@ struct _writer_thread_variables_t {
 
 struct _writer_loop_data_t {
     CURL *curl;
+    struct curl_slist *headers;
     ddtrace_coms_stack_t *tmp_stack;
 
     struct _writer_thread_variables_t *thread;
@@ -133,6 +134,7 @@ inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_c
 
         curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, ddtrace_coms_read_callback);
         curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, dummy_write_callback);
+        writer->headers = headers;
     }
 
     if (writer->curl) {
@@ -251,6 +253,8 @@ static void *writer_loop(void *_) {
         signal_data_processed(writer);
     } while (running);
 
+    curl_slist_free_all(writer->headers);
+    curl_easy_cleanup(writer->curl);
     ddtrace_coms_shutdown();
     signal_writer_finished(writer);
     return NULL;
