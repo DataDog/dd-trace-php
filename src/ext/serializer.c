@@ -206,7 +206,7 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRM
     /* add_assoc_stringl does not actually mutate the string, but we've either
      * already made a copy, or it will when it duplicates with dup param, so
      * if it did it should still be safe. */
-    add_assoc_stringl(meta, "error.name", (char *)class_name, class_name_len, needs_copied);
+    add_assoc_stringl(meta, "error.type", (char *)class_name, class_name_len, needs_copied);
     add_assoc_zval(meta, "error.msg", msg);
     add_assoc_zval(meta, "error.stack", stack);
 }
@@ -263,7 +263,7 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
     zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "getmessage", &msg);
     zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "gettraceasstring", &stack);
 
-    _add_assoc_zval_copy(meta, "error.name", &name);
+    _add_assoc_zval_copy(meta, "error.type", &name);
     add_assoc_zval(meta, "error.msg", &msg);
     add_assoc_zval(meta, "error.stack", &stack);
 }
