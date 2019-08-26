@@ -53,11 +53,14 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             $span->resource = $args[0];
             $span->service = 'PDO';
             $span->type = Type::SQL;
-            $span->meta = [
-                'db.rowcount' => (string) $retval,
-            ];
+            if (is_numeric($retval)) {
+                $span->meta = [
+                    'db.rowcount' => (string) $retval,
+                ];
+            }
             PDOSandboxedIntegration::setConnectionTags($this, $span);
             PDOSandboxedIntegration::get()->addTraceAnalyticsIfEnabled($span);
+            PDOSandboxedIntegration::detectError($this, $span);
         });
 
         // public PDOStatement PDO::query(string $query)
@@ -78,6 +81,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             }
             PDOSandboxedIntegration::setConnectionTags($this, $span);
             PDOSandboxedIntegration::get()->addTraceAnalyticsIfEnabled($span);
+            PDOSandboxedIntegration::detectError($this, $span);
         });
 
         // public bool PDO::commit ( void )
@@ -99,19 +103,48 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
-        dd_trace_method('PDOStatement', 'execute', function (SpanData $span) {
+        dd_trace_method('PDOStatement', 'execute', function (SpanData $span, array $args, $retval) {
             $span->name = 'PDOStatement.execute';
             $span->resource = $this->queryString;
             $span->service = 'PDO';
             $span->type = Type::SQL;
-            $span->meta = [
-                'db.rowcount' => (string) $this->rowCount(),
-            ];
+            if ($retval === true) {
+                $span->meta = [
+                    'db.rowcount' => (string) $this->rowCount(),
+                ];
+            }
             PDOSandboxedIntegration::setStatementTags($this, $span);
             PDOSandboxedIntegration::get()->addTraceAnalyticsIfEnabled($span);
+            PDOSandboxedIntegration::detectError($this, $span);
         });
 
         return SandboxedIntegration::LOADED;
+    }
+
+    /**
+     * @param \PDO|\PDOStatement $pdoOrStatement
+     * @param SpanData $span
+     */
+    public static function detectError($pdoOrStatement, SpanData $span)
+    {
+        $errorCode = $pdoOrStatement->errorCode();
+        // Error codes follows the ANSI SQL-92 convention of 5 total chars:
+        //   - 2 chars for class value
+        //   - 3 chars for subclass value
+        // Non error class values are: '00', '01', 'IM'
+        // @see: http://php.net/manual/en/pdo.errorcode.php
+        if (strlen($errorCode) !== 5) {
+            return;
+        }
+
+        $class = strtoupper(substr($errorCode, 0, 2));
+        if (in_array($class, ['00', '01', 'IM'], true)) {
+            // Not an error
+            return;
+        }
+        $errorInfo = $pdoOrStatement->errorInfo();
+        $span->meta[Tag::ERROR_MSG] = 'SQL error: ' . $errorCode . '. Driver error: ' . $errorInfo[1];
+        $span->meta[Tag::ERROR_TYPE] = get_class($pdoOrStatement) . ' error';
     }
 
     private static function parseDsn($dsn)
