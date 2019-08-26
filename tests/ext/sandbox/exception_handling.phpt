@@ -23,13 +23,13 @@ try {
 
     $span = $stack[0];
     echo "error: ", $span['error'], "\n";
-    echo "Exception name: ", $span['meta']['error.name'], "\n";
+    echo "Exception type: ", $span['meta']['error.type'], "\n";
     echo "Exception msg: ", $span['meta']['error.msg'], "\n";
     echo "Exception stack:\n", $span['meta']['error.stack'], "\n";
 
     $span = $stack[1];
     echo "error: ", $span['error'], "\n";
-    echo "Exception name: ", $span['meta']['error.name'], "\n";
+    echo "Exception type: ", $span['meta']['error.type'], "\n";
     echo "Exception msg: ", $span['meta']['error.msg'], "\n";
     echo "Exception stack:\n", $span['meta']['error.stack'], "\n";
 }
@@ -38,14 +38,14 @@ try {
 --EXPECTF--
 Stack size: 2
 error: 1
-Exception name: Exception
+Exception type: Exception
 Exception msg: datadog
 Exception stack:
 #0 %s: inner()
 #1 %s: outer()
 #2 {main}
 error: 1
-Exception name: Exception
+Exception type: Exception
 Exception msg: datadog
 Exception stack:
 #0 %s: inner()
