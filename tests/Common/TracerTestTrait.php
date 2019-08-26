@@ -18,7 +18,7 @@ trait TracerTestTrait
     /**
      * @param $fn
      * @param null $tracer
-     * @return Span[][]
+     * @return array[]
      */
     public function isolateTracer($fn, $tracer = null)
     {
@@ -38,7 +38,7 @@ trait TracerTestTrait
     /**
      * @param $fn
      * @param null $tracer
-     * @return Span[][]
+     * @return array[]
      */
     public function isolateLimitedTracer($fn, $tracer = null)
     {
@@ -211,8 +211,8 @@ trait TracerTestTrait
     }
 
     /**
-     * @param $fn
-     * @return Span[][]
+     * @param \Closure $fn
+     * @return array[]
      */
     public function simulateWebRequestTracer($fn)
     {
@@ -238,7 +238,7 @@ trait TracerTestTrait
 
     /**
      * @param DebugTransport $transport
-     * @return Span[][]
+     * @return array[]
      */
     protected function flushAndGetTraces($transport)
     {
@@ -252,7 +252,7 @@ trait TracerTestTrait
     /**
      * @param $name string
      * @param $fn
-     * @return Span[][]
+     * @return array[]
      */
     public function inTestScope($name, $fn)
     {
