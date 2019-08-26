@@ -224,6 +224,9 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
     }
 
     _serialize_exception(el, meta, span TSRMLS_CC);
+    if (span->parent_id == 0) {
+        add_assoc_long(meta, "system.pid", (uint) span->pid);
+    }
 
     // Add meta only if it has elements
     if (zend_hash_num_elements(Z_ARRVAL_P(meta))) {
@@ -271,14 +274,17 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
 void _serialize_meta(zval *el, ddtrace_span_t *span) {
     zval meta_zv, *meta = _read_span_property(span->span_data, "meta", sizeof("meta") - 1);
 
-    if (!meta || Z_TYPE_P(meta) != IS_ARRAY) {
-        meta = &meta_zv;
-        array_init(meta);
+    if (meta && Z_TYPE_P(meta) == IS_ARRAY) {
+        ZVAL_DUP(&meta_zv, meta);
     } else {
-        Z_ADDREF_P(meta);
+        array_init(&meta_zv);
     }
+    meta = &meta_zv;
 
     _serialize_exception(el, meta, span);
+    if (span->parent_id == 0) {
+        add_assoc_long(meta, "system.pid", (zend_long) span->pid);
+    }
 
     if (zend_array_count(Z_ARRVAL_P(meta))) {
         add_assoc_zval(el, "meta", meta);

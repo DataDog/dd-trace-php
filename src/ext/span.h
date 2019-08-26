@@ -3,6 +3,7 @@
 #include <Zend/zend_types.h>
 #include <php.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 #include "compatibility.h"
 
@@ -21,6 +22,7 @@ typedef struct ddtrace_span_t {
         uint64_t duration_start;
         uint64_t duration;
     };
+    pid_t pid;
     struct ddtrace_span_t *next;
 } ddtrace_span_t;
 
