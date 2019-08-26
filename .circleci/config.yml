@@ -268,6 +268,9 @@ jobs:
       lib_curl_command:
         type: string
         default: none
+      unit_test_target:
+        type: string
+        default: test_extension_ci
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -286,7 +289,7 @@ jobs:
           valgrind_config: << parameters.valgrind_config >>
       - run:
           name: Run extension tests with leak detection
-          command: make test_extension_ci BUILD_DIR=tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
+          command: make << parameters.unit_test_target >> BUILD_DIR=tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
       - run:
           name: Run unit tests
           command: composer test-unit -- --log-junit test-results/php-unit/results.xml
@@ -713,6 +716,11 @@ workflows:
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           valgrind_config: 7_3_musl
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - unit_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 74 asan tests"
+          docker_image: "datadog/dd-trace-php:7.4-buster-debug-asan"
+          unit_test_target: test_c_asan
       - placeholder:
           requires: [ 'Code Checkout' ]
           name: Language tests

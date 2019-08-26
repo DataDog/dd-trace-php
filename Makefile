@@ -53,6 +53,16 @@ test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -d ddtrace.request_init_hook=$(ROOT_DIR)/bridge/dd_wrap_autoloader.php -m $(TESTS)"
 
+test_c_asan: export DD_TRACE_CLI_ENABLED=1
+test_c_asan: $(SO_FILE)
+	( \
+	set -xe; \
+	export REPORT_EXIT_STATUS=1; \
+	\
+	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-test.xml; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean test  TESTS="-q --asan --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
+	)
+
 test_extension_ci: $(SO_FILE)
 	( \
 	set -xe; \
@@ -62,7 +72,7 @@ test_extension_ci: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test  TESTS="-q --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean test  TESTS="-q  -m --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean test  TESTS="-q -m --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
 	)
 
 test_integration: install_ini
