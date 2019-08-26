@@ -44,8 +44,6 @@ final class PDOSandboxedTest extends IntegrationTestCase
         ]);
     }
 
-    // TODO Add this back after exception PR gets merged
-    /*
     public function testPDOConstructError()
     {
         $traces = $this->isolateTracer(function () {
@@ -56,10 +54,12 @@ final class PDOSandboxedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'PDO', 'sql', 'PDO.__construct')
-                ->setError('PDOException', 'Sql error: SQLSTATE[HY000] [1045]'),
+                ->withExactTags(array_merge($this->baseTags(), [
+                    'db.user' => 'wrong_user',
+                ]))
+                ->setException('PDOException', 'SQLSTATE[HY000] [1045] Access denied for user \'wrong_user\'@\'%s\' (using password: YES)'),
         ]);
     }
-    */
 
     public function testPDOExecOk()
     {
@@ -82,8 +82,6 @@ final class PDOSandboxedTest extends IntegrationTestCase
         ]);
     }
 
-    // TODO Add this back after exception PR gets merged
-    /*
     public function testPDOExecError()
     {
         $query = "WRONG QUERY)";
@@ -98,20 +96,15 @@ final class PDOSandboxedTest extends IntegrationTestCase
             }
         });
         $this->assertSpans($traces, [
-            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::exists('PDO.commit'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => '',
-                ])),
-            SpanAssertion::exists('PDO.commit'),
+                ->withExactTags($this->baseTags()),
+            SpanAssertion::exists('PDO.__construct'),
         ]);
     }
-    */
 
-    // TODO Add this back after exception PR gets merged
-    /*
     public function testPDOExecException()
     {
         $query = "WRONG QUERY)";
@@ -123,19 +116,18 @@ final class PDOSandboxedTest extends IntegrationTestCase
                 $pdo->exec($query);
                 $pdo->commit();
                 $pdo = null;
-                $this->fail('Should throw and exception');
+                $this->fail('Should throw an exception');
             } catch (\PDOException $ex) {
             }
         });
         $this->assertSpans($traces, [
-            SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('PDOException', 'Sql error')
+                ->setException('PDOException', 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY)\' at line 1')
                 ->withExactTags($this->baseTags()),
+            SpanAssertion::exists('PDO.__construct'),
         ]);
     }
-    */
 
     public function testPDOQuery()
     {
@@ -155,8 +147,6 @@ final class PDOSandboxedTest extends IntegrationTestCase
         ]);
     }
 
-    // TODO Add this back after exception PR gets merged
-    /*
     public function testPDOQueryError()
     {
         $query = "WRONG QUERY";
@@ -169,19 +159,14 @@ final class PDOSandboxedTest extends IntegrationTestCase
             }
         });
         $this->assertSpans($traces, [
-            SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => '',
-                ])),
+                ->withExactTags($this->baseTags()),
+            SpanAssertion::exists('PDO.__construct'),
         ]);
     }
-    */
 
-    // TODO Add this back after exception PR gets merged
-    /*
     public function testPDOQueryException()
     {
         $query = "WRONG QUERY";
@@ -195,14 +180,13 @@ final class PDOSandboxedTest extends IntegrationTestCase
             }
         });
         $this->assertSpans($traces, [
-            SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('PDOException', 'Sql error')
+                ->setException('PDOException', 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\' at line 1')
                 ->withExactTags($this->baseTags()),
+            SpanAssertion::exists('PDO.__construct'),
         ]);
     }
-    */
 
     public function testPDOCommit()
     {
@@ -256,8 +240,6 @@ final class PDOSandboxedTest extends IntegrationTestCase
         ]);
     }
 
-    // TODO Add this back after exception PR gets merged
-    /*
     public function testPDOStatementError()
     {
         $query = "WRONG QUERY";
@@ -274,21 +256,16 @@ final class PDOSandboxedTest extends IntegrationTestCase
             }
         });
         $this->assertSpans($traces, [
-            SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
-                ->withExactTags(array_merge($this->baseTags(), [])),
             SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', "WRONG QUERY")
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOStatement error', 'SQL error: 42000. Driver error: 1064')
-                    ->withExactTags(array_merge($this->baseTags(), [
-                        'db.rowcount' => 0,
-                    ])),
+                    ->withExactTags($this->baseTags()),
+            SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
+                ->withExactTags($this->baseTags()),
+            SpanAssertion::exists('PDO.__construct'),
         ]);
     }
-    */
 
-    // TODO Add this back after exception PR gets merged
-    /*
     public function testPDOStatementException()
     {
         $query = "WRONG QUERY";
@@ -306,16 +283,15 @@ final class PDOSandboxedTest extends IntegrationTestCase
             }
         });
         $this->assertSpans($traces, [
-            SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
-                ->withExactTags(array_merge($this->baseTags(), [])),
-            SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', "WRONG QUERY")
+            SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('PDOException', 'Sql error')
+                ->setException('PDOException', 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\' at line 1')
                 ->withExactTags($this->baseTags()),
+            SpanAssertion::build('PDO.prepare', 'PDO', 'sql', $query)
+                ->withExactTags($this->baseTags()),
+            SpanAssertion::exists('PDO.__construct'),
         ]);
     }
-    */
 
     // TODO Add limited tracer to sandboxed closures
     /*
