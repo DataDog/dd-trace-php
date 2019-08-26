@@ -118,7 +118,7 @@ array(3) {
     ["type"]=>
     string(7) "FooType"
     ["meta"]=>
-    array(4) {
+    array(5) {
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["retval.thoughts"]=>
@@ -126,6 +126,8 @@ array(3) {
       ["retval.first"]=>
       string(5) "first"
       ["retval.rand"]=>
+      int(%d)
+      ["system.pid"]=>
       int(%d)
     }
     ["metrics"]=>
@@ -159,7 +161,7 @@ array(3) {
     }
   }
   [2]=>
-  array(5) {
+  array(6) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -170,6 +172,11 @@ array(3) {
     int(%d)
     ["name"]=>
     string(7) "TestFoo"
+    ["meta"]=>
+    array(1) {
+      ["system.pid"]=>
+      int(%d)
+    }
   }
 }
 array(0) {

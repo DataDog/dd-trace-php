@@ -52,7 +52,7 @@ Test::testFoo() fav num: %d
 ---
 array(3) {
   [0]=>
-  array(5) {
+  array(6) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -63,6 +63,11 @@ array(3) {
     int(%d)
     ["name"]=>
     string(7) "TestFoo"
+    ["meta"]=>
+    array(1) {
+      ["system.pid"]=>
+      int(%d)
+    }
   }
   [1]=>
   array(6) {

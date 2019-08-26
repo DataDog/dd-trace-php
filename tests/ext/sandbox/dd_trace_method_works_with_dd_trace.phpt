@@ -112,7 +112,7 @@ array(1) {
     ["type"]=>
     string(7) "FooType"
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["args.0"]=>
       int(42)
       ["args.1.0"]=>
@@ -120,6 +120,8 @@ array(1) {
       ["retval"]=>
       string(48) "New fav num is 42 with 3 colors and pink on top
 "
+      ["system.pid"]=>
+      int(%d)
     }
   }
 }
