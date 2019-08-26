@@ -1,5 +1,13 @@
 --TEST--
 Testing user filter on streams
+--SKIPIF--
+<?php
+$version = explode('.', PHP_VERSION);
+define('PHP_VERSION_ID', ($version[0] * 10000 + $version[1] * 100 + $version[2]));
+
+if ($version[0] < 7)
+    print "This bug was not fixed in PHP 5.x, resulting in false positive detection in 5.x tests";
+?>
 --FILE--
 <?php
 class Intercept extends php_user_filter
