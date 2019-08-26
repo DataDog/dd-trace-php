@@ -224,6 +224,9 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
     }
 
     _serialize_exception(el, meta, span TSRMLS_CC);
+    if (!span->exception && zend_hash_exists(Z_ARRVAL_P(meta), "error.msg", sizeof("error.msg"))) {
+        add_assoc_long(el, "error", 1);
+    }
     if (span->parent_id == 0) {
         add_assoc_long(meta, "system.pid", (uint) span->pid);
     }
@@ -282,6 +285,12 @@ void _serialize_meta(zval *el, ddtrace_span_t *span) {
     meta = &meta_zv;
 
     _serialize_exception(el, meta, span);
+    if (!span->exception) {
+        zval *error = zend_hash_str_find_ptr(Z_ARR_P(meta), "error.msg", sizeof("error.msg") - 1);
+        if (error) {
+            add_assoc_long(el, "error", 1);
+        }
+    }
     if (span->parent_id == 0) {
         add_assoc_long(meta, "system.pid", (zend_long) span->pid);
     }
