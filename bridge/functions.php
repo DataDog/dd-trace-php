@@ -123,6 +123,8 @@ function dd_wrap_autoloader()
         }
 
         dd_untrace('spl_autoload_register');
-        require __DIR__ . '/dd_init.php';
+        require_once __DIR__ . '/dd_init.php';
     });
+    require_once __DIR__ . '/dd_init.php';
+
 }
