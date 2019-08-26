@@ -158,12 +158,12 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_coms_on_pid_change();
 
     if (DDTRACE_G(request_init_hook) && access(DDTRACE_G(request_init_hook), F_OK) == 0) {
-        DD_PRINTF("Loading request init hook: %s", DDTRACE_G(request_init_hook));
+        DD_PRINTF("Loading request init hook from user-defined location: %s", DDTRACE_G(request_init_hook));
         dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
     } else {
         char *path = ddtrace_fetch_computed_request_init_hook_path();
         if (path) {
-            DD_PRINTF("Loading request_init_hook: %s", path);
+            DD_PRINTF("Loading request init hook from computed default location: %s", path);
             dd_execute_php_file(path TSRMLS_CC);
             free(path);
         }
