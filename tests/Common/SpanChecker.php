@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Tag;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -11,27 +10,19 @@ use PHPUnit\Framework\TestCase;
 final class SpanChecker
 {
     /**
-     * @var TestCase
-     */
-    private $testCase;
-
-    /**
-     * @param TestCase $testCase
-     */
-    public function __construct($testCase)
-    {
-        $this->testCase = $testCase;
-    }
-
-    /**
      * Checks the exact match of a set of SpanAssertion with the provided Spans.
      *
      * @param $traces
      * @param SpanAssertion[] $expectedSpans
+     * @param bool $isSandbox
      */
-    public function assertSpans($traces, $expectedSpans)
+    public function assertSpans($traces, $expectedSpans, $isSandbox = false)
     {
         $flattenTraces = $this->flattenTraces($traces);
+        if (true === $isSandbox) {
+            // The sandbox API pops closed spans off a stack so spans will be in reverse order
+            $flattenTraces = array_reverse($flattenTraces);
+        }
         // First we assert that ALL the expected spans are in the actual traces and no unexpected span exists.
         $expectedSpansReferences = array_map(function (SpanAssertion $assertion) {
             return $assertion->getOperationName();
@@ -49,11 +40,11 @@ final class SpanChecker
             }
             return $span['name'] . ' - ' . $span['resource'];
         }, $flattenTraces);
-        $this->testCase->assertEquals(
+        TestCase::assertEquals(
             $expectedSpansReferences,
             $tracesReferences,
-            'Missing or additional spans. Expected: ' . print_r($expectedOperationsAndResources, 1) .
-            "\n Found: " . print_r($actualOperationsAndResources, 2)
+            'Missing or additional spans. Expected: ' . print_r($expectedOperationsAndResources, true) .
+            "\n Found: " . print_r($actualOperationsAndResources, true)
         );
 
         // Then we assert content on each individual received span
@@ -70,7 +61,7 @@ final class SpanChecker
      */
     public function assertSpan($span, SpanAssertion $exp)
     {
-        $this->testCase->assertNotNull($span, 'Expected span was not \'' . $exp->getOperationName() . '\' found.');
+        TestCase::assertNotNull($span, 'Expected span was not \'' . $exp->getOperationName() . '\' found.');
 
         if ($exp->isOnlyCheckExistence()) {
             return;
@@ -78,44 +69,58 @@ final class SpanChecker
 
         $namePrefix = $exp->getOperationName() . ': ';
 
-        $this->testCase->assertSame(
+        TestCase::assertSame(
             $exp->getOperationName(),
             isset($span['name']) ? $span['name'] : '',
             $namePrefix . "Wrong value for 'operation name'"
         );
-        $this->testCase->assertSame(
+        TestCase::assertSame(
             $exp->hasError(),
             isset($span['error']) && 1 === $span['error'],
             $namePrefix . "Wrong value for 'error'"
         );
-        if ($exp->getExactTags() != SpanAssertion::NOT_TESTED) {
+        if ($exp->getExactTags() !== SpanAssertion::NOT_TESTED) {
             $filtered = [];
             foreach ($span['meta'] as $key => $value) {
                 if (!in_array($key, $exp->getExistingTagNames())) {
                     $filtered[$key] = $value;
                 }
             }
-            $this->testCase->assertEquals(
-                $exp->getExactTags(),
+            $expectedTags = $exp->getExactTags();
+            foreach ($expectedTags as $tagName => $tagValue) {
+                TestCase::assertArrayHasKey(
+                    $tagName,
+                    $filtered,
+                    $namePrefix . 'Expected tag name ' . $tagName . ' not found'
+                );
+                if (!isset($filtered[$tagName])) {
+                    continue;
+                }
+                if (is_string($tagValue)) {
+                    TestCase::assertStringMatchesFormat(
+                        $tagValue,
+                        $filtered[$tagName],
+                        $namePrefix . 'Expected tag format does not match actual value'
+                    );
+                } else {
+                    TestCase::assertEquals(
+                        $tagValue,
+                        $filtered[$tagName],
+                        $namePrefix . 'Expected tag value does not match actual value'
+                    );
+                }
+                unset($filtered[$tagName]);
+            }
+            TestCase::assertEmpty(
                 $filtered,
-                $namePrefix . "Wrong value for 'tags'"
+                $namePrefix . "Unexpected extra values for 'tags':\n" . print_r($filtered, true)
             );
-            // TODO Auto-add system.pid to root span at C level
-            // @see https://github.com/DataDog/dd-trace-php/blob/968655dfba7c230ed64e247ee1ef91552b1071ac/src/DDTrace/Tracer.php#L211
-            $hasNoPid = isset($span['parent_id']) || !isset($span['error']); // "error" is not exposed for internal spans
-            foreach ($exp->getExistingTagNames($hasNoPid) as $tagName) {
-                $this->testCase->assertArrayHasKey($tagName, $span['meta']);
+            foreach ($exp->getExistingTagNames(isset($span['parent_id'])) as $tagName) {
+                TestCase::assertArrayHasKey($tagName, $span['meta']);
             }
         }
-        if ($exp->isSandboxedTraceAnalyticsCandidate()) {
-            TestCase::assertArrayHasKey(
-                Tag::ANALYTICS_KEY,
-                isset($span['metrics']) ? $span['metrics'] : [],
-                $namePrefix . 'Trace Analytics key expected but not found'
-            );
-        }
         if ($exp->getExactMetrics() !== SpanAssertion::NOT_TESTED) {
-            $this->testCase->assertEquals(
+            TestCase::assertEquals(
                 self::filterArrayByKey($exp->getExactMetrics(), $exp->getNotTestedMetricNames(), false),
                 self::filterArrayByKey(
                     isset($span['metrics']) ? $span['metrics'] : [],
@@ -126,23 +131,23 @@ final class SpanChecker
             );
         }
         if ($exp->getService() != SpanAssertion::NOT_TESTED) {
-            $this->testCase->assertSame(
+            TestCase::assertSame(
                 $exp->getService(),
-                $span['service'],
+                isset($span['service']) ? $span['service'] : '',
                 $namePrefix . "Wrong value for 'service'"
             );
         }
         if ($exp->getType() != SpanAssertion::NOT_TESTED) {
-            $this->testCase->assertSame(
+            TestCase::assertSame(
                 $exp->getType(),
-                $span['type'],
+                isset($span['type']) ? $span['type'] : '',
                 $namePrefix . "Wrong value for 'type'"
             );
         }
         if ($exp->getResource() != SpanAssertion::NOT_TESTED) {
-            $this->testCase->assertSame(
+            TestCase::assertSame(
                 $exp->getResource(),
-                $span['resource'],
+                isset($span['resource']) ? $span['resource'] : '',
                 $namePrefix . "Wrong value for 'resource'"
             );
         }
