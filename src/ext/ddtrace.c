@@ -148,29 +148,14 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_dispatch_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
 
-    if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
-        return SUCCESS;
-    }
-
     ddtrace_seed_prng(TSRMLS_C);
     ddtrace_init_span_id_stack(TSRMLS_C);
     ddtrace_init_span_stacks(TSRMLS_C);
     ddtrace_coms_on_pid_change();
 
-    if (DDTRACE_G(request_init_hook) && access(DDTRACE_G(request_init_hook), F_OK) == 0) {
-        DD_PRINTF("Loading request init hook from user-defined location: %s", DDTRACE_G(request_init_hook));
-        dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
-    } else {
-        char *path = ddtrace_fetch_computed_request_init_hook_path();
-        if (path) {
-            DD_PRINTF("Loading request init hook from computed default location: %s", path);
-            dd_execute_php_file(path TSRMLS_CC);
-            free(path);
-        }
-    }
-
     DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
 
+    ddtrace_load_request_init_hook(TSRMLS_C);
     return SUCCESS;
 }
 
