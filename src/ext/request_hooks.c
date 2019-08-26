@@ -68,6 +68,54 @@ int dd_no_blacklisted_modules(TSRMLS_D) {
     return no_blacklisted_modules;
 }
 
+static inline BOOL_T _starts_with(const char *with, const char *str, size_t str_len) {
+    size_t with_len = strlen(with);
+    if (str_len < with_len) {
+        return FALSE;
+    } else {
+        return memcmp(with, str, with_len) == 0;
+    }
+}
+
+static inline void _resolve_path(const char *path, size_t path_len, const char *token, char *resolved_path) {
+    size_t length = path_len + strlen(token) + 1;
+    char *tmp_path = calloc(length, 1);
+    int last_slash = strrchr(path, '/') - path;
+
+    snprintf(tmp_path, length, "%.*s%s", last_slash, path, token);
+    realpath(tmp_path, resolved_path);
+    free(tmp_path);
+}
+
+char *ddtrace_fetch_computed_request_init_hook_path() {
+    Dl_info dl_info;
+    if (dladdr(ddtrace_fetch_computed_request_init_hook_path, &dl_info) == -1) {
+        return NULL;
+    }
+    char *path = (char *)dl_info.dli_fname;
+
+    if (access(path, F_OK) == -1) {
+        return NULL;
+    }
+    size_t path_len = strlen(path);
+    char *resolved_path = calloc(PATH_MAX + 1, 1);
+
+    if (_starts_with("/opt/datadog-php/extensions/", path, path_len)) {
+        strcpy(resolved_path, "/opt/datadog-php/dd-trace-sources/bridge/dd_wrap_autoloader.php");
+    } else if (strstr(path, "tmp/build_extension/modules") != NULL) {
+        _resolve_path(path, path_len, "/../../../bridge/dd_wrap_autoloader.php", resolved_path);
+    } else {
+        _resolve_path(path, path_len, "/../dd-trace-sources/bridge/dd_wrap_autoloader.php", resolved_path);
+    }
+
+    if (access(resolved_path, F_OK) != -1) {
+        return resolved_path;
+    } else {
+        free(resolved_path);
+        return NULL;
+    }
+}
+
 #if PHP_VERSION_ID < 70000
 int dd_execute_php_file(const char *filename TSRMLS_DC) {
     int filename_len = strlen(filename);

@@ -446,7 +446,12 @@ jobs:
         type: string
       package_type:
         type: string
+      ignore_request_init_hook_check:
+        type: boolean
+        default: false
     docker: [ image: << parameters.docker_image >> ]
+    environment:
+      IGNORE_REQUEST_INIT_HOOK_CHECK: <<# parameters.ignore_request_init_hook_check >>true<</ parameters.ignore_request_init_hook_check >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: sh dockerfiles/verify_packages/verify_<< parameters.package_type >>.sh
@@ -660,6 +665,7 @@ workflows:
           name: "webdevops/php:7.1"
           docker_image: webdevops/php:7.1
           package_type: deb
+          ignore_request_init_hook_check: true
       - verify_package:
           requires: [ "package extension" ]
           name: "php:7.3"
