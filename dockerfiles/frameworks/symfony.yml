@@ -17,13 +17,13 @@ services:
 
   redis:
     image: redis:5.0.5
-    expose:
-      - 6379
+    ports:
+      - "6379:6479"
   memcached:
     image: memcached
-    expose:
-      - 11211
+    ports:
+      - "11211:11211"
 
   nginx_file_server:
     build: nginx_file_server
-    expose: ["80"]
+    ports: ["80:80"]

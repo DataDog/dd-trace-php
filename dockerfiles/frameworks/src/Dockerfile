@@ -26,13 +26,15 @@ RUN set -xe; \
         php-xdebug \
         php-zip \
         php-xmlwriter \
-        php-redis \
         php-mysql \
         php-sqlite3 \
         php-memcached \
         php-amqp \
+        php-dev \
+        php-pear \
         curl \
-        vim;
+        vim; \
+    pecl install redis
 
 RUN set -xe; \
     php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');";\
@@ -46,16 +48,26 @@ ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
 CMD [ "bash" ]
 
 FROM base AS symfony
+ENV COMPOSER_MEMORY_LIMIT -1
+ARG SYMFONY_VERSION_TAG=v4.3.4
 
-ARG SYMFONY_VERSION_TAG=v4.3.3
 RUN set -xe; \
     git clone --depth 1 --branch ${SYMFONY_VERSION_TAG} https://github.com/symfony/symfony /home/symfony; \
     cd /home/symfony; \
-    export COMPOSER_MEMORY_LIMIT=-1; \
-    composer install --prefer-dist; \
-    php ./phpunit --list-tests
-
+    composer update --prefer-dist; \
+    php ./phpunit install
 WORKDIR /home/symfony
+ADD patch.patch ./
+
+RUN set -xe; \
+  git add -f vendor; \
+  git config --global user.email "you@example.com"; \
+  git config --global user.name "Your Name"; \
+  git commit -m "vendor"; \
+  git apply patch.patch
+
+ADD 20-redis.ini /etc/php/7.3/cli/conf.d/20-redis.ini
+CMD [ "php", "/home/symfony/phpunit", "--exclude-group", "tty,benchmark,intl-data,legacy" ]
 
 FROM base AS laravel
 ARG LARAVEL_VERSION_TAG=v5.8.17
@@ -68,3 +80,7 @@ RUN set -xe; \
     export COMPOSER_MEMORY_LIMIT=-1; \
     composer install --prefer-dist
 WORKDIR /home/laravel
+
+
+
+

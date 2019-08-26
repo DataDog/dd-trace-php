@@ -184,6 +184,9 @@ class SymfonyBundle extends Bundle
      */
     public static function injectRouteInfo($args, $request, Span $requestSpan)
     {
+        if (count($args) < 2) {
+            return;
+        }
         if (is_object($args[0])) {
             list($event, $eventName) = $args;
         } else {
