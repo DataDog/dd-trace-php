@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Common;
 
+use DDTrace\Configuration;
 use DDTrace\Tag;
 
 final class SpanAssertion
@@ -21,7 +22,6 @@ final class SpanAssertion
     private $resource = SpanAssertion::NOT_TESTED;
     private $onlyCheckExistence = false;
     private $isTraceAnalyticsCandidate = false;
-    private $isSandboxedTraceAnalyticsCandidate = false;
 
     /**
      * @param string $name
@@ -91,9 +91,10 @@ final class SpanAssertion
     /**
      * @param string|null $errorType The expected error.type
      * @param string|null $errorMessage The expected error.msg
+     * @param bool $exceptionThrown If we would expect error.stack (sandbox only)
      * @return $this
      */
-    public function setError($errorType = null, $errorMessage = null)
+    public function setError($errorType = null, $errorMessage = null, $exceptionThrown = false)
     {
         $this->hasError = true;
         if (isset($this->exactTags[Tag::ERROR_TYPE])) {
@@ -106,6 +107,9 @@ final class SpanAssertion
         }
         if (null !== $errorMessage) {
             $this->exactTags[Tag::ERROR_MSG] = $errorMessage;
+        }
+        if ($exceptionThrown && Configuration::get()->isSandboxEnabled()) {
+            $this->existingTags[] = Tag::ERROR_STACK;
         }
         return $this;
     }
@@ -192,7 +196,7 @@ final class SpanAssertion
     }
 
     /**
-     * @return string
+     * @return string[]
      */
     public function getExactTags()
     {
@@ -260,23 +264,6 @@ final class SpanAssertion
     public function isTraceAnalyticsCandidate()
     {
         return $this->isTraceAnalyticsCandidate;
-    }
-
-    /**
-     * @return self
-     */
-    public function setSandboxedTraceAnalyticsCandidate()
-    {
-        $this->isSandboxedTraceAnalyticsCandidate = true;
-        return $this;
-    }
-
-    /**
-     * @return bool
-     */
-    public function isSandboxedTraceAnalyticsCandidate()
-    {
-        return $this->isSandboxedTraceAnalyticsCandidate;
     }
 
     /**
