@@ -41,7 +41,7 @@ RUN set -xe; \
     php -r "unlink('composer-setup.php');"; \
     mv composer.phar /usr/local/bin/composer;
 
-ARG SYMFONY_VERSION_TAG=4.4
+ARG SYMFONY_VERSION_TAG=master
 RUN set -xe; \
     git clone --depth 1 --branch ${SYMFONY_VERSION_TAG} https://github.com/symfony/symfony /home/symfony; \
     cd /home/symfony; \
