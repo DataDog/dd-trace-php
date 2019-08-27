@@ -165,6 +165,7 @@
                     <file name="simple_function_hook.phpt" role="test" />
                     <file name="simple_method_hook.phpt" role="test" />
                     <file name="simple_sanity_check.phpt" role="test" />
+                    <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     <file name="throw_exception.phpt" role="test" />
                     <file name="trace_method_or_function_that_will_exist_later.phpt" role="test" />
                     <file name="trace_static_method.phpt" role="test" />
