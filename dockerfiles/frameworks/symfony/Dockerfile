@@ -41,12 +41,19 @@ RUN set -xe; \
     php -r "unlink('composer-setup.php');"; \
     mv composer.phar /usr/local/bin/composer;
 
-ARG SYMFONY_VERSION_TAG=v4.3.3
+ARG SYMFONY_VERSION_TAG=4.4
 RUN set -xe; \
     git clone --depth 1 --branch ${SYMFONY_VERSION_TAG} https://github.com/symfony/symfony /home/symfony; \
     cd /home/symfony; \
     export COMPOSER_MEMORY_LIMIT=-1; \
-    composer install --prefer-dist; \
+    # export COMPOSER_ROOT_VERSION=4.3.4; \
+    # export SYMFONY_REQUIRE="4.3.4"; \
+    # sed -i -e 's/4.3-dev/v4.3.4/g' composer.json; \
+    # sed -i -e 's/self.version/~4.3/g' composer.json; \
+    composer config -- version 4.3.4; \
+    # composer config -- prefer-lowest true; \
+    # composer global require --no-progress --no-scripts --no-plugins symfony/flex dev-master; \
+    composer update --prefer-dist; \
     php ./phpunit --list-tests
 
 WORKDIR /home/symfony

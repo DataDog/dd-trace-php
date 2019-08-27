@@ -1,6 +1,6 @@
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 THIS_FILE := $(lastword $(MAKEFILE_LIST))
-VERSION_TO_INSTALL:=0.30.0
+VERSION_TO_INSTALL:=0.30.1
 
 JOBS:=symfony symfony_no_ddtrace
 .PHONY: all
