@@ -367,11 +367,15 @@ class PDOIntegration extends Integration
 
     public static function storeConnectionParams($pdo, array $constructorArgs)
     {
-        $tags = self::parseDsn($constructorArgs[0]);
-        if (isset($constructorArgs[1])) {
-            $tags['db.user'] = $constructorArgs[1];
+        if (count($constructorArgs) > 0) {
+            $tags = self::parseDsn($constructorArgs[0]);
+            if (isset($constructorArgs[1])) {
+                $tags['db.user'] = $constructorArgs[1];
+            }
+            self::$connections[spl_object_hash($pdo)] = $tags;
+        } else {
+            self::$connections[spl_object_hash($pdo)] = array();
         }
-        self::$connections[spl_object_hash($pdo)] = $tags;
     }
 
     public static function storeStatementFromConnection($pdo, $stmt)

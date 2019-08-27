@@ -22,13 +22,13 @@ nginx_file_server: $(DDTRACE_DEB)
 symfony: nginx_file_server
 	@echo Running $@
 	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/symfony.yml pull
-	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/symfony.yml run symfony php ./phpunit --debug -v
+	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/symfony.yml run symfony
 
 .PHONY: symfony_no_ddtrace
 symfony_no_ddtrace: nginx_file_server
 	@echo Running $@
 	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/symfony.yml pull
-	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/symfony.yml run -e NO_DDTRACE=true symfony php ./phpunit --debug -v
+	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/symfony.yml run -e NO_DDTRACE=true symfony
 
 .PHONY: laravel
 laravel: nginx_file_server

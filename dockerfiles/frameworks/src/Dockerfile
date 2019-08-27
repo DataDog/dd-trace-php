@@ -42,8 +42,11 @@ RUN set -xe; \
     php composer-setup.php; \
     php -r "unlink('composer-setup.php');"; \
     mv composer.phar /usr/local/bin/composer;
+
 ENV COMPOSER_MEMORY_LIMIT -1
 ADD entrypoint.sh /usr/local/bin/entrypoint.sh
+ADD 20-redis.ini /etc/php/7.3/cli/conf.d/20-redis.ini
+
 ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
 CMD [ "bash" ]
 
@@ -57,16 +60,15 @@ RUN set -xe; \
     composer update --prefer-dist; \
     php ./phpunit install
 WORKDIR /home/symfony
-ADD patch.patch ./
+ADD symfony_${SYMFONY_VERSION_TAG}.patch ./
 
 RUN set -xe; \
   git add -f vendor; \
   git config --global user.email "you@example.com"; \
   git config --global user.name "Your Name"; \
   git commit -m "vendor"; \
-  git apply patch.patch
+  git apply *.patch
 
-ADD 20-redis.ini /etc/php/7.3/cli/conf.d/20-redis.ini
 CMD [ "php", "/home/symfony/phpunit", "--exclude-group", "tty,benchmark,intl-data,legacy" ]
 
 FROM base AS laravel
@@ -80,7 +82,3 @@ RUN set -xe; \
     export COMPOSER_MEMORY_LIMIT=-1; \
     composer install --prefer-dist
 WORKDIR /home/laravel
-
-
-
-
