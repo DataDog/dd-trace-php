@@ -255,6 +255,18 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
         return;
     }
 
+    if (this) {
+        BOOL_T is_instance_method = (ex->func->common.fn_flags & ZEND_ACC_STATIC) ? FALSE : TRUE;
+        BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
+        if (is_instance_method && is_closure_static) {
+            if (this) {
+                OBJ_RELEASE(Z_OBJ_P(this));
+            }
+            ddtrace_log_debug("Cannot trace non-static method with static tracing closure");
+            return;
+        }
+    }
+
     // Arg 0: DDTrace\SpanData $span
     args[0] = *span_data;
 
