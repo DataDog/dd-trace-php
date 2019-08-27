@@ -15,12 +15,6 @@
 #define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
 #endif
 
-/* Why did we redef this? */
-#if PHP_VERSION_ID < 70000
-#undef EX
-#define EX(x) ((execute_data)->x)
-#endif
-
 void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
                             zend_execute_data *execute_data TSRMLS_DC) {
     int fcall_status;

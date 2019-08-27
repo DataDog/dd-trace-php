@@ -16,9 +16,6 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
-#undef EX  // php7 style EX
-#define EX(x) ((execute_data)->x)
-
 static zend_always_inline void **vm_stack_push_args_with_copy(int count TSRMLS_DC) /* {{{ */
 {
     zend_vm_stack p = EG(argument_stack);

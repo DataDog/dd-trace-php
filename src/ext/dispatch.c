@@ -28,11 +28,6 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-#if PHP_VERSION_ID < 70000
-#undef EX
-#define EX(x) ((execute_data)->x)
-#endif
-
 static ddtrace_dispatch_t *find_function_dispatch(const HashTable *lookup, zval *fname) {
     char *key = zend_str_tolower_dup(Z_STRVAL_P(fname), Z_STRLEN_P(fname));
     ddtrace_dispatch_t *dispatch = NULL;
