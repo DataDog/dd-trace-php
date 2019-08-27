@@ -341,6 +341,9 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
     zval *this = ddtrace_this(execute_data);
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
+        if (this) {
+            Z_DELREF_P(this);
+        }
         ddtrace_log_debug("Could not init tracing closure");
         return;
     }
@@ -353,6 +356,9 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
         BOOL_T is_instance_method = (EX(call)->fbc->common.fn_flags & ZEND_ACC_STATIC) ? FALSE : TRUE;
         BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
         if (is_instance_method && is_closure_static) {
+            if (this) {
+                Z_DELREF_P(this);
+            }
             ddtrace_log_debug("Cannot trace non-static method with static tracing closure");
             return;
         }
