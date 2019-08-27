@@ -350,7 +350,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
      * @see https://3v4l.org/Rgo87
      */
     if (this) {
-        BOOL_T is_instance_method = (EX(call)->fbc->common.fn_flags & ZEND_ACC_STATIC) ? FALSE : TRUE;
+        BOOL_T is_instance_method = (FBC()->common.fn_flags & ZEND_ACC_STATIC) ? FALSE : TRUE;
         BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
         if (is_instance_method && is_closure_static) {
             if (this) {
