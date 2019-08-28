@@ -69,7 +69,9 @@ RUN set -xe; \
   git commit -m "vendor"; \
   git apply *.patch
 
-CMD [ "php", "/home/symfony/phpunit", "--exclude-group", "tty,benchmark,intl-data,legacy" ]
+ENV SYMFONY_DEPRECATIONS_HELPER=disabled=1
+ADD symfony_run.sh ./
+CMD [ "./symfony_run.sh" ]
 
 FROM base AS laravel
 ARG LARAVEL_VERSION_TAG=v5.8.17
