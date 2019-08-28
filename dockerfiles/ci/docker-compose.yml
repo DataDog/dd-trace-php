@@ -14,6 +14,12 @@ x-aliases:
       target: final
 
 services:
+  '7.4-debug-asan':
+    <<: *base
+    image: 'datadog/dd-trace-php:7.4-buster-debug-asan'
+    build:
+      <<: *build_base
+      args: { VERSION: v7_4, VARIANT: debug-asan }
   '7.3':
     <<: *base
     image: 'datadog/dd-trace-php:7.3-buster'

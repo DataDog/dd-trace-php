@@ -1,5 +1,5 @@
 ARG VERSION=v7_3
-ARG VARIANT=vanila
+ARG VARIANT=vanilla
 FROM debian:buster-slim AS basic_system
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -85,7 +85,7 @@ RUN set -eux; \
     dockerize --version; \
     \
     apt-get update; \
-    apt-get install -y --no-install-recommends apache2; \
+    apt-get install -y --no-install-recommends apache2 libonig-dev; \
     rm -rf /var/lib/apt/lists/*; \
     \
 # generically convert lines like
@@ -147,31 +147,42 @@ ENV GPG_KEYS CBAF69F173A0FEA4B537F470D66C9593118BCCB6 F38252826ACD957EF380D39F2F
 
 FROM basic_system as php_source_v5_3
 ENV PHP_VERSION 5.3.38
+ENV PHP_URL="https://www.php.net/get/php-${PHP_VERSION}.tar.gz/from/this/mirror"
 
 FROM basic_system as php_source_v5_4
 ENV PHP_VERSION 5.4.45
+ENV PHP_URL="https://www.php.net/get/php-${PHP_VERSION}.tar.gz/from/this/mirror"
 
 FROM basic_system as php_source_v5_5
 ENV PHP_VERSION 5.5.38
+ENV PHP_URL="https://www.php.net/get/php-${PHP_VERSION}.tar.gz/from/this/mirror"
 
 FROM basic_system as php_source_v5_6
 ENV PHP_VERSION 5.6.40
+ENV PHP_URL="https://www.php.net/get/php-${PHP_VERSION}.tar.gz/from/this/mirror"
 
 FROM basic_system as php_source_v7_0
 ENV PHP_VERSION 7.0.33
+ENV PHP_URL="https://www.php.net/get/php-${PHP_VERSION}.tar.gz/from/this/mirror"
 
 FROM basic_system as php_source_v7_1
 ENV PHP_VERSION 7.1.30
+ENV PHP_URL="https://www.php.net/get/php-${PHP_VERSION}.tar.gz/from/this/mirror"
 
 FROM basic_system as php_source_v7_2
 ENV PHP_VERSION 7.2.20
+ENV PHP_URL="https://www.php.net/get/php-${PHP_VERSION}.tar.gz/from/this/mirror"
 
 FROM basic_system as php_source_v7_3
 ENV PHP_VERSION 7.3.6
+ENV PHP_URL="https://www.php.net/get/php-${PHP_VERSION}.tar.gz/from/this/mirror"
+
+FROM basic_system as php_source_v7_4
+ENV PHP_VERSION 7.4.0beta4
+ENV PHP_URL="https://downloads.php.net/~derick/php-${PHP_VERSION}.tar.gz"
 
 FROM php_source_${VERSION} as php_source
 
-ENV PHP_URL="https://www.php.net/get/php-${PHP_VERSION}.tar.gz/from/this/mirror"
 ENV PHP_ASC_URL="" PHP_SHA256="" PHP_MD5=""
 
 RUN set -eux; \
@@ -255,21 +266,24 @@ ENV PHP_EXTRA_CONFIGURE_ARGS ${BASE_CONFIG_ARGS} --with-password-argon2 --with-s
 FROM php_source as config-v7_3
 ENV PHP_EXTRA_CONFIGURE_ARGS ${BASE_CONFIG_ARGS} --with-password-argon2 --with-sodium=shared ${PHP_CONFIG_ARGS}
 
+FROM php_source as config-v7_4
+ENV PHP_EXTRA_CONFIGURE_ARGS ${BASE_CONFIG_ARGS} --with-password-argon2 --with-sodium=shared ${PHP_CONFIG_ARGS}
+
 # Variant specific configure args
 
-FROM config-$VERSION as config-variant-vanila
+FROM config-$VERSION as config-variant-vanilla
 ENV PHP_CFLAGS "-fstack-protector-strong -fpic -fpie -O2"
 
 FROM config-$VERSION as config-variant-debug
 ENV PHP_EXTRA_CONFIGURE_ARGS --enable-debug ${PHP_EXTRA_CONFIGURE_ARGS}
 
-FROM config-variant-vanila as config-variant-zts
+FROM config-variant-vanilla as config-variant-zts
 ENV PHP_EXTRA_CONFIGURE_ARGS --enable-maintainer-zts ${PHP_EXTRA_CONFIGURE_ARGS}
 
 FROM config-variant-debug as config-variant-debug-zts
 ENV PHP_EXTRA_CONFIGURE_ARGS --enable-maintainer-zts ${PHP_EXTRA_CONFIGURE_ARGS}
 
-FROM config-variant-vanila as config-variant-asan
+FROM config-variant-vanilla as config-variant-asan
 # don't detect leaks during image compilation
 ENV LSAN_OPTIONS detect_leaks=0
 ENV PHP_LIBS ${PHP_LIBS} -ldl -lasan
@@ -349,6 +363,7 @@ RUN set -eux; \
         --enable-cgi \
         --with-fpm-user=www-data \
         --with-fpm-group=www-data \
+        --with-pear \
         --with-pdo-pgsql \
         --with-pdo-mysql \
         --with-mysqli \
@@ -434,6 +449,7 @@ FROM final-v7_base AS v7_0-final
 FROM final-v7_base AS v7_1-final
 FROM final-v7_base AS v7_2-final
 FROM final-v7_base AS v7_3-final
+FROM final-v7_base AS v7_4-final
 
 FROM ${VERSION}-final AS final
 
