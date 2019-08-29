@@ -80,7 +80,8 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
                          zend_fcall_info_cache *fcc TSRMLS_DC);
 #endif
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
-                                     zval *user_retval TSRMLS_DC);
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user_args, zval *user_retval TSRMLS_DC);
+
+void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args);
 
 #endif  // DISPATCH_COMPAT_H

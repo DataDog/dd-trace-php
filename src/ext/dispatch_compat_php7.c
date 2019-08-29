@@ -191,31 +191,18 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
     return fcall_status;
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
-                                     zval *user_retval) {
-    zend_fcall_info fci = {0};
-    zend_fcall_info_cache fcc = {0};
-    zval rv;
-    INIT_ZVAL(rv);
+void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args) {
+    zend_execute_data *ex = execute_data->call;
     uint32_t i, first_extra_arg;
-    zval args[3], *p, *q;
-    zend_execute_data *ex = EX(call);
-
-    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL) == FAILURE) {
-        ddtrace_log_debug("Could not init tracing closure");
-        return;
-    }
-    // Arg 0: DDTrace\SpanData $span
-    ZVAL_COPY(&args[0], span_data);
-    // Arg 1: array $args
-    zval user_args;
-    // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
+    zval *p, *q;
     uint32_t arg_count = ZEND_CALL_NUM_ARGS(ex);
-    array_init_size(&user_args, arg_count);
+
+    // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
+    array_init_size(user_args, arg_count);
     if (arg_count) {
         first_extra_arg = ex->func->op_array.num_args;
-        zend_hash_real_init(Z_ARRVAL(user_args), 1);
-        ZEND_HASH_FILL_PACKED(Z_ARRVAL(user_args)) {
+        zend_hash_real_init(Z_ARRVAL_P(user_args), 1);
+        ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(user_args)) {
             i = 0;
             p = ZEND_CALL_ARG(ex, 1);
             if (arg_count > first_extra_arg) {
@@ -251,12 +238,30 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
             }
         }
         ZEND_HASH_FILL_END();
-        Z_ARRVAL(user_args)->nNumOfElements = arg_count;
+        Z_ARRVAL_P(user_args)->nNumOfElements = arg_count;
     }
-    ZVAL_COPY(&args[1], &user_args);
+}
+
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user_args, zval *user_retval) {
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
+    zval rv;
+    INIT_ZVAL(rv);
+    zval args[3];
+
+    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL) == FAILURE) {
+        ddtrace_log_debug("Could not init tracing closure");
+        return;
+    }
+
+    // Arg 0: DDTrace\SpanData $span
+    args[0] = *span_data;
+
+    // Arg 1: array $args
+    args[1] = *user_args;
 
     // Arg 2: mixed $retval
-    ZVAL_COPY(&args[2], user_retval);
+    args[2] = *user_retval;
 
     fci.param_count = 3;
     fci.params = args;
@@ -265,8 +270,6 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
         ddtrace_log_debug("Could not execute tracing closure");
     }
 
-    zval_ptr_dtor(&user_args);
     zval_ptr_dtor(&rv);
-    zend_fcall_info_args_clear(&fci, 0);
 }
 #endif  // PHP_VERSION_ID >= 70000

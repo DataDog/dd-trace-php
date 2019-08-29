@@ -27,7 +27,8 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     const zend_op *opline = EX(opline);
 
     zval *this = ddtrace_this(execute_data);
-    zval *user_retval = NULL;
+    zval *user_retval = NULL, user_args;
+    INIT_ZVAL(user_args);
 #if PHP_VERSION_ID < 70000
     ALLOC_INIT_ZVAL(user_retval);
 #else
@@ -46,10 +47,12 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
 #endif
     dd_trace_stop_span_time(span);
 
+    ddtrace_copy_function_args(execute_data, &user_args);
+
     if (fcall_status == SUCCESS && !EG(exception) && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         int orig_error_reporting = EG(error_reporting);
         EG(error_reporting) = 0;
-        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, user_retval TSRMLS_CC);
+        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, &user_args, user_retval TSRMLS_CC);
         EG(error_reporting) = orig_error_reporting;
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
@@ -58,18 +61,18 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
         }
     }
 
+    ddtrace_zval_ptr_dtor(&user_args);
+
     ddtrace_close_span(TSRMLS_C);
 
 #if PHP_VERSION_ID < 50500
     (void)opline;  // TODO Make work on PHP 5.4
 #elif PHP_VERSION_ID < 70000
     // Put the original return value on the opline
-    if (user_retval != NULL) {
-        if (RETURN_VALUE_USED(opline)) {
-            EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = user_retval;
-        } else {
-            zval_ptr_dtor(&user_retval);
-        }
+    if (RETURN_VALUE_USED(opline)) {
+        EX_TMP_VAR(execute_data, opline->result.var)->var.ptr = user_retval;
+    } else {
+        zval_ptr_dtor(&user_retval);
     }
 #else
     zend_fcall_info_args_clear(&fci, 0);

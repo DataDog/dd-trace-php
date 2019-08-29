@@ -56,6 +56,11 @@ ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = span;
 
     span->span_data = (zval *)ecalloc(1, sizeof(zval));
+
+    /* On PHP 5 object_init_ex does not set refcount to 1, but on PHP 7 it does */
+#if PHP_VERSION_ID < 70000
+    Z_ADDREF_P(span->span_data);
+#endif
     object_init_ex(span->span_data, ddtrace_ce_span_data);
 
     // Peek at the active span ID before we push a new one onto the stack

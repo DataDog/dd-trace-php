@@ -312,23 +312,8 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
     return fcall_status;
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
-                                     zval *user_retval TSRMLS_DC) {
-    zend_fcall_info fci = {0};
-    zend_fcall_info_cache fcc = {0};
-    zval *retval_ptr = NULL;
-    zval **args[3];
-
-    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
-        ddtrace_log_debug("Could not init tracing closure");
-        return;
-    }
-    // Arg 0: DDTrace\SpanData $span
-    args[0] = &span_data;
-    Z_ADDREF_P(span_data);
-    // Arg 1: array $args
-    zval *user_args = NULL;
-    MAKE_STD_ZVAL(user_args);
+void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args) {
+    INIT_ZVAL(*user_args);
     // @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_builtin_functions.c#L447-L473
     void **p = EX(function_state).arguments;
     if (p && *p) {
@@ -346,7 +331,25 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     } else {
         array_init_size(user_args, 0);
     }
+}
+
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user_args, zval *user_retval TSRMLS_DC) {
+    zend_fcall_info fci = {0};
+    zend_fcall_info_cache fcc = {0};
+    zval *retval_ptr = NULL;
+    zval **args[3];
+
+    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
+        ddtrace_log_debug("Could not init tracing closure");
+        return;
+    }
+
+    // Arg 0: DDTrace\SpanData $span
+    args[0] = &span_data;
+
+    // Arg 1: array $args
     args[1] = &user_args;
+
     // Arg 2: mixed $retval
     args[2] = &user_retval;
 
@@ -356,8 +359,6 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not execute tracing closure");
     }
-
-    zval_ptr_dtor(&user_args);
 
     if (fci.retval_ptr_ptr && retval_ptr) {
         zval_ptr_dtor(&retval_ptr);
