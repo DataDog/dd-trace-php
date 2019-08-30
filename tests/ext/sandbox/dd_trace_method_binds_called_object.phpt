@@ -1,5 +1,7 @@
 --TEST--
 dd_trace_method() binds the called object to the tracing closure
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 date_default_timezone_set('UTC');
