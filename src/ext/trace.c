@@ -20,7 +20,6 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     int fcall_status;
     const zend_op *opline = EX(opline);
 
-    zval *this = ddtrace_this(execute_data);
     zval *user_retval = NULL, user_args;
     INIT_ZVAL(user_args);
 #if PHP_VERSION_ID < 70000
@@ -30,6 +29,8 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     INIT_ZVAL(rv);
     user_retval = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
 #endif
+
+    ddtrace_copy_function_args(execute_data, &user_args);
 
     ddtrace_span_t *span = ddtrace_open_span(TSRMLS_C);
 #if PHP_VERSION_ID < 70000
@@ -41,12 +42,11 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
 #endif
     dd_trace_stop_span_time(span);
 
-    ddtrace_copy_function_args(execute_data, &user_args);
-
     if (fcall_status == SUCCESS && !EG(exception) && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         int orig_error_reporting = EG(error_reporting);
         EG(error_reporting) = 0;
-        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, &user_args, user_retval TSRMLS_CC);
+        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, &user_args,
+                                        user_retval TSRMLS_CC);
         EG(error_reporting) = orig_error_reporting;
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {

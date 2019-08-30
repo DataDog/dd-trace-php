@@ -330,7 +330,8 @@ void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args
     }
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user_args, zval *user_retval TSRMLS_DC) {
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_args,
+                                     zval *user_retval TSRMLS_DC) {
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval *retval_ptr = NULL;

@@ -16,7 +16,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result) {
     fci->param_count = ZEND_CALL_NUM_ARGS(execute_data);
-    fci->params = ZEND_CALL_ARG(execute_data, 1);
+    fci->params = fci->param_count ? ZEND_CALL_ARG(execute_data, 1) : NULL;
     fci->retval = *result;
 }
 
@@ -192,36 +192,18 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
 }
 
 void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args) {
-    zend_execute_data *ex = execute_data->call;
-    uint32_t i, first_extra_arg;
+    zend_execute_data *ex = EX(call);
+    uint32_t i;
     zval *p, *q;
     uint32_t arg_count = ZEND_CALL_NUM_ARGS(ex);
 
     // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
     array_init_size(user_args, arg_count);
     if (arg_count) {
-        first_extra_arg = ex->func->op_array.num_args;
         zend_hash_real_init(Z_ARRVAL_P(user_args), 1);
         ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(user_args)) {
             i = 0;
             p = ZEND_CALL_ARG(ex, 1);
-            if (arg_count > first_extra_arg) {
-                while (i < first_extra_arg) {
-                    q = p;
-                    if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
-                        ZVAL_DEREF(q);
-                        if (Z_OPT_REFCOUNTED_P(q)) {
-                            Z_ADDREF_P(q);
-                        }
-                    } else {
-                        q = &EG(uninitialized_zval);
-                    }
-                    ZEND_HASH_FILL_ADD(q);
-                    p++;
-                    i++;
-                }
-                p = ZEND_CALL_VAR_NUM(ex, ex->func->op_array.last_var + ex->func->op_array.T);
-            }
             while (i < arg_count) {
                 q = p;
                 if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
@@ -242,7 +224,8 @@ void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args
     }
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user_args, zval *user_retval) {
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_args,
+                                     zval *user_retval) {
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval rv;
@@ -256,7 +239,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
     }
 
     if (this) {
-        BOOL_T is_instance_method = (ex->func->common.fn_flags & ZEND_ACC_STATIC) ? FALSE : TRUE;
+        BOOL_T is_instance_method = (EX(call)->func->common.fn_flags & ZEND_ACC_STATIC) ? FALSE : TRUE;
         BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
         if (is_instance_method && is_closure_static) {
             if (this) {
@@ -268,13 +251,13 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
     }
 
     // Arg 0: DDTrace\SpanData $span
-    args[0] = *span_data;
+    ZVAL_COPY(&args[0], span_data);
 
     // Arg 1: array $args
-    args[1] = *user_args;
+    ZVAL_COPY(&args[1], user_args);
 
     // Arg 2: mixed $retval
-    args[2] = *user_retval;
+    ZVAL_COPY(&args[2], user_retval);
 
     fci.param_count = 3;
     fci.params = args;
