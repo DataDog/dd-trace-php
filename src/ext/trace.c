@@ -30,8 +30,6 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     user_retval = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
 #endif
 
-    ddtrace_copy_function_args(execute_data, &user_args);
-
     ddtrace_span_t *span = ddtrace_open_span(TSRMLS_C);
 #if PHP_VERSION_ID < 70000
     fcall_status = ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
@@ -41,6 +39,8 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     fcall_status = ddtrace_forward_call(EX(call), fbc, user_retval, &fci, &fcc TSRMLS_CC);
 #endif
     dd_trace_stop_span_time(span);
+
+    ddtrace_copy_function_args(execute_data, &user_args);
 
     if (fcall_status == SUCCESS && !EG(exception) && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         int orig_error_reporting = EG(error_reporting);
