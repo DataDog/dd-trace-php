@@ -17,21 +17,20 @@ void ddtrace_class_lookup_release_compat(zval *zv);
 #define INIT_ZVAL(x) ZVAL_NULL(&x)
 #endif
 
-#define _EX(x) ((execute_data)->x)
 static zend_always_inline zval *ddtrace_this(zend_execute_data *execute_data) {
     zval *this = NULL;
 #if PHP_VERSION_ID < 50500
-    if (_EX(opline)->opcode != ZEND_DO_FCALL && _EX(object)) {
-        this = _EX(object);
+    if (EX(opline)->opcode != ZEND_DO_FCALL && EX(object)) {
+        this = EX(object);
     }
 #elif PHP_VERSION_ID < 70000
-    if (_EX(opline)->opcode != ZEND_DO_FCALL) {
-        this = _EX(call) ? _EX(call)->object : NULL;
+    if (EX(opline)->opcode != ZEND_DO_FCALL) {
+        this = EX(call) ? EX(call)->object : NULL;
     }
 #else
-    if (_EX(call)) {
-        if (Z_OBJ(_EX(call)->This) != NULL) {
-            this = &(_EX(call)->This);
+    if (EX(call)) {
+        if (Z_OBJ(EX(call)->This) != NULL) {
+            this = &(EX(call)->This);
         }
     }
 #endif
@@ -41,7 +40,6 @@ static zend_always_inline zval *ddtrace_this(zend_execute_data *execute_data) {
 
     return this;
 }
-#undef _EX
 
 #if PHP_VERSION_ID >= 70000
 static zend_always_inline int ddtrace_is_all_lower(zend_string *s) {
@@ -80,7 +78,8 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
                          zend_fcall_info_cache *fcc TSRMLS_DC);
 #endif
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user_args, zval *user_retval TSRMLS_DC);
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_args,
+                                     zval *user_retval TSRMLS_DC);
 
 void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args);
 

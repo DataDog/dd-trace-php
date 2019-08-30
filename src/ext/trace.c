@@ -15,18 +15,11 @@
 #define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
 #endif
 
-/* Why did we redef this? */
-#if PHP_VERSION_ID < 70000
-#undef EX
-#define EX(x) ((execute_data)->x)
-#endif
-
 void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
                             zend_execute_data *execute_data TSRMLS_DC) {
     int fcall_status;
     const zend_op *opline = EX(opline);
 
-    zval *this = ddtrace_this(execute_data);
     zval *user_retval = NULL, user_args;
     INIT_ZVAL(user_args);
 #if PHP_VERSION_ID < 70000
@@ -52,7 +45,8 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     if (fcall_status == SUCCESS && !EG(exception) && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         int orig_error_reporting = EG(error_reporting);
         EG(error_reporting) = 0;
-        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, &user_args, user_retval TSRMLS_CC);
+        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, &user_args,
+                                        user_retval TSRMLS_CC);
         EG(error_reporting) = orig_error_reporting;
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
@@ -81,25 +75,25 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     }
 #endif
 
-#if PHP_VERSION_ID < 70000
-    if (this) {
-        Z_DELREF_P(this);
-    }
-#else
-    if (this) {  // May need to check: EX_CALL_INFO() & ZEND_CALL_RELEASE_THIS
-        OBJ_RELEASE(Z_OBJ_P(this));
-    }
-#endif
-
 #if PHP_VERSION_ID < 50500
     // Free any remaining args
     zend_vm_stack_clear_multiple(TSRMLS_C);
 #elif PHP_VERSION_ID < 70000
+    // Since zend_leave_helper isn't run we have to dtor $this here
+    // https://lxr.room11.org/xref/php-src%405.6/Zend/zend_vm_def.h#1905
+    if (EX(call)->object) {
+        zval_ptr_dtor(&EX(call)->object);
+    }
     // Free any remaining args
     zend_vm_stack_clear_multiple(0 TSRMLS_CC);
     // Restore call for internal functions
     EX(call)--;
 #else
+    // Since zend_leave_helper isn't run we have to dtor $this here
+    // https://lxr.room11.org/xref/php-src%407.4/Zend/zend_vm_def.h#2888
+    if (ZEND_CALL_INFO(EX(call)) & ZEND_CALL_RELEASE_THIS) {
+        OBJ_RELEASE(Z_OBJ(EX(call)->This));
+    }
     // Restore call for internal functions
     EX(call) = EX(call)->prev_execute_data;
 #endif

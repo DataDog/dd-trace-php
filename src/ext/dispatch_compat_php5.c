@@ -16,9 +16,6 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
-#undef EX  // php7 style EX
-#define EX(x) ((execute_data)->x)
-
 static zend_always_inline void **vm_stack_push_args_with_copy(int count TSRMLS_DC) /* {{{ */
 {
     zend_vm_stack p = EG(argument_stack);
@@ -333,15 +330,30 @@ void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args
     }
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user_args, zval *user_retval TSRMLS_DC) {
+void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_args,
+                                     zval *user_retval TSRMLS_DC) {
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval *retval_ptr = NULL;
     zval **args[3];
+    zval *this = ddtrace_this(execute_data);
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
         return;
+    }
+
+    /* Note: In PHP 5 there is a bug where closures are automatically
+     * marked as static if they are defined from a static method context.
+     * @see https://3v4l.org/Rgo87
+     */
+    if (this) {
+        BOOL_T is_instance_method = (FBC()->common.fn_flags & ZEND_ACC_STATIC) ? FALSE : TRUE;
+        BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
+        if (is_instance_method && is_closure_static) {
+            ddtrace_log_debug("Cannot trace non-static method with static tracing closure");
+            return;
+        }
     }
 
     // Arg 0: DDTrace\SpanData $span
@@ -356,6 +368,11 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zval *user
     fci.param_count = 3;
     fci.params = args;
     fci.retval_ptr_ptr = &retval_ptr;
+
+    fcc.initialized = 1;
+    fcc.object_ptr = this;
+    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : NULL;
+
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not execute tracing closure");
     }
