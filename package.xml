@@ -115,13 +115,17 @@
                     <file name="dd_trace_forward_call_from_include.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_inheritance.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_private_callback.phpt" role="test" />
-                    <file name="dd_trace_function.phpt" role="test" />
-                    <file name="dd_trace_method.phpt" role="test" />
-                    <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
-                    <file name="dd_trace_push_span_id.phpt" role="test" />
+                    <dir name="sandbox">
+                        <file name="dd_trace_function_complex.phpt" role="test" />
+                        <file name="dd_trace_function_internal.phpt" role="test" />
+                        <file name="dd_trace_function_userland.phpt" role="test" />
+                        <file name="dd_trace_method.phpt" role="test" />
+                        <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
+                        <file name="dd_trace_push_span_id.phpt" role="test" />
+                        <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
+                    </dir>
                     <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
-                    <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
                     <file name="from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
                     <file name="from_php_7_3_bug61728.phpt" role="test" />
                     <file name="method_invoked_via_reflection.phpt" role="test" />
