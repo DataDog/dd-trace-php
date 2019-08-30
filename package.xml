@@ -120,11 +120,12 @@
                         <file name="dd_trace_function_internal.phpt" role="test" />
                         <file name="dd_trace_function_userland.phpt" role="test" />
                         <file name="dd_trace_method.phpt" role="test" />
+                        <file name="dd_trace_method_binds_called_object.phpt" role="test" />
                         <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
                         <file name="dd_trace_push_span_id.phpt" role="test" />
                         <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
+                        <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     </dir>
-                    <file name="dd_trace_method_binds_called_object.phpt" role="test" />
                     <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
@@ -165,7 +166,6 @@
                     <file name="simple_function_hook.phpt" role="test" />
                     <file name="simple_method_hook.phpt" role="test" />
                     <file name="simple_sanity_check.phpt" role="test" />
-                    <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     <file name="throw_exception.phpt" role="test" />
                     <file name="trace_method_or_function_that_will_exist_later.phpt" role="test" />
                     <file name="trace_static_method.phpt" role="test" />
