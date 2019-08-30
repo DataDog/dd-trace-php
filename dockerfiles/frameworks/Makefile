@@ -27,19 +27,19 @@ build_file_server: $(DDTRACE_DEB)
 clean:
 	test -e $(DDTRACE_DEB) && rm $(DDTRACE_DEB) || true
 
-blah:
-	echo $(TARGETS) | xargs -n 1 echo
+base:
+	docker build ./src --target $@
 
 .PHONY: $(TARGETS)
 $(DDTRACE_TARGETS): build_file_server
 	@echo Running $@
-	@echo docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml pull
-	@echo docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml run $@
+	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml pull
+	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml run $@
 
 $(NO_DDTRACE_TARGETS): build_file_server
 	@echo Running without ddtrace enabled $@
-	@echo docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml pull
-	@echo docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml run -e NO_DDTRACE=true $@
+	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml pull
+	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$@.yml run -e NO_DDTRACE=true $@
 
 .PHONY: help
 help:
