@@ -79,11 +79,21 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     // Free any remaining args
     zend_vm_stack_clear_multiple(TSRMLS_C);
 #elif PHP_VERSION_ID < 70000
+    // Since zend_leave_helper isn't run we have to dtor $this here
+    // https://lxr.room11.org/xref/php-src%405.6/Zend/zend_vm_def.h#1905
+    if (EX(call)->object) {
+        zval_ptr_dtor(&EX(call)->object);
+    }
     // Free any remaining args
     zend_vm_stack_clear_multiple(0 TSRMLS_CC);
     // Restore call for internal functions
     EX(call)--;
 #else
+    // Since zend_leave_helper isn't run we have to dtor $this here
+    // https://lxr.room11.org/xref/php-src%407.4/Zend/zend_vm_def.h#2888
+    if (ZEND_CALL_INFO(EX(call)) & ZEND_CALL_RELEASE_THIS) {
+        OBJ_RELEASE(Z_OBJ(EX(call)->This));
+    }
     // Restore call for internal functions
     EX(call) = EX(call)->prev_execute_data;
 #endif

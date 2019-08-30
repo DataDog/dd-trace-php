@@ -242,9 +242,6 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
         BOOL_T is_instance_method = (EX(call)->func->common.fn_flags & ZEND_ACC_STATIC) ? FALSE : TRUE;
         BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
         if (is_instance_method && is_closure_static) {
-            if (this) {
-                OBJ_RELEASE(Z_OBJ_P(this));
-            }
             ddtrace_log_debug("Cannot trace non-static method with static tracing closure");
             return;
         }
@@ -275,9 +272,5 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
 
     zval_ptr_dtor(&rv);
     zend_fcall_info_args_clear(&fci, 0);
-
-    if (this) {  // May need to check: EX_CALL_INFO() & ZEND_CALL_RELEASE_THIS
-        OBJ_RELEASE(Z_OBJ_P(this));
-    }
 }
 #endif  // PHP_VERSION_ID >= 70000
