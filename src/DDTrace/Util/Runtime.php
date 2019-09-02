@@ -3,7 +3,7 @@
 namespace DDTrace\Util;
 
 /**
- * Utilities related tot he PHP runtime
+ * Utilities related to the PHP runtime
  */
 final class Runtime
 {
