@@ -9,6 +9,7 @@ use DDTrace\GlobalTracer;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Transport;
+use DDTrace\Util\ContainerInfo;
 
 final class Http implements Transport
 {
@@ -56,6 +57,11 @@ final class Http implements Transport
         $this->setHeader('Datadog-Meta-Lang-Version', \PHP_VERSION);
         $this->setHeader('Datadog-Meta-Lang-Interpreter', \PHP_SAPI);
         $this->setHeader('Datadog-Meta-Tracer-Version', DD_TRACE_VERSION);
+
+        $containerInfo = new ContainerInfo();
+        if ($containerId = $containerInfo->getContainerId()) {
+            $this->setHeader('Datadog-Container-Id', $containerId);
+        }
     }
 
     /**
