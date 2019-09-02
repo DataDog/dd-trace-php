@@ -133,6 +133,17 @@ RUN set -xe; \
     FLOW_CONTEXT=Testing/Behat ./flow behat:setup; \
     apt-get install -y default-mysql-client
 
+RUN set -xe; \
+    rm -rf ./Packages/Application/Neos.Behat/.git \
+    ./Packages/Application/Neos.Welcome/.git \
+    ./Packages/Framework/.git \
+    ./Build/BuildEssentials/.git \
+    ./Build/Behat/vendor/behat/mink-extension/.git \
+    ./Build/Behat/vendor/behat/behat/.git; \
+    git add -f Build; \
+    git add -f Packages; \
+    git commit -m "pre patch"
+
 ADD flow/30.tz.ini /etc/php/7.3/cli/conf.d/30-tz.ini
 ADD flow/30.tz.ini /etc/php/7.2/cli/conf.d/30-tz.ini
 ADD flow/30.tz.ini /etc/php/7.1/cli/conf.d/30-tz.ini
@@ -140,10 +151,10 @@ ADD flow/30.tz.ini /etc/php/7.0/cli/conf.d/30-tz.ini
 ADD flow/Settings.yaml Configuration/Settings.yaml
 ADD flow/Settings.yaml Configuration/Testing/Settings.yaml
 ADD flow/run.sh ./
-
-CMD [ "./run.sh" ]
+ADD flow/patch.patch ./
 
 RUN set -xe; \
-  echo "deb https://packages.sury.org/php/ buster main" | tee /etc/apt/sources.list.d/php.list; \
-  curl -L -o - https://packages.sury.org/php/apt.gpg | apt-key add -; \
-  apt-get update
+    git apply *.patch
+
+
+CMD [ "./run.sh" ]
