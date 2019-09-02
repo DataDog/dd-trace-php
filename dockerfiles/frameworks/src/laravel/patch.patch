@@ -1,13 +1,45 @@
-From 14aa3d2e17c045f3ce845ee66c06775d1bc89ecd Mon Sep 17 00:00:00 2001
+From 1bf80d0ca795752fb134033ae9ed054681c7a34e Mon Sep 17 00:00:00 2001
 From: Patch Maker <example@example.com>
-Date: Mon, 2 Sep 2019 11:49:43 +0000
+Date: Mon, 2 Sep 2019 14:25:02 +0000
 Subject: [PATCH] patch
 
 ---
- tests/Filesystem/FilesystemTest.php | 2 ++
- tests/Redis/RedisConnectionTest.php | 4 ++++
- 2 files changed, 6 insertions(+)
+ tests/Database/DatabaseConnectionTest.php      | 5 +++--
+ tests/Database/DatabaseEloquentBuilderTest.php | 1 +
+ tests/Filesystem/FilesystemTest.php            | 2 ++
+ tests/Redis/RedisConnectionTest.php            | 4 ++++
+ 4 files changed, 10 insertions(+), 2 deletions(-)
 
+diff --git a/tests/Database/DatabaseConnectionTest.php b/tests/Database/DatabaseConnectionTest.php
+index f727d3d..35d668d 100755
+--- a/tests/Database/DatabaseConnectionTest.php
++++ b/tests/Database/DatabaseConnectionTest.php
+@@ -123,10 +123,11 @@ class DatabaseConnectionTest extends TestCase
+         $statement = $this->getMockBuilder('PDOStatement')->setMethods(['execute', 'rowCount', 'bindValue'])->getMock();
+         $statement->expects($this->once())->method('bindValue')->with('foo', 'bar', 2);
+         $statement->expects($this->once())->method('execute');
+-        $statement->expects($this->once())->method('rowCount')->will($this->returnValue(['boom']));
++        $statement->expects($this->any())->method('rowCount')->will($this->returnValue(['boom']));
+         $pdo->expects($this->once())->method('prepare')->with('foo')->will($this->returnValue($statement));
+         $mock = $this->getMockConnection(['prepareBindings'], $pdo);
+-        $mock->expects($this->once())->method('prepareBindings')->with($this->equalTo(['foo' => 'bar']))->will($this->returnValue(['foo' => 'bar']));
++	//$mock->expects($this->twice())->method('prepareBindings')->with($this->equalTo(['foo' => 'bar']))->will($this->returnValue(['foo' => 'bar']));
++	$mock->expects($this->once())->method('prepareBindings')->with($this->equalTo(['foo' => 'bar']))->will($this->returnValue(['foo' => 'bar']));
+         $results = $mock->update('foo', ['foo' => 'bar']);
+         $this->assertEquals(['boom'], $results);
+         $log = $mock->getQueryLog();
+diff --git a/tests/Database/DatabaseEloquentBuilderTest.php b/tests/Database/DatabaseEloquentBuilderTest.php
+index 2fdbba2..87533b8 100755
+--- a/tests/Database/DatabaseEloquentBuilderTest.php
++++ b/tests/Database/DatabaseEloquentBuilderTest.php
+@@ -1199,6 +1199,7 @@ class DatabaseEloquentBuilderTest extends TestCase
+     {
+         $query = m::mock(BaseBuilder::class);
+         $query->shouldReceive('from')->with('foo_table');
++        $query->shouldReceive('toSql')->zeroOrMoreTimes();
+
+         return $query;
+     }
 diff --git a/tests/Filesystem/FilesystemTest.php b/tests/Filesystem/FilesystemTest.php
 index 84d09bf..28b6ec8 100755
 --- a/tests/Filesystem/FilesystemTest.php
@@ -29,7 +61,7 @@ index 84d09bf..28b6ec8 100755
          $files = new Filesystem;
          // chmod is noneffective on Windows
 diff --git a/tests/Redis/RedisConnectionTest.php b/tests/Redis/RedisConnectionTest.php
-index d014ac1..6426d3a 100644
+index d014ac1..316ddb7 100644
 --- a/tests/Redis/RedisConnectionTest.php
 +++ b/tests/Redis/RedisConnectionTest.php
 @@ -227,6 +227,7 @@ class RedisConnectionTest extends TestCase

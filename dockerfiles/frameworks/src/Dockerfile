@@ -107,6 +107,7 @@ RUN set -xe; \
 
 WORKDIR /home/laravel
 ADD laravel/patch.patch ./
+ENV DD_SERVICE_NAME=laravel
 RUN set -xe; \
     git apply *.patch
 

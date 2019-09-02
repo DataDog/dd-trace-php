@@ -300,7 +300,8 @@ class PDOIntegration extends Integration
             $errorCode = $pdo_or_statement->errorCode();
         } catch (\Exception $e) {
             $span->setRawError(
-                "SQL error: couldn't get error code", get_class($pdo_or_statement) . ' error'
+                "SQL error: couldn't get error code",
+                get_class($pdo_or_statement) . ' error'
             );
             return;
         }

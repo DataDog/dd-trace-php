@@ -192,6 +192,7 @@ class LaravelIntegrationLoader
         if ($name) {
             return $name;
         }
+
         if (is_callable('config')) {
             return config('app.name');
         }
