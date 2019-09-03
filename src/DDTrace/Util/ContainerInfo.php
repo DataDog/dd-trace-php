@@ -40,7 +40,7 @@ class ContainerInfo
         $file = null;
         try {
             $file = fopen($this->cgroupProcFile, 'r');
-            while(!feof($file))  {
+            while (!feof($file)) {
                 $line = fgets($file);
                 $matches = array();
                 preg_match(self::LINE_RE, trim($line), $matches);
@@ -48,7 +48,8 @@ class ContainerInfo
                     return $matches[3];
                 }
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
 
         if ($file) {
             fclose($file);
