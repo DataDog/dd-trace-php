@@ -37,14 +37,23 @@ class ContainerInfo
             return null;
         }
 
-        $lines = file($this->cgroupProcFile);
-        foreach ($lines as $line) {
-            $matches = array();
-            preg_match(self::LINE_RE, trim($line), $matches);
-            if (count($matches) > 3) {
-                return $matches[3];
+        $file = null;
+        try {
+            $file = fopen($this->cgroupProcFile, 'r');
+            while(!feof($file))  {
+                $line = fgets($file);
+                $matches = array();
+                preg_match(self::LINE_RE, trim($line), $matches);
+                if (count($matches) > 3) {
+                    return $matches[3];
+                }
             }
+        } catch (\Exception $e) {}
+
+        if ($file) {
+            fclose($file);
         }
+
         return null;
     }
 }

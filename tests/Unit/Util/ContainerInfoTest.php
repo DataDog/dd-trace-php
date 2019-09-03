@@ -53,6 +53,22 @@ final class ContainerInfoTest extends TestCase
         );
     }
 
+    public function testRelevantLineCanBeNotTheFirst()
+    {
+        $this->ensureNoMockCGroupProcFile();
+        $this->createCGroupProcFileWithLines([
+            // phpcs:disable
+            'totally random line',
+            '13:name=systemd:/docker/3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860',
+            '12:pids:/docker/3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860',
+            // phpcs:enable
+        ]);
+        $this->assertSame(
+            '3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860',
+            $this->containerInfo->getContainerId()
+        );
+    }
+
     public function testDocker()
     {
         $this->ensureNoMockCGroupProcFile();
