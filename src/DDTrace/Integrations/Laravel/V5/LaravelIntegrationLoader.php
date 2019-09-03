@@ -32,18 +32,20 @@ class LaravelIntegrationLoader
 
         dd_trace('Illuminate\Routing\Events\RouteMatched', '__construct', function () use ($self) {
             list($route, $request) = func_get_args();
-            $span = $self->rootScope->getSpan();
-            // Overwriting the default web integration
-            $span->setIntegration(LaravelIntegration::getInstance());
-            $span->setTraceAnalyticsCandidate();
-            $span->setTag(
-                Tag::RESOURCE_NAME,
-                $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
-            );
-            $span->setTag('laravel.route.name', Route::currentRouteName());
-            $span->setTag('laravel.route.action', $route->getActionName());
-            $span->setTag('http.url', $request->url());
-            $span->setTag('http.method', $request->method());
+            if ($self->rootScope) {
+                $span = $self->rootScope->getSpan();
+                // Overwriting the default web integration
+                $span->setIntegration(LaravelIntegration::getInstance());
+                $span->setTraceAnalyticsCandidate();
+                $span->setTag(
+                    Tag::RESOURCE_NAME,
+                    $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
+                );
+                $span->setTag('laravel.route.name', Route::currentRouteName());
+                $span->setTag('laravel.route.action', $route->getActionName());
+                $span->setTag('http.url', $request->url());
+                $span->setTag('http.method', $request->method());
+            }
 
             return dd_trace_forward_call();
         });
@@ -190,6 +192,7 @@ class LaravelIntegrationLoader
         if ($name) {
             return $name;
         }
+
         if (is_callable('config')) {
             return config('app.name');
         }

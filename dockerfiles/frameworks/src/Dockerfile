@@ -104,7 +104,14 @@ RUN set -xe; \
     cd /home/laravel; \
     export COMPOSER_MEMORY_LIMIT=-1; \
     composer install --prefer-dist
+
 WORKDIR /home/laravel
+ADD laravel/patch.patch ./
+ENV DD_SERVICE_NAME=laravel
+RUN set -xe; \
+    git apply *.patch
+
+CMD ["php", "./vendor/bin/phpunit", "-v"]
 
 FROM base AS flow
 ARG FLOW_VERSION_TAG=5.2.6

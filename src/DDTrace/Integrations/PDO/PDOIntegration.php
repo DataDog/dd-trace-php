@@ -294,7 +294,17 @@ class PDOIntegration extends Integration
      */
     public static function detectError($span, $pdo_or_statement)
     {
-        $errorCode = $pdo_or_statement->errorCode();
+        $errorCode = null;
+
+        try {
+            $errorCode = $pdo_or_statement->errorCode();
+        } catch (\Exception $e) {
+            $span->setRawError(
+                "SQL error: couldn't get error code",
+                get_class($pdo_or_statement) . ' error'
+            );
+            return;
+        }
         // Error codes follows the ANSI SQL-92 convention of 5 total chars:
         //   - 2 chars for class value
         //   - 3 chars for subclass value
