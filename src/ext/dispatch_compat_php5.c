@@ -16,6 +16,14 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
+#if !defined(ZVAL_COPY_VALUE)
+#define ZVAL_COPY_VALUE(z, v)      \
+    do {                           \
+        (z)->value = (v)->value;   \
+        Z_TYPE_P(z) = Z_TYPE_P(v); \
+    } while (0)
+#endif
+
 static zend_always_inline void **vm_stack_push_args_with_copy(int count TSRMLS_DC) /* {{{ */
 {
     zend_vm_stack p = EG(argument_stack);
@@ -381,5 +389,13 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
         zval_ptr_dtor(&retval_ptr);
     }
     zend_fcall_info_args_clear(&fci, 0);
+}
+
+void ddtrace_span_attach_exception(ddtrace_span_t *span, zval *exception) {
+    if (exception) {
+        MAKE_STD_ZVAL(span->exception);
+        ZVAL_COPY_VALUE(span->exception, exception);
+        zval_copy_ctor(span->exception);
+    }
 }
 #endif  // PHP 5

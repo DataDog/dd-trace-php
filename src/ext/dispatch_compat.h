@@ -1,9 +1,12 @@
 #ifndef DISPATCH_COMPAT_H
 #define DISPATCH_COMPAT_H
-#include "Zend/zend_types.h"
+
+#include <Zend/zend_types.h>
+
 #include "compat_zend_string.h"
 #include "dispatch.h"
 #include "env_config.h"
+#include "span.h"
 
 #if PHP_VERSION_ID < 70000
 #include "dispatch_compat_php5.h"
@@ -82,5 +85,11 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
                                      zval *user_retval TSRMLS_DC);
 
 void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args);
+
+#if PHP_VERSION_ID < 70000
+void ddtrace_span_attach_exception(ddtrace_span_t *span, zval *exception);
+#else
+void ddtrace_span_attach_exception(ddtrace_span_t *span, zend_object *exception);
+#endif
 
 #endif  // DISPATCH_COMPAT_H

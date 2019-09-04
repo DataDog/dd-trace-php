@@ -5,6 +5,7 @@
 
 #include <ext/spl/spl_exceptions.h>
 
+#include "compatibility.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
@@ -272,5 +273,12 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
 
     zval_ptr_dtor(&rv);
     zend_fcall_info_args_clear(&fci, 0);
+}
+
+void ddtrace_span_attach_exception(ddtrace_span_t *span, zend_object *exception) {
+    if (exception) {
+        GC_ADDREF(exception);
+        span->exception = exception;
+    }
 }
 #endif  // PHP_VERSION_ID >= 70000
