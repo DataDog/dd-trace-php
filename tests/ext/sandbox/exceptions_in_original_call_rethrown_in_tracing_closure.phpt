@@ -5,15 +5,6 @@ Exceptions from original call rethrown in tracing closure (PHP 7)
 <?php if (PHP_VERSION_ID < 70000) die('skip PHP 5 tested in separate test'); ?>
 --FILE--
 <?php
-register_shutdown_function(function () {
-    array_map(function($span) {
-        printf(
-            "%s with exception: %s\n",
-            $span['name'],
-            $span['meta']['error.msg']
-        );
-    }, dd_trace_serialize_closed_spans());
-});
 
 function a(){
     echo "a()\n";
@@ -25,15 +16,20 @@ dd_trace_function('a', function($s, $args, $r, $ex) {
     throw $ex;
 });
 
-a();
-echo "This line should not be run\n";
+try {
+    a();
+} catch (Exception $e) {
+    //
+}
+
+array_map(function($span) {
+    printf(
+        "%s with exception: %s\n",
+        $span['name'],
+        $span['meta']['error.msg']
+    );
+}, dd_trace_serialize_closed_spans());
 ?>
 --EXPECTF--
 a()
-
-Fatal error: Uncaught %sOops!%sin %s:%d
-Stack trace:
-#0 %s(%d): a()
-#1 {main}
-  thrown in %s on line %d
 a with exception: Oops!
