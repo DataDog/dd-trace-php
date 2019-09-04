@@ -61,7 +61,9 @@ final class PDOSandboxedTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.user' => 'wrong_user',
                 ]))
+                // phpcs:disable
                 ->setException('PDOException', 'SQLSTATE[HY000] [1045] Access denied for user \'wrong_user\'@\'%s\' (using password: YES)'),
+                // phpcs:enable
         ]);
     }
 
@@ -127,7 +129,9 @@ final class PDOSandboxedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
+                // phpcs:disable
                 ->setException('PDOException', 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY)\' at line 1')
+                // phpcs:enable
                 ->withExactTags($this->baseTags()),
             SpanAssertion::exists('PDO.__construct'),
         ]);
@@ -186,7 +190,9 @@ final class PDOSandboxedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
+                // phpcs:disable
                 ->setException('PDOException', 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\' at line 1')
+                // phpcs:enable
                 ->withExactTags($this->baseTags()),
             SpanAssertion::exists('PDO.__construct'),
         ]);
@@ -289,7 +295,9 @@ final class PDOSandboxedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
+                // phpcs:disable
                 ->setException('PDOException', 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\' at line 1')
+                // phpcs:enable
                 ->withExactTags($this->baseTags()),
             SpanAssertion::build('PDO.prepare', 'PDO', 'sql', $query)
                 ->withExactTags($this->baseTags()),
@@ -297,7 +305,7 @@ final class PDOSandboxedTest extends IntegrationTestCase
         ]);
     }
 
-    // TODO Add limited tracer to sandboxed closures
+    // Add limited tracer to sandboxed closures
     /*
     public function testLimitedTracerPDO()
     {
