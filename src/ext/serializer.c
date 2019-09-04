@@ -179,7 +179,7 @@ static zval *_read_span_property(zval *span_data, const char *name, size_t name_
     return zend_read_property(ddtrace_ce_span_data, span_data, name, name_len, 1 TSRMLS_CC);
 }
 
-static void _add_assoc_zval(zval *el, const char *name, zval *prop) {
+static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
     zval *value;
     ALLOC_ZVAL(value);
     INIT_PZVAL_COPY(value, prop);
@@ -187,16 +187,18 @@ static void _add_assoc_zval(zval *el, const char *name, zval *prop) {
     add_assoc_zval(el, name, value);
 }
 
-void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRMLS_DC) {
-    zval *exception, *msg, *stack;
+static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRMLS_DC) {
     zend_uint class_name_len;
     const char *class_name;
-    int dup;
-    exception = span->exception;
+    zval *exception = span->exception, *msg = NULL, *stack = NULL;
+
+    if (!exception) {
+        return;
+    }
+
+    int needs_copied = zend_get_object_classname(exception, &class_name, &class_name_len TSRMLS_CC);
 
     add_assoc_long(el, "error", 1);
-
-    dup = zend_get_object_classname(exception, &class_name, &class_name_len TSRMLS_CC);
 
     zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "getmessage", &msg);
     zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "gettraceasstring", &stack);
@@ -204,12 +206,12 @@ void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRMLS_DC) 
     /* add_assoc_stringl does not actually mutate the string, but we've either
      * already made a copy, or it will when it duplicates with dup param, so
      * if it did it should still be safe. */
-    add_assoc_stringl(meta, "error.name", (char *)class_name, class_name_len, dup);
+    add_assoc_stringl(meta, "error.name", (char *)class_name, class_name_len, needs_copied);
     add_assoc_zval(meta, "error.msg", msg);
     add_assoc_zval(meta, "error.stack", stack);
 }
 
-void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
+static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
     zval *meta = _read_span_property(span->span_data, "meta", sizeof("meta") - 1 TSRMLS_CC);
     BOOL_T should_free = TRUE;
 
@@ -221,9 +223,7 @@ void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
         Z_ADDREF_P(meta);
     }
 
-    if (span->exception) {
-        _serialize_exception(el, meta, span TSRMLS_CC);
-    }
+    _serialize_exception(el, meta, span TSRMLS_CC);
 
     // Add meta only if it has elements
     if (zend_hash_num_elements(Z_ARRVAL_P(meta))) {
@@ -243,14 +243,18 @@ static zval *_read_span_property(zval *span_data, const char *name, size_t name_
     return zend_read_property(ddtrace_ce_span_data, span_data, name, name_len, 1, &rv);
 }
 
-static void _add_assoc_zval(zval *el, const char *name, zval *prop) {
+static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
     zval value;
     ZVAL_COPY(&value, prop);
     add_assoc_zval(el, (name), &value);
 }
 
-void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
+static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
     zval exception, name, msg, stack;
+    if (!span->exception) {
+        return;
+    }
+
     ZVAL_OBJ(&exception, span->exception);
 
     add_assoc_long(el, "error", 1);
@@ -259,7 +263,7 @@ void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
     zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "getmessage", &msg);
     zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "gettraceasstring", &stack);
 
-    _add_assoc_zval(meta, "error.name", &name);
+    _add_assoc_zval_copy(meta, "error.name", &name);
     add_assoc_zval(meta, "error.msg", &msg);
     add_assoc_zval(meta, "error.stack", &stack);
 }
@@ -274,9 +278,7 @@ void _serialize_meta(zval *el, ddtrace_span_t *span) {
         Z_ADDREF_P(meta);
     }
 
-    if (span->exception) {
-        _serialize_exception(el, meta, span);
-    }
+    _serialize_exception(el, meta, span);
 
     if (zend_array_count(Z_ARRVAL_P(meta))) {
         add_assoc_zval(el, "meta", meta);
@@ -290,7 +292,7 @@ void _serialize_meta(zval *el, ddtrace_span_t *span) {
     do {                                                                                     \
         zval *prop = _read_span_property(span->span_data, name, sizeof(name) - 1 TSRMLS_CC); \
         if (Z_TYPE_P(prop) == (type)) {                                                      \
-            _add_assoc_zval(el, name, prop);                                                 \
+            _add_assoc_zval_copy(el, name, prop);                                            \
         }                                                                                    \
     } while (0);
 
