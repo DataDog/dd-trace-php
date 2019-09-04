@@ -250,6 +250,36 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertSame('preserved_value', $found['headers']['Honored']);
     }
 
+    public function testDistributedTracingIsPropagatedOnCopiedHandle()
+    {
+        $found = [];
+        $traces = $this->isolateTracer(function () use (&$found) {
+            /** @var Tracer $tracer */
+            $tracer = GlobalTracer::get();
+            $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
+            $span = $tracer->startActiveSpan('custom')->getSpan();
+
+            $ch1 = \curl_init(self::URL . '/headers');
+            \curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
+            \curl_setopt($ch1, CURLOPT_HTTPHEADER, [
+                'honored: preserved_value',
+            ]);
+            $ch2 = \curl_copy_handle($ch1);
+            \curl_close($ch1);
+            $found = \json_decode(\curl_exec($ch2), 1);
+
+            $span->finish();
+        });
+
+        // trace is: custom
+        $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
+        // parent is: curl_exec
+        $this->assertSame($traces[0][1]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+        $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
+        // existing headers are honored
+        $this->assertSame('preserved_value', $found['headers']['Honored']);
+    }
+
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
         $found = [];
