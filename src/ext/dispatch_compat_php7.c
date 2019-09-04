@@ -279,7 +279,6 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
         ddtrace_log_debug("Could not execute tracing closure");
     }
 
-    zval_ptr_dtor(&exception_arg);
     zval_ptr_dtor(&rv);
     zend_fcall_info_args_clear(&fci, 0);
 }
