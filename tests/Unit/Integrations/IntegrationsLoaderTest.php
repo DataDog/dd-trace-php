@@ -14,6 +14,12 @@ final class IntegrationsLoaderTest extends BaseTestCase
         'integration_2' => 'DDTrace\Tests\Unit\Integrations\DummyIntegration2',
     ];
 
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+        putenv('DD_TRACE_SANDBOX_ENABLED=false');
+    }
+
     public function testGlobalLoaderDefaultsToOfficiallySupportedIntegrations()
     {
         $this->assertEquals(
