@@ -228,7 +228,7 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
         add_assoc_long(el, "error", 1);
     }
     if (span->parent_id == 0) {
-        add_assoc_long(meta, "system.pid", (uint) span->pid);
+        add_assoc_long(meta, "system.pid", (uint)span->pid);
     }
 
     // Add meta only if it has elements
@@ -292,7 +292,7 @@ void _serialize_meta(zval *el, ddtrace_span_t *span) {
         }
     }
     if (span->parent_id == 0) {
-        add_assoc_long(meta, "system.pid", (zend_long) span->pid);
+        add_assoc_long(meta, "system.pid", (zend_long)span->pid);
     }
 
     if (zend_array_count(Z_ARRVAL_P(meta))) {
