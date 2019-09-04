@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\PDO;
 
-use DDTrace\Configuration;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -11,7 +10,6 @@ define('MYSQL_DATABASE', 'test');
 define('MYSQL_USER', 'test');
 define('MYSQL_PASSWORD', 'test');
 define('MYSQL_HOST', 'mysql_integration');
-
 
 final class PDOTest extends IntegrationTestCase
 {
@@ -60,7 +58,7 @@ final class PDOTest extends IntegrationTestCase
 
     public function testPDOExecOk()
     {
-        $query = "INSERT INTO tests (id, name) VALUES (100, 'Sam')";
+        $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
             $pdo->beginTransaction();
@@ -191,7 +189,7 @@ final class PDOTest extends IntegrationTestCase
 
     public function testPDOCommit()
     {
-        $query = "INSERT INTO tests (id, name) VALUES (100, 'Sam')";
+        $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
             $pdo->beginTransaction();
@@ -239,6 +237,43 @@ final class PDOTest extends IntegrationTestCase
                 'db.rowcount' => 1,
                 ])),
         ]);
+    }
+
+    public function testPDOStatementIsCorrectlyClosedOnUnset()
+    {
+        $query = "SELECT * FROM tests WHERE id > ?";
+        $pdo = $this->ensureActiveQueriesErrorCanHappen();
+        $this->isolateTracer(function () use ($query, $pdo) {
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([10]);
+            $stmt->fetch();
+            unset($stmt);
+
+            $stmt2 = $pdo->prepare($query);
+            $stmt2->execute([10]);
+            $stmt2->fetch();
+        });
+    }
+
+    public function testPDOStatementCausesActiveQueriesError()
+    {
+        $query = "SELECT * FROM tests WHERE id > ?";
+        $pdo = $this->ensureActiveQueriesErrorCanHappen();
+        try {
+            $this->isolateTracer(function () use ($query, $pdo) {
+                $stmt = $pdo->prepare($query);
+                $stmt->execute([10]);
+                $stmt->fetch();
+
+                $stmt2 = $pdo->prepare($query);
+                $stmt2->execute([10]);
+                $stmt2->fetch();
+            });
+
+            $this->fail("Expected exception PDOException not thrown");
+        } catch (\PDOException $ex) {
+            // ignore
+        }
     }
 
     public function testPDOStatementError()
@@ -313,9 +348,32 @@ final class PDOTest extends IntegrationTestCase
         $this->assertEmpty($traces);
     }
 
-    private function pdoInstance()
+    private function pdoInstance($opts = null)
     {
-        return new \PDO($this->mysqlDns(), MYSQL_USER, MYSQL_PASSWORD);
+        $instance =  new \PDO($this->mysqlDns(), MYSQL_USER, MYSQL_PASSWORD, $opts);
+
+        return $instance;
+    }
+
+    private function ensureActiveQueriesErrorCanHappen()
+    {
+        $opts = array(
+            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+            \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false
+        );
+
+        $pdo = $this->pdoInstance($opts);
+
+        $this->isolateTracer(function () use ($pdo) {
+            $pdo->beginTransaction();
+            $stmt = $pdo->prepare("INSERT INTO tests (name) VALUES (?)");
+
+            for ($i = 0; $i < 1000; $i++) {
+                $stmt->execute(['Jerry']);
+            }
+            $pdo->commit();
+        });
+        return $pdo;
     }
 
     private function setUpDatabase()
@@ -325,13 +383,14 @@ final class PDOTest extends IntegrationTestCase
             $pdo->beginTransaction();
             $pdo->exec("
                 CREATE TABLE tests (
-                    id integer not null primary key,
+                    id integer not null primary key AUTO_INCREMENT,
                     name varchar(100)
                 )
             ");
             $pdo->exec("INSERT INTO tests (id, name) VALUES (1, 'Tom')");
+
             $pdo->commit();
-            $dbh = null;
+            $pdo = null;
         });
     }
 
@@ -342,7 +401,7 @@ final class PDOTest extends IntegrationTestCase
             $pdo->beginTransaction();
             $pdo->exec("DROP TABLE tests");
             $pdo->commit();
-            $dbh = null;
+            $pdo = null;
         });
     }
 
