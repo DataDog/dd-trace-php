@@ -24,6 +24,10 @@ final class PDOSandboxedTest extends IntegrationTestCase
     protected function setUp()
     {
         parent::setUp();
+        if (PHP_VERSION_ID < 50600) {
+            $this->markTestSkipped('Sandbox API not available on < PHP 5.6');
+            return;
+        }
         $this->setUpDatabase();
     }
 

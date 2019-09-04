@@ -16,7 +16,7 @@ final class PDOTest extends IntegrationTestCase
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED');
+        putenv('DD_TRACE_SANDBOX_ENABLED=false');
         IntegrationsLoader::reload();
     }
 

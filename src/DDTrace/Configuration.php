@@ -157,7 +157,11 @@ class Configuration extends AbstractConfiguration
      */
     public function isSandboxEnabled()
     {
-        return $this->boolValue('trace.sandbox.enabled', false);
+        // Sandbox API not available on < PHP 5.6 yet
+        if (PHP_VERSION_ID < 50600) {
+            return false;
+        }
+        return $this->boolValue('trace.sandbox.enabled', true);
     }
 
     /**
