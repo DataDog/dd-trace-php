@@ -1,16 +1,16 @@
 --TEST--
-[Sandbox regression] Check that a method and a function can be traced before it exists.
+[Sandbox regression] Methods and functions are traced before defined
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 
-dd_trace("Test", "some_method", function($a){
-    return "HOOK " . $this->some_method($a);
+dd_trace_method("Test", "some_method", function($s, $a, $retval){
+    echo "HOOK " . $retval;
 });
 
-dd_trace("some_function", function($a){
-    return 'HOOK2 ' . some_function($a);
+dd_trace_function("some_function", function($s, $a, $retval){
+    echo 'HOOK2 ' . $retval;
 });
 
 function some_function($a) {
@@ -26,8 +26,8 @@ class Test
 }
 
 $test = new Test();
-echo $test->some_method('a');
-echo some_function('b');
+$test->some_method('a');
+some_function('b');
 
 ?>
 --EXPECT--

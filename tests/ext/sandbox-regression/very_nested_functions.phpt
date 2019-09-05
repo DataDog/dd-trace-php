@@ -1,5 +1,7 @@
 --TEST--
-[Sandbox regression] Check if we can safely override function being called deep in the call stack
+[Sandbox regression] Trace deeply-nested function calls
+--DESCRIPTION--
+This differs from the original dd_trace() test in that the original return value is not modified
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -8,8 +10,8 @@ function test($a){
     return 'FUNCTION ' . $a;
 }
 
-dd_trace("test", function($a){
-    return 'OLD HOOK ' . test($a);
+dd_trace_function("test", function($s, $a, $retval){
+    echo 'HOOK ' . $retval . PHP_EOL;
 });
 
 
@@ -30,4 +32,6 @@ echo callNested(100000, 0) . PHP_EOL;
 
 ?>
 --EXPECT--
-OLD HOOK FUNCTION OLD HOOK FUNCTION 100000
+HOOK FUNCTION 100000
+HOOK FUNCTION FUNCTION 100000
+FUNCTION FUNCTION 100000

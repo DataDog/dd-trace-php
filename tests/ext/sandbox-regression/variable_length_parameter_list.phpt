@@ -1,5 +1,7 @@
 --TEST--
-[Sandbox regression] Check function with variable list of  params can be overwritten and we're able to call original function with modified params
+[Sandbox regression] Trace variadic functions and methods
+--DESCRIPTION--
+This differs from the original dd_trace() test in that it does not modify the original call arguments
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -14,16 +16,12 @@ class Test {
     }
 }
 
-dd_trace("test", function($a){
-    $args = array_slice(func_get_args(), 1);
-    call_user_func_array('test', $args);
-    echo "HOOK " . $a ." ". join(" ", $args) . PHP_EOL;
+dd_trace_function("test", function($s, array $args){
+    echo "HOOK " . implode(" ", $args) . PHP_EOL;
 });
 
-dd_trace("Test", "m", function($a){
-    $args = array_slice(func_get_args(), 1);
-    call_user_func_array(array($this, 'm'), $args);
-    echo "HOOK " . $a ." ". join(" ", $args) . PHP_EOL;
+dd_trace_method("Test", "m", function($s, array $args){
+    echo "HOOK " . implode(" ", $args) . PHP_EOL;
 });
 
 
@@ -38,19 +36,19 @@ test("a3", "b", "c", "d", "e", "f", "g", "h");
 
 ?>
 --EXPECT--
-FUNCTION b c d e f g h
+FUNCTION a b c d e f g h
 HOOK a b c d e f g h
-FUNCTION b c d e f g h
+FUNCTION a1 b c d e f g h
 HOOK a1 b c d e f g h
-FUNCTION b c d e f g h
+FUNCTION a2 b c d e f g h
 HOOK a2 b c d e f g h
-FUNCTION b c d e f g h
+FUNCTION a3 b c d e f g h
 HOOK a3 b c d e f g h
-METHOD b c d e f g h
+METHOD a b c d e f g h
 HOOK a b c d e f g h
-METHOD b c d e f g h
+METHOD a1 b c d e f g h
 HOOK a1 b c d e f g h
-METHOD b c d e f g h
+METHOD a2 b c d e f g h
 HOOK a2 b c d e f g h
-METHOD b c d e f g h
+METHOD a3 b c d e f g h
 HOOK a3 b c d e f g h

@@ -1,5 +1,7 @@
 --TEST--
-[Sandbox regression] Verify functions and methods can be overriden even when in namespaces.
+[Sandbox regression] Namespaced functions and methods are traced
+--DESCRIPTION--
+This differs from the original dd_trace() test in that the original call is always forwarded before the tracing closure is called
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -36,30 +38,22 @@ namespace Klass {
         }
     }
 
-    dd_trace("Klass\\Test", "m", function($c, $end){
-        echo "M HOOK START " . $c . PHP_EOL;
-        $this->m($c, $end);
-        echo "M HOOK END " . $c . PHP_EOL;
+    dd_trace_method("Klass\\Test", "m", function($s, array $args){
+        echo "M HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
     });
 }
 
 namespace {
-    dd_trace("Func\\test", function($c, $end){
-        echo "F HOOK START " . $c . PHP_EOL;
-        Func\test($c, $end);
-        echo "F HOOK END " . $c . PHP_EOL;
+    dd_trace_function("Func\\test", function($s, array $args){
+        echo "F HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
     });
 
-    dd_trace("Func\\test_va", function($c, $end){
-        echo "FVA HOOK START " . $c . PHP_EOL;
-        Func\test_va($c, $end);
-        echo "FVA HOOK END " . $c . PHP_EOL;
+    dd_trace_function("Func\\test_va", function($s, array $args){
+        echo "FVA HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
     });
 
-    dd_trace("Klass\\Test", "m2", function($c, $end){
-        echo "M2 HOOK START " . $c . PHP_EOL;
-        $this->m2($c, $end);
-        echo "M2 HOOK END " . $c . PHP_EOL;
+    dd_trace_method("Klass\\Test", "m2", function($s, array $args){
+        echo "M2 HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
     });
 
     Func\test(1, 3);
@@ -75,111 +69,89 @@ namespace {
 }
 ?>
 --EXPECT--
-
-F HOOK START 1
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION START 3
 FUNCTION EXIT 3
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
+F HOOK START 1 END 3
 
-FVA HOOK START 1
-F HOOK START 1
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION START 3
 FUNCTION EXIT 3
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK END 1
+F HOOK START 1 END 3
+FVA HOOK START 1 END 3
 
-M HOOK START 1
 METHOD START 1
-F HOOK START 1
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK START 1
-F HOOK START 1
+F HOOK START 1 END 2
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK END 1
+F HOOK START 1 END 2
+FVA HOOK START 1 END 2
 METHOD START 2
-F HOOK START 1
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK START 1
-F HOOK START 1
+F HOOK START 1 END 2
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK END 1
+F HOOK START 1 END 2
+FVA HOOK START 1 END 2
 METHOD START 3
-F HOOK START 1
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK START 1
-F HOOK START 1
+F HOOK START 1 END 2
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK END 1
+F HOOK START 1 END 2
+FVA HOOK START 1 END 2
 METHOD END 3
 METHOD END 2
 METHOD END 1
-M HOOK END 1
+M HOOK START 1 END 3
 
-M2 HOOK START 2
-M HOOK START 2
 METHOD START 2
-F HOOK START 1
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK START 1
-F HOOK START 1
+F HOOK START 1 END 2
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK END 1
+F HOOK START 1 END 2
+FVA HOOK START 1 END 2
 METHOD START 3
-F HOOK START 1
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK START 1
-F HOOK START 1
+F HOOK START 1 END 2
 FUNCTION START 1
 FUNCTION START 2
 FUNCTION EXIT 2
 FUNCTION EXIT 1
-F HOOK END 1
-FVA HOOK END 1
+F HOOK START 1 END 2
+FVA HOOK START 1 END 2
 METHOD END 3
 METHOD END 2
-M HOOK END 2
-M2 HOOK END 2
+M HOOK START 2 END 3
+M2 HOOK START 2 END 3

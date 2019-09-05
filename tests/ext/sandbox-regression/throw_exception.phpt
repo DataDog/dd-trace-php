@@ -1,5 +1,5 @@
 --TEST--
-[Sandbox regression] Check user defined function can safely catch and rethrow exception
+[Sandbox regression] Traced userland function catches and rethrows exception
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -8,13 +8,8 @@ function test($param = 2){
     throw new RuntimeException("FUNCTION " . $param);
 }
 
-dd_trace("test", function($param = 2){
-    try {
-        test($param);
-    } catch (\Exception $e) {
-        echo "EXCEPTION IN HOOK " . $e->getMessage() . PHP_EOL;
-        throw $e;
-    }
+dd_trace_function("test", function($s, $a, $r, $e){
+    echo "EXCEPTION IN HOOK " . $e->getMessage() . PHP_EOL;
 });
 
 try {

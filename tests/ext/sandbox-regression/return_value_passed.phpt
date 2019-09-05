@@ -1,5 +1,7 @@
 --TEST--
-[Sandbox regression] Return value from both original and overriding methods
+[Sandbox regression] Return value passed to tracing closure
+--DESCRIPTION--
+This differs from the original dd_trace() test in that it does not modify the original call arguments
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -11,12 +13,11 @@ class Test {
 }
 
 $no = 1;
-dd_trace("Test", "method", function() use ($no){
-    return $this->method() . "-override ". $no . PHP_EOL;
+dd_trace_method("Test", "method", function($span, array $args, $retval) use ($no){
+    echo $retval . "-override ". $no . PHP_EOL;
 });
 
-$a = (new Test())->method();
-echo $a;
+(new Test())->method();
 
 ?>
 --EXPECT--

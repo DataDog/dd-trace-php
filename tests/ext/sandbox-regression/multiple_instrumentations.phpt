@@ -1,5 +1,7 @@
 --TEST--
-[Sandbox regression] Verify Multiple functions and methods will be instrumented successfully
+[Sandbox regression] Multiple functions and methods are traced
+--DESCRIPTION--
+This differs from the original dd_trace() test in that it does not modify the original call arguments
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -38,40 +40,32 @@ class Test {
     }
 }
 
-dd_trace("test_a", function($a){
-    test_a($a+1);
+dd_trace_function("test_a", function(){
     echo "HOOK A" . PHP_EOL;
 });
 
-dd_trace("test_b", function($a){
-    test_b($a+1);
+dd_trace_function("test_b", function(){
     echo "HOOK B" . PHP_EOL;
 });
 
-dd_trace("test_c", function($a){
-    test_c($a+1);
+dd_trace_function("test_c", function(){
     echo "HOOK C" . PHP_EOL;
 });
 
-dd_trace("test_d", function($a){
-    test_d($a+1);
+dd_trace_function("test_d", function(){
     echo "HOOK D" . PHP_EOL;
 });
 
-dd_trace("Test", "m_a", function($a){
-    $this->m_a($a+1);
+dd_trace_method("Test", "m_a", function(){
     echo "HOOK MA" . PHP_EOL;
 });
-dd_trace("Test", "m_b", function($a){
-    $this->m_b($a+1);
+dd_trace_method("Test", "m_b", function(){
     echo "HOOK MB" . PHP_EOL;
 });
-dd_trace("Test", "m_c", function($a){
-    $this->m_c($a+1);
+dd_trace_method("Test", "m_c", function(){
     echo "HOOK MC" . PHP_EOL;
 });
-dd_trace("Test", "m_d", function($a){
-    $this->m_d($a+1);
+dd_trace_method("Test", "m_d", function(){
     echo "HOOK MD" . PHP_EOL;
 });
 
@@ -83,36 +77,35 @@ test_d(2);
 
 ?>
 --EXPECT--
-
-FUNCTION A 5
+FUNCTION A 1
 HOOK A
-FUNCTION B 4
+FUNCTION B 1
 HOOK B
-FUNCTION C 3
+FUNCTION C 1
+HOOK C
+FUNCTION d 1
+HOOK D
+FUNCTION A 2
+HOOK A
+FUNCTION B 2
+HOOK B
+FUNCTION C 2
 HOOK C
 FUNCTION d 2
 HOOK D
-FUNCTION A 6
-HOOK A
-FUNCTION B 5
-HOOK B
-FUNCTION C 4
-HOOK C
-FUNCTION d 3
-HOOK D
-METHOD A 5
+METHOD A 1
 HOOK MA
-METHOD B 4
+METHOD B 1
 HOOK MB
-METHOD C 3
+METHOD C 1
 HOOK MC
-METHOD D 2
+METHOD D 1
 HOOK MD
-METHOD A -6
+METHOD A -10
 HOOK MA
-METHOD B -7
+METHOD B -10
 HOOK MB
-METHOD C -8
+METHOD C -10
 HOOK MC
-METHOD D -9
+METHOD D -10
 HOOK MD

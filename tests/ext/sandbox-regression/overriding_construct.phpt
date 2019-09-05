@@ -1,5 +1,5 @@
 --TEST--
-[Sandbox regression] Check if we can override method from a parent class in a descendant class
+[Sandbox regression] Trace class constructor
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -11,10 +11,8 @@ class Test {
 }
 
 $no = 1;
-dd_trace("Test", "__construct", function () use ($no) {
-    $this->__construct();
+dd_trace_method("Test", "__construct", function () use ($no) {
     echo "HOOK " . $no . PHP_EOL;
-    return $this;
 });
 
 $a = new Test();

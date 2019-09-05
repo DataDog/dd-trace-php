@@ -1,5 +1,5 @@
 --TEST--
-[Sandbox regression] Check if closure can safely use variable names also present in outside scope
+[Sandbox regression] Tracing closure safely uses variables from outside scope
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -14,8 +14,7 @@ class Test {
 }
 
 function setup($variable){
-    dd_trace("Test", "m", function() use ($variable){
-        $this->m();
+    dd_trace_method("Test", "m", function() use ($variable){
         echo "HOOK " . $variable . PHP_EOL;
     });
 }

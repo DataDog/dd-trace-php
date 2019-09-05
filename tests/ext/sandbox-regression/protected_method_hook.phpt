@@ -1,5 +1,5 @@
 --TEST--
-[Sandbox regression] Check protected method can be overwritten and we are able to call original.
+[Sandbox regression] Trace protected method
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -19,8 +19,7 @@ class Test
     }
 }
 
-dd_trace("Test", "protected_method", function(){
-    $this->protected_method();
+dd_trace_method("Test", "protected_method", function(){
     echo "PROTECTED HOOK" . PHP_EOL;
 });
 

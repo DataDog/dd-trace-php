@@ -1,5 +1,5 @@
 --TEST--
-[Sandbox regression] Check method can be overwritten and we're able to call original method
+[Sandbox regression] Userland method is traced
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -10,8 +10,7 @@ class Test {
     }
 }
 
-dd_trace("Test", "m", function(){
-    $this->m();
+dd_trace_method("Test", "m", function(){
     echo "HOOK" . PHP_EOL;
 });
 

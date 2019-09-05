@@ -1,5 +1,5 @@
 --TEST--
-[Sandbox regression] Check object's private and protected methods can be invoked from a callback
+[Sandbox regression] Private and protected methods are called from a tracing closure
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -45,17 +45,17 @@ class Bar
     }
 }
 
-dd_trace('Foo', 'aPublic', function() {
+dd_trace_method('Foo', 'aPublic', function($span, array $args, $retval) {
     $this->getBar()->dPublic();
     var_dump($this->bProtected());
     var_dump($this->cPrivate());
-    var_dump(dd_trace_forward_call());
+    var_dump($retval);
 });
 
-dd_trace('Bar', 'dPublic', function() {
+dd_trace_method('Bar', 'dPublic', function($span, array $args, $retval) {
     var_dump($this->eProtected());
     var_dump($this->fPrivate());
-    var_dump(dd_trace_forward_call());
+    var_dump($retval);
 });
 
 (new Foo())->aPublic();

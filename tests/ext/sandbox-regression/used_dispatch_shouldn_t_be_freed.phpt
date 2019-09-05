@@ -1,22 +1,22 @@
 --TEST--
-[Sandbox regression] Check if we can safely override instrumentation from within instrumentation.
+[Sandbox regression] Override traced function from within itself
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 function test($a){
-    dd_trace("test", function($a){
-        return 'NEW HOOK ' . test($a);
+    dd_trace_function("test", function($s, $a, $retval){
+        echo 'NEW HOOK ' . $retval . PHP_EOL;
     });
     return 'METHOD ' . $a;
 }
 
-dd_trace("test", function($a){
-    return 'OLD HOOK ' . test($a);
+dd_trace_function("test", function($s, $a, $retval){
+    echo 'OLD HOOK ' . $retval . PHP_EOL;
 });
 
-echo test("exec_a") . PHP_EOL;
-echo test("exec_b") . PHP_EOL;
+test("exec_a");
+test("exec_b");
 
 ?>
 --EXPECT--

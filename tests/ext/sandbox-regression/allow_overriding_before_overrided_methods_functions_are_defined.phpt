@@ -1,15 +1,15 @@
 --TEST--
-[Sandbox regression] Override function/method before its defined
+[Sandbox regression] Trace a function and method before it is defined
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
-dd_trace("Test", "m", function() {
-    return 'HOOK ' . $this->m();
+dd_trace_method("Test", "m", function($span, array $args, $retval) {
+    echo 'HOOK ' . $retval;
 });
 
-dd_trace("fun", function() {
-    return 'HOOK ' . fun();
+dd_trace_function("fun", function($span, array $args, $retval) {
+    echo 'HOOK ' . $retval;
 });
 
 
@@ -25,8 +25,8 @@ function fun(){
     return 'FUNCTION' . PHP_EOL;
 }
 
-echo (new Test())->m();
-echo fun();
+(new Test())->m();
+fun();
 
 ?>
 --EXPECT--
