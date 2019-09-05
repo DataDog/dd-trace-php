@@ -163,5 +163,26 @@ ADD flow/patch.patch ./
 RUN set -xe; \
     git apply *.patch
 
-
 CMD [ "./run.sh" ]
+
+FROM base AS phpredis
+ARG REDIS_VERSION_TAG=5.0.1
+RUN set -xe; \
+    git clone --depth 1 --branch ${REDIS_VERSION_TAG} https://github.com/phpredis/phpredis /home/phpredis; \
+    cd /home/phpredis;
+
+WORKDIR /home/phpredis
+
+ADD phpredis/run.sh ./
+ADD phpredis/patch.patch ./
+
+RUN set -xe; \
+    phpize; \
+    ./configure --enable-redis-msgpack --enable-redis-igbinary; \
+    make -j $(nproc) install; \
+    rm /etc/php/*/cli/conf.d/20-redis.ini; \
+    git apply *.patch; \
+    mkdir -p tests/nodes; \
+    echo redis_cluster:7001 >> tests/nodes/nodemap
+
+CMD ["./run.sh"]

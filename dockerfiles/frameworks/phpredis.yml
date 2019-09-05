@@ -1,0 +1,37 @@
+version: "3.6"
+
+services:
+  phpredis:
+    depends_on: ['redis', 'nginx_file_server', 'redis_cluster']
+    environment:
+      - "REDIS_HOST=redis"
+      - "MEMCACHED_HOST=memcached"
+    build:
+      context: src
+      target: phpredis
+    image: 'datadog/dd-trace-php:redis-5.0.1-tests'
+    ulimits:
+      core: 99999999999
+    cap_add:
+      - SYS_PTRACE
+
+  redis:
+    image: redis:5.0.5
+    expose:
+      - 6379
+
+  redis_cluster:
+    image: grokzen/redis-cluster:5.0.5
+    expose:
+      - 6379
+      - 7000
+      - 7001
+      - 7002
+      - 7003
+      - 7004
+      - 7005
+      - 7006
+      - 7007
+  nginx_file_server:
+    build: nginx_file_server
+    expose: ["80"]

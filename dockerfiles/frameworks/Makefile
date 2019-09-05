@@ -4,6 +4,10 @@ VERSION_TO_INSTALL:=0.30.1
 
 YAMLS = $(filter-out nginx_file_server.yml docker-compose.yml, $(notdir $(wildcard $(ROOT_DIR)/*.yml)))
 DDTRACE_TARGETS = ${YAMLS:.yml=}
+BUILD_TARGETS = ${YAMLS:.yml=_build}
+PUSH_TARGETS = ${YAMLS:.yml=_push}
+RUN_BASH_TARGETS = $(YAMLS:.yml=_bash)
+
 NO_DDTRACE_TARGETS := ${YAMLS:.yml=_no_ddtrace}
 TARGETS := $(DDTRACE_TARGETS) $(NO_DDTRACE_TARGETS)
 
@@ -40,7 +44,27 @@ $(NO_DDTRACE_TARGETS): build_file_server
 	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$(@:_no_ddtrace=).yml pull
 	@docker-compose -f $(ROOT_DIR)/nginx_file_server.yml -f $(ROOT_DIR)/$(@:_no_ddtrace=).yml run -e NO_DDTRACE=true $(@:_no_ddtrace=)
 
+.PHONY: $(BUILD_TARGETS)
+$(BUILD_TARGETS):
+	@docker-compose -f $(ROOT_DIR)/$(@:_build=).yml build $(@:_build=)
+
+.PHONY: $(RUN_BASH_TARGETS)
+$(RUN_BASH_TARGETS): %_bash: %_build
+	@echo Running $(@:_bash=)
+	@docker-compose -f $(ROOT_DIR)/$(@:_bash=).yml run --rm $(@:_bash=) bash
+
+.PHONY: $(PUSH_TARGETS) push_all
+$(PUSH_TARGETS): %_push: %_build
+	@docker-compose -f $(ROOT_DIR)/$(@:_push=).yml push $(@:_push=)
+
+push_all: $(PUSH_TARGETS)
+
 .PHONY: help
 help:
 	@echo Available targets
 	@echo $(TARGETS)
+	@echo
+	@echo Available build targets
+	@echo $(BUILD_TARGETS)
+	@echo
+	@echo Run bash
