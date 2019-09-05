@@ -383,6 +383,8 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     fcc.initialized = 1;
     fcc.object_ptr = this;
     fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : NULL;
+    // Give the tracing closure access to private & protected class members
+    fcc.function_handler->common.scope = fcc.called_scope;
 
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not execute tracing closure");
