@@ -126,6 +126,11 @@
                         <file name="exception_handling_php5.phpt" role="test" />
                         <file name="exception_handling.phpt" role="test" />
                         <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
+                        <file name="exceptions_are_passed_to_the_tracing_closure.phpt" role="test" />
+                        <file name="exceptions_are_passed_to_the_tracing_closure_php5.phpt" role="test" />
+                        <file name="exceptions_in_original_call_rethrown_in_tracing_closure.phpt" role="test" />
+                        <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
+                        <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     </dir>
                     <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />

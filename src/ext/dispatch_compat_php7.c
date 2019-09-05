@@ -226,12 +226,17 @@ void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args
 }
 
 void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_args,
-                                     zval *user_retval) {
+                                     zval *user_retval, zend_object *exception) {
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval rv;
     INIT_ZVAL(rv);
-    zval args[3];
+    zval args[4];
+    zval exception_arg;
+    ZVAL_UNDEF(&exception_arg);
+    if (exception) {
+        ZVAL_OBJ(&exception_arg, exception);
+    }
     zval *this = ddtrace_this(execute_data);
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL) == FAILURE) {
@@ -257,7 +262,10 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     // Arg 2: mixed $retval
     ZVAL_COPY(&args[2], user_retval);
 
-    fci.param_count = 3;
+    // Arg 3: Exception|null $exception
+    ZVAL_COPY(&args[3], &exception_arg);
+
+    fci.param_count = 4;
     fci.params = args;
     fci.retval = &rv;
 

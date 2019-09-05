@@ -23,8 +23,10 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     zval *user_retval = NULL, user_args;
     INIT_ZVAL(user_args);
 #if PHP_VERSION_ID < 70000
+    zval *exception = NULL, *prev_exception = NULL;
     ALLOC_INIT_ZVAL(user_retval);
 #else
+    zend_object *exception = NULL, *prev_exception = NULL;
     zval rv;
     INIT_ZVAL(rv);
     user_retval = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
@@ -41,13 +43,20 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     dd_trace_stop_span_time(span);
 
     ddtrace_copy_function_args(execute_data, &user_args);
-    ddtrace_span_attach_exception(span, EG(exception));
+    if (EG(exception)) {
+        exception = EG(exception);
+        EG(exception) = NULL;
+        prev_exception = EG(prev_exception);
+        EG(prev_exception) = NULL;
+        ddtrace_span_attach_exception(span, exception);
+        zend_clear_exception(TSRMLS_C);
+    }
 
-    if (fcall_status == SUCCESS && !EG(exception) && Z_TYPE(dispatch->callable) == IS_OBJECT) {
+    if (fcall_status == SUCCESS && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         int orig_error_reporting = EG(error_reporting);
         EG(error_reporting) = 0;
-        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, &user_args,
-                                        user_retval TSRMLS_CC);
+        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, &user_args, user_retval,
+                                        exception TSRMLS_CC);
         EG(error_reporting) = orig_error_reporting;
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
@@ -59,6 +68,17 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     ddtrace_zval_ptr_dtor(&user_args);
 
     ddtrace_close_span(TSRMLS_C);
+
+    if (exception) {
+        EG(exception) = exception;
+        EG(prev_exception) = prev_exception;
+#if PHP_VERSION_ID < 70000
+        EG(opline_before_exception) = (zend_op *)opline;
+        EG(current_execute_data)->opline = EG(exception_op);
+#else
+        zend_throw_exception_internal(NULL TSRMLS_CC);
+#endif
+    }
 
 #if PHP_VERSION_ID < 50500
     (void)opline;  // TODO Make work on PHP 5.4
