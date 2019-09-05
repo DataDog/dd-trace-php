@@ -86,7 +86,7 @@ RUN set -xe; \
     php ./phpunit install
 
 WORKDIR /home/symfony/
-ADD symfony_${SYMFONY_VERSION_TAG}.patch ./
+ADD symfony/${SYMFONY_VERSION_TAG}.patch ./
 RUN set -xe; \
     # add vendor to git to allow easy patching of vendor files too
     git add -f vendor; \
@@ -94,8 +94,8 @@ RUN set -xe; \
     git apply *.patch
 
 ENV SYMFONY_DEPRECATIONS_HELPER=disabled=1
-ADD symfony_run.sh ./
-CMD [ "./symfony_run.sh" ]
+ADD symfony/run.sh ./
+CMD [ "./run.sh" ]
 
 FROM base AS laravel
 ARG LARAVEL_VERSION_TAG=v5.8.17

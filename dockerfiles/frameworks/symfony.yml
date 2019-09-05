@@ -2,10 +2,11 @@ version: "3.6"
 
 services:
   symfony:
-    depends_on: ['redis', 'nginx_file_server']
+    depends_on: ['redis', 'redis_cluster', 'nginx_file_server', 'memcached']
     environment:
       - "REDIS_HOST=redis"
       - "MEMCACHED_HOST=memcached"
+      - "REDIS_CLUSTER_HOSTS=redis_cluster:7000 redis_cluster:7001 redis_cluster:7002 redis_cluster:7003 redis_cluster:7004 redis_cluster:7005"
     build:
       context: src
       target: symfony
@@ -19,6 +20,16 @@ services:
     image: redis:5.0.5
     expose:
       - 6379
+  redis_cluster:
+    image: grokzen/redis-cluster:5.0.5
+    expose:
+      - 6379
+      - 7000
+      - 7001
+      - 7002
+      - 7003
+      - 7004
+      - 7005
   memcached:
     image: memcached
     expose:
