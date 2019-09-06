@@ -25,7 +25,7 @@ class PipelineTracingTest extends WebFrameworkTestCase
             $response = $this->call($spec);
             $this->assertSame('done', $response);
         });
-        $this->assertExpectedSpans($this, $traces, [
+        $this->assertExpectedSpans($traces, [
             SpanAssertion::exists('laravel.request'),
             SpanAssertion::build(
                 'laravel.pipeline.pipe',
@@ -44,7 +44,7 @@ class PipelineTracingTest extends WebFrameworkTestCase
             $response = $this->call($spec);
             $this->assertSame('done1/done2', $response);
         });
-        $this->assertExpectedSpans($this, $traces, [
+        $this->assertExpectedSpans($traces, [
             SpanAssertion::exists('laravel.request'),
             SpanAssertion::build(
                 'laravel.pipeline.pipe',
