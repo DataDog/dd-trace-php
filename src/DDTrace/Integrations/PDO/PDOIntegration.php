@@ -84,11 +84,15 @@ class PDOIntegration extends Integration
             $thrown = null;
             try {
                 dd_trace_forward_call();
-                PDOIntegration::storeConnectionParams($this, func_get_args());
                 PDOIntegration::detectError($span, $this);
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
                 $thrown = $e;
+            }
+
+            if (!$thrown || $thrown instanceof \PDOException) {
+                PDOIntegration::storeConnectionParams($this, func_get_args());
+                PDOIntegration::setConnectionTags($this, $span);
             }
 
             $scope->close();
@@ -120,7 +124,9 @@ class PDOIntegration extends Integration
             try {
                 $result = dd_trace_forward_call();
                 PDOIntegration::detectError($span, $this);
-                $span->setTag('db.rowcount', $result);
+                if (is_numeric($result)) {
+                    $span->setTag('db.rowcount', $result);
+                }
             } catch (\Exception $e) {
                 PDOIntegration::setErrorOnException($span, $e);
                 $thrown = $e;
@@ -162,7 +168,9 @@ class PDOIntegration extends Integration
                 PDOIntegration::detectError($span, $this);
                 PDOIntegration::storeStatementFromConnection($this, $result);
                 try {
-                    $span->setTag('db.rowcount', $result !== false ? $result->rowCount() : '');
+                    if ($result instanceof \PDOStatement) {
+                        $span->setTag('db.rowcount', $result->rowCount());
+                    }
                 } catch (\Exception $e) {
                 }
             } catch (\Exception $e) {
@@ -269,7 +277,9 @@ class PDOIntegration extends Integration
                 $result = dd_trace_forward_call();
                 PDOIntegration::detectError($span, $this);
                 try {
-                    $span->setTag('db.rowcount', $this->rowCount());
+                    if ($result === true) {
+                        $span->setTag('db.rowcount', $this->rowCount());
+                    }
                 } catch (\Exception $e) {
                 }
             } catch (\Exception $e) {
