@@ -387,14 +387,15 @@ class PDOIntegration extends Integration
 
     public static function storeConnectionParams($pdo, array $constructorArgs)
     {
+        $hash = is_object($pdo) ? spl_object_hash($pdo) : '';
         if (count($constructorArgs) > 0) {
             $tags = self::parseDsn($constructorArgs[0]);
             if (isset($constructorArgs[1])) {
                 $tags['db.user'] = $constructorArgs[1];
             }
-            self::$connections[spl_object_hash($pdo)] = $tags;
+            self::$connections[$hash] = $tags;
         } else {
-            self::$connections[spl_object_hash($pdo)] = array();
+            self::$connections[$hash] = array();
         }
     }
 
@@ -404,15 +405,15 @@ class PDOIntegration extends Integration
             // When an error occurs 'FALSE' will be returned in place of the statement.
             return;
         }
-        $pdoHash = spl_object_hash($pdo);
+        $pdoHash = is_object($pdo) ? spl_object_hash($pdo) : '';
         if (isset(self::$connections[$pdoHash])) {
-            self::$statements[spl_object_hash($stmt)] = $pdoHash;
+            self::$statements[is_object($stmt) ? spl_object_hash($stmt) : ''] = $pdoHash;
         }
     }
 
     public static function setConnectionTags($pdo, $span)
     {
-        $hash = spl_object_hash($pdo);
+        $hash = is_object($pdo) ? spl_object_hash($pdo) : '';
         if (!isset(self::$connections[$hash])) {
             return;
         }
@@ -424,7 +425,7 @@ class PDOIntegration extends Integration
 
     public static function setStatementTags($stmt, $span)
     {
-        $stmtHash = spl_object_hash($stmt);
+        $stmtHash = is_object($stmt) ? spl_object_hash($stmt) : '';
         if (!isset(self::$statements[$stmtHash])) {
             return;
         }
