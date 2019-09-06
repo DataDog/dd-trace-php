@@ -133,6 +133,42 @@
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     </dir>
+                    <dir name="sandbox-regression">
+                        <file name="access_modifier_method_access_hook.phpt" role="test" />
+                        <file name="access_modifier_property_access_hook.phpt" role="test" />
+                        <file name="allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
+                        <file name="case_insensitive_method_hook.phpt" role="test" />
+                        <file name="closure_accessing_outside_variables.phpt" role="test" />
+                        <file name="closure_set_inside_object_methods.phpt" role="test" />
+                        <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
+                        <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
+                        <file name="disable_tracing_disables_tracing.phpt" role="test" />
+                        <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
+                        <file name="extension_disabled.phpt" role="test" />
+                        <file name="method_invoked_via_reflection.phpt" role="test" />
+                        <file name="method_returning_array.phpt" role="test" />
+                        <file name="multiple_instrumentations.phpt" role="test" />
+                        <file name="namespaces.phpt" role="test" />
+                        <file name="overriding_construct.phpt" role="test" />
+                        <file name="overriding_method_defined_in_parent.phpt" role="test" />
+                        <file name="private_method_hook.phpt" role="test" />
+                        <file name="private_self_access.phpt" role="test" />
+                        <file name="protected_method_hook.phpt" role="test" />
+                        <file name="recursion.phpt" role="test" />
+                        <file name="reset_configured_overrides.phpt" role="test" />
+                        <file name="reset_function_tracing.phpt" role="test" />
+                        <file name="return_value_passed.phpt" role="test" />
+                        <file name="simple_function_hook.phpt" role="test" />
+                        <file name="simple_method_hook.phpt" role="test" />
+                        <file name="throw_exception.phpt" role="test" />
+                        <file name="trace_method_or_function_that_will_exist_later.phpt" role="test" />
+                        <file name="trace_static_method.phpt" role="test" />
+                        <file name="used_dispatch_shouldn_t_be_freed.phpt" role="test" />
+                        <file name="variable_length_parameter_list.phpt" role="test" />
+                        <file name="very_nested_functions.phpt" role="test" />
+                        <file name="with_params_function_hook.phpt" role="test" />
+                        <file name="with_params_method_hook.phpt" role="test" />
+                    </dir>
                     <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />

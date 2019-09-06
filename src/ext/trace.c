@@ -3,10 +3,13 @@
 #include <Zend/zend_exceptions.h>
 #include <php.h>
 
+#include "ddtrace.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "logging.h"
 #include "span.h"
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 /* Move these to a header if dispatch.c still needs it */
 #if PHP_VERSION_ID >= 70100
@@ -61,7 +64,9 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
             ddtrace_log_debug("Exeception thrown in the tracing closure");
-            zend_clear_exception(TSRMLS_C);
+            if (!DDTRACE_G(strict_mode)) {
+                zend_clear_exception(TSRMLS_C);
+            }
         }
     }
 
