@@ -4,7 +4,6 @@ namespace DDTrace\Integrations;
 
 use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
-use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\GlobalTracer;
 
@@ -23,7 +22,7 @@ abstract class Integration
     /**
      * @var DefaultIntegrationConfiguration|mixed
      */
-    private $configuration;
+    protected $configuration;
 
     /**
      * @return string The integration name.
@@ -61,14 +60,6 @@ abstract class Integration
     public function requiresExplicitTraceAnalyticsEnabling()
     {
         return true;
-    }
-
-    public function addTraceAnalyticsIfEnabled(SpanData $span)
-    {
-        if (!$this->configuration->isTraceAnalyticsEnabled()) {
-            return;
-        }
-        $span->metrics[Tag::ANALYTICS_KEY] = $this->configuration->getTraceAnalyticsSampleRate();
     }
 
     /**
