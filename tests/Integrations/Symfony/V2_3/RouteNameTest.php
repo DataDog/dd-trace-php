@@ -23,7 +23,7 @@ final class RouteNameTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertExpectedSpans($this, $traces, [
+        $this->assertExpectedSpans($traces, [
             SpanAssertion::build(
                 'web.request',
                 'web.request',
