@@ -3,7 +3,6 @@
 
 #include <Zend/zend_types.h>
 
-#include "compat_zend_string.h"
 #include "dispatch.h"
 #include "env_config.h"
 #include "span.h"

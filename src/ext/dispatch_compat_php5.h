@@ -1,8 +1,8 @@
 #ifndef DISPATCH_COMPAT_PHP5_H
 #define DISPATCH_COMPAT_PHP5_H
+
 #if PHP_VERSION_ID < 70000
 #include "Zend/zend_types.h"
-#include "compat_zend_string.h"
 #include "debug.h"
 #include "dispatch.h"
 

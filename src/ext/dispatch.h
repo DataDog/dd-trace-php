@@ -5,7 +5,6 @@
 #include <php.h>
 #include <stdint.h>
 
-#include "compat_zend_string.h"
 #include "compatibility.h"
 
 typedef struct _ddtrace_dispatch_t {

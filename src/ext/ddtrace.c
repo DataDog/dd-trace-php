@@ -15,7 +15,7 @@
 
 #include "backtrace.h"
 #include "circuit_breaker.h"
-#include "compat_zend_string.h"
+#include "compat_string.h"
 #include "compatibility.h"
 #include "coms.h"
 #include "coms_curl.h"

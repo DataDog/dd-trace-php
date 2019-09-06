@@ -7,7 +7,7 @@
 
 #include <ext/spl/spl_exceptions.h>
 
-#include "compat_zend_string.h"
+#include "compat_string.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"

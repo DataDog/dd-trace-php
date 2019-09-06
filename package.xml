@@ -27,8 +27,8 @@
                 <dir name="ext">
                     <file name="backtrace.c" role="src" />
                     <file name="backtrace.h" role="src" />
-                    <file name="compat_zend_string.c" role="src" />
-                    <file name="compat_zend_string.h" role="src" />
+                    <file name="compat_string.c" role="src" />
+                    <file name="compat_string.h" role="src" />
                     <file name="configuration.h" role="src" />
                     <file name="configuration.c" role="src" />
                     <file name="configuration_render.h" role="src" />
