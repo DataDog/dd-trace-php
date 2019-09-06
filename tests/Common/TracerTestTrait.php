@@ -104,7 +104,7 @@ trait TracerTestTrait
      *
      * @param $fn
      * @param null $tracer
-     * @return Span[][]
+     * @return array[]
      * @throws \Exception
      */
     public function tracesFromWebRequest($fn, $tracer = null)
