@@ -43,10 +43,10 @@ RUN set -xe; \
         php${V}-memcached \
         php${V}-amqp \
         php${V}-dev \
-        # php${V}-pear \
         php${V}-bcmath; \
     done; \
     ); \
+    apt-get install -y gdb valgrind ack; \
     apt-get clean;
 
 RUN set -xe; \
@@ -56,7 +56,7 @@ RUN set -xe; \
     php -r "unlink('composer-setup.php');"; \
     mv composer.phar /usr/local/bin/composer;
 
-ADD switch_php.sh /usr/local/bin/switch_php
+ADD base/switch_php.sh /usr/local/bin/switch_php
 
 RUN set -xe; \
     for V in 7.0 7.1 7.2 7.3; do \
@@ -66,7 +66,7 @@ RUN set -xe; \
     done
 
 ENV COMPOSER_MEMORY_LIMIT -1
-ADD entrypoint.sh /usr/local/bin/entrypoint.sh
+ADD base/entrypoint.sh /usr/local/bin/entrypoint.sh
 ADD flow/20-redis.ini /etc/php/7.3/cli/conf.d/20-redis.ini
 ADD flow/20-redis.ini /etc/php/7.2/cli/conf.d/20-redis.ini
 ADD flow/20-redis.ini /etc/php/7.1/cli/conf.d/20-redis.ini
@@ -128,8 +128,7 @@ RUN set -xe; \
     export NEOS_TARGET_REPOSITORY=neos/flow-development-collection; \
     export NEOS_TARGET_VERSION=5.2; \
     export TRAVIS_REPO_SLUG=neos/flow-development-collection; \
-    php Build/BuildEssentials/TravisCi/ComposerManifestUpdater.php .
-RUN set -xe; \
+    php Build/BuildEssentials/TravisCi/ComposerManifestUpdater.php .; \
     sed -e 's/dev-travis as //g' -i composer.json; \
     composer update --no-progress --no-interaction; \
     rm -f Configuration/Routes.yaml; \
@@ -138,9 +137,7 @@ RUN set -xe; \
     Build/BuildEssentials/TravisCi/SetupDatabase.sh; \
     cp Configuration/Settings.yaml Configuration/Testing/; \
     FLOW_CONTEXT=Testing/Behat ./flow behat:setup; \
-    apt-get install -y default-mysql-client
-
-RUN set -xe; \
+    apt-get install -y default-mysql-client; \
     rm -rf ./Packages/Application/Neos.Behat/.git \
     ./Packages/Application/Neos.Welcome/.git \
     ./Packages/Framework/.git \
@@ -173,8 +170,7 @@ RUN set -xe; \
 
 WORKDIR /home/phpredis
 
-ADD phpredis/run.sh ./
-ADD phpredis/patch.patch ./
+ADD phpredis/* ./
 
 RUN set -xe; \
     phpize; \
@@ -186,3 +182,16 @@ RUN set -xe; \
     echo redis_cluster:7001 >> tests/nodes/nodemap
 
 CMD ["./run.sh"]
+
+FROM base as predis
+ARG PREDIS_VERSION_TAG=v1.1.1
+RUN set -xe; \
+    git clone --depth 1 --branch "${PREDIS_VERSION_TAG}" https://github.com/nrk/predis /home/predis; \
+    cd /home/predis; \
+    composer install --prefer-dist;
+
+WORKDIR /home/predis
+
+ADD predis/* ./
+
+RUN set -xe;

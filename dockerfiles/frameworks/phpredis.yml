@@ -9,7 +9,7 @@ services:
     build:
       context: src
       target: phpredis
-    image: 'datadog/dd-trace-php:redis-5.0.1-tests'
+    image: 'docker.pkg.github.com/datadog/dd-trace-php/framwork-ci-phpredis:5.0.1'
     ulimits:
       core: 99999999999
     cap_add:

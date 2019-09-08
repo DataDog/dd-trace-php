@@ -1,15 +1,15 @@
 version: "3.6"
 
 services:
-  laravel:
-    depends_on: ['redis', 'nginx_file_server', 'memcached']
+  predis:
+    depends_on: ['redis', 'nginx_file_server']
     environment:
       - "REDIS_HOST=redis"
       - "MEMCACHED_HOST=memcached"
     build:
       context: src
-      target: laravel
-    image: 'docker.pkg.github.com/datadog/dd-trace-php/framwork-ci-laravel:5.8'
+      target: predis
+    image: 'docker.pkg.github.com/datadog/dd-trace-php/framwork-ci-predis:1.1'
     ulimits:
       core: 99999999999
     cap_add:
@@ -19,10 +19,6 @@ services:
     image: redis:5.0.5
     expose:
       - 6379
-  memcached:
-    image: memcached
-    expose:
-      - 11211
 
   nginx_file_server:
     build: nginx_file_server

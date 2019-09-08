@@ -40,3 +40,4 @@ tmp/opcache*
 *.orig
 benchmark.php
 docker-compose.override.yml
+dockerfiles/frameworks/nginx_file_server/ddtrace.deb
