@@ -39,6 +39,8 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             return SandboxedIntegration::NOT_AVAILABLE;
         }
 
+        $integration = $this;
+
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         dd_trace_method('PDO', '__construct', function (SpanData $span, array $args) {
             $span->name = $span->resource = 'PDO.__construct';
@@ -48,7 +50,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         });
 
         // public int PDO::exec(string $query)
-        dd_trace_method('PDO', 'exec', function (SpanData $span, array $args, $retval) {
+        dd_trace_method('PDO', 'exec', function (SpanData $span, array $args, $retval) use ($integration) {
             $span->name = 'PDO.exec';
             $span->resource = $args[0];
             $span->service = 'PDO';
@@ -59,7 +61,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 ];
             }
             PDOSandboxedIntegration::setConnectionTags($this, $span);
-            PDOSandboxedIntegration::get()->addTraceAnalyticsIfEnabled($span);
+            $integration->addTraceAnalyticsIfEnabled($span);
             PDOSandboxedIntegration::detectError($this, $span);
         });
 
@@ -68,7 +70,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_CLASS, string $classname, array $ctorargs)
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_INFO, object $object)
         // public int PDO::exec(string $query)
-        dd_trace_method('PDO', 'query', function (SpanData $span, array $args, $retval) {
+        dd_trace_method('PDO', 'query', function (SpanData $span, array $args, $retval) use ($integration) {
             $span->name = 'PDO.query';
             $span->resource = $args[0];
             $span->service = 'PDO';
@@ -80,7 +82,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 PDOSandboxedIntegration::storeStatementFromConnection($this, $retval);
             }
             PDOSandboxedIntegration::setConnectionTags($this, $span);
-            PDOSandboxedIntegration::get()->addTraceAnalyticsIfEnabled($span);
+            $integration->addTraceAnalyticsIfEnabled($span);
             PDOSandboxedIntegration::detectError($this, $span);
         });
 
@@ -103,7 +105,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
-        dd_trace_method('PDOStatement', 'execute', function (SpanData $span, array $args, $retval) {
+        dd_trace_method('PDOStatement', 'execute', function (SpanData $span, array $args, $retval) use ($integration) {
             $span->name = 'PDOStatement.execute';
             $span->resource = $this->queryString;
             $span->service = 'PDO';
@@ -114,7 +116,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 ];
             }
             PDOSandboxedIntegration::setStatementTags($this, $span);
-            PDOSandboxedIntegration::get()->addTraceAnalyticsIfEnabled($span);
+            $integration->addTraceAnalyticsIfEnabled($span);
             PDOSandboxedIntegration::detectError($this, $span);
         });
 

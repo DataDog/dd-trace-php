@@ -27,7 +27,7 @@ final class GuzzleIntegration extends Integration
      */
     private static $instance;
 
-    protected function __construct()
+    public function __construct()
     {
         parent::__construct();
         $this->codeTracer = CodeTracer::getInstance();

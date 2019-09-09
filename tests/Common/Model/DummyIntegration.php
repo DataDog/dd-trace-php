@@ -28,7 +28,7 @@ final class DummyIntegration extends Integration
      * DummyIntegration constructor.
      * @param $name
      */
-    protected function __construct($name)
+    public function __construct($name)
     {
         parent::__construct();
         $this->name = $name;
