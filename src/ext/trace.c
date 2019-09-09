@@ -7,6 +7,7 @@
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "logging.h"
+#include "memory_limit.h"
 #include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -123,4 +124,12 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     // Restore call for internal functions
     EX(call) = EX(call)->prev_execute_data;
 #endif
+}
+
+BOOL_T ddtrace_tracer_is_limited(TSRMLS_D) {
+    int64_t limit = get_dd_trace_spans_limit();
+    if (limit >= 0 && (int64_t)(DDTRACE_G(open_spans_count) + DDTRACE_G(closed_spans_count)) >= limit) {
+        return TRUE;
+    }
+    return ddtrace_check_memory_under_limit(TSRMLS_C) == TRUE ? FALSE : TRUE;
 }

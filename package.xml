@@ -115,6 +115,8 @@
                     <file name="dd_trace_forward_call_from_include.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_inheritance.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_private_callback.phpt" role="test" />
+                    <file name="dd_trace_tracer_is_limited_hard.phpt" role="test" />
+                    <file name="dd_trace_tracer_is_limited_memory.phpt" role="test" />
                     <dir name="sandbox">
                         <file name="dd_trace_closed_spans_count.phpt" role="test" />
                         <file name="dd_trace_function_complex.phpt" role="test" />

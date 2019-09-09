@@ -31,6 +31,7 @@
 #include "request_hooks.h"
 #include "serializer.h"
 #include "span.h"
+#include "trace.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
@@ -480,7 +481,7 @@ static PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
 static PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
-    RETURN_BOOL(ddtrace_check_memory_under_limit() == TRUE ? 1 : 0);
+    RETURN_BOOL(ddtrace_check_memory_under_limit(TSRMLS_C) == TRUE ? 1 : 0);
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
@@ -683,6 +684,13 @@ static PHP_FUNCTION(dd_trace_closed_spans_count) {
     RETURN_LONG(DDTRACE_G(closed_spans_count));
 }
 
+/* {{{ proto string dd_trace_tracer_is_limited() */
+static PHP_FUNCTION(dd_trace_tracer_is_limited) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+    RETURN_BOOL(ddtrace_tracer_is_limited(TSRMLS_C) == TRUE ? 1 : 0);
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method)
         PHP_FE(dd_trace_function, arginfo_dd_trace_function) PHP_FE(dd_trace_serialize_closed_spans,
@@ -700,7 +708,8 @@ static const zend_function_entry ddtrace_functions[] = {
                                                 PHP_FE(dd_trace_push_span_id, NULL) PHP_FE(dd_trace_pop_span_id, NULL)
                                                     PHP_FE(dd_trace_peek_span_id, NULL)
                                                         PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL)
-                                                            PHP_FE(dd_trace_closed_spans_count, NULL) ZEND_FE_END};
+                                                            PHP_FE(dd_trace_closed_spans_count, NULL)
+                                                                PHP_FE(dd_trace_tracer_is_limited, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
