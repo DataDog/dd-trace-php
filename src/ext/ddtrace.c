@@ -480,19 +480,7 @@ static PHP_FUNCTION(dd_trace_dd_get_memory_limit) {
 static PHP_FUNCTION(dd_trace_check_memory_under_limit) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
-
-    static int64_t limit = -1;
-    static zend_bool fetched_limit = 0;
-    if (!fetched_limit) {  // cache get_memory_limit() result to make this function blazing fast
-        fetched_limit = 1;
-        limit = ddtrace_get_memory_limit(TSRMLS_C);
-    }
-
-    if (limit > 0) {
-        RETURN_BOOL((zend_ulong)limit > zend_memory_usage(0 TSRMLS_CC));
-    } else {
-        RETURN_BOOL(1);
-    }
+    RETURN_BOOL(ddtrace_check_memory_under_limit() == TRUE ? 1 : 0);
 }
 
 static PHP_FUNCTION(dd_tracer_circuit_breaker_register_error) {
