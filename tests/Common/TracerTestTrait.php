@@ -24,6 +24,8 @@ trait TracerTestTrait
      */
     public function isolateTracer($fn, $tracer = null)
     {
+        // Reset the current C-level array of generated spans
+        dd_trace_serialize_closed_spans();
         $transport = new DebugTransport();
         $tracer = $tracer ?: new Tracer($transport);
         GlobalTracer::set($tracer);

@@ -13,14 +13,14 @@ use Elasticsearch\Client;
  * sure that if a non existing method is provided, that for example does not exists for the used client version
  * the integration does not throw an exception.
  */
-class ElasticSearchIntegrationTest extends IntegrationTestCase
+class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
 {
     const HOST = 'elasticsearch2_integration';
 
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED=false');
+        putenv('DD_TRACE_SANDBOX_ENABLED');
         IntegrationsLoader::load();
     }
 
@@ -49,7 +49,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 '__construct'
             ),
-        ]);
+        ], true);
     }
 
     public function testCount()
@@ -60,15 +60,15 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.count',
                 'elasticsearch',
                 'elasticsearch',
                 'count'
             ),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-        ]);
+        ], true);
     }
 
     public function testDelete()
@@ -90,15 +90,15 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.delete',
                 'elasticsearch',
                 'elasticsearch',
                 'delete index:my_index type:my_type'
             ),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-        ]);
+        ], true);
     }
 
     public function testExists()
@@ -120,15 +120,15 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.exists',
                 'elasticsearch',
                 'elasticsearch',
                 'exists index:my_index type:my_type'
             ),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-        ]);
+        ], true);
     }
 
     public function testExplain()
@@ -155,16 +155,16 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.explain',
                 'elasticsearch',
                 'elasticsearch',
                 'explain index:my_index type:my_type'
             ),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-        ]);
+        ], true);
     }
 
     public function testGet()
@@ -186,15 +186,15 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.get',
                 'elasticsearch',
                 'elasticsearch',
                 'get index:my_index type:my_type'
             )->setTraceAnalyticsCandidate(),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-        ]);
+        ], true);
     }
 
     public function testIndex()
@@ -210,20 +210,21 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.index',
                 'elasticsearch',
                 'elasticsearch',
                 'index index:my_index type:my_type'
             ),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-        ]);
+        ], true);
     }
 
     public function testLimitedTracer()
     {
+        return $this->markTestSkipped('Limiting not yet implemented for sandboxed api.');
         $client = $this->client();
         $traces = $this->isolateLimitedTracer(function () use ($client) {
             $client->indices()->delete(['index' => 'my_index']);
@@ -323,23 +324,23 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.scroll',
                 'elasticsearch',
                 'elasticsearch',
                 'scroll'
             ),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.scroll',
                 'elasticsearch',
                 'elasticsearch',
                 'scroll'
             ),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-        ]);
+        ], true);
     }
 
     public function testSearch()
@@ -364,16 +365,16 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.search',
                 'elasticsearch',
                 'elasticsearch',
                 'search index:' . 'my_index'
             )->setTraceAnalyticsCandidate(),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-        ]);
+        ], true);
     }
 
     public function testPerformRequest()
@@ -398,7 +399,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::exists('Elasticsearch.Client.search'),
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
             SpanAssertion::build(
                 'Elasticsearch.Endpoint.performRequest',
                 'elasticsearch',
@@ -410,9 +412,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch.params' => '[]',
                 'elasticsearch.body' => '{"query":{"match_all":[]}}'
             ]),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-        ]);
+            SpanAssertion::exists('Elasticsearch.Client.search'),
+        ], true);
     }
 
     public function testUpdate()
@@ -435,16 +436,16 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.update',
                 'elasticsearch',
                 'elasticsearch',
                 'update index:my_index type:my_type'
             ),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
-        ]);
+        ], true);
     }
 
     /**
