@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\Curl;
 
 use DDTrace\Configuration;
 use DDTrace\Format;
+use DDTrace\Integrations\Curl\CurlCommon;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\IntegrationTestCase;
