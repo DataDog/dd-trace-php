@@ -127,7 +127,8 @@ class IntegrationsLoader
             }
 
             if (strpos($class, 'SandboxedIntegration') !== false) {
-                $this->loadings[$name] = $class::get()->init();
+                $integration = new $class();
+                $this->loadings[$name] = $integration->init();
             } else {
                 $this->loadings[$name] = $class::load();
             }
