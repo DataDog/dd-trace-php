@@ -688,21 +688,31 @@ static PHP_FUNCTION(dd_trace_peek_span_id) {
     RETURN_SPAN_ID(ddtrace_peek_span_id);
 }
 
+/* {{{ proto string dd_trace_closed_spans_count() */
+static PHP_FUNCTION(dd_trace_closed_spans_count) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+    RETURN_LONG(DDTRACE_G(closed_spans_count));
+}
+
 static const zend_function_entry ddtrace_functions[] = {
-    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method) PHP_FE(
-        dd_trace_function, arginfo_dd_trace_function) PHP_FE(dd_trace_serialize_closed_spans,
-                                                             arginfo_dd_trace_serialize_closed_spans)
-        PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL) PHP_FE(
-            dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
-            PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(
-                dd_tracer_circuit_breaker_register_error, NULL) PHP_FE(dd_tracer_circuit_breaker_register_success, NULL)
-                PHP_FE(dd_tracer_circuit_breaker_can_try, NULL) PHP_FE(dd_tracer_circuit_breaker_info, NULL) PHP_FE(
-                    dd_trace_env_config, arginfo_dd_trace_env_config) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
-                    PHP_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span) PHP_FE(dd_trace_internal_fn, NULL)
-                        PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
-                            PHP_FE(dd_trace_push_span_id, NULL) PHP_FE(dd_trace_pop_span_id, NULL)
-                                PHP_FE(dd_trace_peek_span_id, NULL)
-                                    PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL) ZEND_FE_END};
+    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method)
+        PHP_FE(dd_trace_function, arginfo_dd_trace_function) PHP_FE(dd_trace_serialize_closed_spans,
+                                                                    arginfo_dd_trace_serialize_closed_spans)
+            PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL) PHP_FE(
+                dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
+                PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(dd_tracer_circuit_breaker_register_error, NULL)
+                    PHP_FE(dd_tracer_circuit_breaker_register_success, NULL)
+                        PHP_FE(dd_tracer_circuit_breaker_can_try, NULL) PHP_FE(dd_tracer_circuit_breaker_info, NULL)
+                            PHP_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
+                                PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
+                                    PHP_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span)
+                                        PHP_FE(dd_trace_internal_fn, NULL)
+                                            PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
+                                                PHP_FE(dd_trace_push_span_id, NULL) PHP_FE(dd_trace_pop_span_id, NULL)
+                                                    PHP_FE(dd_trace_peek_span_id, NULL)
+                                                        PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL)
+                                                            PHP_FE(dd_trace_closed_spans_count, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
