@@ -131,8 +131,8 @@ class IntegrationsLoader
             }
 
             if (strpos($class, 'SandboxedIntegration') !== false) {
-                $this->loadings[$name] = new $class();
-                $this->loadings[$name]->init();
+                $instance = new $class();
+                $this->loadings[$name] = $instance->init();
             } else {
                 $this->loadings[$name] = $class::load();
             }
