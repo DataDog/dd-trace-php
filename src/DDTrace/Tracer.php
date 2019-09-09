@@ -73,16 +73,6 @@ final class Tracer implements TracerInterface
     ];
 
     /**
-     * @var int
-     * */
-    private $spansCreated = 0;
-
-    /**
-     * @var int
-     * */
-    private $spansLimit = -1;
-
-    /**
      * @var ScopeManager
      */
     private $scopeManager;
@@ -135,11 +125,7 @@ final class Tracer implements TracerInterface
 
     public function limited()
     {
-        if ($this->spansLimit >= 0 && ($this->spansCreated >= $this->spansLimit)) {
-            return true;
-        } else {
-            return function_exists('dd_trace_check_memory_under_limit') && !dd_trace_check_memory_under_limit();
-        }
+        return dd_trace_tracer_is_limited();
     }
 
     /**
@@ -150,8 +136,6 @@ final class Tracer implements TracerInterface
         $this->scopeManager = new ScopeManager();
         $this->globalConfig = Configuration::get();
         $this->sampler = new ConfigurableSampler();
-        $this->spansLimit = $this->globalConfig->getSpansLimit();
-        $this->spansCreated = 0;
         $this->traces = [];
     }
 
@@ -176,8 +160,6 @@ final class Tracer implements TracerInterface
      */
     public function startSpan($operationName, $options = [])
     {
-        $this->spansCreated++;
-
         if (!$this->config['enabled']) {
             return NoopSpan::create();
         }

@@ -10,8 +10,6 @@ use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\GlobalTracer;
-use DDTrace\Configuration;
-
 
 trait TracerTestTrait
 {
@@ -44,9 +42,8 @@ trait TracerTestTrait
      */
     public function isolateLimitedTracer($fn, $tracer = null)
     {
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'getSpansLimit' => 0
-        ]));
+        putenv('DD_TRACE_SPANS_LIMIT=0');
+        dd_trace_internal_fn('ddtrace_reload_config');
 
         $transport = new DebugTransport();
         $tracer = $tracer ?: new Tracer($transport);
@@ -54,7 +51,12 @@ trait TracerTestTrait
 
         $fn($tracer);
 
-        return $this->flushAndGetTraces($transport);
+        $traces =  $this->flushAndGetTraces($transport);
+
+        putenv('DD_TRACE_SPANS_LIMIT');
+        dd_trace_internal_fn('ddtrace_reload_config');
+
+        return $traces;
     }
 
     /**
