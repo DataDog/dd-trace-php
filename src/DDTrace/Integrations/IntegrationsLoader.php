@@ -75,8 +75,10 @@ class IntegrationsLoader
         $this->integrations = $integrations;
         // Sandboxed integrations get loaded with a feature flag
         if (Configuration::get()->isSandboxEnabled()) {
-            $this->integrations[EloquentSandboxedIntegration::NAME] = '\DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration';
-            $this->integrations[PDOSandboxedIntegration::NAME] = '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
+            $this->integrations[EloquentSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration';
+            $this->integrations[PDOSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
         }
     }
 
