@@ -105,6 +105,18 @@ void ddtrace_close_span(TSRMLS_D) {
     DDTRACE_G(closed_spans_top) = span;
 }
 
+void ddtrace_drop_span(TSRMLS_D) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    if (span == NULL) {
+        return;
+    }
+    DDTRACE_G(open_spans_top) = span->next;
+    // Sync with span ID stack
+    ddtrace_pop_span_id(TSRMLS_C);
+
+    _free_span(span);
+}
+
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     ddtrace_span_t *span = DDTRACE_G(closed_spans_top);
     array_init(serialized);
