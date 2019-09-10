@@ -14,7 +14,7 @@ RUN set -xe; \
 
 RUN set -xe; \
     apt-get update; \
-    apt-get install -y $(for V in 7.0 7.1 7.2 7.3; do \
+    apt-get install -y $(for V in 5.6 7.0 7.1 7.2 7.3; do \
         echo \
         php${V}-fpm \
         php${V}-apcu \
@@ -163,5 +163,28 @@ ADD flow/patch.patch ./
 RUN set -xe; \
     git apply *.patch
 
+CMD [ "./run.sh" ]
+
+FROM base AS wordpress
+ENV DD_SERVICE_NAME=wordpress
+ARG WORDPRESS_VERSION_TAG=4.8.10
+RUN set -xe; \
+  apt-get update; \
+  apt-get install -y default-mysql-client; \
+  apt-get clean
+
+RUN set -xe; \
+    git clone --depth 1 --branch ${WORDPRESS_VERSION_TAG} git://develop.git.wordpress.org/ /home/wordpress; \
+    cd /home/wordpress; \
+    switch_php 5.6; \
+    composer require --dev phpunit/phpunit ^5
+
+WORKDIR /home/wordpress
+ADD wordpress/wp-tests-config.php ./
+ADD wordpress/run.sh ./
+ADD wordpress/${WORDPRESS_VERSION_TAG}.patch ./
+
+RUN set -xe; \
+    git apply *.patch
 
 CMD [ "./run.sh" ]
