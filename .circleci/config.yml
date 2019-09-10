@@ -666,6 +666,14 @@ workflows:
           requires: [ "Framework tests" ]
           framework_target: symfony_no_ddtrace
           name: "Symfony baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: wordpress
+          name: "WordPress testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: wordpress_no_ddtrace
+          name: "WordPress baseline testsuite"
       - verify_package:
           requires: [ "package extension" ]
           name: "webdevops/php:7.1"
