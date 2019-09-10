@@ -14,16 +14,20 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\GlobalTracer;
 use DDTrace\Util\Versions;
 
-final class GuzzleIntegrationTest extends IntegrationTestCase
+class GuzzleIntegrationTest extends IntegrationTestCase
 {
-    const URL = 'http://httpbin_integration';
+    const IS_SANDBOXED = false;
 
-    /** @var Client */
-    private $client;
+    const URL = 'http://httpbin_integration';
 
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
+        if (static::IS_SANDBOXED) {
+            putenv('DD_TRACE_SANDBOX_ENABLED');
+        } else {
+            putenv('DD_TRACE_SANDBOX_ENABLED=false');
+        }
         IntegrationsLoader::load();
     }
 

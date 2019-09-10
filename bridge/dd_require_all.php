@@ -84,7 +84,9 @@ require __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Lumen/LumenIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Lumen/V5/LumenIntegrationLoader.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleCommon.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleSandboxedIntegration.php';
 
 // Loggers
 require __DIR__ . '/../src/DDTrace/Log/Logger.php';

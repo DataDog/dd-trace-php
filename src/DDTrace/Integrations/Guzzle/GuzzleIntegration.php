@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\Guzzle;
 
 use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
-use DDTrace\Format;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
@@ -64,10 +63,8 @@ final class GuzzleIntegration extends Integration
      */
     public function doLoad()
     {
-        $self = $this;
-
-        $postCallback = function (Span $span, $response) use ($self) {
-            $self->setStatusCodeTag($span, $response);
+        $postCallback = function (Span $span, $response) {
+            GuzzleCommon::setStatusCodeTag($span, $response);
         };
 
         $integration = GuzzleIntegration::getInstance();
@@ -100,16 +97,15 @@ final class GuzzleIntegration extends Integration
      */
     private function buildPreCallback($method)
     {
-        $self = $this;
-        return function (Span $span, array $args) use ($self, $method) {
+        return function (Span $span, array $args) use ($method) {
             list($request) = $args;
-            $self->applyDistributedTracingHeaders($span, $request);
+            GuzzleCommon::applyDistributedTracingHeaders($span, $request);
             $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
             $span->setTag(Tag::SERVICE_NAME, GuzzleIntegration::NAME);
             $span->setTag(Tag::HTTP_METHOD, $request->getMethod());
             $span->setTag(Tag::RESOURCE_NAME, $method);
 
-            $url = $self->getRequestUrl($request);
+            $url = GuzzleCommon::getRequestUrl($request);
             if (null !== $url) {
                 $span->setTag(Tag::HTTP_URL, $url);
 
@@ -125,101 +121,17 @@ final class GuzzleIntegration extends Integration
      */
     private function buildLimitTracerCallback()
     {
-        $self = $this;
-        return function (array $args) use ($self) {
+        return function (array $args) {
             if (!Configuration::get()->isDistributedTracingEnabled()) {
                 return null;
             }
 
             list($request) = $args;
-            $tracer = GlobalTracer::get();
             $activeSpan = GlobalTracer::get()->getActiveSpan();
 
             if ($activeSpan) {
-                $self->applyDistributedTracingHeaders($activeSpan, $request);
+                GuzzleCommon::applyDistributedTracingHeaders($activeSpan, $request);
             }
         };
-    }
-
-    /**
-     * @param mixed $request
-     */
-    private function getRequestUrl($request)
-    {
-        $url = null;
-        if (is_a($request, '\GuzzleHttp\Message\RequestInterface')) {
-            $url = (string) $request->getUrl();
-        } elseif (is_a($request, '\Psr\Http\Message\RequestInterface')) {
-            $url = (string) $request->getUri();
-        }
-
-        return $url;
-    }
-
-    /**
-     * @param Span $span
-     * @param mixed $response
-     */
-    private function setStatusCodeTag(Span $span, $response)
-    {
-        if (is_a($response, '\GuzzleHttp\Message\ResponseInterface')) {
-            $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
-        } elseif (is_a($response, '\Psr\Http\Message\ResponseInterface')) {
-            $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
-        } elseif (is_a($response, '\GuzzleHttp\Promise\Promise')) {
-            $response->then(function ($response) use ($span) {
-                $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
-            });
-        }
-    }
-
-    /**
-     * @param mixed $request
-     * @param Span $span
-     */
-    public function applyDistributedTracingHeaders(Span $span, $request)
-    {
-        if (!Configuration::get()->isDistributedTracingEnabled()) {
-            return;
-        }
-
-        $headers = $this->extractRequestHeaders($request);
-
-        $context = $span->getContext();
-        $tracer = GlobalTracer::get();
-        $tracer->inject($context, Format::HTTP_HEADERS, $headers);
-        $this->addRequestHeaders($request, $headers);
-    }
-
-    /**
-     * @param mixed $request
-     * @return string[]
-     */
-    private function extractRequestHeaders($request)
-    {
-        $headers = [];
-
-        if (is_a($request, '\GuzzleHttp\Message\MessageInterface')
-                || is_a($request, '\Psr\Http\Message\MessageInterface')) {
-            // Associative array of header names to values
-            $headers = $request->getHeaders();
-        }
-
-        return $headers;
-    }
-
-    /**
-     * @param mixed $request
-     * @param array $headers
-     */
-    private function addRequestHeaders($request, $headers)
-    {
-        if (is_a($request, '\GuzzleHttp\Message\MessageInterface')) {
-            $request->setHeaders($headers);
-        } elseif (is_a($request, '\Psr\Http\Message\MessageInterface')) {
-            foreach ($headers as $name => $value) {
-                $request->withAddedHeader($name, $value);
-            }
-        }
     }
 }
