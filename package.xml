@@ -150,6 +150,8 @@
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
                         <file name="new_static.phpt" role="test" />
+                        <file name="safe_to_string_metadata.phpt" role="test" />
+                        <file name="safe_to_string_properties.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     </dir>
                     <dir name="sandbox-regression">
