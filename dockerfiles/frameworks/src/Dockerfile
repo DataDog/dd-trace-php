@@ -163,5 +163,27 @@ ADD flow/patch.patch ./
 RUN set -xe; \
     git apply *.patch
 
+CMD [ "./run.sh" ]
+
+FROM base AS wordpress
+RUN set -xe; \
+  apt-get update; \
+  apt-get install -y npm nodejs; \
+  apt-get clean
+
+ARG WORDPRESS_VERSION_TAG=4.8.10
+RUN set -xe; \
+    git clone --depth 1 --branch ${WORDPRESS_VERSION_TAG} git://develop.git.wordpress.org/ /home/wordpress; \
+    cd /home/wordpress; \
+    composer require --dev phpunit/phpunit ^7.5
+
+WORKDIR /home/wordpress
+ADD wordpress/wp-tests-config.php ./
+ADD wordpress/run.sh ./
+ENV DD_SERVICE_NAME=wordpress
+
+#RUN set -xe; \
+#    npm install; \
+#    npm run grunt build
 
 CMD [ "./run.sh" ]
