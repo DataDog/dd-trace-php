@@ -232,7 +232,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     zval rv;
     INIT_ZVAL(rv);
     zval args[4];
-    zval exception_arg = {0};
+    zval exception_arg = {.value = {0}};
     ZVAL_UNDEF(&exception_arg);
     if (exception) {
         ZVAL_OBJ(&exception_arg, exception);
