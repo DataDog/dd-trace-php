@@ -440,8 +440,8 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
+      - run: docker login docker.pkg.github.com --username $GITHUB_REGISTRY_USERNAME --password $GITHUB_REGISTRY_PASSWORD
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
-
   verify_package:
     working_directory: ~/datadog
     parameters:
