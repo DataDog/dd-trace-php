@@ -225,8 +225,9 @@ void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args
     }
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_args,
-                                     zval *user_retval, zend_object *exception) {
+BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+                                       zval *user_args, zval *user_retval, zend_object *exception) {
+    BOOL_T status = TRUE;
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval rv;
@@ -241,7 +242,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
-        return;
+        return FALSE;
     }
 
     if (this) {
@@ -249,7 +250,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
         BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
         if (is_instance_method && is_closure_static) {
             ddtrace_log_debug("Cannot trace non-static method with static tracing closure");
-            return;
+            return FALSE;
         }
     }
 
@@ -279,10 +280,14 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
 
     if (zend_call_function(&fci, &fcc) == FAILURE) {
         ddtrace_log_debug("Could not execute tracing closure");
+        status = FALSE;
+    } else if (Z_TYPE(rv) == IS_FALSE) {
+        status = FALSE;
     }
 
     zval_ptr_dtor(&rv);
     zend_fcall_info_args_clear(&fci, 0);
+    return status;
 }
 
 void ddtrace_span_attach_exception(ddtrace_span_t *span, zend_object *exception) {

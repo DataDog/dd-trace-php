@@ -115,7 +115,10 @@
                     <file name="dd_trace_forward_call_from_include.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_inheritance.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_private_callback.phpt" role="test" />
+                    <file name="dd_trace_tracer_is_limited_hard.phpt" role="test" />
+                    <file name="dd_trace_tracer_is_limited_memory.phpt" role="test" />
                     <dir name="sandbox">
+                        <file name="dd_trace_closed_spans_count.phpt" role="test" />
                         <file name="dd_trace_function_complex.phpt" role="test" />
                         <file name="dd_trace_function_internal.phpt" role="test" />
                         <file name="dd_trace_function_userland.phpt" role="test" />
@@ -123,6 +126,7 @@
                         <file name="dd_trace_method_binds_called_object.phpt" role="test" />
                         <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
                         <file name="dd_trace_push_span_id.phpt" role="test" />
+                        <file name="drop_spans.phpt" role="test" />
                         <file name="exception_handling_php5.phpt" role="test" />
                         <file name="exception_handling.phpt" role="test" />
                         <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />

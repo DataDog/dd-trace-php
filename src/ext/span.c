@@ -15,6 +15,8 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 void ddtrace_init_span_stacks(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(closed_spans_top) = NULL;
+    DDTRACE_G(open_spans_count) = 0;
+    DDTRACE_G(closed_spans_count) = 0;
 }
 
 static void _free_span(ddtrace_span_t *span) {
@@ -47,6 +49,8 @@ void ddtrace_free_span_stacks(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = NULL;
     _free_span_stack(DDTRACE_G(closed_spans_top));
     DDTRACE_G(closed_spans_top) = NULL;
+    DDTRACE_G(open_spans_count) = 0;
+    DDTRACE_G(closed_spans_count) = 0;
 }
 
 static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
@@ -101,6 +105,18 @@ void ddtrace_close_span(TSRMLS_D) {
     DDTRACE_G(closed_spans_top) = span;
 }
 
+void ddtrace_drop_span(TSRMLS_D) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    if (span == NULL) {
+        return;
+    }
+    DDTRACE_G(open_spans_top) = span->next;
+    // Sync with span ID stack
+    ddtrace_pop_span_id(TSRMLS_C);
+
+    _free_span(span);
+}
+
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     ddtrace_span_t *span = DDTRACE_G(closed_spans_top);
     array_init(serialized);
@@ -111,4 +127,5 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
         _free_span(tmp);
     }
     DDTRACE_G(closed_spans_top) = NULL;
+    DDTRACE_G(closed_spans_count) = 0;
 }

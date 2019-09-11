@@ -181,7 +181,6 @@ final class TracerTest extends BaseTestCase
         Configuration::replace(\Mockery::mock(Configuration::get(), [
             'isAutofinishSpansEnabled' => true,
             'isPrioritySamplingEnabled' => false,
-            'getSpansLimit' => 1000,
             'isDebugModeEnabled' => false,
             'getGlobalTags' => [],
         ]));
@@ -241,7 +240,6 @@ final class TracerTest extends BaseTestCase
         Configuration::replace(\Mockery::mock(Configuration::get(), [
             'isAutofinishSpansEnabled' => true,
             'isPrioritySamplingEnabled' => false,
-            'getSpansLimit' => 1000,
             'isDebugModeEnabled' => false,
             'getGlobalTags' => [
                 'key1' => 'value1',

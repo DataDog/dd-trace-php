@@ -7,6 +7,7 @@
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "logging.h"
+#include "memory_limit.h"
 #include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -55,11 +56,12 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
         zend_clear_exception(TSRMLS_C);
     }
 
+    BOOL_T keep_span = TRUE;
     if (fcall_status == SUCCESS && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         int orig_error_reporting = EG(error_reporting);
         EG(error_reporting) = 0;
-        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, &user_args, user_retval,
-                                        exception TSRMLS_CC);
+        keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, &user_args,
+                                                    user_retval, exception TSRMLS_CC);
         EG(error_reporting) = orig_error_reporting;
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
@@ -72,7 +74,11 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
 
     ddtrace_zval_ptr_dtor(&user_args);
 
-    ddtrace_close_span(TSRMLS_C);
+    if (keep_span == TRUE) {
+        ddtrace_close_span(TSRMLS_C);
+    } else {
+        ddtrace_drop_span(TSRMLS_C);
+    }
 
     if (exception) {
         EG(exception) = exception;
@@ -123,4 +129,12 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     // Restore call for internal functions
     EX(call) = EX(call)->prev_execute_data;
 #endif
+}
+
+BOOL_T ddtrace_tracer_is_limited(TSRMLS_D) {
+    int64_t limit = get_dd_trace_spans_limit();
+    if (limit >= 0 && (int64_t)(DDTRACE_G(open_spans_count) + DDTRACE_G(closed_spans_count)) >= limit) {
+        return TRUE;
+    }
+    return ddtrace_check_memory_under_limit(TSRMLS_C) == TRUE ? FALSE : TRUE;
 }

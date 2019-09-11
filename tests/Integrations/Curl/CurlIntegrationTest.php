@@ -289,7 +289,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
             'isDistributedTracingEnabled' => false,
             'isPrioritySamplingEnabled' => false,
             'getGlobalTags' => [],
-            'getSpansLimit' => -1,
             'isDebugModeEnabled' => false,
         ]));
 
@@ -313,11 +312,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testTracerIsRunningAtLimitedCapacityWeStillPropagateTheSpan()
     {
+        putenv('DD_TRACE_SPANS_LIMIT=0');
+        dd_trace_internal_fn('ddtrace_reload_config');
         $found = [];
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'getSpansLimit' => 0
-        ]));
-
         $traces = $this->isolateTracer(function () use (&$found) {
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
@@ -333,6 +330,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
             $span->finish();
         });
+        putenv('DD_TRACE_MEMORY_LIMIT');
+        dd_trace_internal_fn('ddtrace_reload_config');
 
         $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
@@ -350,7 +349,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
     {
         $found = [];
         $traces = $this->isolateLimitedTracer(function () use (&$found) {
-            /** @var Tracer $tracer */
             $ch = curl_init(self::URL . '/headers');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, [

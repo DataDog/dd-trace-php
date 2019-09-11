@@ -338,8 +338,9 @@ void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args
     }
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_args,
-                                     zval *user_retval, zval *exception TSRMLS_DC) {
+BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+                                       zval *user_args, zval *user_retval, zval *exception TSRMLS_DC) {
+    BOOL_T status = TRUE;
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval *retval_ptr = NULL;
@@ -349,7 +350,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
-        return;
+        return FALSE;
     }
 
     /* Note: In PHP 5 there is a bug where closures are automatically
@@ -361,7 +362,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
         BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
         if (is_instance_method && is_closure_static) {
             ddtrace_log_debug("Cannot trace non-static method with static tracing closure");
-            return;
+            return FALSE;
         }
     }
 
@@ -391,9 +392,13 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     }
 
     if (fci.retval_ptr_ptr && retval_ptr) {
+        if (Z_TYPE_P(retval_ptr) == IS_BOOL) {
+            status = Z_LVAL_P(retval_ptr) ? TRUE : FALSE;
+        }
         zval_ptr_dtor(&retval_ptr);
     }
     zend_fcall_info_args_clear(&fci, 0);
+    return status;
 }
 
 void ddtrace_span_attach_exception(ddtrace_span_t *span, zval *exception) {

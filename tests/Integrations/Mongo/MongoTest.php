@@ -654,9 +654,8 @@ final class MongoTest extends IntegrationTestCase
 
     public function testLimitedTracer()
     {
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'getSpansLimit' => 0
-        ]));
+        putenv('DD_TRACE_SPANS_LIMIT=0');
+        dd_trace_internal_fn('ddtrace_reload_config');
 
         $traces = $this->isolateCollection(function (MongoCollection $collection) {
             $collection->distinct('foo', ['foo' => 'bar']);
@@ -668,6 +667,9 @@ final class MongoTest extends IntegrationTestCase
             $collection->parallelCollectionScan(2);
             $collection->aggregate([], ['explain' => true]);
         });
+
+        putenv('DD_TRACE_SPANS_LIMIT');
+        dd_trace_internal_fn('ddtrace_reload_config');
 
         $this->assertEmpty($traces);
     }
