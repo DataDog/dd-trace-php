@@ -43,6 +43,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         dd_trace_method('PDO', '__construct', function (SpanData $span, array $args) {
+            if (dd_trace_tracer_is_limited()) {
+                return false;
+            }
             $span->name = $span->resource = 'PDO.__construct';
             $span->service = 'PDO';
             $span->type = Type::SQL;
@@ -51,6 +54,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
 
         // public int PDO::exec(string $query)
         dd_trace_method('PDO', 'exec', function (SpanData $span, array $args, $retval) use ($integration) {
+            if (dd_trace_tracer_is_limited()) {
+                return false;
+            }
             $span->name = 'PDO.exec';
             $span->resource = $args[0];
             $span->service = 'PDO';
@@ -71,6 +77,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_INFO, object $object)
         // public int PDO::exec(string $query)
         dd_trace_method('PDO', 'query', function (SpanData $span, array $args, $retval) use ($integration) {
+            if (dd_trace_tracer_is_limited()) {
+                return false;
+            }
             $span->name = 'PDO.query';
             $span->resource = $args[0];
             $span->service = 'PDO';
@@ -88,6 +97,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
 
         // public bool PDO::commit ( void )
         dd_trace_method('PDO', 'commit', function (SpanData $span) {
+            if (dd_trace_tracer_is_limited()) {
+                return false;
+            }
             $span->name = $span->resource = 'PDO.commit';
             $span->service = 'PDO';
             $span->type = Type::SQL;
@@ -96,6 +108,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
 
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
         dd_trace_method('PDO', 'prepare', function (SpanData $span, array $args, $retval) {
+            if (dd_trace_tracer_is_limited()) {
+                return false;
+            }
             $span->name = 'PDO.prepare';
             $span->resource = $args[0];
             $span->service = 'PDO';
@@ -106,6 +121,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
         dd_trace_method('PDOStatement', 'execute', function (SpanData $span, array $args, $retval) use ($integration) {
+            if (dd_trace_tracer_is_limited()) {
+                return false;
+            }
             $span->name = 'PDOStatement.execute';
             $span->resource = $this->queryString;
             $span->service = 'PDO';

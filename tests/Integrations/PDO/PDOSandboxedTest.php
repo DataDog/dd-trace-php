@@ -40,12 +40,6 @@ final class PDOSandboxedTest extends PDOTest
         parent::setUp();
     }
 
-    // Remove this fake test after limited tracer added to sandbox API
-    public function testLimitedTracerPDO()
-    {
-        $this->assertTrue(true);
-    }
-
     // @see https://github.com/DataDog/dd-trace-php/issues/510
     public function testPDOStatementsAreReleased()
     {
