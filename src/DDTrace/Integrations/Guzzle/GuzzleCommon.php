@@ -6,6 +6,7 @@ use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
+use DDTrace\Propagator;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 
@@ -121,12 +122,14 @@ class GuzzleCommon
         }
 
         $tracer = GlobalTracer::get();
-        $span = $tracer->getActiveSpan();
+        $span = $tracer->getSafeRootSpan();
         if (null == $span) {
             return $headers;
         }
 
-        $tracer->inject($span->getContext(), Format::HTTP_HEADERS, $headers);
+        $headers[Propagator::DEFAULT_TRACE_ID_HEADER] = $span->getTraceId();
+        $headers[Propagator::DEFAULT_PARENT_ID_HEADER] = dd_trace_peek_span_id();
+        $headers[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER] = $tracer->getPrioritySampling();
         return $headers;
     }
 }
