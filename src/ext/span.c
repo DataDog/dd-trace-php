@@ -2,6 +2,7 @@
 
 #include <php.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "ddtrace.h"
 #include "dispatch_compat.h"
@@ -81,6 +82,7 @@ ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
     span->trace_id = DDTRACE_G(root_span_id);
     span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
     span->exception = NULL;
+    span->pid = getpid();
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);

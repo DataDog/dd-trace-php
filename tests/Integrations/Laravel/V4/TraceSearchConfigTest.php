@@ -31,7 +31,6 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
         });
 
         $this->assertExpectedSpans(
-            $this,
             $traces,
             [
                 SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@simple simple_route')

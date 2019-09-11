@@ -137,6 +137,20 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Whether or not sandboxed tracing closures are enabled.
+     *
+     * @return bool
+     */
+    public function isSandboxEnabled()
+    {
+        // Sandbox API not available on < PHP 5.6 yet
+        if (PHP_VERSION_ID < 50600) {
+            return false;
+        }
+        return $this->boolValue('trace.sandbox.enabled', true);
+    }
+
+    /**
      * The name of the application.
      *
      * @param string $default

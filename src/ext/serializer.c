@@ -206,7 +206,7 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRM
     /* add_assoc_stringl does not actually mutate the string, but we've either
      * already made a copy, or it will when it duplicates with dup param, so
      * if it did it should still be safe. */
-    add_assoc_stringl(meta, "error.name", (char *)class_name, class_name_len, needs_copied);
+    add_assoc_stringl(meta, "error.type", (char *)class_name, class_name_len, needs_copied);
     add_assoc_zval(meta, "error.msg", msg);
     add_assoc_zval(meta, "error.stack", stack);
 }
@@ -224,6 +224,12 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
     }
 
     _serialize_exception(el, meta, span TSRMLS_CC);
+    if (!span->exception && zend_hash_exists(Z_ARRVAL_P(meta), "error.msg", sizeof("error.msg"))) {
+        add_assoc_long(el, "error", 1);
+    }
+    if (span->parent_id == 0) {
+        add_assoc_long(meta, "system.pid", (uint)span->pid);
+    }
 
     // Add meta only if it has elements
     if (zend_hash_num_elements(Z_ARRVAL_P(meta))) {
@@ -263,7 +269,7 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
     zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "getmessage", &msg);
     zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "gettraceasstring", &stack);
 
-    _add_assoc_zval_copy(meta, "error.name", &name);
+    _add_assoc_zval_copy(meta, "error.type", &name);
     add_assoc_zval(meta, "error.msg", &msg);
     add_assoc_zval(meta, "error.stack", &stack);
 }
@@ -271,14 +277,23 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
 void _serialize_meta(zval *el, ddtrace_span_t *span) {
     zval meta_zv, *meta = _read_span_property(span->span_data, "meta", sizeof("meta") - 1);
 
-    if (!meta || Z_TYPE_P(meta) != IS_ARRAY) {
-        meta = &meta_zv;
-        array_init(meta);
+    if (meta && Z_TYPE_P(meta) == IS_ARRAY) {
+        ZVAL_DUP(&meta_zv, meta);
     } else {
-        Z_ADDREF_P(meta);
+        array_init(&meta_zv);
     }
+    meta = &meta_zv;
 
     _serialize_exception(el, meta, span);
+    if (!span->exception) {
+        zval *error = zend_hash_str_find_ptr(Z_ARR_P(meta), "error.msg", sizeof("error.msg") - 1);
+        if (error) {
+            add_assoc_long(el, "error", 1);
+        }
+    }
+    if (span->parent_id == 0) {
+        add_assoc_long(meta, "system.pid", (zend_long)span->pid);
+    }
 
     if (zend_array_count(Z_ARRVAL_P(meta))) {
         add_assoc_zval(el, "meta", meta);

@@ -14,6 +14,12 @@ final class IntegrationsLoaderTest extends BaseTestCase
         'integration_2' => 'DDTrace\Tests\Unit\Integrations\DummyIntegration2',
     ];
 
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+        putenv('DD_TRACE_SANDBOX_ENABLED=false');
+    }
+
     public function testGlobalLoaderDefaultsToOfficiallySupportedIntegrations()
     {
         $this->assertEquals(
@@ -35,6 +41,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isEnabled' => false,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
 
         DummyIntegration1::$value = Integration::LOADED;
@@ -50,6 +57,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             'isEnabled' => true,
             'isIntegrationEnabled' => false,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
 
         DummyIntegration1::$value = Integration::LOADED;
@@ -65,6 +73,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -82,6 +91,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -105,6 +115,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -128,6 +139,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             'isEnabled' => true,
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
+            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 

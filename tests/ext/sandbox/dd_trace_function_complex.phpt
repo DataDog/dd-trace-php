@@ -110,7 +110,7 @@ array(5) {
     ["type"]=>
     string(7) "BarType"
     ["meta"]=>
-    array(4) {
+    array(5) {
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["retval.thoughts"]=>
@@ -118,6 +118,8 @@ array(5) {
       ["retval.first"]=>
       string(5) "first"
       ["retval.rand"]=>
+      int(%d)
+      ["system.pid"]=>
       int(%d)
     }
     ["metrics"]=>
@@ -159,7 +161,7 @@ array(5) {
     string(6) "AddOne"
   }
   [3]=>
-  array(5) {
+  array(6) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -170,9 +172,14 @@ array(5) {
     int(%d)
     ["name"]=>
     string(6) "AddOne"
+    ["meta"]=>
+    array(1) {
+      ["system.pid"]=>
+      int(%d)
+    }
   }
   [4]=>
-  array(5) {
+  array(6) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -183,6 +190,11 @@ array(5) {
     int(%d)
     ["name"]=>
     string(7) "TestFoo"
+    ["meta"]=>
+    array(1) {
+      ["system.pid"]=>
+      int(%d)
+    }
   }
 }
 array(0) {

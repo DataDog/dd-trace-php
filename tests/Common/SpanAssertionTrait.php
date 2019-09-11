@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Span;
 use PHPUnit\Framework\TestCase;
 
 trait SpanAssertionTrait
@@ -10,32 +9,31 @@ trait SpanAssertionTrait
     /**
      * Checks the exact match of a set of SpanAssertion with the provided Spans.
      *
-     * @param $testCase
-     * @param $traces
+     * @param array[] $traces
      * @param SpanAssertion[] $expectedSpans
+     * @param bool $isSandbox
      */
-    public function assertExpectedSpans($testCase, $traces, $expectedSpans)
+    public function assertExpectedSpans($traces, $expectedSpans, $isSandbox = false)
     {
-        (new SpanChecker($testCase))->assertSpans($traces, $expectedSpans);
+        (new SpanChecker())->assertSpans($traces, $expectedSpans, $isSandbox);
     }
 
     /**
      * Checks that the provide span exists in the provided traces and matches expectations.
      *
-     * @param TestCase $testCase
      * @param array[] $traces
      * @param SpanAssertion $expectedSpan
      */
-    public function assertOneExpectedSpan($testCase, $traces, SpanAssertion $expectedSpan)
+    public function assertOneExpectedSpan($traces, SpanAssertion $expectedSpan)
     {
-        $spanChecker = new SpanChecker($testCase);
+        $spanChecker = new SpanChecker();
 
         $found = array_filter($spanChecker->flattenTraces($traces), function ($span) use ($expectedSpan) {
             return $span['name'] === $expectedSpan->getOperationName();
         });
 
         if (empty($found)) {
-            $testCase->fail('Span not found in traces: ' . $expectedSpan->getOperationName());
+            TestCase::fail('Span not found in traces: ' . $expectedSpan->getOperationName());
         } else {
             $spanChecker->assertSpan($found[0], $expectedSpan);
         }
