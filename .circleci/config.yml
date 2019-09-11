@@ -34,6 +34,8 @@ aliases:
   - &IMAGE_DOCKER_MYSQL
     image: mysql:5.6
     name: mysql_integration
+    volumes:
+      - ./dockerfiles/mysql:/docker-entrypoint-initdb.d
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test
