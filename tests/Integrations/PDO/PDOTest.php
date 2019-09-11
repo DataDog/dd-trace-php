@@ -418,7 +418,7 @@ class PDOTest extends IntegrationTestCase
         return "mysql:host=" . self::MYSQL_HOST . ";dbname=" . self::MYSQL_DATABASE;
     }
 
-    private function baseTags()
+    protected function baseTags()
     {
         return [
             'db.engine' => 'mysql',

@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\PDO;
 
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
+use DDTrace\Tests\Common\SpanAssertion;
 
 final class PDOSandboxedTest extends PDOTest
 {
@@ -38,6 +39,68 @@ final class PDOSandboxedTest extends PDOTest
             return;
         }
         parent::setUp();
+    }
+
+    public function testCustomPDOPrepareWithStringableStatement()
+    {
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = new CustomPDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
+            $stmt = $pdo->prepare(new CustomPDOStatement($query));
+            $stmt->execute([1]);
+            $results = $stmt->fetchAll();
+            $this->assertEquals('Tom', $results[0]['name']);
+            $stmt->closeCursor();
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build(
+                'PDO.prepare',
+                'PDO',
+                'sql',
+                $query
+            )->withExactTags($this->baseTags()),
+            SpanAssertion::build(
+                'PDOStatement.execute',
+                'PDO',
+                'sql',
+                $query
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge($this->baseTags(), [
+                    'db.rowcount' => 1,
+                ])),
+        ], static::IS_SANDBOX);
+    }
+
+    public function testBrokenPDOPrepareWithNonStringableStatement()
+    {
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = new CustomPDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
+            $stmt = $pdo->prepare(new BrokenPDOStatement($query));
+            $stmt->execute([1]);
+            $results = $stmt->fetchAll();
+            $this->assertEquals('Tom', $results[0]['name']);
+            $stmt->closeCursor();
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build(
+                'PDO.prepare',
+                'PDO',
+                'sql',
+                ''
+            )->withExactTags(SpanAssertion::NOT_TESTED),
+            SpanAssertion::build(
+                'PDOStatement.execute',
+                'PDO',
+                'sql',
+                $query
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(SpanAssertion::NOT_TESTED),
+        ], static::IS_SANDBOX);
     }
 
     // @see https://github.com/DataDog/dd-trace-php/issues/510

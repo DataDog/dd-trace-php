@@ -115,12 +115,12 @@ final class SpanAssertion
     }
 
     /**
-     * @param array $tags
+     * @param array|string $tags
      * @return $this
      */
-    public function withExactTags(array $tags)
+    public function withExactTags($tags)
     {
-        if (is_array($this->exactTags)) {
+        if (is_array($this->exactTags) && is_array($tags)) {
             $this->exactTags = array_merge($this->exactTags, $tags);
         } else {
             $this->exactTags = $tags;

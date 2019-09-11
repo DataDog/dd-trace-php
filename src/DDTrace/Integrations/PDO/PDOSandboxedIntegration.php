@@ -58,9 +58,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $span->name = 'PDO.exec';
-            $span->resource = $args[0];
             $span->service = 'PDO';
             $span->type = Type::SQL;
+            $span->resource = (string) $args[0];
             if (is_numeric($retval)) {
                 $span->meta = [
                     'db.rowcount' => (string) $retval,
@@ -81,9 +81,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $span->name = 'PDO.query';
-            $span->resource = $args[0];
             $span->service = 'PDO';
             $span->type = Type::SQL;
+            $span->resource = (string) $args[0];
             if ($retval instanceof \PDOStatement) {
                 $span->meta = [
                     'db.rowcount' => (string) $retval->rowCount(),
@@ -112,9 +112,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $span->name = 'PDO.prepare';
-            $span->resource = $args[0];
             $span->service = 'PDO';
             $span->type = Type::SQL;
+            $span->resource = (string) $args[0];
             PDOSandboxedIntegration::setConnectionTags($this, $span);
             PDOSandboxedIntegration::storeStatementFromConnection($this, $retval);
         });
@@ -125,9 +125,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $span->name = 'PDOStatement.execute';
-            $span->resource = $this->queryString;
             $span->service = 'PDO';
             $span->type = Type::SQL;
+            $span->resource = (string) $this->queryString;
             if ($retval === true) {
                 $span->meta = [
                     'db.rowcount' => (string) $this->rowCount(),
@@ -200,7 +200,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
     {
         $tags = self::parseDsn($constructorArgs[0]);
         if (isset($constructorArgs[1])) {
-            $tags['db.user'] = $constructorArgs[1];
+            $tags['db.user'] = (string) $constructorArgs[1];
         }
         self::$connections[spl_object_hash($pdo)] = $tags;
         return $tags;
@@ -225,7 +225,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             return;
         }
         foreach (self::$connections[$hash] as $tag => $value) {
-            $span->meta[$tag] = $value;
+            $span->meta[$tag] = (string) $value;
         }
     }
 
@@ -239,7 +239,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             return;
         }
         foreach (self::$connections[self::$statements[$stmtHash]] as $tag => $value) {
-            $span->meta[$tag] = $value;
+            $span->meta[$tag] = (string) $value;
         }
     }
 }
