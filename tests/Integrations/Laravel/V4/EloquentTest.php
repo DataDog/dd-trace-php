@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laravel\V5_7;
+namespace DDTrace\Tests\Integrations\Laravel\V4;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
@@ -14,7 +14,7 @@ class EloquentTest extends WebFrameworkTestCase
 
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
     }
 
     protected function setUp()
@@ -27,12 +27,19 @@ class EloquentTest extends WebFrameworkTestCase
     {
         $traces = $this->tracesFromWebRequest(function () {
             $spec  = GetSpec::create('Eloquent get', '/eloquent/get');
-            $this->call($spec);
+            $request = $this->call($spec);
         });
         $this->assertExpectedSpans($traces, [
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.action'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
             SpanAssertion::exists('laravel.request'),
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::exists('PDO.exec'),
             SpanAssertion::exists('PDO.prepare'),
             SpanAssertion::exists('PDOStatement.execute'),
             SpanAssertion::exists('PDO.prepare'),
@@ -43,7 +50,7 @@ class EloquentTest extends WebFrameworkTestCase
                 'eloquent.get',
                 '',
                 'sql',
-                'App\User'
+                'User'
             )->withExactTags([
                 'sql.query' => 'select * from `users`',
             ]),
@@ -57,9 +64,20 @@ class EloquentTest extends WebFrameworkTestCase
             $response = $this->call($spec);
         });
         $this->assertExpectedSpans($traces, [
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.action'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
             SpanAssertion::exists('laravel.request'),
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::exists('PDO.exec'),
             SpanAssertion::exists('PDO.prepare'),
             SpanAssertion::exists('PDOStatement.execute'),
             SpanAssertion::exists('PDO.prepare'),
@@ -70,7 +88,7 @@ class EloquentTest extends WebFrameworkTestCase
                 'eloquent.insert',
                 '',
                 'sql',
-                'App\User'
+                'User'
             ),
         ], true);
     }
@@ -83,9 +101,21 @@ class EloquentTest extends WebFrameworkTestCase
             $response = $this->call($spec);
         });
         $this->assertExpectedSpans($traces, [
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.action'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
             SpanAssertion::exists('laravel.request'),
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::exists('PDO.exec'),
             SpanAssertion::exists('PDO.prepare'),
             SpanAssertion::exists('PDOStatement.execute'),
             SpanAssertion::exists('PDO.prepare'),
@@ -99,7 +129,7 @@ class EloquentTest extends WebFrameworkTestCase
                 'eloquent.update',
                 '',
                 'sql',
-                'App\User'
+                'User'
             ),
         ], true);
     }
@@ -112,9 +142,19 @@ class EloquentTest extends WebFrameworkTestCase
             $response = $this->call($spec);
         });
         $this->assertExpectedSpans($traces, [
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.action'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
+            SpanAssertion::exists('laravel.event.handle'),
             SpanAssertion::exists('laravel.request'),
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::exists('PDO.exec'),
             SpanAssertion::exists('PDO.prepare'),
             SpanAssertion::exists('PDOStatement.execute'),
             SpanAssertion::exists('PDO.prepare'),
@@ -128,7 +168,7 @@ class EloquentTest extends WebFrameworkTestCase
                 'eloquent.delete',
                 '',
                 'sql',
-                'App\User'
+                'User'
             ),
         ], true);
     }

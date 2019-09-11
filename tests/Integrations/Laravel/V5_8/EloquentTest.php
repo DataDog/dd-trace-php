@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Laravel\V5_7;
+namespace DDTrace\Tests\Integrations\Laravel\V5_8;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
@@ -14,7 +14,7 @@ class EloquentTest extends WebFrameworkTestCase
 
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Laravel/Version_5_8/public/index.php';
     }
 
     protected function setUp()

@@ -29,31 +29,26 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             $span->name = 'eloquent.get';
             $sql = $this->getQuery()->toSql();
             $span->type = Type::SQL;
-            $span->resource = $sql;
+            $span->resource = get_class($this->model);
             $span->meta[Tag::DB_STATEMENT] = $sql;
         });
 
         dd_trace_method('Illuminate\Database\Eloquent\Model', 'performInsert', function (SpanData $span, array $args) {
             $span->name = 'eloquent.insert';
-            list($eloquentQueryBuilder) = $args;
-            $sql = $eloquentQueryBuilder->getQuery()->toSql();
             $span->type = Type::SQL;
-            $span->resource = $sql;
-            $span->meta[Tag::DB_STATEMENT] = $sql;
+            $span->resource = get_class($this);
         });
 
         dd_trace_method('Illuminate\Database\Eloquent\Model', 'performUpdate', function (SpanData $span, array $args) {
             $span->name = 'eloquent.update';
-            list($eloquentQueryBuilder) = $args;
-            $sql = $eloquentQueryBuilder->getQuery()->toSql();
             $span->type = Type::SQL;
-            $span->resource = $sql;
-            $span->meta[Tag::DB_STATEMENT] = $sql;
+            $span->resource = get_class($this);
         });
 
         dd_trace_method('Illuminate\Database\Eloquent\Model', 'delete', function (SpanData $span, array $args) {
             $span->name = $span->resource = 'eloquent.delete';
             $span->type = Type::SQL;
+            $span->resource = get_class($this);
         });
 
         return Integration::LOADED;
