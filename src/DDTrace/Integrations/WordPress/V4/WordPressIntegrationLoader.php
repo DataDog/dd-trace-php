@@ -1,0 +1,226 @@
+<?php
+
+namespace DDTrace\Integrations\WordPress\V4;
+
+use DDTrace\Configuration;
+use DDTrace\Contracts\Scope;
+use DDTrace\GlobalTracer;
+use DDTrace\Http\Urls;
+use DDTrace\Integrations\WordPress\WordPressSandboxedIntegration;
+use DDTrace\Integrations\Integration;
+use DDTrace\Contracts\Span;
+use DDTrace\SpanData;
+use DDTrace\Tag;
+use DDTrace\Type;
+
+class WordPressIntegrationLoader
+{
+    /**
+     * @var Span
+     */
+    public $rootSpan;
+
+    public function load(WordPressSandboxedIntegration $integration)
+    {
+        $scope = GlobalTracer::get()->getRootScope();
+        if (!$scope instanceof Scope) {
+            return Integration::NOT_LOADED;
+        }
+        $this->rootSpan = $scope->getSpan();
+        // Overwrite the default web integration
+        $this->rootSpan->setIntegration($integration);
+        $this->rootSpan->setTraceAnalyticsCandidate();
+        $this->rootSpan->overwriteOperationName('wordpress.request');
+        $service = Configuration::get()->appName(WordPressSandboxedIntegration::NAME);
+        $this->rootSpan->setTag(Tag::SERVICE_NAME, $service);
+        if ('cli' !== PHP_SAPI) {
+            $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
+            $this->rootSpan->setTag(
+                Tag::RESOURCE_NAME,
+                $_SERVER['REQUEST_METHOD'] . ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']),
+                true
+            );
+            $this->rootSpan->setTag(Tag::HTTP_URL, home_url(add_query_arg($_GET)));
+        }
+
+        // Core
+        dd_trace_method('WP', 'main', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'WP.main';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_method('WP', 'init', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'WP.init';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_method('WP', 'parse_request', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'WP.parse_request';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_method('WP', 'send_headers', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'WP.send_headers';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_method('WP', 'query_posts', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'WP.query_posts';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_method('WP', 'handle_404', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'WP.handle_404';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_method('WP', 'register_globals', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'WP.register_globals';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('create_initial_post_types', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'create_initial_post_types';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('create_initial_taxonomies', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'create_initial_taxonomies';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('wp_print_head_scripts', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'wp_print_head_scripts';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+        dd_trace_function('wp_print_footer_scripts', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'wp_print_footer_scripts';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        // These not called in PHP 5 due to call_user_func_array() bug
+        dd_trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'wp_maybe_load_widgets';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('wp_maybe_load_embeds', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'wp_maybe_load_embeds';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('_wp_customize_include', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = '_wp_customize_include';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        // Widgets
+        dd_trace_method('WP_Widget_Factory', '_register_widgets', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'WP_Widget_Factory._register_widgets';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_method('WP_Widget', 'display_callback', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'WP_Widget.display_callback';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        // Database
+        dd_trace_method('wpdb', '__construct', function (SpanData $span, array $args) use ($service) {
+            $span->name = $span->resource = 'wpdb.__construct';
+            $span->type = Type::SQL;
+            $span->service = $service;
+            $span->meta = [
+                'db.user' => (string) $args[0],
+                'db.name' => (string) $args[2],
+                'db.host' => (string) $args[3],
+            ];
+        });
+
+        dd_trace_method('wpdb', 'query', function (SpanData $span, array $args) use ($service) {
+            $span->name = 'wpdb.query';
+            $span->resource = (string) $args[0];
+            $span->type = Type::SQL;
+            $span->service = $service;
+        });
+
+        // Views
+        dd_trace_function('get_header', function (SpanData $span, array $args) use ($service) {
+            $span->name = 'get_header';
+            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('wp_head', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'wp_head';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('the_custom_header_markup', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'the_custom_header_markup';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('body_class', function (SpanData $span) use ($service) {
+            $span->name = $span->resource = 'body_class';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('load_template', function (SpanData $span, array $args) use ($service) {
+            $span->name = 'load_template';
+            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('comments_template', function (SpanData $span, array $args) use ($service) {
+            $span->name = 'comments_template';
+            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('get_sidebar', function (SpanData $span, array $args) use ($service) {
+            $span->name = 'get_sidebar';
+            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('dynamic_sidebar', function (SpanData $span, array $args) use ($service) {
+            $span->name = 'dynamic_sidebar';
+            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        dd_trace_function('get_footer', function (SpanData $span, array $args) use ($service) {
+            $span->name = 'get_footer';
+            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $service;
+        });
+
+        return Integration::LOADED;
+    }
+}
