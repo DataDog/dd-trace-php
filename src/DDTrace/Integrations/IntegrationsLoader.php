@@ -4,6 +4,7 @@ namespace DDTrace\Integrations;
 
 use DDTrace\Configuration;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
+use DDTrace\Integrations\CodeIgniter\V2_2\CodeIgniterSandboxedIntegration;
 use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration;
@@ -85,6 +86,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration';
             $this->integrations[PDOSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
+            $this->integrations[CodeIgniterSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\CodeIgniter\V2_2\CodeIgniterSandboxedIntegration';
         }
     }
 
