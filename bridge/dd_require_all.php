@@ -61,6 +61,7 @@ require __DIR__ . '/../src/DDTrace/Integrations/DefaultIntegrationConfiguration.
 require __DIR__ . '/../src/DDTrace/Integrations/Integration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/SandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/CakePHP/CakePHPIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/CodeIgniter/V2/CodeIgniterSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/ZendFrameworkIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Web/WebIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Predis/PredisIntegration.php';
