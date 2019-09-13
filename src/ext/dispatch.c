@@ -43,14 +43,16 @@ static ddtrace_dispatch_t *find_method_dispatch(const zend_class_entry *class, z
     }
     HashTable *class_lookup = NULL;
 
+    // downcase the class name as they are case insensitive
 #if PHP_VERSION_ID < 70000
-    const char *class_name = NULL;
-    size_t class_name_length = 0;
-    class_name = class->name;
-    class_name_length = class->name_length;
+    size_t class_name_length = class->name_length;
+    char *class_name = zend_str_tolower_dup(class->name, class_name_length);
     class_lookup = zend_hash_str_find_ptr(DDTRACE_G(class_lookup), class_name, class_name_length);
+    efree(class_name);
 #else
-    class_lookup = zend_hash_find_ptr(DDTRACE_G(class_lookup), class->name);
+    zend_string *class_name = zend_string_tolower(class->name);
+    class_lookup = zend_hash_find_ptr(DDTRACE_G(class_lookup), class_name);
+    zend_string_release(class_name);
 #endif
 
     ddtrace_dispatch_t *dispatch = NULL;
