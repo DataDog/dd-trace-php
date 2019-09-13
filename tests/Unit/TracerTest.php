@@ -254,4 +254,24 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('value1', $span->getAllTags()['key1']);
         $this->assertSame('value2', $span->getAllTags()['key2']);
     }
+
+    public function testInternalAndUserlandSpansAreMergedIntoSameTraceOnSerialization()
+    {
+        if (PHP_VERSION_ID < 50600) {
+            $this->markTestSkipped('Sandbox API not available on < PHP 5.6');
+            return;
+        }
+        dd_trace_function('array_sum', function () {
+            // Do nothing
+        });
+        $tracer = new Tracer(new DebugTransport());
+        $span = $tracer->startSpan('foo');
+        array_sum([1, 2]);
+        $span->finish();
+
+        $this->assertSame(2, dd_trace_closed_spans_count());
+        $traces = $tracer->getTracesAsArray();
+        $this->assertCount(1, $traces);
+        $this->assertCount(2, $traces[0]);
+    }
 }

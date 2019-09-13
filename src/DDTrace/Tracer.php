@@ -347,8 +347,7 @@ final class Tracer implements TracerInterface
      */
     public function getTracesAsArray()
     {
-        $internalSpans = dd_trace_serialize_closed_spans();
-        $tracesToBeSent = $internalSpans ? [$internalSpans] : [];
+        $tracesToBeSent = [];
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
 
         foreach ($this->traces as $trace) {
@@ -381,6 +380,17 @@ final class Tracer implements TracerInterface
             if (isset($traceToBeSent[0]['trace_id'])) {
                 unset($this->traces[(string) $traceToBeSent[0]['trace_id']]);
             }
+        }
+
+        $internalSpans = dd_trace_serialize_closed_spans();
+        if (dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
+            array_map(function ($span) {
+                dd_trace_buffer_span($span);
+            }, $internalSpans);
+        } elseif (!empty($internalSpans)) {
+            $tracesToBeSent[0] = isset($tracesToBeSent[0])
+                ? array_merge($tracesToBeSent[0], $internalSpans)
+                : $internalSpans;
         }
 
         if (empty($tracesToBeSent)) {
