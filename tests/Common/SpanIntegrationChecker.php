@@ -27,6 +27,7 @@ final class SpanIntegrationChecker
             // Officially supported integrations
             '/curl_.*/' => 'DDTrace\Integrations\Curl\CurlIntegration',
             '/Elasticsearch(.).*/' => 'DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
+            '/filesystem.*/' => 'DDTrace\Integrations\Filesystem\FilesystemIntegration',
             '/GuzzleHttp.*/' => 'DDTrace\Integrations\Guzzle\GuzzleIntegration',
             '/laravel.*/' => 'DDTrace\Integrations\Laravel\LaravelIntegration',
             '/Memcached.*/' => 'DDTrace\Integrations\Memcached\MemcachedIntegration',

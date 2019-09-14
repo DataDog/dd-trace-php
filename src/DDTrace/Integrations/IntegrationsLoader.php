@@ -9,6 +9,7 @@ use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration;
+use DDTrace\Integrations\Filesystem\FilesystemIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleIntegration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Integrations\Lumen\LumenIntegration;
@@ -50,6 +51,7 @@ class IntegrationsLoader
         CurlIntegration::NAME => '\DDTrace\Integrations\Curl\CurlIntegration',
         ElasticSearchIntegration::NAME => '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
         EloquentIntegration::NAME => '\DDTrace\Integrations\Eloquent\EloquentIntegration',
+        FilesystemIntegration::NAME => '\DDTrace\Integrations\Filesystem\FilesystemIntegration',
         GuzzleIntegration::NAME => '\DDTrace\Integrations\Guzzle\GuzzleIntegration',
         LaravelIntegration::NAME => '\DDTrace\Integrations\Laravel\LaravelIntegration',
         LumenIntegration::NAME => '\DDTrace\Integrations\Lumen\LumenIntegration',
