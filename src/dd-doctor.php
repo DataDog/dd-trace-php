@@ -88,7 +88,7 @@ render('ddtrace version (installed)', $versionInstalled);
 $versionConst = defined('DD_TRACE_VERSION') ? DD_TRACE_VERSION : false;
 render('ddtrace version (const)', $versionConst);
 $initHook = ini_get('ddtrace.request_init_hook');
-$userlandVersionFile = dirname($initHook, 2) . '/src/DDTrace/version.php';
+$userlandVersionFile = dirname(dirname($initHook)) . '/src/DDTrace/version.php';
 $versionUserland = file_exists($userlandVersionFile) ? include $userlandVersionFile : false;
 render('ddtrace version (userland)', $versionUserland);
 render('ddtrace versions in sync', $versionInstalled === $versionConst && $versionConst === $versionUserland);
