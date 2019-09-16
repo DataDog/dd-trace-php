@@ -42,17 +42,18 @@ switch ($_SERVER['REQUEST_URI']) {
         break;
     default:
         $headers = getallheaders();
+
+        $raw = file_get_contents('php://input');
         if (isset($headers['Content-Type']) && $headers['Content-Type'] === 'application/msgpack') {
-            $body = json_encode(MessagePack::unpack(file_get_contents('php://input')));
+            $body = json_encode(MessagePack::unpack($raw));
         } else {
-            $body = file_get_contents('php://input');
+            $body = $raw;
         }
         $value = json_encode([
             'uri' => $_SERVER['REQUEST_URI'],
             'headers' => $headers,
             'body' => $body,
         ]);
-        error_log("Value: " . print_r($value, 1));
         file_put_contents(REQUEST_LOG_FILE, $value);
         logRequest('Logged new request', $value);
         break;
