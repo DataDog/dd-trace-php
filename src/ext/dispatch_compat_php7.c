@@ -170,7 +170,7 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
     fcc->function_handler = fbc;
     fcc->object = Z_TYPE(EX(This)) == IS_OBJECT ? Z_OBJ(EX(This)) : NULL;
     fcc->calling_scope = fbc->common.scope;  // EG(scope);
-    fcc->called_scope = fcc->object ? fcc->object->ce : fbc->common.scope;
+    fcc->called_scope = zend_get_called_scope(execute_data);
 
     fci->size = sizeof(zend_fcall_info);
     fci->no_separation = 1;
@@ -274,7 +274,7 @@ BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
     fcc.initialized = 1;
 #endif
     fcc.object = this ? Z_OBJ_P(this) : NULL;
-    fcc.called_scope = fcc.object ? fcc.object->ce : NULL;
+    fcc.called_scope = zend_get_called_scope(EX(call));
     // Give the tracing closure access to private & protected class members
     fcc.function_handler->common.scope = fcc.called_scope;
 
