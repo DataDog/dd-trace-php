@@ -112,7 +112,7 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
 #endif
     fcc.function_handler = DDTRACE_G(original_context).execute_data->func;
     fcc.calling_scope = DDTRACE_G(original_context).calling_ce;
-    fcc.called_scope = fci.object ? fci.object->ce : DDTRACE_G(original_context).fbc->common.scope;
+    fcc.called_scope = zend_get_called_scope(DDTRACE_G(original_context).execute_data);
     fcc.object = fci.object;
 
     if (zend_call_function(&fci, &fcc) == SUCCESS && Z_TYPE(retval) != IS_UNDEF) {

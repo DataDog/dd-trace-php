@@ -184,6 +184,7 @@
                     <file name="method_returning_array.phpt" role="test" />
                     <file name="multiple_instrumentations.phpt" role="test" />
                     <file name="namespaces.phpt" role="test" />
+                    <file name="new_static.phpt" role="test" />
                     <file name="overriding_construct.phpt" role="test" />
                     <file name="overriding_method_defined_in_parent.phpt" role="test" />
                     <file name="private_method_hook.phpt" role="test" />
