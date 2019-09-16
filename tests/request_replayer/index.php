@@ -1,5 +1,9 @@
 <?php
 
+include __DIR__ . '/vendor/autoload.php';
+
+use MessagePack\MessagePack;
+
 if ('cli-server' !== PHP_SAPI) {
     echo "For use via the CLI SAPI's built-in web server only.\n";
     exit;
@@ -37,11 +41,18 @@ switch ($_SERVER['REQUEST_URI']) {
         logRequest('Deleted request log');
         break;
     default:
+        $headers = getallheaders();
+        if (isset($headers['Content-Type']) && $headers['Content-Type'] === 'application/msgpack') {
+            $body = json_encode(MessagePack::unpack(file_get_contents('php://input')));
+        } else {
+            $body = file_get_contents('php://input');
+        }
         $value = json_encode([
             'uri' => $_SERVER['REQUEST_URI'],
-            'headers' => getallheaders(),
-            'body' => file_get_contents('php://input'),
+            'headers' => $headers,
+            'body' => $body,
         ]);
+        error_log("Value: " . print_r($value, 1));
         file_put_contents(REQUEST_LOG_FILE, $value);
         logRequest('Logged new request', $value);
         break;

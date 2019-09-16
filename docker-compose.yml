@@ -117,13 +117,15 @@ services:
       - "8126:8126"
 
   request_replayer:
-    image: php:7.3
+    image: datadog/dd-trace-php-request-replayer
+    build:
+      context: dockerfiles/ci/request_replayer
     working_dir: /var/www
     volumes:
       - ./tests/request_replayer:/var/www
     ports:
       - 9090:80
-    command: sh -c "php -S 0.0.0.0:80 index.php"
+    command: sh /app_start.sh
 
   agent:
     image: datadog/agent:latest
