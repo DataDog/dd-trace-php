@@ -42,6 +42,9 @@ aliases:
 
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: docker.pkg.github.com/datadog/dd-trace-ci/php-request-replayer
+    auth:
+      username: $GITHUB_REGISTRY_USERNAME
+      password: $GITHUB_REGISTRY_PASSWORD
     name: request-replayer
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
