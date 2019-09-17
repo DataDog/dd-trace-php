@@ -224,7 +224,6 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
 
     public function testLimitedTracer()
     {
-        return $this->markTestSkipped('Limiting not yet implemented for sandboxed api.');
         $client = $this->client();
         $traces = $this->isolateLimitedTracer(function () use ($client) {
             $client->indices()->delete(['index' => 'my_index']);
