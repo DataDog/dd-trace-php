@@ -14,7 +14,7 @@ x-aliases:
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
         - ddagent_integration
-        - request_replayer
+        - request-replayer
         - elasticsearch2_integration
         - httpbin_integration
         - redis_integration
@@ -116,14 +116,8 @@ services:
     ports:
       - "8126:8126"
 
-  request_replayer:
-    image: php:7.3
-    working_dir: /var/www
-    volumes:
-      - ./tests/request_replayer:/var/www
-    ports:
-      - 9090:80
-    command: sh -c "php -S 0.0.0.0:80 index.php"
+  request-replayer:
+    image: docker.pkg.github.com/datadog/dd-trace-ci/php-request-replayer
 
   agent:
     image: datadog/agent:latest
