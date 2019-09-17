@@ -209,7 +209,13 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
     fcc.function_handler = DDTRACE_G(original_context).fbc;
     fcc.object_ptr = DDTRACE_G(original_context).this;
     fcc.calling_scope = DDTRACE_G(original_context).calling_ce;
-    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : DDTRACE_G(original_context).fbc->common.scope;
+#if PHP_VERSION_ID < 50500
+    fcc.called_scope = DDTRACE_G(original_context).execute_data->called_scope;
+#else
+    fcc.called_scope = DDTRACE_G(original_context).execute_data->call
+                           ? DDTRACE_G(original_context).execute_data->call->called_scope
+                           : NULL;
+#endif
 
     fci.size = sizeof(fci);
     fci.function_table = EG(function_table);
@@ -301,7 +307,11 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
     fcc.function_handler = fbc;
     fcc.object_ptr = ddtrace_this(execute_data);
     fcc.calling_scope = fbc->common.scope;  // EG(scope);
-    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : fbc->common.scope;
+#if PHP_VERSION_ID < 50500
+    fcc.called_scope = EX(called_scope);
+#else
+    fcc.called_scope = EX(call) ? EX(call)->called_scope : NULL;
+#endif
 
     ddtrace_setup_fcall(execute_data, &fci, &retval_ptr TSRMLS_CC);
     fci.size = sizeof(fci);
@@ -383,7 +393,11 @@ BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
 
     fcc.initialized = 1;
     fcc.object_ptr = this;
-    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : NULL;
+#if PHP_VERSION_ID < 50500
+    fcc.called_scope = EX(called_scope);
+#else
+    fcc.called_scope = EX(call) ? EX(call)->called_scope : NULL;
+#endif
     // Give the tracing closure access to private & protected class members
     fcc.function_handler->common.scope = fcc.called_scope;
 
