@@ -110,7 +110,7 @@ aliases:
   - &STEP_WAIT_REQUEST_REPLAYER
     run:
       name: Waiting for Dockerized request replayer
-      command: dockerize -wait tcp://request_replayer:80/clear-dumped-data -timeout 2m
+      command: dockerize -wait tcp://request-replayer:80/clear-dumped-data -timeout 2m
 
   - &STEP_PERSIST_TO_WORKSPACE
     persist_to_workspace:
