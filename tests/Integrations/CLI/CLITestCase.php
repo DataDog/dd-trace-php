@@ -28,7 +28,7 @@ abstract class CLITestCase extends IntegrationTestCase
     {
         return [
             'DD_TRACE_CLI_ENABLED' => 'true',
-            'DD_AGENT_HOST' => 'request_replayer',
+            'DD_AGENT_HOST' => 'request-replayer',
             'DD_TRACE_AGENT_PORT' => '80',
             // Uncomment to see debug-level messages
             //'DD_TRACE_DEBUG' => 'true',

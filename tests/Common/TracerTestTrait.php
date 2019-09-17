@@ -13,7 +13,7 @@ use DDTrace\GlobalTracer;
 
 trait TracerTestTrait
 {
-    protected static $agentRequestDumperUrl = 'http://request_replayer';
+    protected static $agentRequestDumperUrl = 'http://request-replayer';
 
     /**
      * @param $fn

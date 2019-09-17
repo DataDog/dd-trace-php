@@ -1,6 +1,0 @@
-{
-    "name": "root/request_replayer",
-    "require": {
-        "rybakit/msgpack": "^0.5.4"
-    }
-}

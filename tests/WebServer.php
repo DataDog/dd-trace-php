@@ -40,7 +40,7 @@ class WebServer
 
     private $defaultEnvs = [
         'DD_TRACE_AGENT_PORT' => 80,
-        'DD_AGENT_HOST' => 'request_replayer',
+        'DD_AGENT_HOST' => 'request-replayer',
     ];
 
     /**

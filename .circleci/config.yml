@@ -41,9 +41,8 @@ aliases:
       - MYSQL_DATABASE=test
 
   - &IMAGE_DOCKER_REQUEST_REPLAYER
-    image: php:7.2
-    name: request_replayer
-    command: sh -c "curl --output index.php https://raw.githubusercontent.com/DataDog/dd-trace-php/dev/tests/request_replayer/index.php -q && php -S 0.0.0.0:80 index.php"
+    image: docker.pkg.github.com/datadog/dd-trace-ci/php-request-replayer
+    name: request-replayer
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
 
