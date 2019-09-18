@@ -2,14 +2,15 @@
 
 namespace DDTrace\Tests\Integrations\Memcached;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Obfuscation;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
 
-final class MemcachedTest extends IntegrationTestCase
+class MemcachedTest extends IntegrationTestCase
 {
+    const IS_SANDBOX = false;
+
     /**
      * @var \Memcached
      */
@@ -17,12 +18,6 @@ final class MemcachedTest extends IntegrationTestCase
 
     private static $host = 'memcached_integration';
     private static $port = '11211';
-
-    public static function setUpBeforeClass()
-    {
-        parent::setUpBeforeClass();
-        IntegrationsLoader::load();
-    }
 
     protected function setUp()
     {
@@ -659,6 +654,45 @@ final class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'touchByKey',
                     'memcached.server_key' => 'my_server',
                 ])),
+        ]);
+    }
+
+    public function testCas()
+    {
+        $this->client->set('ip_block', 'some_value');
+        $result = $this->client->get('ip_block', null, \Memcached::GET_EXTENDED);
+        $cas = $result['cas'];
+        $traces = $this->isolateTracer(function () use ($cas) {
+            $this->client->cas($cas, 'key', 'value');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcached.cas', 'memcached', 'memcached', 'cas')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(), [
+                    'memcached.query' => 'cas ' . Obfuscation::toObfuscatedString('key'),
+                    'memcached.command' => 'cas',
+                ]))
+                ->withExistingTagsNames(['memcached.cas_token']),
+        ]);
+    }
+
+    public function testCasByKey()
+    {
+        $this->client->setByKey('my_server', 'ip_block', 'some_value');
+        $result = $this->client->getByKey('my_server', 'ip_block', null, \Memcached::GET_EXTENDED);
+        $cas = $result['cas'];
+        $traces = $this->isolateTracer(function () use ($cas) {
+            $this->client->casByKey($cas, 'my_server', 'key', 'value');
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Memcached.casByKey', 'memcached', 'memcached', 'casByKey')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge(self::baseTags(), [
+                    'memcached.query' => 'casByKey ' . Obfuscation::toObfuscatedString('key'),
+                    'memcached.command' => 'casByKey',
+                    'memcached.server_key' => 'my_server',
+                ]))
+                ->withExistingTagsNames(['memcached.cas_token']),
         ]);
     }
 
