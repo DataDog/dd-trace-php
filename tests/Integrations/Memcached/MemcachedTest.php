@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Integrations\Memcached;
 use DDTrace\Obfuscation;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Util\Versions;
 
 
 class MemcachedTest extends IntegrationTestCase
@@ -660,8 +661,13 @@ class MemcachedTest extends IntegrationTestCase
     public function testCas()
     {
         $this->client->set('ip_block', 'some_value');
-        $result = $this->client->get('ip_block', null, \Memcached::GET_EXTENDED);
-        $cas = $result['cas'];
+        if (Versions::phpVersionMatches('5.4') || Versions::phpVersionMatches('5.6')) {
+            $cas = null;
+            $this->client->get('ip_block', null, $cas);
+        } else {
+            $result = $this->client->get('ip_block', null, \Memcached::GET_EXTENDED);
+            $cas = $result['cas'];
+        }
         $traces = $this->isolateTracer(function () use ($cas) {
             $this->client->cas($cas, 'key', 'value');
         });
@@ -679,8 +685,13 @@ class MemcachedTest extends IntegrationTestCase
     public function testCasByKey()
     {
         $this->client->setByKey('my_server', 'ip_block', 'some_value');
-        $result = $this->client->getByKey('my_server', 'ip_block', null, \Memcached::GET_EXTENDED);
-        $cas = $result['cas'];
+        if (Versions::phpVersionMatches('5.4') || Versions::phpVersionMatches('5.6')) {
+            $cas = null;
+            $this->client->getByKey('my_server', 'ip_block', null, $cas);
+        } else {
+            $result = $this->client->getByKey('my_server', 'ip_block', null, \Memcached::GET_EXTENDED);
+            $cas = $result['cas'];
+        }
         $traces = $this->isolateTracer(function () use ($cas) {
             $this->client->casByKey($cas, 'my_server', 'key', 'value');
         });
