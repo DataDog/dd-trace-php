@@ -49,13 +49,19 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected static function getEnvs()
     {
-        return [
+        $envs = [
             'DD_TEST_INTEGRATION' => 'true',
             'DD_TRACE_ENCODER' => 'json',
             'DD_TRACE_AGENT_TIMEOUT' => '10000',
             'DD_TRACE_AGENT_CONNECT_TIMEOUT' => '10000',
             'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => 'true',
         ];
+
+        if (!self::is_sandboxed()) {
+            $envs['DD_TRACE_SANDBOX_ENABLED'] = 'false';
+        }
+
+        return $envs;
     }
 
     /**

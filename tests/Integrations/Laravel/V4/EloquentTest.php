@@ -12,6 +12,8 @@ class EloquentTest extends WebFrameworkTestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
 
+    const IS_SANDBOXED = false;
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
@@ -23,6 +25,12 @@ class EloquentTest extends WebFrameworkTestCase
         $this->connection()->exec("DELETE from users where email LIKE 'test-user-%'");
     }
 
+    protected function expectedServiceName()
+    {
+        // Shouldn't this not be set by teh span encoder?
+        return self::is_sandboxed() ? '' : 'laravel';
+    }
+
     public function testGet()
     {
         $traces = $this->tracesFromWebRequest(function () {
@@ -31,10 +39,11 @@ class EloquentTest extends WebFrameworkTestCase
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.get',
-            '',
+            $this->expectedServiceName(),
             'sql',
             'select * from `users`'
         )->withExactTags([
+            'integration.name' => 'eloquent',
             'sql.query' => 'select * from `users`',
         ]));
     }
@@ -47,10 +56,12 @@ class EloquentTest extends WebFrameworkTestCase
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.insert',
-            '',
+            $this->expectedServiceName(),
             'sql',
             'User'
-        ));
+        )->withExactTags([
+            'integration.name' => 'eloquent',
+        ]));
     }
 
     public function testUpdate()
@@ -62,10 +73,12 @@ class EloquentTest extends WebFrameworkTestCase
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.update',
-            '',
+            $this->expectedServiceName(),
             'sql',
             'User'
-        ));
+        )->withExactTags([
+            'integration.name' => 'eloquent',
+        ]));
     }
 
     public function testDelete()
@@ -77,28 +90,15 @@ class EloquentTest extends WebFrameworkTestCase
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.delete',
-            '',
+            $this->expectedServiceName(),
             'sql',
             'User'
-        ));
+        )->withExactTags([
+            'integration.name' => 'eloquent',
+        ]));
     }
 
-    public function testDestroy()
-    {
-        $this->connection()->exec("insert into users (id, email) VALUES (1, 'test-user-deleted@email.com')");
-        $traces = $this->tracesFromWebRequest(function () {
-            $spec  = GetSpec::create('Eloquent destroy', '/eloquent/destroy');
-            $this->call($spec);
-        });
-        $this->assertOneExpectedSpan($traces, SpanAssertion::build(
-            'eloquent.destroy',
-            '',
-            'sql',
-            'User'
-        ));
-    }
-
-    private function connection()
+    protected function connection()
     {
         return new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
     }
