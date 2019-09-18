@@ -103,14 +103,14 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      * Executed a call to the test web server.
      *
      * @param RequestSpec $spec
-     * @param bool $dumpResponseData
+     * @param bool $logResponseData
      * @return mixed|null
      */
-    protected function call(RequestSpec $spec, $dumpResponseData = false)
+    protected function call(RequestSpec $spec, $logResponseData = false)
     {
         $url = 'http://localhost:' . self::PORT . $spec->getPath();
         if ($spec instanceof GetSpec) {
-            return $this->sendRequest('GET', $url, $dumpResponseData);
+            return $this->sendRequest('GET', $url, $logResponseData);
         }
 
         $this->fail('Unhandled request spec type');
@@ -121,17 +121,17 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      *
      * @param string $method
      * @param string $url
-     * @param bool $dumpResponseData
+     * @param bool $logResponseData
      * @return mixed|null
      */
-    protected function sendRequest($method, $url, $dumpResponseData = false)
+    protected function sendRequest($method, $url, $logResponseData = false)
     {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         $response = curl_exec($ch);
 
-        if ($dumpResponseData) {
+        if ($logResponseData) {
             error_log("Response: " . print_r($response, 1));
             error_log("Response code: " . print_r(curl_getinfo($ch, CURLINFO_HTTP_CODE), 1));
         }
