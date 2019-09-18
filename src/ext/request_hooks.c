@@ -81,8 +81,6 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     int ret;
 
     BOOL_T rv = FALSE;
-    char *original_open_basedir = PG(open_basedir);
-    PG(open_basedir) = NULL;
 
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE TSRMLS_CC);
 
@@ -118,7 +116,6 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
         }
     }
 
-    PG(open_basedir) = original_open_basedir;
     return rv;
 }
 #else
@@ -133,8 +130,6 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     zend_op_array *new_op_array;
     zval result;
     int ret, rv = FALSE;
-    char *original_open_basedir = PG(open_basedir);
-    PG(open_basedir) = NULL;
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
 
     if (ret == SUCCESS) {
@@ -165,7 +160,6 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
         }
     }
 
-    PG(open_basedir) = original_open_basedir;
     return rv;
 }
 #endif
