@@ -64,6 +64,7 @@
                     <file name="random.h" role="src" />
                     <file name="request_hooks.c" role="src" />
                     <file name="request_hooks.h" role="src" />
+                    <file name="sandbox.h" role="src" />
                     <file name="serializer.c" role="src" />
                     <file name="serializer.h" role="src" />
                     <file name="span.c" role="src" />
