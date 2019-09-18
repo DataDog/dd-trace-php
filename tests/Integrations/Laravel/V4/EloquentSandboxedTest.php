@@ -3,14 +3,10 @@
 namespace DDTrace\Tests\Integrations\Laravel\V4;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class EloquentSandboxedTest extends EloquentTest
 {
-    use TracerTestTrait, SpanAssertionTrait;
-
     const IS_SANDBOX = true;
 
     public function testDestroy()
