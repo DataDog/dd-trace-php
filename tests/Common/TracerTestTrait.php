@@ -155,7 +155,7 @@ trait TracerTestTrait
                 $span = new Span(
                     $rawSpan['name'],
                     $spanContext,
-                    $rawSpan['service'],
+                    isset($rawSpan['service']) ? $rawSpan['service'] : null,
                     $rawSpan['resource'],
                     $rawSpan['start']
                 );

@@ -63,6 +63,8 @@ final class SpanChecker
     {
         TestCase::assertNotNull($span, 'Expected span was not \'' . $exp->getOperationName() . '\' found.');
 
+        $spanMeta = isset($span['meta']) ? $span['meta'] : [];
+
         if ($exp->isOnlyCheckExistence()) {
             return;
         }
@@ -81,7 +83,7 @@ final class SpanChecker
         );
         if ($exp->getExactTags() !== SpanAssertion::NOT_TESTED) {
             $filtered = [];
-            foreach ($span['meta'] as $key => $value) {
+            foreach ($spanMeta as $key => $value) {
                 if (!in_array($key, $exp->getExistingTagNames())) {
                     $filtered[$key] = $value;
                 }
@@ -116,7 +118,7 @@ final class SpanChecker
                 $namePrefix . "Unexpected extra values for 'tags':\n" . print_r($filtered, true)
             );
             foreach ($exp->getExistingTagNames(isset($span['parent_id'])) as $tagName) {
-                TestCase::assertArrayHasKey($tagName, $span['meta']);
+                TestCase::assertArrayHasKey($tagName, $spanMeta);
             }
         }
         if ($exp->getExactMetrics() !== SpanAssertion::NOT_TESTED) {

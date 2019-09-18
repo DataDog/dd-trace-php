@@ -63,12 +63,9 @@ class EloquentIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            list($eloquentQueryBuilder) = func_get_args();
             $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.insert');
             $span = $scope->getSpan();
-            $sql = $eloquentQueryBuilder->getQuery()->toSql();
-            $span->setTag(Tag::RESOURCE_NAME, $sql);
-            $span->setTag(Tag::DB_STATEMENT, $sql);
+            $span->setTag(Tag::RESOURCE_NAME, get_class($this));
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
             return include __DIR__ . '/../../try_catch_finally.php';
@@ -84,9 +81,7 @@ class EloquentIntegration extends Integration
 
             $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.update');
             $span = $scope->getSpan();
-            $sql = $eloquentQueryBuilder->getQuery()->toSql();
-            $span->setTag(Tag::RESOURCE_NAME, $sql);
-            $span->setTag(Tag::DB_STATEMENT, $sql);
+            $span->setTag(Tag::RESOURCE_NAME, get_class($this));
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
 
             return include __DIR__ . '/../../try_catch_finally.php';
@@ -100,7 +95,9 @@ class EloquentIntegration extends Integration
             }
 
             $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.delete');
-            $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::SQL);
+            $span = $scope->getSpan();
+            $span->setTag(Tag::SPAN_TYPE, Type::SQL);
+            $span->setTag(Tag::RESOURCE_NAME, get_class($this));
 
             return include __DIR__ . '/../../try_catch_finally.php';
         });

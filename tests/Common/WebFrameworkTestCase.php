@@ -49,13 +49,19 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected static function getEnvs()
     {
-        return [
+        $envs = [
             'DD_TEST_INTEGRATION' => 'true',
             'DD_TRACE_ENCODER' => 'json',
             'DD_TRACE_AGENT_TIMEOUT' => '10000',
             'DD_TRACE_AGENT_CONNECT_TIMEOUT' => '10000',
             'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => 'true',
         ];
+
+        if (!self::isSandboxed()) {
+            $envs['DD_TRACE_SANDBOX_ENABLED'] = 'false';
+        }
+
+        return $envs;
     }
 
     /**
@@ -103,13 +109,14 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      * Executed a call to the test web server.
      *
      * @param RequestSpec $spec
+     * @param bool $logResponseData
      * @return mixed|null
      */
-    protected function call(RequestSpec $spec)
+    protected function call(RequestSpec $spec, $logResponseData = false)
     {
         $url = 'http://localhost:' . self::PORT . $spec->getPath();
         if ($spec instanceof GetSpec) {
-            return $this->sendRequest('GET', $url);
+            return $this->sendRequest('GET', $url, $logResponseData);
         }
 
         $this->fail('Unhandled request spec type');
@@ -120,14 +127,20 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      *
      * @param string $method
      * @param string $url
+     * @param bool $logResponseData
      * @return mixed|null
      */
-    protected function sendRequest($method, $url)
+    protected function sendRequest($method, $url, $logResponseData = false)
     {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         $response = curl_exec($ch);
+
+        if ($logResponseData) {
+            error_log("Response: " . print_r($response, 1));
+            error_log("Response code: " . print_r(curl_getinfo($ch, CURLINFO_HTTP_CODE), 1));
+        }
 
         if ($response === false) {
             $message = sprintf(

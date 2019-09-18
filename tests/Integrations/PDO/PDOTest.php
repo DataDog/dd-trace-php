@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\PDO;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -21,13 +20,6 @@ class PDOTest extends IntegrationTestCase
     const ERROR_QUERY = 'Sql error';
     const ERROR_STATEMENT = 'Sql error';
     // phpcs:enable
-
-    public static function setUpBeforeClass()
-    {
-        parent::setUpBeforeClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED=false');
-        IntegrationsLoader::reload();
-    }
 
     protected function setUp()
     {
@@ -66,7 +58,7 @@ class PDOTest extends IntegrationTestCase
                     'db.user' => 'wrong_user',
                 ]))
                 ->setError('PDOException', static::ERROR_CONSTRUCT, true),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOExecOk()
@@ -87,7 +79,7 @@ class PDOTest extends IntegrationTestCase
                     'db.rowcount' => '1',
                 ])),
             SpanAssertion::exists('PDO.commit'),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOExecError()
@@ -110,7 +102,7 @@ class PDOTest extends IntegrationTestCase
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
                 ->withExactTags($this->baseTags()),
             SpanAssertion::exists('PDO.commit'),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOExecException()
@@ -134,7 +126,7 @@ class PDOTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_EXEC, true)
                 ->withExactTags($this->baseTags()),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOQuery()
@@ -172,7 +164,7 @@ class PDOTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
                 ->withExactTags($this->baseTags()),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOQueryException()
@@ -193,7 +185,7 @@ class PDOTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_QUERY, true)
                 ->withExactTags($this->baseTags()),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOCommit()
@@ -211,7 +203,7 @@ class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.exec'),
             SpanAssertion::build('PDO.commit', 'PDO', 'sql', 'PDO.commit')
                 ->withExactTags($this->baseTags()),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOStatementOk()
@@ -245,7 +237,7 @@ class PDOTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(), [
                 'db.rowcount' => 1,
                 ])),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOStatementIsCorrectlyClosedOnUnset()
@@ -309,7 +301,7 @@ class PDOTest extends IntegrationTestCase
                 ->settraceanalyticscandidate()
                 ->seterror('PDOStatement error', 'SQL error: 42000. Driver error: 1064')
                     ->withExactTags($this->baseTags()),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOStatementException()
@@ -336,7 +328,7 @@ class PDOTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_STATEMENT, true)
                 ->withExactTags($this->baseTags()),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testLimitedTracerPDO()

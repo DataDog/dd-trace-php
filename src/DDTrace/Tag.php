@@ -17,6 +17,7 @@ class Tag
     const ERROR_MSG = 'error.msg'; // string representing the error message
     const ERROR_TYPE = 'error.type'; // string representing the type of the error
     const ERROR_STACK = 'error.stack'; // human readable version of the stack
+    const INTEGRATION_NAME = 'integration.name';
     const HTTP_METHOD = 'http.method';
     const HTTP_STATUS_CODE = 'http.status_code';
     const HTTP_URL = 'http.url';

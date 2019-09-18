@@ -2,6 +2,8 @@
 
 namespace DDTrace\Tests\Common;
 
+use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\Util\Versions;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -11,6 +13,36 @@ abstract class IntegrationTestCase extends TestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
 
+    const IS_SANDBOX = false;
+
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+        if (!static::isSandboxed()) {
+            putenv('DD_TRACE_SANDBOX_ENABLED=false');
+        }
+        IntegrationsLoader::reload();
+    }
+
+    public static function tearDownAfterClass()
+    {
+        parent::tearDownAfterClass();
+        putenv('DD_TRACE_SANDBOX_ENABLED');
+    }
+
+    protected static function isSandboxed()
+    {
+        return static::IS_SANDBOX === true;
+    }
+
+    protected function setUp()
+    {
+        parent::setUp();
+        if (Versions::phpVersionMatches('5.4') && self::isSandboxed()) {
+            $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4.');
+        }
+    }
+
     /**
      * Checks the exact match of a set of SpanAssertion with the provided Spans.
      *
@@ -18,8 +50,9 @@ abstract class IntegrationTestCase extends TestCase
      * @param SpanAssertion[] $expectedSpans
      * @param bool $isSandbox
      */
-    public function assertSpans($traces, $expectedSpans, $isSandbox = false)
+    public function assertSpans($traces, $expectedSpans, $isSandbox = null)
     {
+        $isSandbox = null === $isSandbox ? self::isSandboxed() : $isSandbox;
         $this->assertExpectedSpans($traces, $expectedSpans, $isSandbox);
     }
 
