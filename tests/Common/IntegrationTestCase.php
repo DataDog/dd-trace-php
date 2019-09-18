@@ -13,20 +13,26 @@ abstract class IntegrationTestCase extends TestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
 
-    const IS_SANDBOXED = false;
+    const IS_SANDBOX = false;
 
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
-        if (!self::isSandboxed()) {
+        if (!static::isSandboxed()) {
             putenv('DD_TRACE_SANDBOX_ENABLED=false');
-            IntegrationsLoader::load();
         }
+        IntegrationsLoader::reload();
+    }
+
+    public static function tearDownAfterClass()
+    {
+        parent::tearDownAfterClass();
+        putenv('DD_TRACE_SANDBOX_ENABLED');
     }
 
     protected static function isSandboxed()
     {
-        return static::IS_SANDBOXED === true;
+        return static::IS_SANDBOX === true;
     }
 
     protected function setUp()
@@ -44,8 +50,9 @@ abstract class IntegrationTestCase extends TestCase
      * @param SpanAssertion[] $expectedSpans
      * @param bool $isSandbox
      */
-    public function assertSpans($traces, $expectedSpans, $isSandbox = false)
+    public function assertSpans($traces, $expectedSpans, $isSandbox = null)
     {
+        $isSandbox = null === $isSandbox ? self::isSandboxed() : $isSandbox;
         $this->assertExpectedSpans($traces, $expectedSpans, $isSandbox);
     }
 

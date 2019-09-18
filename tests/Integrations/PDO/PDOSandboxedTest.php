@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\PDO;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
@@ -19,17 +18,14 @@ final class PDOSandboxedTest extends PDOTest
 
     public static function setUpBeforeClass()
     {
-        IntegrationTestCase::setUpBeforeClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED=true');
         putenv('DD_PDO_ANALYTICS_ENABLED=true');
-        IntegrationsLoader::reload();
+        parent::setUpBeforeClass();
     }
 
     public static function tearDownAfterClass()
     {
         parent::tearDownAfterClass();
         putenv('DD_PDO_ANALYTICS_ENABLED');
-        putenv('DD_TRACE_SANDBOX_ENABLED');
     }
 
     protected function setUp()
@@ -70,7 +66,7 @@ final class PDOSandboxedTest extends PDOTest
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => 1,
                 ])),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testBrokenPDOPrepareWithNonStringableStatement()
@@ -100,7 +96,7 @@ final class PDOSandboxedTest extends PDOTest
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(SpanAssertion::NOT_TESTED),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     // @see https://github.com/DataDog/dd-trace-php/issues/510

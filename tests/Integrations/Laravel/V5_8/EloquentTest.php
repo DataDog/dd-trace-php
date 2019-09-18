@@ -10,7 +10,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class EloquentTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOXED = false;
+    const IS_SANDBOX = false;
     use TracerTestTrait, SpanAssertionTrait;
 
     protected static function getAppIndexScript()

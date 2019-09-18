@@ -11,7 +11,7 @@ class EloquentSandboxedTest extends EloquentTest
 {
     use TracerTestTrait, SpanAssertionTrait;
 
-    const IS_SANDBOXED = true;
+    const IS_SANDBOX = true;
 
     public function testDestroy()
     {

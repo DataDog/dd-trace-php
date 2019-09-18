@@ -7,7 +7,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class EloquentSandboxedTest extends EloquentTest
 {
-    const IS_SANDBOXED = true;
+    const IS_SANDBOX = true;
 
     public function testDestroy()
     {

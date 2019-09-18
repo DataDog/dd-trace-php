@@ -12,7 +12,7 @@ class EloquentTest extends WebFrameworkTestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
 
-    const IS_SANDBOXED = false;
+    const IS_SANDBOX = false;
 
     protected static function getAppIndexScript()
     {
