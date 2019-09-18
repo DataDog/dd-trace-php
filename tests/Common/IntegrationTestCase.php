@@ -16,13 +16,13 @@ abstract class IntegrationTestCase extends TestCase
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
-        if (!self::is_sandboxed()) {
+        if (!self::isSandboxed()) {
             putenv('DD_TRACE_SANDBOX_ENABLED=false');
             IntegrationsLoader::load();
         }
     }
 
-    protected static function is_sandboxed()
+    protected static function isSandboxed()
     {
         return !defined('static::IS_SANDBOXED') || static::IS_SANDBOXED === true;
     }
@@ -30,7 +30,7 @@ abstract class IntegrationTestCase extends TestCase
     protected function setUp()
     {
         parent::setUp();
-        if (Versions::phpVersionMatches('5.4') && self::is_sandboxed()) {
+        if (Versions::phpVersionMatches('5.4') && self::isSandboxed()) {
             $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4.');
         }
     }

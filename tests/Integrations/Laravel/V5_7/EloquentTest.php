@@ -27,7 +27,7 @@ class EloquentTest extends WebFrameworkTestCase
     protected function expectedServiceName()
     {
         // Shouldn't this not be set by teh span encoder?
-        return self::is_sandboxed() ? '' : 'Laravel';
+        return self::isSandboxed() ? '' : 'Laravel';
     }
 
     public function testGet()

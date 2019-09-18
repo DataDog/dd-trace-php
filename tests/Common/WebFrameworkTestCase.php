@@ -57,7 +57,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => 'true',
         ];
 
-        if (!self::is_sandboxed()) {
+        if (!self::isSandboxed()) {
             $envs['DD_TRACE_SANDBOX_ENABLED'] = 'false';
         }
 

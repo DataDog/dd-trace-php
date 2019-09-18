@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Eloquent;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -28,43 +27,67 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
     {
         $integration = $this;
 
-        dd_trace_method('Illuminate\Database\Eloquent\Builder', 'getModels', function (SpanData $span, array $args) use ($integration) {
-            $span->name = 'eloquent.get';
-            $sql = $this->getQuery()->toSql();
-            $span->resource = $sql;
-            $span->meta[Tag::DB_STATEMENT] = $sql;
-            $integration->setCommonValues($span);
-        });
+        dd_trace_method(
+            'Illuminate\Database\Eloquent\Builder',
+            'getModels',
+            function (SpanData $span, array $args) use ($integration) {
+                $span->name = 'eloquent.get';
+                $sql = $this->getQuery()->toSql();
+                $span->resource = $sql;
+                $span->meta[Tag::DB_STATEMENT] = $sql;
+                $integration->setCommonValues($span);
+            }
+        );
 
-        dd_trace_method('Illuminate\Database\Eloquent\Model', 'performInsert', function (SpanData $span, array $args) use ($integration) {
-            $span->name = 'eloquent.insert';
-            $span->resource = get_class($this);
-            $integration->setCommonValues($span);
-        });
+        dd_trace_method(
+            'Illuminate\Database\Eloquent\Model',
+            'performInsert',
+            function (SpanData $span, array $args) use ($integration) {
+                $span->name = 'eloquent.insert';
+                $span->resource = get_class($this);
+                $integration->setCommonValues($span);
+            }
+        );
 
-        dd_trace_method('Illuminate\Database\Eloquent\Model', 'performUpdate', function (SpanData $span, array $args) use ($integration) {
-            $span->name = 'eloquent.update';
-            $span->resource = get_class($this);
-            $integration->setCommonValues($span);
-        });
+        dd_trace_method(
+            'Illuminate\Database\Eloquent\Model',
+            'performUpdate',
+            function (SpanData $span, array $args) use ($integration) {
+                $span->name = 'eloquent.update';
+                $span->resource = get_class($this);
+                $integration->setCommonValues($span);
+            }
+        );
 
-        dd_trace_method('Illuminate\Database\Eloquent\Model', 'delete', function (SpanData $span, array $args) use ($integration) {
-            $span->name = 'eloquent.delete';
-            $span->resource = get_class($this);
-            $integration->setCommonValues($span);
-        });
+        dd_trace_method(
+            'Illuminate\Database\Eloquent\Model',
+            'delete',
+            function (SpanData $span, array $args) use ($integration) {
+                $span->name = 'eloquent.delete';
+                $span->resource = get_class($this);
+                $integration->setCommonValues($span);
+            }
+        );
 
-        dd_trace_method('Illuminate\Database\Eloquent\Model', 'destroy', function (SpanData $span) use ($integration) {
-            $span->name = 'eloquent.destroy';
-            $span->resource = get_called_class();
-            $integration->setCommonValues($span);
-        });
+        dd_trace_method(
+            'Illuminate\Database\Eloquent\Model',
+            'destroy',
+            function (SpanData $span) use ($integration) {
+                $span->name = 'eloquent.destroy';
+                $span->resource = get_called_class();
+                $integration->setCommonValues($span);
+            }
+        );
 
-        dd_trace_method('Illuminate\Database\Eloquent\Model', 'refresh', function (SpanData $span) use ($integration) {
-            $span->name = 'eloquent.refresh';
-            $span->resource = get_class($this);
-            $integration->setCommonValues($span);
-        });
+        dd_trace_method(
+            'Illuminate\Database\Eloquent\Model',
+            'refresh',
+            function (SpanData $span) use ($integration) {
+                $span->name = 'eloquent.refresh';
+                $span->resource = get_class($this);
+                $integration->setCommonValues($span);
+            }
+        );
 
         return Integration::LOADED;
     }
