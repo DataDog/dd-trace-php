@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Memcached;
 
-use DDTrace\Contracts\Span;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\Obfuscation;
@@ -95,7 +94,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
         $this->traceCommand('touch');
         $this->traceCommandByKey('touchByKey');
 
-        dd_trace_method('Memcached', 'flush', function (SpanData $span, $args) use ($integration) {
+        dd_trace_method('Memcached', 'flush', function (SpanData $span) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -221,6 +220,12 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
     public function setServerTagsByKey(SpanData $span, $memcached, $key)
     {
         $server = $memcached->getServerByKey($key);
+
+        // getServerByKey() might return `false`: https://www.php.net/manual/en/memcached.getserverbykey.php
+        if (!is_array($server)) {
+            return;
+        }
+
         $span->meta[Tag::TARGET_HOST] = $server['host'];
         $span->meta[Tag::TARGET_PORT] = (string)$server['port'];
     }
