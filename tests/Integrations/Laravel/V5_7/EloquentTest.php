@@ -24,12 +24,6 @@ class EloquentTest extends WebFrameworkTestCase
         $this->connection()->exec("DELETE from users where email LIKE 'test-user-%'");
     }
 
-    protected function expectedServiceName()
-    {
-        // Shouldn't this not be set by teh span encoder?
-        return self::isSandboxed() ? '' : 'Laravel';
-    }
-
     public function testGet()
     {
         $traces = $this->tracesFromWebRequest(function () {
@@ -38,7 +32,7 @@ class EloquentTest extends WebFrameworkTestCase
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.get',
-            $this->expectedServiceName(),
+            'Laravel',
             'sql',
             'select * from `users`'
         )->withExactTags([
@@ -55,7 +49,7 @@ class EloquentTest extends WebFrameworkTestCase
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.insert',
-            $this->expectedServiceName(),
+            'Laravel',
             'sql',
             'App\User'
         )->withExactTags([
@@ -72,7 +66,7 @@ class EloquentTest extends WebFrameworkTestCase
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.update',
-            $this->expectedServiceName(),
+            'Laravel',
             'sql',
             'App\User'
         )->withExactTags([
@@ -89,7 +83,7 @@ class EloquentTest extends WebFrameworkTestCase
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.delete',
-            $this->expectedServiceName(),
+            'Laravel',
             'sql',
             'App\User'
         )->withExactTags([

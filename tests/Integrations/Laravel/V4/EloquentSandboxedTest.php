@@ -18,7 +18,7 @@ class EloquentSandboxedTest extends EloquentTest
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.destroy',
-            '',
+            'laravel',
             'sql',
             'User'
         )->withExactTags([

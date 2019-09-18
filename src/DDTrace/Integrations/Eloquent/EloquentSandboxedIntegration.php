@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Eloquent;
 
+use DDTrace\Configuration;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
@@ -13,7 +14,12 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
     const NAME = 'eloquent';
 
     /**
-     * @return string The integration name.
+     * @var string The app name. Note that this value is used as a cache, you should use method getAppName().
+     */
+    private $appName;
+
+    /**
+     * {@inheritdoc}
      */
     public function getName()
     {
@@ -21,7 +27,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
     }
 
     /**
-     * Add instrumentation to PDO requests
+     * {@inheritDoc}
      */
     public function init()
     {
@@ -30,7 +36,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
         dd_trace_method(
             'Illuminate\Database\Eloquent\Builder',
             'getModels',
-            function (SpanData $span, array $args) use ($integration) {
+            function (SpanData $span) use ($integration) {
                 $span->name = 'eloquent.get';
                 $sql = $this->getQuery()->toSql();
                 $span->resource = $sql;
@@ -42,7 +48,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
         dd_trace_method(
             'Illuminate\Database\Eloquent\Model',
             'performInsert',
-            function (SpanData $span, array $args) use ($integration) {
+            function (SpanData $span) use ($integration) {
                 $span->name = 'eloquent.insert';
                 $span->resource = get_class($this);
                 $integration->setCommonValues($span);
@@ -52,7 +58,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
         dd_trace_method(
             'Illuminate\Database\Eloquent\Model',
             'performUpdate',
-            function (SpanData $span, array $args) use ($integration) {
+            function (SpanData $span) use ($integration) {
                 $span->name = 'eloquent.update';
                 $span->resource = get_class($this);
                 $integration->setCommonValues($span);
@@ -62,7 +68,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
         dd_trace_method(
             'Illuminate\Database\Eloquent\Model',
             'delete',
-            function (SpanData $span, array $args) use ($integration) {
+            function (SpanData $span) use ($integration) {
                 $span->name = 'eloquent.delete';
                 $span->resource = get_class($this);
                 $integration->setCommonValues($span);
@@ -100,6 +106,25 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
     public function setCommonValues(SpanData $span)
     {
         $span->type = Type::SQL;
+        $span->service = $this->getAppName();
         $span->meta[Tag::INTEGRATION_NAME] = $this->getName();
+    }
+
+    /**
+     * @return string
+     */
+    public function getAppName()
+    {
+        if (null !== $this->appName) {
+            return $this->appName;
+        }
+
+        $name = Configuration::get()->appName();
+        if (empty($name) && is_callable('config')) {
+            $name = config('app.name');
+        }
+
+        $this->appName = $name ?: 'laravel';
+        return $this->appName;
     }
 }

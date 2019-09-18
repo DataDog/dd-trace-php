@@ -18,7 +18,7 @@ class EloquentSandboxedTest extends EloquentTest
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.destroy',
-            '',
+            'Laravel',
             'sql',
             'App\User'
         )->withExactTags([
@@ -35,7 +35,7 @@ class EloquentSandboxedTest extends EloquentTest
         });
         $this->assertOneExpectedSpan($traces, SpanAssertion::build(
             'eloquent.refresh',
-            '',
+            'Laravel',
             'sql',
             'App\User'
         )->withExactTags([
