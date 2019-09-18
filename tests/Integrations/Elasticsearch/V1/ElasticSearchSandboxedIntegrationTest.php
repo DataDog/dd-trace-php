@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Integrations\Elasticsearch\V1;
 
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
+use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Elasticsearch\Client;
 
@@ -11,7 +12,7 @@ use Elasticsearch\Client;
  * sure that if a non existing method is provided, that for example does not exists for the used client version
  * the integration does not throw an exception.
  */
-class ElasticSearchSandboxedIntegrationTest extends ElasticSearchIntegrationTest
+class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
 {
     const IS_SANDBOX = true;
     const HOST = 'elasticsearch2_integration';
