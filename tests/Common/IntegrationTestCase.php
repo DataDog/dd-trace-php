@@ -13,6 +13,8 @@ abstract class IntegrationTestCase extends TestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
 
+    const IS_SANDBOXED = false;
+
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
@@ -24,7 +26,7 @@ abstract class IntegrationTestCase extends TestCase
 
     protected static function isSandboxed()
     {
-        return !defined('static::IS_SANDBOXED') || static::IS_SANDBOXED === true;
+        return static::IS_SANDBOXED === true;
     }
 
     protected function setUp()
