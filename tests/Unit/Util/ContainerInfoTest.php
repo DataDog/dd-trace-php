@@ -38,6 +38,19 @@ final class ContainerInfoTest extends TestCase
         $this->assertNull($this->containerInfo->getContainerId());
     }
 
+    public function testFileNoReadPermissions()
+    {
+        $path = '/root/file_no_read_access';
+        $this->createCGroupProcFileNoReadAccess([
+            // phpcs:disable
+            '13:name=systemd:/docker/3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860',
+            '12:pids:/docker/3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860',
+            // phpcs:enable
+        ], $path);
+        $containerInfo = new ContainerInfo($path);
+        $this->assertNull($containerInfo->getContainerId());
+    }
+
     public function testLeadingTrailingWhitespaces()
     {
         $this->ensureNoMockCGroupProcFile();
@@ -195,5 +208,11 @@ final class ContainerInfoTest extends TestCase
     private function createCGroupProcFileWithLines(array $lines)
     {
         file_put_contents($this->mockCgroupProcFilePath, implode(PHP_EOL, $lines));
+    }
+
+    private function createCGroupProcFileNoReadAccess(array $lines, $path)
+    {
+        $asString = implode(PHP_EOL, $lines);
+        exec("echo '$asString' | sudo tee -a $path");
     }
 }
