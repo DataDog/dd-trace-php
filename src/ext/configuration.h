@@ -24,6 +24,7 @@ void ddtrace_config_shutdown(void);
     INT(get_dd_trace_debug_prng_seed, "DD_TRACE_DEBUG_PRNG_SEED", -1)                                     \
     BOOL(get_dd_log_backtrace, "DD_LOG_BACKTRACE", FALSE)                                                 \
     INT(get_dd_trace_shutdown_timeout, "DD_TRACE_SHUTDOWN_TIMEOUT", 5000)                                 \
+    INT(get_dd_trace_spans_limit, "DD_TRACE_SPANS_LIMIT", 1000)                                           \
     BOOL(get_dd_trace_send_traces_via_thread, "DD_TRACE_BETA_SEND_TRACES_VIA_THREAD", FALSE,              \
          "use background thread to send traces to the agent")                                             \
     INT(get_dd_trace_beta_high_memory_pressure_percent, "DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT", 80, \

@@ -1,9 +1,12 @@
 #ifndef DISPATCH_COMPAT_H
 #define DISPATCH_COMPAT_H
-#include "Zend/zend_types.h"
+
+#include <Zend/zend_types.h>
+
 #include "compat_zend_string.h"
 #include "dispatch.h"
 #include "env_config.h"
+#include "span.h"
 
 #if PHP_VERSION_ID < 70000
 #include "dispatch_compat_php5.h"
@@ -68,19 +71,19 @@ zend_bool ddtrace_dispatch_store(HashTable *class_lookup, ddtrace_dispatch_t *di
 void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC);
 BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
                                  ddtrace_dispatch_t **dispatch TSRMLS_DC);
+void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args);
 
-/**
- * trace.c
- */
 #if PHP_VERSION_ID < 70000
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC);
+void ddtrace_span_attach_exception(ddtrace_span_t *span, zval *exception);
+BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+                                       zval *user_args, zval *user_retval, zval *exception TSRMLS_DC);
 #else
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
                          zend_fcall_info_cache *fcc TSRMLS_DC);
+void ddtrace_span_attach_exception(ddtrace_span_t *span, zend_object *exception);
+BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+                                       zval *user_args, zval *user_retval, zend_object *exception TSRMLS_DC);
 #endif
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_args,
-                                     zval *user_retval TSRMLS_DC);
-
-void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args);
 
 #endif  // DISPATCH_COMPAT_H

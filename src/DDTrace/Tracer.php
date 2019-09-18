@@ -73,16 +73,6 @@ final class Tracer implements TracerInterface
     ];
 
     /**
-     * @var int
-     * */
-    private $spansCreated = 0;
-
-    /**
-     * @var int
-     * */
-    private $spansLimit = -1;
-
-    /**
      * @var ScopeManager
      */
     private $scopeManager;
@@ -135,11 +125,7 @@ final class Tracer implements TracerInterface
 
     public function limited()
     {
-        if ($this->spansLimit >= 0 && ($this->spansCreated >= $this->spansLimit)) {
-            return true;
-        } else {
-            return function_exists('dd_trace_check_memory_under_limit') && !dd_trace_check_memory_under_limit();
-        }
+        return dd_trace_tracer_is_limited();
     }
 
     /**
@@ -150,8 +136,6 @@ final class Tracer implements TracerInterface
         $this->scopeManager = new ScopeManager();
         $this->globalConfig = Configuration::get();
         $this->sampler = new ConfigurableSampler();
-        $this->spansLimit = $this->globalConfig->getSpansLimit();
-        $this->spansCreated = 0;
         $this->traces = [];
     }
 
@@ -176,8 +160,6 @@ final class Tracer implements TracerInterface
      */
     public function startSpan($operationName, $options = [])
     {
-        $this->spansCreated++;
-
         if (!$this->config['enabled']) {
             return NoopSpan::create();
         }
@@ -333,7 +315,7 @@ final class Tracer implements TracerInterface
         if (self::isLogDebugActive()) {
             self::logDebug('Flushing {count} traces, {spanCount} spans', [
                 'count' => $this->getTracesCount(),
-                'spanCount' => $this->getSpanCount(),
+                'spanCount' => dd_trace_closed_spans_count(),
             ]);
         }
 
@@ -369,7 +351,7 @@ final class Tracer implements TracerInterface
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
 
         foreach ($this->traces as $trace) {
-            $traceToBeSent = dd_trace_serialize_closed_spans();
+            $traceToBeSent = [];
             foreach ($trace as $span) {
                 if ($span->duration === null) { // is span not finished
                     if (!$autoFinishSpans) {
@@ -398,6 +380,17 @@ final class Tracer implements TracerInterface
             if (isset($traceToBeSent[0]['trace_id'])) {
                 unset($this->traces[(string) $traceToBeSent[0]['trace_id']]);
             }
+        }
+
+        $internalSpans = dd_trace_serialize_closed_spans();
+        if (dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
+            array_map(function ($span) {
+                dd_trace_buffer_span($span);
+            }, $internalSpans);
+        } elseif (!empty($internalSpans)) {
+            $tracesToBeSent[0] = isset($tracesToBeSent[0])
+                ? array_merge($tracesToBeSent[0], $internalSpans)
+                : $internalSpans;
         }
 
         if (empty($tracesToBeSent)) {
@@ -486,23 +479,6 @@ final class Tracer implements TracerInterface
     public function getPrioritySampling()
     {
         return $this->prioritySampling;
-    }
-
-    /**
-     * Returns the number of spans currently registered in the tracer.
-     *
-     * @return int
-     */
-    private function getSpanCount()
-    {
-        $count = 0;
-
-        // Spans are arranged in an array of arrays.
-        foreach ($this->traces as $spansInTrace) {
-            $count += count($spansInTrace);
-        }
-
-        return $count;
     }
 
     /**

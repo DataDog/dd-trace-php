@@ -31,7 +31,6 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
         });
 
         $this->assertExpectedSpans(
-            $this,
             $traces,
             [
                 SpanAssertion::build(

@@ -3,10 +3,14 @@
 #include <Zend/zend_exceptions.h>
 #include <php.h>
 
+#include "ddtrace.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
 #include "logging.h"
+#include "memory_limit.h"
 #include "span.h"
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 /* Move these to a header if dispatch.c still needs it */
 #if PHP_VERSION_ID >= 70100
@@ -23,8 +27,10 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     zval *user_retval = NULL, user_args;
     INIT_ZVAL(user_args);
 #if PHP_VERSION_ID < 70000
+    zval *exception = NULL, *prev_exception = NULL;
     ALLOC_INIT_ZVAL(user_retval);
 #else
+    zend_object *exception = NULL, *prev_exception = NULL;
     zval rv;
     INIT_ZVAL(rv);
     user_retval = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
@@ -41,23 +47,56 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     dd_trace_stop_span_time(span);
 
     ddtrace_copy_function_args(execute_data, &user_args);
+    if (EG(exception)) {
+        exception = EG(exception);
+        EG(exception) = NULL;
+        prev_exception = EG(prev_exception);
+        EG(prev_exception) = NULL;
+        ddtrace_span_attach_exception(span, exception);
+        zend_clear_exception(TSRMLS_C);
+    }
 
-    if (fcall_status == SUCCESS && !EG(exception) && Z_TYPE(dispatch->callable) == IS_OBJECT) {
+    BOOL_T keep_span = TRUE;
+    if (fcall_status == SUCCESS && Z_TYPE(dispatch->callable) == IS_OBJECT) {
+        zend_error_handling error_handling;
         int orig_error_reporting = EG(error_reporting);
         EG(error_reporting) = 0;
-        ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, &user_args,
-                                        user_retval TSRMLS_CC);
+#if PHP_VERSION_ID < 70000
+        zend_replace_error_handling(EH_SUPPRESS, NULL, &error_handling TSRMLS_CC);
+#else
+        zend_replace_error_handling(EH_THROW, NULL, &error_handling TSRMLS_CC);
+#endif
+        keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, &user_args,
+                                                    user_retval, exception TSRMLS_CC);
+        zend_restore_error_handling(&error_handling TSRMLS_CC);
         EG(error_reporting) = orig_error_reporting;
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
             ddtrace_log_debug("Exeception thrown in the tracing closure");
-            zend_clear_exception(TSRMLS_C);
+            if (!DDTRACE_G(strict_mode)) {
+                zend_clear_exception(TSRMLS_C);
+            }
         }
     }
 
     ddtrace_zval_ptr_dtor(&user_args);
 
-    ddtrace_close_span(TSRMLS_C);
+    if (keep_span == TRUE) {
+        ddtrace_close_span(TSRMLS_C);
+    } else {
+        ddtrace_drop_span(TSRMLS_C);
+    }
+
+    if (exception) {
+        EG(exception) = exception;
+        EG(prev_exception) = prev_exception;
+#if PHP_VERSION_ID < 70000
+        EG(opline_before_exception) = (zend_op *)opline;
+        EG(current_execute_data)->opline = EG(exception_op);
+#else
+        zend_throw_exception_internal(NULL TSRMLS_CC);
+#endif
+    }
 
 #if PHP_VERSION_ID < 50500
     (void)opline;  // TODO Make work on PHP 5.4
@@ -97,4 +136,12 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     // Restore call for internal functions
     EX(call) = EX(call)->prev_execute_data;
 #endif
+}
+
+BOOL_T ddtrace_tracer_is_limited(TSRMLS_D) {
+    int64_t limit = get_dd_trace_spans_limit();
+    if (limit >= 0 && (int64_t)(DDTRACE_G(open_spans_count) + DDTRACE_G(closed_spans_count)) >= limit) {
+        return TRUE;
+    }
+    return ddtrace_check_memory_under_limit(TSRMLS_C) == TRUE ? FALSE : TRUE;
 }

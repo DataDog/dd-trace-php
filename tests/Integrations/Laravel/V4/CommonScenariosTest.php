@@ -33,7 +33,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertExpectedSpans($this, $traces, $spanExpectations);
+        $this->assertExpectedSpans($traces, $spanExpectations);
     }
 
     public function provideSpecs()

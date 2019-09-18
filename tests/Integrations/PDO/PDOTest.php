@@ -2,23 +2,31 @@
 
 namespace DDTrace\Tests\Integrations\PDO;
 
-use DDTrace\Configuration;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
-define('MYSQL_DATABASE', 'test');
-define('MYSQL_USER', 'test');
-define('MYSQL_PASSWORD', 'test');
-define('MYSQL_HOST', 'mysql_integration');
-
-
-final class PDOTest extends IntegrationTestCase
+class PDOTest extends IntegrationTestCase
 {
+    const IS_SANDBOX = false;
+
+    const MYSQL_DATABASE = 'test';
+    const MYSQL_USER = 'test';
+    const MYSQL_PASSWORD = 'test';
+    const MYSQL_HOST = 'mysql_integration';
+
+    // phpcs:disable
+    const ERROR_CONSTRUCT = 'Sql error: SQLSTATE[HY000] [1045]';
+    const ERROR_EXEC = 'Sql error';
+    const ERROR_QUERY = 'Sql error';
+    const ERROR_STATEMENT = 'Sql error';
+    // phpcs:enable
+
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
-        IntegrationsLoader::load();
+        putenv('DD_TRACE_SANDBOX_ENABLED=false');
+        IntegrationsLoader::reload();
     }
 
     protected function setUp()
@@ -33,18 +41,18 @@ final class PDOTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    public function testPDOContructOk()
+    public function testPDOConstructOk()
     {
         $traces = $this->isolateTracer(function () {
                 $this->pdoInstance();
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'PDO', 'sql', 'PDO.__construct')
-                ->withExactTags([]),
-        ]);
+                ->withExactTags($this->baseTags()),
+        ], static::IS_SANDBOX);
     }
 
-    public function testPDOContructError()
+    public function testPDOConstructError()
     {
         $traces = $this->isolateTracer(function () {
             try {
@@ -54,13 +62,16 @@ final class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'PDO', 'sql', 'PDO.__construct')
-                ->setError('PDOException', 'Sql error: SQLSTATE[HY000] [1045]'),
-        ]);
+                ->withExactTags(array_merge($this->baseTags(), [
+                    'db.user' => 'wrong_user',
+                ]))
+                ->setError('PDOException', static::ERROR_CONSTRUCT, true),
+        ], static::IS_SANDBOX);
     }
 
     public function testPDOExecOk()
     {
-        $query = "INSERT INTO tests (id, name) VALUES (100, 'Sam')";
+        $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
             $pdo->beginTransaction();
@@ -76,7 +87,7 @@ final class PDOTest extends IntegrationTestCase
                     'db.rowcount' => '1',
                 ])),
             SpanAssertion::exists('PDO.commit'),
-        ]);
+        ], static::IS_SANDBOX);
     }
 
     public function testPDOExecError()
@@ -97,11 +108,9 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => '',
-                ])),
+                ->withExactTags($this->baseTags()),
             SpanAssertion::exists('PDO.commit'),
-        ]);
+        ], static::IS_SANDBOX);
     }
 
     public function testPDOExecException()
@@ -123,9 +132,9 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('PDOException', 'Sql error')
+                ->setError('PDOException', static::ERROR_EXEC, true)
                 ->withExactTags($this->baseTags()),
-        ]);
+        ], static::IS_SANDBOX);
     }
 
     public function testPDOQuery()
@@ -143,7 +152,7 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '1',
                 ])),
-        ]);
+        ], static::IS_SANDBOX);
     }
 
     public function testPDOQueryError()
@@ -162,10 +171,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
-                ->withExactTags(array_merge($this->baseTags(), [
-                    'db.rowcount' => '',
-                ])),
-        ]);
+                ->withExactTags($this->baseTags()),
+        ], static::IS_SANDBOX);
     }
 
     public function testPDOQueryException()
@@ -184,14 +191,14 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
-                ->setError('PDOException', 'Sql error')
+                ->setError('PDOException', static::ERROR_QUERY, true)
                 ->withExactTags($this->baseTags()),
-        ]);
+        ], static::IS_SANDBOX);
     }
 
     public function testPDOCommit()
     {
-        $query = "INSERT INTO tests (id, name) VALUES (100, 'Sam')";
+        $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
             $pdo->beginTransaction();
@@ -203,8 +210,8 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::exists('PDO.exec'),
             SpanAssertion::build('PDO.commit', 'PDO', 'sql', 'PDO.commit')
-                ->withExactTags(array_merge($this->baseTags(), [])),
-        ]);
+                ->withExactTags($this->baseTags()),
+        ], static::IS_SANDBOX);
     }
 
     public function testPDOStatementOk()
@@ -227,7 +234,7 @@ final class PDOTest extends IntegrationTestCase
                 'PDO',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags(array_merge($this->baseTags(), [])),
+            )->withExactTags($this->baseTags()),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'PDO',
@@ -238,7 +245,45 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(), [
                 'db.rowcount' => 1,
                 ])),
-        ]);
+        ], static::IS_SANDBOX);
+    }
+
+    public function testPDOStatementIsCorrectlyClosedOnUnset()
+    {
+        $query = "SELECT * FROM tests WHERE id > ?";
+        $pdo = $this->ensureActiveQueriesErrorCanHappen();
+        $this->isolateTracer(function () use ($query, $pdo) {
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([10]);
+            $stmt->fetch();
+            unset($stmt);
+
+            $stmt2 = $pdo->prepare($query);
+            $stmt2->execute([10]);
+            $stmt2->fetch();
+        });
+        $this->addToAssertionCount(1);
+    }
+
+    public function testPDOStatementCausesActiveQueriesError()
+    {
+        $query = "SELECT * FROM tests WHERE id > ?";
+        $pdo = $this->ensureActiveQueriesErrorCanHappen();
+        try {
+            $this->isolateTracer(function () use ($query, $pdo) {
+                $stmt = $pdo->prepare($query);
+                $stmt->execute([10]);
+                $stmt->fetch();
+
+                $stmt2 = $pdo->prepare($query);
+                $stmt2->execute([10]);
+                $stmt2->fetch();
+            });
+
+            $this->fail("Expected exception PDOException not thrown");
+        } catch (\PDOException $ex) {
+            $this->addToAssertionCount(1);
+        }
     }
 
     public function testPDOStatementError()
@@ -259,14 +304,12 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
-                ->withExactTags(array_merge($this->baseTags(), [])),
+                ->withExactTags($this->baseTags()),
             SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', "WRONG QUERY")
-                ->setTraceAnalyticsCandidate()
-                ->setError('PDOStatement error', 'SQL error: 42000. Driver error: 1064')
-                    ->withExactTags(array_merge($this->baseTags(), [
-                        'db.rowcount' => 0,
-                    ])),
-        ]);
+                ->settraceanalyticscandidate()
+                ->seterror('PDOStatement error', 'SQL error: 42000. Driver error: 1064')
+                    ->withExactTags($this->baseTags()),
+        ], static::IS_SANDBOX);
     }
 
     public function testPDOStatementException()
@@ -288,12 +331,12 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
-                ->withExactTags(array_merge($this->baseTags(), [])),
+                ->withExactTags($this->baseTags()),
             SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', "WRONG QUERY")
                 ->setTraceAnalyticsCandidate()
-                ->setError('PDOException', 'Sql error')
+                ->setError('PDOException', static::ERROR_STATEMENT, true)
                 ->withExactTags($this->baseTags()),
-        ]);
+        ], static::IS_SANDBOX);
     }
 
     public function testLimitedTracerPDO()
@@ -313,9 +356,32 @@ final class PDOTest extends IntegrationTestCase
         $this->assertEmpty($traces);
     }
 
-    private function pdoInstance()
+    private function pdoInstance($opts = null)
     {
-        return new \PDO($this->mysqlDns(), MYSQL_USER, MYSQL_PASSWORD);
+        $instance =  new \PDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD, $opts);
+
+        return $instance;
+    }
+
+    private function ensureActiveQueriesErrorCanHappen()
+    {
+        $opts = array(
+            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+            \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false
+        );
+
+        $pdo = $this->pdoInstance($opts);
+
+        $this->isolateTracer(function () use ($pdo) {
+            $pdo->beginTransaction();
+            $stmt = $pdo->prepare("INSERT INTO tests (name) VALUES (?)");
+
+            for ($i = 0; $i < 1000; $i++) {
+                $stmt->execute(['Jerry']);
+            }
+            $pdo->commit();
+        });
+        return $pdo;
     }
 
     private function setUpDatabase()
@@ -325,13 +391,14 @@ final class PDOTest extends IntegrationTestCase
             $pdo->beginTransaction();
             $pdo->exec("
                 CREATE TABLE tests (
-                    id integer not null primary key,
+                    id integer not null primary key AUTO_INCREMENT,
                     name varchar(100)
                 )
             ");
             $pdo->exec("INSERT INTO tests (id, name) VALUES (1, 'Tom')");
+
             $pdo->commit();
-            $dbh = null;
+            $pdo = null;
         });
     }
 
@@ -342,22 +409,22 @@ final class PDOTest extends IntegrationTestCase
             $pdo->beginTransaction();
             $pdo->exec("DROP TABLE tests");
             $pdo->commit();
-            $dbh = null;
+            $pdo = null;
         });
     }
 
     public function mysqlDns()
     {
-        return $dsn = "mysql:host=" . MYSQL_HOST . ";dbname=" . MYSQL_DATABASE;
+        return "mysql:host=" . self::MYSQL_HOST . ";dbname=" . self::MYSQL_DATABASE;
     }
 
-    private function baseTags()
+    protected function baseTags()
     {
         return [
             'db.engine' => 'mysql',
-            'out.host' => MYSQL_HOST,
-            'db.name' => MYSQL_DATABASE,
-            'db.user' => MYSQL_USER,
+            'out.host' => self::MYSQL_HOST,
+            'db.name' => self::MYSQL_DATABASE,
+            'db.user' => self::MYSQL_USER,
         ];
     }
 }

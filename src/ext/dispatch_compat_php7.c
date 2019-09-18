@@ -5,6 +5,7 @@
 
 #include <ext/spl/spl_exceptions.h>
 
+#include "compatibility.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
@@ -111,7 +112,7 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
 #endif
     fcc.function_handler = DDTRACE_G(original_context).execute_data->func;
     fcc.calling_scope = DDTRACE_G(original_context).calling_ce;
-    fcc.called_scope = fci.object ? fci.object->ce : DDTRACE_G(original_context).fbc->common.scope;
+    fcc.called_scope = zend_get_called_scope(DDTRACE_G(original_context).execute_data);
     fcc.object = fci.object;
 
     if (zend_call_function(&fci, &fcc) == SUCCESS && Z_TYPE(retval) != IS_UNDEF) {
@@ -169,7 +170,7 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
     fcc->function_handler = fbc;
     fcc->object = Z_TYPE(EX(This)) == IS_OBJECT ? Z_OBJ(EX(This)) : NULL;
     fcc->calling_scope = fbc->common.scope;  // EG(scope);
-    fcc->called_scope = fcc->object ? fcc->object->ce : fbc->common.scope;
+    fcc->called_scope = zend_get_called_scope(execute_data);
 
     fci->size = sizeof(zend_fcall_info);
     fci->no_separation = 1;
@@ -224,18 +225,24 @@ void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args
     }
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_args,
-                                     zval *user_retval) {
+BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+                                       zval *user_args, zval *user_retval, zend_object *exception) {
+    BOOL_T status = TRUE;
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval rv;
     INIT_ZVAL(rv);
-    zval args[3];
+    zval args[4];
+    zval exception_arg = {.value = {0}};
+    ZVAL_UNDEF(&exception_arg);
+    if (exception) {
+        ZVAL_OBJ(&exception_arg, exception);
+    }
     zval *this = ddtrace_this(execute_data);
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
-        return;
+        return FALSE;
     }
 
     if (this) {
@@ -243,7 +250,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
         BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
         if (is_instance_method && is_closure_static) {
             ddtrace_log_debug("Cannot trace non-static method with static tracing closure");
-            return;
+            return FALSE;
         }
     }
 
@@ -256,7 +263,10 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     // Arg 2: mixed $retval
     ZVAL_COPY(&args[2], user_retval);
 
-    fci.param_count = 3;
+    // Arg 3: Exception|null $exception
+    ZVAL_COPY(&args[3], &exception_arg);
+
+    fci.param_count = 4;
     fci.params = args;
     fci.retval = &rv;
 
@@ -264,13 +274,26 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
     fcc.initialized = 1;
 #endif
     fcc.object = this ? Z_OBJ_P(this) : NULL;
-    fcc.called_scope = fcc.object ? fcc.object->ce : NULL;
+    fcc.called_scope = zend_get_called_scope(EX(call));
+    // Give the tracing closure access to private & protected class members
+    fcc.function_handler->common.scope = fcc.called_scope;
 
     if (zend_call_function(&fci, &fcc) == FAILURE) {
         ddtrace_log_debug("Could not execute tracing closure");
+        status = FALSE;
+    } else if (Z_TYPE(rv) == IS_FALSE) {
+        status = FALSE;
     }
 
     zval_ptr_dtor(&rv);
     zend_fcall_info_args_clear(&fci, 0);
+    return status;
+}
+
+void ddtrace_span_attach_exception(ddtrace_span_t *span, zend_object *exception) {
+    if (exception) {
+        GC_ADDREF(exception);
+        span->exception = exception;
+    }
 }
 #endif  // PHP_VERSION_ID >= 70000

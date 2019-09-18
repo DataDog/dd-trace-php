@@ -23,7 +23,7 @@ int(9)
 ---
 array(1) {
   [0]=>
-  array(5) {
+  array(6) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -34,6 +34,11 @@ array(1) {
     int(%d)
     ["name"]=>
     string(8) "ArraySum"
+    ["meta"]=>
+    array(1) {
+      ["system.pid"]=>
+      int(%d)
+    }
   }
 }
 array(0) {

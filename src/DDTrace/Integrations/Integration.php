@@ -22,7 +22,7 @@ abstract class Integration
     /**
      * @var DefaultIntegrationConfiguration|mixed
      */
-    private $configuration;
+    protected $configuration;
 
     /**
      * @return string The integration name.
@@ -30,7 +30,7 @@ abstract class Integration
     abstract public function getName();
 
 
-    protected function __construct()
+    public function __construct()
     {
         $this->configuration = $this->buildConfiguration();
     }

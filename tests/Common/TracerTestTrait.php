@@ -10,17 +10,15 @@ use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\GlobalTracer;
-use DDTrace\Configuration;
-
 
 trait TracerTestTrait
 {
-    protected static $agentRequestDumperUrl = 'http://request_replayer';
+    protected static $agentRequestDumperUrl = 'http://request-replayer';
 
     /**
      * @param $fn
      * @param null $tracer
-     * @return Span[][]
+     * @return array[]
      */
     public function isolateTracer($fn, $tracer = null)
     {
@@ -40,13 +38,12 @@ trait TracerTestTrait
     /**
      * @param $fn
      * @param null $tracer
-     * @return Span[][]
+     * @return array[]
      */
     public function isolateLimitedTracer($fn, $tracer = null)
     {
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'getSpansLimit' => 0
-        ]));
+        putenv('DD_TRACE_SPANS_LIMIT=0');
+        dd_trace_internal_fn('ddtrace_reload_config');
 
         $transport = new DebugTransport();
         $tracer = $tracer ?: new Tracer($transport);
@@ -54,7 +51,12 @@ trait TracerTestTrait
 
         $fn($tracer);
 
-        return $this->flushAndGetTraces($transport);
+        $traces =  $this->flushAndGetTraces($transport);
+
+        putenv('DD_TRACE_SPANS_LIMIT');
+        dd_trace_internal_fn('ddtrace_reload_config');
+
+        return $traces;
     }
 
     /**
@@ -102,7 +104,7 @@ trait TracerTestTrait
      *
      * @param $fn
      * @param null $tracer
-     * @return Span[][]
+     * @return array[]
      * @throws \Exception
      */
     public function tracesFromWebRequest($fn, $tracer = null)
@@ -209,8 +211,8 @@ trait TracerTestTrait
     }
 
     /**
-     * @param $fn
-     * @return Span[][]
+     * @param \Closure $fn
+     * @return array[]
      */
     public function simulateWebRequestTracer($fn)
     {
@@ -236,7 +238,7 @@ trait TracerTestTrait
 
     /**
      * @param DebugTransport $transport
-     * @return Span[][]
+     * @return array[]
      */
     protected function flushAndGetTraces($transport)
     {
@@ -250,7 +252,7 @@ trait TracerTestTrait
     /**
      * @param $name string
      * @param $fn
-     * @return Span[][]
+     * @return array[]
      */
     public function inTestScope($name, $fn)
     {

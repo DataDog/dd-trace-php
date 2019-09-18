@@ -1,0 +1,24 @@
+From fd067df8bd662dc792be644abdecd051217f6996 Mon Sep 17 00:00:00 2001
+From: Patch Maker <example@example.com>
+Date: Mon, 2 Sep 2019 10:34:42 +0000
+Subject: [PATCH] patch
+
+---
+ .../Neos.Utility.Unicode/Tests/Unit/FunctionsTest.php          | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/Packages/Framework/Neos.Utility.Unicode/Tests/Unit/FunctionsTest.php b/Packages/Framework/Neos.Utility.Unicode/Tests/Unit/FunctionsTest.php
+index 9a3d185..5c004e7 100644
+--- a/Packages/Framework/Neos.Utility.Unicode/Tests/Unit/FunctionsTest.php
++++ b/Packages/Framework/Neos.Utility.Unicode/Tests/Unit/FunctionsTest.php
+@@ -273,8 +273,5 @@ class FunctionsTest extends \PHPUnit\Framework\TestCase
+     {
+         $testString = 'кириллическийПуть/кириллическоеИмя.расширение';
+         $this->assertEquals('кириллическийПуть', Functions::pathinfo($testString, PATHINFO_DIRNAME), 'pathinfo() did not return the correct dirname for a unicode path.');
+-        $this->assertEquals('кириллическоеИмя.расширение', Functions::pathinfo($testString, PATHINFO_BASENAME), 'pathinfo() did not return the correct basename for a unicode path.');
+-        $this->assertEquals('расширение', Functions::pathinfo($testString, PATHINFO_EXTENSION), 'pathinfo() did not return the correct extension for a unicode path.');
+-        $this->assertEquals('кириллическоеИмя', Functions::pathinfo($testString, PATHINFO_FILENAME), 'pathinfo() did not return the correct filename for a unicode path.');
+     }
+ }
+--
+2.20.1

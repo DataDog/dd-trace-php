@@ -103,6 +103,19 @@ class CurlIntegration extends Integration
             return dd_trace_forward_call();
         });
 
+        dd_trace('curl_copy_handle', function ($ch1) use ($globalConfig) {
+            $ch2 = dd_trace_forward_call();
+            /* The store needs to copy the CURLOPT_HTTPHEADER value to the new handle;
+             * see https://github.com/DataDog/dd-trace-php/issues/502 */
+            if (\is_resource($ch2) && $globalConfig->isDistributedTracingEnabled()) {
+                $httpHeaders = ArrayKVStore::getForResource($ch1, Format::CURL_HTTP_HEADERS, []);
+                if (\is_array($httpHeaders)) {
+                    ArrayKVStore::putForResource($ch2, Format::CURL_HTTP_HEADERS, $httpHeaders);
+                }
+            }
+            return $ch2;
+        });
+
         dd_trace('curl_close', function ($ch) use ($globalConfig) {
             ArrayKVStore::deleteResource($ch);
             return dd_trace_forward_call();

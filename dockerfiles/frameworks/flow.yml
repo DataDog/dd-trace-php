@@ -1,0 +1,28 @@
+version: "3.6"
+
+services:
+  flow:
+    depends_on: ['mysql', 'nginx_file_server']
+    build:
+      context: src
+      target: flow
+    image: 'datadog/dd-trace-php:flow-5.2.6-php-7.3'
+    ulimits:
+      core: 99999999999
+    cap_add:
+      - SYS_PTRACE
+  mysql:
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: ""
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+      MYSQL_ROOT_HOST: "%"
+    expose: ["3306"]
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  nginx_file_server:
+    build: nginx_file_server
+    expose: ["80"]

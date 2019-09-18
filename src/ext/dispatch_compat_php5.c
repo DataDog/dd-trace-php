@@ -16,6 +16,14 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
+#if !defined(ZVAL_COPY_VALUE)
+#define ZVAL_COPY_VALUE(z, v)      \
+    do {                           \
+        (z)->value = (v)->value;   \
+        Z_TYPE_P(z) = Z_TYPE_P(v); \
+    } while (0)
+#endif
+
 static zend_always_inline void **vm_stack_push_args_with_copy(int count TSRMLS_DC) /* {{{ */
 {
     zend_vm_stack p = EG(argument_stack);
@@ -201,7 +209,13 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
     fcc.function_handler = DDTRACE_G(original_context).fbc;
     fcc.object_ptr = DDTRACE_G(original_context).this;
     fcc.calling_scope = DDTRACE_G(original_context).calling_ce;
-    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : DDTRACE_G(original_context).fbc->common.scope;
+#if PHP_VERSION_ID < 50500
+    fcc.called_scope = DDTRACE_G(original_context).execute_data->called_scope;
+#else
+    fcc.called_scope = DDTRACE_G(original_context).execute_data->call
+                           ? DDTRACE_G(original_context).execute_data->call->called_scope
+                           : NULL;
+#endif
 
     fci.size = sizeof(fci);
     fci.function_table = EG(function_table);
@@ -293,7 +307,11 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
     fcc.function_handler = fbc;
     fcc.object_ptr = ddtrace_this(execute_data);
     fcc.calling_scope = fbc->common.scope;  // EG(scope);
-    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : fbc->common.scope;
+#if PHP_VERSION_ID < 50500
+    fcc.called_scope = EX(called_scope);
+#else
+    fcc.called_scope = EX(call) ? EX(call)->called_scope : NULL;
+#endif
 
     ddtrace_setup_fcall(execute_data, &fci, &retval_ptr TSRMLS_CC);
     fci.size = sizeof(fci);
@@ -330,17 +348,19 @@ void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args
     }
 }
 
-void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data, zval *user_args,
-                                     zval *user_retval TSRMLS_DC) {
+BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+                                       zval *user_args, zval *user_retval, zval *exception TSRMLS_DC) {
+    BOOL_T status = TRUE;
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     zval *retval_ptr = NULL;
-    zval **args[3];
+    zval **args[4];
+    zval *null_zval = &EG(uninitialized_zval);
     zval *this = ddtrace_this(execute_data);
 
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
-        return;
+        return FALSE;
     }
 
     /* Note: In PHP 5 there is a bug where closures are automatically
@@ -352,7 +372,7 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
         BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
         if (is_instance_method && is_closure_static) {
             ddtrace_log_debug("Cannot trace non-static method with static tracing closure");
-            return;
+            return FALSE;
         }
     }
 
@@ -364,22 +384,42 @@ void ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execu
 
     // Arg 2: mixed $retval
     args[2] = &user_retval;
+    // Arg 3: Exception|null $exception
+    args[3] = exception ? &exception : &null_zval;
 
-    fci.param_count = 3;
+    fci.param_count = 4;
     fci.params = args;
     fci.retval_ptr_ptr = &retval_ptr;
 
     fcc.initialized = 1;
     fcc.object_ptr = this;
-    fcc.called_scope = fcc.object_ptr ? Z_OBJCE_P(fcc.object_ptr) : NULL;
+#if PHP_VERSION_ID < 50500
+    fcc.called_scope = EX(called_scope);
+#else
+    fcc.called_scope = EX(call) ? EX(call)->called_scope : NULL;
+#endif
+    // Give the tracing closure access to private & protected class members
+    fcc.function_handler->common.scope = fcc.called_scope;
 
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not execute tracing closure");
     }
 
     if (fci.retval_ptr_ptr && retval_ptr) {
+        if (Z_TYPE_P(retval_ptr) == IS_BOOL) {
+            status = Z_LVAL_P(retval_ptr) ? TRUE : FALSE;
+        }
         zval_ptr_dtor(&retval_ptr);
     }
     zend_fcall_info_args_clear(&fci, 0);
+    return status;
+}
+
+void ddtrace_span_attach_exception(ddtrace_span_t *span, zval *exception) {
+    if (exception) {
+        MAKE_STD_ZVAL(span->exception);
+        ZVAL_COPY_VALUE(span->exception, exception);
+        zval_copy_ctor(span->exception);
+    }
 }
 #endif  // PHP 5

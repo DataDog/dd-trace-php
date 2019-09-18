@@ -41,6 +41,7 @@ uint64_t ddtrace_push_span_id(TSRMLS_D) {
     if (DDTRACE_G(root_span_id) == 0) {
         DDTRACE_G(root_span_id) = stack->id;
     }
+    DDTRACE_G(open_spans_count)++;
     return stack->id;
 }
 
@@ -56,6 +57,8 @@ uint64_t ddtrace_pop_span_id(TSRMLS_D) {
         DDTRACE_G(root_span_id) = 0;
     }
     efree(stack);
+    DDTRACE_G(closed_spans_count)++;
+    DDTRACE_G(open_spans_count)--;
     return id;
 }
 

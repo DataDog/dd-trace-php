@@ -31,7 +31,6 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
         });
 
         $this->assertExpectedSpans(
-            $this,
             $traces,
             [
                 SpanAssertion::build('zf1.request', 'zf1', 'web', 'simple@index default')

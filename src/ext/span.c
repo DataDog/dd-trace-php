@@ -2,6 +2,7 @@
 
 #include <php.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "ddtrace.h"
 #include "dispatch_compat.h"
@@ -15,15 +16,24 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 void ddtrace_init_span_stacks(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(closed_spans_top) = NULL;
+    DDTRACE_G(open_spans_count) = 0;
+    DDTRACE_G(closed_spans_count) = 0;
 }
 
 static void _free_span(ddtrace_span_t *span) {
-    ddtrace_zval_ptr_dtor(span->span_data);
+#if PHP_VERSION_ID < 70000
+    zval_ptr_dtor(&span->span_data);
+    if (span->exception) {
+        zval_ptr_dtor(&span->exception);
+    }
+#else
+    zval_ptr_dtor(span->span_data);
     efree(span->span_data);
     if (span->exception) {
-        ddtrace_zval_ptr_dtor(span->exception);
-        efree(span->exception);
+        OBJ_RELEASE(span->exception);
     }
+#endif
+
     efree(span);
 }
 
@@ -40,6 +50,8 @@ void ddtrace_free_span_stacks(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = NULL;
     _free_span_stack(DDTRACE_G(closed_spans_top));
     DDTRACE_G(closed_spans_top) = NULL;
+    DDTRACE_G(open_spans_count) = 0;
+    DDTRACE_G(closed_spans_count) = 0;
 }
 
 static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
@@ -55,11 +67,11 @@ ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
     span->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = span;
 
-    span->span_data = (zval *)ecalloc(1, sizeof(zval));
-
     /* On PHP 5 object_init_ex does not set refcount to 1, but on PHP 7 it does */
 #if PHP_VERSION_ID < 70000
-    Z_ADDREF_P(span->span_data);
+    MAKE_STD_ZVAL(span->span_data);
+#else
+    span->span_data = (zval *)ecalloc(1, sizeof(zval));
 #endif
     object_init_ex(span->span_data, ddtrace_ce_span_data);
 
@@ -70,6 +82,7 @@ ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
     span->trace_id = DDTRACE_G(root_span_id);
     span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
     span->exception = NULL;
+    span->pid = getpid();
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
@@ -94,6 +107,18 @@ void ddtrace_close_span(TSRMLS_D) {
     DDTRACE_G(closed_spans_top) = span;
 }
 
+void ddtrace_drop_span(TSRMLS_D) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    if (span == NULL) {
+        return;
+    }
+    DDTRACE_G(open_spans_top) = span->next;
+    // Sync with span ID stack
+    ddtrace_pop_span_id(TSRMLS_C);
+
+    _free_span(span);
+}
+
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     ddtrace_span_t *span = DDTRACE_G(closed_spans_top);
     array_init(serialized);
@@ -104,4 +129,5 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
         _free_span(tmp);
     }
     DDTRACE_G(closed_spans_top) = NULL;
+    DDTRACE_G(closed_spans_count) = 0;
 }

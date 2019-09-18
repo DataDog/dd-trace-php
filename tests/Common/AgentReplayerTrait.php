@@ -14,7 +14,7 @@ trait AgentReplayerTrait
      */
     public function getAgentReplayerEndpoint()
     {
-        return 'http://request_replayer';
+        return 'http://request-replayer';
     }
 
     /**
