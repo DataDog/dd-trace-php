@@ -149,6 +149,7 @@ final class HttpTest extends BaseTestCase
         $this->assertEquals(\PHP_VERSION, $traceRequest['headers']['Datadog-Meta-Lang-Version']);
         $this->assertEquals(\PHP_SAPI, $traceRequest['headers']['Datadog-Meta-Lang-Interpreter']);
         $this->assertEquals(Tracer::version(), $traceRequest['headers']['Datadog-Meta-Tracer-Version']);
+        $this->assertRegExp('/^[0-9a-f]{64}$/', $traceRequest['headers']['Datadog-Container-Id']);
         $this->assertEquals('1', $traceRequest['headers']['X-Datadog-Trace-Count']);
     }
 
