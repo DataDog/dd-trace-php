@@ -3,7 +3,6 @@
 namespace DDTrace\Tests\Integrations\Elasticsearch\V1;
 
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Elasticsearch\Client;
@@ -15,14 +14,8 @@ use Elasticsearch\Client;
  */
 class ElasticSearchIntegrationTest extends IntegrationTestCase
 {
+    const IS_SANDBOX = false;
     const HOST = 'elasticsearch2_integration';
-
-    public static function setUpBeforeClass()
-    {
-        parent::setUpBeforeClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED=false');
-        IntegrationsLoader::load();
-    }
 
     public function testNamespaceMethodNotExistsDoesNotCrashApps()
     {

@@ -3,8 +3,6 @@
 namespace DDTrace\Tests\Integrations\Elasticsearch\V1;
 
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
-use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Elasticsearch\Client;
 
@@ -13,16 +11,10 @@ use Elasticsearch\Client;
  * sure that if a non existing method is provided, that for example does not exists for the used client version
  * the integration does not throw an exception.
  */
-class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
+class ElasticSearchSandboxedIntegrationTest extends ElasticSearchIntegrationTest
 {
+    const IS_SANDBOX = true;
     const HOST = 'elasticsearch2_integration';
-
-    public static function setUpBeforeClass()
-    {
-        parent::setUpBeforeClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED');
-        IntegrationsLoader::load();
-    }
 
     public function testNamespaceMethodNotExistsDoesNotCrashApps()
     {
@@ -49,7 +41,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 '__construct'
             ),
-        ], true);
+        ]);
     }
 
     public function testCount()
@@ -68,7 +60,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'count'
             ),
-        ], true);
+        ]);
     }
 
     public function testDelete()
@@ -98,7 +90,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'delete index:my_index type:my_type'
             ),
-        ], true);
+        ]);
     }
 
     public function testExists()
@@ -128,7 +120,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'exists index:my_index type:my_type'
             ),
-        ], true);
+        ]);
     }
 
     public function testExplain()
@@ -164,7 +156,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'explain index:my_index type:my_type'
             ),
-        ], true);
+        ]);
     }
 
     public function testGet()
@@ -194,7 +186,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'get index:my_index type:my_type'
             )->setTraceAnalyticsCandidate(),
-        ], true);
+        ]);
     }
 
     public function testIndex()
@@ -219,7 +211,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'index index:my_index type:my_type'
             ),
-        ], true);
+        ]);
     }
 
     public function testLimitedTracer()
@@ -339,7 +331,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'scroll'
             ),
-        ], true);
+        ]);
     }
 
     public function testSearch()
@@ -373,7 +365,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'search index:' . 'my_index'
             )->setTraceAnalyticsCandidate(),
-        ], true);
+        ]);
     }
 
     public function testPerformRequest()
@@ -412,7 +404,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch.body' => '{"query":{"match_all":[]}}'
             ]),
             SpanAssertion::exists('Elasticsearch.Client.search'),
-        ], true);
+        ]);
     }
 
     public function testUpdate()
@@ -444,7 +436,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'update index:my_index type:my_type'
             ),
-        ], true);
+        ]);
     }
 
     /**
