@@ -28,9 +28,9 @@ trait SpanAssertionTrait
     {
         $spanChecker = new SpanChecker();
 
-        $found = array_filter($spanChecker->flattenTraces($traces), function ($span) use ($expectedSpan) {
+        $found = array_values(array_filter($spanChecker->flattenTraces($traces), function ($span) use ($expectedSpan) {
             return $span['name'] === $expectedSpan->getOperationName();
-        });
+        }));
 
         if (empty($found)) {
             TestCase::fail('Span not found in traces: ' . $expectedSpan->getOperationName());
