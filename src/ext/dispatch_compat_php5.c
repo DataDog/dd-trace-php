@@ -227,7 +227,7 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
     fci.no_separation = 1;
     fci.symbol_table = NULL;
 
-    zval args;
+    zval args = {0};
     if (0 == get_args(&args, prev_ex)) {
         zval_dtor(&args);
         zend_throw_exception_ex(spl_ce_RuntimeException, 0 TSRMLS_CC, "Cannot forward original function arguments");
