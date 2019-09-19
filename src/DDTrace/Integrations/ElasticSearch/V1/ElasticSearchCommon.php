@@ -2,6 +2,9 @@
 
 namespace DDTrace\Integrations\ElasticSearch\V1;
 
+/**
+ * Utility class containing business logic shared between the legacy and the sandboxed api.
+ */
 class ElasticSearchCommon
 {
     /**

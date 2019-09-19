@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\ElasticSearch\V1;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
-use DDTrace\Span;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -125,7 +124,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
         $this->traceNamespaceMethod('NodesNamespace', 'stats');
 
         // Endpoints
-        dd_trace_method('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function (SpanData $span, $args) {
+        dd_trace_method('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function (SpanData $span) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -135,13 +134,13 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
             $span->type = Type::ELASTICSEARCH;
 
             try {
-                $span->meta[Tag::ELASTICSEARCH_URL] = $this->getURI();
+                $span->meta[Tag::ELASTICSEARCH_URL] = (string)$this->getURI();
                 $span->meta[Tag::ELASTICSEARCH_METHOD] = $this->getMethod();
                 if (is_array($this->params)) {
                     $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($this->params);
                 }
                 if ($this->getMethod() === 'GET' && $body = $this->getBody()) {
-                    $span->meta[Tag::ELASTICSEARCH_BODY] = json_encode($this->getBody());
+                    $span->meta[Tag::ELASTICSEARCH_BODY] = json_encode($body);
                 }
             } catch (\Exception $ex) {
             }
@@ -165,10 +164,6 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
                 if (dd_trace_tracer_is_limited()) {
                     return false;
                 }
-                $params = [];
-                if (isset($args[0])) {
-                    list($params) = $args;
-                }
 
                 $span->name = "Elasticsearch.Client.$name";
 
@@ -178,7 +173,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
 
                 $span->service = ElasticSearchSandboxedIntegration::NAME;
                 $span->type = Type::ELASTICSEARCH;
-                $span->resource = ElasticSearchCommon::buildResourceName($name, $params);
+                $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);
             }
         );
     }
@@ -189,7 +184,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
      */
     public function traceSimpleMethod($class, $name)
     {
-        dd_trace_method($class, $name, function (SpanData $span, $args) use ($class, $name) {
+        dd_trace_method($class, $name, function (SpanData $span) use ($class, $name) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
