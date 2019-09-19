@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-08-23</date>
+    <date>2019-09-18</date>
     <version>
-        <release>0.30.1</release>
-        <api>0.30.1</api>
+        <release>0.30.2</release>
+        <api>0.30.2</api>
     </version>
     <stability>
         <release>stable</release>
@@ -22,7 +22,7 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
         ### Fixed
-        - releasing This object as soon as it stops being used #536
+        - Ensure the request init hook is bound by the `open_basedir` INI directive #579
     </notes>
     <contents>
         <dir name="/">
