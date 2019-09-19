@@ -114,10 +114,11 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
             destroy_op_array(new_op_array TSRMLS_CC);
             efree(new_op_array);
             if (!EG(exception)) {
-                if (EG(return_value_ptr_ptr)) {
+                if (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) {
                     zval_ptr_dtor(EG(return_value_ptr_ptr));
                 }
             }
+            DD_TRACE_MAYBE_CLEAR_EXCEPTION
             rv = TRUE;
         }
     }
@@ -166,6 +167,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
             if (!EG(exception)) {
                 zval_ptr_dtor(&result);
             }
+            DD_TRACE_MAYBE_CLEAR_EXCEPTION
             rv = TRUE;
         }
     }
