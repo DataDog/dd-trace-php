@@ -80,26 +80,39 @@ function check_agent_connectivity()
     }
 }
 
+// Ignore any E_WARNING's from open_basedir INI directive
+function quiet_file_exists($file)
+{
+    return @file_exists($file);
+}
+
 echo 'DataDog trace extension verification' . PHP_EOL . PHP_EOL;
 
+render('PHP version and SAPI', PHP_VERSION . ' - ' . PHP_SAPI);
 render('ddtrace extension installed', extension_loaded('ddtrace') || extension_loaded('dd_trace'));
 $versionInstalled = phpversion('ddtrace') ?: false;
 render('ddtrace version (installed)', $versionInstalled);
 $versionConst = defined('DD_TRACE_VERSION') ? DD_TRACE_VERSION : false;
 render('ddtrace version (const)', $versionConst);
 $initHook = ini_get('ddtrace.request_init_hook');
-$userlandVersionFile = dirname(dirname($initHook)) . '/src/DDTrace/version.php';
-$versionUserland = file_exists($userlandVersionFile) ? include $userlandVersionFile : false;
+$versionUserland = false;
+if (!empty($initHook)) {
+    $userlandVersionFile = dirname(dirname($initHook)) . '/src/DDTrace/version.php';
+    $versionUserland = quiet_file_exists($userlandVersionFile) ? include $userlandVersionFile : false;
+}
 render('ddtrace version (userland)', $versionUserland);
 render('ddtrace versions in sync', $versionInstalled === $versionConst && $versionConst === $versionUserland);
 render('dd_trace() function available', function_exists('dd_trace'));
 render('dd_trace_env_config() function available', function_exists('dd_trace_env_config'));
 
 render('ddtrace.request_init_hook set', !empty($initHook));
-render('ddtrace.request_init_hook reachable', file_exists($initHook));
-if (file_exists($initHook)) {
+$initHookReachable = quiet_file_exists($initHook);
+render('ddtrace.request_init_hook reachable', $initHookReachable);
+if ($initHookReachable) {
     $initHookHasRun = function_exists('DDTrace\\Bridge\\dd_wrap_autoloader');
     render('ddtrace.request_init_hook has run', $initHookHasRun);
+} else {
+    render('open_basedir INI directive', ini_get('open_basedir') ?: 'empty');
 }
 
 class AutoloadTest
