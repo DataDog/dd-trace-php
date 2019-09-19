@@ -551,7 +551,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     /**
      * @return Client
      */
-    function client()
+    protected function client()
     {
         return new Client([
             'hosts' => [

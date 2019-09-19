@@ -551,7 +551,7 @@ class ElasticSearchSandboxedIntegrationTest extends IntegrationTestCase
     /**
      * @return Client
      */
-    private function client()
+    protected function client()
     {
         return new Client([
             'hosts' => [
