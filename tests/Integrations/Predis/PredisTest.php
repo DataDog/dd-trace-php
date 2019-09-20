@@ -83,6 +83,22 @@ final class PredisTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPredisClusterConnect()
+    {
+        $connectionString = "tcp://{$this->host}";
+
+        $traces = $this->isolateTracer(function () use ($connectionString) {
+            $client = new \Predis\Client([ $connectionString, $connectionString, $connectionString ]);
+            $client->connect();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Predis.Client.__construct'),
+            SpanAssertion::build('Predis.Client.connect', 'redis', 'cache', 'Predis.Client.connect')
+                ->withExactTags([]),
+        ]);
+    }
+
     public function testPredisSetCommand()
     {
         $traces = $this->isolateTracer(function () {

@@ -7,6 +7,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
 use Predis\Configuration\OptionsInterface;
+use Predis\Connection\AbstractConnection;
 use Predis\Pipeline\Pipeline;
 
 const VALUE_PLACEHOLDER = "?";
@@ -221,12 +222,13 @@ class PredisIntegration extends Integration
     {
         $tags = [];
 
-        try {
-            $identifier = (string)$predis->getConnection();
-            list($host, $port) = explode(':', $identifier);
-            $tags[Tag::TARGET_HOST] = $host;
-            $tags[Tag::TARGET_PORT] = $port;
-        } catch (\Exception $e) {
+        $connection = $predis->getConnection();
+
+        if ($connection instanceof AbstractConnection) {
+            $connectionParameters = $connection->getParameters();
+
+            $tags[Tag::TARGET_HOST] = $connectionParameters->host;
+            $tags[Tag::TARGET_PORT] = $connectionParameters->port;
         }
 
         if (isset($args[1])) {
