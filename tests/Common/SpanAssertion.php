@@ -22,6 +22,8 @@ final class SpanAssertion
     private $resource = SpanAssertion::NOT_TESTED;
     private $onlyCheckExistence = false;
     private $isTraceAnalyticsCandidate = false;
+    /** @var SpanAssertion[] */
+    private $children = [];
 
     /**
      * @param string $name
@@ -115,6 +117,19 @@ final class SpanAssertion
     }
 
     /**
+     * @param SpanAssertion|SpanAssertion[] $children
+     * @return $this
+     */
+    public function withChildren($children)
+    {
+        $this->children = array_merge(
+            $this->children,
+            is_array($children) ? $children : [$children]
+        );
+        return $this;
+    }
+
+    /**
      * @param array|string $tags
      * @return $this
      */
@@ -185,6 +200,14 @@ final class SpanAssertion
     public function getOperationName()
     {
         return $this->operationName;
+    }
+
+    /**
+     * @return SpanAssertion[]
+     */
+    public function getChildren()
+    {
+        return $this->children;
     }
 
     /**
