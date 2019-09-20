@@ -9,6 +9,7 @@
 #include "ddtrace.h"
 #include "env_config.h"
 #include "logging.h"
+#include "sandbox.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -81,10 +82,10 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     int ret;
 
     BOOL_T rv = FALSE;
-    char *original_open_basedir = PG(open_basedir);
-    PG(open_basedir) = NULL;
 
+    DD_TRACE_SANDBOX_OPEN
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE TSRMLS_CC);
+    DD_TRACE_SANDBOX_CLOSE
 
     if (ret == SUCCESS) {
         if (!file_handle.opened_path) {
@@ -105,20 +106,23 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
                 zend_rebuild_symbol_table(TSRMLS_C);
             }
 
-            zend_execute(new_op_array TSRMLS_CC);
+            DD_TRACE_SANDBOX_OPEN
+            zend_try { zend_execute(new_op_array TSRMLS_CC); }
+            zend_end_try();
+            DD_TRACE_SANDBOX_CLOSE
 
             destroy_op_array(new_op_array TSRMLS_CC);
             efree(new_op_array);
             if (!EG(exception)) {
-                if (EG(return_value_ptr_ptr)) {
+                if (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) {
                     zval_ptr_dtor(EG(return_value_ptr_ptr));
                 }
             }
+            DD_TRACE_MAYBE_CLEAR_EXCEPTION
             rv = TRUE;
         }
     }
 
-    PG(open_basedir) = original_open_basedir;
     return rv;
 }
 #else
@@ -133,9 +137,9 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     zend_op_array *new_op_array;
     zval result;
     int ret, rv = FALSE;
-    char *original_open_basedir = PG(open_basedir);
-    PG(open_basedir) = NULL;
+    DD_TRACE_SANDBOX_OPEN
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
+    DD_TRACE_SANDBOX_CLOSE
 
     if (ret == SUCCESS) {
         zend_string *opened_path;
@@ -154,18 +158,20 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
         zend_string_release(opened_path);
         if (new_op_array) {
             ZVAL_UNDEF(&result);
+            DD_TRACE_SANDBOX_OPEN
             zend_execute(new_op_array, &result);
+            DD_TRACE_SANDBOX_CLOSE
 
             destroy_op_array(new_op_array);
             efree(new_op_array);
             if (!EG(exception)) {
                 zval_ptr_dtor(&result);
             }
+            DD_TRACE_MAYBE_CLEAR_EXCEPTION
             rv = TRUE;
         }
     }
 
-    PG(open_basedir) = original_open_basedir;
     return rv;
 }
 #endif
