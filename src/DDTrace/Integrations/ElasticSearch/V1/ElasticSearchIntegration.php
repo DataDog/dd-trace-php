@@ -220,7 +220,7 @@ class ElasticSearchIntegration extends Integration
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
             $span->setTag(Tag::SPAN_TYPE, Type::ELASTICSEARCH);
-            $span->setTag(Tag::RESOURCE_NAME, ElasticSearchIntegration::buildResourceName($name, $params));
+            $span->setTag(Tag::RESOURCE_NAME, ElasticSearchCommon::buildResourceName($name, $params));
 
             // PHP 5.4 compatible try-catch-finally
             $thrown = null;
@@ -309,7 +309,7 @@ class ElasticSearchIntegration extends Integration
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
             $span->setTag(Tag::SPAN_TYPE, Type::ELASTICSEARCH);
-            $span->setTag(Tag::RESOURCE_NAME, ElasticSearchIntegration::buildResourceName($name, $params));
+            $span->setTag(Tag::RESOURCE_NAME, ElasticSearchCommon::buildResourceName($name, $params));
 
             // PHP 5.4 compatible try-catch-finally
             $thrown = null;
@@ -329,29 +329,5 @@ class ElasticSearchIntegration extends Integration
 
             return $result;
         });
-    }
-
-    /**
-     * @param string $methodName
-     * @param array|null $params
-     * @return string
-     */
-    public static function buildResourceName($methodName, $params)
-    {
-        if (!is_array($params)) {
-            return $methodName;
-        }
-
-        $resourceFragments = [$methodName];
-        $relevantParamNames = ['index', 'type'];
-
-        foreach ($relevantParamNames as $relevantParamName) {
-            if (empty($params[$relevantParamName])) {
-                continue;
-            }
-            $resourceFragments[] = $relevantParamName . ':' . $params[$relevantParamName];
-        }
-
-        return implode(' ', $resourceFragments);
     }
 }

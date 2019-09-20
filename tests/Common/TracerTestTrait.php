@@ -44,6 +44,8 @@ trait TracerTestTrait
      */
     public function isolateLimitedTracer($fn, $tracer = null)
     {
+        // Reset the current C-level array of generated spans
+        dd_trace_serialize_closed_spans();
         putenv('DD_TRACE_SPANS_LIMIT=0');
         dd_trace_internal_fn('ddtrace_reload_config');
 
