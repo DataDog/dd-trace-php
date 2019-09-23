@@ -457,8 +457,14 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                         'elasticsearch.params' => '[]',
                         'elasticsearch.body' => '{"query":{"match_all":[]}}'
                     ])->withChildren([
-                        SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.serialize', 'Elasticsearch.Serializers.SmartSerializer.serialize'),
-                        SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize', 'Elasticsearch.Serializers.SmartSerializer.deserialize'),
+                        SpanAssertion::exists(
+                            'Elasticsearch.Serializers.SmartSerializer.serialize',
+                            'Elasticsearch.Serializers.SmartSerializer.serialize'
+                        ),
+                        SpanAssertion::exists(
+                            'Elasticsearch.Serializers.SmartSerializer.deserialize',
+                            'Elasticsearch.Serializers.SmartSerializer.deserialize'
+                        ),
                     ]),
                 ]),
         ]);

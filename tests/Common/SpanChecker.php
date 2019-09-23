@@ -37,10 +37,16 @@ final class SpanChecker
         }));
 
         if (count($found) > 1) {
-            TestCase::fail('Edge case not handled, more than one span with same name and resource at the same level: ' . $expectedNodeRoot->getOperationName() . '/' . $expectedNodeRoot->getResource());
+            TestCase::fail(
+                'Edge case not handled, more than one span with same name and resource at the same level: '
+                . $expectedNodeRoot->getOperationName() . '/' . $expectedNodeRoot->getResource()
+            );
             return;
-        } else if (count($found) === 0) {
-            TestCase::fail('Cannot find at the current level name/resource: ' . $expectedNodeRoot->getOperationName() . '/' . $expectedNodeRoot->getResource());
+        } elseif (count($found) === 0) {
+            TestCase::fail(
+                'Cannot find at the current level name/resource: '
+                . $expectedNodeRoot->getOperationName() . '/' . $expectedNodeRoot->getResource()
+            );
             return;
         }
 
@@ -52,12 +58,12 @@ final class SpanChecker
 
         if ($actualChildrenCount !== $expectedChildrenCount) {
             TestCase::fail(sprintf(
-                    'Wrong number of children (actual %d, expected %d) for operation/resource: %s/%s',
+                'Wrong number of children (actual %d, expected %d) for operation/resource: %s/%s',
                 $actualChildrenCount,
                 $expectedChildrenCount,
                 $expectedNodeRoot->getOperationName(),
-                $expectedNodeRoot->getResource())
-            );
+                $expectedNodeRoot->getResource()
+            ));
             return;
         }
 
