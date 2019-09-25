@@ -24,15 +24,17 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
     int fcall_status;
     const zend_op *opline = EX(opline);
 
-    zval *user_retval = NULL, user_args;
-    INIT_ZVAL(user_args);
+    zval *user_retval = NULL, *user_args;
 #if PHP_VERSION_ID < 70000
-    zval *exception = NULL, *prev_exception = NULL;
     ALLOC_INIT_ZVAL(user_retval);
+    ALLOC_INIT_ZVAL(user_args);
+    zval *exception = NULL, *prev_exception = NULL;
 #else
     zend_object *exception = NULL, *prev_exception = NULL;
-    zval rv;
+    zval rv, user_args_zv;
+    INIT_ZVAL(user_args_zv);
     INIT_ZVAL(rv);
+    user_args = &user_args_zv;
     user_retval = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
 #endif
 
@@ -46,7 +48,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
 #endif
     dd_trace_stop_span_time(span);
 
-    ddtrace_copy_function_args(execute_data, &user_args);
+    ddtrace_copy_function_args(execute_data, user_args);
     if (EG(exception)) {
         exception = EG(exception);
         EG(exception) = NULL;
@@ -66,7 +68,7 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
 #else
         zend_replace_error_handling(EH_THROW, NULL, &error_handling TSRMLS_CC);
 #endif
-        keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, &user_args,
+        keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, user_args,
                                                     user_retval, exception TSRMLS_CC);
         zend_restore_error_handling(&error_handling TSRMLS_CC);
         EG(error_reporting) = orig_error_reporting;
@@ -79,7 +81,11 @@ void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
         }
     }
 
-    ddtrace_zval_ptr_dtor(&user_args);
+#if PHP_VERSION_ID < 70000
+    zval_ptr_dtor(&user_args);
+#else
+    zval_ptr_dtor(user_args);
+#endif
 
     if (keep_span == TRUE) {
         ddtrace_close_span(TSRMLS_C);
