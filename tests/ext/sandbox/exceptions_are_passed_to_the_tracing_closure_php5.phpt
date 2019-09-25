@@ -39,20 +39,20 @@ dd_trace_function('testExceptionIsPassed', function (SpanData $span, array $args
 });
 
 testExceptionIsNull();
-testExceptionIsPassed();
-echo "This line should not be run\n";
+/* Uncaught exceptions in PHP 5 leak the exception object
+ * so tests catch the exception */
+try {
+    testExceptionIsPassed();
+    echo "This line should not be run\n";
+} catch (Exception $e) {
+    echo $e->getMessage() . "\n";
+}
 ?>
---EXPECTF--
+--EXPECT--
 testExceptionIsNull()
 bool(true)
 testExceptionIsPassed()
 bool(true)
-
-Fatal error: Uncaught %sOops!%sin %s:%d
-Stack trace:
-#0 %s(%d): testExceptionIsPassed()
-#1 %s(%d): unknown()
-#2 {main}
-  thrown in %s on line %d
+Oops!
 TestEx with exception: Oops!
 TestNull

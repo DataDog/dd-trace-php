@@ -25,16 +25,16 @@ dd_trace_function('a', function($s, $args, $r, $ex) {
     throw $ex;
 });
 
-a();
-echo "This line should not be run\n";
+/* Uncaught exceptions in PHP 5 leak the exception object
+ * so tests catch the exception */
+try {
+    a();
+    echo "This line should not be run\n";
+} catch (Exception $e) {
+    echo $e->getMessage() . "\n";
+}
 ?>
---EXPECTF--
+--EXPECT--
 a()
-
-Fatal error: Uncaught %sOops!%sin %s:%d
-Stack trace:
-#0 %s(%d): a()
-#1 %s(%d): unknown()
-#2 {main}
-  thrown in %s on line %d
+Oops!
 a with exception: Oops!
