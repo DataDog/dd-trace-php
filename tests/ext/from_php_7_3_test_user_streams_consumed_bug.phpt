@@ -1,5 +1,7 @@
 --TEST--
 Testing user filter on streams
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70300) die('skip: Requires PHP 7.3 or greater'); ?>
 --FILE--
 <?php
 class Intercept extends php_user_filter
