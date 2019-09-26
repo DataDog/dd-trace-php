@@ -133,7 +133,7 @@ println
 
 php -i > "$EXTENSION_LOGS_DIR/php-info.log"
 
-PHP_VERSION=$(php -i | grep 'PHP API' | awk '{print $NF}')
+PHP_VERSION=$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
 PHP_CFG_DIR=$(php --ini | grep 'Scan for additional .ini files in:' | sed -e 's/Scan for additional .ini files in://g' | head -n 1 | awk '{print $1}')
 
 PHP_THREAD_SAFETY=$(php -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
