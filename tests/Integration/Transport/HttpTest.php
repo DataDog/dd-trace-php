@@ -12,6 +12,7 @@ use DDTrace\GlobalTracer;
 final class HttpTest extends BaseTestCase
 {
     use AgentReplayerTrait;
+
     protected function tearDown()
     {
         // reset the circuit breker consecutive failures count and close it

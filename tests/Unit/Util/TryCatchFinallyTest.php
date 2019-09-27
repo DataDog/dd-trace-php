@@ -14,7 +14,6 @@ namespace {
         throw new CustomException('an exception');
     }
 }
-
 namespace DDTrace\Tests\Unit\Util {
 
     use DDTrace\Tests\DebugTransport;
@@ -197,6 +196,7 @@ namespace DDTrace\Tests\Unit\Util {
             );
         }
     }
+
     class CustomException extends \Exception
     {
     }

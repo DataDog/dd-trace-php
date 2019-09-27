@@ -10,7 +10,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class EloquentTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait, SpanAssertionTrait;
+    use TracerTestTrait;
+    use SpanAssertionTrait;
 
     const IS_SANDBOX = false;
 

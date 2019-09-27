@@ -7,7 +7,6 @@ use DDTrace\Tests\DebugLogger;
 use DDTrace\Util\Versions;
 use PHPUnit\Framework;
 
-
 abstract class BaseTestCase extends Framework\TestCase
 {
     protected function tearDown()

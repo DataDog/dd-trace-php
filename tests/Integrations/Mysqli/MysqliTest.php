@@ -6,7 +6,6 @@ use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
-
 final class MysqliTest extends IntegrationTestCase
 {
     private static $host = 'mysql_integration';

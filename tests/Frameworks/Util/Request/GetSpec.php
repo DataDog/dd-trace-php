@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Frameworks\Util\Request;
 
-
 class GetSpec extends RequestSpec
 {
     /**

@@ -11,7 +11,8 @@ use PHPUnit\Framework\TestCase;
  */
 abstract class IntegrationTestCase extends TestCase
 {
-    use TracerTestTrait, SpanAssertionTrait;
+    use TracerTestTrait;
+    use SpanAssertionTrait;
 
     const IS_SANDBOX = false;
 
