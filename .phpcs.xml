@@ -6,6 +6,10 @@
 
     <rule ref="PSR12"/>
 
+    <rule ref="PSR12.Properties.ConstantVisibility.NotFound">
+        <severity>0</severity>
+    </rule>
+
     <rule ref="Generic.Commenting.Todo"/>
     <rule ref="Generic.Commenting.Fixme"/>
     <rule ref="Generic.Commenting.DocComment.MissingShort">
