@@ -110,8 +110,14 @@ class SymfonyIntegration extends Integration
             list($controllerInfo) = func_get_args();
             $resourceParts = [];
 
-            $tracer = GlobalTracer::get();
-            $rootSpan = $tracer->getSafeRootSpan();
+            $rootSpan = GlobalTracer::get()->getSafeRootSpan();
+            if (!$rootSpan) {
+                return dd_trace_forward_call();
+            }
+            $rootSpan->setIntegration($self);
+            if (SymfonyIntegration::isUrlAsResourceExplicitlyEnabled()) {
+                return dd_trace_forward_call();
+            }
 
             // Controller info can be provided in various ways.
             if (is_string($controllerInfo)) {

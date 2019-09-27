@@ -88,10 +88,11 @@ class SymfonyBundle extends Bundle
                     $thrown = $e;
                 }
 
-                $route = $request->get('_route');
-
-                if ($symfonyRequestSpan !== null && $route !== null) {
-                    $symfonyRequestSpan->setTag(Tag::RESOURCE_NAME, $route);
+                if (!SymfonyIntegration::isUrlAsResourceExplicitlyEnabled()) {
+                    $route = $request->get('_route');
+                    if ($symfonyRequestSpan !== null && $route !== null) {
+                        $symfonyRequestSpan->setTag(Tag::RESOURCE_NAME, $route);
+                    }
                 }
                 $scope->close();
 
@@ -223,9 +224,15 @@ class SymfonyBundle extends Bundle
         $requestSpan->setTag('symfony.route.action', $action);
         $requestSpan->setTag('symfony.route.name', $request->get('_route'));
 
-        if ($route = $request->get('_route')) {
-            $rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
-            $rootSpan->setResource($route);
+        if (
+            !SymfonyIntegration::isUrlAsResourceExplicitlyEnabled()
+            && $route = $request->get('_route')
+        ) {
+            $rootScope = GlobalTracer::get()->getRootScope();
+            if (!$rootScope) {
+                return;
+            }
+            $rootScope->getSpan()->setResource($route);
         }
     }
 

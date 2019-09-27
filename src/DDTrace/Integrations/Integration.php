@@ -51,6 +51,19 @@ abstract class Integration
     }
 
     /**
+     * Checks that DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED is explicitly set
+     * @return bool
+     */
+    public static function isUrlAsResourceExplicitlyEnabled()
+    {
+        $value = getenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
+        if (!$value) {
+            return false;
+        }
+        return '1' === $value || 'true' === strtolower($value);
+    }
+
+    /**
      * Whether or not this integration trace analytics configuration is enabled when the global
      * switch is turned on or it requires explicit enabling.
      *

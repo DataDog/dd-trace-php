@@ -37,10 +37,12 @@ class CakePHPIntegrationLoader
         $loader = $this;
 
         dd_trace('Controller', 'invokeAction', function (CakeRequest $request) use ($loader) {
-            $loader->rootSpan->setTag(
-                Tag::RESOURCE_NAME,
-                $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action']
-            );
+            if (!CakePHPIntegration::isUrlAsResourceExplicitlyEnabled()) {
+                $loader->rootSpan->setTag(
+                    Tag::RESOURCE_NAME,
+                    $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action']
+                );
+            }
             $loader->rootSpan->setTag(Tag::HTTP_URL, Router::url($request->here, true));
             $loader->rootSpan->setTag('cakephp.route.controller', $request->params['controller']);
             $loader->rootSpan->setTag('cakephp.route.action', $request->params['action']);

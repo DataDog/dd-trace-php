@@ -123,7 +123,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isURLAsResourceNameEnabled()
     {
-        return $this->boolValue('trace.url.as.resource.names.enabled', false);
+        return $this->boolValue('trace.url.as.resource.names.enabled', true);
     }
 
     /**

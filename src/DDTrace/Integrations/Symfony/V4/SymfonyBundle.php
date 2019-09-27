@@ -90,10 +90,11 @@ class SymfonyBundle extends Bundle
                     $thrown = $e;
                 }
 
-                $route = $request->get('_route');
-
-                if ($symfonyRequestSpan !== null && $route !== null) {
-                    $symfonyRequestSpan->setTag(Tag::RESOURCE_NAME, $route);
+                if (!SymfonyIntegration::isUrlAsResourceExplicitlyEnabled()) {
+                    $route = $request->get('_route');
+                    if ($symfonyRequestSpan !== null && $route !== null) {
+                        $symfonyRequestSpan->setTag(Tag::RESOURCE_NAME, $route);
+                    }
                 }
                 $symfonyRequestScope->close();
                 $scope->close();

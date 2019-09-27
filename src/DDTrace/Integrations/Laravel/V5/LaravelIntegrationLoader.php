@@ -37,10 +37,12 @@ class LaravelIntegrationLoader
                 // Overwriting the default web integration
                 $span->setIntegration(LaravelIntegration::getInstance());
                 $span->setTraceAnalyticsCandidate();
-                $span->setTag(
-                    Tag::RESOURCE_NAME,
-                    $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
-                );
+                if (!LaravelIntegration::isUrlAsResourceExplicitlyEnabled()) {
+                    $span->setTag(
+                        Tag::RESOURCE_NAME,
+                        $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
+                    );
+                }
                 $span->setTag('laravel.route.name', Route::currentRouteName());
                 $span->setTag('laravel.route.action', $route->getActionName());
                 $span->setTag('http.url', $request->url());

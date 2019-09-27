@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Laravel\V4;
 
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
+use DDTrace\Integrations\Integration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -77,7 +78,9 @@ class LaravelProvider extends ServiceProvider
             list($route, $request) = func_get_args();
             $span = $self->rootScope->getSpan();
 
-            $span->setTag(Tag::RESOURCE_NAME, $route->getActionName() . ' ' . Route::currentRouteName());
+            if (!Integration::isUrlAsResourceExplicitlyEnabled()) {
+                $span->setTag(Tag::RESOURCE_NAME, $route->getActionName() . ' ' . Route::currentRouteName());
+            }
             $span->setTag('laravel.route.name', $route->getName());
             $span->setTag('laravel.route.action', $route->getActionName());
             $span->setTag(Tag::HTTP_METHOD, $request->method());

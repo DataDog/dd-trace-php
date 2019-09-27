@@ -29,18 +29,21 @@ class SlimIntegrationLoader
 
         $loader = $this;
 
-        // Trace routes
-        // If the tracer ever supports tracing an interface, we should trace the following:
-        // Slim\Interfaces\RouterInterface::lookupRoute
-        dd_trace('Slim\Router', 'lookupRoute', function () use ($loader) {
-            /** @var \Slim\Interfaces\RouteInterface $route */
-            $route = dd_trace_forward_call();
-            $loader->rootSpan->setTag(
-                Tag::RESOURCE_NAME,
-                $_SERVER['REQUEST_METHOD'] . ' ' . ($route->getName() ?: $route->getPattern())
-            );
-            return $route;
-        });
+        if (!SlimIntegration::isUrlAsResourceExplicitlyEnabled()) {
+            // Trace routes
+            // If the tracer ever supports tracing an interface, we should trace the following:
+            // Slim\Interfaces\RouterInterface::lookupRoute
+            dd_trace('Slim\Router', 'lookupRoute', function () use ($loader) {
+                /** @var \Slim\Interfaces\RouteInterface $route */
+                $route = dd_trace_forward_call();
+
+                $loader->rootSpan->setTag(
+                    Tag::RESOURCE_NAME,
+                    $_SERVER['REQUEST_METHOD'] . ' ' . ($route->getName() ?: $route->getPattern())
+                );
+                return $route;
+            });
+        }
 
         // Trace controllers
         $traceControllers = function (

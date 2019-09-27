@@ -31,7 +31,12 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
         $span->setTag('zf1.controller', $controller);
         $span->setTag('zf1.action', $action);
         $span->setTag('zf1.route_name', $route);
-        $span->setResource($controller . '@' . $action . ' ' . $route);
+        if (!ZendFrameworkIntegration::isUrlAsResourceExplicitlyEnabled()) {
+            $span->setTag(
+                Tag::RESOURCE_NAME,
+                $controller . '@' . $action . ' ' . $route
+            );
+        }
         $span->setTag(Tag::HTTP_METHOD, $request->getMethod());
         $span->setTag(
             Tag::HTTP_URL,
