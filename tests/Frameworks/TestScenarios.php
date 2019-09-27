@@ -4,7 +4,6 @@ namespace DDTrace\Tests\Frameworks;
 
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-
 class TestScenarios
 {
     public static function all()

@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Unit;
 
-
 /**
  * This trait provides to work in a clean environment for specific env variables. Env variables provided in the method
  * `getCleanEnvs()` are cleaned during setup and restored to their original value during tearDown.

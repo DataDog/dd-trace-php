@@ -79,9 +79,10 @@ class CurlIntegration extends Integration
         dd_trace('curl_setopt', function ($ch, $option, $value) use ($globalConfig) {
             // Note that curl_setopt with option CURLOPT_HTTPHEADER overwrite data instead of appending it if called
             // multiple times on the same resource.
-            if ($option === CURLOPT_HTTPHEADER
-                    && $globalConfig->isDistributedTracingEnabled()
-                    && is_array($value)
+            if (
+                $option === CURLOPT_HTTPHEADER
+                && $globalConfig->isDistributedTracingEnabled()
+                && is_array($value)
             ) {
                 // Storing data to be used during exec as it cannot be retrieved at then.
                 ArrayKVStore::putForResource($ch, Format::CURL_HTTP_HEADERS, $value);
@@ -93,8 +94,9 @@ class CurlIntegration extends Integration
         dd_trace('curl_setopt_array', function ($ch, $options) use ($globalConfig) {
             // Note that curl_setopt with option CURLOPT_HTTPHEADER overwrite data instead of appending it if called
             // multiple times on the same resource.
-            if ($globalConfig->isDistributedTracingEnabled()
-                    && array_key_exists(CURLOPT_HTTPHEADER, $options)
+            if (
+                $globalConfig->isDistributedTracingEnabled()
+                && array_key_exists(CURLOPT_HTTPHEADER, $options)
             ) {
                 // Storing data to be used during exec as it cannot be retrieved at then.
                 ArrayKVStore::putForResource($ch, Format::CURL_HTTP_HEADERS, $options[CURLOPT_HTTPHEADER]);

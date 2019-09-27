@@ -1,6 +1,7 @@
 <?php
 
 namespace DDTrace\Bridge;
+
 // phpcs:disable Generic.Files.LineLength.TooLong
 
 /**

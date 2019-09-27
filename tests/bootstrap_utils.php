@@ -1,4 +1,5 @@
 <?php
+
 namespace DDTrace\Tests;
 
 function missing_ddtrace_class_fatal_autoloader($class)

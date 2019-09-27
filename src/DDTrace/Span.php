@@ -4,7 +4,6 @@ namespace DDTrace;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\Data\Span as DataSpan;
-
 use DDTrace\Exceptions\InvalidSpanArgument;
 use DDTrace\SpanContext as SpanContext;
 use DDTrace\Http\Urls;

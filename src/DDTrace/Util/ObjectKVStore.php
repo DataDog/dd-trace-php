@@ -2,7 +2,6 @@
 
 namespace DDTrace\Util;
 
-
 /**
  * A key value store that stores metadata into object instances.
  *
