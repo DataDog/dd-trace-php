@@ -44,7 +44,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.request',
                         'nette',
                         'web',
-                        'GET /simple'
+                        'Homepage:simple'
                     )
                         ->withExactTags([
                             'nette.route.presenter' => 'Homepage',
@@ -65,7 +65,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.request',
                         'nette',
                         'web',
-                        'GET /simple_view'
+                        'Homepage:simpleView'
                     )
                         ->withExactTags([
                             'nette.route.presenter' => 'Homepage',
@@ -89,7 +89,7 @@ final class NetteTest extends WebFrameworkTestCase
                         'nette.request',
                         'nette',
                         'web',
-                        'GET /error'
+                        'Homepage:errorView'
                     )->withExactTags([
                         'nette.route.presenter' => 'Homepage',
                         'nette.route.action' => 'errorView',

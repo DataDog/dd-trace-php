@@ -90,9 +90,13 @@ class NetteLoader
                 $scope = $tracer->startIntegrationScopeAndSpan($integration, 'nette.presenter.run');
                 $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
 
+                $presenter = $request->getPresenterName();
+                $action = $request->getParameter('action');
+
                 $loader->rootSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
-                $loader->rootSpan->setTag('nette.route.presenter', $request->getPresenterName());
-                $loader->rootSpan->setTag('nette.route.action', $request->getParameter('action'));
+                $loader->rootSpan->setTag('nette.route.presenter', $presenter);
+                $loader->rootSpan->setTag('nette.route.action', $action);
+                $loader->rootSpan->setResource($presenter . ':' . $action);
 
                 /** @var \Nette\Application\IResponse $response */
                 $response = include __DIR__ . '/../../try_catch_finally.php';
