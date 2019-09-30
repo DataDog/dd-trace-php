@@ -6,10 +6,10 @@ Exceptions get attached to spans
 <?php
 
 function outer() {
-    inner();
+    inner('datadog');
 }
-function inner() {
-    throw new Exception("datadog");
+function inner($message) {
+    throw new Exception($message);
 }
 
 dd_trace_function("outer", function() {});
@@ -41,14 +41,14 @@ error: 1
 Exception type: Exception
 Exception msg: datadog
 Exception stack:
-#0 %s: inner()
+#0 %s: inner(...)
 #1 %s: outer()
 #2 {main}
 error: 1
 Exception type: Exception
 Exception msg: datadog
 Exception stack:
-#0 %s: inner()
+#0 %s: inner(...)
 #1 %s: outer()
 #2 {main}
 
