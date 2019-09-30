@@ -2,8 +2,8 @@
 
 namespace DDTrace\Integrations\CakePHP\V2;
 
-use CakeEvent;
 use CakeRequest;
+use CakeRoute;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
 use DDTrace\Integrations\Integration;
@@ -27,7 +27,11 @@ class CakePHPIntegrationLoader
         if ('true' === getenv('DD_TEST_INTEGRATION')) {
             echo ' ';
         }
-        $this->rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
+        $rootScope = GlobalTracer::get()->getRootScope();
+        if (!$rootScope) {
+            return Integration::NOT_LOADED;
+        }
+        $this->rootSpan = $rootScope->getSpan();
         // Overwrite the default web integration
         $this->rootSpan->setIntegration($integration);
         $this->rootSpan->setTraceAnalyticsCandidate();
@@ -37,15 +41,39 @@ class CakePHPIntegrationLoader
         $loader = $this;
 
         dd_trace('Controller', 'invokeAction', function (CakeRequest $request) use ($loader) {
+            $route = Router::requestRoute();
+            $routePath = null;
+            if ($route instanceof CakeRoute) {
+                $routePath = $route->template;
+                /* Do something like this instead
+                $routePath = preg_replace(
+                    ['/(:controller)/', '/(:action)/'],
+                    [$request->params['controller'], $request->params['action']],
+                    $route->template
+                );
+                */
+            }
+
+            $endpoint = $this->name . 'Controller@' . $request->params['action'];
             if (!CakePHPIntegration::isUrlAsResourceExplicitlyEnabled()) {
                 $loader->rootSpan->setTag(
                     Tag::RESOURCE_NAME,
-                    $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action']
+                    $_SERVER['REQUEST_METHOD'] . ' ' . $endpoint
+                );
+            } else if (null !== $routePath) {
+                $loader->rootSpan->setTag(
+                    Tag::RESOURCE_NAME,
+                    $_SERVER['REQUEST_METHOD'] . ' ' . $routePath
                 );
             }
+
             $loader->rootSpan->setTag(Tag::HTTP_URL, Router::url($request->here, true));
+            $loader->rootSpan->setTag('cakephp.endpoint', $endpoint);
             $loader->rootSpan->setTag('cakephp.route.controller', $request->params['controller']);
             $loader->rootSpan->setTag('cakephp.route.action', $request->params['action']);
+            if (null !== $routePath) {
+                $loader->rootSpan->setTag('cakephp.route.path', $routePath);
+            }
             if (isset($request->params['plugin'])) {
                 $loader->rootSpan->setTag('cakephp.plugin', $request->params['plugin']);
             }
