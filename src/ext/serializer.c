@@ -11,6 +11,7 @@
 
 #include "ddtrace.h"
 #include "dispatch_compat.h"
+#include "logging.h"
 #include "mpack/mpack.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -204,14 +205,14 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
 
 #define _DD_TRACE_APPEND_STR(val) _DD_TRACE_APPEND_STRL(val, sizeof(val) - 1)
 
-#define _DD_TRACE_APPEND_KEY(key)                                         \
-    if (zend_hash_find(ht, key, sizeof(key), (void **)&tmp) == SUCCESS) { \
-        if (Z_TYPE_PP(tmp) != IS_STRING) {                                \
-            zend_error(E_WARNING, "Value for %s is no string", key);      \
-            _DD_TRACE_APPEND_STR("[unknown]");                            \
-        } else {                                                          \
-            _DD_TRACE_APPEND_STRL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp));    \
-        }                                                                 \
+#define _DD_TRACE_APPEND_KEY(key)                                          \
+    if (zend_hash_find(ht, key, sizeof(key), (void **)&tmp) == SUCCESS) {  \
+        if (Z_TYPE_PP(tmp) != IS_STRING) {                                 \
+            /* zend_error(E_WARNING, "Value for %s is no string", key); */ \
+            _DD_TRACE_APPEND_STR("[unknown]");                             \
+        } else {                                                           \
+            _DD_TRACE_APPEND_STRL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp));     \
+        }                                                                  \
     }
 /* }}} */
 
@@ -245,14 +246,14 @@ static int _trace_string(zval **frame TSRMLS_DC, int num_args, va_list args, zen
     efree(s_tmp);
     if (zend_hash_find(ht, "file", sizeof("file"), (void **)&file) == SUCCESS) {
         if (Z_TYPE_PP(file) != IS_STRING) {
-            zend_error(E_WARNING, "Function name is no string");
+            ddtrace_log_debug("serializer stack trace: Function name is not a string");
             _DD_TRACE_APPEND_STR("[unknown function]");
         } else {
             if (zend_hash_find(ht, "line", sizeof("line"), (void **)&tmp) == SUCCESS) {
                 if (Z_TYPE_PP(tmp) == IS_LONG) {
                     line = Z_LVAL_PP(tmp);
                 } else {
-                    zend_error(E_WARNING, "Line is no long");
+                    ddtrace_log_debug("serializer stack trace: Line is not a long");
                     line = 0;
                 }
             } else {
@@ -378,17 +379,17 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
 }
 
 /* _DD_TRACE_APPEND_KEY is not exported */
-#define _DD_TRACE_APPEND_KEY(key)                                         \
-    do {                                                                  \
-        tmp = zend_hash_str_find(ht, key, sizeof(key) - 1);               \
-        if (tmp) {                                                        \
-            if (Z_TYPE_P(tmp) != IS_STRING) {                             \
-                zend_error(E_WARNING, "Value for %s is not string", key); \
-                smart_str_appends(str, "[unknown]");                      \
-            } else {                                                      \
-                smart_str_appends(str, Z_STRVAL_P(tmp));                  \
-            }                                                             \
-        }                                                                 \
+#define _DD_TRACE_APPEND_KEY(key)                                               \
+    do {                                                                        \
+        tmp = zend_hash_str_find(ht, key, sizeof(key) - 1);                     \
+        if (tmp) {                                                              \
+            if (Z_TYPE_P(tmp) != IS_STRING) {                                   \
+                /* zend_error(E_WARNING, "Value for %s is not string", key); */ \
+                smart_str_appends(str, "[unknown]");                            \
+            } else {                                                            \
+                smart_str_appends(str, Z_STRVAL_P(tmp));                        \
+            }                                                                   \
+        }                                                                       \
     } while (0)
 
 /* This is modelled after _build_trace_string in PHP 7.0:
@@ -405,7 +406,7 @@ static void _trace_string(smart_str *str, HashTable *ht, uint32_t num) /* {{{ */
     file = zend_hash_str_find(ht, "file", sizeof("file") - 1);
     if (file) {
         if (Z_TYPE_P(file) != IS_STRING) {
-            zend_error(E_WARNING, "Function name is no string");
+            ddtrace_log_debug("serializer stack trace: Function name is not a string");
             smart_str_appends(str, "[unknown function]");
         } else {
             zend_long line;
@@ -414,7 +415,7 @@ static void _trace_string(smart_str *str, HashTable *ht, uint32_t num) /* {{{ */
                 if (Z_TYPE_P(tmp) == IS_LONG) {
                     line = Z_LVAL_P(tmp);
                 } else {
-                    zend_error(E_WARNING, "Line is no long");
+                    ddtrace_log_debug("serializer stack trace: Line is not a long");
                     line = 0;
                 }
             } else {
@@ -446,13 +447,12 @@ static void _trace_string(smart_str *str, HashTable *ht, uint32_t num) /* {{{ */
  */
 static void _serialize_stack_trace(zval *meta, zval *trace) {
     zval *frame, output;
-    zend_ulong index;
     smart_str str = {0};
     uint32_t num = 0;
 
-    ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARRVAL_P(trace), index, frame) {
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(trace), frame) {
         if (Z_TYPE_P(frame) != IS_ARRAY) {
-            zend_error(E_WARNING, "Expected array for frame %" ZEND_ULONG_FMT_SPEC, index);
+            /* zend_error(E_WARNING, "Expected array for frame %" ZEND_ULONG_FMT_SPEC, index); */
             continue;
         }
 
@@ -465,11 +465,9 @@ static void _serialize_stack_trace(zval *meta, zval *trace) {
     smart_str_appends(&str, " {main}");
     smart_str_0(&str);
 
-    // RETURN_NEW_STR(str.s);
     ZVAL_NEW_STR(&output, str.s);
 
     add_assoc_zval(meta, "error.stack", &output);
-    // zend_string_release(Z_STR(output));
 }
 
 static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
