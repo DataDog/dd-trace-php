@@ -10,17 +10,37 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2019-10-01</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.31.0</release>
+        <api>0.31.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Added
+        - Add container id header to http transport (Container Tagging) - #552
+        - Attach exceptions to spans in new API #548
+
+        ### Changed
+        - Migrate PDO integration to sandbox API #538
+        - Migrate Eloquent integration to sandbox API #559
+        - Migrate memcached integration to sandbox API #578
+        - Migrate elasticsearch integration to sandbox API #562
+
+        ### Fixed
+        - Predis integration for clusters #574 (thank you @RaoulMeyer!)
+        - Avoid reserved word "fn" #543
+        - Fix ZTS builds, remove COMPAT_CTX_* #544
+        - Curl headers are overwritten when using `curl_copy_handle` function #502
+        - Correctly treat class names as case insensitive #571
+        - Static keyword handling #576
+        - Improve sandboxing of request init hook #583
+        - Make PHP API check more specific #590 (thank you @iedsapala!)
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
