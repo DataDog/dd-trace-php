@@ -6,7 +6,7 @@ services:
     build:
       context: src
       target: flow
-    image: 'datadog/dd-trace-php:flow-5.2.6-php-7.3'
+    image: 'docker.pkg.github.com/datadog/dd-trace-php/framwork-ci-flow:5.2.6'
     ulimits:
       core: 99999999999
     cap_add:

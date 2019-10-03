@@ -1,16 +1,15 @@
 version: "3.6"
 
 services:
-  symfony:
-    depends_on: ['redis', 'redis_cluster', 'nginx_file_server', 'memcached']
+  phpredis:
+    depends_on: ['redis', 'nginx_file_server', 'redis_cluster']
     environment:
       - "REDIS_HOST=redis"
       - "MEMCACHED_HOST=memcached"
-      - "REDIS_CLUSTER_HOSTS=redis_cluster:7000 redis_cluster:7001 redis_cluster:7002 redis_cluster:7003 redis_cluster:7004 redis_cluster:7005"
     build:
       context: src
-      target: symfony
-    image: 'docker.pkg.github.com/datadog/dd-trace-php/framwork-ci-symfony:4.3'
+      target: phpredis
+    image: 'docker.pkg.github.com/datadog/dd-trace-php/framwork-ci-phpredis:5.0.1'
     ulimits:
       core: 99999999999
     cap_add:
@@ -20,6 +19,7 @@ services:
     image: redis:5.0.5
     expose:
       - 6379
+
   redis_cluster:
     image: grokzen/redis-cluster:5.0.5
     expose:
@@ -30,11 +30,8 @@ services:
       - 7003
       - 7004
       - 7005
-  memcached:
-    image: memcached
-    expose:
-      - 11211
-
+      - 7006
+      - 7007
   nginx_file_server:
     build: nginx_file_server
     expose: ["80"]
