@@ -6,6 +6,7 @@ use DDTrace\Configuration;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Util\Versions;
 
 final class IntegrationsLoaderTest extends BaseTestCase
 {
@@ -147,6 +148,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testWeDidNotForgetToRegisterALibraryForAutoLoading()
     {
+        if (Versions::phpVersionMatches('5.4')) {
+            $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4 so we cannot check for all integrations.');
+        }
         $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
         \ksort($expected);
         $integrations = IntegrationsLoader::get()->getIntegrations();
