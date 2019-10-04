@@ -565,3 +565,9 @@ require get_parent_theme_file_path( '/inc/customizer.php' );
  * SVG icons functions and filters.
  */
 require get_parent_theme_file_path( '/inc/icon-functions.php' );
+
+/* By default WordPress redirects URL's that don't end with a slash
+ * to the slashed version. Our web tests test for endpoints sans
+ * trailing slashes /simple, /simple_view, and /error which would
+ * all return 301 redirects without this. */
+remove_filter('template_redirect', 'redirect_canonical');

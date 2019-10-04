@@ -234,6 +234,7 @@
             "@symfony-30-suite",
             "@symfony-33-suite",
             "@symfony-34-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -260,6 +261,7 @@
             "@symfony-34-suite",
             "@symfony-40-suite",
             "@symfony-42-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -289,6 +291,7 @@
             "@symfony-34-test",
             "@symfony-40-suite",
             "@symfony-42-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -308,6 +311,7 @@
             "@slim-312-test",
             "@symfony-40-suite",
             "@symfony-42-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -392,6 +396,8 @@
         ],
         "symfony-42-test": "@composer test -- tests/Integrations/Symfony/V4_2",
         "symfony-42-suite": [ "@symfony-42-update", "@symfony-42-test" ],
+
+        "wordpress-48-test": "@composer test -- tests/Integrations/WordPress/V4_8",
 
         "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1",
 

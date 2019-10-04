@@ -23,6 +23,7 @@ use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
+use DDTrace\Integrations\WordPress\WordPressSandboxedIntegration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 use DDTrace\Log\LoggingTrait;
 
@@ -78,6 +79,8 @@ class IntegrationsLoader
         $this->integrations = $integrations;
         // Sandboxed integrations get loaded with a feature flag
         if (Configuration::get()->isSandboxEnabled()) {
+            $this->integrations[CodeIgniterSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\CodeIgniter\V2_2\CodeIgniterSandboxedIntegration';
             $this->integrations[ElasticSearchSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration';
             $this->integrations[EloquentSandboxedIntegration::NAME] =
@@ -86,8 +89,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration';
             $this->integrations[PDOSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
-            $this->integrations[CodeIgniterSandboxedIntegration::NAME] =
-                '\DDTrace\Integrations\CodeIgniter\V2_2\CodeIgniterSandboxedIntegration';
+            $this->integrations[WordPressSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\WordPress\WordPressSandboxedIntegration';
         }
     }
 
