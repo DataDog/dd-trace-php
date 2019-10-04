@@ -11,6 +11,10 @@ CUSTOM_INI_FILE_NAME='ddtrace-custom.ini'
 
 PATH="${PATH}:/usr/local/bin"
 
+if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
+    DD_TRACE_PHP_BIN=$(which php)
+fi
+
 function println(){
     echo -e '###' "$@"
 }
@@ -66,9 +70,13 @@ function install_conf_d_files() {
     println "\n"
 
     # Detect installed SAPI's
-    SAPI_CONFIG_DIRS=(${PHP_CFG_DIR})
-    SAPI_DIR=${PHP_CFG_DIR%cli/conf.d}
+    SAPI_DIR=${PHP_CFG_DIR%/*/conf.d}/
+    SAPI_CONFIG_DIRS=()
     if [[ "$PHP_CFG_DIR" != "$SAPI_DIR" ]]; then
+        # Detect CLI
+        if [[ -d "${SAPI_DIR}cli/conf.d" ]]; then
+            SAPI_CONFIG_DIRS+=("${SAPI_DIR}cli/conf.d")
+        fi
         # Detect FPM
         if [[ -d "${SAPI_DIR}fpm/conf.d" ]]; then
             SAPI_CONFIG_DIRS+=("${SAPI_DIR}fpm/conf.d")
@@ -79,7 +87,11 @@ function install_conf_d_files() {
         fi
     fi
 
-    for SAPI_CFG_DIR in ${SAPI_CONFIG_DIRS[@]}
+    if [ ${#SAPI_CONFIG_DIRS[@]} -eq 0 ]; then
+        SAPI_CONFIG_DIRS+=("$PHP_CFG_DIR")
+    fi
+
+    for SAPI_CFG_DIR in "${SAPI_CONFIG_DIRS[@]}"
     do
         println "Found SAPI config directory: ${SAPI_CFG_DIR}"
 
@@ -106,20 +118,16 @@ function fail_print_and_exit() {
     println "Note that your PHP API version must match the extension's API version"
     println "PHP API version can be found using following command"
     println
-    println "    php -i | grep 'PHP API'"
+    println "    $DD_TRACE_PHP_BIN -i | grep 'PHP API'"
     println
 
     exit 0 # exit - but do not fail the installation
 }
 
 function verify_installation() {
-    ENABLED_VERSION="$(php -r "echo phpversion('ddtrace');")"
-
-    if [[ -n ${ENABLED_VERSION} ]]; then
-        println "Extension ${ENABLED_VERSION} enabled successfully"
-    else
+    $DD_TRACE_PHP_BIN -m | grep ddtrace && \
+        println "Extension enabled successfully" || \
         fail_print_and_exit
-    fi
 }
 
 mkdir -p $EXTENSION_DIR
@@ -128,15 +136,15 @@ mkdir -p $EXTENSION_LOGS_DIR
 
 println 'Installing Datadog PHP tracing extension (ddtrace)'
 println
-println 'Logging php -i to a file'
+println "Logging $DD_TRACE_PHP_BIN -i to a file"
 println
 
-php -i > "$EXTENSION_LOGS_DIR/php-info.log"
+$DD_TRACE_PHP_BIN -i > "$EXTENSION_LOGS_DIR/php-info.log"
 
-PHP_VERSION=$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
-PHP_CFG_DIR=$(php --ini | grep 'Scan for additional .ini files in:' | sed -e 's/Scan for additional .ini files in://g' | head -n 1 | awk '{print $1}')
+PHP_VERSION=$($DD_TRACE_PHP_BIN -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
+PHP_CFG_DIR=$($DD_TRACE_PHP_BIN -i | grep 'Scan this dir for additional .ini files =>' | sed -e 's/Scan this dir for additional .ini files =>//g' | head -n 1 | awk '{print $1}')
 
-PHP_THREAD_SAFETY=$(php -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
+PHP_THREAD_SAFETY=$($DD_TRACE_PHP_BIN -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
 
 VERSION_SUFFIX=""
 if [[ -n $PHP_THREAD_SAFETY ]]; then
@@ -155,7 +163,7 @@ EOF
 if [[ ! -e $PHP_CFG_DIR ]]; then
     println
     println 'conf.d folder not found falling back to appending extension config to main "php.ini"'
-    PHP_CFG_FILE_PATH=$(php --ini | grep 'Configuration File (php.ini) Path:' | sed -e 's/Configuration File (php.ini) Path://g' | head -n 1 | awk '{print $1}')
+    PHP_CFG_FILE_PATH=$($DD_TRACE_PHP_BIN -i | grep 'Configuration File (php.ini) Path =>' | sed -e 's/Configuration File (php.ini) Path =>//g' | head -n 1 | awk '{print $1}')
     PHP_CFG_FILE="${PHP_CFG_FILE_PATH}/php.ini"
     if [[ ! -e $PHP_CFG_FILE_PATH ]]; then
         fail_print_and_exit
