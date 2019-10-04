@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\CodeIgniter\V2_2;
 use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
+use DDTrace\Http\Urls;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -41,12 +42,18 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
             'CI_Router',
             '_set_routing',
             function () use ($integration, $rootScope, $service) {
-
-                /* After _set_routing has been called the class and method are
-                 * known, so now we can set up tracing on CodeIgniter. */
-                $integration->registerIntegration($this, $rootScope->getSpan(), $service);
-                // at the time of this writing, dd_untrace does not work with methods
-                //\dd_untrace('CI_Router', '_set_routing');
+                if (!defined('CI_VERSION')) {
+                    return false;
+                }
+                $majorVersion = \substr(\CI_VERSION, 0, 2);
+                if ('2.' === $majorVersion) {
+                    /* After _set_routing has been called the class and method
+                     * are known, so now we can set up tracing on CodeIgniter.
+                     */
+                    $integration->registerIntegration($this, $rootScope->getSpan(), $service);
+                    // at the time of this writing, dd_untrace does not work with methods
+                    //\dd_untrace('CI_Router', '_set_routing');
+                }
                 return false;
             }
         );
@@ -61,8 +68,16 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
 
         $root->overwriteOperationName('codeigniter.request');
         $root->setTag(Tag::SERVICE_NAME, $service);
-        $root->setTag(Tag::RESOURCE_NAME, "{$_SERVER['REQUEST_METHOD']} {$_SERVER['REQUEST_URI']}");
         $root->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
+
+        if ('cli' !== PHP_SAPI) {
+            $normalizer = new Urls(\explode(',', \getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
+            $root->setTag(
+                Tag::RESOURCE_NAME,
+                "{$_SERVER['REQUEST_METHOD']} {$normalizer->normalize($_SERVER['REQUEST_URI'])}",
+                true
+            );
+        }
 
         $controller = $router->fetch_class();
         $method = $router->fetch_method();
