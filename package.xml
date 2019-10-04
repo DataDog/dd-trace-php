@@ -10,17 +10,22 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2019-10-07</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.32.0</release>
+        <api>0.32.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Added
+
+        - Preview CodeIgniter v2 integration #588
+        - Preview WordPress v4 integration #570
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
