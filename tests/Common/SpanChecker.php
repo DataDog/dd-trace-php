@@ -26,7 +26,7 @@ final class SpanChecker
     }
 
     /**
-     * @param [] $spansByFingerPrint
+     * @param array $graph
      * @param SpanAssertion $expectedNodeRoot
      */
     private function assertNode($graph, SpanAssertion $expectedNodeRoot)
