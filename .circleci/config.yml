@@ -824,7 +824,7 @@ workflows:
           name: "PHP 56 Web integration tests"
           integration_testsuite: "test-web-56"
           # docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
-          docker_image: "datadog/docker-library:ddtrace_php_5_6"
+          docker_image: "docker.pkg.github.com/datadog/dd-trace-ci/php-dev:5.6"
           lib_curl_command: sudo apt update ; sudo apt-get -y install libcurl4-nss-dev
       - integration_tests:
           requires: [ 'Code Checkout' ]
@@ -844,8 +844,7 @@ workflows:
           name: "PHP 72 Web integration tests"
           resource_class: medium+
           integration_testsuite: "test-web-72"
-          docker_image: "datadog/docker-library:ddtrace_php_7_2"
-          lib_curl_command: sudo apt update ; sudo apt-get -y install libcurl4-nss-dev
+          docker_image: "docker.pkg.github.com/datadog/dd-trace-ci/php-dev:7.2"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Web integration tests"
