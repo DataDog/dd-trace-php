@@ -118,7 +118,7 @@ array(5) {
       ["retval.first"]=>
       string(5) "first"
       ["retval.rand"]=>
-      int(%d)
+      string(%d) "%d"
       ["system.pid"]=>
       int(%d)
     }

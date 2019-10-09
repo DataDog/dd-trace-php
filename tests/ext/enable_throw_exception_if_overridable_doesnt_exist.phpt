@@ -2,6 +2,7 @@
 Toggle checking if overrided class doesn't exist
 --INI--
 ddtrace.strict_mode=1
+ddtrace.request_init_hook=
 --FILE--
 <?php
 try {

@@ -126,7 +126,7 @@ array(3) {
       ["retval.first"]=>
       string(5) "first"
       ["retval.rand"]=>
-      int(%d)
+      string(%d) "%d"
       ["system.pid"]=>
       int(%d)
     }
@@ -157,7 +157,7 @@ array(3) {
       ["rand.range"]=>
       string(8) "42 - 999"
       ["rand.value"]=>
-      int(%d)
+      string(%d) "%d"
     }
   }
   [2]=>
