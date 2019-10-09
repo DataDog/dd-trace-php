@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-10-07</date>
+    <date>2019-10-10</date>
     <version>
-        <release>0.32.0</release>
-        <api>0.32.0</api>
+        <release>0.32.1</release>
+        <api>0.32.1</api>
     </version>
     <stability>
         <release>stable</release>
@@ -25,6 +25,14 @@
 
         - Preview CodeIgniter v2 integration #588
         - Preview WordPress v4 integration #570
+
+        Please report any issues you encounter with these two preview integrations.
+
+        ### Fixed
+
+        - ZF1 integration response after loading #609
+        - Prevent `mysqli_connect()` span from closing twice #610
+        - Support mysqli usage when using real_connect approach #607
     </notes>
     <contents>
         <dir name="/">
