@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Contracts\Span;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -83,7 +82,7 @@ final class SpanChecker
             $byId[$span['span_id']] = ['span' => $span, 'children' => []];
         }
 
-        while (true) {
+        do {
             $lastCount = count($byId);
             foreach ($byId as $id => $data) {
                 $span = $data['span'];
@@ -108,12 +107,7 @@ final class SpanChecker
                     unset($byId[$span['span_id']]);
                 }
             }
-
-            // We cannot reduce anymore
-            if (count($byId) === $lastCount) {
-                break;
-            }
-        }
+        } while (count($byId) !== $lastCount);
 
         return array_values($byId);
     }
