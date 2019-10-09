@@ -116,6 +116,15 @@ void ddtrace_drop_span(TSRMLS_D) {
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
 
+    // Replace child span's parent ID's with the dropped span's parent
+    ddtrace_span_t *next_closed_span = DDTRACE_G(closed_spans_top);
+    while (next_closed_span != NULL) {
+        if (next_closed_span->parent_id == span->span_id) {
+            next_closed_span->parent_id = span->parent_id;
+        }
+        next_closed_span = next_closed_span->next;
+    }
+
     _free_span(span);
 }
 

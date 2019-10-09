@@ -140,6 +140,7 @@
                         <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
                         <file name="dd_trace_push_span_id.phpt" role="test" />
                         <file name="drop_spans.phpt" role="test" />
+                        <file name="drop_spans_update_parent_ids.phpt" role="test" />
                         <file name="errors_are_flagged_from_userland.phpt" role="test" />
                         <file name="exception_handling_php5.phpt" role="test" />
                         <file name="exception_handling.phpt" role="test" />
