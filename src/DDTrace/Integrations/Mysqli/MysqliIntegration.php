@@ -68,7 +68,6 @@ class MysqliIntegration extends Integration
                 } else {
                     MysqliIntegration::setConnectionInfo($span, $result);
                 }
-                $scope->close();
             } catch (\Exception $ex) {
                 $span->setError($ex);
                 $thrown = $ex;
@@ -102,7 +101,6 @@ class MysqliIntegration extends Integration
                 } elseif (count($args) > 0) {
                     MysqliIntegration::setConnectionInfo($span, $args[0]);
                 }
-                $scope->close();
             } catch (\Exception $ex) {
                 $span->setError($ex);
                 $thrown = $ex;
@@ -138,7 +136,6 @@ class MysqliIntegration extends Integration
             $thrown = null;
             try {
                 dd_trace_forward_call();
-                //Mysqli::storeConnectionParams($this, $args);
                 if (mysqli_connect_errno()) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
                 } elseif (count($args)) {
@@ -178,7 +175,6 @@ class MysqliIntegration extends Integration
             $result = null;
             try {
                 $result = dd_trace_forward_call();
-                //Mysqli::storeConnectionParams($this, $args);
                 if (mysqli_connect_errno()) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
                 } elseif (count($args)) {
