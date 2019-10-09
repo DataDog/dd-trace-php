@@ -98,7 +98,7 @@ class MysqliIntegration extends Integration
                 $result = dd_trace_forward_call();
                 if ($result === false) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
-                } else if (count($args) > 0) {
+                } elseif (count($args) > 0) {
                     MysqliIntegration::setConnectionInfo($span, $args[0]);
                 }
                 $scope->close();
@@ -140,7 +140,7 @@ class MysqliIntegration extends Integration
                 //Mysqli::storeConnectionParams($this, $args);
                 if (mysqli_connect_errno()) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
-                } else if (count($args)){
+                } elseif (count($args)) {
                     // Host can either be provided as constructor arg or after
                     // through ->real_connect(...). In this latter case an error
                     // `Property access is not allowed yet` would be thrown when
@@ -180,7 +180,7 @@ class MysqliIntegration extends Integration
                 //Mysqli::storeConnectionParams($this, $args);
                 if (mysqli_connect_errno()) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
-                } else if (count($args)){
+                } elseif (count($args)) {
                     // Host can either be provided as constructor arg or after
                     // through ->real_connect(...). In this latter case an error
                     // `Property access is not allowed yet` would be thrown when
