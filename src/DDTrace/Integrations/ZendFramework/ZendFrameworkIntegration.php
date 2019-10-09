@@ -76,6 +76,6 @@ class ZendFrameworkIntegration extends Integration
             return $this->setOptions($options);
         });
 
-        return Integration::NOT_LOADED;
+        return Integration::LOADED;
     }
 }
