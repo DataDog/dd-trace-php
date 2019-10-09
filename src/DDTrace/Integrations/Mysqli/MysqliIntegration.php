@@ -68,7 +68,6 @@ class MysqliIntegration extends Integration
                 } else {
                     MysqliIntegration::setConnectionInfo($span, $result);
                 }
-                $scope->close();
             } catch (\Exception $ex) {
                 $span->setError($ex);
                 $thrown = $ex;
