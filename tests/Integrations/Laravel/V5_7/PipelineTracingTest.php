@@ -10,7 +10,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class PipelineTracingTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait, SpanAssertionTrait;
+    use TracerTestTrait;
+    use SpanAssertionTrait;
 
     protected static function getAppIndexScript()
     {

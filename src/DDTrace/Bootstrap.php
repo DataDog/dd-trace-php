@@ -148,9 +148,10 @@ final class Bootstrap
      */
     public static function parseStatusCode($headersLine)
     {
-        if (empty($headersLine)
-                || !is_string($headersLine)
-                || substr(strtoupper($headersLine), 0, 5) !== 'HTTP/'
+        if (
+            empty($headersLine)
+            || !is_string($headersLine)
+            || substr(strtoupper($headersLine), 0, 5) !== 'HTTP/'
         ) {
             return null;
         }

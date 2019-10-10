@@ -47,8 +47,8 @@
     "prefer-stable": true,
     "scripts": {
         "fix-lint": "phpcbf",
-        "lint": "phpcs -s --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php",
-        "lint-5.4": "phpcs -s --runtime-set testVersion 5.4-7.3 --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php",
+        "lint": "phpcs -s --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/",
+        "lint-5.4": "phpcs -s --runtime-set testVersion 5.4-7.3 --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/",
         "static-analyze": "phpstan analyse --level=2 src",
         "run-agent": [
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
@@ -224,6 +224,7 @@
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-70": [
+            "@codeigniter-22-test",
             "@laravel-42-update",
             "@laravel-42-test",
             "@slim-312-update",
@@ -233,10 +234,12 @@
             "@symfony-30-suite",
             "@symfony-33-suite",
             "@symfony-34-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-71": [
+            "@codeigniter-22-test",
             "@laravel-42-update",
             "@laravel-42-test",
             "@laravel-57-update",
@@ -258,10 +261,12 @@
             "@symfony-34-suite",
             "@symfony-40-suite",
             "@symfony-42-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-72": [
+            "@codeigniter-22-test",
             "@laravel-42-update",
             "@laravel-42-test",
             "@laravel-57-update",
@@ -286,10 +291,12 @@
             "@symfony-34-test",
             "@symfony-40-suite",
             "@symfony-42-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-73": [
+            "@codeigniter-22-test",
             "@laravel-57-update",
             "@laravel-57-test",
             "@laravel-58-update",
@@ -304,6 +311,7 @@
             "@slim-312-test",
             "@symfony-40-suite",
             "@symfony-42-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -317,6 +325,8 @@
 
         "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",
         "cakephp-28-test": "@composer test -- --testsuite=cakephp-28-test",
+
+        "codeigniter-22-test": "@composer test -- --testsuite=codeigniter-22-test",
 
         "laravel-42-update": "@composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
         "laravel-42-optimize": "@php tests/Frameworks/Laravel/Version_4_2/artisan optimize",
@@ -386,6 +396,8 @@
         ],
         "symfony-42-test": "@composer test -- tests/Integrations/Symfony/V4_2",
         "symfony-42-suite": [ "@symfony-42-update", "@symfony-42-test" ],
+
+        "wordpress-48-test": "@composer test -- tests/Integrations/WordPress/V4_8",
 
         "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1",
 

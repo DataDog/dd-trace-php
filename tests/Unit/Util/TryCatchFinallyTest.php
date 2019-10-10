@@ -14,7 +14,7 @@ namespace {
         throw new CustomException('an exception');
     }
 }
-
+// phpcs:disable PSR12.Files.FileHeader.SpacingAfterBlock
 namespace DDTrace\Tests\Unit\Util {
 
     use DDTrace\Tests\DebugTransport;
@@ -197,6 +197,7 @@ namespace DDTrace\Tests\Unit\Util {
             );
         }
     }
+
     class CustomException extends \Exception
     {
     }

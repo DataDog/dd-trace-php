@@ -227,20 +227,21 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
     fci.no_separation = 1;
     fci.symbol_table = NULL;
 
-    zval args = {0};
-    if (0 == get_args(&args, prev_ex)) {
-        zval_dtor(&args);
+    zval *args;
+    ALLOC_INIT_ZVAL(args);
+    if (0 == get_args(args, prev_ex)) {
+        zval_ptr_dtor(&args);
         zend_throw_exception_ex(spl_ce_RuntimeException, 0 TSRMLS_CC, "Cannot forward original function arguments");
         return;
     }
-    zend_fcall_info_args(&fci, &args TSRMLS_CC);
+    zend_fcall_info_args(&fci, args TSRMLS_CC);
 
     if (zend_call_function(&fci, &fcc TSRMLS_CC) == SUCCESS && fci.retval_ptr_ptr && *fci.retval_ptr_ptr) {
         COPY_PZVAL_TO_ZVAL(*return_value, *fci.retval_ptr_ptr);
     }
 
     zend_fcall_info_args_clear(&fci, 1);
-    zval_dtor(&args);
+    zval_ptr_dtor(&args);
 }
 
 static zend_function *_get_current_fbc(zend_execute_data *execute_data TSRMLS_DC) {
@@ -328,23 +329,41 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
 }
 
 void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args) {
-    INIT_ZVAL(*user_args);
-    // @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_builtin_functions.c#L447-L473
+    /* This is taken from func_get_args
+     * PHP 5.3 - 5.5 are the same:
+     * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_builtin_functions.c#L445-L473
+     * In 5.6 it changed:
+     * @see https://github.com/php/php-src/blob/PHP-5.6/Zend/zend_builtin_functions.c#L443-L476
+     */
     void **p = EX(function_state).arguments;
     if (p && *p) {
         int arg_count = (int)(zend_uintptr_t)*p;
         array_init_size(user_args, arg_count);
         for (int i = 0; i < arg_count; i++) {
+#if PHP_VERSION_ID < 50600
             zval *element;
 
             ALLOC_ZVAL(element);
             *element = **((zval **)(p - (arg_count - i)));
             zval_copy_ctor(element);
             INIT_PZVAL(element);
+#else
+            zval *element, *arg;
+
+            arg = *((zval **)(p - (arg_count - i)));
+            if (!Z_ISREF_P(arg)) {
+                element = arg;
+                Z_ADDREF_P(element);
+            } else {
+                ALLOC_ZVAL(element);
+                INIT_PZVAL_COPY(element, arg);
+                zval_copy_ctor(element);
+            }
+#endif
             zend_hash_next_index_insert(Z_ARRVAL_P(user_args), &element, sizeof(zval *), NULL);
         }
     } else {
-        array_init_size(user_args, 0);
+        array_init(user_args);
     }
 }
 

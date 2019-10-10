@@ -3,10 +3,15 @@
 #include <Zend/zend_interfaces.h>
 #include <php.h>
 
+#if PHP_VERSION_ID >= 70000
+#include <Zend/zend_smart_str.h>
+#endif
+
 #include <ext/spl/spl_exceptions.h>
 
 #include "ddtrace.h"
 #include "dispatch_compat.h"
+#include "logging.h"
 #include "mpack/mpack.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -187,6 +192,118 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
     add_assoc_zval(el, name, value);
 }
 
+/* gettraceasstring() macros
+ * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L364-L395
+ * {{{ */
+#define _DD_TRACE_APPEND_STRL(val, vallen)           \
+    {                                                \
+        int l = vallen;                              \
+        *str = (char *)erealloc(*str, *len + l + 1); \
+        memcpy((*str) + *len, val, l);               \
+        *len += l;                                   \
+    }
+
+#define _DD_TRACE_APPEND_STR(val) _DD_TRACE_APPEND_STRL(val, sizeof(val) - 1)
+
+#define _DD_TRACE_APPEND_KEY(key)                                          \
+    if (zend_hash_find(ht, key, sizeof(key), (void **)&tmp) == SUCCESS) {  \
+        if (Z_TYPE_PP(tmp) != IS_STRING) {                                 \
+            /* zend_error(E_WARNING, "Value for %s is no string", key); */ \
+            _DD_TRACE_APPEND_STR("[unknown]");                             \
+        } else {                                                           \
+            _DD_TRACE_APPEND_STRL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp));     \
+        }                                                                  \
+    }
+/* }}} */
+
+/* This is modelled after _build_trace_string in PHP 5.4
+ * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L543-L605
+ */
+static int _trace_string(zval **frame TSRMLS_DC, int num_args, va_list args, zend_hash_key *hash_key) {
+    PHP5_UNUSED(hash_key);
+#ifdef ZTS
+    /* This arg is required for the zend_hash_apply_with_arguments function signature, but we don't need it */
+    PHP5_UNUSED(TSRMLS_C);
+#endif
+
+    char *s_tmp, **str;
+    int *len, *num;
+    long line;
+    HashTable *ht = Z_ARRVAL_PP(frame);
+    zval **file, **tmp;
+
+    if (Z_TYPE_PP(frame) != IS_ARRAY || num_args != 3) {
+        return ZEND_HASH_APPLY_KEEP;
+    }
+
+    str = va_arg(args, char **);
+    len = va_arg(args, int *);
+    num = va_arg(args, int *);
+
+    s_tmp = emalloc(1 + MAX_LENGTH_OF_LONG + 1 + 1);
+    sprintf(s_tmp, "#%d ", (*num)++);
+    _DD_TRACE_APPEND_STRL(s_tmp, strlen(s_tmp));
+    efree(s_tmp);
+    if (zend_hash_find(ht, "file", sizeof("file"), (void **)&file) == SUCCESS) {
+        if (Z_TYPE_PP(file) != IS_STRING) {
+            ddtrace_log_debug("serializer stack trace: Function name is not a string");
+            _DD_TRACE_APPEND_STR("[unknown function]");
+        } else {
+            if (zend_hash_find(ht, "line", sizeof("line"), (void **)&tmp) == SUCCESS) {
+                if (Z_TYPE_PP(tmp) == IS_LONG) {
+                    line = Z_LVAL_PP(tmp);
+                } else {
+                    ddtrace_log_debug("serializer stack trace: Line is not a long");
+                    line = 0;
+                }
+            } else {
+                line = 0;
+            }
+            s_tmp = emalloc(Z_STRLEN_PP(file) + MAX_LENGTH_OF_LONG + 4 + 1);
+            sprintf(s_tmp, "%s(%ld): ", Z_STRVAL_PP(file), line);
+            _DD_TRACE_APPEND_STRL(s_tmp, strlen(s_tmp));
+            efree(s_tmp);
+        }
+    } else {
+        _DD_TRACE_APPEND_STR("[internal function]: ");
+    }
+
+    _DD_TRACE_APPEND_KEY("class");
+    _DD_TRACE_APPEND_KEY("type");
+    _DD_TRACE_APPEND_KEY("function");
+
+    if (zend_hash_find(ht, "args", sizeof("args"), (void **)&tmp) == SUCCESS && Z_TYPE_PP(tmp) == IS_ARRAY &&
+        zend_hash_num_elements(Z_ARRVAL_PP(tmp))) {
+        _DD_TRACE_APPEND_STR("(...)\n");
+    } else {
+        _DD_TRACE_APPEND_STR("()\n");
+    }
+
+    return ZEND_HASH_APPLY_KEEP;
+}
+
+/* This is modelled after getTraceAsString in PHP 5.4
+ * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L607-L635
+ */
+static void _serialize_stack_trace(zval *meta, zval *trace TSRMLS_DC) {
+    char *res, **str, *s_tmp;
+    int res_len = 0, *len = &res_len, num = 0;
+
+    res = estrdup("");
+    str = &res;
+
+    zend_hash_apply_with_arguments(Z_ARRVAL_P(trace) TSRMLS_CC, (apply_func_args_t)_trace_string, 3, str, len, &num);
+
+    s_tmp = emalloc(1 + MAX_LENGTH_OF_LONG + 7 + 1);
+    sprintf(s_tmp, "#%d {main}", num);
+    _DD_TRACE_APPEND_STRL(s_tmp, strlen(s_tmp));
+    efree(s_tmp);
+
+    res[res_len] = '\0';
+
+    add_assoc_string(meta, "error.stack", res, 0);
+}
+
 static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRMLS_DC) {
     zend_uint class_name_len;
     const char *class_name;
@@ -201,14 +318,20 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRM
     add_assoc_long(el, "error", 1);
 
     zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "getmessage", &msg);
-    zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "gettraceasstring", &stack);
 
     /* add_assoc_stringl does not actually mutate the string, but we've either
      * already made a copy, or it will when it duplicates with dup param, so
      * if it did it should still be safe. */
     add_assoc_stringl(meta, "error.type", (char *)class_name, class_name_len, needs_copied);
     add_assoc_zval(meta, "error.msg", msg);
-    add_assoc_zval(meta, "error.stack", stack);
+
+    /* Note, we use Exception::getTrace() instead of getTraceAsString because
+     * function arguments can contain sensitive information. Since we do not
+     * have a comprehensive way to know which function arguments are sensitive
+     * we will just hide all of them. */
+    zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "gettrace", &stack);
+    _serialize_stack_trace(meta, stack TSRMLS_CC);
+    zval_ptr_dtor(&stack);
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
@@ -255,6 +378,98 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
     add_assoc_zval(el, (name), &value);
 }
 
+/* _DD_TRACE_APPEND_KEY is not exported */
+#define _DD_TRACE_APPEND_KEY(key)                                               \
+    do {                                                                        \
+        tmp = zend_hash_str_find(ht, key, sizeof(key) - 1);                     \
+        if (tmp) {                                                              \
+            if (Z_TYPE_P(tmp) != IS_STRING) {                                   \
+                /* zend_error(E_WARNING, "Value for %s is not string", key); */ \
+                smart_str_appends(str, "[unknown]");                            \
+            } else {                                                            \
+                smart_str_appends(str, Z_STRVAL_P(tmp));                        \
+            }                                                                   \
+        }                                                                       \
+    } while (0)
+
+/* This is modelled after _build_trace_string in PHP 7.0:
+ * @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_exceptions.c#L581-L638
+ */
+static void _trace_string(smart_str *str, HashTable *ht, uint32_t num) /* {{{ */
+{
+    zval *file, *tmp;
+
+    smart_str_appendc(str, '#');
+    smart_str_append_long(str, num);
+    smart_str_appendc(str, ' ');
+
+    file = zend_hash_str_find(ht, "file", sizeof("file") - 1);
+    if (file) {
+        if (Z_TYPE_P(file) != IS_STRING) {
+            ddtrace_log_debug("serializer stack trace: Function name is not a string");
+            smart_str_appends(str, "[unknown function]");
+        } else {
+            zend_long line;
+            tmp = zend_hash_str_find(ht, "line", sizeof("line") - 1);
+            if (tmp) {
+                if (Z_TYPE_P(tmp) == IS_LONG) {
+                    line = Z_LVAL_P(tmp);
+                } else {
+                    ddtrace_log_debug("serializer stack trace: Line is not a long");
+                    line = 0;
+                }
+            } else {
+                line = 0;
+            }
+            smart_str_append(str, Z_STR_P(file));
+            smart_str_appendc(str, '(');
+            smart_str_append_long(str, line);
+            smart_str_appends(str, "): ");
+        }
+    } else {
+        smart_str_appends(str, "[internal function]: ");
+    }
+    _DD_TRACE_APPEND_KEY("class");
+    _DD_TRACE_APPEND_KEY("type");
+    _DD_TRACE_APPEND_KEY("function");
+    tmp = zend_hash_str_find(ht, "args", sizeof("args") - 1);
+
+    /* If there were arguments, show an ellipsis, otherwise nothing */
+    if (tmp && Z_TYPE_P(tmp) == IS_ARRAY && zend_hash_num_elements(Z_ARRVAL_P(tmp))) {
+        smart_str_appends(str, "(...)\n");
+    } else {
+        smart_str_appends(str, "()\n");
+    }
+}
+
+/* Modelled after getTraceAsString from PHP 5.4:
+ * @see https://lxr.room11.org/xref/php-src%405.4/Zend/zend_exceptions.c#609-635
+ */
+static void _serialize_stack_trace(zval *meta, zval *trace) {
+    zval *frame, output;
+    smart_str str = {0};
+    uint32_t num = 0;
+
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(trace), frame) {
+        if (Z_TYPE_P(frame) != IS_ARRAY) {
+            /* zend_error(E_WARNING, "Expected array for frame %" ZEND_ULONG_FMT_SPEC, index); */
+            continue;
+        }
+
+        _trace_string(&str, Z_ARRVAL_P(frame), num++);
+    }
+    ZEND_HASH_FOREACH_END();
+
+    smart_str_appendc(&str, '#');
+    smart_str_append_long(&str, num);
+    smart_str_appends(&str, " {main}");
+    smart_str_0(&str);
+
+    ZVAL_NEW_STR(&output, str.s);
+
+    add_assoc_zval(meta, "error.stack", &output);
+}
+
 static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
     zval exception, name, msg, stack;
     if (!span->exception) {
@@ -267,11 +482,17 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
 
     ZVAL_STR(&name, Z_OBJCE(exception)->name);
     zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "getmessage", &msg);
-    zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "gettraceasstring", &stack);
 
     _add_assoc_zval_copy(meta, "error.type", &name);
     add_assoc_zval(meta, "error.msg", &msg);
-    add_assoc_zval(meta, "error.stack", &stack);
+
+    /* Note, we use Exception::getTrace() instead of getTraceAsString because
+     * function arguments can contain sensitive information. Since we do not
+     * have a comprehensive way to know which function arguments are sensitive
+     * we will just hide all of them. */
+    zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "gettrace", &stack);
+    _serialize_stack_trace(meta, &stack);
+    zval_ptr_dtor(&stack);
 }
 
 void _serialize_meta(zval *el, ddtrace_span_t *span) {

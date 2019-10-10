@@ -72,7 +72,8 @@ test_extension_ci: $(SO_FILE)
 	$(MAKE) -C $(BUILD_DIR) test  TESTS="-q --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean test  TESTS="-q -m --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
+	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean test  TESTS="-q -m -s $$TEST_PHP_OUTPUT --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT  && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
 test_integration: install_ini

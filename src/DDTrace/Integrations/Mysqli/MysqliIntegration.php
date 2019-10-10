@@ -68,7 +68,39 @@ class MysqliIntegration extends Integration
                 } else {
                     MysqliIntegration::setConnectionInfo($span, $result);
                 }
-                $scope->close();
+            } catch (\Exception $ex) {
+                $span->setError($ex);
+                $thrown = $ex;
+            }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $result;
+        });
+
+        dd_trace('mysqli_real_connect', function () {
+            $args = func_get_args();
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = MysqliIntegration::initScope('mysqli_real_connect', 'mysqli_real_connect');
+            $span = $scope->getSpan();
+
+            $thrown = null;
+            $result = null;
+            try {
+                // Depending on configuration, connections errors can both cause an exception and return false
+                $result = dd_trace_forward_call();
+                if ($result === false) {
+                    $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
+                } elseif (count($args) > 0) {
+                    MysqliIntegration::setConnectionInfo($span, $args[0]);
+                }
             } catch (\Exception $ex) {
                 $span->setError($ex);
                 $thrown = $ex;
@@ -90,6 +122,7 @@ class MysqliIntegration extends Integration
         //      [, string $socket = ini_get("mysqli.default_socket") ]]]]]] )
         $mysqli_constructor = PHP_MAJOR_VERSION > 5 ? '__construct' : 'mysqli';
         dd_trace('mysqli', $mysqli_constructor, function () use ($mysqli_constructor) {
+            $args = func_get_args();
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -103,10 +136,13 @@ class MysqliIntegration extends Integration
             $thrown = null;
             try {
                 dd_trace_forward_call();
-                //Mysqli::storeConnectionParams($this, $args);
                 if (mysqli_connect_errno()) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
-                } else {
+                } elseif (count($args)) {
+                    // Host can either be provided as constructor arg or after
+                    // through ->real_connect(...). In this latter case an error
+                    // `Property access is not allowed yet` would be thrown when
+                    // accessing host info.
                     MysqliIntegration::setConnectionInfo($span, $this);
                 }
             } catch (\Exception $ex) {
@@ -121,6 +157,46 @@ class MysqliIntegration extends Integration
 
             return $this;
         });
+
+        // bool mysqli_stmt_get_result ( mysqli_stmt $stmt )
+        dd_trace('mysqli', 'real_connect', function ($stmt) {
+            $args = func_get_args();
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            $scope = MysqliIntegration::initScope('mysqli.real_connect', 'mysqli.real_connect');
+            /** @var \DDTrace\Span $span */
+            $span = $scope->getSpan();
+
+            // PHP 5.4 compatible try-catch-finally
+            $thrown = null;
+            $result = null;
+            try {
+                $result = dd_trace_forward_call();
+                if (mysqli_connect_errno()) {
+                    $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
+                } elseif (count($args)) {
+                    // Host can either be provided as constructor arg or after
+                    // through ->real_connect(...). In this latter case an error
+                    // `Property access is not allowed yet` would be thrown when
+                    // accessing host info.
+                    MysqliIntegration::setConnectionInfo($span, $this);
+                }
+            } catch (\Exception $ex) {
+                $thrown = $ex;
+                $span->setError($ex);
+            }
+
+            $scope->close();
+            if ($thrown) {
+                throw $thrown;
+            }
+
+            return $result;
+        });
+
 
         // mixed mysqli_query ( mysqli $link , string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
         dd_trace('mysqli_query', function () {

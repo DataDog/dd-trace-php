@@ -1,6 +1,5 @@
 <?php
 
-
 namespace DDTrace\Integrations\Guzzle;
 
 use DDTrace\Configuration;
@@ -199,8 +198,10 @@ final class GuzzleIntegration extends Integration
     {
         $headers = [];
 
-        if (is_a($request, '\GuzzleHttp\Message\MessageInterface')
-                || is_a($request, '\Psr\Http\Message\MessageInterface')) {
+        if (
+            is_a($request, '\GuzzleHttp\Message\MessageInterface')
+            || is_a($request, '\Psr\Http\Message\MessageInterface')
+        ) {
             // Associative array of header names to values
             $headers = $request->getHeaders();
         }

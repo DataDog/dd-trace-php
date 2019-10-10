@@ -2,8 +2,10 @@
 
 namespace DDTrace\Bridge;
 
-if (!defined('DD_TRACE_VERSION')
-    || !file_exists(__DIR__ . '/../src/DDTrace/version.php')) {
+if (
+    !defined('DD_TRACE_VERSION')
+    || !file_exists(__DIR__ . '/../src/DDTrace/version.php')
+) {
     function_exists('dd_trace_disable_in_request') && dd_trace_disable_in_request();
     return;
 }

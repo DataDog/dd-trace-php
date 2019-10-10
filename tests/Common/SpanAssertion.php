@@ -99,6 +99,9 @@ final class SpanAssertion
     public function setError($errorType = null, $errorMessage = null, $exceptionThrown = false)
     {
         $this->hasError = true;
+        if (!is_array($this->exactTags)) {
+            $this->exactTags = [];
+        }
         if (isset($this->exactTags[Tag::ERROR_TYPE])) {
             return $this;
         }

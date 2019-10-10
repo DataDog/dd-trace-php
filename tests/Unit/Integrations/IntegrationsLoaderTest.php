@@ -6,6 +6,7 @@ use DDTrace\Configuration;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Util\Versions;
 
 final class IntegrationsLoaderTest extends BaseTestCase
 {
@@ -14,26 +15,14 @@ final class IntegrationsLoaderTest extends BaseTestCase
         'integration_2' => 'DDTrace\Tests\Unit\Integrations\DummyIntegration2',
     ];
 
-    public static function setUpBeforeClass()
-    {
-        parent::setUpBeforeClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED=false');
-    }
-
-    public function testGlobalLoaderDefaultsToOfficiallySupportedIntegrations()
-    {
-        $this->assertEquals(
-            IntegrationsLoader::$officiallySupportedIntegrations,
-            IntegrationsLoader::get()->getIntegrations()
-        );
-    }
-
     public function testIntegrationsCanBeProvidedToLoader()
     {
         $integration = [
             'name' => 'class',
         ];
-        $this->assertEquals($integration, (new IntegrationsLoader($integration))->getIntegrations());
+        $integrations = (new IntegrationsLoader($integration))->getIntegrations();
+        self::assertArrayHasKey('name', $integrations);
+        self::assertEquals('class', $integrations['name']);
     }
 
     public function testGlobalConfigCanDisableLoading()
@@ -159,8 +148,14 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testWeDidNotForgetToRegisterALibraryForAutoLoading()
     {
+        if (Versions::phpVersionMatches('5.4')) {
+            $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4 so we cannot check for all integrations.');
+        }
         $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
-        $loaded = $this->normalize(array_keys(IntegrationsLoader::get()->getIntegrations()));
+        \ksort($expected);
+        $integrations = IntegrationsLoader::get()->getIntegrations();
+        \ksort($integrations);
+        $loaded = $this->normalize(array_keys($integrations));
 
         // If this test fails you need to add an entry to IntegrationsLoader::LIBRARIES array.
         $this->assertEquals(array_values($expected), array_values($loaded));

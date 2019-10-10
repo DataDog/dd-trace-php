@@ -6,7 +6,6 @@ use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
-
 final class MysqliTest extends IntegrationTestCase
 {
     private static $host = 'mysql_integration';
@@ -96,6 +95,25 @@ final class MysqliTest extends IntegrationTestCase
         ]);
     }
 
+    public function testProceduralQueryRealConnect()
+    {
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_init();
+            \mysqli_real_connect($mysqli, self::$host, self::$user, self::$password, self::$db);
+            \mysqli_query($mysqli, 'SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('mysqli_real_connect', 'mysqli', 'sql', 'mysqli_real_connect')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags()),
+            SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags()),
+        ]);
+    }
+
     public function testConstructorQuery()
     {
         $traces = $this->isolateTracer(function () {
@@ -106,6 +124,26 @@ final class MysqliTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::exists('mysqli.__construct'),
+            SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags()),
+        ]);
+    }
+
+    public function testEmptyConstructorQuery()
+    {
+        $traces = $this->isolateTracer(function () {
+            $mysqli = new \mysqli();
+            $mysqli->real_connect(self::$host, self::$user, self::$password, self::$db);
+            $mysqli->query('SELECT * from tests');
+            $mysqli->close();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('mysqli.__construct'),
+            SpanAssertion::build('mysqli.real_connect', 'mysqli', 'sql', 'mysqli.real_connect')
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
@@ -187,7 +225,6 @@ final class MysqliTest extends IntegrationTestCase
 
         $this->assertEmpty($traces);
     }
-
 
     public function testProceduralPreparedStatement()
     {
