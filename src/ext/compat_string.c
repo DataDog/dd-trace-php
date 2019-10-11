@@ -48,12 +48,11 @@ void ddtrace_downcase_zval(zval *src) {
 #endif
 
 #if PHP_VERSION_ID < 70000
-void ddtrace_convert_to_string(zval *dst, zval *src ZEND_FILE_LINE_DC TSRMLS_DC) {
+void ddtrace_convert_to_string(zval *dst, zval *src TSRMLS_DC) {
     switch (Z_TYPE_P(src)) {
         case IS_BOOL:
             if (Z_LVAL_P(src)) {
-                Z_STRVAL_P(dst) = estrndup_rel("1", 1);
-                Z_STRLEN_P(dst) = 1;
+                ZVAL_STRING(dst, "1", 1);
                 break;
             }
             /* fall through */
@@ -76,8 +75,7 @@ void ddtrace_convert_to_string(zval *dst, zval *src ZEND_FILE_LINE_DC TSRMLS_DC)
             break;
 
         case IS_ARRAY:
-            Z_STRVAL_P(dst) = estrndup_rel("Array", sizeof("Array") - 1);
-            Z_STRLEN_P(dst) = sizeof("Array") - 1;
+            ZVAL_STRING(dst, "Array", 1);
             break;
 
         case IS_OBJECT: {
@@ -89,7 +87,7 @@ void ddtrace_convert_to_string(zval *dst, zval *src ZEND_FILE_LINE_DC TSRMLS_DC)
                 zval *newop = Z_OBJ_HANDLER_P(src, get)(src TSRMLS_CC);
                 if (Z_TYPE_P(newop) != IS_OBJECT) {
                     /* for safety - avoid loop */
-                    ddtrace_convert_to_string(dst, newop ZEND_FILE_LINE_CC TSRMLS_CC);
+                    ddtrace_convert_to_string(dst, newop TSRMLS_CC);
 
                     // I think?
                     zval_dtor(newop);
@@ -108,7 +106,7 @@ void ddtrace_convert_to_string(zval *dst, zval *src ZEND_FILE_LINE_DC TSRMLS_DC)
         case IS_CONSTANT:
         case IS_STRING:
             ZVAL_COPY_VALUE(dst, src);
-            _zval_copy_ctor_func(dst ZEND_FILE_LINE_CC);
+            zval_copy_ctor(dst);
             return;
 
             EMPTY_SWITCH_DEFAULT_CASE()

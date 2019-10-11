@@ -23,10 +23,6 @@ size_t ddtrace_spprintf(char **message, size_t max_len, char *format, ...);
  *      object(%s)#%d, where %s is the class name and %d is the object handle
  *      (like var_dump).
  **/
-#if PHP_VERSION_ID < 70000
-void ddtrace_convert_to_string(zval *dst, zval *src ZEND_FILE_LINE_DC TSRMLS_DC);
-#else
-void ddtrace_convert_to_string(zval *dst, zval *src);
-#endif
+void ddtrace_convert_to_string(zval *dst, zval *src TSRMLS_DC);
 
 #endif  // COMPAT_STRING_H

@@ -354,7 +354,7 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
                 // Convert numeric key to string
             }
             ALLOC_INIT_ZVAL(val_as_string);
-            ddtrace_convert_to_string(val_as_string, *orig_val ZEND_FILE_LINE_CC TSRMLS_CC);
+            ddtrace_convert_to_string(val_as_string, *orig_val TSRMLS_CC);
             add_assoc_zval_ex(meta, str_key, str_key_len, val_as_string);
             if (key_type != HASH_KEY_IS_STRING) {
                 // Free numeric key as string
@@ -386,7 +386,7 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
         zval *prop_as_string;                                                                \
         if (Z_TYPE_P(prop) != IS_NULL) {                                                     \
             ALLOC_INIT_ZVAL(prop_as_string);                                                 \
-            ddtrace_convert_to_string(prop_as_string, prop ZEND_FILE_LINE_CC TSRMLS_CC);     \
+            ddtrace_convert_to_string(prop_as_string, prop TSRMLS_CC);                       \
             add_assoc_zval(el, name, prop_as_string);                                        \
         }                                                                                    \
     } while (0);
