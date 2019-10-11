@@ -52,8 +52,8 @@ void ddtrace_convert_to_string(zval *dst, zval *src ZEND_FILE_LINE_DC TSRMLS_DC)
     switch (Z_TYPE_P(src)) {
         case IS_BOOL:
             if (Z_LVAL_P(src)) {
-                Z_STRVAL_P(src) = estrndup_rel("1", 1);
-                Z_STRLEN_P(src) = 1;
+                Z_STRVAL_P(dst) = estrndup_rel("1", 1);
+                Z_STRLEN_P(dst) = 1;
                 break;
             }
             /* fall through */
@@ -113,7 +113,7 @@ void ddtrace_convert_to_string(zval *dst, zval *src ZEND_FILE_LINE_DC TSRMLS_DC)
 
             EMPTY_SWITCH_DEFAULT_CASE()
     }
-    Z_TYPE_P(src) = IS_STRING;
+    Z_TYPE_P(dst) = IS_STRING;
 }
 
 #else
