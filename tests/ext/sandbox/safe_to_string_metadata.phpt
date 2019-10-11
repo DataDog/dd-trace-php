@@ -86,13 +86,13 @@ float(4.2)
 string(3) "4.2"
 
 bool(true)
-string(1) "1"
+string(6) "(true)"
 
 bool(false)
-string(0) ""
+string(7) "(false)"
 
 NULL
-string(0) ""
+string(6) "(null)"
 
 object(Closure)#%d (0) {
 }

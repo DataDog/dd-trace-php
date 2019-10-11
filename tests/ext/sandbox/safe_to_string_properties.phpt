@@ -113,16 +113,16 @@ NULL
 'type' dropped
 
 bool(false)
-string(0) ""
-string(0) ""
-string(0) ""
-string(0) ""
+string(7) "(false)"
+string(7) "(false)"
+string(7) "(false)"
+string(7) "(false)"
 
 bool(true)
-string(1) "1"
-string(1) "1"
-string(1) "1"
-string(1) "1"
+string(6) "(true)"
+string(6) "(true)"
+string(6) "(true)"
+string(6) "(true)"
 
 float(4.2)
 string(3) "4.2"

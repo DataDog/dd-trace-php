@@ -52,14 +52,14 @@ void ddtrace_convert_to_string(zval *dst, zval *src TSRMLS_DC) {
     switch (Z_TYPE_P(src)) {
         case IS_BOOL:
             if (Z_LVAL_P(src)) {
-                ZVAL_STRING(dst, "1", 1);
-                break;
+                ZVAL_STRING(dst, "(true)", 1);
+            } else {
+                ZVAL_STRING(dst, "(false)", 1);
             }
-            /* fall through */
+            break;
 
         case IS_NULL:
-            Z_STRVAL_P(dst) = STR_EMPTY_ALLOC();
-            Z_STRLEN_P(dst) = 0;
+            ZVAL_STRING(dst, "(null)", 1);
             break;
 
         case IS_RESOURCE:
@@ -121,16 +121,16 @@ static zend_string *_ddtrace_convert_to_string(zval *op) {
 try_again:
     switch (Z_TYPE_P(op)) {
         case IS_UNDEF:
+            return zend_string_init("(undef)", sizeof("(undef)") - 1, 0);
+
         case IS_NULL:
+            return zend_string_init("(null)", sizeof("(null)") - 1, 0);
+
         case IS_FALSE:
-            return ZSTR_EMPTY_ALLOC();
+            return zend_string_init("(false)", sizeof("(false)") - 1, 0);
 
         case IS_TRUE:
-#if PHP_VERSION_ID < 70200
-            return CG(one_char_string)['1'] ? CG(one_char_string)['1'] : zend_string_init("1", 1, 0);
-#else
-            return ZSTR_CHAR('1');
-#endif
+            return zend_string_init("(true)", sizeof("(true)") - 1, 0);
 
         case IS_RESOURCE:
             return strpprintf(0, "Resource id #" ZEND_LONG_FMT, (zend_long)Z_RES_HANDLE_P(op));
