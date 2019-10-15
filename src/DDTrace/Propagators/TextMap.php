@@ -39,6 +39,9 @@ final class TextMap implements Propagator
         if (PrioritySampling::UNKNOWN !== $prioritySampling) {
             $carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER] = $prioritySampling;
         }
+        if (!empty($spanContext->origin)) {
+            $carrier[Propagator::DEFAULT_ORIGIN_HEADER] = $spanContext->origin;
+        }
     }
 
     /**
@@ -67,6 +70,7 @@ final class TextMap implements Propagator
 
         $spanContext = new SpanContext($traceId, $spanId, null, $baggageItems, true);
         $this->extractPrioritySampling($spanContext, $carrier);
+        $this->extractOrigin($spanContext, $carrier);
         return $spanContext;
     }
 
@@ -100,6 +104,22 @@ final class TextMap implements Propagator
         if (isset($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER])) {
             $rawValue = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]);
             $spanContext->setPropagatedPrioritySampling(PrioritySampling::parse($rawValue));
+        }
+    }
+
+    /**
+     * Extract the origin from the carrier.
+     *
+     * @param SpanContextInterface $spanContext
+     * @param array $carrier
+     */
+    private function extractOrigin(SpanContextInterface $spanContext, $carrier)
+    {
+        if (
+            property_exists($spanContext, 'origin')
+            && isset($carrier[Propagator::DEFAULT_ORIGIN_HEADER])
+        ) {
+            $spanContext->origin = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_ORIGIN_HEADER]);
         }
     }
 }

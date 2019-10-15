@@ -45,6 +45,13 @@ abstract class SpanContext implements SpanContextInterface
     public $propagatedPrioritySampling;
 
     /**
+     * The origin of the distributed trace.
+     *
+     * @var string|null
+     */
+    public $origin;
+
+    /**
      * @var SpanContextInterface
      */
     public $parentContext;

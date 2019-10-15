@@ -33,23 +33,11 @@ final class CurlHeadersMap implements Propagator
     {
         foreach ($carrier as $index => $value) {
             if (
-                substr($value, 0, strlen(Propagator::DEFAULT_TRACE_ID_HEADER))
-                === Propagator::DEFAULT_TRACE_ID_HEADER
-            ) {
-                unset($carrier[$index]);
-            } elseif (
-                substr($value, 0, strlen(Propagator::DEFAULT_PARENT_ID_HEADER))
-                === Propagator::DEFAULT_PARENT_ID_HEADER
-            ) {
-                unset($carrier[$index]);
-            } elseif (
-                substr($value, 0, strlen(Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX))
-                === Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX
-            ) {
-                unset($carrier[$index]);
-            } elseif (
-                substr($value, 0, strlen(Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER))
-                === Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER
+                strpos($value, Propagator::DEFAULT_TRACE_ID_HEADER) === 0
+                || strpos($value, Propagator::DEFAULT_PARENT_ID_HEADER) === 0
+                || strpos($value, Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX) === 0
+                || strpos($value, Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER) === 0
+                || strpos($value, Propagator::DEFAULT_ORIGIN_HEADER) === 0
             ) {
                 unset($carrier[$index]);
             }
@@ -65,6 +53,9 @@ final class CurlHeadersMap implements Propagator
         $prioritySampling = $this->tracer->getPrioritySampling();
         if (PrioritySampling::UNKNOWN !== $prioritySampling) {
             $carrier[] = Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER . ': ' . $prioritySampling;
+        }
+        if (!empty($spanContext->origin)) {
+            $carrier[] = Propagator::DEFAULT_ORIGIN_HEADER . ': ' . $spanContext->origin;
         }
     }
 

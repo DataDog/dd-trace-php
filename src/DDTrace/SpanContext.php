@@ -40,6 +40,12 @@ final class SpanContext extends SpanContextData
         );
         $instance->parentContext = $parentContext;
         $instance->setPropagatedPrioritySampling($parentContext->getPropagatedPrioritySampling());
+        if (
+            property_exists($instance, 'origin')
+            && !empty($parentContext->origin)
+        ) {
+            $instance->origin = $parentContext->origin;
+        }
         return $instance;
     }
 

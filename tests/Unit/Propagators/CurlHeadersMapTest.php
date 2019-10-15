@@ -87,4 +87,16 @@ final class CurlHeadersMapTest extends Framework\TestCase
             'ot-baggage-' . self::BAGGAGE_ITEM_KEY . ': ' . self::BAGGAGE_ITEM_VALUE,
         ], array_values($carrier));
     }
+
+    public function testOriginIsPropagated()
+    {
+        $rootContext = SpanContext::createAsRoot();
+        $rootContext->origin = 'foo_origin';
+        $context = SpanContext::createAsChild($rootContext);
+
+        $carrier = [];
+        (new CurlHeadersMap($this->tracer))->inject($context, $carrier);
+
+        $this->assertContains('x-datadog-origin: foo_origin', $carrier);
+    }
 }
