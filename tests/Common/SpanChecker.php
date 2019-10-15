@@ -10,6 +10,109 @@ use PHPUnit\Framework\TestCase;
 final class SpanChecker
 {
     /**
+     * Asserts a flame graph with parent child relations.
+     *
+     * @param array $traces
+     * @param array $expectedFlameGraph
+     */
+    public function assertFlameGraph(array $traces, array $expectedFlameGraph)
+    {
+        $flattenTraces = $this->flattenTraces($traces);
+        $actualGraph = $this->buildSpansGraph($flattenTraces);
+        foreach ($expectedFlameGraph as $oneTrace) {
+            $this->assertNode($actualGraph, $oneTrace);
+        }
+    }
+
+    /**
+     * @param array $graph
+     * @param SpanAssertion $expectedNodeRoot
+     */
+    private function assertNode($graph, SpanAssertion $expectedNodeRoot)
+    {
+        $found = array_values(array_filter($graph, function (array $node) use ($expectedNodeRoot) {
+            return $node['span']['name'] === $expectedNodeRoot->getOperationName()
+                && $node['span']['resource'] === $expectedNodeRoot->getResource();
+        }));
+
+        if (count($found) > 1) {
+            TestCase::fail(
+                'Edge case not handled, more than one span with same name and resource at the same level: '
+                . $expectedNodeRoot->getOperationName() . '/' . $expectedNodeRoot->getResource()
+            );
+            return;
+        } elseif (count($found) === 0) {
+            TestCase::fail(
+                'Cannot find at the current level name/resource: '
+                . $expectedNodeRoot->getOperationName() . '/' . $expectedNodeRoot->getResource()
+            );
+            return;
+        }
+
+        $node = $found[0];
+        $this->assertSpan($node['span'], $expectedNodeRoot);
+
+        $actualChildrenCount = count($node['children']);
+        $expectedChildrenCount = count($expectedNodeRoot->getChildren());
+
+        if ($actualChildrenCount !== $expectedChildrenCount) {
+            TestCase::fail(sprintf(
+                'Wrong number of children (actual %d, expected %d) for operation/resource: %s/%s',
+                $actualChildrenCount,
+                $expectedChildrenCount,
+                $expectedNodeRoot->getOperationName(),
+                $expectedNodeRoot->getResource()
+            ));
+            return;
+        }
+
+        foreach ($expectedNodeRoot->getChildren() as $child) {
+            $this->assertNode($node['children'], $child);
+        }
+    }
+
+    /**
+     * @param array $flatSpans
+     * @return array
+     */
+    private function buildSpansGraph(array $flatSpans)
+    {
+        $byId = [];
+        foreach ($flatSpans as $span) {
+            $byId[$span['span_id']] = ['span' => $span, 'children' => []];
+        }
+
+        do {
+            $lastCount = count($byId);
+            foreach ($byId as $id => $data) {
+                $span = $data['span'];
+                $hasPendingChildren = false;
+                foreach ($byId as $candidateId => $candidateData) {
+                    if ($candidateId === $id) {
+                        continue;
+                    }
+                    $candidateSpan = $candidateData['span'];
+                    if (!empty($candidateSpan['parent_id']) && $candidateSpan['parent_id'] === $id) {
+                        $hasPendingChildren = true;
+                        break;
+                    }
+                }
+                // If has pending children we cannot move it yet
+                if ($hasPendingChildren) {
+                    continue;
+                }
+
+                if (!empty($span['parent_id']) && array_key_exists($span['parent_id'], $byId)) {
+                    $byId[$span['parent_id']]['children'][] = $data;
+                    unset($byId[$span['span_id']]);
+                }
+            }
+        } while (count($byId) !== $lastCount);
+
+        return array_values($byId);
+    }
+
+    /**
      * Checks the exact match of a set of SpanAssertion with the provided Spans.
      *
      * @param $traces
