@@ -31,6 +31,7 @@ class Tag
     const BYTES_OUT = 'net.out.bytes';
     const ANALYTICS_KEY = '_dd1.sr.eausr';
     const HOSTNAME = '_dd.hostname';
+    const ORIGIN = '_dd.origin';
 
     // Elasticsearch
     const ELASTICSEARCH_BODY = 'elasticsearch.body';

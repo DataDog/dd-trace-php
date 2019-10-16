@@ -250,6 +250,26 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertSame('preserved_value', $found['headers']['Honored']);
     }
 
+    public function testOriginIsPropagatedAndSetsRootSpanTag()
+    {
+        $found = [];
+        $traces = $this->isolateTracer(function () use (&$found) {
+            /** @var Tracer $tracer */
+            $tracer = GlobalTracer::get();
+            $span = $tracer->startActiveSpan('custom')->getSpan();
+            $span->getContext()->origin = 'foo_origin';
+
+            $ch = curl_init(self::URL . '/headers');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $found = json_decode(curl_exec($ch), 1);
+
+            $span->finish();
+        });
+
+        $this->assertSame('foo_origin', $found['headers']['X-Datadog-Origin']);
+        $this->assertSame('foo_origin', $traces[0][0]['meta']['_dd.origin']);
+    }
+
     public function testDistributedTracingIsPropagatedOnCopiedHandle()
     {
         $found = [];

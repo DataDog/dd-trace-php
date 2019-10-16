@@ -7,6 +7,7 @@ use DDTrace\Data\Span as DataSpan;
 use DDTrace\GlobalTracer;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Tag;
 
 final class SpanEncoder
 {
@@ -43,6 +44,12 @@ final class SpanEncoder
         }
 
         $tags = $span->tags;
+        if (
+            !empty($span->context->origin)
+            && $span->context->isHostRoot()
+        ) {
+            $tags[Tag::ORIGIN] = $span->context->origin;
+        }
         if (!empty($tags)) {
             $arraySpan['meta'] = $tags;
         }
