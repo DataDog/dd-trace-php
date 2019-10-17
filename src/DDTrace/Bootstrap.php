@@ -88,10 +88,10 @@ final class Bootstrap
         $startSpanOptions = 'cli' === PHP_SAPI
             ? StartSpanOptions::create($options)
             : StartSpanOptionsFactory::createForWebRequest(
-                $tracer,
-                $options,
-                Request::getHeaders()
-            );
+            $tracer,
+            $options,
+            Request::getHeaders()
+        );
         $operationName = 'cli' === PHP_SAPI ? basename($_SERVER['argv'][0]) : 'web.request';
         $span = $tracer->startRootSpan($operationName, $startSpanOptions)->getSpan();
         $span->setIntegration(WebIntegration::getInstance());
