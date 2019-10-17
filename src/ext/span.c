@@ -131,3 +131,11 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(closed_spans_count) = 0;
 }
+
+void ddtrace_close_open_spans(TSRMLS_D) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    while (span != NULL) {
+        ddtrace_close_span(TSRMLS_C);
+        span = DDTRACE_G(open_spans_top);
+    }
+}

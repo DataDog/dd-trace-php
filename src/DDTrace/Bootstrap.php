@@ -30,14 +30,7 @@ final class Bootstrap
         self::initRootSpan();
         self::registerOpenTracing();
 
-        register_shutdown_function(function () {
-            dd_trace_disable_in_request(); //disable function tracing to speedup shutdown
-
-            $tracer = GlobalTracer::get();
-            $scopeManager = $tracer->getScopeManager();
-            $scopeManager->close();
-            $tracer->flush();
-        });
+        \register_shutdown_function(__CLASS__ . '::shutdown');
     }
 
     /**
@@ -166,5 +159,25 @@ final class Bootstrap
 
         // Vase don https://tools.ietf.org/html/rfc2616#section-6.1 the status code MUST be numeric.
         return (int) $parts[1];
+    }
+
+    /**
+     * This is called internally during RSHUTDOWN
+     * @return void
+     */
+    public static function shutdown()
+    {
+        \dd_trace_disable_in_request(); //disable function tracing to speedup shutdown
+
+        // In the future, default DD_AUTOFINISH_SPANS to on for both userland and internally made spans
+        $config = Configuration::get();
+        if ($config->boolValue('AUTOFINISH_SPANS', 0)) {
+            \ddtrace_close_open_spans();
+        }
+
+        $tracer = GlobalTracer::get();
+        $scopeManager = $tracer->getScopeManager();
+        $scopeManager->close();
+        $tracer->flush();
     }
 }
