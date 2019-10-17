@@ -845,6 +845,8 @@ workflows:
           resource_class: medium+
           integration_testsuite: "test-web-72"
           docker_image: "docker.pkg.github.com/datadog/dd-trace-ci/php-dev:7.2"
+          # Temporary workaround while we migrate all images to new versions
+          lib_curl_command: ":"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Web integration tests"
