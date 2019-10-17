@@ -9,6 +9,7 @@
 #include <php.h>
 #include <php_ini.h>
 #include <php_main.h>
+#include <signal.h>
 
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
@@ -26,6 +27,7 @@
 #include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
+#include "logging.h"
 #include "memory_limit.h"
 #include "random.h"
 #include "request_hooks.h"
@@ -100,6 +102,20 @@ static void register_span_data_ce(TSRMLS_D) {
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
+// true globals; only modify in MINIT/MSHUTDOWN
+static stack_t ddtrace_altstack;
+static struct sigaction ddtrace_sigaction;
+
+#define METRIC_CONST_TAGS "lang:php,lang_version:" PHP_VERSION ",tracer_version:" PHP_DDTRACE_VERSION
+
+static void ddtrace_sigsegv_handler(int sig) {
+    TSRMLS_FETCH();
+    // todo: report segfault to health metrics
+    ddtrace_log_errf("Segmentation fault");
+    ddtrace_log_errf("datadog.tracer.uncaught_exceptions:1|c|@1.0|#class:sigsegv," METRIC_CONST_TAGS);
+    exit(128 + sig);
+}
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
@@ -108,6 +124,21 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
+    }
+
+    /* Install a signal handler for SIGSEGV and run it on an alternate stack.
+     * Using an alternate stack allows the handler to run even when the main
+     * stack overflows.
+     */
+    if ((ddtrace_altstack.ss_sp = malloc(SIGSTKSZ))) {
+        ddtrace_altstack.ss_size = SIGSTKSZ;
+        ddtrace_altstack.ss_flags = 0;
+        if (sigaltstack(&ddtrace_altstack, NULL) == 0) {
+            ddtrace_sigaction.sa_flags = SA_ONSTACK;
+            ddtrace_sigaction.sa_handler = ddtrace_sigsegv_handler;
+            sigemptyset(&ddtrace_sigaction.sa_mask);
+            sigaction(SIGSEGV, &ddtrace_sigaction, NULL);
+        }
     }
 
     register_span_data_ce(TSRMLS_C);
@@ -132,6 +163,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+    free(ddtrace_altstack.ss_sp);
 
     // when extension is properly unloaded disable the at_exit hook
     ddtrace_coms_disable_atexit_hook();

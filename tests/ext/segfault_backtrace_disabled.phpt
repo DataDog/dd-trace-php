@@ -9,6 +9,9 @@ if (file_exists("/etc/os-release") && preg_match("/alpine/i", file_get_contents(
 <?php
 posix_kill(posix_getpid(), 11); // boom
 
+// should not execute; if a sigsegv handler is used it may happen
+echo "Continued after segfault?!\n";
+
 ?>
 --EXPECTREGEX--
 (Segmentation fault.*)|(Termsig=11)
