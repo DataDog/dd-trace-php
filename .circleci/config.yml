@@ -270,6 +270,25 @@ jobs:
           name: Running phpstan
           command: PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
+  "Post-Install Hook":
+    working_directory: ~/datadog
+    docker:
+      - image: docker.pkg.github.com/datadog/dd-trace-ci/php-nginx-apache2
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Start Supervisor
+          command: supervisord
+          background: true
+      - run:
+          name: Copy post-install script
+          command: |
+              mkdir -p /src/ddtrace-scripts
+              cp package/post-install.sh /src/ddtrace-scripts
+      - run:
+          name: Test post-install hook
+          command: bash tests/PostInstallHook/run-tests.sh
+
   unit_tests:
     parameters:
       docker_image:
@@ -897,4 +916,6 @@ workflows:
       - "Lint files":
           requires: [ 'Code Checkout' ]
       - "Static Analysis":
+          requires: [ 'Code Checkout' ]
+      - "Post-Install Hook":
           requires: [ 'Code Checkout' ]
