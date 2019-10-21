@@ -1,0 +1,9 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: dogstatsd_client
+Description: dogstatsd client written in C
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -ldogstatsd_client
+Cflags: -I${includedir}
