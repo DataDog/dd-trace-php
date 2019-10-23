@@ -235,6 +235,7 @@
             "@symfony-33-suite",
             "@symfony-34-suite",
             "@wordpress-48-test",
+            "@yii-2-suite",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -262,6 +263,7 @@
             "@symfony-40-suite",
             "@symfony-42-suite",
             "@wordpress-48-test",
+            "@yii-2-suite",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -292,6 +294,7 @@
             "@symfony-40-suite",
             "@symfony-42-suite",
             "@wordpress-48-test",
+            "@yii-2-suite",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -312,6 +315,7 @@
             "@symfony-40-suite",
             "@symfony-42-suite",
             "@wordpress-48-test",
+            "@yii-2-suite",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -398,6 +402,10 @@
         "symfony-42-suite": [ "@symfony-42-update", "@symfony-42-test" ],
 
         "wordpress-48-test": "@composer test -- tests/Integrations/WordPress/V4_8",
+
+        "yii-2-update": "@composer --working-dir=tests/Frameworks/Yii/Version_2_0_26 update",
+        "yii-2-test": "@composer test -- tests/Integrations/Yii/V2_0_26",
+        "yii-2-suite": [ "@yii-2-update", "@yii-2-test"],
 
         "zend-framework-1-test": "@composer test -- tests/Integrations/ZendFramework/V1",
 
