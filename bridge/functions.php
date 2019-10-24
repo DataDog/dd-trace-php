@@ -10,25 +10,37 @@ namespace DDTrace\Bridge;
 function dd_tracing_enabled()
 {
     if ('cli' === PHP_SAPI) {
-        $cliEnabled = getenv('DD_TRACE_CLI_ENABLED');
-        if (false === $cliEnabled) {
-            return false;
-        }
-        $cliEnabled = strtolower(trim($cliEnabled));
-        return 'true' === $cliEnabled || '1' === $cliEnabled;
+        return dd_env_as_boolean('DD_TRACE_CLI_ENABLED', false);
     }
 
-    $value = getenv('DD_TRACE_ENABLED');
-    if (false === $value) {
-        // Not setting the env means we default to enabled.
+    return dd_env_as_boolean('DD_TRACE_ENABLED', true);
+}
+
+/**
+ * Returns the boolean value of an environment variable:
+ *  - if NOT defined then returns $default
+ *  - if defined and equals (case-insensitive) to: 'true', '1' returns true
+ *  - if defined and equals (case-insensitive) to: 'false', '0' returns true
+ *  - otherwise returns $default
+ *
+ * @param string $name
+ * @param boolean $default
+ * @return bool
+ */
+function dd_env_as_boolean($name, $default)
+{
+    $envValue = getenv($name);
+    if ($envValue === false) {
+        return $default;
+    }
+
+    $envValue = strtolower(trim($envValue));
+    if ('true' === $envValue || '1' === $envValue) {
         return true;
-    }
-
-    $value = trim(strtolower($value));
-    if ($value === '0' || $value === 'false') {
+    } elseif ('false' === $envValue || '0' === $envValue) {
         return false;
     } else {
-        return true;
+        return $default;
     }
 }
 
@@ -103,6 +115,12 @@ function dd_wrap_autoloader()
         \dd_untrace('spl_autoload_register');
         return \dd_trace_forward_call();
     });
+
+    // User app is not using any autoloader we just import the initialization script
+    if (dd_env_as_boolean('DD_TRACE_NO_AUTOLOADER', false)) {
+        require __DIR__ . '/dd_init.php';
+        return;
+    }
 
     // Composer auto-generates a class loader with a varying name which follows the pattern
     // `ComposerAutoloaderInitaa9e6eaaeccc2dd24059c64bd3ff094c`. The name of this class varies and this variable is
