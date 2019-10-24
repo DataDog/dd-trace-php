@@ -19,8 +19,8 @@ function dd_tracing_enabled()
 /**
  * Returns the boolean value of an environment variable:
  *  - if NOT defined then returns $default
- *  - if defined and equals (case-insensitive) to: 'true', '1' returns true
- *  - if defined and equals (case-insensitive) to: 'false', '0' returns true
+ *  - if defined and equals (case-insensitive) to 'true' or '1' then returns true
+ *  - if defined and equals (case-insensitive) to 'false' or '0' then returns false
  *  - otherwise returns $default
  *
  * @param string $name
