@@ -350,14 +350,10 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
         zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(orig_meta), &pos);
         while (zend_hash_get_current_data_ex(Z_ARRVAL_P(orig_meta), (void **)&orig_val, &pos) == SUCCESS) {
             key_type = zend_hash_get_current_key_ex(Z_ARRVAL_P(orig_meta), &str_key, &str_key_len, &num_key, 0, &pos);
-            if (key_type != HASH_KEY_IS_STRING) {
-                // Convert numeric key to string
-            }
-            ALLOC_INIT_ZVAL(val_as_string);
-            ddtrace_convert_to_string(val_as_string, *orig_val TSRMLS_CC);
-            add_assoc_zval_ex(meta, str_key, str_key_len, val_as_string);
-            if (key_type != HASH_KEY_IS_STRING) {
-                // Free numeric key as string
+            if (key_type == HASH_KEY_IS_STRING) {
+                ALLOC_INIT_ZVAL(val_as_string);
+                ddtrace_convert_to_string(val_as_string, *orig_val TSRMLS_CC);
+                add_assoc_zval_ex(meta, str_key, str_key_len, val_as_string);
             }
             zend_hash_move_forward_ex(Z_ARRVAL_P(orig_meta), &pos);
         }
@@ -529,8 +525,10 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span) {
         zend_string *str_key;
         zval *orig_val, val_as_string;
         ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(meta), num_key, str_key, orig_val) {
-            ddtrace_convert_to_string(&val_as_string, orig_val);
-            add_assoc_zval(&meta_zv, ZSTR_VAL(str_key), &val_as_string);
+            if (str_key) {
+                ddtrace_convert_to_string(&val_as_string, orig_val);
+                add_assoc_zval(&meta_zv, ZSTR_VAL(str_key), &val_as_string);
+            }
         }
         ZEND_HASH_FOREACH_END();
     }

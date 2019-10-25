@@ -151,6 +151,7 @@
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
                         <file name="new_static.phpt" role="test" />
                         <file name="safe_to_string_metadata.phpt" role="test" />
+                        <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
                         <file name="safe_to_string_properties.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     </dir>
