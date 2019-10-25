@@ -205,6 +205,7 @@
             "@cakephp-28-test",
             "@laravel-42-update",
             "@laravel-42-test",
+            "@yii-2-suite",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -220,6 +221,7 @@
             "@symfony-30-suite",
             "@symfony-33-suite",
             "@symfony-34-suite",
+            "@yii-2-suite",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
