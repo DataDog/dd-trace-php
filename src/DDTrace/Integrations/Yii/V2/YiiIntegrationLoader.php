@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\Yii\V2;
 use DDTrace\Configuration;
 use DDTrace\Contracts\Scope;
 use DDTrace\GlobalTracer;
-use DDTrace\Http\Urls;
 use DDTrace\Integrations\Yii\YiiSandboxedIntegration;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
@@ -28,21 +27,13 @@ class YiiIntegrationLoader
         $root->setTraceAnalyticsCandidate();
         $service = Configuration::get()->appName(YiiSandboxedIntegration::NAME);
 
-        // This will also attach app.endpoint info to the root span
         \dd_trace_method(
             'yii\web\Application',
             'run',
-            function (SpanData $span) use ($root, $service) {
+            function (SpanData $span) use ($service) {
                 $span->name = $span->resource = \get_class($this) . '.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-
-                if (isset($this->controller->action->actionMethod)) {
-                    $controller = \get_class($this->controller);
-                    $endpoint = "{$controller}::{$this->controller->action->actionMethod}";
-                    $root->setTag("app.endpoint", $endpoint);
-                    $root->setTag(Tag::HTTP_URL, Url::base(true) . Url::current());
-                }
             }
         );
 
@@ -64,11 +55,36 @@ class YiiIntegrationLoader
         \dd_trace_method(
             'yii\base\Controller',
             'runAction',
-            function (SpanData $span, $args) use ($service) {
+            function (SpanData $span, $args) use ($service, $root) {
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
                 $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
+
+                if ($root->getTag('app.endpoint') === null && isset($this->action->actionMethod)) {
+                    $controller = \get_class($this);
+                    $endpoint = "{$controller}::{$this->action->actionMethod}";
+                    $root->setTag("app.endpoint", $endpoint);
+                    $root->setTag(Tag::HTTP_URL, Url::base(true) . Url::current());
+                }
+
+                if ($root->getTag('app.route.path') === null) {
+                    $route = $this->module->requestedRoute;
+                    $namedParams = [$route];
+                    $placeholders = [$route];
+                    if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
+                        foreach ($args[1] as $param => $unused) {
+                            $namedParams[$param] = ":{$param}";
+                            $placeholders[$param] = '?';
+                        }
+                    }
+
+                    $routePath = \urldecode(Url::toRoute($namedParams));
+                    $root->setTag('app.route.path', $routePath);
+
+                    $resourceName = \urldecode(Url::toRoute($placeholders));
+                    $root->setTag(Tag::RESOURCE_NAME, "{$_SERVER['REQUEST_METHOD']} {$resourceName}", true);
+                }
             }
         );
 
@@ -82,31 +98,6 @@ class YiiIntegrationLoader
                 $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
             }
         );
-
-        /* I'm hoping to be able to get app.route.path and proper root resource name out of this somehow:
-        \dd_trace_method('yii\web\Request', 'resolve', function (SpanData $span, $args, $retval, $ex) use ($service) {
-            $span->name = $span->resource = \get_class($this) . '.resolve';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $service;
-
-            $pathInfo = $this->getPathInfo();
-
-            if (!$ex) {
-                list($route, $params) = $retval;
-            }
-            return false;
-        });
-        */
-
-        $root->setTag(Tag::SERVICE_NAME, $service);
-        if ('cli' !== PHP_SAPI) {
-            $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
-            $root->setTag(
-                Tag::RESOURCE_NAME,
-                $_SERVER['REQUEST_METHOD'] . ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']),
-                true
-            );
-        }
 
         return Integration::LOADED;
     }
