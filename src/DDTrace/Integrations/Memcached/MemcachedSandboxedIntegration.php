@@ -154,7 +154,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
             if (!is_array($args[0])) {
                 $integration->setServerTagsByKey($span, $this, $args[0]);
                 $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
-                $span->meta['memcached.server_key'] = (string)$args[0];
+                $span->meta['memcached.server_key'] = $args[0];
             }
 
             $integration->markForTraceAnalytics($span, $command);
@@ -185,7 +185,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $integration->setCommonData($span, $command);
-            $span->meta['memcached.server_key'] = (string)$args[0];
+            $span->meta['memcached.server_key'] = $args[0];
             $integration->setServerTagsByKey($span, $this, $args[0]);
             $query = "$command " . Obfuscation::toObfuscatedString($args[1], ',');
             $span->meta['memcached.query'] = $query;
@@ -227,7 +227,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
         }
 
         $span->meta[Tag::TARGET_HOST] = $server['host'];
-        $span->meta[Tag::TARGET_PORT] = (string)$server['port'];
+        $span->meta[Tag::TARGET_PORT] = $server['port'];
     }
 
     /**

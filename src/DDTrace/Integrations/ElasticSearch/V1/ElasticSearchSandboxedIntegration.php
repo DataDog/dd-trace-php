@@ -134,7 +134,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
             $span->type = Type::ELASTICSEARCH;
 
             try {
-                $span->meta[Tag::ELASTICSEARCH_URL] = (string)$this->getURI();
+                $span->meta[Tag::ELASTICSEARCH_URL] = $this->getURI();
                 $span->meta[Tag::ELASTICSEARCH_METHOD] = $this->getMethod();
                 if (is_array($this->params)) {
                     $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($this->params);
