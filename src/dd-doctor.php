@@ -44,14 +44,19 @@ function render($message, $value)
     printf('- %-42s [%s]%s', $message, $value, PHP_EOL);
 }
 
-function sub_line($message)
+/**
+ * Adds an indented sub-paragraph after a check to add additional hints.
+ *
+ * @param string $message
+ */
+function sub_paragraph($message)
 {
     $wrapped = wordwrap(sprintf('  > %s%s', remove_newline($message), PHP_EOL), TEXT_WIDTH - 4, PHP_EOL . '    ');
     printf('%s', $wrapped);
 }
 
 /**
- * Removes new lines from $message and replace them with ' '.
+ * Removes new lines characters from $message and replace them with ' '.
  *
  * @param string $message
  * @return string
@@ -140,7 +145,7 @@ Ini parameter 'open_basedir' has been set but it does not include the directory 
 the extension is installed '$initHookDir'. After consulting with your system admin, you might
 want to add '$initHookDir' to the ini parameter 'open_basedir'.
 EOT;
-        sub_line($hint);
+        sub_paragraph($hint);
     }
 } else {
     render('open_basedir INI directive', ini_get('open_basedir') ?: 'empty');
