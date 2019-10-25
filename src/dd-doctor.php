@@ -1,5 +1,7 @@
 <?php
 
+const TEXT_WIDTH = 43;
+
 if ('cli' === PHP_SAPI) {
     echo 'WARNING: Script is running from the CLI SAPI.' . PHP_EOL;
     echo '         Please run this script from your web browser.' . PHP_EOL;
@@ -40,6 +42,23 @@ function render($message, $value)
         $value = result($value);
     }
     printf('- %-42s [%s]%s', $message, $value, PHP_EOL);
+}
+
+function sub_line($message)
+{
+    $wrapped = wordwrap(sprintf('  > %s%s', remove_newline($message), PHP_EOL), TEXT_WIDTH - 4, PHP_EOL . '    ');
+    printf('%s', $wrapped);
+}
+
+/**
+ * Removes new lines from $message and replace them with ' '.
+ *
+ * @param string $message
+ * @return string
+ */
+function remove_newline($message)
+{
+    return implode(' ', explode(PHP_EOL, $message));
 }
 
 function env($key)
@@ -108,9 +127,21 @@ render('dd_trace_env_config() function available', function_exists('dd_trace_env
 render('ddtrace.request_init_hook set', !empty($initHook));
 $initHookReachable = quiet_file_exists($initHook);
 render('ddtrace.request_init_hook reachable', $initHookReachable);
+$openBaseDirs = $openBaseDir = ini_get('open_basedir') ? explode(':', $openBaseDir) : [];
 if ($initHookReachable) {
     $initHookHasRun = function_exists('DDTrace\\Bridge\\dd_wrap_autoloader');
     render('ddtrace.request_init_hook has run', $initHookHasRun);
+} elseif($initHook && $openBaseDirs) {
+    $initHookDir = dirname($initHook);
+    if (!in_array($initHookDir, $openBaseDirs)) {
+        render("open_basedir includes initialization dir", false);
+        $hint = <<<EOT
+Ini parameter 'open_basedir' has been set but it does not include the directory where
+the extension is installed '$initHookDir'. After consulting with your system admin, you might
+want to add '$initHookDir' to the ini parameter 'open_basedir'.
+EOT;
+        sub_line($hint);
+    }
 } else {
     render('open_basedir INI directive', ini_get('open_basedir') ?: 'empty');
 }
