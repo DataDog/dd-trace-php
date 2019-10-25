@@ -51,6 +51,7 @@ $config = [
                 'simple' => 'simple/index',
                 'simple_view' => 'simple/view',
                 'error' => 'simple/error',
+                'homes/<state>/<city>/<neighborhood>' => 'homes/view',
             ],
         ],
 

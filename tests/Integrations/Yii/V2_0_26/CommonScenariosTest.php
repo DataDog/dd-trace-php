@@ -55,6 +55,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_STATUS_CODE => '200',
                         'integration.name' => 'yii',
                         'app.endpoint' => 'app\controllers\SimpleController::actionIndex',
+                        'app.route.path' => '/simple',
                     ]),
                     SpanAssertion::build(
                         'yii\web\Application.run',
@@ -87,6 +88,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_STATUS_CODE => '200',
                         'integration.name' => 'yii',
                         'app.endpoint' => 'app\controllers\SimpleController::actionView',
+                        'app.route.path' => '/simple_view',
                     ]),
                     SpanAssertion::build(
                         'yii\web\Application.run',
@@ -121,6 +123,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_STATUS_CODE => '500',
                         'integration.name' => 'yii',
                         'app.endpoint' => 'app\controllers\SimpleController::actionError',
+                        'app.route.path' => '/error',
                     ])->setError(),
                     SpanAssertion::build(
                         'yii\web\Application.runAction',
