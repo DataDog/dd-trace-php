@@ -6,8 +6,10 @@ use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
-final class MysqliTest extends IntegrationTestCase
+class MysqliTest extends IntegrationTestCase
 {
+    const IS_SANDBOX = false;
+
     private static $host = 'mysql_integration';
     private static $db = 'test';
     private static $port = '3306';

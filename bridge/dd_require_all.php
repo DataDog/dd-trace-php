@@ -74,6 +74,7 @@ require __DIR__ . '/../src/DDTrace/Integrations/Memcached/MemcachedIntegration.p
 require __DIR__ . '/../src/DDTrace/Integrations/Memcached/MemcachedSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Curl/CurlIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Mysqli/MysqliIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Mysqli/MysqliSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoClientIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoDBIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoCollectionIntegration.php';
