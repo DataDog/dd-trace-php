@@ -191,6 +191,7 @@ executors:
         type: string
     docker:
       - image: << parameters.docker_image >>
+      - <<: *DD_TRACE_CI_DOCKER_CREDENTIALS
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_ELASTICSEARCH2
       - <<: *IMAGE_DOCKER_HTTPBIN
