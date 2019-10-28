@@ -4,7 +4,7 @@ const OK = '__OK__';
 const FAIL = '__FAIL_';
 const WARN = '__WARN__';
 
-const TEXT_WIDTH = 43;
+const TEXT_WIDTH = 50;
 
 
 if ('cli' === PHP_SAPI) {
@@ -54,9 +54,25 @@ function result($value)
     }
 }
 
+/**
+ * Conditionally escape a message to be shown as plan text based on the environment.
+ *
+ * @param string $string
+ * @return string
+ */
+function escape($string)
+{
+    if ('cli' !== PHP_SAPI) {
+        return htmlspecialchars($string);
+    } else {
+        return $string;
+    }
+}
+
 function render($message, $value)
 {
-    printf('- %-42s [%s]%s', $message, result($value), PHP_EOL);
+    $width = TEXT_WIDTH;
+    printf("- %-${width}s [%s]%s", escape($message), result($value), PHP_EOL);
 }
 
 function renderSuccessOrFailure($message, $value)
@@ -71,8 +87,8 @@ function renderSuccessOrFailure($message, $value)
  */
 function sub_paragraph($message)
 {
-    $wrapped = wordwrap(sprintf('  - %s%s', remove_newline($message), PHP_EOL), TEXT_WIDTH - 4, PHP_EOL . '    ');
-    printf('%s', $wrapped);
+    $wrapped = wordwrap(sprintf('  > %s%s', remove_newline($message), PHP_EOL), TEXT_WIDTH - 4, PHP_EOL . '    ');
+    echo escape($wrapped);
 }
 
 /**
@@ -159,11 +175,11 @@ if ($initHookReachable) {
 } elseif($initHook && $openBaseDirs) {
     $initHookDir = dirname($initHook);
     if (!in_array($initHookDir, $openBaseDirs)) {
-        render("open_basedir includes initialization dir", FAIL);
         $hint = <<<EOT
-Ini parameter 'open_basedir' has been set but it does not include the directory where
-the extension is installed '$initHookDir'. After consulting with your system admin, you might
-want to add '$initHookDir' to the ini parameter 'open_basedir'.
+Ini directive 'open_basedir' has been set but it does not include the directory where
+the extension is installed. This prevents our extension PHP code to be executed.
+After consulting with your system admin, you might
+want to add the path to the folder where the extension is installed to the ini directive 'open_basedir'.
 EOT;
         sub_paragraph($hint);
     }
@@ -172,13 +188,13 @@ EOT;
 }
 
 // Open base dire prevents/allows access to '/proc/self/cgroup'
-$isProcSelfForbiddenByOpenBaseDir = !empty($openBaseDirs) && !in_array('/proc/self', $openBaseDirs);
-render("'open_basedir' allows access to '/proc/self'", $isProcSelfForbiddenByOpenBaseDir ? WARN : OK);
+$isProcSelfForbiddenByOpenBaseDir = !empty($openBaseDirs) && !in_array('/proc/self/', $openBaseDirs);
+render("'open_basedir' allows access to '/proc/self/'", $isProcSelfForbiddenByOpenBaseDir ? WARN : OK);
 if ($isProcSelfForbiddenByOpenBaseDir) {
     $hint = <<<EOT
 Directive 'open_basedir' prevents access to '/proc/self/cgroup' that is used to extract container info.
 If your app does not run in a containerized environment ignore this message. If your app runs in a containerized
-environment, e.g. Docker or k8s, you might want to add /proc/self to 'open_basedir' in order to have container
+environment, e.g. Docker or k8s, you might want to add '/proc/self/' to 'open_basedir' in order to have container
 info added to your tracer metadata.
 EOT;
     sub_paragraph($hint);
@@ -196,7 +212,7 @@ $integrationsLoaderExists = class_exists('\\DDTrace\\Integrations\\IntegrationsL
 renderSuccessOrFailure('IntegrationsLoader exists', $integrationsLoaderExists);
 if ($integrationsLoaderExists) {
     $notLoaded = \DDTrace\Integrations\IntegrationsLoader::get()->getLoadingStatus('web');
-    render('Integrations not loaded yet', 0 === $notLoaded);
+    renderSuccessOrFailure('Integrations not loaded yet', 0 === $notLoaded);
 
     echo '- Registering an autoloader...' . PHP_EOL;
     spl_autoload_register('AutoloadTest::load');
