@@ -24,6 +24,7 @@ use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\WordPress\WordPressSandboxedIntegration;
+use DDTrace\Integrations\Yii\YiiSandboxedIntegration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 use DDTrace\Log\LoggingTrait;
 
@@ -91,6 +92,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
             $this->integrations[WordPressSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\WordPress\WordPressSandboxedIntegration';
+            $this->integrations[YiiSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\Yii\YiiSandboxedIntegration';
         }
     }
 
