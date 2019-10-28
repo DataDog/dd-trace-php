@@ -1,13 +1,12 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Custom\Autoloaded;
+namespace DDTrace\Tests\Integrations\Custom\NotAutoloaded;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
-use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-final class FrameworkNoAutoloaderTest extends WebFrameworkTestCase
+final class FrameworkNoAutoloadedTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {

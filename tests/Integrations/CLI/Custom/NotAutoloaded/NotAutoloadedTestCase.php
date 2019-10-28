@@ -1,18 +1,18 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\CLI\NoAutoloader;
+namespace DDTrace\Tests\Integrations\CLI\Custom\NotAutoloaded;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Integrations\CLI\CLITestCase;
 
-final class NoAutoloaderTestCase extends CLITestCase
+final class NotAutoloadedTestCase extends CLITestCase
 {
     /**
      * {@inheritDoc}
      */
     protected function getScriptLocation()
     {
-        return __DIR__ . '/test-script.php';
+        return __DIR__ . '/../../../../Frameworks/Custom/Version_Not_Autoloaded/cli.php';
     }
 
     public function testCliCommandWithoutAutoloaderByDefaultNoTraces()
