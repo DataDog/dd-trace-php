@@ -830,14 +830,14 @@ workflows:
           requires: [ 'Code Checkout' ]
           name: "PHP 70 Web integration tests"
           integration_testsuite: "test-web-70"
-          docker_image: "docker.pkg.github.com/datadog/dd-trace-ci/php-dev:7.0"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 71 Web integration tests"
           resource_class: medium+
           integration_testsuite: "test-web-71"
-          docker_image: "docker.pkg.github.com/datadog/dd-trace-ci/php-dev:7.1"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Code Checkout' ]
