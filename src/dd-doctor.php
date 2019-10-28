@@ -83,7 +83,7 @@ function sub_paragraph($message)
  */
 function remove_newline($message)
 {
-    return implode(' ', explode(PHP_EOL, $message));
+    return str_replace(PHP_EOL, ' ', $message);
 }
 
 function env($key)
