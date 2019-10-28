@@ -55,11 +55,12 @@ abstract class CLITestCase extends IntegrationTestCase
      * Run a command from the CLI
      *
      * @param string $arguments
+     * @param array $overrideEnvs
      * @return array
      */
-    public function getTracesFromCommand($arguments = '')
+    public function getTracesFromCommand($arguments = '', $overrideEnvs = [])
     {
-        $envs = (string) new EnvSerializer(static::getEnvs());
+        $envs = (string) new EnvSerializer(array_merge([], static::getEnvs(), $overrideEnvs));
         $inis = (string) new IniSerializer(static::getInis());
         $script = escapeshellarg($this->getScriptLocation());
         $arguments = escapeshellarg($arguments);

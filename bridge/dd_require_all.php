@@ -88,6 +88,8 @@ require __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.ph
 require __DIR__ . '/../src/DDTrace/Integrations/Lumen/LumenIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Lumen/V5/LumenIntegrationLoader.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Yii/V2/YiiIntegrationLoader.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Yii/YiiSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/WordPress/WordPressSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/WordPress/V4/WordPressIntegrationLoader.php';
 
