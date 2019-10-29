@@ -11,7 +11,7 @@ VERSION_WITHOUT_SUFFIX:=$(shell cat src/DDTrace/version.php | grep return | awk 
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 
-C_FILES := $(shell find src/ext -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+C_FILES := $(shell find src/{dogstatsd,ext} -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
 ALL_FILES := $(C_FILES) $(TEST_FILES) $(BUILD_DIR)/config.m4

@@ -12,6 +12,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   dnl ddtrace.c comes first, then everything else alphabetically
   DD_TRACE_PHP_SOURCES="src/ext/ddtrace.c \
+    src/dogstatsd/client.c \
     src/ext/backtrace.c \
     src/ext/circuit_breaker.c \
     src/ext/compat_string.c \
@@ -47,4 +48,5 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE($ext_builddir)
   PHP_ADD_INCLUDE($ext_builddir/src/ext)
   PHP_ADD_INCLUDE($ext_builddir/src/ext/mpack)
+  PHP_ADD_INCLUDE($ext_builddir/src/dogstatsd)
 fi
