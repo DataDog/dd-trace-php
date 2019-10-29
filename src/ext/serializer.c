@@ -521,10 +521,9 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span) {
 
     array_init(&meta_zv);
     if (meta && Z_TYPE_P(meta) == IS_ARRAY) {
-        zend_ulong num_key;
         zend_string *str_key;
         zval *orig_val, val_as_string;
-        ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(meta), num_key, str_key, orig_val) {
+        ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(meta), str_key, orig_val) {
             if (str_key) {
                 ddtrace_convert_to_string(&val_as_string, orig_val);
                 add_assoc_zval(&meta_zv, ZSTR_VAL(str_key), &val_as_string);
