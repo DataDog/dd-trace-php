@@ -10,17 +10,27 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2019-10-29</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.34.0</release>
+        <api>0.34.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Added
+
+        - Yii 2 support #624, #630
+        - Enable tracing when no autoloaders used by setting `DD_TRACE_NO_AUTOLOADER=true` #627
+        - Safe to-string conversion for all datatypes on `DDTrace\SpanData` #613
+
+        ### Changed
+
+        - Improve dd-doctor with and container tagging detector when open_basedir is set #629
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
