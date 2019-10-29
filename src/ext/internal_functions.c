@@ -85,6 +85,7 @@ ZEND_NAMED_FUNCTION(ddtrace_hander_curl_exec) {
     struct curl_slist *last_orig_header = NULL;
     struct curl_slist *dd_headers = NULL;
     uint64_t root_span_id = ddtrace_root_span_id(TSRMLS_C);
+    uint64_t active_span_id = ddtrace_peek_span_id(TSRMLS_C);
 
     // No trace ID to propagate
     if (!root_span_id) {
@@ -102,12 +103,12 @@ ZEND_NAMED_FUNCTION(ddtrace_hander_curl_exec) {
     //ch = (php_curl *)Z_RES_P(zid)->ptr;  // FIX: This cannot be trusted without zend_fetch_resource()
 
     char header_trace_id[sizeof("x-datadog-trace-id: ") + DD_TRACE_MAX_ID_LEN + 1];
-    snprintf(header_trace_id, sizeof(header_trace_id), "x-datadog-trace-id: %" PRIu64, root_span_id);
-    dd_headers = curl_slist_append(dd_headers, header_trace_id);
-
     char header_parent_id[sizeof("x-datadog-parent-id: ") + DD_TRACE_MAX_ID_LEN + 1];
-    snprintf(header_parent_id, sizeof(header_parent_id), "x-datadog-parent-id: %" PRIu64,
-             ddtrace_peek_span_id(TSRMLS_C));
+
+    snprintf(header_trace_id, sizeof(header_trace_id), "x-datadog-trace-id: %" PRIu64, root_span_id);
+    snprintf(header_parent_id, sizeof(header_parent_id), "x-datadog-parent-id: %" PRIu64, active_span_id);
+
+    dd_headers = curl_slist_append(dd_headers, header_trace_id);
     dd_headers = curl_slist_append(dd_headers, header_parent_id);
 
     orig_headers = (struct curl_slist *)zend_hash_index_find_ptr(ch->to_free->slist, (zend_long)CURLOPT_HTTPHEADER);
