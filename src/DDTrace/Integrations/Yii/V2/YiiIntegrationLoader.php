@@ -37,6 +37,21 @@ class YiiIntegrationLoader
             }
         );
 
+        // We assume the first controller is the one to assign to app.endpoint
+        $first_controller = null;
+        \dd_trace_method(
+            'yii\web\Application',
+            'createController',
+            function (SpanData $span, $args, $retval, $ex) use (&$first_controller) {
+                if (!$ex && isset($args[0], $retval) && \is_array($retval) && !empty($retval)) {
+                    if ($this->requestedRoute === $args[0]) {
+                        $first_controller = $retval[0];
+                    }
+                }
+                return false;
+            }
+        );
+
         /* Note that Applications are Modules, so this will also trace Application::runAction, but
          * modules are worth tracing independently, as multiple modules can trigger per
          * application, such as in the event of an unhandled exception.
@@ -55,13 +70,17 @@ class YiiIntegrationLoader
         \dd_trace_method(
             'yii\base\Controller',
             'runAction',
-            function (SpanData $span, $args) use ($service, $root) {
+            function (SpanData $span, $args) use (&$first_controller, $service, $root) {
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
                 $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
 
-                if ($root->getTag('app.endpoint') === null && isset($this->action->actionMethod)) {
+                if (
+                    $first_controller === $this
+                    && $root->getTag('app.endpoint') === null
+                    && isset($this->action->actionMethod)
+                ) {
                     $controller = \get_class($this);
                     $endpoint = "{$controller}::{$this->action->actionMethod}";
                     $root->setTag("app.endpoint", $endpoint);
