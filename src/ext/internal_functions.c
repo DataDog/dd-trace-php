@@ -5,12 +5,15 @@
 #include "internal_functions.h"
 #include "logging.h"
 #include "random.h"
+//#include "third-party/php/7.3/php_curl.h"
 
 #if PHP_VERSION_ID < 70200
 typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
 #endif
 
 // BEGIN copy/pasted bits from ext/curl/php_curl.h (PHP 7)
+extern int le_curl;
+
 typedef struct {
     zval func_name;
     zend_fcall_info_cache fci_cache;
@@ -41,7 +44,7 @@ typedef struct {
     php_curl_read *read;
     zval std_err;
     php_curl_progress *progress;
-#if LIBCURL_VERSION_NUM >= 0x071500 /* Available since 7.21.0 */
+#if LIBCURL_VERSION_NUM >= 0x071500 
     php_curl_fnmatch *fnmatch;
 #endif
 } php_curl_handlers;
@@ -71,6 +74,7 @@ typedef struct {
     zend_bool in_callback;
     uint32_t *clone;
 } php_curl;
+
 // END copy/pasted bits
 
 zif_handler orig_handler_curl_exec;
@@ -92,12 +96,10 @@ ZEND_NAMED_FUNCTION(ddtrace_hander_curl_exec) {
         return;
     }
 
-    /*
-    if ((ch = (php_curl*)zend_fetch_resource(Z_RES_P(zid), "cURL handle", le_curl)) == NULL) {
+    if ((ch = (php_curl *)zend_fetch_resource(Z_RES_P(zid), "cURL handle", le_curl)) == NULL) {
         return;
     }
-    */
-    ch = (php_curl *)Z_RES_P(zid)->ptr;  // FIX: This cannot be trusted without zend_fetch_resource()
+    //ch = (php_curl *)Z_RES_P(zid)->ptr;  // FIX: This cannot be trusted without zend_fetch_resource()
 
     char header_trace_id[sizeof("x-datadog-trace-id: ") + DD_TRACE_MAX_ID_LEN + 1];
     snprintf(header_trace_id, sizeof(header_trace_id), "x-datadog-trace-id: %" PRIu64, root_span_id);
