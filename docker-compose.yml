@@ -101,6 +101,8 @@ services:
 
   httpbin_integration:
     image: kennethreitz/httpbin
+    ports:
+      - "8099:80"
 
   ddagent_integration:
     image: datadog/agent:latest

@@ -26,6 +26,7 @@
 #include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
+#include "internal_functions.h"
 #include "memory_limit.h"
 #include "random.h"
 #include "request_hooks.h"
@@ -34,6 +35,7 @@
 #include "trace.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
+static PHP_GINIT_FUNCTION(ddtrace);
 
 PHP_INI_BEGIN()
 STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals,
@@ -100,6 +102,12 @@ static void register_span_data_ce(TSRMLS_D) {
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
+static PHP_GINIT_FUNCTION(ddtrace) {
+#if PHP_VERSION_ID >= 70000 && defined(COMPILE_DL_DDTRACE) && defined(ZTS)
+    ZEND_TSRMLS_CACHE_UPDATE();
+#endif
+}
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
@@ -120,6 +128,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_coms_initialize();
     ddtrace_coms_setup_atexit_hook();
     ddtrace_coms_init_and_start_writer();
+
+    ddtrace_hook_internal_functions();
 
     return SUCCESS;
 }
@@ -145,10 +155,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
-
-#if defined(ZTS) && PHP_VERSION_ID >= 70000
-    ZEND_TSRMLS_CACHE_UPDATE();
-#endif
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
@@ -736,10 +742,20 @@ static const zend_function_entry ddtrace_functions[] = {
                                             PHP_FE(dd_trace_closed_spans_count, NULL)
                                                 PHP_FE(dd_trace_tracer_is_limited, NULL) ZEND_FE_END};
 
-zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
-                                          PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
-                                          PHP_RSHUTDOWN(ddtrace),    PHP_MINFO(ddtrace),     PHP_DDTRACE_VERSION,
-                                          STANDARD_MODULE_PROPERTIES};
+zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,
+                                          PHP_DDTRACE_EXTNAME,
+                                          ddtrace_functions,
+                                          PHP_MINIT(ddtrace),
+                                          PHP_MSHUTDOWN(ddtrace),
+                                          PHP_RINIT(ddtrace),
+                                          PHP_RSHUTDOWN(ddtrace),
+                                          PHP_MINFO(ddtrace),
+                                          PHP_DDTRACE_VERSION,
+                                          PHP_MODULE_GLOBALS(ddtrace),
+                                          PHP_GINIT(ddtrace),
+                                          NULL,
+                                          NULL,
+                                          STANDARD_MODULE_PROPERTIES_EX};
 
 #ifdef COMPILE_DL_DDTRACE
 ZEND_GET_MODULE(ddtrace)
