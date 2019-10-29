@@ -187,7 +187,7 @@ EOT;
     render('open_basedir INI directive', ini_get('open_basedir') ?: 'empty');
 }
 
-// Open base dire prevents/allows access to '/proc/self/cgroup'
+// open_basedir prevents/allows access to '/proc/self/cgroup'
 $isProcSelfForbiddenByOpenBaseDir = !empty($openBaseDirs) && !in_array('/proc/self/', $openBaseDirs);
 render("'open_basedir' allows access to '/proc/self/'", $isProcSelfForbiddenByOpenBaseDir ? WARN : OK);
 if ($isProcSelfForbiddenByOpenBaseDir) {
