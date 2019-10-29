@@ -21,4 +21,16 @@ abstract class SandboxedIntegration extends Integration
         }
         $span->metrics[Tag::ANALYTICS_KEY] = $this->configuration->getTraceAnalyticsSampleRate();
     }
+
+    /**
+     * Sets common error tags for an exception.
+     *
+     * @param SpanData $span
+     * @param string $message
+     */
+    public function setError(SpanData $span, $message)
+    {
+        $span->meta[Tag::ERROR_MSG] = $message;
+        $span->error = 1;
+    }
 }

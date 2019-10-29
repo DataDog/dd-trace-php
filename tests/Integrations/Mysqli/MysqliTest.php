@@ -41,23 +41,43 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
                 ->withExactTags(self::baseTags()),
         ]);
     }
 
-    public function testProceduralConnectError()
+    public function testProceduralConnectErrorThrowsException()
     {
         $traces = $this->isolateTracer(function () {
             try {
-                \mysqli_connect(self::$host, 'wrong');
+                $mysqli = \mysqli_connect(self::$host, 'wrong');
                 $this->fail('should not be possible to connect to wrong host');
             } catch (\Exception $ex) {
             }
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
+                ->setError()
+                ->withExistingTagsNames([
+                    'error.msg',
+                    'error.type',
+                    'error.stack',
+                ]),
+        ]);
+    }
+
+    public function testProceduralConnectDontReportError()
+    {
+        $this->disableTranslateWarningsIntoErrors();
+
+        $traces = $this->isolateTracer(function () {
+            $mysqli = \mysqli_connect(self::$host, 'wrong');
+            $this->assertFalse($mysqli);
+        });
+
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
                 ->setError()
                 ->withExistingTagsNames([
@@ -75,7 +95,7 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli.__construct', 'mysqli', 'sql', 'mysqli.__construct')
                 ->withExactTags(self::baseTags()),
         ]);
@@ -89,8 +109,8 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertSpans($traces, [
-            SpanAssertion::exists('mysqli_connect'),
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
@@ -106,7 +126,7 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_real_connect', 'mysqli', 'sql', 'mysqli_real_connect')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
@@ -124,8 +144,8 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertSpans($traces, [
-            SpanAssertion::exists('mysqli.__construct'),
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'mysqli', 'sql', 'SELECT * from tests')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
@@ -141,8 +161,8 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertSpans($traces, [
-            SpanAssertion::exists('mysqli.__construct'),
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.real_connect', 'mysqli', 'sql', 'mysqli.real_connect')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(self::baseTags()),
@@ -154,17 +174,18 @@ class MysqliTest extends IntegrationTestCase
 
     public function testProceduralCommit()
     {
-        $traces = $this->isolateTracer(function () {
+        $query = "INSERT INTO tests (id, name) VALUES (100, 'Tom'";
+        $traces = $this->isolateTracer(function () use ($query) {
             $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
-            \mysqli_query($mysqli, "INSERT INTO tests (id, name) VALUES (100, 'Tom'");
+            \mysqli_query($mysqli, $query);
             \mysqli_commit($mysqli);
             $mysqli->close();
         });
 
-        $this->assertSpans($traces, [
-            SpanAssertion::exists('mysqli_connect'),
-            SpanAssertion::exists('mysqli_query'),
-            SpanAssertion::build('mysqli_commit', 'mysqli', 'sql', "INSERT INTO tests (id, name) VALUES (100, 'Tom'")
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::exists('mysqli_query', $query),
+            SpanAssertion::build('mysqli_commit', 'mysqli', 'sql', $query)
                 ->withExactTags(self::baseTags()),
         ]);
     }
@@ -181,8 +202,8 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertSpans($traces, [
-            SpanAssertion::exists('mysqli.__construct'),
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt.execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
@@ -241,8 +262,8 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
-        $this->assertSpans($traces, [
-            SpanAssertion::exists('mysqli_connect'),
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags()),
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)'),
@@ -259,7 +280,7 @@ class MysqliTest extends IntegrationTestCase
             }
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli.__construct', 'mysqli', 'sql', 'mysqli.__construct')
                 ->setError()
                 ->withExistingTagsNames([

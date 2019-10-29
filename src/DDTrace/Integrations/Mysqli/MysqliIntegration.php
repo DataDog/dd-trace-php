@@ -212,11 +212,11 @@ class MysqliIntegration extends Integration
             $span = $scope->getSpan();
             $span->setTraceAnalyticsCandidate();
             MysqliIntegration::setConnectionInfo($span, $mysqli);
-            MysqliIntegration::storeQuery($mysqli, $query);
+            MysqliCommon::storeQuery($mysqli, $query);
 
             $result = dd_trace_forward_call();
-            MysqliIntegration::storeQuery($result, $query);
-            ObjectKVStore::put($result, 'host_info', MysqliIntegration::extractHostInfo($mysqli));
+            MysqliCommon::storeQuery($result, $query);
+            ObjectKVStore::put($result, 'host_info', MysqliCommon::extractHostInfo($mysqli));
 
             $scope->close();
 
@@ -236,8 +236,8 @@ class MysqliIntegration extends Integration
             MysqliIntegration::setConnectionInfo($span, $mysqli);
 
             $statement = dd_trace_forward_call();
-            MysqliIntegration::storeQuery($statement, $query);
-            $host_info = MysqliIntegration::extractHostInfo($mysqli);
+            MysqliCommon::storeQuery($statement, $query);
+            $host_info = MysqliCommon::extractHostInfo($mysqli);
             ObjectKVStore::put($statement, 'host_info', $host_info);
 
             $scope->close();
@@ -254,7 +254,7 @@ class MysqliIntegration extends Integration
 
             $args = func_get_args();
             list($mysqli) = $args;
-            $resource = MysqliIntegration::retrieveQuery($mysqli, 'mysqli_commit');
+            $resource = MysqliCommon::retrieveQuery($mysqli, 'mysqli_commit');
             $scope = MysqliIntegration::initScope('mysqli_commit', $resource);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
@@ -278,7 +278,7 @@ class MysqliIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $resource = MysqliIntegration::retrieveQuery($stmt, 'mysqli_stmt_execute');
+            $resource = MysqliCommon::retrieveQuery($stmt, 'mysqli_stmt_execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt_execute', $resource);
 
             $result = dd_trace_forward_call();
@@ -295,10 +295,10 @@ class MysqliIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $resource = MysqliIntegration::retrieveQuery($stmt, 'mysqli_stmt_get_result');
+            $resource = MysqliCommon::retrieveQuery($stmt, 'mysqli_stmt_get_result');
             $result = dd_trace_forward_call();
 
-            MysqliIntegration::storeQuery($result, $resource);
+            MysqliCommon::storeQuery($result, $resource);
             ObjectKVStore::propagate($stmt, $result, 'host_info');
 
             return $result;
@@ -317,10 +317,10 @@ class MysqliIntegration extends Integration
             $span = $scope->getSpan();
             $span->setTraceAnalyticsCandidate();
             MysqliIntegration::setConnectionInfo($span, $this);
-            MysqliIntegration::storeQuery($this, $query);
+            MysqliCommon::storeQuery($this, $query);
 
             $afterResult = function ($result) use ($query) {
-                $host_info = MysqliIntegration::extractHostInfo($this);
+                $host_info = MysqliCommon::extractHostInfo($this);
                 ObjectKVStore::put($result, 'host_info', $host_info);
                 ObjectKVStore::put($result, 'query', $query);
             };
@@ -339,9 +339,9 @@ class MysqliIntegration extends Integration
             $span = $scope->getSpan();
             MysqliIntegration::setConnectionInfo($span, $this);
             $afterResult = function ($statement) use ($query) {
-                $host_info = MysqliIntegration::extractHostInfo($this);
+                $host_info = MysqliCommon::extractHostInfo($this);
                 ObjectKVStore::put($statement, 'host_info', $host_info);
-                MysqliIntegration::storeQuery($statement, $query);
+                MysqliCommon::storeQuery($statement, $query);
             };
             return include __DIR__ . '/../../try_catch_finally.php';
         });
@@ -354,7 +354,7 @@ class MysqliIntegration extends Integration
             }
 
             $args = func_get_args();
-            $resource = MysqliIntegration::retrieveQuery($this, 'mysqli.commit');
+            $resource = MysqliCommon::retrieveQuery($this, 'mysqli.commit');
             $scope = MysqliIntegration::initScope('mysqli.commit', $resource);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
@@ -374,7 +374,7 @@ class MysqliIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $resource = MysqliIntegration::retrieveQuery($this, 'mysqli_stmt.execute');
+            $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt.execute', $resource);
             $scope->getSpan()->setTraceAnalyticsCandidate();
             return include __DIR__ . '/../../try_catch_finally.php';
@@ -387,7 +387,7 @@ class MysqliIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $resource = MysqliIntegration::retrieveQuery($this, 'mysqli_stmt.get_result');
+            $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.get_result');
             $scope = MysqliIntegration::initScope('mysqli_stmt.get_result', $resource);
             $afterResult = function ($result) use ($resource) {
                 ObjectKVStore::propagate($this, $result, 'host_info');
@@ -396,25 +396,6 @@ class MysqliIntegration extends Integration
             return include __DIR__ . '/../../try_catch_finally.php';
         });
         return Integration::LOADED;
-    }
-
-    /**
-     * Given a mysqli instance, it extract an array containing host info.
-     *
-     * @param $mysqli
-     * @return array
-     */
-    public static function extractHostInfo($mysqli)
-    {
-        $host_info = $mysqli->host_info;
-        $parts = explode(':', substr($host_info, 0, strpos($host_info, ' ')));
-        $host = $parts[0];
-        $port = isset($parts[1]) ? $parts[1] : '3306';
-        return [
-            'db.type' => 'mysql',
-            'out.host' => $host,
-            'out.port' => $port,
-        ];
     }
 
     /**
@@ -443,32 +424,9 @@ class MysqliIntegration extends Integration
      */
     public static function setConnectionInfo($span, $mysqli)
     {
-        $hostInfo = self::extractHostInfo($mysqli);
+        $hostInfo = MysqliCommon::extractHostInfo($mysqli);
         foreach ($hostInfo as $tagName => $value) {
             $span->setTag($tagName, $value);
         }
-    }
-
-    /**
-     * Store a query into a mysqli or statement instance.
-     *
-     * @param mixed $instance
-     * @param string $query
-     */
-    public static function storeQuery($instance, $query)
-    {
-        ObjectKVStore::put($instance, 'query', $query);
-    }
-
-    /**
-     * Retrieves a query from a mysqli or statement instance.
-     *
-     * @param mixed $instance
-     * @param string $fallbackValue
-     * @return string|null
-     */
-    public static function retrieveQuery($instance, $fallbackValue)
-    {
-        return ObjectKVStore::get($instance, 'query', $fallbackValue);
     }
 }
