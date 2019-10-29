@@ -147,15 +147,15 @@ class WordPressIntegrationLoader
             $span->type = Type::SQL;
             $span->service = $service;
             $span->meta = [
-                'db.user' => (string) $args[0],
-                'db.name' => (string) $args[2],
-                'db.host' => (string) $args[3],
+                'db.user' => $args[0],
+                'db.name' => $args[2],
+                'db.host' => $args[3],
             ];
         });
 
         dd_trace_method('wpdb', 'query', function (SpanData $span, array $args) use ($service) {
             $span->name = 'wpdb.query';
-            $span->resource = (string) $args[0];
+            $span->resource = $args[0];
             $span->type = Type::SQL;
             $span->service = $service;
         });
@@ -163,7 +163,7 @@ class WordPressIntegrationLoader
         // Views
         dd_trace_function('get_header', function (SpanData $span, array $args) use ($service) {
             $span->name = 'get_header';
-            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
         });
@@ -188,35 +188,35 @@ class WordPressIntegrationLoader
 
         dd_trace_function('load_template', function (SpanData $span, array $args) use ($service) {
             $span->name = 'load_template';
-            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
         });
 
         dd_trace_function('comments_template', function (SpanData $span, array $args) use ($service) {
             $span->name = 'comments_template';
-            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
         });
 
         dd_trace_function('get_sidebar', function (SpanData $span, array $args) use ($service) {
             $span->name = 'get_sidebar';
-            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
         });
 
         dd_trace_function('dynamic_sidebar', function (SpanData $span, array $args) use ($service) {
             $span->name = 'dynamic_sidebar';
-            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
         });
 
         dd_trace_function('get_footer', function (SpanData $span, array $args) use ($service) {
             $span->name = 'get_footer';
-            $span->resource = !empty($args[0]) ? (string) $args[0] : $span->name;
+            $span->resource = !empty($args[0]) ? $args[0] : $span->name;
             $span->type = Type::WEB_SERVLET;
             $span->service = $service;
         });

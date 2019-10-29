@@ -5,7 +5,6 @@
 #include <php_main.h>
 #include <string.h>
 
-#include "compat_zend_string.h"
 #include "ddtrace.h"
 #include "env_config.h"
 #include "logging.h"

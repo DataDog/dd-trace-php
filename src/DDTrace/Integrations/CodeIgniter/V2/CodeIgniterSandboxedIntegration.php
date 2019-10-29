@@ -111,7 +111,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
                 $class = \get_class($this);
 
                 $span->name = "{$class}._remap";
-                $span->resource = !$ex && isset($args[0]) ? (string) $args[0] : $span->name;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->service = $service;
                 $span->type = Type::WEB_SERVLET;
 
@@ -127,7 +127,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
             function (SpanData $span, $args, $retval, $ex) use ($service) {
                 $span->name = 'CI_Loader.view';
                 $span->service = $service;
-                $span->resource = !$ex && isset($args[0]) ? (string) $args[0] : $span->name;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->type = Type::WEB_SERVLET;
             }
         );
@@ -147,7 +147,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
                 $span->name = "{$class}.query";
                 $span->service = $service;
                 $span->type = Type::SQL;
-                $span->resource = !$ex && isset($args[0]) ? (string) $args[0] : $span->name;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
             }
         );
 
@@ -189,7 +189,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
                 $span->name = "{$class}.get";
                 $span->service = $service;
                 $span->type = Type::CACHE;
-                $span->resource = !$ex && isset($args[0]) ? (string) $args[0] : $span->name;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
             }
         );
 
@@ -201,7 +201,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
                 $span->name = "{$class}.save";
                 $span->service = $service;
                 $span->type = Type::CACHE;
-                $span->resource = !$ex && isset($args[0]) ? (string) $args[0] : $span->name;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
             }
         );
 
@@ -213,7 +213,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
                 $span->name = "{$class}.delete";
                 $span->service = $service;
                 $span->type = Type::CACHE;
-                $span->resource = !$ex && isset($args[0]) ? (string) $args[0] : $span->name;
+                $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
             }
         );
 

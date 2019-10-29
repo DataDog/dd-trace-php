@@ -114,7 +114,7 @@ array(1) {
     ["meta"]=>
     array(4) {
       ["args.0"]=>
-      int(42)
+      string(%d) "%d"
       ["args.1.0"]=>
       string(4) "pink"
       ["retval"]=>

@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\PDO;
 
-use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
 final class PDOSandboxedTest extends PDOTest
@@ -71,10 +70,17 @@ final class PDOSandboxedTest extends PDOTest
 
     public function testBrokenPDOPrepareWithNonStringableStatement()
     {
+        if (PHP_VERSION_ID < 70200) {
+            $this->markTestSkipped('Test relies on spl_object_id() which was added in PHP 7.2');
+            return;
+        }
         $query = "SELECT * FROM tests WHERE id = ?";
-        $traces = $this->isolateTracer(function () use ($query) {
+        $objId = 0;
+        $traces = $this->isolateTracer(function () use ($query, &$objId) {
             $pdo = new CustomPDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
-            $stmt = $pdo->prepare(new BrokenPDOStatement($query));
+            $brokenStatement = new BrokenPDOStatement($query);
+            $objId = spl_object_id($brokenStatement);
+            $stmt = $pdo->prepare($brokenStatement);
             $stmt->execute([1]);
             $results = $stmt->fetchAll();
             $this->assertEquals('Tom', $results[0]['name']);
@@ -86,7 +92,7 @@ final class PDOSandboxedTest extends PDOTest
                 'PDO.prepare',
                 'PDO',
                 'sql',
-                ''
+                'object(DDTrace\Tests\Integrations\PDO\BrokenPDOStatement)#' . $objId
             )->withExactTags(SpanAssertion::NOT_TESTED),
             SpanAssertion::build(
                 'PDOStatement.execute',

@@ -9,6 +9,7 @@
 
 #include <ext/spl/spl_exceptions.h>
 
+#include "compat_string.h"
 #include "ddtrace.h"
 #include "dispatch_compat.h"
 #include "logging.h"
@@ -335,15 +336,27 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRM
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
-    zval *meta = _read_span_property(span->span_data, "meta", sizeof("meta") - 1 TSRMLS_CC);
-    BOOL_T should_free = TRUE;
-
-    if (!meta || Z_TYPE_P(meta) != IS_ARRAY) {
-        ALLOC_INIT_ZVAL(meta);
-        array_init(meta);
-    } else {
-        should_free = FALSE;
-        Z_ADDREF_P(meta);
+    zval *meta, *orig_meta = _read_span_property(span->span_data, "meta", sizeof("meta") - 1 TSRMLS_CC);
+    ALLOC_INIT_ZVAL(meta);
+    array_init(meta);
+    if (orig_meta && Z_TYPE_P(orig_meta) == IS_ARRAY) {
+        int key_type;
+        zval **orig_val;
+        zval *val_as_string;
+        HashPosition pos;
+        char *str_key;
+        uint str_key_len;
+        ulong num_key;
+        zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(orig_meta), &pos);
+        while (zend_hash_get_current_data_ex(Z_ARRVAL_P(orig_meta), (void **)&orig_val, &pos) == SUCCESS) {
+            key_type = zend_hash_get_current_key_ex(Z_ARRVAL_P(orig_meta), &str_key, &str_key_len, &num_key, 0, &pos);
+            if (key_type == HASH_KEY_IS_STRING) {
+                ALLOC_INIT_ZVAL(val_as_string);
+                ddtrace_convert_to_string(val_as_string, *orig_val TSRMLS_CC);
+                add_assoc_zval_ex(meta, str_key, str_key_len, val_as_string);
+            }
+            zend_hash_move_forward_ex(Z_ARRVAL_P(orig_meta), &pos);
+        }
     }
 
     _serialize_exception(el, meta, span TSRMLS_CC);
@@ -359,12 +372,20 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
         add_assoc_zval(el, "meta", meta);
     } else {
         zval_dtor(meta);
-
-        if (should_free) {
-            efree(meta);
-        }
+        efree(meta);
     }
 }
+
+#define ADD_ELEMENT_IF_NOT_NULL(name)                                                        \
+    do {                                                                                     \
+        zval *prop = _read_span_property(span->span_data, name, sizeof(name) - 1 TSRMLS_CC); \
+        zval *prop_as_string;                                                                \
+        if (Z_TYPE_P(prop) != IS_NULL) {                                                     \
+            ALLOC_INIT_ZVAL(prop_as_string);                                                 \
+            ddtrace_convert_to_string(prop_as_string, prop TSRMLS_CC);                       \
+            add_assoc_zval(el, name, prop_as_string);                                        \
+        }                                                                                    \
+    } while (0);
 
 #else
 static zval *_read_span_property(zval *span_data, const char *name, size_t name_len) {
@@ -495,13 +516,21 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
     zval_ptr_dtor(&stack);
 }
 
-void _serialize_meta(zval *el, ddtrace_span_t *span) {
+static void _serialize_meta(zval *el, ddtrace_span_t *span) {
     zval meta_zv, *meta = _read_span_property(span->span_data, "meta", sizeof("meta") - 1);
 
+    array_init(&meta_zv);
     if (meta && Z_TYPE_P(meta) == IS_ARRAY) {
-        ZVAL_DUP(&meta_zv, meta);
-    } else {
-        array_init(&meta_zv);
+        zend_ulong num_key;
+        zend_string *str_key;
+        zval *orig_val, val_as_string;
+        ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(meta), num_key, str_key, orig_val) {
+            if (str_key) {
+                ddtrace_convert_to_string(&val_as_string, orig_val);
+                add_assoc_zval(&meta_zv, ZSTR_VAL(str_key), &val_as_string);
+            }
+        }
+        ZEND_HASH_FOREACH_END();
     }
     meta = &meta_zv;
 
@@ -522,15 +551,18 @@ void _serialize_meta(zval *el, ddtrace_span_t *span) {
         zval_ptr_dtor(meta);
     }
 }
-#endif
 
-#define ADD_ELEMENT_IF_PROP_TYPE(name, type)                                                 \
+#define ADD_ELEMENT_IF_NOT_NULL(name)                                                        \
     do {                                                                                     \
         zval *prop = _read_span_property(span->span_data, name, sizeof(name) - 1 TSRMLS_CC); \
-        if (Z_TYPE_P(prop) == (type)) {                                                      \
-            _add_assoc_zval_copy(el, name, prop);                                            \
+        zval prop_as_string;                                                                 \
+        if (Z_TYPE_P(prop) != IS_NULL) {                                                     \
+            ddtrace_convert_to_string(&prop_as_string, prop);                                \
+            _add_assoc_zval_copy(el, name, &prop_as_string);                                 \
+            zval_dtor(&prop_as_string);                                                      \
         }                                                                                    \
     } while (0);
+#endif
 
 void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC) {
     zval *el;
@@ -550,14 +582,17 @@ void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC
     add_assoc_long(el, "start", span->start);
     add_assoc_long(el, "duration", span->duration);
 
-    ADD_ELEMENT_IF_PROP_TYPE("name", IS_STRING);
-    ADD_ELEMENT_IF_PROP_TYPE("resource", IS_STRING);
-    ADD_ELEMENT_IF_PROP_TYPE("service", IS_STRING);
-    ADD_ELEMENT_IF_PROP_TYPE("type", IS_STRING);
+    ADD_ELEMENT_IF_NOT_NULL("name");
+    ADD_ELEMENT_IF_NOT_NULL("resource");
+    ADD_ELEMENT_IF_NOT_NULL("service");
+    ADD_ELEMENT_IF_NOT_NULL("type");
 
     _serialize_meta(el, span TSRMLS_CC);
 
-    ADD_ELEMENT_IF_PROP_TYPE("metrics", IS_ARRAY);
+    zval *metrics = _read_span_property(span->span_data, "metrics", sizeof("metrics") - 1 TSRMLS_CC);
+    if (Z_TYPE_P(metrics) == IS_ARRAY) {
+        _add_assoc_zval_copy(el, "metrics", metrics);
+    }
 
     add_next_index_zval(array, el);
 }
