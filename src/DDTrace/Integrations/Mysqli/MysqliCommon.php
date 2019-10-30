@@ -15,7 +15,22 @@ class MysqliCommon
     public static function extractHostInfo($mysqli)
     {
         $host_info = $mysqli->host_info;
-        $parts = explode(':', substr($host_info, 0, strpos($host_info, ' ')));
+        return self::parseHostInfo(substr($host_info, 0, strpos($host_info, ' ')));
+    }
+
+    /**
+     * Given a host definition string, it extract an array containing host info.
+     *
+     * @param string $hostString
+     * @return array
+     */
+    public static function parseHostInfo($hostString)
+    {
+        if (empty($hostString) || !is_string($hostString)) {
+            return [];
+        }
+
+        $parts = explode(':', $hostString);
         $host = $parts[0];
         $port = isset($parts[1]) ? $parts[1] : '3306';
         return [

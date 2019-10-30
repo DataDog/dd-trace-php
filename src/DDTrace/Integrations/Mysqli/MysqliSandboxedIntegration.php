@@ -5,14 +5,15 @@ namespace DDTrace\Integrations\Mysqli;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
-use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
-use DDTrace\GlobalTracer;
 
 class MysqliSandboxedIntegration extends SandboxedIntegration
 {
     const NAME = 'mysqli';
+
+    // https://www.php.net/manual/en/mysqli.construct.php
+    const DEFAULT_MYSQLI_HOST = 'localhost';
 
     /**
      * @return string The integration name.
@@ -41,11 +42,11 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
 
+            list($host) = $args;
             $integration->setDefaultAttributes($span, 'mysqli_connect', 'mysqli_connect');
+            $integration->mergeMeta($span, MysqliCommon::parseHostInfo($host ?: self::DEFAULT_MYSQLI_HOST));
 
-            if ($result !== false) {
-                $integration->setConnectionInfo($span, $result);
-            } else {
+            if ($result === false) {
                 $integration->trackPotentialError($span);
             }
         });
@@ -136,12 +137,13 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_function('mysqli_stmt_execute', function (SpanData $span, $args, $returnedStatement) use ($integration) {
+        dd_trace_function('mysqli_stmt_execute', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
 
-            $resource = MysqliCommon::retrieveQuery($returnedStatement, 'mysqli_stmt_execute');
+            list($statement) = $args;
+            $resource = MysqliCommon::retrieveQuery($statement, 'mysqli_stmt_execute');
             $integration->setDefaultAttributes($span, 'mysqli_stmt_execute', $resource);
         });
 
@@ -184,7 +186,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             $integration->setConnectionInfo($span, $this);
             $host_info = MysqliCommon::extractHostInfo($this);
             ObjectKVStore::put($returnedStatement, 'host_info', $host_info);
-            MysqliIntegration::storeQuery($returnedStatement, $query);
+            MysqliCommon::storeQuery($returnedStatement, $query);
         });
 
         dd_trace_method('mysqli', 'commit', function (SpanData $span, $args) use ($integration) {
@@ -288,8 +290,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
     {
         $errorCode = mysqli_connect_errno();
         if ($errorCode > 0) {
-            $message = sprintf("%s [code: %d]", mysqli_connect_error(), $errorCode);
-            $this->setError($span, $message);
+            $this->setError($span, new \Exception(mysqli_connect_error()));
         }
     }
 }

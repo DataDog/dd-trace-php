@@ -57,16 +57,18 @@ class MysqliIntegration extends Integration
 
             $scope = MysqliIntegration::initScope('mysqli_connect', 'mysqli_connect');
             $span = $scope->getSpan();
+            list($host) = func_get_args();
 
             $thrown = null;
             $result = null;
             try {
+                MysqliIntegration::mergeMetaLegacyApi($span, MysqliCommon::parseHostInfo($host));
+
                 // Depending on configuration, connections errors can both cause an exception and return false
                 $result = dd_trace_forward_call();
+
                 if ($result === false) {
                     $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
-                } else {
-                    MysqliIntegration::setConnectionInfo($span, $result);
                 }
             } catch (\Exception $ex) {
                 $span->setError($ex);

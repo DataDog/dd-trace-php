@@ -25,13 +25,8 @@ class MysqliTest extends IntegrationTestCase
     protected function setUp()
     {
         parent::setUp();
-        $this->setUpDatabase();
-    }
-
-    protected function tearDown()
-    {
         $this->clearDatabase();
-        parent::tearDown();
+        $this->setUpDatabase();
     }
 
     public function testProceduralConnect()
@@ -60,6 +55,7 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
                 ->setError()
+                ->withExactTags(self::baseTags())
                 ->withExistingTagsNames([
                     'error.msg',
                     'error.type',
@@ -80,6 +76,7 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('mysqli_connect', 'mysqli', 'sql', 'mysqli_connect')
                 ->setError()
+                ->withExactTags(self::baseTags())
                 ->withExistingTagsNames([
                     'error.msg',
                     'error.type',
@@ -174,7 +171,7 @@ class MysqliTest extends IntegrationTestCase
 
     public function testProceduralCommit()
     {
-        $query = "INSERT INTO tests (id, name) VALUES (100, 'Tom'";
+        $query = "INSERT INTO tests (id, name) VALUES (100, 'Tom')";
         $traces = $this->isolateTracer(function () use ($query) {
             $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
             \mysqli_query($mysqli, $query);
@@ -182,6 +179,7 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
+        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::exists('mysqli_query', $query),
@@ -202,6 +200,7 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
+        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
@@ -226,11 +225,12 @@ class MysqliTest extends IntegrationTestCase
     {
         $traces = $this->isolateLimitedTracer(function () {
             $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
-            \mysqli_query($mysqli, "INSERT INTO tests (id, name) VALUES (100, 'Tom'");
+            \mysqli_query($mysqli, "INSERT INTO tests (id, name) VALUES (100, 'From Test')");
             \mysqli_commit($mysqli);
             $mysqli->close();
         });
 
+        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
         $this->assertEmpty($traces);
     }
 
@@ -246,6 +246,7 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
+        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
         $this->assertEmpty($traces);
     }
 
@@ -262,6 +263,7 @@ class MysqliTest extends IntegrationTestCase
             $mysqli->close();
         });
 
+        $this->assertOneRowInDatabase('tests', [ 'id' => 100 ]);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
             SpanAssertion::build('mysqli_prepare', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
@@ -320,9 +322,31 @@ class MysqliTest extends IntegrationTestCase
     {
         $this->isolateTracer(function () {
             $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
-            $mysqli->query("DROP TABLE tests");
+            $mysqli->query("DROP TABLE IF EXISTS tests");
             $mysqli->commit();
             $mysqli->close();
         });
+    }
+
+    private function assertOneRowInDatabase($table, $wheres)
+    {
+        $results = $this->queryDatabaseAllAssociative($table, $wheres);
+        $this->assertCount(1, $results);
+    }
+
+    private function queryDatabaseAllAssociative($table, $wheres)
+    {
+        $conditions = [];
+        foreach ($wheres as $key => $value) {
+            $conditions[] = "$key = '$value'";
+        }
+        $inlineWhere = $conditions ? 'WHERE ' . implode('AND', $conditions) : '';
+        $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
+        $result = $mysqli->query("SELECT * FROM $table $inlineWhere");
+        if (false === $result) {
+            $message = mysqli_error($mysqli);
+            $this->fail("Error while checking database rows: $message");
+        }
+        return $result->fetch_all(MYSQLI_ASSOC);
     }
 }

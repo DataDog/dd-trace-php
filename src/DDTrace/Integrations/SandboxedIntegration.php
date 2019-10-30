@@ -26,11 +26,25 @@ abstract class SandboxedIntegration extends Integration
      * Sets common error tags for an exception.
      *
      * @param SpanData $span
-     * @param string $message
+     * @param \Throwable $throwable
      */
-    public function setError(SpanData $span, $message)
+    public function setError(SpanData $span, \Throwable $throwable)
     {
-        $span->meta[Tag::ERROR_MSG] = $message;
-        $span->error = 1;
+        $span->meta[Tag::ERROR_MSG] = $throwable->getMessage();
+        $span->meta[Tag::ERROR_TYPE] = get_class($throwable);
+        $span->meta[Tag::ERROR_STACK] = $throwable->getTraceAsString();
+    }
+
+    /**
+     * Merge an associative array of span metadata into a span.
+     *
+     * @param SpanData $span
+     * @param array $meta
+     */
+    public function mergeMeta(SpanData $span, $meta)
+    {
+        foreach ($meta as $tagName => $value) {
+            $span->meta[$tagName] = $value;
+        }
     }
 }
