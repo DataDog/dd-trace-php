@@ -259,29 +259,6 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
     }
 
     /**
-     * Store a query into a mysqli or statement instance.
-     *
-     * @param mixed $instance
-     * @param string $query
-     */
-    public static function storeQuery($instance, $query)
-    {
-        ObjectKVStore::put($instance, 'query', $query);
-    }
-
-    /**
-     * Retrieves a query from a mysqli or statement instance.
-     *
-     * @param mixed $instance
-     * @param string $fallbackValue
-     * @return string|null
-     */
-    public static function retrieveQuery($instance, $fallbackValue)
-    {
-        return ObjectKVStore::get($instance, 'query', $fallbackValue);
-    }
-
-    /**
      * Extracts and sets the proper error info on the span if one is detected.
      *
      * @param SpanData $span

@@ -62,7 +62,7 @@ class MysqliIntegration extends Integration
             $thrown = null;
             $result = null;
             try {
-                MysqliIntegration::mergeMetaLegacyApi($span, MysqliCommon::parseHostInfo($host));
+                MysqliIntegration::mergeTagsLegacyApi($span, MysqliCommon::parseHostInfo($host));
 
                 // Depending on configuration, connections errors can both cause an exception and return false
                 $result = dd_trace_forward_call();

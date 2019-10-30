@@ -46,7 +46,7 @@ class MysqliTest extends IntegrationTestCase
     {
         $traces = $this->isolateTracer(function () {
             try {
-                $mysqli = \mysqli_connect(self::$host, 'wrong');
+                \mysqli_connect(self::$host, 'wrong');
                 $this->fail('should not be possible to connect to wrong host');
             } catch (\Exception $ex) {
             }

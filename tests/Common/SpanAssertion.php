@@ -120,18 +120,6 @@ final class SpanAssertion
     }
 
     /**
-     * Marks a span as expected error and sets only the message.
-     *
-     * @return $this
-     */
-    public function setErrorMessage()
-    {
-        $this->hasError = true;
-        $this->existingTags[] = Tag::ERROR_MSG;
-        return $this;
-    }
-
-    /**
      * @param SpanAssertion|SpanAssertion[] $children
      * @return $this
      */
