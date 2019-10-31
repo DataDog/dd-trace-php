@@ -24,6 +24,10 @@
     <contents>
         <dir name="/">
             <dir name="src">
+                <dir name="dogstatsd">
+                    <file name="client.c" role="src" />
+                    <file name="dogstatsd_client/client.h" role="src" />
+                </dir>
                 <dir name="ext">
                     <file name="backtrace.c" role="src" />
                     <file name="backtrace.h" role="src" />
