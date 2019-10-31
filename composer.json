@@ -215,7 +215,8 @@
             "@laravel-42-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
+            "@custom-framework-autoloaded-suite",
+            "@custom-framework-notautoloaded-test"
         ],
         "test-web-56": [
             "@test-metrics",
@@ -232,7 +233,8 @@
             "@symfony-34-suite",
             "@yii-2-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
+            "@custom-framework-autoloaded-suite",
+            "@custom-framework-notautoloaded-test"
         ],
         "test-web-70": [
             "@test-metrics",
@@ -249,7 +251,8 @@
             "@wordpress-48-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
+            "@custom-framework-autoloaded-suite",
+            "@custom-framework-notautoloaded-test"
         ],
         "test-web-71": [
             "@test-metrics",
@@ -277,7 +280,8 @@
             "@wordpress-48-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
+            "@custom-framework-autoloaded-suite",
+            "@custom-framework-notautoloaded-test"
         ],
         "test-web-72": [
             "@test-metrics",
@@ -309,7 +313,8 @@
             "@wordpress-48-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
+            "@custom-framework-autoloaded-suite",
+            "@custom-framework-notautoloaded-test"
         ],
         "test-web-73": [
             "@test-metrics",
@@ -331,7 +336,8 @@
             "@wordpress-48-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
+            "@custom-framework-autoloaded-suite",
+            "@custom-framework-notautoloaded-test"
         ],
 
         "inrease-memory-limit": "export COMPOSER_MEMORY_LIMIT=-1",
@@ -429,7 +435,9 @@
 
         "custom-framework-autoloaded-update": "@composer --working-dir=tests/Frameworks/Custom/Version_Autoloaded update",
         "custom-framework-autoloaded-test": "@composer test -- --testsuite=custom-framework-autoloaded-test",
-        "custom-framework-autoloaded-suite": [ "@custom-framework-autoloaded-update", "@custom-framework-autoloaded-test" ]
+        "custom-framework-autoloaded-suite": [ "@custom-framework-autoloaded-update", "@custom-framework-autoloaded-test" ],
+
+        "custom-framework-notautoloaded-test": "@composer test -- tests/Integrations/Custom/NotAutoloaded"
     },
     "extra": {
         "scenarios": {
