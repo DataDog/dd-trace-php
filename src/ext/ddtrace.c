@@ -5,11 +5,15 @@
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
+#include <arpa/inet.h>
 #include <inttypes.h>
+#include <netinet/in.h>
 #include <php.h>
 #include <php_ini.h>
 #include <php_main.h>
 #include <signal.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
@@ -27,6 +31,7 @@
 #include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
+#include "dogstatsd_client/client.h"
 #include "logging.h"
 #include "memory_limit.h"
 #include "random.h"
@@ -106,13 +111,32 @@ static void register_span_data_ce(TSRMLS_D) {
 static stack_t ddtrace_altstack;
 static struct sigaction ddtrace_sigaction;
 
-#define METRIC_CONST_TAGS "lang:php,lang_version:" PHP_VERSION ",tracer_version:" PHP_DDTRACE_VERSION
+#define METRICS_CONST_TAGS "lang:php,lang_version:" PHP_VERSION ",tracer_version:" PHP_DDTRACE_VERSION
 
 static void ddtrace_sigsegv_handler(int sig) {
     TSRMLS_FETCH();
-    // todo: report segfault to health metrics
+    char *dogstatsd_host = get_dd_agent_host();
+    char *dogstatsd_port = get_dd_dogstatsd_port();
+
     ddtrace_log_errf("Segmentation fault");
-    ddtrace_log_errf("datadog.tracer.uncaught_exceptions:1|c|@1.0|#class:sigsegv," METRIC_CONST_TAGS);
+
+    // todo: extract buffer, host, port, and client to module global, so this is just a send
+    char *buf = malloc(DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE);
+    size_t len = DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE;
+
+    dogstatsd_client client = dogstatsd_client_ctor(dogstatsd_host, dogstatsd_port, buf, len, METRICS_CONST_TAGS);
+    dogstatsd_client_status status =
+        dogstatsd_client_count(&client, "datadog.tracer.uncaught_exceptions", "1", "class:sigsegv");
+
+    if (status == DOGSTATSD_CLIENT_OK) {
+        ddtrace_log_errf("sigsegv health metric sent");
+    }
+
+    dogstatsd_client_dtor(&client);
+
+    free(buf);
+    free(dogstatsd_port);
+    free(dogstatsd_host);
     exit(128 + sig);
 }
 
@@ -126,11 +150,15 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    // config initialization needs to be at the top
+    ddtrace_initialize_config(TSRMLS_C);
+
+    BOOL_T health_metrics_enabled = get_dd_trace_heath_metrics_enabled();
     /* Install a signal handler for SIGSEGV and run it on an alternate stack.
      * Using an alternate stack allows the handler to run even when the main
      * stack overflows.
      */
-    if ((ddtrace_altstack.ss_sp = malloc(SIGSTKSZ))) {
+    if (health_metrics_enabled && (ddtrace_altstack.ss_sp = malloc(SIGSTKSZ))) {
         ddtrace_altstack.ss_size = SIGSTKSZ;
         ddtrace_altstack.ss_flags = 0;
         if (sigaltstack(&ddtrace_altstack, NULL) == 0) {
@@ -142,8 +170,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     }
 
     register_span_data_ce(TSRMLS_C);
-    // config initialization needs to be at the top
-    ddtrace_initialize_config(TSRMLS_C);
 
     ddtrace_install_backtrace_handler();
     ddtrace_dispatch_inject(TSRMLS_C);

@@ -25,6 +25,7 @@
         "ext-json": "*"
     },
     "require-dev": {
+        "ext-posix": "*",
         "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
         "phpunit/phpunit": "^4",
@@ -206,6 +207,7 @@
             "@composer scenario default"
         ],
         "test-web-54": [
+            "@test-metrics",
             "@cakephp-28-update",
             "@cakephp-28-test",
             "@laravel-42-update",
@@ -215,6 +217,7 @@
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-56": [
+            "@test-metrics",
             "@cakephp-28-update",
             "@cakephp-28-test",
             "@laravel-42-update",
@@ -231,6 +234,7 @@
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-70": [
+            "@test-metrics",
             "@codeigniter-22-test",
             "@laravel-42-update",
             "@laravel-42-test",
@@ -247,6 +251,7 @@
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-71": [
+            "@test-metrics",
             "@codeigniter-22-test",
             "@laravel-42-update",
             "@laravel-42-test",
@@ -275,6 +280,7 @@
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-72": [
+            "@test-metrics",
             "@codeigniter-22-test",
             "@laravel-42-update",
             "@laravel-42-test",
@@ -306,6 +312,7 @@
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-73": [
+            "@test-metrics",
             "@codeigniter-22-test",
             "@laravel-57-update",
             "@laravel-57-test",
@@ -331,6 +338,8 @@
         "memory_test": "echo $COMPOSER_MEMORY_LIMIT",
 
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
+
+        "test-metrics": "@composer test -- --testsuite=metrics",
 
         "test-auto-instrumentation": "phpunit --colors=always --configuration=phpunit.xml --testsuite=auto-instrumentation",
 
