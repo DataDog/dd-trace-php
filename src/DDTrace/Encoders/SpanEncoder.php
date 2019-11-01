@@ -22,8 +22,12 @@ final class SpanEncoder
         self::logSpanDetailsIfDebug($span);
 
         $arraySpan = [
-            'trace_id' => (int) $span->context->traceId,
-            'span_id' => (int) $span->context->spanId,
+            /* Do not cast trace/span ID's with (int)
+               Distributed traces can contain 64-bit
+               unsigned int's that overflow in userland */
+            'trace_id' => $span->context->traceId,
+            'span_id' => $span->context->spanId,
+
             'name' => $span->operationName,
             'resource' => $span->resource,
             'service' => $span->service,
@@ -40,7 +44,10 @@ final class SpanEncoder
         }
 
         if ($span->context->parentId !== null) {
-            $arraySpan['parent_id'] = (int) $span->context->parentId;
+            /* Do not cast parent ID with (int)
+               Distributed traces can contain 64-bit
+               unsigned int's that overflow in userland */
+            $arraySpan['parent_id'] = $span->context->parentId;
         }
 
         $tags = $span->tags;

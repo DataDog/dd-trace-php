@@ -49,8 +49,8 @@ final class TextMap implements Propagator
      */
     public function extract($carrier)
     {
-        $traceId = null;
-        $spanId = null;
+        $traceId = '';
+        $spanId = '';
         $prioritySampling = null;
         $baggageItems = [];
 
@@ -64,7 +64,10 @@ final class TextMap implements Propagator
             }
         }
 
-        if ($traceId === null || $spanId === null) {
+        if (
+            preg_match('/^\d+$/', $traceId) !== 1 ||
+            preg_match('/^\d+$/', $spanId) !== 1
+        ) {
             return null;
         }
 

@@ -20,7 +20,20 @@ final class Json implements Encoder
             self::logDebug('Failed to json-encode trace: ' . json_last_error_msg());
             return '[[]]';
         }
-        return $json;
+        /* Trace/span ID's cannot be cast with (int)
+           since distributed traces can contain 64-bit
+           unsigned int's that overflow in userland.
+           Because of this, ID's are sent as strings to
+           json_encode() and "cast" to int's after
+           serialization.
+
+           Moral of the story:
+                Use the MessagePack encoder. */
+        return preg_replace(
+            '/"(trace_id|span_id|parent_id)":"(\d+)"/',
+            '"$1":$2',
+            $json
+        );
     }
 
     /**

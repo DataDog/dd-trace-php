@@ -74,8 +74,8 @@ trait TracerTestTrait
      */
     public function simulateAgent($fn, $tracer = null)
     {
-        // Clearing existing dumped file
-        $this->resetRequestDumper();
+        // Clear existing dumped file
+        self::resetRequestDumper();
 
         $transport = new Http(new Json(), ['endpoint' => self::$agentRequestDumperUrl]);
         $tracer = $tracer ?: new Tracer($transport);
@@ -94,11 +94,11 @@ trait TracerTestTrait
     }
 
     /**
-     * Reset the request dumper removing all the dumped  data file.
+     * Reset the request dumper removing the dumped data file.
      */
-    private function resetRequestDumper()
+    private static function resetRequestDumper()
     {
-        $curl =  curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
+        $curl = curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
         curl_exec($curl);
     }
 
@@ -113,13 +113,49 @@ trait TracerTestTrait
      */
     public function tracesFromWebRequest($fn, $tracer = null)
     {
-        // Clearing existing dumped file
-        $this->resetRequestDumper();
+        // Clear existing dumped file
+        self::resetRequestDumper();
 
         // The we server has to be configured to send traces to the provided requests dumper.
         $fn($tracer);
 
         return $this->parseTracesFromDumpedData();
+    }
+
+    /**
+     * Returns the last request body sent to the fake Agent as a string.
+     * This is handy to examine the "exact" request without any type
+     * coercion that json_decode() might do.
+     *
+     * @param \Closure $fn
+     * @return string
+     */
+    public function rawTracesFromWebRequest(\Closure $fn)
+    {
+        // Clear existing dumped file
+        self::resetRequestDumper();
+        $fn();
+        return self::fetchRequestBodyFromDumpedData();
+    }
+
+    /**
+     * Fetch request body dumped to the fake Agent
+     *
+     * @return string
+     */
+    private static function fetchRequestBodyFromDumpedData()
+    {
+        // Retrieving data
+        $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        $response = curl_exec($curl);
+        if (!$response) {
+            return '';
+        }
+
+        // For now we only support asserting traces against one dump at a time.
+        $loaded = json_decode($response, true);
+        return isset($loaded['body']) ? $loaded['body'] : '';
     }
 
     /**
@@ -130,22 +166,13 @@ trait TracerTestTrait
      */
     private function parseTracesFromDumpedData()
     {
-        // Retrieving data
-        $curl =  curl_init(self::$agentRequestDumperUrl . '/replay');
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        $response = curl_exec($curl);
-        if (!$response) {
+        $body = self::fetchRequestBodyFromDumpedData();
+
+        if (empty($body)) {
             return [];
         }
 
-        // For now we only support asserting traces against one dump at a time.
-        $loaded = json_decode($response, true);
-
-        if (!isset($loaded['body'])) {
-            return [];
-        }
-
-        $rawTraces = json_decode($loaded['body'], true);
+        $rawTraces = json_decode($body, true);
         $traces = [];
 
         foreach ($rawTraces as $spansInTrace) {

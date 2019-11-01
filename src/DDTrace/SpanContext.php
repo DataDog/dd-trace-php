@@ -17,7 +17,7 @@ final class SpanContext extends SpanContextData
     ) {
         $this->traceId = $traceId;
         $this->spanId = $spanId;
-        $this->parentId = $parentId;
+        $this->parentId = $parentId ?: null;
         $this->baggageItems = $baggageItems;
         $this->isDistributedTracingActivationContext = $isDistributedTracingActivationContext;
     }
@@ -34,6 +34,7 @@ final class SpanContext extends SpanContextData
             dd_trace_push_span_id(),
             // Since the last span could have been generated internally,
             // we can't use `$parentContext->getSpanId()` here
+            // @TODO Fix this for distributed traces that pass along x-datadog-parent-id
             $activeSpanId,
             $parentContext->getAllBaggageItems(),
             false

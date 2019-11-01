@@ -57,7 +57,7 @@ final class SpanAssertion
      * @param array $exactTags
      * @param null $parent
      * @param bool $error
-     * @param array $extactMetrics
+     * @param array|string $extactMetrics
      * @return SpanAssertion
      */
     public static function build(
@@ -68,7 +68,7 @@ final class SpanAssertion
         $exactTags = [],
         $parent = null,
         $error = false,
-        $extactMetrics = []
+        $extactMetrics = SpanAssertion::NOT_TESTED
     ) {
         return SpanAssertion::forOperation($name, $error)
             ->service($service)
@@ -147,10 +147,10 @@ final class SpanAssertion
     }
 
     /**
-     * @param array $metrics
+     * @param array|string $metrics
      * @return $this
      */
-    public function withExactMetrics(array $metrics)
+    public function withExactMetrics($metrics)
     {
         $this->exactMetrics = $metrics;
         return $this;
@@ -298,16 +298,5 @@ final class SpanAssertion
     public function getExactMetrics()
     {
         return $this->exactMetrics;
-    }
-
-    /**
-     * @return array
-     */
-    public function getNotTestedMetricNames()
-    {
-        return [
-            '_sampling_priority_v1',
-            '_dd1.sr.eausr',
-        ];
     }
 }
