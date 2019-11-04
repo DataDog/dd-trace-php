@@ -13,6 +13,7 @@ x-aliases:
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
+        - agent
         - ddagent_integration
         - request-replayer
         - elasticsearch2_integration
