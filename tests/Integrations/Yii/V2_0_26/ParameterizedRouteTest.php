@@ -12,8 +12,6 @@ use DDTrace\Type;
 
 class ParameterizedRouteTest extends WebFrameworkTestCase
 {
-    use TracerTestTrait;
-    use SpanAssertionTrait;
 
     const IS_SANDBOX = true;
 
