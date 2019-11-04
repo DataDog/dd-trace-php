@@ -26,8 +26,8 @@ final class Bootstrap
         }
 
         self::$bootstrapped = true;
-        self::resetTracer();
-        self::initRootSpan();
+        $tracer = self::resetTracer();
+        self::initRootSpan($tracer);
         self::registerOpenTracing();
 
         register_shutdown_function(function () {
@@ -51,10 +51,13 @@ final class Bootstrap
 
     /**
      * Reset the singleton tracer providing a brand new instance.
+     * @return Tracer
      */
     public static function resetTracer()
     {
-        GlobalTracer::set(new Tracer());
+        $tracer = new Tracer();
+        GlobalTracer::set($tracer);
+        return $tracer;
     }
 
     /**
@@ -79,37 +82,45 @@ final class Bootstrap
     /**
      * Initialize the root span
      *
+     * @param Tracer $tracer
      * @return void
      */
-    private static function initRootSpan()
+    private static function initRootSpan(Tracer $tracer)
     {
-        $tracer = GlobalTracer::get();
         $options = ['start_time' => Time::now()];
-        $startSpanOptions = 'cli' === PHP_SAPI
-            ? StartSpanOptions::create($options)
-            : StartSpanOptionsFactory::createForWebRequest(
-                $tracer,
-                $options,
-                Request::getHeaders()
-            );
-        $operationName = 'cli' === PHP_SAPI ? basename($_SERVER['argv'][0]) : 'web.request';
-        $span = $tracer->startRootSpan($operationName, $startSpanOptions)->getSpan();
+        if ('cli' === PHP_SAPI) {
+            $operationName = isset($_SERVER['argv'][0]) ? basename($_SERVER['argv'][0]) : 'cli.command';
+            $span = $tracer->startRootSpan(
+                $operationName,
+                StartSpanOptions::create($options)
+            )->getSpan();
+            $span->setTag(Tag::SPAN_TYPE, Type::CLI);
+        } else {
+            $operationName = 'web.request';
+            $span = $tracer->startRootSpan(
+                $operationName,
+                StartSpanOptionsFactory::createForWebRequest(
+                    $tracer,
+                    $options,
+                    Request::getHeaders()
+                )
+            )->getSpan();
+            $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
+            if (isset($_SERVER['REQUEST_METHOD'])) {
+                $span->setTag(Tag::HTTP_METHOD, $_SERVER['REQUEST_METHOD']);
+            }
+            if (isset($_SERVER['REQUEST_URI'])) {
+                $span->setTag(Tag::HTTP_URL, $_SERVER['REQUEST_URI']);
+            }
+            // Status code defaults to 200, will be later on changed when http_response_code will be called
+            $span->setTag(Tag::HTTP_STATUS_CODE, 200);
+        }
         $span->setIntegration(WebIntegration::getInstance());
         $span->setTraceAnalyticsCandidate();
         $span->setTag(
             Tag::SERVICE_NAME,
             Configuration::get()->appName($operationName)
         );
-        $span->setTag(
-            Tag::SPAN_TYPE,
-            'cli' === PHP_SAPI ? Type::CLI : Type::WEB_SERVLET
-        );
-        if ('cli' !== PHP_SAPI) {
-            $span->setTag(Tag::HTTP_METHOD, $_SERVER['REQUEST_METHOD']);
-            $span->setTag(Tag::HTTP_URL, $_SERVER['REQUEST_URI']);
-            // Status code defaults to 200, will be later on changed when http_response_code will be called
-            $span->setTag(Tag::HTTP_STATUS_CODE, 200);
-        }
 
         dd_trace('header', function () use ($span) {
             $args = func_get_args();
