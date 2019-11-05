@@ -63,14 +63,45 @@ class CurlIntegration extends Integration
 
             $info = curl_getinfo($ch);
             $sanitizedUrl = Urls::sanitize($info['url']);
+            unset($info['url']);
+
             if ($globalConfig->isHttpClientSplitByDomain()) {
                 $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($sanitizedUrl));
             } else {
                 $span->setTag(Tag::SERVICE_NAME, 'curl');
             }
             $span->setTag(Tag::RESOURCE_NAME, $sanitizedUrl);
+
+
+            // Special case the Datadog Standard Attributes
+            //  https://docs.datadoghq.com/logs/processing/attributes_naming_convention/
+
             $span->setTag(Tag::HTTP_URL, $sanitizedUrl);
-            $span->setTag(Tag::HTTP_STATUS_CODE, $info['http_code']);
+
+            tagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
+
+            $span->setTag('duration', $info['total_time'] * 1000000000);
+            unset($info['duration']);
+
+            tagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
+            tagFromCurlInfo($span, $info, 'network.client.port', 'local_port');
+
+            tagFromCurlInfo($span, $info, 'network.destination.ip', 'primary_ip');
+            tagFromCurlInfo($span, $info, 'network.destination.port', 'primary_port');
+
+            //tagFromCurlInfo($span, $info, 'network.bytes_read', 'size_download');
+            //tagFromCurlInfo($span, $info, 'network.bytes_written', 'size_upload');
+
+
+            // Add the rest to a curl. object
+            foreach ($info as $key => $val) {
+                if(!is_array($val)) {
+                  if(substr_compare($key, '_time', -5) === 0) {
+                     $val = $val * 1000000000;
+                  }
+                  $span->setTag('curl.' . $key, $val);
+                }
+            }
 
             $scope->close();
             return $result;
@@ -148,3 +179,16 @@ class CurlIntegration extends Integration
         }
     }
 }
+
+/**
+ * @param span $span
+ * @param tagName $tagName
+ * @param info $info
+ */
+ function tagFromCurlInfo(&$span, &$info, $tagName, $curlInfoOpt)
+ {
+     if (array_key_exists($curlInfoOpt, $info)) {
+        $span->setTag($tagName, $info[$curlInfoOpt]);
+        unset($info[$curlInfoOpt]);
+     }
+ }
