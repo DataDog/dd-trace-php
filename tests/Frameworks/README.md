@@ -122,6 +122,12 @@ Link: https://symfony.com/doc/4.2/setup.html
 
     $ composer create-project symfony/website-skeleton Version_4_2
 
+### Symfony 4.3
+
+Link: https://symfony.com/doc/4.3/setup.html
+
+    $ composer create-project symfony/website-skeleton Version_4_3
+
 ## Custom frameworks
 
 These aren't real frameworks, but they represent unsupported frameworks and custom frameworks.
