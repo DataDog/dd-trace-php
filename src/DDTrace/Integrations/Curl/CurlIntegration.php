@@ -80,6 +80,7 @@ class CurlIntegration extends Integration
 
             tagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
 
+            // Datadog sets durations in nanoseconds - convert from seconds
             $span->setTag('duration', $info['total_time'] * 1000000000);
             unset($info['duration']);
 
@@ -89,13 +90,15 @@ class CurlIntegration extends Integration
             tagFromCurlInfo($span, $info, 'network.destination.ip', 'primary_ip');
             tagFromCurlInfo($span, $info, 'network.destination.port', 'primary_port');
 
-            //tagFromCurlInfo($span, $info, 'network.bytes_read', 'size_download');
-            //tagFromCurlInfo($span, $info, 'network.bytes_written', 'size_upload');
+            tagFromCurlInfo($span, $info, 'network.bytes_read', 'size_download');
+            tagFromCurlInfo($span, $info, 'network.bytes_written', 'size_upload');
 
 
-            // Add the rest to a curl. object
+            // Add the rest to a 'curl.' object
             foreach ($info as $key => $val) {
+                // Datadog doesn't support arrays in tags 
                 if(!is_array($val)) {
+                  // Datadog sets durations in nanoseconds - convert from seconds
                   if(substr_compare($key, '_time', -5) === 0) {
                      $val = $val * 1000000000;
                   }
