@@ -98,7 +98,7 @@ class CurlIntegration extends Integration
             foreach ($info as $key => $val) {
                 // Datadog doesn't support arrays in tags
                 if (!is_array($val)) {
-                  // Datadog sets durations in nanoseconds - convert from seconds
+                    // Datadog sets durations in nanoseconds - convert from seconds
                     if (substr_compare($key, '_time', -5) === 0) {
                         $val = $val * 1000000000;
                     }
