@@ -78,31 +78,31 @@ class CurlIntegration extends Integration
 
             $span->setTag(Tag::HTTP_URL, $sanitizedUrl);
 
-            tagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
+            CurlIntegration::tagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
 
             // Datadog sets durations in nanoseconds - convert from seconds
             $span->setTag('duration', $info['total_time'] * 1000000000);
             unset($info['duration']);
 
-            tagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
-            tagFromCurlInfo($span, $info, 'network.client.port', 'local_port');
+            CurlIntegration::tagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
+            CurlIntegration::tagFromCurlInfo($span, $info, 'network.client.port', 'local_port');
 
-            tagFromCurlInfo($span, $info, 'network.destination.ip', 'primary_ip');
-            tagFromCurlInfo($span, $info, 'network.destination.port', 'primary_port');
+            CurlIntegration::tagFromCurlInfo($span, $info, 'network.destination.ip', 'primary_ip');
+            CurlIntegration::tagFromCurlInfo($span, $info, 'network.destination.port', 'primary_port');
 
-            tagFromCurlInfo($span, $info, 'network.bytes_read', 'size_download');
-            tagFromCurlInfo($span, $info, 'network.bytes_written', 'size_upload');
+            CurlIntegration::tagFromCurlInfo($span, $info, 'network.bytes_read', 'size_download');
+            CurlIntegration::tagFromCurlInfo($span, $info, 'network.bytes_written', 'size_upload');
 
 
             // Add the rest to a 'curl.' object
             foreach ($info as $key => $val) {
-                // Datadog doesn't support arrays in tags 
-                if(!is_array($val)) {
+                // Datadog doesn't support arrays in tags
+                if (!is_array($val)) {
                   // Datadog sets durations in nanoseconds - convert from seconds
-                  if(substr_compare($key, '_time', -5) === 0) {
-                     $val = $val * 1000000000;
-                  }
-                  $span->setTag('curl.' . $key, $val);
+                    if (substr_compare($key, '_time', -5) === 0) {
+                        $val = $val * 1000000000;
+                    }
+                    $span->setTag('curl.' . $key, $val);
                 }
             }
 
@@ -181,17 +181,17 @@ class CurlIntegration extends Integration
             }
         }
     }
-}
 
-/**
- * @param span $span
- * @param tagName $tagName
- * @param info $info
- */
- function tagFromCurlInfo(&$span, &$info, $tagName, $curlInfoOpt)
- {
-     if (array_key_exists($curlInfoOpt, $info)) {
-        $span->setTag($tagName, $info[$curlInfoOpt]);
-        unset($info[$curlInfoOpt]);
-     }
- }
+    /**
+     * @param span $span
+     * @param tagName $tagName
+     * @param info $info
+     */
+    public static function tagFromCurlInfo($span, &$info, $tagName, $curlInfoOpt)
+    {
+        if (array_key_exists($curlInfoOpt, $info)) {
+            $span->setTag($tagName, $info[$curlInfoOpt]);
+            unset($info[$curlInfoOpt]);
+        }
+    }
+}
