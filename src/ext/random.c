@@ -104,11 +104,8 @@ uint64_t ddtrace_pop_span_id(TSRMLS_D) {
     return id;
 }
 
-uint64_t ddtrace_peek_span_id(TSRMLS_D) {
-    if (DDTRACE_G(span_ids_top) == NULL) {
-        return 0;
-    }
-    return DDTRACE_G(span_ids_top)->id;
+ddtrace_span_ids_t *ddtrace_active_span_id(TSRMLS_D) {
+    return DDTRACE_G(span_ids_top);
 }
 
-uint64_t ddtrace_root_span_id(TSRMLS_D) { return DDTRACE_G(root_span_id); }
+uint64_t ddtrace_trace_id(TSRMLS_D) { return DDTRACE_G(trace_id); }

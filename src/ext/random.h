@@ -24,7 +24,7 @@ BOOL_T ddtrace_set_userland_trace_id(zval *zid TSRMLS_DC);
 uint64_t ddtrace_push_span_id(uint64_t id TSRMLS_DC);
 BOOL_T ddtrace_push_userland_span_id(zval *zid TSRMLS_DC);
 uint64_t ddtrace_pop_span_id(TSRMLS_D);
-uint64_t ddtrace_peek_span_id(TSRMLS_D);
-uint64_t ddtrace_root_span_id(TSRMLS_D);
+ddtrace_span_ids_t *ddtrace_active_span_id(TSRMLS_D);
+uint64_t ddtrace_trace_id(TSRMLS_D);
 
 #endif  // DD_RANDOM_H

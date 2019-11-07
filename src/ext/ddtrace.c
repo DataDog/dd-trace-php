@@ -706,7 +706,12 @@ static PHP_FUNCTION(dd_trace_pop_span_id) {
 static PHP_FUNCTION(dd_trace_peek_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    return_span_id(return_value, ddtrace_peek_span_id(TSRMLS_C));
+    ddtrace_span_ids_t *active_id = ddtrace_active_span_id(TSRMLS_C);
+    if (active_id) {
+        return_span_id(return_value, active_id->id);
+    } else {
+        return_span_id(return_value, 0U);
+    }
 }
 
 /* {{{ proto string dd_trace_closed_spans_count() */

@@ -6,6 +6,7 @@
 
 #include "ddtrace.h"
 #include "dispatch_compat.h"
+#include "random.h"
 #include "serializer.h"
 
 #define USE_REALTIME_CLOCK 0
@@ -76,10 +77,11 @@ ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
     object_init_ex(span->span_data, ddtrace_ce_span_data);
 
     // Peek at the active span ID before we push a new one onto the stack
-    span->parent_id = ddtrace_peek_span_id(TSRMLS_C);
+    ddtrace_span_ids_t *active_id = ddtrace_active_span_id(TSRMLS_C);
+    span->parent_id = active_id ? active_id->id : 0;
     span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);
     // Set the trace_id last so we have ID's on the stack
-    span->trace_id = ddtrace_root_span_id(TSRMLS_C);
+    span->trace_id = ddtrace_trace_id(TSRMLS_C);
     span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
     span->exception = NULL;
     span->pid = getpid();

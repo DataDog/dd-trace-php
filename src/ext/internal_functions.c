@@ -6,6 +6,7 @@
 #include "internal_functions.h"
 #include "logging.h"
 #include "random.h"
+#include "trace.h"
 //#include "third-party/php/7.3/php_curl.h"
 
 #if PHP_VERSION_ID < 70200
@@ -85,18 +86,37 @@ ZEND_NAMED_FUNCTION(ddtrace_hander_curl_exec) {
     struct curl_slist *orig_headers = NULL;
     struct curl_slist *last_orig_header = NULL;
     struct curl_slist *dd_headers = NULL;
-    uint64_t root_span_id = ddtrace_root_span_id(TSRMLS_C);
-    uint64_t active_span_id = ddtrace_peek_span_id(TSRMLS_C);
 
     if (get_dd_trace_sandbox_enabled() != TRUE || get_dd_distributed_tracing() != TRUE) {
         orig_handler_curl_exec(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
     }
 
-    // No trace ID to propagate
-    if (!root_span_id) {
+    uint64_t trace_id = ddtrace_trace_id(TSRMLS_C);
+    ddtrace_span_ids_t *active_span_id = ddtrace_active_span_id(TSRMLS_C);
+    // No trace to propagate
+    if (!trace_id || !active_span_id) {
         orig_handler_curl_exec(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
+    }
+
+    /*
+     In limited tracing mode, this span will get dropped after the call, so
+     propagate the parent span ID instead. This blindly assumes the parent span
+     will not get dropped which is not guaranteed. However, since the current
+     limited-tracing API requires dropping the span from userland, it is not
+     possible to know whether or not the parent span will get dropped at this
+     point. A new API should be introduced to mark spans as "droppable" in
+     limited tracing mode at load time so the span is never created and the
+     tracing closure is never run. That change will make this workaround
+     unnecessary.
+     */
+    if (ddtrace_tracer_is_limited(TSRMLS_C) == TRUE) {
+        if (!active_span_id->next) {
+            orig_handler_curl_exec(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+            return;
+        }
+        active_span_id = active_span_id->next;
     }
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &zid) == FAILURE) {
@@ -113,8 +133,8 @@ ZEND_NAMED_FUNCTION(ddtrace_hander_curl_exec) {
     char header_trace_id[sizeof("x-datadog-trace-id: ") + DD_TRACE_MAX_ID_LEN + 1];
     char header_parent_id[sizeof("x-datadog-parent-id: ") + DD_TRACE_MAX_ID_LEN + 1];
 
-    snprintf(header_trace_id, sizeof(header_trace_id), "x-datadog-trace-id: %" PRIu64, root_span_id);
-    snprintf(header_parent_id, sizeof(header_parent_id), "x-datadog-parent-id: %" PRIu64, active_span_id);
+    snprintf(header_trace_id, sizeof(header_trace_id), "x-datadog-trace-id: %" PRIu64, trace_id);
+    snprintf(header_parent_id, sizeof(header_parent_id), "x-datadog-parent-id: %" PRIu64, active_span_id->id);
 
     dd_headers = curl_slist_append(dd_headers, header_trace_id);
     dd_headers = curl_slist_append(dd_headers, header_parent_id);
