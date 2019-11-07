@@ -66,7 +66,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
                 // `Property access is not allowed yet` would be thrown when
                 // accessing host info.
                 $integration->setConnectionInfo($span, $this);
-            } catch (\Exception $ex) {}
+            } catch (\Exception $ex) { }
         });
 
         dd_trace_function('mysqli_real_connect', function (SpanData $span, $args) use ($integration) {
@@ -122,7 +122,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             ObjectKVStore::put($returnedStatement, 'host_info', $host_info);
         });
 
-        dd_trace_function('mysqli_commit', function (SpandData $span, $args) use ($integration) {
+        dd_trace_function('mysqli_commit', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -133,7 +133,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             $integration->setConnectionInfo($span, $mysqli);
 
             if (isset($args[2])) {
-                $span->meta['db.transaction_name'] =$args[2];
+                $span->meta['db.transaction_name'] = $args[2];
             }
         });
 
