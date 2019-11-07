@@ -52,22 +52,27 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
         });
 
         $mysqli_constructor = PHP_MAJOR_VERSION > 5 ? '__construct' : 'mysqli';
-        dd_trace_method('mysqli', $mysqli_constructor, function (SpanData $span, $args) use ($mysqli_constructor, $integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
+        dd_trace_method(
+            'mysqli',
+            $mysqli_constructor,
+            function (SpanData $span, $args) use ($mysqli_constructor, $integration) {
+                if (dd_trace_tracer_is_limited()) {
+                    return false;
+                }
+
+                $integration->setDefaultAttributes($span, 'mysqli.__construct', 'mysqli.__construct');
+                $integration->trackPotentialError($span);
+
+                try {
+                    // Host can either be provided as constructor arg or after
+                    // through ->real_connect(...). In this latter case an error
+                    // `Property access is not allowed yet` would be thrown when
+                    // accessing host info.
+                    $integration->setConnectionInfo($span, $this);
+                } catch (\Exception $ex) {
+                }
             }
-
-            $integration->setDefaultAttributes($span, 'mysqli.__construct', 'mysqli.__construct');
-            $integration->trackPotentialError($span);
-
-            try {
-                // Host can either be provided as constructor arg or after
-                // through ->real_connect(...). In this latter case an error
-                // `Property access is not allowed yet` would be thrown when
-                // accessing host info.
-                $integration->setConnectionInfo($span, $this);
-            } catch (\Exception $ex) { }
-        });
+        );
 
         dd_trace_function('mysqli_real_connect', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
