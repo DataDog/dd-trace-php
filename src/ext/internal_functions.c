@@ -12,7 +12,7 @@ typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
 #endif
 
 // BEGIN copy/pasted bits from ext/curl/php_curl.h (PHP 7)
-extern int le_curl;
+//extern int le_curl;
 
 typedef struct {
     zval func_name;
@@ -97,10 +97,12 @@ ZEND_NAMED_FUNCTION(ddtrace_hander_curl_exec) {
         return;
     }
 
+    /*
     if ((ch = (php_curl *)zend_fetch_resource(Z_RES_P(zid), "cURL handle", le_curl)) == NULL) {
         return;
     }
-    //ch = (php_curl *)Z_RES_P(zid)->ptr;  // FIX: This cannot be trusted without zend_fetch_resource()
+    */
+    ch = (php_curl *)Z_RES_P(zid)->ptr;  // FIX: This cannot be trusted without zend_fetch_resource()
 
     char header_trace_id[sizeof("x-datadog-trace-id: ") + DD_TRACE_MAX_ID_LEN + 1];
     char header_parent_id[sizeof("x-datadog-parent-id: ") + DD_TRACE_MAX_ID_LEN + 1];
