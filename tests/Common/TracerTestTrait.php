@@ -76,6 +76,8 @@ trait TracerTestTrait
     {
         // Clearing existing dumped file
         $this->resetRequestDumper();
+        // Reset the current C-level array of generated spans
+        dd_trace_serialize_closed_spans();
 
         $transport = new Http(new Json(), ['endpoint' => self::$agentRequestDumperUrl]);
         $tracer = $tracer ?: new Tracer($transport);
