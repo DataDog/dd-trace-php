@@ -32,6 +32,8 @@ class PrivateCallbackRequest
 
 final class CurlIntegrationTest extends IntegrationTestCase
 {
+    const IS_SANDBOX = false;
+
     const URL = 'http://httpbin_integration';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
 
@@ -303,16 +305,10 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
-        $found = [];
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'isAutofinishSpansEnabled' => false,
-            'isAnalyticsEnabled' => false,
-            'isDistributedTracingEnabled' => false,
-            'isPrioritySamplingEnabled' => false,
-            'getGlobalTags' => [],
-            'isDebugModeEnabled' => false,
-        ]));
+        putenv('DD_DISTRIBUTED_TRACING=0');
+        dd_trace_internal_fn('ddtrace_reload_config');
 
+        $found = [];
         $this->isolateTracer(function () use (&$found) {
             /** @var Tracer $tracer */
             $tracer = GlobalTracer::get();
@@ -325,6 +321,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
             $found = json_decode(curl_exec($ch), 1);
             $span->finish();
         });
+
+        putenv('DD_DISTRIBUTED_TRACING');
+        dd_trace_internal_fn('ddtrace_reload_config');
 
         $this->assertArrayNotHasKey('X-Datadog-Trace-Id', $found['headers']);
         $this->assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
