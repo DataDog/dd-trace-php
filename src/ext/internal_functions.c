@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <php.h>
 
+#include "configuration.h"
 #include "internal_functions.h"
 #include "logging.h"
 #include "random.h"
@@ -86,6 +87,11 @@ ZEND_NAMED_FUNCTION(ddtrace_hander_curl_exec) {
     struct curl_slist *dd_headers = NULL;
     uint64_t root_span_id = ddtrace_root_span_id(TSRMLS_C);
     uint64_t active_span_id = ddtrace_peek_span_id(TSRMLS_C);
+
+    if (get_dd_trace_sandbox_enabled() != TRUE || get_dd_distributed_tracing() != TRUE) {
+        orig_handler_curl_exec(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        return;
+    }
 
     // No trace ID to propagate
     if (!root_span_id) {
