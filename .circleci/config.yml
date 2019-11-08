@@ -393,6 +393,9 @@ jobs:
           name: Run auto-instrumentation tests
           command: composer test-auto-instrumentation -- --log-junit test-results/php-auto-instrumentation/results.xml
       - run:
+          name: Run distributed-tracing tests
+          command: DD_TRACE_AGENT_TIMEOUT=2000 composer test-distributed-tracing -- --log-junit test-results/php-distributed-tracing/results.xml
+      - run:
           name: Run integration tests
           command: composer test-integration -- --log-junit test-results/php-integration/results.xml
       - run:

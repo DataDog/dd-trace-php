@@ -461,8 +461,10 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        $this->prioritySampling = $span->getContext()->getPropagatedPrioritySampling()
-            ?: $this->sampler->getPrioritySampling($span);
+        $this->prioritySampling = $span->getContext()->getPropagatedPrioritySampling();
+        if (null === $this->prioritySampling) {
+            $this->prioritySampling = $this->sampler->getPrioritySampling($span);
+        }
     }
 
     /**
