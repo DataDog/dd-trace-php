@@ -1,11 +1,13 @@
 #include "random.h"
 
 #include <php.h>
+#include <stdlib.h>
 
 #include <ext/standard/php_rand.h>
 
 #include "configuration.h"
 #include "ddtrace.h"
+#include "env_config.h"
 #include "third-party/mt19937-64.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -31,10 +33,10 @@ void ddtrace_free_span_id_stack(TSRMLS_D) {
     }
 }
 
-uint64_t ddtrace_push_span_id(TSRMLS_D) {
+uint64_t ddtrace_push_span_id(uint64_t id TSRMLS_DC) {
     ddtrace_span_ids_t *stack = ecalloc(1, sizeof(ddtrace_span_ids_t));
     // Shift one bit to get 63-bit; add 1 since "0" can indicate a root span
-    stack->id = (uint64_t)((genrand64_int64() >> 1) + 1);
+    stack->id = id ? id : (uint64_t)((genrand64_int64() >> 1) + 1);
     stack->next = DDTRACE_G(span_ids_top);
     DDTRACE_G(span_ids_top) = stack;
     // Assuming the first call this function is for the root span
@@ -67,4 +69,27 @@ uint64_t ddtrace_peek_span_id(TSRMLS_D) {
         return 0;
     }
     return DDTRACE_G(span_ids_top)->id;
+}
+
+BOOL_T ddtrace_push_userland_span_id(zval *zid TSRMLS_DC) {
+    if (!zid || Z_TYPE_P(zid) != IS_STRING) {
+        return FALSE;
+    }
+    const char *id = Z_STRVAL_P(zid);
+#if PHP_VERSION_ID >= 70000
+    size_t i = 0;
+#else
+    int i = 0;
+#endif
+    for (; i < Z_STRLEN_P(zid); i++) {
+        if (id[i] < '0' || id[i] > '9') {
+            return FALSE;
+        }
+    }
+    uint64_t uid = (uint64_t)strtoull(id, NULL, 10);
+    if (uid && errno != ERANGE) {
+        ddtrace_push_span_id(uid TSRMLS_CC);
+        return TRUE;
+    }
+    return FALSE;
 }

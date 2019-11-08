@@ -128,6 +128,7 @@
                     <file name="dd_trace_forward_call_from_include.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_inheritance.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_private_callback.phpt" role="test" />
+                    <file name="dd_trace_push_span_id_from_userland.phpt" role="test" />
                     <file name="dd_trace_tracer_is_limited_hard.phpt" role="test" />
                     <file name="dd_trace_tracer_is_limited_memory.phpt" role="test" />
                     <dir name="sandbox">

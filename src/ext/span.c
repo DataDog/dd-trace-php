@@ -77,7 +77,7 @@ ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
 
     // Peek at the active span ID before we push a new one onto the stack
     span->parent_id = ddtrace_peek_span_id(TSRMLS_C);
-    span->span_id = ddtrace_push_span_id(TSRMLS_C);
+    span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);
     // Set the trace_id last so we have ID's on the stack
     span->trace_id = DDTRACE_G(root_span_id);
     span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
