@@ -189,7 +189,7 @@ final class Tracer implements TracerInterface
         }
 
         $tags = $options->getTags() + $this->config['global_tags'];
-        if ($reference === null) {
+        if ($context->getParentId() === null) {
             $tags[Tag::PID] = getmypid();
         }
 

@@ -2,6 +2,8 @@
 
 namespace DDTrace\Propagators;
 
+use DDTrace\Configuration;
+use DDTrace\Log\LoggingTrait;
 use DDTrace\Propagator;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
@@ -10,6 +12,8 @@ use DDTrace\SpanContext;
 
 final class TextMap implements Propagator
 {
+    use LoggingTrait;
+
     /**
      * @var Tracer
      */
@@ -71,10 +75,40 @@ final class TextMap implements Propagator
             return null;
         }
 
+        $spanId = $this->pushDistributedTraceParentId($spanId);
+
         $spanContext = new SpanContext($traceId, $spanId, null, $baggageItems, true);
         $this->extractPrioritySampling($spanContext, $carrier);
         $this->extractOrigin($spanContext, $carrier);
         return $spanContext;
+    }
+
+    /**
+     * Push the distributed trace's parent ID onto the internal span ID
+     * stack so that it is accessible via dd_trace_peek_span_id()
+     *
+     * @param string $spanId
+     * @return string
+     */
+    private function pushDistributedTraceParentId($spanId)
+    {
+        if (!$spanId) {
+            return '';
+        }
+        $pushedSpanId = dd_trace_push_span_id($spanId);
+        if ($pushedSpanId === $spanId) {
+            return $spanId;
+        }
+        if (Configuration::get()->isDebugModeEnabled()) {
+            self::logDebug(
+                'Error parsing distributed trace parent ID: {expected}; using {actual} instead.',
+                [
+                    'expected' => $spanId,
+                    'actual' => $pushedSpanId,
+                ]
+            );
+        }
+        return $pushedSpanId;
     }
 
     /**

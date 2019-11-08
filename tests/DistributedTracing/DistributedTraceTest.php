@@ -36,8 +36,7 @@ class DistributedTraceTest extends WebFrameworkTestCase
         });
 
         $this->assertSame(1042, $traces[0][0]['trace_id']);
-        // TODO Fix parent ID propagation
-        //$this->assertSame(1000, $traces[0][0]['parent_id']);
+        $this->assertSame(1000, $traces[0][0]['parent_id']);
     }
 
     // Synthetics requests have "0" as the parent ID
@@ -57,8 +56,7 @@ class DistributedTraceTest extends WebFrameworkTestCase
         });
 
         $this->assertSame(6017420907356617206, $traces[0][0]['trace_id']);
-        // TODO Fix parent ID propagation
-        //$this->assertArrayNotHasKey('parent_id', $traces[0][0]);
+        $this->assertArrayNotHasKey('parent_id', $traces[0][0]);
     }
 
     public function testInvalidTraceId()
