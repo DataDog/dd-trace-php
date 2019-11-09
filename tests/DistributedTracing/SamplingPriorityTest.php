@@ -29,8 +29,8 @@ class SamplingPriorityTest extends WebFrameworkTestCase
                 'GET',
                 '/index.php',
                 [
-                    'x-datadog-parent-id: 0',
-                    'x-datadog-trace-id: 0',
+                    'x-datadog-trace-id: 100',
+                    'x-datadog-parent-id: 200',
                     'x-datadog-sampling-priority: 1',
                 ]
             );
@@ -59,8 +59,8 @@ class SamplingPriorityTest extends WebFrameworkTestCase
                 'GET',
                 '/index.php',
                 [
-                    'x-datadog-parent-id: 0',
-                    'x-datadog-trace-id: 0',
+                    'x-datadog-trace-id: 100',
+                    'x-datadog-parent-id: 200',
                     'x-datadog-sampling-priority: 0',
                 ]
             );

@@ -75,12 +75,40 @@ final class TextMap implements Propagator
             return null;
         }
 
-        $spanId = $this->pushDistributedTraceParentId($spanId);
+        if (!$this->setDistributedTraceTraceId($traceId)) {
+            return null;
+        }
+        $spanId = $this->setDistributedTraceParentId($spanId);
 
         $spanContext = new SpanContext($traceId, $spanId, null, $baggageItems, true);
         $this->extractPrioritySampling($spanContext, $carrier);
         $this->extractOrigin($spanContext, $carrier);
         return $spanContext;
+    }
+
+    /**
+     * Set the distributed trace's trace ID for internal spans
+     *
+     * @param string $traceId
+     * @return bool
+     */
+    private function setDistributedTraceTraceId($traceId)
+    {
+        if (!$traceId) {
+            return false;
+        }
+        if (dd_trace_set_trace_id($traceId)) {
+            return true;
+        }
+        if (Configuration::get()->isDebugModeEnabled()) {
+            self::logDebug(
+                'Error parsing distributed trace trace ID: {id}; ignoring.',
+                [
+                    'id' => $traceId,
+                ]
+            );
+        }
+        return false;
     }
 
     /**
@@ -90,7 +118,7 @@ final class TextMap implements Propagator
      * @param string $spanId
      * @return string
      */
-    private function pushDistributedTraceParentId($spanId)
+    private function setDistributedTraceParentId($spanId)
     {
         if (!$spanId) {
             return '';

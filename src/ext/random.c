@@ -21,16 +21,45 @@ void ddtrace_seed_prng(TSRMLS_D) {
 }
 
 void ddtrace_init_span_id_stack(TSRMLS_D) {
-    DDTRACE_G(root_span_id) = 0;
+    DDTRACE_G(trace_id) = 0;
     DDTRACE_G(span_ids_top) = NULL;
 }
 
 void ddtrace_free_span_id_stack(TSRMLS_D) {
+    DDTRACE_G(trace_id) = 0;
     while (DDTRACE_G(span_ids_top) != NULL) {
         ddtrace_span_ids_t *stack = DDTRACE_G(span_ids_top);
         DDTRACE_G(span_ids_top) = stack->next;
         efree(stack);
     }
+}
+
+static inline uint64_t zval_to_uint64(zval *zid) {
+    if (!zid || Z_TYPE_P(zid) != IS_STRING) {
+        return 0U;
+    }
+    const char *id = Z_STRVAL_P(zid);
+#if PHP_VERSION_ID >= 70000
+    size_t i = 0;
+#else
+    int i = 0;
+#endif
+    for (; i < Z_STRLEN_P(zid); i++) {
+        if (id[i] < '0' || id[i] > '9') {
+            return 0U;
+        }
+    }
+    uint64_t uid = (uint64_t)strtoull(id, NULL, 10);
+    return (uid && errno != ERANGE) ? uid : 0U;
+}
+
+BOOL_T ddtrace_set_userland_trace_id(zval *zid TSRMLS_DC) {
+    uint64_t uid = zval_to_uint64(zid);
+    if (uid) {
+        DDTRACE_G(trace_id) = uid;
+        return TRUE;
+    }
+    return FALSE;
 }
 
 uint64_t ddtrace_push_span_id(uint64_t id TSRMLS_DC) {
@@ -39,12 +68,22 @@ uint64_t ddtrace_push_span_id(uint64_t id TSRMLS_DC) {
     stack->id = id ? id : (uint64_t)((genrand64_int64() >> 1) + 1);
     stack->next = DDTRACE_G(span_ids_top);
     DDTRACE_G(span_ids_top) = stack;
-    // Assuming the first call this function is for the root span
-    if (DDTRACE_G(root_span_id) == 0) {
-        DDTRACE_G(root_span_id) = stack->id;
+    // If a distributed trace has not set this value before an ID is generated,
+    // use the first generated ID as the trace_id
+    if (DDTRACE_G(trace_id) == 0) {
+        DDTRACE_G(trace_id) = stack->id;
     }
     DDTRACE_G(open_spans_count)++;
     return stack->id;
+}
+
+BOOL_T ddtrace_push_userland_span_id(zval *zid TSRMLS_DC) {
+    uint64_t uid = zval_to_uint64(zid);
+    if (uid) {
+        ddtrace_push_span_id(uid TSRMLS_CC);
+        return TRUE;
+    }
+    return FALSE;
 }
 
 uint64_t ddtrace_pop_span_id(TSRMLS_D) {
@@ -56,7 +95,7 @@ uint64_t ddtrace_pop_span_id(TSRMLS_D) {
     DDTRACE_G(span_ids_top) = stack->next;
     id = stack->id;
     if (DDTRACE_G(span_ids_top) == NULL) {
-        DDTRACE_G(root_span_id) = 0;
+        DDTRACE_G(trace_id) = 0;
     }
     efree(stack);
     DDTRACE_G(closed_spans_count)++;
@@ -69,27 +108,4 @@ uint64_t ddtrace_peek_span_id(TSRMLS_D) {
         return 0;
     }
     return DDTRACE_G(span_ids_top)->id;
-}
-
-BOOL_T ddtrace_push_userland_span_id(zval *zid TSRMLS_DC) {
-    if (!zid || Z_TYPE_P(zid) != IS_STRING) {
-        return FALSE;
-    }
-    const char *id = Z_STRVAL_P(zid);
-#if PHP_VERSION_ID >= 70000
-    size_t i = 0;
-#else
-    int i = 0;
-#endif
-    for (; i < Z_STRLEN_P(zid); i++) {
-        if (id[i] < '0' || id[i] > '9') {
-            return FALSE;
-        }
-    }
-    uint64_t uid = (uint64_t)strtoull(id, NULL, 10);
-    if (uid && errno != ERANGE) {
-        ddtrace_push_span_id(uid TSRMLS_CC);
-        return TRUE;
-    }
-    return FALSE;
 }

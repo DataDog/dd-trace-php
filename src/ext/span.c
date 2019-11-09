@@ -79,7 +79,7 @@ ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
     span->parent_id = ddtrace_peek_span_id(TSRMLS_C);
     span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);
     // Set the trace_id last so we have ID's on the stack
-    span->trace_id = DDTRACE_G(root_span_id);
+    span->trace_id = DDTRACE_G(trace_id);
     span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
     span->exception = NULL;
     span->pid = getpid();
@@ -130,4 +130,6 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     }
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(closed_spans_count) = 0;
+    // Reset the span ID stack and trace ID
+    ddtrace_free_span_id_stack(TSRMLS_C);
 }

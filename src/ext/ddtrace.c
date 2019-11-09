@@ -72,6 +72,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_env_config, 0, 0, 1)
 ZEND_ARG_INFO(0, env_name)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_set_trace_id, 0, 0, 1)
+ZEND_ARG_INFO(0, trace_id)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_push_span_id, 0, 0, 0)
 ZEND_ARG_INFO(0, existing_id)
 ZEND_END_ARG_INFO()
@@ -644,6 +648,21 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 #endif
 }
 
+/* {{{ proto string dd_trace_set_trace_id() */
+static PHP_FUNCTION(dd_trace_set_trace_id) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+
+    zval *trace_id = NULL;
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &trace_id) == SUCCESS) {
+        if (ddtrace_set_userland_trace_id(trace_id TSRMLS_CC) == TRUE) {
+            RETURN_BOOL(1);
+        }
+    }
+
+    RETURN_BOOL(0);
+}
+
 static inline void return_span_id(zval *return_value, uint64_t id) {
     char buf[DD_TRACE_MAX_ID_LEN + 1];
     snprintf(buf, sizeof(buf), "%" PRIu64, id);
@@ -710,11 +729,12 @@ static const zend_function_entry ddtrace_functions[] = {
                     dd_trace_env_config, arginfo_dd_trace_env_config) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
                     PHP_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span) PHP_FE(dd_trace_internal_fn, NULL)
                         PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
-                            PHP_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id)
-                                PHP_FE(dd_trace_pop_span_id, NULL) PHP_FE(dd_trace_peek_span_id, NULL)
-                                    PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL)
-                                        PHP_FE(dd_trace_closed_spans_count, NULL)
-                                            PHP_FE(dd_trace_tracer_is_limited, NULL) ZEND_FE_END};
+                            PHP_FE(dd_trace_set_trace_id, arginfo_dd_trace_set_trace_id)
+                                PHP_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id)
+                                    PHP_FE(dd_trace_pop_span_id, NULL) PHP_FE(dd_trace_peek_span_id, NULL)
+                                        PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL)
+                                            PHP_FE(dd_trace_closed_spans_count, NULL)
+                                                PHP_FE(dd_trace_tracer_is_limited, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
