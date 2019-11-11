@@ -39,7 +39,7 @@ user_opcode_handler_t ddtrace_old_icall_handler;
 user_opcode_handler_t ddtrace_old_ucall_handler;
 user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
 
-uint64_t root_span_id;
+uint64_t trace_id;
 ddtrace_span_ids_t *span_ids_top;
 ddtrace_span_t *open_spans_top;
 ddtrace_span_t *closed_spans_top;

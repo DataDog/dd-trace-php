@@ -72,6 +72,14 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_env_config, 0, 0, 1)
 ZEND_ARG_INFO(0, env_name)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_set_trace_id, 0, 0, 1)
+ZEND_ARG_INFO(0, trace_id)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_push_span_id, 0, 0, 0)
+ZEND_ARG_INFO(0, existing_id)
+ZEND_END_ARG_INFO()
+
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
 /* DDTrace\SpanData */
@@ -640,41 +648,59 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 #endif
 }
 
+/* {{{ proto string dd_trace_set_trace_id() */
+static PHP_FUNCTION(dd_trace_set_trace_id) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+
+    zval *trace_id = NULL;
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &trace_id) == SUCCESS) {
+        if (ddtrace_set_userland_trace_id(trace_id TSRMLS_CC) == TRUE) {
+            RETURN_BOOL(1);
+        }
+    }
+
+    RETURN_BOOL(0);
+}
+
+static inline void return_span_id(zval *return_value, uint64_t id) {
+    char buf[DD_TRACE_MAX_ID_LEN + 1];
+    snprintf(buf, sizeof(buf), "%" PRIu64, id);
 #if PHP_VERSION_ID >= 70000
-#define RETURN_SPAN_ID(id_fn)                             \
-    do {                                                  \
-        char buf[20];                                     \
-        snprintf(buf, 20, "%" PRIu64, (id_fn)(TSRMLS_C)); \
-        RETURN_STRING(buf);                               \
-    } while (0);
+    RETURN_STRING(buf);
 #else
-#define RETURN_SPAN_ID(id_fn)                             \
-    do {                                                  \
-        char buf[20];                                     \
-        snprintf(buf, 20, "%" PRIu64, (id_fn)(TSRMLS_C)); \
-        RETURN_STRING(buf, 1);                            \
-    } while (0);
+    RETURN_STRING(buf, 1);
 #endif
+}
 
 /* {{{ proto string dd_trace_push_span_id() */
 static PHP_FUNCTION(dd_trace_push_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    RETURN_SPAN_ID(ddtrace_push_span_id);
+
+    zval *existing_id = NULL;
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &existing_id) == SUCCESS) {
+        if (ddtrace_push_userland_span_id(existing_id TSRMLS_CC) == TRUE) {
+            return_span_id(return_value, ddtrace_peek_span_id(TSRMLS_C));
+            return;
+        }
+    }
+
+    return_span_id(return_value, ddtrace_push_span_id(0 TSRMLS_CC));
 }
 
 /* {{{ proto string dd_trace_pop_span_id() */
 static PHP_FUNCTION(dd_trace_pop_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    RETURN_SPAN_ID(ddtrace_pop_span_id);
+    return_span_id(return_value, ddtrace_pop_span_id(TSRMLS_C));
 }
 
 /* {{{ proto string dd_trace_peek_span_id() */
 static PHP_FUNCTION(dd_trace_peek_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    RETURN_SPAN_ID(ddtrace_peek_span_id);
+    return_span_id(return_value, ddtrace_peek_span_id(TSRMLS_C));
 }
 
 /* {{{ proto string dd_trace_closed_spans_count() */
@@ -692,24 +718,23 @@ static PHP_FUNCTION(dd_trace_tracer_is_limited) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {
-    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method)
-        PHP_FE(dd_trace_function, arginfo_dd_trace_function) PHP_FE(dd_trace_serialize_closed_spans,
-                                                                    arginfo_dd_trace_serialize_closed_spans)
-            PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL) PHP_FE(
-                dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
-                PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(dd_tracer_circuit_breaker_register_error, NULL)
-                    PHP_FE(dd_tracer_circuit_breaker_register_success, NULL)
-                        PHP_FE(dd_tracer_circuit_breaker_can_try, NULL) PHP_FE(dd_tracer_circuit_breaker_info, NULL)
-                            PHP_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
-                                PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
-                                    PHP_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span)
-                                        PHP_FE(dd_trace_internal_fn, NULL)
-                                            PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
-                                                PHP_FE(dd_trace_push_span_id, NULL) PHP_FE(dd_trace_pop_span_id, NULL)
-                                                    PHP_FE(dd_trace_peek_span_id, NULL)
-                                                        PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL)
-                                                            PHP_FE(dd_trace_closed_spans_count, NULL)
-                                                                PHP_FE(dd_trace_tracer_is_limited, NULL) ZEND_FE_END};
+    PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method) PHP_FE(
+        dd_trace_function, arginfo_dd_trace_function) PHP_FE(dd_trace_serialize_closed_spans,
+                                                             arginfo_dd_trace_serialize_closed_spans)
+        PHP_FE(dd_trace_forward_call, NULL) PHP_FE(dd_trace_reset, NULL) PHP_FE(dd_trace_noop, NULL) PHP_FE(
+            dd_untrace, NULL) PHP_FE(dd_trace_disable_in_request, NULL) PHP_FE(dd_trace_dd_get_memory_limit, NULL)
+            PHP_FE(dd_trace_check_memory_under_limit, NULL) PHP_FE(
+                dd_tracer_circuit_breaker_register_error, NULL) PHP_FE(dd_tracer_circuit_breaker_register_success, NULL)
+                PHP_FE(dd_tracer_circuit_breaker_can_try, NULL) PHP_FE(dd_tracer_circuit_breaker_info, NULL) PHP_FE(
+                    dd_trace_env_config, arginfo_dd_trace_env_config) PHP_FE(dd_trace_coms_trigger_writer_flush, NULL)
+                    PHP_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span) PHP_FE(dd_trace_internal_fn, NULL)
+                        PHP_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack)
+                            PHP_FE(dd_trace_set_trace_id, arginfo_dd_trace_set_trace_id)
+                                PHP_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id)
+                                    PHP_FE(dd_trace_pop_span_id, NULL) PHP_FE(dd_trace_peek_span_id, NULL)
+                                        PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL)
+                                            PHP_FE(dd_trace_closed_spans_count, NULL)
+                                                PHP_FE(dd_trace_tracer_is_limited, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
                                           PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),

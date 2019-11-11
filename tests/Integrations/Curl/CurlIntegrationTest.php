@@ -246,6 +246,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         // parent is: curl_exec
         $this->assertSame($traces[0][1]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
         $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
+        $this->assertSame($traces[0][0]['metrics']['_sampling_priority_v1'], PrioritySampling::AUTO_KEEP);
         // existing headers are honored
         $this->assertSame('preserved_value', $found['headers']['Honored']);
     }

@@ -16,6 +16,9 @@
         <testsuite name="auto-instrumentation">
             <directory>tests/AutoInstrumentation/</directory>
         </testsuite>
+        <testsuite name="distributed-tracing">
+            <directory>tests/DistributedTracing/</directory>
+        </testsuite>
         <testsuite name="integration">
             <directory>tests/Integration/</directory>
         </testsuite>

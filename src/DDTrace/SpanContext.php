@@ -17,7 +17,7 @@ final class SpanContext extends SpanContextData
     ) {
         $this->traceId = $traceId;
         $this->spanId = $spanId;
-        $this->parentId = $parentId;
+        $this->parentId = $parentId ?: null;
         $this->baggageItems = $baggageItems;
         $this->isDistributedTracingActivationContext = $isDistributedTracingActivationContext;
     }
