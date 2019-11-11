@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2019-10-29</date>
+    <date>2019-11-11</date>
     <version>
-        <release>0.34.0</release>
-        <api>0.34.0</api>
+        <release>0.34.1</release>
+        <api>0.34.1</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,15 +21,10 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        ### Added
+        ### Fixed
 
-        - Yii 2 support #624, #630
-        - Enable tracing when no autoloaders used by setting `DD_TRACE_NO_AUTOLOADER=true` #627
-        - Safe to-string conversion for all datatypes on `DDTrace\SpanData` #613
-
-        ### Changed
-
-        - Improve dd-doctor with and container tagging detector when open_basedir is set #629
+        - PHP notice of undefined indexes `REQUEST_METHOD` and `REQUEST_URI` when running the request init hook on unsupported SAPI's #637
+        - Distributed trace ID handling #645
     </notes>
     <contents>
         <dir name="/">
