@@ -41,7 +41,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertExpectedSpans($traces, $spanExpectations);
+        $this->assertFlameGraph($traces, $spanExpectations);
     }
 
     public function provideSpecs()
@@ -59,28 +59,56 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
                         'integration.name' => 'wordpress',
+                    ])->withChildren([
+                        SpanAssertion::exists('curl_exec'),
+                        SpanAssertion::exists(
+                            'wpdb.query',
+                            "SELECT option_value FROM wp_options WHERE option_name = 'WPLANG' LIMIT 1"
+                        )->withChildren([
+                            SpanAssertion::exists('mysqli_query'),
+                        ]),
+                        SpanAssertion::exists('WP.init'),
+                        SpanAssertion::exists(
+                            'wpdb.query',
+                            "SHOW FULL COLUMNS FROM `wp_options`"
+                        )->withChildren([
+                            SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists(
+                            'wpdb.query',
+                            "SELECT option_value FROM wp_options WHERE option_name = 'theme_switched' LIMIT 1"
+                        )->withChildren([
+                            SpanAssertion::exists('mysqli_query'),
+                        ]),
+                        SpanAssertion::exists(
+                            'wpdb.query',
+                            "UPDATE `wp_options` SET `option_value` = *"
+                        )->withChildren([
+                            SpanAssertion::exists('mysqli_query'),
+                        ]),
+                        SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
+                        SpanAssertion::exists('create_initial_taxonomies'),
+                        SpanAssertion::exists('create_initial_post_types'),
+                        SpanAssertion::exists('_wp_customize_include'),
+                        SpanAssertion::exists('wp_maybe_load_embeds'),
+                        SpanAssertion::exists('wp_maybe_load_widgets'),
+                        SpanAssertion::exists('create_initial_post_types'),
+                        SpanAssertion::exists('create_initial_taxonomies'),
+                        // WARNING: something not properly working with the tracing of WP.main
+                        // causes these spans to exists but not having the proper parent. This is
+                        // prossible due to an exit/die in WP code. To be investigated. Once fixed this
+                        // test will fail.
+                        // SpanAssertion::exists('WP.init'),
+                        // SpanAssertion::exists(
+                        //     'wpdb.query',
+                        //     "SELECT ID, post_name, post_parent, post_type
+                        //         FROM wp_posts
+                        //         WHERE post_name IN ('simple')
+                        //         AND post_type IN ('page','attachment')"
+                        // )->withChildren([
+                        //     SpanAssertion::exists('mysqli_query'),
+                        // ]),
                     ]),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('curl_exec'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('WP.init'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
-                    SpanAssertion::exists('create_initial_taxonomies'),
-                    SpanAssertion::exists('create_initial_post_types'),
-                    SpanAssertion::exists('WP.init'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('_wp_customize_include'),
-                    SpanAssertion::exists('wp_maybe_load_embeds'),
-                    SpanAssertion::exists('wp_maybe_load_widgets'),
-                    SpanAssertion::exists('create_initial_post_types'),
-                    SpanAssertion::exists('create_initial_taxonomies'),
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
@@ -93,53 +121,105 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
                         'integration.name' => 'wordpress',
+                    ])->withChildren([
+                        SpanAssertion::exists('WP.init'),
+                        SpanAssertion::exists('WP.main')
+                            ->withChildren([
+                                SpanAssertion::exists('WP.init'),
+                                SpanAssertion::exists('WP.register_globals'),
+                                SpanAssertion::exists('WP.handle_404'),
+                                SpanAssertion::exists('WP.query_posts')
+                                    ->withChildren([
+                                        SpanAssertion::exists('wpdb.query')
+                                            ->withChildren([
+                                                SpanAssertion::exists('mysqli_query'),
+                                            ]),
+                                        SpanAssertion::exists('wpdb.query')
+                                            ->withChildren([
+                                                SpanAssertion::exists('mysqli_query'),
+                                            ]),
+                                    ]),
+                                SpanAssertion::exists('WP.send_headers'),
+                                SpanAssertion::exists('WP.parse_request')
+                                    ->withChildren([
+                                        SpanAssertion::exists('wpdb.query')
+                                            ->withChildren([
+                                                SpanAssertion::exists('mysqli_query'),
+                                            ]),
+                                        SpanAssertion::exists('wpdb.query')
+                                            ->withChildren([
+                                                SpanAssertion::exists('mysqli_query'),
+                                            ]),
+                                    ]),
+                            ]),
+                        SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
+                        SpanAssertion::exists('_wp_customize_include'),
+                        SpanAssertion::exists('create_initial_taxonomies'),
+                        SpanAssertion::exists('create_initial_post_types'),
+                        SpanAssertion::exists('create_initial_post_types'),
+                        SpanAssertion::exists('create_initial_taxonomies'),
+                        SpanAssertion::exists('curl_exec'),
+                        SpanAssertion::exists('get_footer')
+                            ->withChildren([
+                                SpanAssertion::exists('load_template')
+                                    ->withChildren([
+                                        SpanAssertion::exists('wp_print_footer_scripts'),
+                                    ]),
+                            ]),
+                        SpanAssertion::exists('load_template'),
+                        SpanAssertion::exists('get_header')
+                            ->withChildren([
+                                SpanAssertion::exists(
+                                    'load_template',
+                                    '/home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/header.php'
+                                )->withChildren([
+                                    SpanAssertion::exists('the_custom_header_markup'),
+                                    SpanAssertion::exists('body_class')
+                                        ->withChildren([
+                                            SpanAssertion::exists('wpdb.query')
+                                                ->withChildren([
+                                                    SpanAssertion::exists('mysqli_query'),
+                                                ]),
+                                        ]),
+                                    SpanAssertion::exists('wp_head')
+                                        ->withChildren([
+                                            SpanAssertion::exists('wp_print_head_scripts')
+                                                ->withChildren([
+                                                    SpanAssertion::exists('wpdb.query')
+                                                        ->withChildren([
+                                                            SpanAssertion::exists('mysqli_query'),
+                                                        ]),
+                                                ]),
+                                        ]),
+                                ]),
+                            ]),
+                        SpanAssertion::exists('wp_maybe_load_embeds'),
+                        SpanAssertion::exists('wp_maybe_load_widgets'),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
                     ]),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('get_footer'),
-                    SpanAssertion::exists('load_template'),
-                    SpanAssertion::exists('wp_print_footer_scripts'),
-                    SpanAssertion::exists('load_template'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('get_header'),
-                    SpanAssertion::exists('load_template'),
-                    SpanAssertion::exists('the_custom_header_markup'),
-                    SpanAssertion::exists('body_class'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('wp_head'),
-                    SpanAssertion::exists('wp_print_head_scripts'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('WP.main'),
-                    SpanAssertion::exists('WP.register_globals'),
-                    SpanAssertion::exists('WP.handle_404'),
-                    SpanAssertion::exists('WP.query_posts'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('WP.send_headers'),
-                    SpanAssertion::exists('WP.parse_request'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('WP.init'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
-                    SpanAssertion::exists('create_initial_taxonomies'),
-                    SpanAssertion::exists('create_initial_post_types'),
-                    SpanAssertion::exists('WP.init'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('_wp_customize_include'),
-                    SpanAssertion::exists('wp_maybe_load_embeds'),
-                    SpanAssertion::exists('wp_maybe_load_widgets'),
-                    SpanAssertion::exists('create_initial_post_types'),
-                    SpanAssertion::exists('create_initial_taxonomies'),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
@@ -153,27 +233,47 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         // WordPress doesn't appear to automatically set the proper error code
                         'http.status_code' => '200',
                         'integration.name' => 'wordpress',
+                    ])->withChildren([
+                        SpanAssertion::exists('WP.main')
+                            // There's no way to propagate this to the root span in userland yet
+                            ->setError('Exception', 'Oops!')
+                            ->withChildren([
+                                SpanAssertion::exists('WP.parse_request')
+                                    ->withChildren([
+                                        SpanAssertion::exists('wpdb.query')
+                                            ->withChildren([
+                                                SpanAssertion::exists('mysqli_query'),
+                                            ]),
+                                    ]),
+                                SpanAssertion::exists('WP.init'),
+                            ]),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('wpdb.query')
+                            ->withChildren([
+                                SpanAssertion::exists('mysqli_query'),
+                            ]),
+                        SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
+                        SpanAssertion::exists('create_initial_taxonomies'),
+                        SpanAssertion::exists('create_initial_post_types'),
+                        SpanAssertion::exists('WP.init'),
+                        SpanAssertion::exists('curl_exec'),
+                        SpanAssertion::exists('_wp_customize_include'),
+                        SpanAssertion::exists('wp_maybe_load_embeds'),
+                        SpanAssertion::exists('wp_maybe_load_widgets'),
+                        SpanAssertion::exists('create_initial_post_types'),
+                        SpanAssertion::exists('create_initial_taxonomies'),
                     ]),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('mysqli_query'),
-                    SpanAssertion::exists('WP.main')
-                        // There's no way to propagate this to the root span in userland yet
-                        ->setError('Exception', 'Oops!'),
-                    SpanAssertion::exists('WP.parse_request'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('WP.init'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
-                    SpanAssertion::exists('create_initial_taxonomies'),
-                    SpanAssertion::exists('create_initial_post_types'),
-                    SpanAssertion::exists('WP.init'),
-                    SpanAssertion::exists('wpdb.query'),
-                    SpanAssertion::exists('_wp_customize_include'),
-                    SpanAssertion::exists('wp_maybe_load_embeds'),
-                    SpanAssertion::exists('wp_maybe_load_widgets'),
-                    SpanAssertion::exists('create_initial_post_types'),
-                    SpanAssertion::exists('create_initial_taxonomies'),
                 ],
             ]
         );
