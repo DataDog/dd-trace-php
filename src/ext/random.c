@@ -49,8 +49,9 @@ static inline uint64_t zval_to_uint64(zval *zid) {
             return 0U;
         }
     }
+    errno = 0;
     uint64_t uid = (uint64_t)strtoull(id, NULL, 10);
-    return (uid && errno != ERANGE) ? uid : 0U;
+    return (uid && errno == 0) ? uid : 0U;
 }
 
 BOOL_T ddtrace_set_userland_trace_id(zval *zid TSRMLS_DC) {
