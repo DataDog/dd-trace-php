@@ -3,7 +3,6 @@
 namespace DDTrace\Tests\Common;
 
 use DDTrace\Tests\Frameworks\Util\CommonScenariosDataProviderTrait;
-use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use DDTrace\Tests\WebServer;
 
@@ -109,17 +108,15 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      * Executed a call to the test web server.
      *
      * @param RequestSpec $spec
-     * @param bool $logResponseData
      * @return mixed|null
      */
-    protected function call(RequestSpec $spec, $logResponseData = false)
+    protected function call(RequestSpec $spec)
     {
-        $url = 'http://localhost:' . self::PORT . $spec->getPath();
-        if ($spec instanceof GetSpec) {
-            return $this->sendRequest('GET', $url, $logResponseData);
-        }
-
-        $this->fail('Unhandled request spec type');
+        return $this->sendRequest(
+            $spec->getMethod(),
+            'http://localhost:' . self::PORT . $spec->getPath(),
+            $spec->getHeaders()
+        );
     }
 
     /**
@@ -127,20 +124,18 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      *
      * @param string $method
      * @param string $url
-     * @param bool $logResponseData
+     * @param string[] $headers
      * @return mixed|null
      */
-    protected function sendRequest($method, $url, $logResponseData = false)
+    protected function sendRequest($method, $url, $headers = [])
     {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        $response = curl_exec($ch);
-
-        if ($logResponseData) {
-            error_log("Response: " . print_r($response, 1));
-            error_log("Response code: " . print_r(curl_getinfo($ch, CURLINFO_HTTP_CODE), 1));
+        if ($headers) {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         }
+        $response = curl_exec($ch);
 
         if ($response === false) {
             $message = sprintf(

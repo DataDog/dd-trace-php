@@ -98,6 +98,11 @@ aliases:
       command: |
         echo "export $(cat .env.circleci | xargs)" >> $HOME/.profile
 
+  - &STEP_DISABLE_XDEBUG
+    run:
+      name: Disable Xdebug for built-in web tests
+      command: test -e /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && sudo rm -f $_ || true
+
   - &STEP_WAIT_AGENT
     run:
       name: Waiting for Dockerized agent
@@ -386,12 +391,16 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_DISABLE_XDEBUG
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
           name: Run auto-instrumentation tests
           command: composer test-auto-instrumentation -- --log-junit test-results/php-auto-instrumentation/results.xml
+      - run:
+          name: Run distributed-tracing tests
+          command: DD_TRACE_AGENT_TIMEOUT=2000 composer test-distributed-tracing -- --log-junit test-results/php-distributed-tracing/results.xml
       - run:
           name: Run integration tests
           command: composer test-integration -- --log-junit test-results/php-integration/results.xml
