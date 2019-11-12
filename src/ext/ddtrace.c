@@ -17,6 +17,7 @@
 #include "circuit_breaker.h"
 #include "compat_string.h"
 #include "compatibility.h"
+#include "compile.h"
 #include "coms.h"
 #include "coms_curl.h"
 #include "coms_debug.h"
@@ -80,6 +81,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_push_span_id, 0, 0, 0)
 ZEND_ARG_INFO(0, existing_id)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_compile_time_microseconds, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
 /* DDTrace\SpanData */
@@ -116,6 +120,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_install_backtrace_handler();
     ddtrace_dispatch_inject(TSRMLS_C);
+    ddtrace_compile_hook();
 
     ddtrace_coms_initialize();
     ddtrace_coms_setup_atexit_hook();
@@ -139,6 +144,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         // if writer is ensured to be shutdown we can free up config resources safely
         ddtrace_config_shutdown();
     }
+
+    ddtrace_compile_unhook();
 
     return SUCCESS;
 }
@@ -170,6 +177,9 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));
         dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
     }
+
+    // Reset compile time after request init hook has compiled
+    ddtrace_compile_time_reset(TSRMLS_C);
 
     DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
 
@@ -717,6 +727,13 @@ static PHP_FUNCTION(dd_trace_tracer_is_limited) {
     RETURN_BOOL(ddtrace_tracer_is_limited(TSRMLS_C) == TRUE ? 1 : 0);
 }
 
+/* {{{ proto string dd_trace_compile_time_microseconds() */
+static PHP_FUNCTION(dd_trace_compile_time_microseconds) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+    RETURN_LONG(ddtrace_compile_time_get(TSRMLS_C));
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace, NULL),
     DDTRACE_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span),
@@ -745,6 +762,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_tracer_circuit_breaker_register_error, NULL),
     DDTRACE_FE(dd_tracer_circuit_breaker_register_success, NULL),
     DDTRACE_FE(dd_untrace, NULL),
+    DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds),
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,

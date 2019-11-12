@@ -118,13 +118,13 @@ JSON;
         $this->assertContains('"_a":0.1', $encoded);
     }
 
-    public function testDoesNotEncodeMetricsWhenNotPresent()
+    public function testAlwaysContainsDefaultMetrics()
     {
         $this->tracer->startSpan('test_name');
         $this->tracer->setPrioritySampling(null);
 
         $jsonEncoder = new Json();
         $encoded = $jsonEncoder->encodeTraces($this->tracer);
-        $this->assertNotContains('"metrics"', $encoded);
+        $this->assertContains('"php.compilation.total_time_ms"', $encoded);
     }
 }

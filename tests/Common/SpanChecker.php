@@ -299,9 +299,14 @@ final class SpanChecker
                 TestCase::assertArrayHasKey($tagName, $spanMeta);
             }
         }
-        if ($exp->getExactMetrics() !== SpanAssertion::NOT_TESTED) {
+        $metrics = $exp->getExactMetrics();
+        if ($metrics !== SpanAssertion::NOT_TESTED) {
+            // Ignore compilation-time metric unless explicitly tested
+            if (!isset($metrics['php.compilation.total_time_ms'])) {
+                unset($span['metrics']['php.compilation.total_time_ms']);
+            }
             TestCase::assertEquals(
-                $exp->getExactMetrics(),
+                $metrics,
                 isset($span['metrics']) ? $span['metrics'] : [],
                 $namePrefix . "Wrong value for 'metrics'"
             );

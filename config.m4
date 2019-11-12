@@ -15,6 +15,7 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/backtrace.c \
     src/ext/circuit_breaker.c \
     src/ext/compat_string.c \
+    src/ext/compile.c \
     src/ext/coms.c \
     src/ext/coms_curl.c \
     src/ext/coms_debug.c \
