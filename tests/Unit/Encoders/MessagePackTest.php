@@ -79,13 +79,13 @@ MPACK;
         $this->assertContains("\xa2_a\xcb\x3f\xb9\x99\x99\x99\x99\x99\x9a", $encoded);
     }
 
-    public function testDoesNotEncodeMetricsWhenNotPresent()
+    public function testAlwaysContainsDefaultMetrics()
     {
         $this->tracer->startSpan('test_name');
         $this->tracer->setPrioritySampling(null);
 
         $encoder = new MessagePack();
         $encoded = $encoder->encodeTraces($this->tracer);
-        $this->assertNotContains("\xa7metrics", $encoded);
+        $this->assertContains('php.compilation.total_time_ms', $encoded);
     }
 }
