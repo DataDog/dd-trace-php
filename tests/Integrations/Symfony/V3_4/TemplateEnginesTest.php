@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class TemplateEnginesTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOXED = false;
+    const IS_SANDBOX = false;
 
     protected static function getAppIndexScript()
     {

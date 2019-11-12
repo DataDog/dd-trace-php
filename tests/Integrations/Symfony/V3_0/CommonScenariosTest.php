@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 final class CommonScenariosTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOXED = false;
+    const IS_SANDBOX = false;
 
     protected static function getAppIndexScript()
     {
