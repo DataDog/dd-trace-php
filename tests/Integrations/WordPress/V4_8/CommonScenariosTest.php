@@ -155,29 +155,27 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('load_template'),
                         SpanAssertion::exists('get_header')
                             ->withChildren([
-                                SpanAssertion::exists(
-                                    'load_template',
-                                    '/home/circleci/app/tests/Frameworks/WordPress/Version_4_8/wp-content/themes/twentyseventeen/header.php'
-                                )->withChildren([
-                                    SpanAssertion::exists('the_custom_header_markup'),
-                                    SpanAssertion::exists('body_class')
-                                        ->withChildren([
-                                            SpanAssertion::exists('wpdb.query')
-                                                ->withChildren([
-                                                    SpanAssertion::exists('mysqli_query'),
-                                                ]),
-                                        ]),
-                                    SpanAssertion::exists('wp_head')
-                                        ->withChildren([
-                                            SpanAssertion::exists('wp_print_head_scripts')
-                                                ->withChildren([
-                                                    SpanAssertion::exists('wpdb.query')
-                                                        ->withChildren([
-                                                            SpanAssertion::exists('mysqli_query'),
-                                                        ]),
-                                                ]),
-                                        ]),
-                                ]),
+                                SpanAssertion::exists('load_template')
+                                    ->withChildren([
+                                        SpanAssertion::exists('the_custom_header_markup'),
+                                        SpanAssertion::exists('body_class')
+                                            ->withChildren([
+                                                SpanAssertion::exists('wpdb.query')
+                                                    ->withChildren([
+                                                        SpanAssertion::exists('mysqli_query'),
+                                                    ]),
+                                            ]),
+                                        SpanAssertion::exists('wp_head')
+                                            ->withChildren([
+                                                SpanAssertion::exists('wp_print_head_scripts')
+                                                    ->withChildren([
+                                                        SpanAssertion::exists('wpdb.query')
+                                                            ->withChildren([
+                                                                SpanAssertion::exists('mysqli_query'),
+                                                            ]),
+                                                    ]),
+                                            ]),
+                                    ]),
                             ]),
                         SpanAssertion::exists('wp_maybe_load_embeds'),
                         SpanAssertion::exists('wp_maybe_load_widgets'),
