@@ -8,6 +8,8 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 final class CommonScenariosTest extends WebFrameworkTestCase
 {
+    const IS_SANDBOXED = false;
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_4_0/public/index.php';
@@ -33,7 +35,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertExpectedSpans($traces, $spanExpectations);
+        $this->assertFlameGraph($traces, $spanExpectations);
     }
 
     public function provideSpecs()
@@ -54,13 +56,17 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.url' => 'http://localhost:9999/simple',
                             'http.status_code' => '200',
                             'integration.name' => 'symfony',
+                        ])
+                        ->withChildren([
+                            SpanAssertion::exists('symfony.kernel.handle')
+                                ->withChildren([
+                                    SpanAssertion::exists('symfony.kernel.request'),
+                                    SpanAssertion::exists('symfony.kernel.controller'),
+                                    SpanAssertion::exists('symfony.kernel.controller_arguments'),
+                                    SpanAssertion::exists('symfony.kernel.response'),
+                                    SpanAssertion::exists('symfony.kernel.finish_request'),
+                                ]),
                         ]),
-                    SpanAssertion::exists('symfony.kernel.handle'),
-                    SpanAssertion::exists('symfony.kernel.request'),
-                    SpanAssertion::exists('symfony.kernel.controller'),
-                    SpanAssertion::exists('symfony.kernel.controller_arguments'),
-                    SpanAssertion::exists('symfony.kernel.response'),
-                    SpanAssertion::exists('symfony.kernel.finish_request'),
                     SpanAssertion::exists('symfony.kernel.terminate'),
                 ],
                 'A simple GET request with a view' => [
@@ -77,22 +83,28 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'http.url' => 'http://localhost:9999/simple_view',
                             'http.status_code' => '200',
                             'integration.name' => 'symfony',
+                        ])
+                        ->withChildren([
+                            SpanAssertion::exists('symfony.kernel.handle')
+                                ->withChildren([
+                                    SpanAssertion::exists('symfony.kernel.request'),
+                                    SpanAssertion::exists('symfony.kernel.controller'),
+                                    SpanAssertion::exists('symfony.kernel.controller_arguments'),
+                                    SpanAssertion::build(
+                                        'symfony.templating.render',
+                                        'test_symfony_40',
+                                        'web',
+                                        'Twig\Environment twig_template.html.twig'
+                                    )
+                                        ->withExactTags([
+                                            'integration.name' => 'symfony',
+                                        ]),
+                                    SpanAssertion::exists('symfony.kernel.response'),
+                                    SpanAssertion::exists('symfony.kernel.finish_request'),
+                                ]),
                         ]),
-                    SpanAssertion::exists('symfony.kernel.handle'),
-                    SpanAssertion::exists('symfony.kernel.request'),
-                    SpanAssertion::exists('symfony.kernel.controller'),
-                    SpanAssertion::exists('symfony.kernel.controller_arguments'),
-                    SpanAssertion::build(
-                        'symfony.templating.render',
-                        'test_symfony_40',
-                        'web',
-                        'Twig\Environment twig_template.html.twig'
-                    )
-                        ->withExactTags([
-                            'integration.name' => 'symfony',
-                        ]),
-                    SpanAssertion::exists('symfony.kernel.response'),
-                    SpanAssertion::exists('symfony.kernel.finish_request'),
+                    // This should be fixed as this should be a child
+                    // of the root span while here it is a lone trace
                     SpanAssertion::exists('symfony.kernel.terminate'),
                 ],
                 'A GET request with an exception' => [
@@ -111,16 +123,26 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'integration.name' => 'symfony',
                         ])
                         ->setError('Exception', 'An exception occurred')
-                        ->withExistingTagsNames(['error.stack']),
-                    SpanAssertion::exists('symfony.kernel.handle'),
-                    SpanAssertion::exists('symfony.kernel.request'),
-                    SpanAssertion::exists('symfony.kernel.controller'),
-                    SpanAssertion::exists('symfony.kernel.controller_arguments'),
-                    SpanAssertion::exists('symfony.kernel.handleException'),
-                    SpanAssertion::exists('symfony.kernel.exception'),
-                    SpanAssertion::exists('symfony.templating.render'),
-                    SpanAssertion::exists('symfony.kernel.response'),
-                    SpanAssertion::exists('symfony.kernel.finish_request'),
+                        ->withExistingTagsNames(['error.stack'])
+                        ->withChildren([
+                            SpanAssertion::exists('symfony.kernel.handle')
+                                ->withChildren([
+                                    SpanAssertion::exists('symfony.kernel.request'),
+                                    SpanAssertion::exists('symfony.kernel.controller'),
+                                    SpanAssertion::exists('symfony.kernel.controller_arguments'),
+                                    SpanAssertion::exists('symfony.kernel.handleException')
+                                        ->withChildren([
+                                            SpanAssertion::exists('symfony.kernel.exception')
+                                                ->withChildren([
+                                                    SpanAssertion::exists('symfony.templating.render'),
+                                                ]),
+                                            SpanAssertion::exists('symfony.kernel.response'),
+                                            SpanAssertion::exists('symfony.kernel.finish_request'),
+                                        ]),
+                                ]),
+                        ]),
+                    // This should be fixed as this should be a child
+                    // of the root span while here it is a lone trace
                     SpanAssertion::exists('symfony.kernel.terminate'),
                 ],
             ]

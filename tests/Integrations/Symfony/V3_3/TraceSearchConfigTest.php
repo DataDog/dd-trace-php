@@ -8,6 +8,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class TraceSearchConfigTest extends WebFrameworkTestCase
 {
+    const IS_SANDBOXED = false;
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/app.php';
@@ -30,7 +32,7 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('Testing trace analytics config metric', '/simple'));
         });
 
-        $this->assertExpectedSpans(
+        $this->assertFlameGraph(
             $traces,
             [
                 SpanAssertion::build(
@@ -50,14 +52,18 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
                         '_sampling_priority_v1' => 1,
+                    ])
+                    ->withChildren([
+                        SpanAssertion::exists('symfony.kernel.handle')
+                            ->withChildren([
+                                SpanAssertion::exists('symfony.kernel.request'),
+                                SpanAssertion::exists('symfony.kernel.controller'),
+                                SpanAssertion::exists('symfony.kernel.controller_arguments'),
+                                SpanAssertion::exists('symfony.kernel.response'),
+                                SpanAssertion::exists('symfony.kernel.finish_request'),
+                            ]),
+                        SpanAssertion::exists('symfony.kernel.terminate'),
                     ]),
-                SpanAssertion::exists('symfony.kernel.handle'),
-                SpanAssertion::exists('symfony.kernel.request'),
-                SpanAssertion::exists('symfony.kernel.controller'),
-                SpanAssertion::exists('symfony.kernel.controller_arguments'),
-                SpanAssertion::exists('symfony.kernel.response'),
-                SpanAssertion::exists('symfony.kernel.finish_request'),
-                SpanAssertion::exists('symfony.kernel.terminate'),
             ]
         );
     }
