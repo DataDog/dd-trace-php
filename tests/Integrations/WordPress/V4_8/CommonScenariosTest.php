@@ -60,32 +60,19 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         'integration.name' => 'wordpress',
                     ])->withChildren([
-                        SpanAssertion::exists('curl_exec'),
                         SpanAssertion::exists(
                             'wpdb.query',
                             "SELECT option_value FROM wp_options WHERE option_name = 'WPLANG' LIMIT 1"
                         )->withChildren([
                             SpanAssertion::exists('mysqli_query'),
                         ]),
-                        SpanAssertion::exists('WP.init'),
-                        SpanAssertion::exists(
-                            'wpdb.query',
-                            "SHOW FULL COLUMNS FROM `wp_options`"
-                        )->withChildren([
-                            SpanAssertion::exists('mysqli_query'),
-                            ]),
                         SpanAssertion::exists(
                             'wpdb.query',
                             "SELECT option_value FROM wp_options WHERE option_name = 'theme_switched' LIMIT 1"
                         )->withChildren([
                             SpanAssertion::exists('mysqli_query'),
                         ]),
-                        SpanAssertion::exists(
-                            'wpdb.query',
-                            "UPDATE `wp_options` SET `option_value` = *"
-                        )->withChildren([
-                            SpanAssertion::exists('mysqli_query'),
-                        ]),
+                        SpanAssertion::exists('WP.init'),
                         SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
                         SpanAssertion::exists('create_initial_taxonomies'),
                         SpanAssertion::exists('create_initial_post_types'),
@@ -158,7 +145,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('create_initial_post_types'),
                         SpanAssertion::exists('create_initial_post_types'),
                         SpanAssertion::exists('create_initial_taxonomies'),
-                        SpanAssertion::exists('curl_exec'),
                         SpanAssertion::exists('get_footer')
                             ->withChildren([
                                 SpanAssertion::exists('load_template')
@@ -211,14 +197,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             ->withChildren([
                                 SpanAssertion::exists('mysqli_query'),
                             ]),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -255,19 +233,10 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             ->withChildren([
                                 SpanAssertion::exists('mysqli_query'),
                             ]),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
-                        SpanAssertion::exists('wpdb.query')
-                            ->withChildren([
-                                SpanAssertion::exists('mysqli_query'),
-                            ]),
                         SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
                         SpanAssertion::exists('create_initial_taxonomies'),
                         SpanAssertion::exists('create_initial_post_types'),
                         SpanAssertion::exists('WP.init'),
-                        SpanAssertion::exists('curl_exec'),
                         SpanAssertion::exists('_wp_customize_include'),
                         SpanAssertion::exists('wp_maybe_load_embeds'),
                         SpanAssertion::exists('wp_maybe_load_widgets'),
