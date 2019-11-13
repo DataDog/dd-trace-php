@@ -13,13 +13,16 @@ final class SpanChecker
      * Asserts a flame graph with parent child relations.
      *
      * @param array $traces
-     * @param array $expectedFlameGraph
+     * @param SpanAssertion[] $expectedFlameGraph
      */
     public function assertFlameGraph(array $traces, array $expectedFlameGraph)
     {
         $flattenTraces = $this->flattenTraces($traces);
         $actualGraph = $this->buildSpansGraph($flattenTraces);
         foreach ($expectedFlameGraph as $oneTrace) {
+            if ($oneTrace->isToBeSkipped()) {
+                continue;
+            }
             $this->assertNode($actualGraph, $oneTrace, 'root', 'root');
         }
     }
@@ -280,13 +283,13 @@ final class SpanChecker
                     TestCase::assertStringMatchesFormat(
                         $tagValue,
                         $filtered[$tagName],
-                        $namePrefix . 'Expected tag format does not match actual value'
+                        $namePrefix . "Expected tag format for '$tagName' does not match actual value"
                     );
                 } else {
                     TestCase::assertEquals(
                         $tagValue,
                         $filtered[$tagName],
-                        $namePrefix . 'Expected tag value does not match actual value'
+                        $namePrefix . "Expected tag value for '$tagName' does not match actual value"
                     );
                 }
                 unset($filtered[$tagName]);

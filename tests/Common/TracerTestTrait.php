@@ -10,6 +10,7 @@ use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\GlobalTracer;
+use PHPUnit\Framework\TestCase;
 
 trait TracerTestTrait
 {
@@ -156,6 +157,12 @@ trait TracerTestTrait
                     $rawSpan['span_id'],
                     isset($rawSpan['parent_id']) ? $rawSpan['parent_id'] : null
                 );
+
+                if (empty($rawSpan['resource'])) {
+                    TestCase::fail(sprintf("Span '%s' has empty resource name", $rawSpan['name']));
+                    return;
+                }
+
                 $span = new Span(
                     $rawSpan['name'],
                     $spanContext,

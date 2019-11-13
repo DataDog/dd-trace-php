@@ -62,10 +62,13 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                                 SpanAssertion::exists('symfony.kernel.response'),
                                 SpanAssertion::exists('symfony.kernel.finish_request'),
                             ]),
+                        SpanAssertion::exists('symfony.kernel.terminate')
+                            ->skipIf(!static::IS_SANDBOX),
                     ]),
-                // This should be fixed as this should be a child
+                // This should be fixed for legacy api as this should be a child
                 // of the root span while here it is a lone trace
-                SpanAssertion::exists('symfony.kernel.terminate'),
+                SpanAssertion::exists('symfony.kernel.terminate')
+                    ->skipIf(static::IS_SANDBOX),
             ]
         );
     }

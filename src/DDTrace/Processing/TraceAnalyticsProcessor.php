@@ -35,7 +35,6 @@ final class TraceAnalyticsProcessor
      */
     public function process(DataSpan $span)
     {
-        // var_dump($span);
         // We only consider spans that are marked as trace analytics candidates, otherwise the customer bill would
         // explode because we are sampling not relevant spans.
         if (!$span->isTraceAnalyticsCandidate) {

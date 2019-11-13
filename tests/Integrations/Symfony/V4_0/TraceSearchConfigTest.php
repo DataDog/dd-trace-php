@@ -62,8 +62,9 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                                 SpanAssertion::exists('symfony.kernel.response'),
                                 SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
-                        // This is an error. Terminate has the wrong  parent span and it should be fixed.
-                        // SpanAssertion::exists('symfony.kernel.terminate'),
+                        // 'symfony.kernel.terminate' Terminate has the wrong parent span in legacy api.
+                        SpanAssertion::exists('symfony.kernel.terminate')
+                            ->skipIf(!static::IS_SANDBOX),
                     ]),
             ]
         );
