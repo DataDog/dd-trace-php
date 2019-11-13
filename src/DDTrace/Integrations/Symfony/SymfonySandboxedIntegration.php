@@ -134,7 +134,16 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         } else {
             list($eventName, $event) = $args;
         }
-        if ($eventName !== KernelEvents::CONTROLLER_ARGUMENTS) {
+
+        if (
+            defined("KernelEvents::CONTROLLER_ARGUMENTS")
+                &&  $eventName !== KernelEvents::CONTROLLER_ARGUMENTS
+        ) {
+            // Symfony 3.0 check
+            return;
+        } elseif ($eventName !== KernelEvents::CONTROLLER) {
+            // Symfony 3.3+ check (we do not test 3.1 and 3.2 so we do not know
+            // under which case they fall)
             return;
         }
 
