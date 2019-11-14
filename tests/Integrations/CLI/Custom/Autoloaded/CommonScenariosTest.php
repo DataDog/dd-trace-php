@@ -5,8 +5,10 @@ namespace DDTrace\Tests\Integrations\CLI\Custom\Autoloaded;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Integrations\CLI\CLITestCase;
 
-final class CommonScenariosTest extends CLITestCase
+class CommonScenariosTest extends CLITestCase
 {
+    const IS_SANDBOX = false;
+
     protected function getScriptLocation()
     {
         return __DIR__ . '/../../../../Frameworks/Custom/Version_Autoloaded/run';

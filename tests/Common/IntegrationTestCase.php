@@ -16,7 +16,7 @@ abstract class IntegrationTestCase extends TestCase
 
     private $errorReportingBefore;
 
-    const IS_SANDBOX = false;
+    const IS_SANDBOX = true;
 
     public static function setUpBeforeClass()
     {

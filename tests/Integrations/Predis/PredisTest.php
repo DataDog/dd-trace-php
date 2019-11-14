@@ -7,8 +7,10 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Predis\Configuration\Options;
 
-final class PredisTest extends IntegrationTestCase
+class PredisTest extends IntegrationTestCase
 {
+    const IS_SANDBOX = false;
+
     private $host = 'redis_integration';
     private $port = '6379';
 

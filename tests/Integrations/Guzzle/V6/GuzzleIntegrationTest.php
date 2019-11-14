@@ -14,8 +14,10 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\GlobalTracer;
 
-final class GuzzleIntegrationTest extends IntegrationTestCase
+class GuzzleIntegrationTest extends IntegrationTestCase
 {
+    const IS_SANDBOX = false;
+
     const URL = 'http://httpbin_integration';
 
     public static function setUpBeforeClass()

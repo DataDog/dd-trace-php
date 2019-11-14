@@ -5,8 +5,10 @@ namespace DDTrace\Tests\Integrations\CLI\Custom\NotAutoloaded;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Integrations\CLI\CLITestCase;
 
-final class NotAutoloadedTestCase extends CLITestCase
+class NotAutoloadedTestCase extends CLITestCase
 {
+    const IS_SANDBOX = false;
+
     /**
      * {@inheritDoc}
      */

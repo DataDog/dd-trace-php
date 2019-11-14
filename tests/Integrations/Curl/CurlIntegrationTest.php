@@ -30,8 +30,10 @@ class PrivateCallbackRequest
     }
 }
 
-final class CurlIntegrationTest extends IntegrationTestCase
+class CurlIntegrationTest extends IntegrationTestCase
 {
+    const IS_SANDBOX = false;
+
     const URL = 'http://httpbin_integration';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
 
