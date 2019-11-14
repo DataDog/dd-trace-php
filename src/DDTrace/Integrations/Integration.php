@@ -184,4 +184,17 @@ abstract class Integration
 
         return true;
     }
+
+    /**
+     * Merge an associative array of span metadata into a span.
+     *
+     * @param Span $span
+     * @param array $meta
+     */
+    public static function mergeTagsLegacyApi(Span $span, $meta)
+    {
+        foreach ($meta as $tagName => $value) {
+            $span->setTag($tagName, $value);
+        }
+    }
 }

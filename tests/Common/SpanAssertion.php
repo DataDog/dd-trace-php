@@ -299,4 +299,24 @@ final class SpanAssertion
     {
         return $this->exactMetrics;
     }
+
+    /**
+     * @return array
+     */
+    public function getNotTestedMetricNames()
+    {
+        return [
+            '_sampling_priority_v1',
+            '_dd1.sr.eausr',
+        ];
+    }
+
+    public function __toString()
+    {
+        return sprintf(
+            "{name:'%s' resource:'%s'}",
+            $this->getOperationName(),
+            $this->getResource()
+        );
+    }
 }

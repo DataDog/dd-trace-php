@@ -15,6 +15,9 @@
     <rule ref="Generic.Commenting.DocComment.MissingShort">
         <severity>0</severity>
     </rule>
+    <rule ref="Generic.Files.LineLength.TooLong">
+        <exclude-pattern>tests/Integrations/*</exclude-pattern>
+    </rule>
     <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
         <exclude-pattern>tests/*</exclude-pattern>
     </rule>

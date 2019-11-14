@@ -8,6 +8,8 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
 {
+    const IS_SANDBOX = false;
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app.php';
@@ -26,7 +28,7 @@ final class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
             $this->call(GetSpec::create('Endpoint that invoke exit()', '/terminated_by_exit'));
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 'symfony.request',
                 'symfony',
@@ -40,11 +42,15 @@ final class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
                     'http.url' => 'http://localhost:9999/terminated_by_exit',
                     'http.status_code' => '200',
                     'integration.name' => 'symfony',
+                ])
+                ->withChildren([
+                    SpanAssertion::exists('symfony.kernel.handle')
+                        ->withChildren([
+                            SpanAssertion::exists('symfony.kernel.request'),
+                            SpanAssertion::exists('symfony.kernel.controller'),
+                            SpanAssertion::exists('symfony.kernel.controller_arguments'),
+                        ]),
                 ]),
-            SpanAssertion::exists('symfony.kernel.handle'),
-            SpanAssertion::exists('symfony.kernel.request'),
-            SpanAssertion::exists('symfony.kernel.controller'),
-            SpanAssertion::exists('symfony.kernel.controller_arguments'),
         ]);
     }
 }

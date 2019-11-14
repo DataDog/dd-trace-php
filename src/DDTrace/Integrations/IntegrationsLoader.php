@@ -17,6 +17,7 @@ use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
+use DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\PDO\PDOSandboxedIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
@@ -88,6 +89,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration';
             $this->integrations[MemcachedSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration';
+            $this->integrations[MysqliSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration';
             $this->integrations[PDOSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
             $this->integrations[WordPressSandboxedIntegration::NAME] =
