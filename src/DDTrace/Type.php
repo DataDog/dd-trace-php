@@ -4,6 +4,7 @@ namespace DDTrace;
 
 class Type
 {
+    const FILESYSTEM = 'filesystem';
     const CACHE = 'cache';
     const HTTP_CLIENT = 'http';
     const WEB_SERVLET = 'web';
