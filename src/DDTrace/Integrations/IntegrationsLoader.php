@@ -4,7 +4,7 @@ namespace DDTrace\Integrations;
 
 use DDTrace\Configuration;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
-use DDTrace\Integrations\CodeIgniter\V2_2\CodeIgniterSandboxedIntegration;
+use DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration;
 use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration;
@@ -81,7 +81,7 @@ class IntegrationsLoader
         // Sandboxed integrations get loaded with a feature flag
         if (Configuration::get()->isSandboxEnabled()) {
             $this->integrations[CodeIgniterSandboxedIntegration::NAME] =
-                '\DDTrace\Integrations\CodeIgniter\V2_2\CodeIgniterSandboxedIntegration';
+                '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration';
             $this->integrations[ElasticSearchSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration';
             $this->integrations[EloquentSandboxedIntegration::NAME] =
