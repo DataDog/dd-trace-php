@@ -32,6 +32,7 @@ uint32_t traces_group_id;
 HashTable *class_lookup;
 HashTable *function_lookup;
 zend_bool log_backtrace;
+zend_bool backtrace_handler_already_run;
 ddtrace_original_context original_context;
 
 user_opcode_handler_t ddtrace_old_fcall_handler;

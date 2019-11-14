@@ -29,8 +29,6 @@
                     <file name="dogstatsd_client/client.h" role="src" />
                 </dir>
                 <dir name="ext">
-                    <file name="backtrace.c" role="src" />
-                    <file name="backtrace.h" role="src" />
                     <file name="compat_string.c" role="src" />
                     <file name="compat_string.h" role="src" />
                     <file name="configuration.h" role="src" />
@@ -71,6 +69,8 @@
                     <file name="sandbox.h" role="src" />
                     <file name="serializer.c" role="src" />
                     <file name="serializer.h" role="src" />
+                    <file name="signals.c" role="src" />
+                    <file name="signals.h" role="src" />
                     <file name="span.c" role="src" />
                     <file name="span.h" role="src" />
                     <file name="trace.c" role="src" />
@@ -246,6 +246,7 @@
             </dir>
             <file name="CHANGELOG.md" role="doc" />
             <file name="config.m4" role="src" />
+            <file name="m4/ax_execinfo.m4" role="src" />
             <file name="LICENSE" role="doc" />
             <file name="README.md" role="doc" />
             <file name="UPGRADE-0.10.md" role="doc" />

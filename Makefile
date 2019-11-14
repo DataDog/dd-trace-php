@@ -13,8 +13,9 @@ INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 
 C_FILES := $(shell find src/{dogstatsd,ext} -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
-ALL_FILES := $(C_FILES) $(TEST_FILES) $(BUILD_DIR)/config.m4
+ALL_FILES := $(C_FILES) $(TEST_FILES) $(BUILD_DIR)/config.m4 $(M4_FILES)
 
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to build dir
@@ -25,6 +26,8 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 Q := @
+
+$(BUILD_DIR)/config.m4: $(M4_FILES)
 
 $(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
 	$(Q) (cd $(BUILD_DIR); phpize)

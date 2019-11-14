@@ -228,7 +228,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!tests/ext/sandbox/*' '!config.*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.neon' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!dockerfiles/**/*.patch' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!src/ext/mpack/**' '!src/ext/third-party/**' || touch .failure
+          command: node_modules/.bin/eclint check '**/*' '!tests/ext/sandbox/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.neon' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!dockerfiles/**/*.patch' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!src/ext/mpack/**' '!src/ext/third-party/**' || touch .failure
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure

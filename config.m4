@@ -3,6 +3,10 @@ PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,[  --enable-dd
 PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,[  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
 if test "$PHP_DDTRACE" != "no"; then
+  m4_include([m4/ax_execinfo.m4])
+
+  AX_EXECINFO
+
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
     EXTRA_LDFLAGS="-lasan"
 	  EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
@@ -13,7 +17,6 @@ if test "$PHP_DDTRACE" != "no"; then
   dnl ddtrace.c comes first, then everything else alphabetically
   DD_TRACE_PHP_SOURCES="src/ext/ddtrace.c \
     src/dogstatsd/client.c \
-    src/ext/backtrace.c \
     src/ext/circuit_breaker.c \
     src/ext/compat_string.c \
     src/ext/coms.c \
@@ -32,6 +35,7 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/random.c \
     src/ext/request_hooks.c \
     src/ext/serializer.c \
+    src/ext/signals.c \
     src/ext/span.c \
     src/ext/third-party/mt19937-64.c \
     src/ext/trace.c \
