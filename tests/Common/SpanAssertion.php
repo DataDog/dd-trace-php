@@ -299,4 +299,13 @@ final class SpanAssertion
     {
         return $this->exactMetrics;
     }
+
+    public function __toString()
+    {
+        return sprintf(
+            "{name:'%s' resource:'%s'}",
+            $this->getOperationName(),
+            $this->getResource()
+        );
+    }
 }

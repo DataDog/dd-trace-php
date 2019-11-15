@@ -80,6 +80,9 @@ $table_prefix  = 'wp_';
  */
 define('WP_DEBUG', false);
 
+/** Disable internal Wp-Cron feature **/
+define('DISABLE_WP_CRON', true);
+
 /* That's all, stop editing! Happy blogging. */
 
 /** Absolute path to the WordPress directory. */

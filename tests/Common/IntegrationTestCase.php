@@ -14,6 +14,8 @@ abstract class IntegrationTestCase extends TestCase
     use TracerTestTrait;
     use SpanAssertionTrait;
 
+    private $errorReportingBefore;
+
     const IS_SANDBOX = false;
 
     public static function setUpBeforeClass()
@@ -38,10 +40,24 @@ abstract class IntegrationTestCase extends TestCase
 
     protected function setUp()
     {
+        $this->errorReportingBefore = error_reporting();
         parent::setUp();
         if (Versions::phpVersionMatches('5.4') && self::isSandboxed()) {
             $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4.');
         }
+    }
+
+    protected function tearDown()
+    {
+        parent::tearDown();
+        error_reporting($this->errorReportingBefore);
+        \PHPUnit_Framework_Error_Warning::$enabled = true;
+    }
+
+    protected function disableTranslateWarningsIntoErrors()
+    {
+        \PHPUnit_Framework_Error_Warning::$enabled = false;
+        error_reporting(E_ERROR | E_PARSE);
     }
 
     /**

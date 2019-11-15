@@ -20,7 +20,7 @@ final class SpanChecker
         $flattenTraces = $this->flattenTraces($traces);
         $actualGraph = $this->buildSpansGraph($flattenTraces);
         foreach ($expectedFlameGraph as $oneTrace) {
-            $this->assertNode($actualGraph, $oneTrace);
+            $this->assertNode($actualGraph, $oneTrace, 'root', 'root');
         }
     }
 
@@ -28,47 +28,122 @@ final class SpanChecker
      * @param array $graph
      * @param SpanAssertion $expectedNodeRoot
      */
-    private function assertNode($graph, SpanAssertion $expectedNodeRoot)
+    private function assertNode(array $graph, SpanAssertion $expectedNodeRoot, $parentName, $parentResource)
     {
-        $found = array_values(array_filter($graph, function (array $node) use ($expectedNodeRoot) {
-            return $node['span']['name'] === $expectedNodeRoot->getOperationName()
-                && $node['span']['resource'] === $expectedNodeRoot->getResource();
-        }));
-
-        if (count($found) > 1) {
-            TestCase::fail(
-                'Edge case not handled, more than one span with same name and resource at the same level: '
-                . $expectedNodeRoot->getOperationName() . '/' . $expectedNodeRoot->getResource()
-            );
-            return;
-        } elseif (count($found) === 0) {
-            TestCase::fail(
-                'Cannot find at the current level name/resource: '
-                . $expectedNodeRoot->getOperationName() . '/' . $expectedNodeRoot->getResource()
-            );
-            return;
-        }
-
-        $node = $found[0];
+        $node = $this->findOne($graph, $expectedNodeRoot, $parentName, $parentResource);
         $this->assertSpan($node['span'], $expectedNodeRoot);
 
         $actualChildrenCount = count($node['children']);
         $expectedChildrenCount = count($expectedNodeRoot->getChildren());
 
         if ($actualChildrenCount !== $expectedChildrenCount) {
+            $expectedNames = array_map(function (SpanAssertion $spanAssertion) {
+                return $spanAssertion->getOperationName();
+            }, $expectedNodeRoot->getChildren());
+            sort($expectedNames);
+            $actualNames = array_map(function (array $child) {
+                return $child['span']['name'];
+            }, $node['children']);
+            sort($actualNames);
             TestCase::fail(sprintf(
-                'Wrong number of children (actual %d, expected %d) for operation/resource: %s/%s',
+                "Wrong number of children (actual %d, expected %d) for operation/resource: %s/%s."
+                    . "\n\nExpected:\n%s\n\nActual:\n%s\n",
                 $actualChildrenCount,
                 $expectedChildrenCount,
                 $expectedNodeRoot->getOperationName(),
-                $expectedNodeRoot->getResource()
+                $expectedNodeRoot->getResource(),
+                implode("\n", $expectedNames),
+                implode("\n", $actualNames)
             ));
             return;
         }
 
         foreach ($expectedNodeRoot->getChildren() as $child) {
-            $this->assertNode($node['children'], $child);
+            $this->assertNode(
+                $node['children'],
+                $child,
+                $expectedNodeRoot->getOperationName(),
+                $expectedNodeRoot->getResource()
+            );
         }
+    }
+
+    private function findOne(array $graph, SpanAssertion $expectedNodeRoot, $parentName, $parenResource)
+    {
+        if ($expectedNodeRoot->getResource()) {
+            // If the resource is specified, then we use it
+            $found = array_values(array_filter($graph, function (array $node) use ($expectedNodeRoot) {
+                return empty($node['__visited'])
+                    && $this->matches($node['span']['name'], $expectedNodeRoot->getOperationName())
+                    && $this->matches($node['span']['resource'], $expectedNodeRoot->getResource(), $wildcards = true);
+            }));
+        } else {
+            // If the resource is NOT specified, then we use only the operation name
+            $found = array_values(array_filter($graph, function (array $node) use ($expectedNodeRoot) {
+                return empty($node['__visited'])
+                    && $this->matches($node['span']['name'], $expectedNodeRoot->getOperationName());
+            }));
+        }
+
+        if (count($found) > 1) {
+            // Not using a TestCase::markTestAsIncomplete() because it exits immediately,
+            // while with an error log we are still able to proceed with tests.
+            error_log(sprintf(
+                "WARNING: More then one candidate found for '%s' at the same level. "
+                . "Proceeding in the order they appears. "
+                . "This might not work if this span is not a leaf span.",
+                $expectedNodeRoot
+            ));
+        } elseif (count($found) === 0) {
+            TestCase::fail(
+                sprintf(
+                    "Cannot find span\n  - Current level: %s\n  - Span not found: %s",
+                    $parentName . '/' . $parenResource,
+                    $expectedNodeRoot->getOperationName() . '/' . $expectedNodeRoot->getResource()
+                )
+            );
+            return;
+        }
+
+        $found[0]['__visited'] = true;
+        return $found[0];
+    }
+
+    /**
+     * Normalize a raw string removing white spaces when possible
+     */
+    private function normalizeString($raw)
+    {
+        if (null === $raw) {
+            return null;
+        }
+        return trim(preg_replace('/\s+/', ' ', $raw));
+    }
+
+    /**
+     * Given an actual and an expected span, it tells if the two matches
+     * normalizing resource names.
+     */
+    private function matches($actual, $expectation, $wildcards = false)
+    {
+        if ($actual === null && $expectation === null) {
+            return true;
+        }
+
+        if (!is_string($actual) || !is_string($expectation)) {
+            return false;
+        }
+
+        $normalizedActual = $this->normalizeString($actual);
+        $normalizedExpectation = $this->normalizeString($expectation);
+
+        if ($wildcards && substr($normalizedExpectation, -1) === '*') {
+            // Ends with *
+            $length = strlen($normalizedExpectation) - 1;
+            return substr($normalizedActual, 0, $length) === substr($normalizedExpectation, 0, $length);
+        }
+
+        return $normalizedExpectation === $normalizedActual;
     }
 
     /**
@@ -147,7 +222,7 @@ final class SpanChecker
             $expectedSpansReferences,
             $tracesReferences,
             'Missing or additional spans. Expected: ' . print_r($expectedOperationsAndResources, true) .
-            "\n Found: " . print_r($actualOperationsAndResources, true)
+                "\n Found: " . print_r($actualOperationsAndResources, true)
         );
 
         // Then we assert content on each individual received span
@@ -164,7 +239,7 @@ final class SpanChecker
      */
     public function assertSpan($span, SpanAssertion $exp)
     {
-        TestCase::assertNotNull($span, 'Expected span was not \'' . $exp->getOperationName() . '\' found.');
+        TestCase::assertNotNull($span, 'Expected span was not found \'' . $exp->getOperationName() . '\'.');
 
         $spanMeta = isset($span['meta']) ? $span['meta'] : [];
 
