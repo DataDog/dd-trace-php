@@ -159,7 +159,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
 
             list($statement) = $args;
             $resource = MysqliCommon::retrieveQuery($statement, 'mysqli_stmt_get_result');
-            MysqliIntegration::storeQuery($result, $resource);
+            MysqliCommon::storeQuery($result, $resource);
             ObjectKVStore::propagate($statement, $result, 'host_info');
 
             return false;
@@ -204,7 +204,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             $integration->setConnectionInfo($span, $this);
 
             if (isset($args[1])) {
-                $span->setTag('db.transaction_name', $args[1]);
+                $span->meta['db.transaction_name'] = $args[1];
             }
         });
 
