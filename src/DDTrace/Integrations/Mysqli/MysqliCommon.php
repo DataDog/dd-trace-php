@@ -18,7 +18,7 @@ class MysqliCommon
             return [];
         }
         $hostInfo = $mysqli->host_info;
-        return self::parseHostInfo(substr($host_info, 0, strpos($host_info, ' ')));
+        return self::parseHostInfo(substr($hostInfo, 0, strpos($hostInfo, ' ')));
     }
 
     /**
