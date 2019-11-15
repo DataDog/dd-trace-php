@@ -80,7 +80,7 @@ $table_prefix  = 'wp_';
  */
 define('WP_DEBUG', false);
 
-/** Disabilita la funzione interna Wp-Cron **/
+/** Disable internal Wp-Cron feature **/
 define('DISABLE_WP_CRON', true);
 
 /* That's all, stop editing! Happy blogging. */

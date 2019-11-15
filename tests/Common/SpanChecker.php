@@ -28,9 +28,9 @@ final class SpanChecker
      * @param array $graph
      * @param SpanAssertion $expectedNodeRoot
      */
-    private function assertNode(array $graph, SpanAssertion $expectedNodeRoot, $parentName, $parenResource)
+    private function assertNode(array $graph, SpanAssertion $expectedNodeRoot, $parentName, $parentResource)
     {
-        $node = $this->findOne($graph, $expectedNodeRoot, $parentName, $parenResource);
+        $node = $this->findOne($graph, $expectedNodeRoot, $parentName, $parentResource);
         $this->assertSpan($node['span'], $expectedNodeRoot);
 
         $actualChildrenCount = count($node['children']);

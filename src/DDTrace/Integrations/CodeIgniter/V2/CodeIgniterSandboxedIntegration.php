@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Integrations\CodeIgniter\V2_2;
+namespace DDTrace\Integrations\CodeIgniter\V2;
 
 use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
