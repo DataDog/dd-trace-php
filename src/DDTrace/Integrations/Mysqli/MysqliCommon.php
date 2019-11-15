@@ -14,7 +14,10 @@ class MysqliCommon
      */
     public static function extractHostInfo($mysqli)
     {
-        $host_info = $mysqli->host_info;
+        if (!isset($mysqli->host_info) || !is_string($mysqli->host_info)) {
+            return [];
+        }
+        $hostInfo = $mysqli->host_info;
         return self::parseHostInfo(substr($host_info, 0, strpos($host_info, ' ')));
     }
 
