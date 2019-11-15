@@ -82,7 +82,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('create_initial_post_types'),
                         SpanAssertion::exists('create_initial_taxonomies'),
                         // WARNING: something not properly working with the tracing of WP.main
-                        // causes these spans to exists but not having the proper parent. This is
+                        // causes these spans to exist but not having the proper parent. This is
                         // prossible due to an exit/die in WP code. To be investigated. Once fixed this
                         // test will fail.
                         // SpanAssertion::exists('WP.init'),

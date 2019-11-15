@@ -31,7 +31,6 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
     public function init()
     {
         if (!extension_loaded('mysqli')) {
-            // Memcached is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }
 
@@ -55,7 +54,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
         dd_trace_method(
             'mysqli',
             $mysqli_constructor,
-            function (SpanData $span, $args) use ($mysqli_constructor, $integration) {
+            function (SpanData $span) use ($integration) {
                 if (dd_trace_tracer_is_limited()) {
                     return false;
                 }
@@ -152,11 +151,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             $integration->setDefaultAttributes($span, 'mysqli_stmt_execute', $resource);
         });
 
-        dd_trace_function('mysqli_stmt_get_result', function (SpanData $span, $args, $result) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
-
+        dd_trace_function('mysqli_stmt_get_result', function (SpanData $span, $args, $result) {
             list($statement) = $args;
             $resource = MysqliCommon::retrieveQuery($statement, 'mysqli_stmt_get_result');
             MysqliCommon::storeQuery($result, $resource);
