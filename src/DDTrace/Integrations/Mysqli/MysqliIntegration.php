@@ -224,6 +224,31 @@ class MysqliIntegration extends Integration
             return $result;
         });
 
+        // mysqli_multi_query(mysqli $link, string $query): bool
+        dd_trace('mysqli_multi_query', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            list($mysqli, $query) = func_get_args();
+
+            $scope = MysqliIntegration::initScope('mysqli_multi_query', $query);
+            /** @var \DDTrace\Span $span */
+            $span = $scope->getSpan();
+            $span->setTraceAnalyticsCandidate();
+            MysqliIntegration::setConnectionInfo($span, $mysqli);
+            MysqliCommon::storeQuery($mysqli, $query);
+
+            $result = dd_trace_forward_call();
+            MysqliCommon::storeQuery($result, $query);
+            ObjectKVStore::put($result, 'host_info', MysqliCommon::extractHostInfo($mysqli));
+
+            $scope->close();
+
+            return $result;
+        });
+
         // mysqli_stmt mysqli_prepare ( mysqli $link , string $query )
         dd_trace('mysqli_prepare', function ($mysqli, $query) {
             $tracer = GlobalTracer::get();
@@ -314,6 +339,29 @@ class MysqliIntegration extends Integration
 
             list($query) = func_get_args();
             $scope = MysqliIntegration::initScope('mysqli.query', $query);
+            /** @var \DDTrace\Span $span */
+            $span = $scope->getSpan();
+            $span->setTraceAnalyticsCandidate();
+            MysqliIntegration::setConnectionInfo($span, $this);
+            MysqliCommon::storeQuery($this, $query);
+
+            $afterResult = function ($result) use ($query) {
+                $host_info = MysqliCommon::extractHostInfo($this);
+                ObjectKVStore::put($result, 'host_info', $host_info);
+                ObjectKVStore::put($result, 'query', $query);
+            };
+            return include __DIR__ . '/../../try_catch_finally.php';
+        });
+
+        // mysqli::multi_query(string $query): bool
+        dd_trace('mysqli', 'multi_query', function () {
+            $tracer = GlobalTracer::get();
+            if ($tracer->limited()) {
+                return dd_trace_forward_call();
+            }
+
+            list($query) = func_get_args();
+            $scope = MysqliIntegration::initScope('mysqli.multi_query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
             $span->setTraceAnalyticsCandidate();

@@ -114,6 +114,28 @@ class MysqliTest extends IntegrationTestCase
         ]);
     }
 
+    public function testMultiQuery()
+    {
+        $queries = <<<'MySQL'
+INSERT INTO tests (id, name) VALUES (100, 'Tom');
+UPDATE tests SET name = 'Jerry' WHERE id = 100;
+MySQL;
+
+        $traces = $this->isolateTracer(function () use ($queries) {
+            $mysqli = \mysqli_connect(self::$host, self::$user, self::$password, self::$db);
+
+            $mysqli->multi_query($queries);
+            $mysqli->close();
+        });
+
+        $this->assertOneRowInDatabase('tests', [ 'id' => 100, 'name' => 'Jerry' ]);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists('mysqli_connect', 'mysqli_connect'),
+            SpanAssertion::build('mysqli.multi_query', 'mysqli', 'sql', $queries)
+                ->withExactTags(self::baseTags()),
+        ]);
+    }
+
     public function testProceduralQueryRealConnect()
     {
         $traces = $this->isolateTracer(function () {
@@ -340,7 +362,7 @@ class MysqliTest extends IntegrationTestCase
         foreach ($wheres as $key => $value) {
             $conditions[] = "$key = '$value'";
         }
-        $inlineWhere = $conditions ? 'WHERE ' . implode('AND', $conditions) : '';
+        $inlineWhere = $conditions ? 'WHERE ' . implode('AND ', $conditions) : '';
         $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$db);
         $result = $mysqli->query("SELECT * FROM $table $inlineWhere");
         if (false === $result) {

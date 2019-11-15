@@ -112,6 +112,21 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             ObjectKVStore::put($result, 'host_info', MysqliCommon::extractHostInfo($mysqli));
         });
 
+        dd_trace_function('mysqli_multi_query', function (SpanData $span, $args, $result) use ($integration) {
+            if (dd_trace_tracer_is_limited()) {
+                return false;
+            }
+
+            list($mysqli, $query) = $args;
+            $integration->setDefaultAttributes($span, 'mysqli_multi_query', $query);
+            $integration->addTraceAnalyticsIfEnabled($span);
+            $integration->setConnectionInfo($span, $mysqli);
+
+            MysqliCommon::storeQuery($mysqli, $query);
+            MysqliCommon::storeQuery($result, $query);
+            ObjectKVStore::put($result, 'host_info', MysqliCommon::extractHostInfo($mysqli));
+        });
+
         dd_trace_function('mysqli_prepare', function (SpanData $span, $args, $returnedStatement) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
@@ -167,6 +182,22 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
 
             list($query) = $args;
             $integration->setDefaultAttributes($span, 'mysqli.query', $query);
+            $integration->addTraceAnalyticsIfEnabled($span);
+            $integration->setConnectionInfo($span, $this);
+            MysqliCommon::storeQuery($this, $query);
+            ObjectKVStore::put($result, 'query', $query);
+            $host_info = MysqliCommon::extractHostInfo($this);
+            ObjectKVStore::put($result, 'host_info', $host_info);
+            ObjectKVStore::put($result, 'query', $query);
+        });
+
+        dd_trace_method('mysqli', 'multi_query', function (SpanData $span, $args, $result) use ($integration) {
+            if (dd_trace_tracer_is_limited()) {
+                return false;
+            }
+
+            list($query) = $args;
+            $integration->setDefaultAttributes($span, 'mysqli.multi_query', $query);
             $integration->addTraceAnalyticsIfEnabled($span);
             $integration->setConnectionInfo($span, $this);
             MysqliCommon::storeQuery($this, $query);
