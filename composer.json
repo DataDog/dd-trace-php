@@ -25,7 +25,6 @@
         "ext-json": "*"
     },
     "require-dev": {
-        "ext-mysqli": "*",
         "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
         "phpunit/phpunit": "^4",
