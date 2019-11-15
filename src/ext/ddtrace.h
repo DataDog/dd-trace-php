@@ -45,7 +45,7 @@ ddtrace_span_t *open_spans_top;
 ddtrace_span_t *closed_spans_top;
 uint32_t open_spans_count;
 uint32_t closed_spans_count;
-uint32_t compile_time_microseconds;
+int64_t compile_time_microseconds;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 
 #ifdef ZTS

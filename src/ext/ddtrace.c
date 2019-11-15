@@ -17,7 +17,6 @@
 #include "circuit_breaker.h"
 #include "compat_string.h"
 #include "compatibility.h"
-#include "compile.h"
 #include "coms.h"
 #include "coms_curl.h"
 #include "coms_debug.h"
@@ -27,6 +26,7 @@
 #include "debug.h"
 #include "dispatch.h"
 #include "dispatch_compat.h"
+#include "engine_hooks.h"
 #include "memory_limit.h"
 #include "random.h"
 #include "request_hooks.h"
@@ -120,7 +120,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_install_backtrace_handler();
     ddtrace_dispatch_inject(TSRMLS_C);
-    ddtrace_compile_hook();
+    ddtrace_compile_minit();
 
     ddtrace_coms_initialize();
     ddtrace_coms_setup_atexit_hook();
@@ -145,7 +145,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_config_shutdown();
     }
 
-    ddtrace_compile_unhook();
+    ddtrace_compile_mshutdown();
 
     return SUCCESS;
 }

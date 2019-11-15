@@ -15,7 +15,6 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/backtrace.c \
     src/ext/circuit_breaker.c \
     src/ext/compat_string.c \
-    src/ext/compile.c \
     src/ext/coms.c \
     src/ext/coms_curl.c \
     src/ext/coms_debug.c \
@@ -25,6 +24,7 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/dispatch_compat_php5.c \
     src/ext/dispatch_compat_php7.c \
     src/ext/dispatch_setup.c \
+    src/ext/engine_hooks.c \
     src/ext/env_config.c \
     src/ext/logging.c \
     src/ext/memory_limit.c \

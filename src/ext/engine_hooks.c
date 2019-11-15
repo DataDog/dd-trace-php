@@ -1,4 +1,4 @@
-#include "compile.h"
+#include "engine_hooks.h"
 
 #include <php.h>
 #include <stdint.h>
@@ -8,7 +8,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-zend_op_array *(*ddtrace_orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
+static zend_op_array *(*_prev_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
 static uint64_t _get_microseconds() {
     struct timespec time;
@@ -21,22 +21,22 @@ static uint64_t _get_microseconds() {
 static zend_op_array *ddtrace_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC) {
     zend_op_array *res;
     uint64_t start = _get_microseconds();
-    res = ddtrace_orig_compile_file(file_handle, type TSRMLS_CC);
-    DDTRACE_G(compile_time_microseconds) += (uint32_t)(_get_microseconds() - start);
+    res = _prev_compile_file(file_handle, type TSRMLS_CC);
+    DDTRACE_G(compile_time_microseconds) += (int64_t)(_get_microseconds() - start);
     return res;
 }
 
-void ddtrace_compile_hook() {
-    ddtrace_orig_compile_file = zend_compile_file;
+void ddtrace_compile_minit(void) {
+    _prev_compile_file = zend_compile_file;
     zend_compile_file = ddtrace_compile_file;
 }
 
-void ddtrace_compile_unhook() {
+void ddtrace_compile_mshutdown(void) {
     if (zend_compile_file == ddtrace_compile_file) {
-        zend_compile_file = ddtrace_orig_compile_file;
+        zend_compile_file = _prev_compile_file;
     }
 }
 
 void ddtrace_compile_time_reset(TSRMLS_D) { DDTRACE_G(compile_time_microseconds) = 0; }
 
-uint32_t ddtrace_compile_time_get(TSRMLS_D) { return DDTRACE_G(compile_time_microseconds); }
+int64_t ddtrace_compile_time_get(TSRMLS_D) { return DDTRACE_G(compile_time_microseconds); }
