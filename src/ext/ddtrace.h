@@ -31,6 +31,7 @@ zend_bool strict_mode;
 uint32_t traces_group_id;
 HashTable *class_lookup;
 HashTable *function_lookup;
+HashTable *http_headers;
 zend_bool log_backtrace;
 ddtrace_original_context original_context;
 

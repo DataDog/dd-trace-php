@@ -168,7 +168,11 @@ final class TextMap implements Propagator
     {
         if (isset($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER])) {
             $rawValue = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER]);
-            $spanContext->setPropagatedPrioritySampling(PrioritySampling::parse($rawValue));
+            $sampling = PrioritySampling::parse($rawValue);
+            $spanContext->setPropagatedPrioritySampling($sampling);
+            if (PrioritySampling::UNKNOWN !== $sampling) {
+                dd_trace_propagate_http_header(Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER . ': ' . $sampling);
+            }
         }
     }
 
@@ -185,6 +189,9 @@ final class TextMap implements Propagator
             && isset($carrier[Propagator::DEFAULT_ORIGIN_HEADER])
         ) {
             $spanContext->origin = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_ORIGIN_HEADER]);
+            if (null !== $spanContext->origin) {
+                dd_trace_propagate_http_header(Propagator::DEFAULT_ORIGIN_HEADER . ': ' . $spanContext->origin);
+            }
         }
     }
 }

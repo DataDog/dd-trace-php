@@ -3,11 +3,15 @@
 #include <php.h>
 
 #include "configuration.h"
+#include "ddtrace.h"
+#include "env_config.h"
 #include "internal_functions.h"
 #include "logging.h"
 #include "random.h"
 #include "trace.h"
 //#include "third-party/php/7.3/php_curl.h"
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 #if PHP_VERSION_ID < 70200
 typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
@@ -79,6 +83,8 @@ typedef struct {
 
 // END copy/pasted bits
 
+void ddtrace_append_http_headers(struct curl_slist *headers TSRMLS_DC);
+
 zif_handler orig_handler_curl_exec;
 ZEND_NAMED_FUNCTION(ddtrace_hander_curl_exec) {
     zval *zid;
@@ -138,6 +144,7 @@ ZEND_NAMED_FUNCTION(ddtrace_hander_curl_exec) {
 
     dd_headers = curl_slist_append(dd_headers, header_trace_id);
     dd_headers = curl_slist_append(dd_headers, header_parent_id);
+    ddtrace_append_http_headers(dd_headers);
 
     orig_headers = (struct curl_slist *)zend_hash_index_find_ptr(ch->to_free->slist, (zend_long)CURLOPT_HTTPHEADER);
     if (orig_headers) {
@@ -170,5 +177,38 @@ void ddtrace_hook_internal_functions() {
     if (curl_exec != NULL) {
         orig_handler_curl_exec = curl_exec->internal_function.handler;
         curl_exec->internal_function.handler = ddtrace_hander_curl_exec;
+    }
+}
+
+void ddtrace_init_http_headers(TSRMLS_D) { DDTRACE_G(http_headers) = NULL; }
+
+void ddtrace_destroy_http_headers(TSRMLS_D) {
+    if (DDTRACE_G(http_headers)) {
+        zend_hash_destroy(DDTRACE_G(http_headers));
+        FREE_HASHTABLE(DDTRACE_G(http_headers));
+        DDTRACE_G(http_headers) = NULL;
+    }
+}
+
+BOOL_T ddtrace_add_http_header(zval *header TSRMLS_DC) {
+    if (!header || Z_TYPE_P(header) != IS_STRING) {
+        return FALSE;
+    }
+    if (!DDTRACE_G(http_headers)) {
+        ALLOC_HASHTABLE(DDTRACE_G(http_headers));
+        zend_hash_init(DDTRACE_G(http_headers), 8, NULL, ZVAL_PTR_DTOR, 0);
+    }
+    if (zend_hash_next_index_insert(DDTRACE_G(http_headers), header) == NULL) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+void ddtrace_append_http_headers(struct curl_slist *headers TSRMLS_DC) {
+    zval *header;
+    if (DDTRACE_G(http_headers) && headers) {
+        ZEND_HASH_FOREACH_VAL(DDTRACE_G(http_headers), header) {
+            headers = curl_slist_append(headers, Z_STRVAL_P(header));
+        } ZEND_HASH_FOREACH_END();
     }
 }

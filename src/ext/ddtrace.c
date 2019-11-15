@@ -171,6 +171,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_init_span_id_stack(TSRMLS_C);
     ddtrace_init_span_stacks(TSRMLS_C);
     ddtrace_coms_on_pid_change();
+    ddtrace_init_http_headers();
 
     if (DDTRACE_G(request_init_hook)) {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));
@@ -193,6 +194,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_free_span_id_stack(TSRMLS_C);
     ddtrace_free_span_stacks(TSRMLS_C);
     ddtrace_coms_on_request_finished();
+    ddtrace_destroy_http_headers();
 
     return SUCCESS;
 }
@@ -687,7 +689,12 @@ static PHP_FUNCTION(dd_trace_push_span_id) {
     zval *existing_id = NULL;
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &existing_id) == SUCCESS) {
         if (ddtrace_push_userland_span_id(existing_id TSRMLS_CC) == TRUE) {
-            return_span_id(return_value, ddtrace_peek_span_id(TSRMLS_C));
+            ddtrace_span_ids_t *active_id = ddtrace_active_span_id(TSRMLS_C);
+            if (active_id) {
+                return_span_id(return_value, active_id->id);
+            } else {
+                return_span_id(return_value, 0U);
+            }
             return;
         }
     }
@@ -728,6 +735,19 @@ static PHP_FUNCTION(dd_trace_tracer_is_limited) {
     RETURN_BOOL(ddtrace_tracer_is_limited(TSRMLS_C) == TRUE ? 1 : 0);
 }
 
+/* {{{ proto string dd_trace_propagate_http_header() */
+static PHP_FUNCTION(dd_trace_propagate_http_header) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+
+    zval *http_header = NULL;
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "|z!", &http_header) != SUCCESS) {
+        RETURN_BOOL(0);
+    }
+
+    RETURN_BOOL(ddtrace_add_http_header(http_header TSRMLS_CC) == TRUE ? 1 : 0);
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     PHP_FE(dd_trace, NULL) PHP_FE(dd_trace_method, arginfo_dd_trace_method) PHP_FE(
         dd_trace_function, arginfo_dd_trace_function) PHP_FE(dd_trace_serialize_closed_spans,
@@ -745,7 +765,7 @@ static const zend_function_entry ddtrace_functions[] = {
                                     PHP_FE(dd_trace_pop_span_id, NULL) PHP_FE(dd_trace_peek_span_id, NULL)
                                         PHP_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL)
                                             PHP_FE(dd_trace_closed_spans_count, NULL)
-                                                PHP_FE(dd_trace_tracer_is_limited, NULL) ZEND_FE_END};
+                                                PHP_FE(dd_trace_tracer_is_limited, NULL) PHP_FE(dd_trace_propagate_http_header, NULL) ZEND_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,
                                           PHP_DDTRACE_EXTNAME,
