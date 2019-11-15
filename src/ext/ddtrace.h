@@ -60,4 +60,24 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 
 #define DDTRACE_CALLBACK_NAME "dd_trace_callback"
 
+/* The clang formatter does not handle the ZEND macros these mirror, due to the
+ * missing comma in the usage site. It was making PRs unreviewable, so this
+ * defines these macros without the comma in the definition site, so that it
+ * exists at the usage site.
+ */
+#if PHP_VERSION_ID < 70000
+#define DDTRACE_ARG_INFO_SIZE(arg_info) ((zend_uint)(sizeof(arg_info) / sizeof(struct _zend_arg_info) - 1))
+#elif PHP_VERSION_ID < 80000
+#define DDTRACE_ARG_INFO_SIZE(arg_info) ((uint32_t)(sizeof(arg_info) / sizeof(struct _zend_internal_arg_info) - 1))
+#else
+#error Check if ZEND_FENTRY has changed in PHP 8 and if we need to update the macros
+#endif
+
+#define DDTRACE_FENTRY(zend_name, name, arg_info, flags) \
+    { #zend_name, name, arg_info, DDTRACE_ARG_INFO_SIZE(arg_info), flags }
+
+#define DDTRACE_FE(name, arg_info) DDTRACE_FENTRY(name, ZEND_FN(name), arg_info, 0)
+#define DDTRACE_FALIAS(name, alias, arg_info) DDTRACE_FENTRY(name, ZEND_FN(alias), arg_info, 0)
+#define DDTRACE_FE_END ZEND_FE_END
+
 #endif  // DDTRACE_H
