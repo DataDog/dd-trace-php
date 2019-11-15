@@ -39,7 +39,7 @@ abstract class AbstractIntegrationConfiguration
     {
         $this->integrationName = $integrationName;
         $this->requiresExplicitTraceAnalyticsEnabling = $requiresExplicitTraceAnalyticsEnabling;
-        $prefix = strtoupper(str_replace('-', '_', trim($this->integrationName)));
+        $prefix = \strtoupper(\str_replace('-', '_', \trim($this->integrationName)));
         $this->registry = new EnvVariableRegistry("DD_${prefix}_");
         $this->globalConfig = Configuration::get();
     }

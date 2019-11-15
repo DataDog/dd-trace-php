@@ -16,19 +16,19 @@ final class Runtime
      */
     public static function isAutoloaderRegistered($class, $method)
     {
-        $class = trim($class, '\\');
-        $autoloaders = spl_autoload_functions();
+        $class = \trim($class, '\\');
+        $autoloaders = \spl_autoload_functions();
         foreach ($autoloaders as $autoloader) {
-            if (!is_array($autoloader) || count($autoloader) !== 2) {
+            if (!\is_array($autoloader) || \count($autoloader) !== 2) {
                 continue;
             }
 
             $registeredAutoloader = $autoloader[0];
             $registeredMethod = $autoloader[1];
-            if (is_string($registeredAutoloader)) {
-                $compareClass = trim($registeredAutoloader, '\\');
-            } elseif (is_object($registeredAutoloader)) {
-                $compareClass = trim(get_class($registeredAutoloader), '\\');
+            if (\is_string($registeredAutoloader)) {
+                $compareClass = \trim($registeredAutoloader, '\\');
+            } elseif (\is_object($registeredAutoloader)) {
+                $compareClass = \trim(\get_class($registeredAutoloader), '\\');
             } else {
                 continue;
             }

@@ -135,11 +135,11 @@ final class Span extends DataSpan
         }
         // Since sub classes can change the return value of a known method,
         // we quietly ignore values that could cause errors when converting to string
-        if (is_object($value) && $key !== Tag::ERROR) {
+        if (\is_object($value) && $key !== Tag::ERROR) {
             return;
         }
 
-        if (array_key_exists($key, self::$specialTags)) {
+        if (\array_key_exists($key, self::$specialTags)) {
             if ($key === Tag::ERROR) {
                 $this->setError($value);
                 return;
@@ -181,7 +181,7 @@ final class Span extends DataSpan
                 }
             }
 
-            if (array_key_exists($key, self::$metricNames)) {
+            if (\array_key_exists($key, self::$metricNames)) {
                 $this->setMetric($key, $value);
                 return;
             }
@@ -195,7 +195,7 @@ final class Span extends DataSpan
      */
     public function getTag($key)
     {
-        if (array_key_exists($key, $this->tags)) {
+        if (\array_key_exists($key, $this->tags)) {
             return $this->tags[$key];
         }
 
@@ -215,7 +215,7 @@ final class Span extends DataSpan
      */
     public function hasTag($name)
     {
-        return array_key_exists($name, $this->getAllTags());
+        return \array_key_exists($name, $this->getAllTags());
     }
 
     /**
@@ -265,17 +265,17 @@ final class Span extends DataSpan
         if (($error instanceof Exception) || ($error instanceof Throwable)) {
             $this->hasError = true;
             $this->tags[Tag::ERROR_MSG] = $error->getMessage();
-            $this->tags[Tag::ERROR_TYPE] = get_class($error);
+            $this->tags[Tag::ERROR_TYPE] = \get_class($error);
             $this->tags[Tag::ERROR_STACK] = $error->getTraceAsString();
             return;
         }
 
-        if (is_bool($error)) {
+        if (\is_bool($error)) {
             $this->hasError = $error;
             return;
         }
 
-        if (is_null($error)) {
+        if (\is_null($error)) {
             $this->hasError = false;
         }
 

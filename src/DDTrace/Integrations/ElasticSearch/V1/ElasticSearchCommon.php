@@ -14,7 +14,7 @@ class ElasticSearchCommon
      */
     public static function buildResourceName($methodName, $params)
     {
-        if (!is_array($params)) {
+        if (!\is_array($params)) {
             return $methodName;
         }
 
@@ -28,6 +28,6 @@ class ElasticSearchCommon
             $resourceFragments[] = $relevantParamName . ':' . $params[$relevantParamName];
         }
 
-        return implode(' ', $resourceFragments);
+        return \implode(' ', $resourceFragments);
     }
 }

@@ -30,7 +30,7 @@ final class Bootstrap
         self::initRootSpan($tracer);
         self::registerOpenTracing();
 
-        register_shutdown_function(function () {
+        \register_shutdown_function(function () {
             dd_trace_disable_in_request(); //disable function tracing to speedup shutdown
 
             $tracer = GlobalTracer::get();
@@ -68,7 +68,7 @@ final class Bootstrap
         dd_trace('OpenTracing\GlobalTracer', 'get', function () {
             $original = \OpenTracing\GlobalTracer::get();
 
-            if (is_a($original, 'DDTrace\OpenTracer')) {
+            if (\is_a($original, 'DDTrace\OpenTracer')) {
                 return $original;
             }
 
@@ -89,7 +89,7 @@ final class Bootstrap
     {
         $options = ['start_time' => Time::now()];
         if ('cli' === PHP_SAPI) {
-            $operationName = isset($_SERVER['argv'][0]) ? basename($_SERVER['argv'][0]) : 'cli.command';
+            $operationName = isset($_SERVER['argv'][0]) ? \basename($_SERVER['argv'][0]) : 'cli.command';
             $span = $tracer->startRootSpan(
                 $operationName,
                 StartSpanOptions::create($options)
@@ -123,20 +123,20 @@ final class Bootstrap
         );
 
         dd_trace('header', function () use ($span) {
-            $args = func_get_args();
+            $args = \func_get_args();
 
             // header ( string $header [, bool $replace = TRUE [, int $http_response_code ]] ) : void
-            $argsCount = count($args);
+            $argsCount = \count($args);
 
             $parsedHttpStatusCode = null;
             if ($argsCount === 1) {
-                $result = header($args[0]);
+                $result = \header($args[0]);
                 $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
             } elseif ($argsCount === 2) {
-                $result = header($args[0], $args[1]);
+                $result = \header($args[0], $args[1]);
                 $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
             } else {
-                $result = header($args[0], $args[1], $args[2]);
+                $result = \header($args[0], $args[1], $args[2]);
                 // header() function can override the current status code
                 $parsedHttpStatusCode = $args[2] === null ? Bootstrap::parseStatusCode($args[0]) : $args[2];
             }
@@ -161,8 +161,8 @@ final class Bootstrap
     {
         if (
             empty($headersLine)
-            || !is_string($headersLine)
-            || substr(strtoupper($headersLine), 0, 5) !== 'HTTP/'
+            || !\is_string($headersLine)
+            || \substr(\strtoupper($headersLine), 0, 5) !== 'HTTP/'
         ) {
             return null;
         }
@@ -170,8 +170,8 @@ final class Bootstrap
         // Parts MUST be separated by space based on Http Spec:
         // Header definition: https://tools.ietf.org/html/rfc2616#section-6.1
         // Space char (SP) definition: https://tools.ietf.org/html/rfc2616#section-2.2
-        $parts = explode(' ', $headersLine);
-        if (count($parts) < 2 || !is_numeric($parts[1])) {
+        $parts = \explode(' ', $headersLine);
+        if (\count($parts) < 2 || !\is_numeric($parts[1])) {
             return null;
         }
 

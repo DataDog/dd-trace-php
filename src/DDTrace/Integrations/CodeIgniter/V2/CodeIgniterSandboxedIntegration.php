@@ -42,7 +42,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
             'CI_Router',
             '_set_routing',
             function () use ($integration, $rootScope, $service) {
-                if (!defined('CI_VERSION')) {
+                if (!\defined('CI_VERSION')) {
                     return false;
                 }
                 $majorVersion = \substr(\CI_VERSION, 0, 2);
@@ -163,7 +163,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
             'CI_Cache',
             '__get',
             function (SpanData $span, $args, $retval, $ex) use ($service, &$registered_cache_adapters) {
-                if (!$ex && is_object($retval)) {
+                if (!$ex && \is_object($retval)) {
                     $class = \get_class($retval);
                     if (!isset($registered_cache_adapters[$class])) {
                         CodeIgniterSandboxedIntegration::registerCacheAdapter($class, $service);

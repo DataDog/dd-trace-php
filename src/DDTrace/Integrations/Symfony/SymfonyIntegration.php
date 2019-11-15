@@ -63,7 +63,7 @@ class SymfonyIntegration extends Integration
             $result = dd_trace_forward_call();
 
             $name = SymfonyIntegration::BUNDLE_NAME;
-            if (!isset($this->bundles[$name]) && defined('\Symfony\Component\HttpKernel\Kernel::VERSION')) {
+            if (!isset($this->bundles[$name]) && \defined('\Symfony\Component\HttpKernel\Kernel::VERSION')) {
                 $version = \Symfony\Component\HttpKernel\Kernel::VERSION;
 
                 $bundle = null;
@@ -107,31 +107,31 @@ class SymfonyIntegration extends Integration
         $self = $this;
 
         dd_trace('Symfony\Component\HttpKernel\Event\FilterControllerEvent', 'setController', function () use ($self) {
-            list($controllerInfo) = func_get_args();
+            list($controllerInfo) = \func_get_args();
             $resourceParts = [];
 
             $tracer = GlobalTracer::get();
             $rootSpan = $tracer->getSafeRootSpan();
 
             // Controller info can be provided in various ways.
-            if (is_string($controllerInfo)) {
+            if (\is_string($controllerInfo)) {
                 $resourceParts[] = $controllerInfo;
-            } elseif (is_array($controllerInfo) && count($controllerInfo) === 2) {
-                if (is_object($controllerInfo[0])) {
-                    $resourceParts[] = get_class($controllerInfo[0]);
-                } elseif (is_string($controllerInfo[0])) {
+            } elseif (\is_array($controllerInfo) && \count($controllerInfo) === 2) {
+                if (\is_object($controllerInfo[0])) {
+                    $resourceParts[] = \get_class($controllerInfo[0]);
+                } elseif (\is_string($controllerInfo[0])) {
                     $resourceParts[] = $controllerInfo[0];
                 }
 
-                if (is_string($controllerInfo[1])) {
+                if (\is_string($controllerInfo[1])) {
                     $resourceParts[] = $controllerInfo[1];
                 }
             }
 
             if ($rootSpan) {
                 $rootSpan->setIntegration($self);
-                if (count($resourceParts) > 0) {
-                    $rootSpan->setResource(implode(' ', $resourceParts));
+                if (\count($resourceParts) > 0) {
+                    $rootSpan->setResource(\implode(' ', $resourceParts));
                 }
             }
 

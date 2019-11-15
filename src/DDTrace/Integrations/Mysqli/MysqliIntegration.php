@@ -38,7 +38,7 @@ class MysqliIntegration extends Integration
 
     public static function load()
     {
-        if (!extension_loaded('mysqli')) {
+        if (!\extension_loaded('mysqli')) {
             // Memcached is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }
@@ -64,7 +64,7 @@ class MysqliIntegration extends Integration
                 // Depending on configuration, connections errors can both cause an exception and return false
                 $result = dd_trace_forward_call();
                 if ($result === false) {
-                    $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
+                    $span->setError(new \Exception(\mysqli_connect_error(), \mysqli_connect_errno()));
                 } else {
                     MysqliIntegration::setConnectionInfo($span, $result);
                 }
@@ -82,7 +82,7 @@ class MysqliIntegration extends Integration
         });
 
         dd_trace('mysqli_real_connect', function () {
-            $args = func_get_args();
+            $args = \func_get_args();
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -97,8 +97,8 @@ class MysqliIntegration extends Integration
                 // Depending on configuration, connections errors can both cause an exception and return false
                 $result = dd_trace_forward_call();
                 if ($result === false) {
-                    $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
-                } elseif (count($args) > 0) {
+                    $span->setError(new \Exception(\mysqli_connect_error(), \mysqli_connect_errno()));
+                } elseif (\count($args) > 0) {
                     MysqliIntegration::setConnectionInfo($span, $args[0]);
                 }
             } catch (\Exception $ex) {
@@ -122,7 +122,7 @@ class MysqliIntegration extends Integration
         //      [, string $socket = ini_get("mysqli.default_socket") ]]]]]] )
         $mysqli_constructor = PHP_MAJOR_VERSION > 5 ? '__construct' : 'mysqli';
         dd_trace('mysqli', $mysqli_constructor, function () use ($mysqli_constructor) {
-            $args = func_get_args();
+            $args = \func_get_args();
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -136,9 +136,9 @@ class MysqliIntegration extends Integration
             $thrown = null;
             try {
                 dd_trace_forward_call();
-                if (mysqli_connect_errno()) {
-                    $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
-                } elseif (count($args)) {
+                if (\mysqli_connect_errno()) {
+                    $span->setError(new \Exception(\mysqli_connect_error(), \mysqli_connect_errno()));
+                } elseif (\count($args)) {
                     // Host can either be provided as constructor arg or after
                     // through ->real_connect(...). In this latter case an error
                     // `Property access is not allowed yet` would be thrown when
@@ -160,7 +160,7 @@ class MysqliIntegration extends Integration
 
         // bool mysqli_stmt_get_result ( mysqli_stmt $stmt )
         dd_trace('mysqli', 'real_connect', function ($stmt) {
-            $args = func_get_args();
+            $args = \func_get_args();
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -175,9 +175,9 @@ class MysqliIntegration extends Integration
             $result = null;
             try {
                 $result = dd_trace_forward_call();
-                if (mysqli_connect_errno()) {
-                    $span->setError(new \Exception(mysqli_connect_error(), mysqli_connect_errno()));
-                } elseif (count($args)) {
+                if (\mysqli_connect_errno()) {
+                    $span->setError(new \Exception(\mysqli_connect_error(), \mysqli_connect_errno()));
+                } elseif (\count($args)) {
                     // Host can either be provided as constructor arg or after
                     // through ->real_connect(...). In this latter case an error
                     // `Property access is not allowed yet` would be thrown when
@@ -205,7 +205,7 @@ class MysqliIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            list($mysqli, $query) = func_get_args();
+            list($mysqli, $query) = \func_get_args();
 
             $scope = MysqliIntegration::initScope('mysqli_query', $query);
             /** @var \DDTrace\Span $span */
@@ -252,7 +252,7 @@ class MysqliIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $args = func_get_args();
+            $args = \func_get_args();
             list($mysqli) = $args;
             $resource = MysqliIntegration::retrieveQuery($mysqli, 'mysqli_commit');
             $scope = MysqliIntegration::initScope('mysqli_commit', $resource);
@@ -311,7 +311,7 @@ class MysqliIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            list($query) = func_get_args();
+            list($query) = \func_get_args();
             $scope = MysqliIntegration::initScope('mysqli.query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
@@ -353,7 +353,7 @@ class MysqliIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $args = func_get_args();
+            $args = \func_get_args();
             $resource = MysqliIntegration::retrieveQuery($this, 'mysqli.commit');
             $scope = MysqliIntegration::initScope('mysqli.commit', $resource);
             /** @var \DDTrace\Span $span */
@@ -407,7 +407,7 @@ class MysqliIntegration extends Integration
     public static function extractHostInfo($mysqli)
     {
         $host_info = $mysqli->host_info;
-        $parts = explode(':', substr($host_info, 0, strpos($host_info, ' ')));
+        $parts = \explode(':', \substr($host_info, 0, \strpos($host_info, ' ')));
         $host = $parts[0];
         $port = isset($parts[1]) ? $parts[1] : '3306';
         return [

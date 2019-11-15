@@ -26,7 +26,7 @@ final class Stream implements Transport
     public function __construct(Encoder $encoder, $stream = null)
     {
         $this->encoder = $encoder;
-        $this->stream = $stream ?: fopen('php://output', 'w');
+        $this->stream = $stream ?: \fopen('php://output', 'w');
     }
 
     /**
@@ -34,12 +34,12 @@ final class Stream implements Transport
      */
     public function send(Tracer $tracer)
     {
-        fwrite($this->stream, '{"headers": ');
-        fwrite($this->stream, json_encode($this->headers));
-        fwrite($this->stream, ', "traces": ');
-        fwrite($this->stream, $this->encoder->encodeTraces($tracer));
-        fwrite($this->stream, '}');
-        fwrite($this->stream, PHP_EOL);
+        \fwrite($this->stream, '{"headers": ');
+        \fwrite($this->stream, \json_encode($this->headers));
+        \fwrite($this->stream, ', "traces": ');
+        \fwrite($this->stream, $this->encoder->encodeTraces($tracer));
+        \fwrite($this->stream, '}');
+        \fwrite($this->stream, PHP_EOL);
     }
 
     public function setHeader($key, $value)

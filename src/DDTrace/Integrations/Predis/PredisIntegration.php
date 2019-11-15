@@ -73,7 +73,7 @@ class PredisIntegration extends Integration
             $thrown = null;
             try {
                 dd_trace_forward_call();
-                PredisIntegration::storeConnectionParams($this, func_get_args());
+                PredisIntegration::storeConnectionParams($this, \func_get_args());
                 PredisIntegration::setConnectionTags($this, $span);
             } catch (\Exception $e) {
                 $thrown = $e;
@@ -116,7 +116,7 @@ class PredisIntegration extends Integration
             }
 
             $arguments = $command->getArguments();
-            array_unshift($arguments, $command->getId());
+            \array_unshift($arguments, $command->getId());
             $query = PredisIntegration::formatArguments($arguments);
 
             $scope = $tracer->startIntegrationScopeAndSpan(
@@ -127,7 +127,7 @@ class PredisIntegration extends Integration
             $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
             $span->setTag(Tag::SERVICE_NAME, 'redis');
             $span->setTag('redis.raw_command', $query);
-            $span->setTag('redis.args_length', count($arguments));
+            $span->setTag('redis.args_length', \count($arguments));
             $span->setTag(Tag::RESOURCE_NAME, $query);
             $span->setTraceAnalyticsCandidate();
             PredisIntegration::setConnectionTags($this, $span);
@@ -152,7 +152,7 @@ class PredisIntegration extends Integration
             $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
             $span->setTag(Tag::SERVICE_NAME, 'redis');
             $span->setTag('redis.raw_command', $query);
-            $span->setTag('redis.args_length', count($arguments));
+            $span->setTag('redis.args_length', \count($arguments));
             $span->setTag(Tag::RESOURCE_NAME, $query);
             $span->setTraceAnalyticsCandidate();
             PredisIntegration::setConnectionTags($this, $span);
@@ -191,7 +191,7 @@ class PredisIntegration extends Integration
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
             $span->setTag(Tag::SERVICE_NAME, 'redis');
-            $span->setTag('redis.pipeline_length', count($commands));
+            $span->setTag('redis.pipeline_length', \count($commands));
             PredisIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally block.
@@ -234,23 +234,23 @@ class PredisIntegration extends Integration
         if (isset($args[1])) {
             $options = $args[1];
 
-            if (is_array($options)) {
+            if (\is_array($options)) {
                 $parameters = isset($options['parameters']) ? $options['parameters'] : [];
             } elseif ($options instanceof OptionsInterface) {
                 $parameters = $options->__get('parameters') ?: [];
             }
 
-            if (is_array($parameters) && isset($parameters['database'])) {
+            if (\is_array($parameters) && isset($parameters['database'])) {
                 $tags['out.redis_db'] = $parameters['database'];
             }
         }
 
-        self::$connections[spl_object_hash($predis)] = $tags;
+        self::$connections[\spl_object_hash($predis)] = $tags;
     }
 
     public static function setConnectionTags($predis, $span)
     {
-        $hash = spl_object_hash($predis);
+        $hash = \spl_object_hash($predis);
         if (!isset(self::$connections[$hash])) {
             return;
         }
@@ -274,26 +274,26 @@ class PredisIntegration extends Integration
 
         foreach ($arguments as $argument) {
             // crude test to skip binary
-            if (strpos($argument, "\0") !== false) {
+            if (\strpos($argument, "\0") !== false) {
                 continue;
             }
 
             $cmd = (string)$argument;
 
-            if (strlen($cmd) > VALUE_MAX_LEN) {
-                $cmd = substr($cmd, 0, VALUE_MAX_LEN) . VALUE_TOO_LONG_MARK;
+            if (\strlen($cmd) > VALUE_MAX_LEN) {
+                $cmd = \substr($cmd, 0, VALUE_MAX_LEN) . VALUE_TOO_LONG_MARK;
             }
 
-            if (($len + strlen($cmd)) > CMD_MAX_LEN) {
-                $prefix = substr($cmd, 0, CMD_MAX_LEN - $len);
+            if (($len + \strlen($cmd)) > CMD_MAX_LEN) {
+                $prefix = \substr($cmd, 0, CMD_MAX_LEN - $len);
                 $out[] = $prefix . VALUE_TOO_LONG_MARK;
                 break;
             }
 
             $out[] = $cmd;
-            $len += strlen($cmd);
+            $len += \strlen($cmd);
         }
 
-        return implode(' ', $out);
+        return \implode(' ', $out);
     }
 }

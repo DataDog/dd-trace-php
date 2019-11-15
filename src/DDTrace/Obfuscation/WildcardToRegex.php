@@ -24,24 +24,24 @@ final class WildcardToRegex
      */
     public static function convert($wildcardPattern)
     {
-        $wildcardPattern = $replacement = trim($wildcardPattern);
+        $wildcardPattern = $replacement = \trim($wildcardPattern);
         // Replace occurrences of '$*'
-        if (false !== strpos($replacement, '$*')) {
+        if (false !== \strpos($replacement, '$*')) {
             // Escape '%' chars to not interfere with sprintf()
-            $replacement = str_replace('%', '%%', $replacement);
+            $replacement = \str_replace('%', '%%', $replacement);
             // Add numbered replacements: ${n}
             $replacementCount = 0;
-            $replacement = str_replace('$*', '%s', $replacement, $replacementCount);
+            $replacement = \str_replace('$*', '%s', $replacement, $replacementCount);
             $sprintfArgs = [$replacement];
             for ($i = 1; $i <= $replacementCount; $i++) {
                 $sprintfArgs[] = '${' . $i . '}';
             }
-            $replacement = call_user_func_array('sprintf', $sprintfArgs);
+            $replacement = \call_user_func_array('sprintf', $sprintfArgs);
         }
         // Replace occurrences of '*'
-        $replacement = str_replace('*', self::REPLACEMENT_CHARACTER, $replacement);
+        $replacement = \str_replace('*', self::REPLACEMENT_CHARACTER, $replacement);
         return [
-            '|^' . str_replace(['\\$\\*', '\\*'], ['(.+)', '.+'], preg_quote($wildcardPattern, '|')) . '$|',
+            '|^' . \str_replace(['\\$\\*', '\\*'], ['(.+)', '.+'], \preg_quote($wildcardPattern, '|')) . '$|',
             $replacement
         ];
     }

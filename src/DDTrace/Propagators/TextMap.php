@@ -63,14 +63,14 @@ final class TextMap implements Propagator
                 $traceId = $this->extractStringOrFirstArrayElement($value);
             } elseif ($key === Propagator::DEFAULT_PARENT_ID_HEADER) {
                 $spanId = $this->extractStringOrFirstArrayElement($value);
-            } elseif (strpos($key, Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX) === 0) {
-                $baggageItems[substr($key, strlen(Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX))] = $value;
+            } elseif (\strpos($key, Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX) === 0) {
+                $baggageItems[\substr($key, \strlen(Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX))] = $value;
             }
         }
 
         if (
-            preg_match('/^\d+$/', $traceId) !== 1 ||
-            preg_match('/^\d+$/', $spanId) !== 1
+            \preg_match('/^\d+$/', $traceId) !== 1 ||
+            \preg_match('/^\d+$/', $spanId) !== 1
         ) {
             return null;
         }
@@ -150,9 +150,9 @@ final class TextMap implements Propagator
      */
     private function extractStringOrFirstArrayElement($value)
     {
-        if (is_array($value) && count($value) > 0) {
+        if (\is_array($value) && \count($value) > 0) {
             return $value[0];
-        } elseif (is_string($value)) {
+        } elseif (\is_string($value)) {
             return $value;
         }
         return null;
@@ -181,7 +181,7 @@ final class TextMap implements Propagator
     private function extractOrigin(SpanContextInterface $spanContext, $carrier)
     {
         if (
-            property_exists($spanContext, 'origin')
+            \property_exists($spanContext, 'origin')
             && isset($carrier[Propagator::DEFAULT_ORIGIN_HEADER])
         ) {
             $spanContext->origin = $this->extractStringOrFirstArrayElement($carrier[Propagator::DEFAULT_ORIGIN_HEADER]);

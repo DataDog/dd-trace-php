@@ -61,7 +61,7 @@ class SlimIntegration extends Integration
         // Slim v3 & v4
         // Web bootstrap
         dd_trace('Slim\App', '__construct', function () use ($integration) {
-            $majorVersion = substr(self::VERSION, 0, 1);
+            $majorVersion = \substr(self::VERSION, 0, 1);
             if ('3' === $majorVersion) {
                 $loader = new V3\SlimIntegrationLoader();
                 $loader->load($integration);

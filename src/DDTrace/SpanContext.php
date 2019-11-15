@@ -41,7 +41,7 @@ final class SpanContext extends SpanContextData
         $instance->parentContext = $parentContext;
         $instance->setPropagatedPrioritySampling($parentContext->getPropagatedPrioritySampling());
         if (
-            property_exists($instance, 'origin')
+            \property_exists($instance, 'origin')
             && !empty($parentContext->origin)
         ) {
             $instance->origin = $parentContext->origin;
@@ -115,7 +115,7 @@ final class SpanContext extends SpanContextData
      */
     public function getBaggageItem($key)
     {
-        return array_key_exists($key, $this->baggageItems)
+        return \array_key_exists($key, $this->baggageItems)
             ? $this->baggageItems[$key]
             : null;
     }
@@ -129,7 +129,7 @@ final class SpanContext extends SpanContextData
             $this->traceId,
             $this->spanId,
             $this->parentId,
-            array_merge($this->baggageItems, [$key => $value])
+            \array_merge($this->baggageItems, [$key => $value])
         );
     }
 

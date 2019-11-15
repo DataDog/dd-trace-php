@@ -73,8 +73,8 @@ final class SpanEncoder
         // metadata in a consistent way across various tracers.
         if (
             null !== $span->integration
-            && false !== ($integrationTest = getenv('DD_TEST_INTEGRATION'))
-            && in_array($integrationTest, ['1', 'true'])
+            && false !== ($integrationTest = \getenv('DD_TEST_INTEGRATION'))
+            && \in_array($integrationTest, ['1', 'true'])
         ) {
             $arraySpan['meta']['integration.name'] = $span->integration->getName();
         }
@@ -95,7 +95,7 @@ final class SpanEncoder
 
         $lengths = [];
         foreach ($span->getAllTags() as $tagName => $tagValue) {
-            $lengths[] = "$tagName:" . strlen($tagValue);
+            $lengths[] = "$tagName:" . \strlen($tagValue);
         }
 
         self::logDebug(
@@ -110,7 +110,7 @@ final class SpanEncoder
         );
         self::logDebug('Tags for span {id} \'tag:chars_count\' are: {lengths}', [
             'id' => $span->getSpanId(),
-            'lengths' => implode(',', $lengths),
+            'lengths' => \implode(',', $lengths),
         ]);
     }
 }

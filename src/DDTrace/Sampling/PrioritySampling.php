@@ -26,12 +26,12 @@ class PrioritySampling
      */
     public static function parse($value)
     {
-        if (!is_numeric($value)) {
+        if (!\is_numeric($value)) {
             return self::UNKNOWN;
         }
 
-        $intValue = intval($value);
-        return in_array($intValue, [self::USER_REJECT, self::AUTO_KEEP, self::AUTO_REJECT, self::USER_KEEP])
+        $intValue = \intval($value);
+        return \in_array($intValue, [self::USER_REJECT, self::AUTO_KEEP, self::AUTO_REJECT, self::USER_KEEP])
             ? $intValue
             : self::UNKNOWN;
     }

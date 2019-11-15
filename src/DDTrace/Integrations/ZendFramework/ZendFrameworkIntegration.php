@@ -62,9 +62,9 @@ class ZendFrameworkIntegration extends Integration
         }
 
         dd_trace('Zend_Application', 'setOptions', function () {
-            list($options) = func_get_args();
+            list($options) = \func_get_args();
 
-            $classExist = class_exists('DDTrace_Ddtrace');
+            $classExist = \class_exists('DDTrace_Ddtrace');
 
             if (!$classExist && !isset($options['resources']['ddtrace'])) {
                 $options['autoloaderNamespaces'][] = 'DDTrace_';

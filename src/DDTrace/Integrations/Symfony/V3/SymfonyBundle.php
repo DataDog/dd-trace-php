@@ -43,8 +43,8 @@ class SymfonyBundle extends Bundle
             return;
         }
 
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Symfony integration.', E_USER_WARNING);
+        if (!\extension_loaded('ddtrace')) {
+            \trigger_error('ddtrace extension required to load Symfony integration.', E_USER_WARNING);
             return;
         }
 
@@ -67,7 +67,7 @@ class SymfonyBundle extends Bundle
             'handle',
             function () use ($symfonyRequestSpan, &$request) {
                 /** @var Request $request */
-                list($request) = func_get_args();
+                list($request) = \func_get_args();
 
                 $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                     SymfonyIntegration::getInstance(),
@@ -140,14 +140,14 @@ class SymfonyBundle extends Bundle
             'Symfony\Component\HttpKernel\HttpKernel',
             '__construct',
             function ($eventName, $event = null) use (&$tracedEventDispatcherClasses, &$request, &$symfonyRequestSpan) {
-                $args = func_get_args();
-                if (count($args) > 0) {
-                    $dispatcherClass = get_class($args[0]);
-                    if (!in_array($dispatcherClass, $tracedEventDispatcherClasses)) {
+                $args = \func_get_args();
+                if (\count($args) > 0) {
+                    $dispatcherClass = \get_class($args[0]);
+                    if (!\in_array($dispatcherClass, $tracedEventDispatcherClasses)) {
                         $tracedEventDispatcherClasses[] = $dispatcherClass;
 
                         dd_trace($dispatcherClass, 'dispatch', function () use (&$request, &$symfonyRequestSpan) {
-                            $args = func_get_args();
+                            $args = \func_get_args();
                             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                                 SymfonyIntegration::getInstance(),
                                 'symfony.' . $args[0]
@@ -164,7 +164,7 @@ class SymfonyBundle extends Bundle
 
         // Tracing templating engines
         $renderTraceCallback = function () use ($appName) {
-            $args = func_get_args();
+            $args = \func_get_args();
 
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                 SymfonyIntegration::getInstance(),
@@ -173,7 +173,7 @@ class SymfonyBundle extends Bundle
             $span = $scope->getSpan();
             $span->setTag(Tag::SERVICE_NAME, $appName);
             $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
-            $span->setTag(Tag::RESOURCE_NAME, get_class($this) . ' ' . $args[0]);
+            $span->setTag(Tag::RESOURCE_NAME, \get_class($this) . ' ' . $args[0]);
             return include __DIR__ . '/../../../try_catch_finally.php';
         };
 
@@ -195,7 +195,7 @@ class SymfonyBundle extends Bundle
     public static function injectRouteInfo($args, $request, Span $requestSpan)
     {
         $eventName = $args[0];
-        if (defined("KernelEvents::CONTROLLER_ARGUMENTS")) {
+        if (\defined("KernelEvents::CONTROLLER_ARGUMENTS")) {
             if ($eventName !== KernelEvents::CONTROLLER_ARGUMENTS) {
                 return;
             }
@@ -204,7 +204,7 @@ class SymfonyBundle extends Bundle
         }
 
         $event = $args[1];
-        if (!method_exists($event, 'getController')) {
+        if (!\method_exists($event, 'getController')) {
             return;
         }
 
@@ -212,14 +212,14 @@ class SymfonyBundle extends Bundle
         $controllerAndAction = $event->getController();
 
         if (
-            !is_array($controllerAndAction)
-            || count($controllerAndAction) !== 2
-            || !is_object($controllerAndAction[0])
+            !\is_array($controllerAndAction)
+            || \count($controllerAndAction) !== 2
+            || !\is_object($controllerAndAction[0])
         ) {
             return;
         }
 
-        $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
+        $action = \get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
         $requestSpan->setTag('symfony.route.action', $action);
         $requestSpan->setTag('symfony.route.name', $request->get('_route'));
 

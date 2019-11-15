@@ -50,7 +50,7 @@ class PDOIntegration extends Integration
      */
     public static function load()
     {
-        if (!extension_loaded('PDO')) {
+        if (!\extension_loaded('PDO')) {
             // PDO is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }
@@ -60,7 +60,7 @@ class PDOIntegration extends Integration
          * Delete this `if` block once the bug is fixed.
          * @see https://github.com/DataDog/dd-trace-php/pull/284
          */
-        if (defined('DRUPAL_CORE_COMPATIBILITY')) {
+        if (\defined('DRUPAL_CORE_COMPATIBILITY')) {
             return Integration::NOT_AVAILABLE;
         }
 
@@ -91,7 +91,7 @@ class PDOIntegration extends Integration
             }
 
             if (!$thrown || $thrown instanceof \PDOException) {
-                PDOIntegration::storeConnectionParams($this, func_get_args());
+                PDOIntegration::storeConnectionParams($this, \func_get_args());
                 PDOIntegration::setConnectionTags($this, $span);
             }
 
@@ -124,7 +124,7 @@ class PDOIntegration extends Integration
             try {
                 $result = dd_trace_forward_call();
                 PDOIntegration::detectError($span, $this);
-                if (is_numeric($result)) {
+                if (\is_numeric($result)) {
                     $span->setTag('db.rowcount', $result);
                 }
             } catch (\Exception $e) {
@@ -152,7 +152,7 @@ class PDOIntegration extends Integration
             }
 
             $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.query');
-            $args = func_get_args();
+            $args = \func_get_args();
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -225,7 +225,7 @@ class PDOIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $args = func_get_args();
+            $args = \func_get_args();
             $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.prepare');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
@@ -311,7 +311,7 @@ class PDOIntegration extends Integration
         } catch (\Exception $e) {
             $span->setRawError(
                 "SQL error: couldn't get error code",
-                get_class($pdo_or_statement) . ' error'
+                \get_class($pdo_or_statement) . ' error'
             );
             return;
         }
@@ -320,19 +320,19 @@ class PDOIntegration extends Integration
         //   - 3 chars for subclass value
         // Non error class values are: '00', '01', 'IM'
         // @see: http://php.net/manual/en/pdo.errorcode.php
-        if (strlen($errorCode) != 5) {
+        if (\strlen($errorCode) != 5) {
             return;
         }
 
-        $class = strtoupper(substr($errorCode, 0, 2));
-        if (in_array($class, ['00', '01', 'IM'])) {
+        $class = \strtoupper(\substr($errorCode, 0, 2));
+        if (\in_array($class, ['00', '01', 'IM'])) {
             // Not an error
             return;
         }
         $errorInfo = $pdo_or_statement->errorInfo();
         $span->setRawError(
             'SQL error: ' . $errorCode . '. Driver error: ' . $errorInfo[1],
-            get_class($pdo_or_statement) . ' error'
+            \get_class($pdo_or_statement) . ' error'
         );
     }
 
@@ -345,27 +345,27 @@ class PDOIntegration extends Integration
     {
         $span->setRawError(
             self::extractErrorInfo($exception->getMessage()),
-            get_class($exception)
+            \get_class($exception)
         );
     }
 
     private static function extractErrorInfo($message)
     {
         $matches = [];
-        $isKnownFormat = preg_match('/^(SQLSTATE\[\w.*\] \[\d.*\]).*/', $message, $matches);
+        $isKnownFormat = \preg_match('/^(SQLSTATE\[\w.*\] \[\d.*\]).*/', $message, $matches);
         return $isKnownFormat ? ('Sql error: ' . $matches[1]) : 'Sql error';
     }
 
     private static function parseDsn($dsn)
     {
-        $engine = substr($dsn, 0, strpos($dsn, ':'));
+        $engine = \substr($dsn, 0, \strpos($dsn, ':'));
         $tags = ['db.engine' => $engine];
-        $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
+        $valStrings = \explode(';', \substr($dsn, \strlen($engine) + 1));
         foreach ($valStrings as $valString) {
-            if (!strpos($valString, '=')) {
+            if (!\strpos($valString, '=')) {
                 continue;
             }
-            list($key, $value) = explode('=', $valString);
+            list($key, $value) = \explode('=', $valString);
             switch ($key) {
                 case 'charset':
                     $tags['db.charset'] = $value;
@@ -387,8 +387,8 @@ class PDOIntegration extends Integration
 
     public static function storeConnectionParams($pdo, array $constructorArgs)
     {
-        $hash = is_object($pdo) ? spl_object_hash($pdo) : '';
-        if (count($constructorArgs) > 0) {
+        $hash = \is_object($pdo) ? \spl_object_hash($pdo) : '';
+        if (\count($constructorArgs) > 0) {
             $tags = self::parseDsn($constructorArgs[0]);
             if (isset($constructorArgs[1])) {
                 $tags['db.user'] = $constructorArgs[1];
@@ -405,15 +405,15 @@ class PDOIntegration extends Integration
             // When an error occurs 'FALSE' will be returned in place of the statement.
             return;
         }
-        $pdoHash = is_object($pdo) ? spl_object_hash($pdo) : '';
+        $pdoHash = \is_object($pdo) ? \spl_object_hash($pdo) : '';
         if (isset(self::$connections[$pdoHash])) {
-            self::$statements[is_object($stmt) ? spl_object_hash($stmt) : ''] = $pdoHash;
+            self::$statements[\is_object($stmt) ? \spl_object_hash($stmt) : ''] = $pdoHash;
         }
     }
 
     public static function setConnectionTags($pdo, $span)
     {
-        $hash = is_object($pdo) ? spl_object_hash($pdo) : '';
+        $hash = \is_object($pdo) ? \spl_object_hash($pdo) : '';
         if (!isset(self::$connections[$hash])) {
             return;
         }
@@ -425,7 +425,7 @@ class PDOIntegration extends Integration
 
     public static function setStatementTags($stmt, $span)
     {
-        $stmtHash = is_object($stmt) ? spl_object_hash($stmt) : '';
+        $stmtHash = \is_object($stmt) ? \spl_object_hash($stmt) : '';
         if (!isset(self::$statements[$stmtHash])) {
             return;
         }

@@ -16,11 +16,11 @@ final class Obfuscation
      */
     public static function toObfuscatedString($keys, $glue = self::DEFAULT_GLUE)
     {
-        if (!is_array($keys)) {
+        if (!\is_array($keys)) {
             return self::REPLACEMENT;
         }
-        $obfuscatedKeys = str_repeat(self::REPLACEMENT . $glue, count($keys));
-        return rtrim($obfuscatedKeys, $glue);
+        $obfuscatedKeys = \str_repeat(self::REPLACEMENT . $glue, \count($keys));
+        return \rtrim($obfuscatedKeys, $glue);
     }
 
     /**
@@ -31,10 +31,10 @@ final class Obfuscation
      */
     public static function dsn($dsn)
     {
-        if (false === strpos($dsn, '@')) {
+        if (false === \strpos($dsn, '@')) {
             return $dsn;
         }
-        return preg_replace(
+        return \preg_replace(
             '/\/\/.+@/',
             '//' . self::REPLACEMENT . ':' . self::REPLACEMENT . '@',
             $dsn

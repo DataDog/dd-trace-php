@@ -74,9 +74,9 @@ class ArrayKVStore
     private static function notEnoughResourceInfo($resource, $key)
     {
         return
-            !is_resource($resource)
+            !\is_resource($resource)
             || empty($key)
-            || !is_string($key);
+            || !\is_string($key);
     }
 
     /**
@@ -92,6 +92,6 @@ class ArrayKVStore
         //   - http://php.net/manual/en/language.types.integer.php#language.types.integer.casting
         // Resource ids are guaranteed to be unique per script execution:
         //   - http://www.php.net/manual/en/language.types.string.php#language.types.string.casting
-        return intval($resource);
+        return \intval($resource);
     }
 }

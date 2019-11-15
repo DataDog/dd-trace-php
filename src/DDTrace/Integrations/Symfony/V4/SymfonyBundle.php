@@ -43,8 +43,8 @@ class SymfonyBundle extends Bundle
             return;
         }
 
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Symfony integration.', E_USER_WARNING);
+        if (!\extension_loaded('ddtrace')) {
+            \trigger_error('ddtrace extension required to load Symfony integration.', E_USER_WARNING);
             return;
         }
 
@@ -67,7 +67,7 @@ class SymfonyBundle extends Bundle
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
             function () use ($symfonyRequestScope, &$request) {
-                list($request) = func_get_args();
+                list($request) = \func_get_args();
                 $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                     SymfonyIntegration::getInstance(),
                     'symfony.kernel.handle'
@@ -143,11 +143,11 @@ class SymfonyBundle extends Bundle
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
             function () use ($symfonyRequestSpan, &$request) {
-                $args = func_get_args();
-                if (isset($args[1]) && is_string($args[1])) {
+                $args = \func_get_args();
+                if (isset($args[1]) && \is_string($args[1])) {
                     $eventName = $args[1];
                 } else {
-                    $eventName = is_object($args[0]) ? get_class($args[0]) : $args[0];
+                    $eventName = \is_object($args[0]) ? \get_class($args[0]) : $args[0];
                 }
                 $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                     SymfonyIntegration::getInstance(),
@@ -160,7 +160,7 @@ class SymfonyBundle extends Bundle
 
         // Tracing templating engines
         $renderTraceCallback = function () use ($appName) {
-            $args = func_get_args();
+            $args = \func_get_args();
             $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
                 SymfonyIntegration::getInstance(),
                 'symfony.templating.render'
@@ -168,7 +168,7 @@ class SymfonyBundle extends Bundle
             $span = $scope->getSpan();
             $span->setTag(Tag::SERVICE_NAME, $appName);
             $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
-            $span->setTag(Tag::RESOURCE_NAME, get_class($this) . ' ' . $args[0]);
+            $span->setTag(Tag::RESOURCE_NAME, \get_class($this) . ' ' . $args[0]);
             return include __DIR__ . '/../../../try_catch_finally.php';
         };
 
@@ -184,10 +184,10 @@ class SymfonyBundle extends Bundle
      */
     public static function injectRouteInfo($args, $request, Span $requestSpan)
     {
-        if (count($args) < 2) {
+        if (\count($args) < 2) {
             return;
         }
-        if (is_object($args[0])) {
+        if (\is_object($args[0])) {
             list($event, $eventName) = $args;
         } else {
             list($eventName, $event) = $args;
@@ -196,7 +196,7 @@ class SymfonyBundle extends Bundle
             return;
         }
 
-        if (!method_exists($event, 'getController')) {
+        if (!\method_exists($event, 'getController')) {
             return;
         }
 
@@ -204,14 +204,14 @@ class SymfonyBundle extends Bundle
         $controllerAndAction = $event->getController();
 
         if (
-            !is_array($controllerAndAction)
-            || count($controllerAndAction) !== 2
-            || !is_object($controllerAndAction[0])
+            !\is_array($controllerAndAction)
+            || \count($controllerAndAction) !== 2
+            || !\is_object($controllerAndAction[0])
         ) {
             return;
         }
 
-        $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
+        $action = \get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
         $requestSpan->setTag('symfony.route.action', $action);
         $requestSpan->setTag('symfony.route.name', $request->get('_route'));
     }

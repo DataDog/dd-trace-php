@@ -69,7 +69,7 @@ final class StartSpanOptions
 
                     if ($value instanceof Reference) {
                         $spanOptions->references = [$value];
-                    } elseif (is_array($value)) {
+                    } elseif (\is_array($value)) {
                         $spanOptions->references = self::buildReferences($value);
                     } else {
                         throw InvalidSpanOption::forInvalidReferenceSet($value);
@@ -78,7 +78,7 @@ final class StartSpanOptions
                     break;
 
                 case 'tags':
-                    if (!is_array($value)) {
+                    if (!\is_array($value)) {
                         throw InvalidSpanOption::forInvalidTags($value);
                     }
 
@@ -92,7 +92,7 @@ final class StartSpanOptions
                     break;
 
                 case 'start_time':
-                    if (is_scalar($value) && !is_numeric($value)) {
+                    if (\is_scalar($value) && !\is_numeric($value)) {
                         throw InvalidSpanOption::forInvalidStartTime();
                     }
 
@@ -100,7 +100,7 @@ final class StartSpanOptions
                     break;
 
                 case 'finish_span_on_close':
-                    if (!is_bool($value)) {
+                    if (!\is_bool($value)) {
                         throw InvalidSpanOption::forFinishSpanOnClose($value);
                     }
 
@@ -108,7 +108,7 @@ final class StartSpanOptions
                     break;
 
                 case 'ignore_active_span':
-                    if (!is_bool($value)) {
+                    if (!\is_bool($value)) {
                         throw InvalidSpanOption::forIgnoreActiveSpan($value);
                     }
 

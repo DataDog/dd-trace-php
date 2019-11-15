@@ -28,7 +28,7 @@ class TryCatchFinally
         /** @var Span $span */
         $span = $scope->getSpan();
         try {
-            $result = call_user_func_array([$instance, $method], $args);
+            $result = \call_user_func_array([$instance, $method], $args);
             if ($afterResult) {
                 $afterResult($result, $span, $scope);
             }
@@ -64,8 +64,8 @@ class TryCatchFinally
         $span = $scope->getSpan();
 
         try {
-            $result = call_user_func(\Closure::bind(function () use ($instance, $method, $args) {
-                return call_user_func_array([$instance, $method], $args);
+            $result = \call_user_func(\Closure::bind(function () use ($instance, $method, $args) {
+                return \call_user_func_array([$instance, $method], $args);
             }, null, $instance));
 
             if ($afterResult) {
@@ -101,7 +101,7 @@ class TryCatchFinally
         /** @var Span $span */
         $span = $scope->getSpan();
         try {
-            $result = call_user_func_array($function, $args);
+            $result = \call_user_func_array($function, $args);
             if ($afterResult) {
                 $afterResult($result, $span, $scope);
             }

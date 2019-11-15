@@ -112,7 +112,7 @@ abstract class Integration
         Integration $integration = null
     ) {
         $className = static::CLASS_NAME;
-        $integrationClass = get_called_class();
+        $integrationClass = \get_called_class();
         dd_trace($className, $method, function () use (
             $className,
             $integrationClass,
@@ -135,7 +135,7 @@ abstract class Integration
 
             $integrationClass::setDefaultTags($span, $method);
             if (null !== $preCallHook) {
-                $preCallHook($span, func_get_args());
+                $preCallHook($span, \func_get_args());
             }
 
             $returnVal = null;
@@ -177,8 +177,8 @@ abstract class Integration
         if (!Configuration::get()->isIntegrationEnabled($name)) {
             return false;
         }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load integration.', E_USER_WARNING);
+        if (!\extension_loaded('ddtrace')) {
+            \trigger_error('ddtrace extension required to load integration.', E_USER_WARNING);
             return false;
         }
 

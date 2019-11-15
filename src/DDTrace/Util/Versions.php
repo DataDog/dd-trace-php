@@ -30,7 +30,7 @@ final class Versions
             return false;
         }
 
-        $count = count($expectedFragments);
+        $count = \count($expectedFragments);
         for ($i = 0; $i < $count; $i++) {
             if ($specimenFragments[$i] !== $expectedFragments[$i]) {
                 return false;
@@ -48,13 +48,13 @@ final class Versions
      */
     private static function asIntArray($versionAsString)
     {
-        return array_values(
-            array_filter(
-                array_map(
+        return \array_values(
+            \array_filter(
+                \array_map(
                     function ($fragment) {
-                        return is_numeric($fragment) ? (int) $fragment : null;
+                        return \is_numeric($fragment) ? (int) $fragment : null;
                     },
-                    explode('.', $versionAsString)
+                    \explode('.', $versionAsString)
                 )
             )
         );

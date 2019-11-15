@@ -35,18 +35,18 @@ class ContainerInfo
     {
         // We do not want to emit a warning if user application uses ini setting 'open_basedir'
         // and '/proc/self' is not included in the ini setting.
-        if (!@file_exists($this->cgroupProcFile)) {
+        if (!@\file_exists($this->cgroupProcFile)) {
             return null;
         }
 
         $file = null;
         try {
-            $file = fopen($this->cgroupProcFile, 'r');
-            while (!feof($file)) {
-                $line = fgets($file);
+            $file = \fopen($this->cgroupProcFile, 'r');
+            while (!\feof($file)) {
+                $line = \fgets($file);
                 $matches = array();
-                preg_match(self::LINE_RE, trim($line), $matches);
-                if (count($matches) > 3) {
+                \preg_match(self::LINE_RE, \trim($line), $matches);
+                if (\count($matches) > 3) {
                     return $matches[3];
                 }
             }
@@ -54,7 +54,7 @@ class ContainerInfo
         }
 
         if ($file) {
-            fclose($file);
+            \fclose($file);
         }
 
         return null;

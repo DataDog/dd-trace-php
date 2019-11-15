@@ -34,7 +34,7 @@ class WordPressIntegrationLoader
         $service = Configuration::get()->appName(WordPressSandboxedIntegration::NAME);
         $this->rootSpan->setTag(Tag::SERVICE_NAME, $service);
         if ('cli' !== PHP_SAPI) {
-            $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
+            $normalizer = new Urls(\explode(',', \getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
             $this->rootSpan->setTag(
                 Tag::RESOURCE_NAME,
                 $_SERVER['REQUEST_METHOD'] . ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']),

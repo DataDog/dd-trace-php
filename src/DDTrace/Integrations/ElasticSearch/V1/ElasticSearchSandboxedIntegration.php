@@ -136,11 +136,11 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
             try {
                 $span->meta[Tag::ELASTICSEARCH_URL] = $this->getURI();
                 $span->meta[Tag::ELASTICSEARCH_METHOD] = $this->getMethod();
-                if (is_array($this->params)) {
-                    $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($this->params);
+                if (\is_array($this->params)) {
+                    $span->meta[Tag::ELASTICSEARCH_PARAMS] = \json_encode($this->params);
                 }
                 if ($this->getMethod() === 'GET' && $body = $this->getBody()) {
-                    $span->meta[Tag::ELASTICSEARCH_BODY] = json_encode($body);
+                    $span->meta[Tag::ELASTICSEARCH_BODY] = \json_encode($body);
                 }
             } catch (\Exception $ex) {
             }
@@ -188,7 +188,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
-            $operationName = str_replace('\\', '.', "$class.$name");
+            $operationName = \str_replace('\\', '.', "$class.$name");
             $span->name = $operationName;
             $span->resource = $operationName;
             $span->service = ElasticSearchSandboxedIntegration::NAME;

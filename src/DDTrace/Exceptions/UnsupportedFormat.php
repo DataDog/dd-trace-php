@@ -20,6 +20,6 @@ final class UnsupportedFormat extends UnexpectedValueException
      */
     public static function forFormat($format)
     {
-        return new self(sprintf('The format \'%s\' is not supported.', $format));
+        return new self(\sprintf('The format \'%s\' is not supported.', $format));
     }
 }

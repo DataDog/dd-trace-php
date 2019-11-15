@@ -74,7 +74,7 @@ class LaravelProvider extends ServiceProvider
 
         // Name the scope when the route matches
         $this->app['events']->listen('router.matched', function () use ($self) {
-            list($route, $request) = func_get_args();
+            list($route, $request) = \func_get_args();
             $span = $self->rootScope->getSpan();
 
             $span->setTag(Tag::RESOURCE_NAME, $route->getActionName() . ' ' . Route::currentRouteName());
@@ -85,7 +85,7 @@ class LaravelProvider extends ServiceProvider
         });
 
         dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($self) {
-            $args = func_get_args();
+            $args = \func_get_args();
             $self->rootScope->getSpan()->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
             return dd_trace_forward_call();
         });
@@ -101,7 +101,7 @@ class LaravelProvider extends ServiceProvider
         });
 
         dd_trace('Illuminate\Events\Dispatcher', 'fire', function () {
-            $args = func_get_args();
+            $args = \func_get_args();
             $scope = LaravelProvider::buildBaseScope('laravel.event.handle', $args[0]);
             return include __DIR__ . '/../../../try_catch_finally.php';
         });
@@ -136,8 +136,8 @@ class LaravelProvider extends ServiceProvider
         if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
             return false;
         }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
+        if (!\extension_loaded('ddtrace')) {
+            \trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
             return false;
         }
 
@@ -155,7 +155,7 @@ class LaravelProvider extends ServiceProvider
         if ($name) {
             return $name;
         }
-        if (is_callable('config')) {
+        if (\is_callable('config')) {
             return config('app.name');
         }
         return 'laravel';

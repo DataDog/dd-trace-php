@@ -121,8 +121,8 @@ class IntegrationsLoader
             return;
         }
 
-        if (!extension_loaded('ddtrace')) {
-            trigger_error(
+        if (!\extension_loaded('ddtrace')) {
+            \trigger_error(
                 'Missing ddtrace extension. To disable tracing set env variable DD_TRACE_ENABLED=false',
                 E_USER_WARNING
             );
@@ -141,11 +141,11 @@ class IntegrationsLoader
             // auto-instrumentation this method may be called many times as the hook is the autoloader callback.
             // So we want to make sure that we do not load the same integration twice if not required.
             $integrationLoadingStatus = $this->getLoadingStatus($name);
-            if (in_array($integrationLoadingStatus, [Integration::LOADED, Integration::NOT_AVAILABLE])) {
+            if (\in_array($integrationLoadingStatus, [Integration::LOADED, Integration::NOT_AVAILABLE])) {
                 continue;
             }
 
-            if (strpos($class, 'SandboxedIntegration') !== false) {
+            if (\strpos($class, 'SandboxedIntegration') !== false) {
                 $integration = new $class();
                 $this->loadings[$name] = $integration->init();
             } else {

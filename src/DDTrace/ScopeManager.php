@@ -45,18 +45,18 @@ final class ScopeManager implements ScopeManagerInterface
             return null;
         }
 
-        return $this->scopes[count($this->scopes) - 1];
+        return $this->scopes[\count($this->scopes) - 1];
     }
 
     public function deactivate(Scope $scope)
     {
-        $i = array_search($scope, $this->scopes, true);
+        $i = \array_search($scope, $this->scopes, true);
 
         if (false === $i) {
             return;
         }
 
-        array_splice($this->scopes, $i, 1);
+        \array_splice($this->scopes, $i, 1);
     }
 
     /**

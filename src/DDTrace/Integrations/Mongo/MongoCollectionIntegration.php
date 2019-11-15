@@ -35,12 +35,12 @@ final class MongoCollectionIntegration extends Integration
         // int MongoCollection::count ([ array $query = array() [, array $options = array() ]] )
         self::traceMethod('count', function (Span $span, array $args) {
             if (isset($args[0])) {
-                $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
+                $span->setTag(Tag::MONGODB_QUERY, \json_encode($args[0]));
             }
         }, null, $mongoIntegration);
         // array MongoCollection::createDBRef ( mixed $document_or_id )
         self::traceMethod('createDBRef', null, function (Span $span, $ref) {
-            if (!is_array($ref)) {
+            if (!\is_array($ref)) {
                 return;
             }
             if (isset($ref['$id'])) {
@@ -54,27 +54,27 @@ final class MongoCollectionIntegration extends Integration
         self::traceMethod('distinct', function (Span $span, array $args) {
             if (isset($args[1])) {
                 $span->setTraceAnalyticsCandidate();
-                $span->setTag(Tag::MONGODB_QUERY, json_encode($args[1]));
+                $span->setTag(Tag::MONGODB_QUERY, \json_encode($args[1]));
             }
         }, null, $mongoIntegration);
         // MongoCursor MongoCollection::find ([ array $query = array() [, array $fields = array() ]] )
         self::traceMethod('find', function (Span $span, array $args) {
             if (isset($args[0])) {
                 $span->setTraceAnalyticsCandidate();
-                $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
+                $span->setTag(Tag::MONGODB_QUERY, \json_encode($args[0]));
             }
         }, null, $mongoIntegration);
         // array MongoCollection::findAndModify ( array $query [, array $update [, array $fields [, array $options ]]] )
         self::traceMethod('findAndModify', function (Span $span, array $args) {
             $span->setTraceAnalyticsCandidate();
-            $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
+            $span->setTag(Tag::MONGODB_QUERY, \json_encode($args[0]));
         }, null, $mongoIntegration);
         // array MongoCollection::findOne ([ array $query = array() [, array $fields = array()
         // [, array $options = array() ]]] )
         self::traceMethod('findOne', function (Span $span, array $args) {
             if (isset($args[0])) {
                 $span->setTraceAnalyticsCandidate();
-                $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
+                $span->setTag(Tag::MONGODB_QUERY, \json_encode($args[0]));
             }
         }, null, $mongoIntegration);
         // array MongoCollection::getDBRef ( array $ref )
@@ -89,7 +89,7 @@ final class MongoCollectionIntegration extends Integration
         // bool|array MongoCollection::remove ([ array $criteria = array() [, array $options = array() ]] )
         self::traceMethod('remove', function (Span $span, array $args) {
             if (isset($args[0])) {
-                $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
+                $span->setTag(Tag::MONGODB_QUERY, \json_encode($args[0]));
             }
         }, null, $mongoIntegration);
         // bool MongoCollection::setReadPreference ( string $read_preference [, array $tags ] )
@@ -100,7 +100,7 @@ final class MongoCollectionIntegration extends Integration
         self::traceMethod('update', function (Span $span, array $args) {
             if (isset($args[0])) {
                 $span->setTraceAnalyticsCandidate();
-                $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
+                $span->setTag(Tag::MONGODB_QUERY, \json_encode($args[0]));
             }
         }, null, $mongoIntegration);
 

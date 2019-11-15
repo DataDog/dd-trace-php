@@ -18,7 +18,7 @@ final class PsrLogger extends AbstractLogger
      */
     public function __construct($psrLogger, $level = LogLevel::INFO)
     {
-        if (!is_a($psrLogger, '\Psr\Log\LoggerInterface')) {
+        if (!\is_a($psrLogger, '\Psr\Log\LoggerInterface')) {
             throw new \InvalidArgumentException(
                 '\DDTrace\Log\PsrLogger constructor arg must implement \Psr\Log\LoggerInterface'
             );

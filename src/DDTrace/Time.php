@@ -15,7 +15,7 @@ class Time
      */
     public static function now()
     {
-        return (int) (microtime(true) * 1000 * 1000);
+        return (int) (\microtime(true) * 1000 * 1000);
     }
 
     /**
@@ -34,7 +34,7 @@ class Time
     {
         return
             ($time === (int) $time)
-            && ctype_digit((string) $time)
-            && strlen((string) $time) === 16;
+            && \ctype_digit((string) $time)
+            && \strlen((string) $time) === 16;
     }
 }

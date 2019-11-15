@@ -71,17 +71,17 @@ final class LumenIntegrationLoader
                 if ($middleware instanceof \Closure) {
                     continue;
                 }
-                if (is_object($middleware)) {
-                    $middleware = get_class($middleware);
+                if (\is_object($middleware)) {
+                    $middleware = \get_class($middleware);
                 }
-                if (!is_string($middleware)) {
+                if (!\is_string($middleware)) {
                     continue;
                 }
                 // Middleware can be passed parameters during registration, in the form
                 // 'middleware_name_or_class:param1,param2', so we need to extract the real name/class from the
                 // pipeline
                 // See: https://laravel.com/docs/5.7/middleware#middleware-parameters
-                $middleware = explode(':', $middleware)[0];
+                $middleware = \explode(':', $middleware)[0];
                 dd_trace($middleware, 'handle', function () {
                     $tracer = GlobalTracer::get();
                     if ($tracer->limited()) {
@@ -92,7 +92,7 @@ final class LumenIntegrationLoader
                         'lumen.pipeline.pipe'
                     );
                     $span = $scope->getSpan();
-                    $span->setTag(Tag::RESOURCE_NAME, get_class($this) . '::handle');
+                    $span->setTag(Tag::RESOURCE_NAME, \get_class($this) . '::handle');
                     $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
                     return include __DIR__ . '/../../../try_catch_finally.php';
                 });
@@ -114,8 +114,8 @@ final class LumenIntegrationLoader
         if (!Configuration::get()->isIntegrationEnabled(LumenIntegration::NAME)) {
             return false;
         }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Lumen integration.', E_USER_WARNING);
+        if (!\extension_loaded('ddtrace')) {
+            \trigger_error('ddtrace extension required to load Lumen integration.', E_USER_WARNING);
             return false;
         }
         return true;

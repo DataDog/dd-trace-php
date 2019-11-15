@@ -15,9 +15,9 @@ final class Json implements Encoder
      */
     public function encodeTraces(Tracer $tracer)
     {
-        $json = json_encode($tracer->getTracesAsArray());
+        $json = \json_encode($tracer->getTracesAsArray());
         if (false === $json) {
-            self::logDebug('Failed to json-encode trace: ' . json_last_error_msg());
+            self::logDebug('Failed to json-encode trace: ' . \json_last_error_msg());
             return '[[]]';
         }
         return $json;

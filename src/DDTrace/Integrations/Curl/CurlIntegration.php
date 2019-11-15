@@ -32,7 +32,7 @@ class CurlIntegration extends Integration
      */
     public static function load()
     {
-        if (!extension_loaded('curl')) {
+        if (!\extension_loaded('curl')) {
             // `curl` extension is not loaded, if it does not exists we can return this integration as
             // not available.
             return Integration::NOT_AVAILABLE;
@@ -58,10 +58,10 @@ class CurlIntegration extends Integration
 
             $result = dd_trace_forward_call();
             if ($result === false && $span instanceof Span) {
-                $span->setRawError(curl_error($ch), 'curl error');
+                $span->setRawError(\curl_error($ch), 'curl error');
             }
 
-            $info = curl_getinfo($ch);
+            $info = \curl_getinfo($ch);
             $sanitizedUrl = Urls::sanitize($info['url']);
             if ($globalConfig->isHttpClientSplitByDomain()) {
                 $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($sanitizedUrl));
@@ -82,7 +82,7 @@ class CurlIntegration extends Integration
             if (
                 $option === CURLOPT_HTTPHEADER
                 && $globalConfig->isDistributedTracingEnabled()
-                && is_array($value)
+                && \is_array($value)
             ) {
                 // Storing data to be used during exec as it cannot be retrieved at then.
                 ArrayKVStore::putForResource($ch, Format::CURL_HTTP_HEADERS, $value);
@@ -96,7 +96,7 @@ class CurlIntegration extends Integration
             // multiple times on the same resource.
             if (
                 $globalConfig->isDistributedTracingEnabled()
-                && array_key_exists(CURLOPT_HTTPHEADER, $options)
+                && \array_key_exists(CURLOPT_HTTPHEADER, $options)
             ) {
                 // Storing data to be used during exec as it cannot be retrieved at then.
                 ArrayKVStore::putForResource($ch, Format::CURL_HTTP_HEADERS, $options[CURLOPT_HTTPHEADER]);
@@ -136,14 +136,14 @@ class CurlIntegration extends Integration
         }
 
         $httpHeaders = ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, []);
-        if (is_array($httpHeaders)) {
+        if (\is_array($httpHeaders)) {
             $tracer = GlobalTracer::get();
             $activeSpan = $tracer->getActiveSpan();
             if ($activeSpan !== null) {
                 $context = $activeSpan->getContext();
                 $tracer->inject($context, Format::CURL_HTTP_HEADERS, $httpHeaders);
 
-                curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeaders);
+                \curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeaders);
             }
         }
     }

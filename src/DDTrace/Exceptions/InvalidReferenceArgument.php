@@ -28,9 +28,9 @@ final class InvalidReferenceArgument extends InvalidArgumentException
      */
     public static function forInvalidContext($context)
     {
-        return new self(sprintf(
+        return new self(\sprintf(
             'Reference expects \DDTrace\Contracts\Span or \DDTrace\Contracts\SpanContext as context, got %s',
-            is_object($context) ? get_class($context) : gettype($context)
+            \is_object($context) ? \get_class($context) : \gettype($context)
         ));
     }
 }

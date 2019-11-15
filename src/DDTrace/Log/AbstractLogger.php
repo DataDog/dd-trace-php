@@ -17,12 +17,12 @@ abstract class AbstractLogger implements LoggerInterface
      */
     public function __construct($level)
     {
-        $level = trim(strtolower($level));
+        $level = \trim(\strtolower($level));
 
         # all() have all levels ordered from highest to lowest
         # all preceding levels to given $level will be marked as enabled
         $enabled = false;
-        foreach (array_reverse(LogLevel::all()) as $knownLevel) {
+        foreach (\array_reverse(LogLevel::all()) as $knownLevel) {
             $enabled = $enabled || ($level === $knownLevel);
             $this->enabledLevels[$knownLevel] = $enabled;
         }

@@ -50,7 +50,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             'performInsert',
             function (SpanData $span) use ($integration) {
                 $span->name = 'eloquent.insert';
-                $span->resource = get_class($this);
+                $span->resource = \get_class($this);
                 $integration->setCommonValues($span);
             }
         );
@@ -60,7 +60,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             'performUpdate',
             function (SpanData $span) use ($integration) {
                 $span->name = 'eloquent.update';
-                $span->resource = get_class($this);
+                $span->resource = \get_class($this);
                 $integration->setCommonValues($span);
             }
         );
@@ -70,7 +70,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             'delete',
             function (SpanData $span) use ($integration) {
                 $span->name = 'eloquent.delete';
-                $span->resource = get_class($this);
+                $span->resource = \get_class($this);
                 $integration->setCommonValues($span);
             }
         );
@@ -80,7 +80,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             'destroy',
             function (SpanData $span) use ($integration) {
                 $span->name = 'eloquent.destroy';
-                $span->resource = get_called_class();
+                $span->resource = \get_called_class();
                 $integration->setCommonValues($span);
             }
         );
@@ -90,7 +90,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             'refresh',
             function (SpanData $span) use ($integration) {
                 $span->name = 'eloquent.refresh';
-                $span->resource = get_class($this);
+                $span->resource = \get_class($this);
                 $integration->setCommonValues($span);
             }
         );
@@ -120,7 +120,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
         }
 
         $name = Configuration::get()->appName();
-        if (empty($name) && is_callable('config')) {
+        if (empty($name) && \is_callable('config')) {
             $name = config('app.name');
         }
 

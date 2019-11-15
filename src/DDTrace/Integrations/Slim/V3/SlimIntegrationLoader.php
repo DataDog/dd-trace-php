@@ -51,7 +51,7 @@ class SlimIntegrationLoader
         ) use ($loader) {
             $loader->rootSpan->setTag(Tag::HTTP_URL, (string) $request->getUri());
             $callableName = '{unknown callable}';
-            is_callable($callable, false, $callableName);
+            \is_callable($callable, false, $callableName);
             $loader->rootSpan->setTag('slim.route.controller', $callableName);
             return dd_trace_forward_call();
         };

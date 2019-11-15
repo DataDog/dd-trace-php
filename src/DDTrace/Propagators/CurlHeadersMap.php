@@ -33,11 +33,11 @@ final class CurlHeadersMap implements Propagator
     {
         foreach ($carrier as $index => $value) {
             if (
-                strpos($value, Propagator::DEFAULT_TRACE_ID_HEADER) === 0
-                || strpos($value, Propagator::DEFAULT_PARENT_ID_HEADER) === 0
-                || strpos($value, Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX) === 0
-                || strpos($value, Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER) === 0
-                || strpos($value, Propagator::DEFAULT_ORIGIN_HEADER) === 0
+                \strpos($value, Propagator::DEFAULT_TRACE_ID_HEADER) === 0
+                || \strpos($value, Propagator::DEFAULT_PARENT_ID_HEADER) === 0
+                || \strpos($value, Propagator::DEFAULT_BAGGAGE_HEADER_PREFIX) === 0
+                || \strpos($value, Propagator::DEFAULT_SAMPLING_PRIORITY_HEADER) === 0
+                || \strpos($value, Propagator::DEFAULT_ORIGIN_HEADER) === 0
             ) {
                 unset($carrier[$index]);
             }

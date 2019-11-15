@@ -11,7 +11,7 @@ if ('cli' === PHP_SAPI) {
     echo 'WARNING: Script is running from the CLI SAPI.' . PHP_EOL;
     echo '         Please run this script from your web browser.' . PHP_EOL;
     echo PHP_EOL;
-    $cliEnabled = getenv('DD_TRACE_CLI_ENABLED');
+    $cliEnabled = \getenv('DD_TRACE_CLI_ENABLED');
     $cliEnabled = ('1' === $cliEnabled || 'true' === $cliEnabled);
     if (!$cliEnabled) {
         echo 'Tracing from the CLI SAPI is not enabled.' . PHP_EOL;
@@ -63,7 +63,7 @@ function result($value)
 function escape($string)
 {
     if ('cli' !== PHP_SAPI) {
-        return htmlspecialchars($string);
+        return \htmlspecialchars($string);
     } else {
         return $string;
     }
@@ -72,7 +72,7 @@ function escape($string)
 function render($message, $value)
 {
     $width = TEXT_WIDTH;
-    printf("- %-${width}s [%s]%s", escape($message), result($value), PHP_EOL);
+    \printf("- %-${width}s [%s]%s", escape($message), result($value), PHP_EOL);
 }
 
 function renderSuccessOrFailure($message, $value)
@@ -87,7 +87,7 @@ function renderSuccessOrFailure($message, $value)
  */
 function sub_paragraph($message)
 {
-    $wrapped = wordwrap(sprintf('  > %s%s', remove_newline($message), PHP_EOL), TEXT_WIDTH - 4, PHP_EOL . '    ');
+    $wrapped = \wordwrap(\sprintf('  > %s%s', remove_newline($message), PHP_EOL), TEXT_WIDTH - 4, PHP_EOL . '    ');
     echo escape($wrapped);
 }
 
@@ -99,14 +99,14 @@ function sub_paragraph($message)
  */
 function remove_newline($message)
 {
-    return str_replace(PHP_EOL, ' ', $message);
+    return \str_replace(PHP_EOL, ' ', $message);
 }
 
 function env($key)
 {
-    return function_exists('dd_trace_env_config')
+    return \function_exists('dd_trace_env_config')
         ? dd_trace_env_config($key)
-        : getenv($key);
+        : \getenv($key);
 }
 
 function check_agent_connectivity()
@@ -116,25 +116,25 @@ function check_agent_connectivity()
     $port = env('DD_TRACE_AGENT_PORT') ?: '8126';
     render('Configured Agent port', $port);
 
-    $verbose = fopen('php://temp', 'w+b');
-    $ch = curl_init("http://" . $host . ":" . $port . "/v0.3/traces");
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-    curl_setopt($ch, CURLOPT_POSTFIELDS, "[]");
-    curl_setopt($ch, CURLOPT_VERBOSE, true);
-    curl_setopt($ch, CURLOPT_STDERR, $verbose);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
-    curl_exec($ch);
-    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $verbose = \fopen('php://temp', 'w+b');
+    $ch = \curl_init("http://" . $host . ":" . $port . "/v0.3/traces");
+    \curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+    \curl_setopt($ch, CURLOPT_POSTFIELDS, "[]");
+    \curl_setopt($ch, CURLOPT_VERBOSE, true);
+    \curl_setopt($ch, CURLOPT_STDERR, $verbose);
+    \curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+    \curl_exec($ch);
+    $httpcode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $success = $httpcode >= 200 && $httpcode < 300;
     renderSuccessOrFailure('Agent can receive traces', $success);
-    curl_close($ch);
+    \curl_close($ch);
 
     if (!$success) {
-        rewind($verbose);
-        $verboseLog = stream_get_contents($verbose);
+        \rewind($verbose);
+        $verboseLog = \stream_get_contents($verbose);
         echo "Curl verbose output: " . PHP_EOL . PHP_EOL;
         echo $verboseLog . PHP_EOL;
     }
@@ -143,38 +143,38 @@ function check_agent_connectivity()
 // Ignore any E_WARNING's from open_basedir INI directive
 function quiet_file_exists($file)
 {
-    return @file_exists($file);
+    return @\file_exists($file);
 }
 
 echo 'DataDog trace extension verification' . PHP_EOL . PHP_EOL;
 
 render('PHP version and SAPI', PHP_VERSION . ' - ' . PHP_SAPI);
-renderSuccessOrFailure('ddtrace extension installed', extension_loaded('ddtrace') || extension_loaded('dd_trace'));
-$versionInstalled = phpversion('ddtrace') ?: false;
+renderSuccessOrFailure('ddtrace extension installed', \extension_loaded('ddtrace') || \extension_loaded('dd_trace'));
+$versionInstalled = \phpversion('ddtrace') ?: false;
 render('ddtrace version (installed)', $versionInstalled);
-$versionConst = defined('DD_TRACE_VERSION') ? DD_TRACE_VERSION : false;
+$versionConst = \defined('DD_TRACE_VERSION') ? DD_TRACE_VERSION : false;
 render('ddtrace version (const)', $versionConst);
-$initHook = ini_get('ddtrace.request_init_hook');
+$initHook = \ini_get('ddtrace.request_init_hook');
 $versionUserland = false;
 if (!empty($initHook)) {
-    $userlandVersionFile = dirname(dirname($initHook)) . '/src/DDTrace/version.php';
+    $userlandVersionFile = \dirname(\dirname($initHook)) . '/src/DDTrace/version.php';
     $versionUserland = quiet_file_exists($userlandVersionFile) ? include $userlandVersionFile : false;
 }
 render('ddtrace version (userland)', $versionUserland);
 renderSuccessOrFailure('ddtrace versions in sync', $versionInstalled === $versionConst && $versionConst === $versionUserland);
-renderSuccessOrFailure('dd_trace() function available', function_exists('dd_trace'));
-renderSuccessOrFailure('dd_trace_env_config() function available', function_exists('dd_trace_env_config'));
+renderSuccessOrFailure('dd_trace() function available', \function_exists('dd_trace'));
+renderSuccessOrFailure('dd_trace_env_config() function available', \function_exists('dd_trace_env_config'));
 
 renderSuccessOrFailure('ddtrace.request_init_hook set', !empty($initHook));
 $initHookReachable = quiet_file_exists($initHook);
 renderSuccessOrFailure('ddtrace.request_init_hook reachable', $initHookReachable);
-$openBaseDirs = ini_get('open_basedir') ? explode(':', ini_get('open_basedir')) : [];
+$openBaseDirs = \ini_get('open_basedir') ? \explode(':', \ini_get('open_basedir')) : [];
 if ($initHookReachable) {
-    $initHookHasRun = function_exists('DDTrace\\Bridge\\dd_wrap_autoloader');
+    $initHookHasRun = \function_exists('DDTrace\\Bridge\\dd_wrap_autoloader');
     renderSuccessOrFailure('ddtrace.request_init_hook has run', $initHookHasRun);
 } elseif($initHook && $openBaseDirs) {
-    $initHookDir = dirname($initHook);
-    if (!in_array($initHookDir, $openBaseDirs)) {
+    $initHookDir = \dirname($initHook);
+    if (!\in_array($initHookDir, $openBaseDirs)) {
         $hint = <<<EOT
 Ini directive 'open_basedir' has been set but it does not include the directory where
 the extension is installed. This prevents our extension PHP code to be executed.
@@ -184,11 +184,11 @@ EOT;
         sub_paragraph($hint);
     }
 } else {
-    render('open_basedir INI directive', ini_get('open_basedir') ?: 'empty');
+    render('open_basedir INI directive', \ini_get('open_basedir') ?: 'empty');
 }
 
 // open_basedir prevents/allows access to '/proc/self/cgroup'
-$isProcSelfForbiddenByOpenBaseDir = !empty($openBaseDirs) && !in_array('/proc/self/', $openBaseDirs);
+$isProcSelfForbiddenByOpenBaseDir = !empty($openBaseDirs) && !\in_array('/proc/self/', $openBaseDirs);
 render("'open_basedir' allows access to '/proc/self/'", $isProcSelfForbiddenByOpenBaseDir ? WARN : OK);
 if ($isProcSelfForbiddenByOpenBaseDir) {
     $hint = <<<EOT
@@ -204,24 +204,24 @@ class AutoloadTest
 {
     public static function load($class)
     {
-        var_dump($class);
+        \var_dump($class);
     }
 }
 
-$integrationsLoaderExists = class_exists('\\DDTrace\\Integrations\\IntegrationsLoader');
+$integrationsLoaderExists = \class_exists('\\DDTrace\\Integrations\\IntegrationsLoader');
 renderSuccessOrFailure('IntegrationsLoader exists', $integrationsLoaderExists);
 if ($integrationsLoaderExists) {
     $notLoaded = \DDTrace\Integrations\IntegrationsLoader::get()->getLoadingStatus('web');
     renderSuccessOrFailure('Integrations not loaded yet', 0 === $notLoaded);
 
     echo '- Registering an autoloader...' . PHP_EOL;
-    spl_autoload_register('AutoloadTest::load');
+    \spl_autoload_register('AutoloadTest::load');
 
     $loaded = \DDTrace\Integrations\IntegrationsLoader::get()->getLoadingStatus('web');
     renderSuccessOrFailure('Integrations loaded', 0 !== $loaded);
 }
 
-renderSuccessOrFailure('DDTrace\\Tracer class exists', class_exists('\\DDTrace\\Tracer'));
+renderSuccessOrFailure('DDTrace\\Tracer class exists', \class_exists('\\DDTrace\\Tracer'));
 
 check_agent_connectivity();
 

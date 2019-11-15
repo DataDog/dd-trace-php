@@ -31,7 +31,7 @@ class LaravelIntegrationLoader
         $self = $this;
 
         dd_trace('Illuminate\Routing\Events\RouteMatched', '__construct', function () use ($self) {
-            list($route, $request) = func_get_args();
+            list($route, $request) = \func_get_args();
             if ($self->rootScope) {
                 $span = $self->rootScope->getSpan();
                 // Overwriting the default web integration
@@ -114,20 +114,20 @@ class LaravelIntegrationLoader
 
             foreach ($this->pipes as $pipe) {
                 // Pipes can be passed both as class to the pipeline and as instances
-                if (is_string($pipe) || is_object($pipe)) {
-                    if (is_string($pipe)) {
+                if (\is_string($pipe) || \is_object($pipe)) {
+                    if (\is_string($pipe)) {
                         // Middleware can be passed parameters during registration, in the form
                         // 'middleware_name_or_class:param1,param2', so we need to extract the real name/class from the
                         // pipeline
                         // See: https://laravel.com/docs/5.7/middleware#middleware-parameters
-                        $class = explode(':', $pipe)[0];
+                        $class = \explode(':', $pipe)[0];
                     } else {
                         // Ignore closures
                         if ($pipe instanceof \Closure) {
                             continue;
                         }
                         // If an instance is passed instead of the class, than we need to know the class from it.
-                        $class = get_class($pipe);
+                        $class = \get_class($pipe);
                     }
 
                     $handlerMethod = $this->method;
@@ -137,7 +137,7 @@ class LaravelIntegrationLoader
                             'laravel.pipeline.pipe'
                         );
                         $span = $scope->getSpan();
-                        $span->setTag(Tag::RESOURCE_NAME, get_class($this) . '::' . $handlerMethod);
+                        $span->setTag(Tag::RESOURCE_NAME, \get_class($this) . '::' . $handlerMethod);
                         $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
                         return include __DIR__ . '/../../../try_catch_finally.php';
                     });
@@ -164,7 +164,7 @@ class LaravelIntegrationLoader
         });
 
         dd_trace('Symfony\Component\HttpFoundation\Response', 'setStatusCode', function () use ($self) {
-            $args = func_get_args();
+            $args = \func_get_args();
             $self->rootScope->getSpan()->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
             return dd_trace_forward_call();
         });
@@ -178,8 +178,8 @@ class LaravelIntegrationLoader
         if (!Configuration::get()->isIntegrationEnabled(LaravelIntegration::NAME)) {
             return false;
         }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
+        if (!\extension_loaded('ddtrace')) {
+            \trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
             return false;
         }
 
@@ -193,7 +193,7 @@ class LaravelIntegrationLoader
             return $name;
         }
 
-        if (is_callable('config')) {
+        if (\is_callable('config')) {
             return config('app.name');
         }
         return 'laravel';

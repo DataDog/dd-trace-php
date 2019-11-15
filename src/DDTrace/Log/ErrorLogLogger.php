@@ -65,7 +65,7 @@ class ErrorLogLogger extends AbstractLogger
         }
 
         $interpolatedMessage = $this->interpolate($message, $context);
-        $date = date(\DateTime::ATOM);
-        error_log("[$date] [ddtrace] [$level] - $interpolatedMessage");
+        $date = \date(\DateTime::ATOM);
+        \error_log("[$date] [ddtrace] [$level] - $interpolatedMessage");
     }
 }

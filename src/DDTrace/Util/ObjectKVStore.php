@@ -138,7 +138,7 @@ class ObjectKVStore
             return $default;
         }
         $scopedKey = self::getScopedKeyName($key);
-        return property_exists($instance, $scopedKey) ? $instance->$scopedKey : $default;
+        return \property_exists($instance, $scopedKey) ? $instance->$scopedKey : $default;
     }
 
     /**
@@ -175,8 +175,8 @@ class ObjectKVStore
     {
         return
             empty($instance)
-            || !is_object($instance)
+            || !\is_object($instance)
             || empty($key)
-            || !is_string($key);
+            || !\is_string($key);
     }
 }

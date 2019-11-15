@@ -174,13 +174,13 @@ class Configuration extends AbstractConfiguration
             return $appName;
         }
 
-        $appName = getenv('ddtrace_app_name');
+        $appName = \getenv('ddtrace_app_name');
         if (false !== $appName) {
             self::logDebug(
                 'Env variable \'ddtrace_app_name\' is deprecated and will be removed soon. ' .
                 'Use \'DD_SERVICE_NAME\' instead'
             );
-            return trim($appName);
+            return \trim($appName);
         }
         return $default;
     }

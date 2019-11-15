@@ -146,9 +146,9 @@ final class GuzzleIntegration extends Integration
     private function getRequestUrl($request)
     {
         $url = null;
-        if (is_a($request, '\GuzzleHttp\Message\RequestInterface')) {
+        if (\is_a($request, '\GuzzleHttp\Message\RequestInterface')) {
             $url = (string) $request->getUrl();
-        } elseif (is_a($request, '\Psr\Http\Message\RequestInterface')) {
+        } elseif (\is_a($request, '\Psr\Http\Message\RequestInterface')) {
             $url = (string) $request->getUri();
         }
 
@@ -161,11 +161,11 @@ final class GuzzleIntegration extends Integration
      */
     private function setStatusCodeTag(Span $span, $response)
     {
-        if (is_a($response, '\GuzzleHttp\Message\ResponseInterface')) {
+        if (\is_a($response, '\GuzzleHttp\Message\ResponseInterface')) {
             $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
-        } elseif (is_a($response, '\Psr\Http\Message\ResponseInterface')) {
+        } elseif (\is_a($response, '\Psr\Http\Message\ResponseInterface')) {
             $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
-        } elseif (is_a($response, '\GuzzleHttp\Promise\Promise')) {
+        } elseif (\is_a($response, '\GuzzleHttp\Promise\Promise')) {
             $response->then(function ($response) use ($span) {
                 $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
             });
@@ -199,8 +199,8 @@ final class GuzzleIntegration extends Integration
         $headers = [];
 
         if (
-            is_a($request, '\GuzzleHttp\Message\MessageInterface')
-            || is_a($request, '\Psr\Http\Message\MessageInterface')
+            \is_a($request, '\GuzzleHttp\Message\MessageInterface')
+            || \is_a($request, '\Psr\Http\Message\MessageInterface')
         ) {
             // Associative array of header names to values
             $headers = $request->getHeaders();
@@ -215,9 +215,9 @@ final class GuzzleIntegration extends Integration
      */
     private function addRequestHeaders($request, $headers)
     {
-        if (is_a($request, '\GuzzleHttp\Message\MessageInterface')) {
+        if (\is_a($request, '\GuzzleHttp\Message\MessageInterface')) {
             $request->setHeaders($headers);
-        } elseif (is_a($request, '\Psr\Http\Message\MessageInterface')) {
+        } elseif (\is_a($request, '\Psr\Http\Message\MessageInterface')) {
             foreach ($headers as $name => $value) {
                 $request->withAddedHeader($name, $value);
             }

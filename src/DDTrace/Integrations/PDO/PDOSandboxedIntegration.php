@@ -34,7 +34,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
      */
     public function init()
     {
-        if (!extension_loaded('PDO')) {
+        if (!\extension_loaded('PDO')) {
             // PDO is provided through an extension and not through a class loader.
             return SandboxedIntegration::NOT_AVAILABLE;
         }
@@ -61,7 +61,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             $span->service = 'PDO';
             $span->type = Type::SQL;
             $span->resource = $args[0];
-            if (is_numeric($retval)) {
+            if (\is_numeric($retval)) {
                 $span->meta = [
                     'db.rowcount' => $retval,
                 ];
@@ -153,30 +153,30 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         //   - 3 chars for subclass value
         // Non error class values are: '00', '01', 'IM'
         // @see: http://php.net/manual/en/pdo.errorcode.php
-        if (strlen($errorCode) !== 5) {
+        if (\strlen($errorCode) !== 5) {
             return;
         }
 
-        $class = strtoupper(substr($errorCode, 0, 2));
-        if (in_array($class, ['00', '01', 'IM'], true)) {
+        $class = \strtoupper(\substr($errorCode, 0, 2));
+        if (\in_array($class, ['00', '01', 'IM'], true)) {
             // Not an error
             return;
         }
         $errorInfo = $pdoOrStatement->errorInfo();
         $span->meta[Tag::ERROR_MSG] = 'SQL error: ' . $errorCode . '. Driver error: ' . $errorInfo[1];
-        $span->meta[Tag::ERROR_TYPE] = get_class($pdoOrStatement) . ' error';
+        $span->meta[Tag::ERROR_TYPE] = \get_class($pdoOrStatement) . ' error';
     }
 
     private static function parseDsn($dsn)
     {
-        $engine = substr($dsn, 0, strpos($dsn, ':'));
+        $engine = \substr($dsn, 0, \strpos($dsn, ':'));
         $tags = ['db.engine' => $engine];
-        $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
+        $valStrings = \explode(';', \substr($dsn, \strlen($engine) + 1));
         foreach ($valStrings as $valString) {
-            if (!strpos($valString, '=')) {
+            if (!\strpos($valString, '=')) {
                 continue;
             }
-            list($key, $value) = explode('=', $valString);
+            list($key, $value) = \explode('=', $valString);
             switch ($key) {
                 case 'charset':
                     $tags['db.charset'] = $value;
@@ -202,7 +202,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         if (isset($constructorArgs[1])) {
             $tags['db.user'] = $constructorArgs[1];
         }
-        self::$connections[spl_object_hash($pdo)] = $tags;
+        self::$connections[\spl_object_hash($pdo)] = $tags;
         return $tags;
     }
 
@@ -212,15 +212,15 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             // When an error occurs 'FALSE' will be returned in place of the statement.
             return;
         }
-        $pdoHash = spl_object_hash($pdo);
+        $pdoHash = \spl_object_hash($pdo);
         if (isset(self::$connections[$pdoHash])) {
-            self::$statements[spl_object_hash($stmt)] = $pdoHash;
+            self::$statements[\spl_object_hash($stmt)] = $pdoHash;
         }
     }
 
     public static function setConnectionTags($pdo, SpanData $span)
     {
-        $hash = spl_object_hash($pdo);
+        $hash = \spl_object_hash($pdo);
         if (!isset(self::$connections[$hash])) {
             return;
         }
@@ -231,7 +231,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
 
     public static function setStatementTags($stmt, SpanData $span)
     {
-        $stmtHash = spl_object_hash($stmt);
+        $stmtHash = \spl_object_hash($stmt);
         if (!isset(self::$statements[$stmtHash])) {
             return;
         }

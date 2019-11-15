@@ -71,15 +71,15 @@ final class Http implements Transport
      */
     private function configure($config)
     {
-        $host = getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
-        $port = getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
+        $host = \getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
+        $port = \getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
         $path = self::DEFAULT_TRACE_AGENT_PATH;
         $endpoint = "http://${host}:${port}${path}";
 
-        $this->config = array_merge([
+        $this->config = \array_merge([
             'endpoint' => $endpoint,
-            'connect_timeout' => getenv(self::AGENT_CONNECT_TIMEOUT_ENV) ?: self::DEFAULT_AGENT_CONNECT_TIMEOUT,
-            'timeout' => getenv(self::AGENT_TIMEOUT_ENV) ?: self::DEFAULT_AGENT_TIMEOUT,
+            'connect_timeout' => \getenv(self::AGENT_CONNECT_TIMEOUT_ENV) ?: self::DEFAULT_AGENT_CONNECT_TIMEOUT,
+            'timeout' => \getenv(self::AGENT_TIMEOUT_ENV) ?: self::DEFAULT_AGENT_TIMEOUT,
         ], $config);
     }
 
@@ -88,13 +88,13 @@ final class Http implements Transport
      */
     public function send(Tracer $tracer)
     {
-        if ($this->isLogDebugActive() && function_exists('dd_tracer_circuit_breaker_info')) {
+        if ($this->isLogDebugActive() && \function_exists('dd_tracer_circuit_breaker_info')) {
             self::logDebug('circuit breaker status: closed => {closed}, total_failures => {total_failures},'
             . 'consecutive_failures => {consecutive_failures}, opened_timestamp => {opened_timestamp}, '
             . 'last_failure_timestamp=> {last_failure_timestamp}', dd_tracer_circuit_breaker_info());
         }
 
-        if (function_exists('dd_tracer_circuit_breaker_can_try') && !dd_tracer_circuit_breaker_can_try()) {
+        if (\function_exists('dd_tracer_circuit_breaker_can_try') && !dd_tracer_circuit_breaker_can_try()) {
             self::logError('Reporting of spans skipped due to open circuit breaker');
             return;
         }
@@ -104,7 +104,7 @@ final class Http implements Transport
 
         // We keep the endpoint configuration option for backward compatibility instead of moving to an 'agent base url'
         // concept, but this should be probably revisited in the future.
-        $endpoint = $this->isPrioritySamplingUsed() ? str_replace(
+        $endpoint = $this->isPrioritySamplingUsed() ? \str_replace(
             self::DEFAULT_TRACE_AGENT_PATH,
             self::PRIORITY_SAMPLING_TRACE_AGENT_PATH,
             $this->config['endpoint']
@@ -125,7 +125,7 @@ final class Http implements Transport
 
     private function sendRequest($url, array $headers, $body, $tracesCount)
     {
-        $bodySize = strlen($body);
+        $bodySize = \strlen($body);
         // The 10MB payload cap is inclusive, thus we use >, not >=
         // https://github.com/DataDog/datadog-agent/blob/355a34d610bd1554572d7733454ac4af3acd89cd/pkg/trace/api/limited_reader.go#L37
         if ($bodySize > self::AGENT_REQUEST_BODY_LIMIT) {
@@ -134,12 +134,12 @@ final class Http implements Transport
             ]);
             return;
         }
-        $handle = curl_init($url);
-        curl_setopt($handle, CURLOPT_POST, true);
-        curl_setopt($handle, CURLOPT_POSTFIELDS, $body);
-        curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($handle, CURLOPT_TIMEOUT_MS, $this->config['timeout']);
-        curl_setopt($handle, CURLOPT_CONNECTTIMEOUT_MS, $this->config['connect_timeout']);
+        $handle = \curl_init($url);
+        \curl_setopt($handle, CURLOPT_POST, true);
+        \curl_setopt($handle, CURLOPT_POSTFIELDS, $body);
+        \curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($handle, CURLOPT_TIMEOUT_MS, $this->config['timeout']);
+        \curl_setopt($handle, CURLOPT_CONNECTTIMEOUT_MS, $this->config['connect_timeout']);
 
         $curlHeaders = [
             'Content-Type: ' . $this->encoder->getContentType(),
@@ -149,25 +149,25 @@ final class Http implements Transport
         foreach ($headers as $key => $value) {
             $curlHeaders[] = "$key: $value";
         }
-        curl_setopt($handle, CURLOPT_HTTPHEADER, $curlHeaders);
+        \curl_setopt($handle, CURLOPT_HTTPHEADER, $curlHeaders);
 
-        if (($response = curl_exec($handle)) === false) {
+        if (($response = \curl_exec($handle)) === false) {
             self::logError('Reporting of spans failed: {num} / {error}', [
-                'error' => curl_error($handle),
-                'num' => curl_errno($handle),
+                'error' => \curl_error($handle),
+                'num' => \curl_errno($handle),
             ]);
-            function_exists('dd_tracer_circuit_breaker_register_error') && dd_tracer_circuit_breaker_register_error();
+            \function_exists('dd_tracer_circuit_breaker_register_error') && dd_tracer_circuit_breaker_register_error();
 
             return;
         }
 
-        $statusCode = curl_getinfo($handle, CURLINFO_HTTP_CODE);
-        curl_close($handle);
+        $statusCode = \curl_getinfo($handle, CURLINFO_HTTP_CODE);
+        \curl_close($handle);
 
         if ($statusCode === 415) {
             self::logError('Reporting of spans failed, upgrade your client library');
 
-            function_exists('dd_tracer_circuit_breaker_register_error') && dd_tracer_circuit_breaker_register_error();
+            \function_exists('dd_tracer_circuit_breaker_register_error') && dd_tracer_circuit_breaker_register_error();
             return;
         }
 
@@ -176,11 +176,11 @@ final class Http implements Transport
                 'Reporting of spans failed, status code {code}: {response}',
                 ['code' => $statusCode, 'response' => $response]
             );
-            function_exists('dd_tracer_circuit_breaker_register_error') && dd_tracer_circuit_breaker_register_error();
+            \function_exists('dd_tracer_circuit_breaker_register_error') && dd_tracer_circuit_breaker_register_error();
             return;
         }
 
-        function_exists('dd_tracer_circuit_breaker_register_success') && dd_tracer_circuit_breaker_register_success();
+        \function_exists('dd_tracer_circuit_breaker_register_success') && dd_tracer_circuit_breaker_register_success();
         self::logDebug('Traces successfully sent to the agent');
     }
 

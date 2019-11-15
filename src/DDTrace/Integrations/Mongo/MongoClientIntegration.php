@@ -78,7 +78,7 @@ final class MongoClientIntegration extends Integration
     private static function extractDatabaseNameFromDsn($dsn)
     {
         $matches = [];
-        if (false === preg_match('/^.+\/\/.+\/(.+)$/', $dsn, $matches)) {
+        if (false === \preg_match('/^.+\/\/.+\/(.+)$/', $dsn, $matches)) {
             return null;
         }
         return isset($matches[1]) ? $matches[1] : null;

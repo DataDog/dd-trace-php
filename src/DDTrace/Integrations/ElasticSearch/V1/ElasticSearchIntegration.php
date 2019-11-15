@@ -165,11 +165,11 @@ class ElasticSearchIntegration extends Integration
                 $span->setTag(Tag::RESOURCE_NAME, 'performRequest');
                 $span->setTag(Tag::ELASTICSEARCH_URL, $this->getURI());
                 $span->setTag(Tag::ELASTICSEARCH_METHOD, $this->getMethod());
-                if (is_array($this->params)) {
-                    $span->setTag(Tag::ELASTICSEARCH_PARAMS, json_encode($this->params));
+                if (\is_array($this->params)) {
+                    $span->setTag(Tag::ELASTICSEARCH_PARAMS, \json_encode($this->params));
                 }
                 if ($this->getMethod() === 'GET' && $body = $this->getBody()) {
-                    $span->setTag(Tag::ELASTICSEARCH_BODY, json_encode($this->getBody()));
+                    $span->setTag(Tag::ELASTICSEARCH_BODY, \json_encode($this->getBody()));
                 }
                 $result = dd_trace_forward_call();
             } catch (\Exception $ex) {
@@ -203,7 +203,7 @@ class ElasticSearchIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $args = func_get_args();
+            $args = \func_get_args();
             $params = [];
             if (isset($args[0])) {
                 list($params) = $args;
@@ -254,7 +254,7 @@ class ElasticSearchIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $operationName = str_replace('\\', '.', "$class.$name");
+            $operationName = \str_replace('\\', '.', "$class.$name");
             $scope = $tracer->startIntegrationScopeAndSpan(ElasticSearchIntegration::getInstance(), $operationName);
             $span = $scope->getSpan();
 
@@ -296,7 +296,7 @@ class ElasticSearchIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $args = func_get_args();
+            $args = \func_get_args();
             $params = [];
             if (isset($args[0])) {
                 list($params) = $args;

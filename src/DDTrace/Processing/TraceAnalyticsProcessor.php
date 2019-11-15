@@ -23,7 +23,7 @@ final class TraceAnalyticsProcessor
             $metrics[Tag::ANALYTICS_KEY] = 1.0;
         } elseif (false === $value) {
             unset($metrics[Tag::ANALYTICS_KEY]);
-        } elseif (is_numeric($value) && 0 <= $value && $value <= 1) {
+        } elseif (\is_numeric($value) && 0 <= $value && $value <= 1) {
             $metrics[Tag::ANALYTICS_KEY] = (float)$value;
         }
     }
@@ -49,7 +49,7 @@ final class TraceAnalyticsProcessor
         }
 
         // If a trace analytics tag has already been set, then we honor it.
-        if (array_key_exists(Tag::ANALYTICS_KEY, $span->tags)) {
+        if (\array_key_exists(Tag::ANALYTICS_KEY, $span->tags)) {
             return;
         }
 

@@ -53,13 +53,13 @@ final class CodeTracer
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 if ($limitedTracerCallHook) {
-                    $limitedTracerCallHook(func_get_args());
+                    $limitedTracerCallHook(\func_get_args());
                 }
 
                 return dd_trace_forward_call();
             }
 
-            $args = func_get_args();
+            $args = \func_get_args();
             $scope = $tracer->startActiveSpan($className . '.' . $method);
 
             $span = $scope->getSpan();

@@ -109,7 +109,7 @@ final class Tracer implements TracerInterface
      */
     public function __construct(Transport $transport = null, array $propagators = null, array $config = [])
     {
-        $encoder = getenv('DD_TRACE_ENCODER') === 'json' ? new Json() : new MessagePack();
+        $encoder = \getenv('DD_TRACE_ENCODER') === 'json' ? new Json() : new MessagePack();
         $this->transport = $transport ?: new Http($encoder);
         $textMapPropagator = new TextMap($this);
         $this->propagators = $propagators ?: [
@@ -117,9 +117,9 @@ final class Tracer implements TracerInterface
             Format::HTTP_HEADERS => $textMapPropagator,
             Format::CURL_HTTP_HEADERS => new CurlHeadersMap($this),
         ];
-        $this->config = array_merge($this->config, $config);
+        $this->config = \array_merge($this->config, $config);
         $this->reset();
-        $this->config['global_tags'] = array_merge($this->config['global_tags'], $this->globalConfig->getGlobalTags());
+        $this->config['global_tags'] = \array_merge($this->config['global_tags'], $this->globalConfig->getGlobalTags());
         $this->traceAnalyticsProcessor = new TraceAnalyticsProcessor();
     }
 
@@ -180,7 +180,7 @@ final class Tracer implements TracerInterface
             $operationName,
             $context,
             $this->config['service_name'],
-            array_key_exists('resource', $this->config) ? $this->config['resource'] : $operationName,
+            \array_key_exists('resource', $this->config) ? $this->config['resource'] : $operationName,
             $options->getStartTime()
         );
 
@@ -190,7 +190,7 @@ final class Tracer implements TracerInterface
 
         $tags = $options->getTags() + $this->config['global_tags'];
         if ($context->getParentId() === null) {
-            $tags[Tag::PID] = getmypid();
+            $tags[Tag::PID] = \getmypid();
         }
 
         foreach ($tags as $key => $value) {
@@ -232,7 +232,7 @@ final class Tracer implements TracerInterface
         if (($activeSpan = $this->getActiveSpan()) !== null) {
             $options = $options->withParent($activeSpan);
             $tags = $options->getTags();
-            if (!array_key_exists(Tag::SERVICE_NAME, $tags)) {
+            if (!\array_key_exists(Tag::SERVICE_NAME, $tags)) {
                 $parentService = $activeSpan->getService();
             }
         }
@@ -275,7 +275,7 @@ final class Tracer implements TracerInterface
      */
     public function inject(SpanContextInterface $spanContext, $format, &$carrier)
     {
-        if (array_key_exists($format, $this->propagators)) {
+        if (\array_key_exists($format, $this->propagators)) {
             $this->propagators[$format]->inject($spanContext, $carrier);
             return;
         }
@@ -288,7 +288,7 @@ final class Tracer implements TracerInterface
      */
     public function extract($format, $carrier)
     {
-        if (array_key_exists($format, $this->propagators)) {
+        if (\array_key_exists($format, $this->propagators)) {
             return $this->propagators[$format]->extract($carrier);
         }
 
@@ -384,12 +384,12 @@ final class Tracer implements TracerInterface
 
         $internalSpans = dd_trace_serialize_closed_spans();
         if (dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
-            array_map(function ($span) {
+            \array_map(function ($span) {
                 dd_trace_buffer_span($span);
             }, $internalSpans);
         } elseif (!empty($internalSpans)) {
             $tracesToBeSent[0] = isset($tracesToBeSent[0])
-                ? array_merge($tracesToBeSent[0], $internalSpans)
+                ? \array_merge($tracesToBeSent[0], $internalSpans)
                 : $internalSpans;
         }
 
@@ -403,7 +403,7 @@ final class Tracer implements TracerInterface
 
     private function addHostnameToRootSpan()
     {
-        $hostname = gethostname();
+        $hostname = \gethostname();
         if ($hostname !== false) {
             $span = $this->getRootScope()->getSpan();
             if ($span !== null) {
@@ -423,7 +423,7 @@ final class Tracer implements TracerInterface
             return;
         }
         // Normalized URL as the resource name
-        $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
+        $normalizer = new Urls(\explode(',', \getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
         $span->setTag(
             Tag::RESOURCE_NAME,
             $_SERVER['REQUEST_METHOD'] . ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']),
@@ -433,7 +433,7 @@ final class Tracer implements TracerInterface
 
     private function record(Span $span)
     {
-        if (!array_key_exists($span->context->traceId, $this->traces)) {
+        if (!\array_key_exists($span->context->traceId, $this->traces)) {
             $this->traces[$span->context->traceId] = [];
         }
         $this->traces[$span->context->traceId][$span->context->spanId] = $span;
@@ -515,6 +515,6 @@ final class Tracer implements TracerInterface
      */
     public function getTracesCount()
     {
-        return count($this->traces);
+        return \count($this->traces);
     }
 }

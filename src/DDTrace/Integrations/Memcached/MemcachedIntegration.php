@@ -53,7 +53,7 @@ class MemcachedIntegration extends Integration
 
     public static function load()
     {
-        if (!extension_loaded('memcached')) {
+        if (!\extension_loaded('memcached')) {
             // Memcached is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }
@@ -64,7 +64,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommand($this, 'add', func_get_args());
+            return MemcachedIntegration::traceCommand($this, 'add', \func_get_args());
         });
 
         // bool Memcached::addByKey ( string $server_key , string $key , mixed $value [, int $expiration ] )
@@ -73,7 +73,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommandByKey($this, 'addByKey', func_get_args());
+            return MemcachedIntegration::traceCommandByKey($this, 'addByKey', \func_get_args());
         });
 
         // bool Memcached::append ( string $key , string $value )
@@ -82,7 +82,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommand($this, 'append', func_get_args());
+            return MemcachedIntegration::traceCommand($this, 'append', \func_get_args());
         });
 
         // bool Memcached::appendByKey ( string $server_key , string $key , string $value )
@@ -91,7 +91,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommandByKey($this, 'appendByKey', func_get_args());
+            return MemcachedIntegration::traceCommandByKey($this, 'appendByKey', \func_get_args());
         });
 
         // bool Memcached::cas ( float $cas_token , string $key , mixed $value [, int $expiration ] )
@@ -100,7 +100,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCas($this, func_get_args());
+            return MemcachedIntegration::traceCas($this, \func_get_args());
         });
 
         // bool Memcached::casByKey ( float $cas_token , string $server_key , string $key , mixed $value
@@ -110,7 +110,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCasByKey($this, func_get_args());
+            return MemcachedIntegration::traceCasByKey($this, \func_get_args());
         });
 
         // int Memcached::decrement ( string $key [, int $offset = 1 [, int $initial_value = 0
@@ -120,7 +120,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommand($this, 'decrement', func_get_args());
+            return MemcachedIntegration::traceCommand($this, 'decrement', \func_get_args());
         });
 
         // int Memcached::decrementByKey ( string $server_key , string $key
@@ -130,7 +130,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommandByKey($this, 'decrementByKey', func_get_args());
+            return MemcachedIntegration::traceCommandByKey($this, 'decrementByKey', \func_get_args());
         });
 
         // bool Memcached::delete ( string $key [, int $time = 0 ] )
@@ -139,7 +139,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommand($this, 'delete', func_get_args());
+            return MemcachedIntegration::traceCommand($this, 'delete', \func_get_args());
         });
 
         // bool Memcached::deleteByKey ( string $server_key , string $key [, int $time = 0 ] )
@@ -148,7 +148,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommandByKey($this, 'deleteByKey', func_get_args());
+            return MemcachedIntegration::traceCommandByKey($this, 'deleteByKey', \func_get_args());
         });
 
         // array Memcached::deleteMulti ( array $keys [, int $time = 0 ] )
@@ -157,7 +157,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceMulti($this, 'deleteMulti', func_get_args());
+            return MemcachedIntegration::traceMulti($this, 'deleteMulti', \func_get_args());
         });
 
         // bool Memcached::deleteMultiByKey ( string $server_key , array $keys [, int $time = 0 ] )
@@ -166,7 +166,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceMultiByKey($this, 'deleteMultiByKey', func_get_args());
+            return MemcachedIntegration::traceMultiByKey($this, 'deleteMultiByKey', \func_get_args());
         });
 
         // bool Memcached::flush ([ int $delay = 0 ] )
@@ -186,7 +186,7 @@ class MemcachedIntegration extends Integration
             $span->setTag('memcached.command', 'flush');
             $span->setTag(Tag::RESOURCE_NAME, 'flush');
 
-            return TryCatchFinally::executePublicMethod($scope, $this, 'flush', func_get_args());
+            return TryCatchFinally::executePublicMethod($scope, $this, 'flush', \func_get_args());
         });
 
         // mixed Memcached::get ( string $key [, callable $cache_cb [, int &$flags ]] )
@@ -195,7 +195,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommand($this, 'get', func_get_args());
+            return MemcachedIntegration::traceCommand($this, 'get', \func_get_args());
         });
 
         // mixed Memcached::getByKey ( string $server_key , string $key [, callable $cache_cb [, int $flags ]] )
@@ -204,7 +204,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommandByKey($this, 'getByKey', func_get_args());
+            return MemcachedIntegration::traceCommandByKey($this, 'getByKey', \func_get_args());
         });
 
         // mixed Memcached::getMulti ( array $keys [, int $flags ] )
@@ -213,7 +213,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceMulti($this, 'getMulti', func_get_args());
+            return MemcachedIntegration::traceMulti($this, 'getMulti', \func_get_args());
         });
 
         // array Memcached::getMultiByKey ( string $server_key , array $keys [, int $flags ] )
@@ -222,7 +222,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceMultiByKey($this, 'getMultiByKey', func_get_args());
+            return MemcachedIntegration::traceMultiByKey($this, 'getMultiByKey', \func_get_args());
         });
 
         // int Memcached::increment ( string $key [, int $offset = 1 [, int $initial_value = 0
@@ -232,7 +232,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommand($this, 'increment', func_get_args());
+            return MemcachedIntegration::traceCommand($this, 'increment', \func_get_args());
         });
 
         // int Memcached::incrementByKey ( string $server_key , string $key [, int $offset = 1
@@ -242,7 +242,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommandByKey($this, 'incrementByKey', func_get_args());
+            return MemcachedIntegration::traceCommandByKey($this, 'incrementByKey', \func_get_args());
         });
 
         // bool Memcached::prepend ( string $key , string $value )
@@ -251,7 +251,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommand($this, 'prepend', func_get_args());
+            return MemcachedIntegration::traceCommand($this, 'prepend', \func_get_args());
         });
 
         // bool Memcached::prependByKey ( string $server_key , string $key , string $value )
@@ -260,7 +260,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommandByKey($this, 'prependByKey', func_get_args());
+            return MemcachedIntegration::traceCommandByKey($this, 'prependByKey', \func_get_args());
         });
 
         // bool Memcached::replace ( string $key , mixed $value [, int $expiration ] )
@@ -269,7 +269,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommand($this, 'replace', func_get_args());
+            return MemcachedIntegration::traceCommand($this, 'replace', \func_get_args());
         });
 
         // bool Memcached::replaceByKey ( string $server_key , string $key , mixed $value [, int $expiration  ] )
@@ -278,7 +278,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommandByKey($this, 'replaceByKey', func_get_args());
+            return MemcachedIntegration::traceCommandByKey($this, 'replaceByKey', \func_get_args());
         });
 
         // bool Memcached::set ( string $key , mixed $value [, int $expiration ] )
@@ -287,7 +287,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommand($this, 'set', func_get_args());
+            return MemcachedIntegration::traceCommand($this, 'set', \func_get_args());
         });
 
         // bool Memcached::setByKey ( string $server_key , string $key , mixed $value [, int $expiration ] )
@@ -296,7 +296,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommandByKey($this, 'setByKey', func_get_args());
+            return MemcachedIntegration::traceCommandByKey($this, 'setByKey', \func_get_args());
         });
 
         // bool Memcached::setMulti ( array $items [, int $expiration ] )
@@ -305,7 +305,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceMulti($this, 'setMulti', func_get_args());
+            return MemcachedIntegration::traceMulti($this, 'setMulti', \func_get_args());
         });
 
         // bool Memcached::setMultiByKey ( string $server_key , array $items [, int $expiration ] )
@@ -314,7 +314,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceMultiByKey($this, 'setMultiByKey', func_get_args());
+            return MemcachedIntegration::traceMultiByKey($this, 'setMultiByKey', \func_get_args());
         });
 
         // bool Memcached::touch ( string $key , int $expiration )
@@ -323,7 +323,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommand($this, 'touch', func_get_args());
+            return MemcachedIntegration::traceCommand($this, 'touch', \func_get_args());
         });
 
         // bool Memcached::touchByKey ( string $server_key , string $key , int $expiration )
@@ -332,7 +332,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            return MemcachedIntegration::traceCommandByKey($this, 'touchByKey', func_get_args());
+            return MemcachedIntegration::traceCommandByKey($this, 'touchByKey', \func_get_args());
         });
 
         return Integration::LOADED;
@@ -350,7 +350,7 @@ class MemcachedIntegration extends Integration
         $span->setTag(Tag::SERVICE_NAME, 'memcached');
         $span->setTag('memcached.command', $command);
 
-        if (!is_array($args[0])) {
+        if (!\is_array($args[0])) {
             self::setServerTagsByKey($span, $memcached, $args[0]);
         }
         $span->setTag('memcached.query', "$command " . Obfuscation::toObfuscatedString($args[0]));
@@ -498,7 +498,7 @@ class MemcachedIntegration extends Integration
             'setByKey',
         ];
 
-        if (in_array($command, $commandsForAnalytics)) {
+        if (\in_array($command, $commandsForAnalytics)) {
             $span->setTraceAnalyticsCandidate();
         }
     }

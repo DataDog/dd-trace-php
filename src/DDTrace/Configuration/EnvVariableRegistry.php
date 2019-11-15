@@ -35,11 +35,11 @@ class EnvVariableRegistry implements Registry
      */
     protected function get($key)
     {
-        $value = getenv($this->convertKeyToEnvVariableName($key));
+        $value = \getenv($this->convertKeyToEnvVariableName($key));
         if (false === $value) {
             return null;
         }
-        return trim($value);
+        return \trim($value);
     }
 
     /**
@@ -73,7 +73,7 @@ class EnvVariableRegistry implements Registry
             return $default;
         }
 
-        $value = strtolower($value);
+        $value = \strtolower($value);
         if ($value === '1' || $value === 'true') {
             $this->registry[$key] = true;
         } elseif ($value === '0' || $value === 'false') {
@@ -92,8 +92,8 @@ class EnvVariableRegistry implements Registry
     {
         if (!isset($this->registry[$key])) {
             $value = $this->get($key);
-            $value = strtolower($value);
-            if (is_numeric($value)) {
+            $value = \strtolower($value);
+            if (\is_numeric($value)) {
                 $floatValue = (float)$value;
             } else {
                 $floatValue = (float)$default;
@@ -135,16 +135,16 @@ class EnvVariableRegistry implements Registry
 
         // For now we provide no escaping
         $this->registry[$key] = [];
-        $elements = explode(',', $value);
+        $elements = \explode(',', $value);
         foreach ($elements as $element) {
-            $keyAndValue = explode(':', $element);
+            $keyAndValue = \explode(':', $element);
 
-            if (count($keyAndValue) !== 2) {
+            if (\count($keyAndValue) !== 2) {
                 continue;
             }
 
-            $keyFragment = trim($keyAndValue[0]);
-            $valueFragment = trim($keyAndValue[1]);
+            $keyFragment = \trim($keyAndValue[0]);
+            $valueFragment = \trim($keyAndValue[1]);
 
             if (empty($keyFragment)) {
                 continue;
@@ -164,16 +164,16 @@ class EnvVariableRegistry implements Registry
         if (!isset($this->registry[$key])) {
             $value = $this->get($key);
             if (null !== $value) {
-                $disabledIntegrations = explode(',', $value);
-                $this->registry[$key] = array_map(function ($entry) {
-                    return strtolower(trim($entry));
+                $disabledIntegrations = \explode(',', $value);
+                $this->registry[$key] = \array_map(function ($entry) {
+                    return \strtolower(\trim($entry));
                 }, $disabledIntegrations);
             } else {
                 $this->registry[$key] = [];
             }
         }
 
-        return in_array(strtolower($name), $this->registry[$key], true);
+        return \in_array(\strtolower($name), $this->registry[$key], true);
     }
 
     /**
@@ -186,6 +186,6 @@ class EnvVariableRegistry implements Registry
      */
     private function convertKeyToEnvVariableName($key)
     {
-        return $this->prefix . strtoupper(str_replace('.', '_', trim($key)));
+        return $this->prefix . \strtoupper(\str_replace('.', '_', \trim($key)));
     }
 }

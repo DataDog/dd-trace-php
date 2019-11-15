@@ -45,7 +45,7 @@ class Urls
      */
     public static function sanitize($url)
     {
-        return strstr($url, '?', true) ?: $url;
+        return \strstr($url, '?', true) ?: $url;
     }
 
     /**
@@ -56,7 +56,7 @@ class Urls
      */
     public static function hostname($url)
     {
-        return (string) parse_url($url, PHP_URL_HOST);
+        return (string) \parse_url($url, PHP_URL_HOST);
     }
 
     /**
@@ -83,12 +83,12 @@ class Urls
         foreach ($this->replacementPatterns as $regexReplacement) {
             list($regex, $replacement) = $regexReplacement;
             $replacedCount = 0;
-            $url = preg_replace($regex, $replacement, $url, -1, $replacedCount);
+            $url = \preg_replace($regex, $replacement, $url, -1, $replacedCount);
             if ($replacedCount > 0) {
                 return $url;
             }
         }
         // Fall back to default replacement rules
-        return preg_replace(self::$defaultPatterns, '$1?$3', $url);
+        return \preg_replace(self::$defaultPatterns, '$1?$3', $url);
     }
 }

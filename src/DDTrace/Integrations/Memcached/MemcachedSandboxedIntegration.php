@@ -52,7 +52,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
 
     public function init()
     {
-        if (!extension_loaded('memcached')) {
+        if (!\extension_loaded('memcached')) {
             // Memcached is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }
@@ -134,7 +134,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $integration->setCommonData($span, $command);
-            if (!is_array($args[0])) {
+            if (!\is_array($args[0])) {
                 $integration->setServerTagsByKey($span, $this, $args[0]);
                 $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
             }
@@ -151,7 +151,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $integration->setCommonData($span, $command);
-            if (!is_array($args[0])) {
+            if (!\is_array($args[0])) {
                 $integration->setServerTagsByKey($span, $this, $args[0]);
                 $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
                 $span->meta['memcached.server_key'] = $args[0];
@@ -169,7 +169,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $integration->setCommonData($span, $command);
-            if (!is_array($args[0])) {
+            if (!\is_array($args[0])) {
                 $integration->setServerTagsByKey($span, $this, $args[0]);
             }
             $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0], ',');
@@ -222,7 +222,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
         $server = $memcached->getServerByKey($key);
 
         // getServerByKey() might return `false`: https://www.php.net/manual/en/memcached.getserverbykey.php
-        if (!is_array($server)) {
+        if (!\is_array($server)) {
             return;
         }
 
@@ -247,7 +247,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
             'setByKey',
         ];
 
-        if (in_array($command, $commandsForAnalytics)) {
+        if (\in_array($command, $commandsForAnalytics)) {
             $this->addTraceAnalyticsIfEnabled($span);
         }
     }

@@ -31,7 +31,7 @@ final class MongoDBIntegration extends Integration
         self::traceMethod('command', function (Span $span, array $args) {
             $span->setIntegration(MongoIntegration::getInstance());
             if (isset($args[0]['query'])) {
-                $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]['query']));
+                $span->setTag(Tag::MONGODB_QUERY, \json_encode($args[0]['query']));
                 $span->setTraceAnalyticsCandidate();
             }
             if (isset($args[1]['socketTimeoutMS'])) {
@@ -45,7 +45,7 @@ final class MongoDBIntegration extends Integration
             $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_COLLECTION, $args[0]);
         }, function (Span $span, $ref) {
-            if (is_array($ref) && isset($ref['$id'])) {
+            if (\is_array($ref) && isset($ref['$id'])) {
                 $span->setTag(Tag::MONGODB_BSON_ID, (string) $ref['$id']);
             }
         }, $mongoIntegration);

@@ -33,7 +33,7 @@ final class ConfigurableSampler implements Sampler
         // algorithm. To compensate this we use here a `mt_rand` generate value to decide how to set the priority
         // sampling. When we will introduce client sampling we will have to implement the real and final knuth hashing
         // function.
-        $shouldKeep = mt_rand(1, mt_getrandmax()) <= $rate * mt_getrandmax();
+        $shouldKeep = \mt_rand(1, \mt_getrandmax()) <= $rate * \mt_getrandmax();
 
         return $shouldKeep ? PrioritySampling::AUTO_KEEP : PrioritySampling::AUTO_REJECT;
     }

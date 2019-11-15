@@ -70,8 +70,8 @@ final class SpanContext implements OTSpanContext
             // trace and span ID's, we need to regenerate them
             // Note: We can't use `dd_trace_push_span_id()` here since
             // it could break non-OpenTracing spans
-            mt_rand(1, mt_getrandmax()),
-            mt_rand(1, mt_getrandmax()),
+            \mt_rand(1, \mt_getrandmax()),
+            \mt_rand(1, \mt_getrandmax()),
             null,
             $baggage
         );
