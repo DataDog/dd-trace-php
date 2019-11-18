@@ -27,6 +27,7 @@ use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\WordPress\WordPressSandboxedIntegration;
 use DDTrace\Integrations\Yii\YiiSandboxedIntegration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
+use DDTrace\Integrations\ZendFramework\ZendFrameworkSandboxedIntegration;
 use DDTrace\Log\LoggingTrait;
 
 /**
@@ -97,6 +98,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\WordPress\WordPressSandboxedIntegration';
             $this->integrations[YiiSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Yii\YiiSandboxedIntegration';
+            $this->integrations[ZendFrameworkSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\ZendFramework\ZendFrameworkSandboxedIntegration';
         }
     }
 
