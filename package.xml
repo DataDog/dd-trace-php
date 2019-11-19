@@ -248,7 +248,10 @@
             </dir>
             <file name="CHANGELOG.md" role="doc" />
             <file name="config.m4" role="src" />
-            <file name="m4/ax_execinfo.m4" role="src" />
+            <dir name="m4">
+                <file name="ax_execinfo.m4" role="src" />
+                <file name="polyfill.m4" role="src" />
+            </dir>
             <file name="LICENSE" role="doc" />
             <file name="README.md" role="doc" />
             <file name="UPGRADE-0.10.md" role="doc" />
