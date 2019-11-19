@@ -62,7 +62,6 @@ require __DIR__ . '/../src/DDTrace/Integrations/Integration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/SandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/CakePHP/CakePHPIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/CodeIgniter/V2/CodeIgniterSandboxedIntegration.php';
-require __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/ZendFrameworkIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Web/WebIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Predis/PredisIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/IntegrationsLoader.php';
@@ -94,6 +93,8 @@ require __DIR__ . '/../src/DDTrace/Integrations/Yii/V2/YiiIntegrationLoader.php'
 require __DIR__ . '/../src/DDTrace/Integrations/Yii/YiiSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/WordPress/WordPressSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/WordPress/V4/WordPressIntegrationLoader.php';
+require __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/ZendFrameworkIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/ZendFrameworkSandboxedIntegration.php';
 
 // Loggers
 require __DIR__ . '/../src/DDTrace/Log/Logger.php';
