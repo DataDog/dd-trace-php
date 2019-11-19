@@ -59,11 +59,13 @@ final class SpanEncoder
         foreach ($span->metrics as $metricName => $metricValue) {
             $metrics[$metricName] = $metricValue;
         }
-        if (
-            $span->context->isHostRoot()
-            && ($prioritySampling = GlobalTracer::get()->getPrioritySampling()) !== PrioritySampling::UNKNOWN
-        ) {
-            $metrics['_sampling_priority_v1'] = $prioritySampling;
+        if ($span->context->isHostRoot()) {
+            $prioritySampling = GlobalTracer::get()->getPrioritySampling();
+            if ($prioritySampling !== PrioritySampling::UNKNOWN) {
+                $metrics['_sampling_priority_v1'] = $prioritySampling;
+            }
+            // Metric expects milliseconds
+            $metrics['php.compilation.total_time_ms'] = (float) dd_trace_compile_time_microseconds() / 1000;
         }
         if (!empty($metrics)) {
             $arraySpan['metrics'] = $metrics;
