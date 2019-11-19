@@ -120,7 +120,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     register_span_data_ce(TSRMLS_C);
 
-    ddtrace_dispatch_inject(TSRMLS_C);
+    ddtrace_opcode_minit();
     ddtrace_compile_minit();
 
     ddtrace_coms_initialize();
@@ -149,6 +149,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_compile_mshutdown();
+    ddtrace_opcode_mshutdown();
 
     return SUCCESS;
 }

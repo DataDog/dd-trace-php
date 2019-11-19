@@ -35,11 +35,6 @@ zend_bool log_backtrace;
 zend_bool backtrace_handler_already_run;
 ddtrace_original_context original_context;
 
-user_opcode_handler_t ddtrace_old_fcall_handler;
-user_opcode_handler_t ddtrace_old_icall_handler;
-user_opcode_handler_t ddtrace_old_ucall_handler;
-user_opcode_handler_t ddtrace_old_fcall_by_name_handler;
-
 uint64_t trace_id;
 ddtrace_span_ids_t *span_ids_top;
 ddtrace_span_t *open_spans_top;
