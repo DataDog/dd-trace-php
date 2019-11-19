@@ -10,17 +10,28 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2019-11-19</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.35.0</release>
+        <api>0.35.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+
+    - Compile-time metric #648
+    - Move Mysqli integration to sandboxed api #635
+    - Migrate Zend framework integration to sandboxed api #655
+    - Health metrics: track segmentation faults  #621
+
+    ### Fixed
+
+    - Fix CodeIgniter namespace definition #650
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
