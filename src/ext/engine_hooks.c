@@ -22,7 +22,21 @@ static user_opcode_handler_t _prev_fcall_by_name_handler;
 
 static zend_op_array *(*_prev_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
-void ddtrace_opcode_minit(void) {
+static void _opcode_minit(void);
+static void _opcode_mshutdown(void);
+static void _compile_minit(void);
+static void _compile_mshutdown(void);
+
+void ddtrace_engine_hooks_minit(void) {
+    _opcode_minit();
+    _compile_minit();
+}
+void ddtrace_engine_hooks_mshutdown(void) {
+    _compile_mshutdown();
+    _opcode_mshutdown();
+}
+
+static void _opcode_minit(void) {
 #if PHP_VERSION_ID >= 70000
     _prev_icall_handler = zend_get_user_opcode_handler(ZEND_DO_ICALL);
     _prev_ucall_handler = zend_get_user_opcode_handler(ZEND_DO_UCALL);
@@ -36,7 +50,7 @@ void ddtrace_opcode_minit(void) {
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, ddtrace_wrap_fcall);
 }
 
-void ddtrace_opcode_mshutdown(void) {
+static void _opcode_mshutdown(void) {
 #if PHP_VERSION_ID >= 70000
     zend_set_user_opcode_handler(ZEND_DO_ICALL, NULL);
     zend_set_user_opcode_handler(ZEND_DO_UCALL, NULL);
@@ -86,7 +100,7 @@ static uint64_t _get_microseconds() {
     return 0U;
 }
 
-static zend_op_array *ddtrace_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC) {
+static zend_op_array *_dd_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC) {
     zend_op_array *res;
     uint64_t start = _get_microseconds();
     res = _prev_compile_file(file_handle, type TSRMLS_CC);
@@ -94,13 +108,13 @@ static zend_op_array *ddtrace_compile_file(zend_file_handle *file_handle, int ty
     return res;
 }
 
-void ddtrace_compile_minit(void) {
+static void _compile_minit(void) {
     _prev_compile_file = zend_compile_file;
-    zend_compile_file = ddtrace_compile_file;
+    zend_compile_file = _dd_compile_file;
 }
 
-void ddtrace_compile_mshutdown(void) {
-    if (zend_compile_file == ddtrace_compile_file) {
+static void _compile_mshutdown(void) {
+    if (zend_compile_file == _dd_compile_file) {
         zend_compile_file = _prev_compile_file;
     }
 }
