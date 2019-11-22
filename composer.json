@@ -435,7 +435,8 @@
         "scenarios": {
             "elasticsearch1": {
                 "require": {
-                    "elasticsearch/elasticsearch": "1.2.*"
+                    "elasticsearch/elasticsearch": "1.2.*",
+                    "symfony/event-dispatcher" : "~2.7"
                 },
                 "scenario-options": {
                     "create-lockfile": false
