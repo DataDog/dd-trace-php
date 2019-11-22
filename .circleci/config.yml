@@ -2,11 +2,6 @@ version: "2.1"
 
 aliases:
 
-  - &DD_TRACE_CI_DOCKER_CREDENTIALS
-    auth:
-      username: $GITHUB_REGISTRY_USERNAME
-      password: $GITHUB_REGISTRY_PASSWORD
-
   - &CACHE_COMPOSER_KEY
     key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
 
@@ -39,7 +34,6 @@ aliases:
   - &IMAGE_DOCKER_MYSQL
     image: datadog/dd-trace-ci:php-mysql-dev-5.6
     name: mysql_integration
-    <<: *DD_TRACE_CI_DOCKER_CREDENTIALS
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test
@@ -49,7 +43,6 @@ aliases:
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: datadog/dd-trace-ci:php-request-replayer
     name: request-replayer
-    <<: *DD_TRACE_CI_DOCKER_CREDENTIALS
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
 
