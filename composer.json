@@ -30,7 +30,7 @@
         "mockery/mockery": "*",
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
-        "symfony/process": "*"
+        "symfony/process": "<5"
     },
     "config": {
         "sort-packages": true
@@ -435,7 +435,8 @@
         "scenarios": {
             "elasticsearch1": {
                 "require": {
-                    "elasticsearch/elasticsearch": "1.2.*"
+                    "elasticsearch/elasticsearch": "1.2.*",
+                    "symfony/event-dispatcher" : "~2.7"
                 },
                 "scenario-options": {
                     "create-lockfile": false
