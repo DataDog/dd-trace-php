@@ -11,6 +11,7 @@
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch_compat.h"
+#include "engine_hooks.h"
 #include "span.h"
 #include "trace.h"
 
@@ -323,27 +324,11 @@ static void update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 #endif
 }
 
-static int _default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
-    DD_PRINTF("calling default dispatch");
-    if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
-        if (DDTRACE_G(ddtrace_old_fcall_by_name_handler)) {
-            return DDTRACE_G(ddtrace_old_fcall_by_name_handler)(execute_data TSRMLS_CC);
-        }
-    } else {
-        if (DDTRACE_G(ddtrace_old_fcall_handler)) {
-            return DDTRACE_G(ddtrace_old_fcall_handler)(execute_data TSRMLS_CC);
-        }
-    }
-    // PHP 7: Handle ZEND_DO_UCALL & ZEND_DO_ICALL
-
-    return ZEND_USER_OPCODE_DISPATCH;
-}
-
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     zend_function *current_fbc = NULL;
     ddtrace_dispatch_t *dispatch = NULL;
     if (!ddtrace_should_trace_call(execute_data, &current_fbc, &dispatch TSRMLS_CC)) {
-        return _default_dispatch(execute_data TSRMLS_CC);
+        return ddtrace_opcode_default_dispatch(execute_data TSRMLS_CC);
     }
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
