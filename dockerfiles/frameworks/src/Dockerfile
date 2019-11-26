@@ -75,27 +75,27 @@ ADD flow/20-redis.ini /etc/php/7.0/cli/conf.d/20-redis.ini
 ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]
 CMD [ "bash" ]
 
-FROM base AS symfony
-ENV COMPOSER_MEMORY_LIMIT -1
-ARG SYMFONY_VERSION_TAG=v4.3.4
+# FROM base AS symfony
+# ENV COMPOSER_MEMORY_LIMIT -1
+# ARG SYMFONY_VERSION_TAG=v4.3.4
 
-RUN set -xe; \
-    git clone --depth 1 --branch ${SYMFONY_VERSION_TAG} https://github.com/symfony/symfony /home/symfony; \
-    cd /home/symfony; \
-    composer update --prefer-dist; \
-    php ./phpunit install
+# RUN set -xe; \
+#     git clone --depth 1 --branch ${SYMFONY_VERSION_TAG} https://github.com/symfony/symfony /home/symfony; \
+#     cd /home/symfony; \
+#     composer update --prefer-dist; \
+#     php ./phpunit install
 
-WORKDIR /home/symfony/
-ADD symfony/${SYMFONY_VERSION_TAG}.patch ./
-RUN set -xe; \
-    # add vendor to git to allow easy patching of vendor files too
-    git add -f vendor; \
-    git commit -m "vendor"; \
-    git apply *.patch
+# WORKDIR /home/symfony/
+# ADD symfony/${SYMFONY_VERSION_TAG}.patch ./
+# RUN set -xe; \
+#     # add vendor to git to allow easy patching of vendor files too
+#     git add -f vendor; \
+#     git commit -m "vendor"; \
+#     git apply *.patch
 
-ENV SYMFONY_DEPRECATIONS_HELPER=disabled=1
-ADD symfony/run.sh ./
-CMD [ "./run.sh" ]
+# ENV SYMFONY_DEPRECATIONS_HELPER=disabled=1
+# ADD symfony/run.sh ./
+# CMD [ "./run.sh" ]
 
 FROM base AS laravel
 ARG LARAVEL_VERSION_TAG=v5.8.17

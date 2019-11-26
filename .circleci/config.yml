@@ -650,14 +650,14 @@ workflows:
       - placeholder:
           requires: [ 'package extension' ]
           name: Framework tests
-      # - framework_tests:
-      #     requires: [ "Framework tests" ]
-      #     framework_target: flow
-      #     name: "Flow testsuite"
-      # - framework_tests:
-      #     requires: [ "Framework tests" ]
-      #     framework_target: flow_no_ddtrace
-      #     name: "Flow baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: flow
+          name: "Flow testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: flow_no_ddtrace
+          name: "Flow baseline testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
           framework_target: laravel
