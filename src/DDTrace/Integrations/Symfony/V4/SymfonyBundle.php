@@ -55,6 +55,7 @@ class SymfonyBundle extends Bundle
         $symfonyRequestScope = $tracer->getRootScope();
         $symfonyRequestSpan = $symfonyRequestScope->getSpan();
         $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $appName);
+        $symfonyRequestSpan->setTag(Tag::ENV, $this->getAppEnv());
         $symfonyRequestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
         $symfonyRequestSpan->overwriteOperationName('symfony.request');
         // Overwriting the default web integration
@@ -167,6 +168,7 @@ class SymfonyBundle extends Bundle
             );
             $span = $scope->getSpan();
             $span->setTag(Tag::SERVICE_NAME, $appName);
+            $span->setTag(Tag::ENV, $this->getAppEnv());
             $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
             $span->setTag(Tag::RESOURCE_NAME, get_class($this) . ' ' . $args[0]);
             return include __DIR__ . '/../../../try_catch_finally.php';
@@ -219,5 +221,14 @@ class SymfonyBundle extends Bundle
     private function getAppName()
     {
         return Configuration::get()->appName('symfony');
+    }
+
+    private function getAppEnv()
+    {
+        if ($appName = getenv('ddtrace_app_env')) {
+            return $appName;
+        } else {
+            return 'none';
+        }
     }
 }
