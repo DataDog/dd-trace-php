@@ -666,14 +666,16 @@ workflows:
           requires: [ "Framework tests" ]
           framework_target: laravel_no_ddtrace
           name: "Laravel baseline testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: symfony
-          name: "Symfony testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: symfony_no_ddtrace
-          name: "Symfony baseline testsuite"
+      # Symfony path needs to be updated as symfony/contracts 2.0 has been released and it changes
+      # test files where the patch is applied.
+      # - framework_tests:
+      #     requires: [ "Framework tests" ]
+      #     framework_target: symfony
+      #     name: "Symfony testsuite"
+      # - framework_tests:
+      #     requires: [ "Framework tests" ]
+      #     framework_target: symfony_no_ddtrace
+      #     name: "Symfony baseline testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
           framework_target: wordpress
