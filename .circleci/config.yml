@@ -448,7 +448,6 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
-      - run: docker login docker.pkg.github.com --username $GITHUB_REGISTRY_USERNAME --password $GITHUB_REGISTRY_PASSWORD
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
   verify_package:
@@ -667,14 +666,16 @@ workflows:
           requires: [ "Framework tests" ]
           framework_target: laravel_no_ddtrace
           name: "Laravel baseline testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: symfony
-          name: "Symfony testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: symfony_no_ddtrace
-          name: "Symfony baseline testsuite"
+      # Symfony path needs to be updated as symfony/contracts 2.0 has been released and it changes
+      # test files where the patch is applied.
+      # - framework_tests:
+      #     requires: [ "Framework tests" ]
+      #     framework_target: symfony
+      #     name: "Symfony testsuite"
+      # - framework_tests:
+      #     requires: [ "Framework tests" ]
+      #     framework_target: symfony_no_ddtrace
+      #     name: "Symfony baseline testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
           framework_target: wordpress

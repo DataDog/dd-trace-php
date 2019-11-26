@@ -3,6 +3,7 @@ PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,[  --enable-dd
 PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,[  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
 if test "$PHP_DDTRACE" != "no"; then
+  m4_include([m4/polyfill.m4])
   m4_include([m4/ax_execinfo.m4])
 
   AX_EXECINFO
