@@ -23,6 +23,7 @@ use DDTrace\Integrations\PDO\PDOSandboxedIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
+use DDTrace\Integrations\Symfony\SymfonySandboxedIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\WordPress\WordPressSandboxedIntegration;
 use DDTrace\Integrations\Yii\YiiSandboxedIntegration;
@@ -94,6 +95,10 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration';
             $this->integrations[PDOSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
+            // Symfony integration sandboxing is disabled until we support spans auto-closing on
+            // exit
+            // $this->integrations[SymfonySandboxedIntegration::NAME] =
+            //     '\DDTrace\Integrations\Symfony\SymfonySandboxedIntegration';
             $this->integrations[WordPressSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\WordPress\WordPressSandboxedIntegration';
             $this->integrations[YiiSandboxedIntegration::NAME] =

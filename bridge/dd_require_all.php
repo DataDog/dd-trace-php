@@ -81,6 +81,7 @@ require __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoCollectionIntegration
 require __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Slim/SlimIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonyIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonySandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchCommon.php';
 require __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchSandboxedIntegration.php';

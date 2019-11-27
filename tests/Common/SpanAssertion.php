@@ -25,6 +25,8 @@ final class SpanAssertion
     /** @var SpanAssertion[] */
     private $children = [];
 
+    private $toBeSkipped = false;
+
     /**
      * @param string $name
      * @param bool $error
@@ -125,9 +127,12 @@ final class SpanAssertion
      */
     public function withChildren($children)
     {
+        $toBeAdded = is_array($children) ? $children : [$children];
         $this->children = array_merge(
             $this->children,
-            is_array($children) ? $children : [$children]
+            array_values(array_filter($toBeAdded, function (SpanAssertion $assertion) {
+                return !$assertion->isToBeSkipped();
+            }))
         );
         return $this;
     }
@@ -307,5 +312,23 @@ final class SpanAssertion
             $this->getOperationName(),
             $this->getResource()
         );
+    }
+
+    /**
+     * @param $condition
+     * @return $this
+     */
+    public function skipIf($condition)
+    {
+        $this->toBeSkipped = (bool)$condition;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isToBeSkipped()
+    {
+        return $this->toBeSkipped;
     }
 }

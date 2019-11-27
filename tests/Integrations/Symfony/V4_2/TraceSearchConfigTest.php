@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-final class TraceSearchConfigTest extends WebFrameworkTestCase
+class TraceSearchConfigTest extends WebFrameworkTestCase
 {
     const IS_SANDBOX = false;
 
@@ -62,10 +62,15 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                                 SpanAssertion::exists('symfony.kernel.response'),
                                 SpanAssertion::exists('symfony.kernel.finish_request'),
                             ]),
+                        // Remove 'true' once sandboxed api is enabled for symfony
+                        SpanAssertion::exists('symfony.kernel.terminate')
+                            ->skipIf(true || !static::IS_SANDBOX),
                     ]),
-                // This should be fixed as this should be a child
-                // of the root span while here it is a lone trace
-                SpanAssertion::exists('symfony.kernel.terminate'),
+                // This should be fixed for legacy api as this should be a child
+                // of the root span while here it is a lone trace.
+                // Remove 'false' once sandboxed api is enabled for symfony
+                SpanAssertion::exists('symfony.kernel.terminate')
+                    ->skipIf(false && static::IS_SANDBOX),
             ]
         );
     }

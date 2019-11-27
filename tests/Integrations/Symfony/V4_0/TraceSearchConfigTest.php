@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-final class TraceSearchConfigTest extends WebFrameworkTestCase
+class TraceSearchConfigTest extends WebFrameworkTestCase
 {
     const IS_SANDBOX = false;
 
@@ -62,7 +62,8 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                                 SpanAssertion::exists('symfony.kernel.response'),
                                 SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
-                        // This is an error. Terminate has the wrong  parent span and it should be fixed.
+                        // 'symfony.kernel.terminate' Terminate has the wrong parent span in legacy api.
+                        // This test will fail as we enable the symfony sandboxed api.
                         // SpanAssertion::exists('symfony.kernel.terminate'),
                     ]),
             ]

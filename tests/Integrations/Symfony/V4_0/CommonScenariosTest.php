@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-final class CommonScenariosTest extends WebFrameworkTestCase
+class CommonScenariosTest extends WebFrameworkTestCase
 {
     const IS_SANDBOX = false;
 
@@ -31,7 +31,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
      */
     public function testScenario(RequestSpec $spec, array $spanExpectations)
     {
-        $this->markTestSkipped('Symfony version 4.0 app cannot be updated. Skipping this test while investigating.');
         $traces = $this->tracesFromWebRequest(function () use ($spec) {
             $this->call($spec);
         });
@@ -67,8 +66,14 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
+                            // This will be required with sandboxed integration, that
+                            // instead put this span in the correct place in the gerarchy
+                            // SpanAssertion::exists('symfony.kernel.terminate')
+                            //     ->skipIf(!static::IS_SANDBOX),
                         ]),
-                    SpanAssertion::exists('symfony.kernel.terminate'),
+                    // 'symfony.kernel.terminate' Terminate has the wrong parent span in legacy api.
+                    // This test will fail as we enable the symfony sandboxed api.
+                    // SpanAssertion::exists('symfony.kernel.terminate'),
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
@@ -103,10 +108,14 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
+                            // This will be required with sandboxed integration, that
+                            // instead put this span in the correct place in the gerarchy
+                            // SpanAssertion::exists('symfony.kernel.terminate')
+                            //     ->skipIf(!static::IS_SANDBOX),
                         ]),
-                    // This should be fixed as this should be a child
-                    // of the root span while here it is a lone trace
-                    SpanAssertion::exists('symfony.kernel.terminate'),
+                    // 'symfony.kernel.terminate' Terminate has the wrong parent span in legacy api.
+                    // This test will fail as we enable the symfony sandboxed api.
+                    // SpanAssertion::exists('symfony.kernel.terminate'),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
@@ -141,10 +150,14 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                             SpanAssertion::exists('symfony.kernel.finish_request'),
                                         ]),
                                 ]),
+                            // This will be required with sandboxed integration, that
+                            // instead put this span in the correct place in the gerarchy
+                            // SpanAssertion::exists('symfony.kernel.terminate')
+                            //     ->skipIf(!static::IS_SANDBOX),
                         ]),
-                    // This should be fixed as this should be a child
-                    // of the root span while here it is a lone trace
-                    SpanAssertion::exists('symfony.kernel.terminate'),
+                    // 'symfony.kernel.terminate' Terminate has the wrong parent span in legacy api.
+                    // This test will fail as we enable the symfony sandboxed api.
+                    // SpanAssertion::exists('symfony.kernel.terminate'),
                 ],
             ]
         );

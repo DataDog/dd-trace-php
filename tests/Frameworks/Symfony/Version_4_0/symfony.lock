@@ -119,9 +119,6 @@
     "psr/log": {
         "version": "1.0.2"
     },
-    "psr/simple-cache": {
-        "version": "1.0.1"
-    },
     "sensio/framework-extra-bundle": {
         "version": "5.2",
         "recipe": {
@@ -144,7 +141,7 @@
         "version": "v4.1.2"
     },
     "symfony/cache-contracts": {
-        "version": "v1.1.1"
+        "version": "v1.1.7"
     },
     "symfony/config": {
         "version": "v4.1.2"
@@ -195,7 +192,7 @@
         "version": "v4.1.2"
     },
     "symfony/event-dispatcher-contracts": {
-        "version": "v1.1.1"
+        "version": "v1.1.7"
     },
     "symfony/expression-language": {
         "version": "v4.1.2"
@@ -245,9 +242,6 @@
     "symfony/intl": {
         "version": "v4.1.2"
     },
-    "symfony/lts": {
-        "version": "4-dev"
-    },
     "symfony/maker-bundle": {
         "version": "1.0",
         "recipe": {
@@ -290,9 +284,6 @@
             "ref": "9dbf01cf67d791746ec772fe274c4d91cbf3c9ec"
         }
     },
-    "symfony/polyfill-ctype": {
-        "version": "v1.8.0"
-    },
     "symfony/polyfill-intl-icu": {
         "version": "v1.8.0"
     },
@@ -304,9 +295,6 @@
     },
     "symfony/polyfill-php72": {
         "version": "v1.8.0"
-    },
-    "symfony/polyfill-php73": {
-        "version": "v1.11.0"
     },
     "symfony/process": {
         "version": "v4.1.2"
@@ -341,15 +329,6 @@
             "ref": "9a2034eca6d83d9cda632014e06995b8d9d9fd09"
         }
     },
-    "symfony/security-core": {
-        "version": "v4.3.1"
-    },
-    "symfony/security-csrf": {
-        "version": "v4.3.1"
-    },
-    "symfony/security-guard": {
-        "version": "v4.3.1"
-    },
     "symfony/security-http": {
         "version": "v4.3.1"
     },
@@ -360,7 +339,7 @@
         "version": "v1.0.1"
     },
     "symfony/service-contracts": {
-        "version": "v1.1.2"
+        "version": "v2.0.0"
     },
     "symfony/stopwatch": {
         "version": "v4.1.2"

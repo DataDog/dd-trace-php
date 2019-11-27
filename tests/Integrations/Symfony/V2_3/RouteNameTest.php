@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
-final class RouteNameTest extends WebFrameworkTestCase
+class RouteNameTest extends WebFrameworkTestCase
 {
     const IS_SANDBOX = false;
 
