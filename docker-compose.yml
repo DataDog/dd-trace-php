@@ -67,7 +67,7 @@ services:
     image: datadog/dd-trace-ci:php-dev-7.0
     build:
       context: .
-      dockerfile: dockerfiles/development/Dockerfile_70_71_72_73
+      dockerfile: dockerfiles/development/Dockerfile_70
       args:
         PHP_MAJOR_MINOR: '7.0'
         MCRYPT_PACKAGE: mcrypt
@@ -79,7 +79,7 @@ services:
     image: datadog/dd-trace-ci:php-dev-7.1
     build:
       context: .
-      dockerfile: dockerfiles/development/Dockerfile_70_71_72_73
+      dockerfile: dockerfiles/development/Dockerfile_71_72_73
       args:
         PHP_MAJOR_MINOR: '7.1'
         MCRYPT_PACKAGE: mcrypt-1.0.0
@@ -92,7 +92,7 @@ services:
     image: datadog/dd-trace-ci:php-dev-7.2
     build:
       context: .
-      dockerfile: dockerfiles/development/Dockerfile_70_71_72_73
+      dockerfile: dockerfiles/development/Dockerfile_71_72_73
       args:
         PHP_MAJOR_MINOR: '7.2'
         MCRYPT_PACKAGE: mcrypt-1.0.3
@@ -103,7 +103,7 @@ services:
     image: datadog/dd-trace-ci:php-dev-7.3
     build:
       context: .
-      dockerfile: dockerfiles/development/Dockerfile_70_71_72_73
+      dockerfile: dockerfiles/development/Dockerfile_71_72_73
       args:
         PHP_MAJOR_MINOR: '7.3'
         MCRYPT_PACKAGE: mcrypt-1.0.3

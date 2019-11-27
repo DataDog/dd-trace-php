@@ -1,0 +1,50 @@
+ARG PHP_MAJOR_MINOR
+ARG MCRYPT_PACKAGE
+
+FROM circleci/php:${PHP_MAJOR_MINOR}-cli-stretch AS base
+
+ARG PHP_MAJOR_MINOR
+ARG MCRYPT_PACKAGE
+
+USER root
+
+RUN apt-get update \
+    && apt-get install -y libmcrypt-dev \
+    && docker-php-ext-install mcrypt \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+ADD ./ /app
+
+# Manual fixes
+RUN chown -R root /app
+RUN rm -rf tests/Frameworks/Symfony/*/app/cache
+RUN rm -rf tests/Frameworks/Symfony/*/var/cache
+
+RUN composer test-cache-unlink
+RUN COMPOSER_PROCESS_TIMEOUT=0 composer test-cache
+
+FROM circleci/php:${PHP_MAJOR_MINOR}-cli-stretch AS final
+
+ARG PHP_MAJOR_MINOR
+ARG MCRYPT_PACKAGE
+
+USER root
+
+COPY dockerfiles/development/install-php7-common-dependencies.sh /tmp/install-php7-common-dependencies.sh
+
+RUN apt-get update \
+    && sh /tmp/install-php7-common-dependencies.sh \
+    && apt-get install -y libmcrypt-dev \
+    && docker-php-ext-install mcrypt \
+    && docker-php-ext-install pcntl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY dockerfiles/development/dd-test-env.ini /usr/local/etc/php/conf.d/dd-test-env.ini
+COPY --from=base /root/.dd-trace-php-composer-warmup /home/circleci/.dd-trace-php-composer-warmup
+
+RUN chown -R circleci /home/circleci/.dd-trace-php-composer-warmup
+
+USER circleci
+
+CMD bash
