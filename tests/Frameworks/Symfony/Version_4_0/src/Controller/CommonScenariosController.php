@@ -14,7 +14,6 @@ class CommonScenariosController extends AbstractController
      */
     public function simpleAction(Request $request)
     {
-        // replace this example code with whatever you need
         return new Response(
             'Hi!'
         );
@@ -25,10 +24,7 @@ class CommonScenariosController extends AbstractController
      */
     public function simpleViewAction(Request $request)
     {
-        // replace this example code with whatever you need
-        return $this->render('twig_template.html.twig', [
-            'base_dir' => realpath($this->getParameter('kernel.project_dir')).DIRECTORY_SEPARATOR,
-        ]);
+        return $this->render('twig_template.html.twig');
     }
 
     /**
