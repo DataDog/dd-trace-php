@@ -56,6 +56,9 @@
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
         ],
         "install-ext": "make sudo install_ini install $*",
+        "test-cache": "./tooling/composer-cache cache",
+        "test-cache-link": "./tooling/composer-cache link-cache",
+        "test-cache-unlink": "./tooling/composer-cache unlink-cache",
         "test-ext": "make test_c TESTS=tests/ext",
         "test": "phpunit --colors=always --configuration=phpunit.xml",
         "test-all-54": [
@@ -251,6 +254,7 @@
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-71": [
+            "@test-cache-link",
             "@test-metrics",
             "@codeigniter-22-test",
             "@laravel-42-update",
@@ -279,6 +283,7 @@
             "@custom-framework-autoloaded-suite"
         ],
         "test-web-72": [
+            "@test-cache-link",
             "@test-metrics",
             "@codeigniter-22-test",
             "@laravel-42-update",
