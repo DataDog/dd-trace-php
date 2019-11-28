@@ -40,6 +40,15 @@ aliases:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
+  - &IMAGE_DOCKER_MONGO
+    image: "circleci/mongo:4.0"
+    ports:
+      - "27017:27017"
+    name: mongo_integration
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=test
+      - MONGO_INITDB_ROOT_PASSWORD=test
+
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: datadog/dd-trace-ci:php-request-replayer
     name: request-replayer
@@ -195,6 +204,7 @@ executors:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_MONGO
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
 
 jobs:
