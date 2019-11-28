@@ -34,7 +34,7 @@ final class MongoClientIntegration extends Integration
             $span->setIntegration(MongoIntegration::getInstance());
             if (isset($args[0])) {
                 $span->setTag(Tag::MONGODB_SERVER, Obfuscation::dsn($args[0]));
-                $dbName = self::extractDatabaseNameFromDsn($args[0]);
+                $dbName = MongoSandboxedIntegration::extractDatabaseNameFromDsn($args[0]);
                 if (null !== $dbName) {
                     $span->setTag(Tag::MONGODB_DATABASE, $dbName);
                 }
@@ -66,22 +66,6 @@ final class MongoClientIntegration extends Integration
         self::traceMethod('getWriteConcern', null, null, $mongoIntegration);
         self::traceMethod('listDBs', null, null, $mongoIntegration);
         self::traceMethod('setWriteConcern', null, null, $mongoIntegration);
-    }
-
-    /**
-     * If the `db` option isn't provided via the constructor, we extract
-     * the database name from the DSN string if it exists.
-     *
-     * @param string $dsn
-     * @return string|null
-     */
-    private static function extractDatabaseNameFromDsn($dsn)
-    {
-        $matches = [];
-        if (false === preg_match('/^.+\/\/.+\/(.+)$/', $dsn, $matches)) {
-            return null;
-        }
-        return isset($matches[1]) ? $matches[1] : null;
     }
 
     /**

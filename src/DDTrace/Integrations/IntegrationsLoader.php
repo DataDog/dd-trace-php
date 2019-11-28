@@ -16,6 +16,7 @@ use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
+use DDTrace\Integrations\Mongo\MongoSandboxedIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
@@ -93,6 +94,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration';
             $this->integrations[MysqliSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration';
+            $this->integrations[MongoSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\Mongo\MongoSandboxedIntegration';
             $this->integrations[PDOSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
             // Symfony integration sandboxing is disabled until we support spans auto-closing on
