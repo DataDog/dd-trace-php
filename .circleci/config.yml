@@ -42,8 +42,6 @@ aliases:
 
   - &IMAGE_DOCKER_MONGO
     image: "circleci/mongo:4.0"
-    ports:
-      - "27017:27017"
     name: mongo_integration
     environment:
       - MONGO_INITDB_ROOT_USERNAME=test
