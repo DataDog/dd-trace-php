@@ -284,8 +284,9 @@ class MongoSandboxedIntegration extends SandboxedIntegration
     }
 
     /**
-     * Utility method to trace a generic method. No other metadata other than tags
-     * common to all mongo span will be added.
+     * Trace a generic method mongo method and add only metadata shared by all mongo spans.
+     *  - operation name: $class.$method
+     *  - resouce       : $method
      *
      * @param string $class
      * @param string $method
