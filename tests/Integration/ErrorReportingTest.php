@@ -45,13 +45,16 @@ final class ErrorReportingTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('Testing a core fatal error', '/core-fatal'));
         });
 
-        // phpcs:disable
+        /* phpcs:disable */
+        /* eslint-disable */
         $message = "Uncaught LogicException: Function 'doesnt_exist' not found (function 'doesnt_exist' not found or invalid function name) in " . __DIR__ . "/fatalError.php:6
 Stack trace:
 #0 " . __DIR__ . "/fatalError.php(6): spl_autoload_register('doesnt_exist')
 #1 {main}
   thrown";
-        // phpcs:enable
+        /* eslint-enable */
+        /* phpcs:enable */
+
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /core-fatal')
                 ->setError('fatal', $message)
@@ -71,12 +74,12 @@ Stack trace:
             $this->call(GetSpec::create('Testing an exceptin not handled by the framework', '/unhandled-exception'));
         });
 
-        // phpcs:disable
+        /* eslint-disable */
         $message = "Uncaught Exception: Exception not hanlded by the framework! in " . __DIR__ . "/fatalError.php:8
 Stack trace:
 #0 {main}
   thrown";
-        // phpcs:enable
+        /* eslint-enable */
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /unhandled-exception')

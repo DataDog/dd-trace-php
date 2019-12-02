@@ -48,7 +48,7 @@ final class Bootstrap
                     return;
                 }
                 $span->setTag(Tag::ERROR, true);
-                $span->setTag(Tag::ERROR_TYPE, 'fatal');
+                $span->setTag(Tag::ERROR_TYPE, 'fatal/uncaught exception');
                 $span->setTag(Tag::HTTP_STATUS_CODE, '500');
                 if (isset($error['message'])) {
                     $span->setTag(Tag::ERROR_MSG, $error['message']);

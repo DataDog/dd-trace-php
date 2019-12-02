@@ -98,11 +98,12 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost:9999/error',
-                        // CodeIgniter's error handler does not adjust the status code
-                        Tag::HTTP_STATUS_CODE => '200',
+                        Tag::HTTP_STATUS_CODE => '500',
                         'integration.name' => 'codeigniter',
                         'app.endpoint' => 'Error_::index',
-                    ]),
+                    ])
+                        ->setError('fatal/uncaught exception', null, true)
+                        ->withExistingTagsNames(['error.msg']),
                     SpanAssertion::build(
                         'Error_.index',
                         'codeigniter_test_app',
