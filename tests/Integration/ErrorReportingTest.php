@@ -71,10 +71,13 @@ Stack trace:
             $this->call(GetSpec::create('Testing an exceptin not handled by the framework', '/unhandled-exception'));
         });
 
+        // phpcs:disable
         $message = "Uncaught Exception: Exception not hanlded by the framework! in " . __DIR__ . "/fatalError.php:8
 Stack trace:
 #0 {main}
   thrown";
+        // phpcs:enable
+
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /unhandled-exception')
                 ->setError('fatal', $message)
