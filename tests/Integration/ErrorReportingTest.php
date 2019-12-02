@@ -47,10 +47,10 @@ final class ErrorReportingTest extends WebFrameworkTestCase
 
         // phpcs:disable
         $message = "Uncaught LogicException: Function 'doesnt_exist' not found (function 'doesnt_exist' not found or invalid function name) in " . __DIR__ . "/fatalError.php:6
-        Stack trace:
-        #0 " . __DIR__ . "/fatalError.php(6): spl_autoload_register('doesnt_exist')
-        #1 {main}
-        thrown";
+Stack trace:
+#0 " . __DIR__ . "/fatalError.php(6): spl_autoload_register('doesnt_exist')
+#1 {main}
+  thrown";
         // phpcs:enable
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /core-fatal')
