@@ -20,21 +20,70 @@ final class ErrorReportingTest extends WebFrameworkTestCase
         ]);
     }
 
-    public function testFatalErrorsReportedAsError()
+    public function testFatalUserErrorsReportedAsError()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $this->call(GetSpec::create('Testing a fatal error', '/'));
+            $this->call(GetSpec::create('Testing a user fatal error', '/user-fatal'));
         });
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('web.request', 'web.request', 'web', 'GET /')
-                ->setError('fatal', 'Manually triggered fatal error')
+            SpanAssertion::build('web.request', 'web.request', 'web', 'GET /user-fatal')
+                ->setError('fatal', 'Manually triggered user fatal error')
                 ->withExactTags([
                     'http.method' => 'GET',
-                    'http.url' => '/',
+                    'http.url' => '/user-fatal',
                     'http.status_code' => '500',
                     'integration.name' => 'web',
-                    'error.stack' => __DIR__ . '/fatalError.php(3)',
+                    'error.stack' => __DIR__ . '/fatalError.php(4)',
+                ]),
+        ]);
+    }
+
+    public function testFatalCoreErrorsReportedAsError()
+    {
+        $traces = $this->tracesFromWebRequest(function () {
+            $this->call(GetSpec::create('Testing a core fatal error', '/core-fatal'));
+        });
+
+        // phpcs:disable
+        $message = "Uncaught LogicException: Function 'doesnt_exist' not found (function 'doesnt_exist' not found or invalid function name) in " . __DIR__ . "/fatalError.php:6
+        Stack trace:
+        #0 " . __DIR__ . "/fatalError.php(6): spl_autoload_register('doesnt_exist')
+        #1 {main}
+        thrown";
+        // phpcs:enable
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'web.request', 'web', 'GET /core-fatal')
+                ->setError('fatal', $message)
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => '/core-fatal',
+                    'http.status_code' => '500',
+                    'integration.name' => 'web',
+                    'error.stack' => __DIR__ . '/fatalError.php(6)',
+                ]),
+        ]);
+    }
+
+    public function testExceptionNotHandledByAnyFramework()
+    {
+        $traces = $this->tracesFromWebRequest(function () {
+            $this->call(GetSpec::create('Testing an exceptin not handled by the framework', '/unhandled-exception'));
+        });
+
+        $message = "Uncaught Exception: Exception not hanlded by the framework! in " . __DIR__ . "/fatalError.php:8
+Stack trace:
+#0 {main}
+  thrown";
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'web.request', 'web', 'GET /unhandled-exception')
+                ->setError('fatal', $message)
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => '/unhandled-exception',
+                    'http.status_code' => '500',
+                    'integration.name' => 'web',
+                    'error.stack' => __DIR__ . '/fatalError.php(8)',
                 ]),
         ]);
     }
