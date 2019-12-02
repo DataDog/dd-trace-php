@@ -35,6 +35,29 @@ final class Bootstrap
 
             $tracer = GlobalTracer::get();
             $scopeManager = $tracer->getScopeManager();
+
+            // Detecting fatal errors
+            $error = error_get_last();
+            if ($error && ($error['type'] === E_ERROR || $error['type'] === E_USER_ERROR)) {
+                $scope = $scopeManager->getActive();
+                if (null === $scope) {
+                    return;
+                }
+                $span = $scope->getSpan();
+                if (null === $span) {
+                    return;
+                }
+                $span->setTag(Tag::ERROR, true);
+                $span->setTag(Tag::ERROR_TYPE, 'fatal');
+                $span->setTag(Tag::HTTP_STATUS_CODE, '500');
+                if (isset($error['message'])) {
+                    $span->setTag(Tag::ERROR_MSG, $error['message']);
+                }
+                if (isset($error['file']) && isset($error['line'])) {
+                    $span->setTag(Tag::ERROR_STACK, $error['file'] . '(' . $error['line'] . ')');
+                }
+            }
+
             $scopeManager->close();
             $tracer->flush();
         });

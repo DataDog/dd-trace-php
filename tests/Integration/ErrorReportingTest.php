@@ -28,13 +28,13 @@ final class ErrorReportingTest extends WebFrameworkTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /')
-                ->setError()
+                ->setError('fatal', 'Manually triggered fatal error')
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => '/',
                     'http.status_code' => '500',
                     'integration.name' => 'web',
-                    // .... error related tags ...
+                    'error.stack' => __DIR__ . '/fatalError.php(3)',
                 ]),
         ]);
     }
