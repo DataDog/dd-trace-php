@@ -10,17 +10,36 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2019-12-03</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.35.0</release>
+        <api>0.35.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Added
+
+        - Compile-time metric #648
+        - Health metrics: track segmentation faults  #621
+
+        ### Changed
+
+        - Migrate Mysqli integration to sandboxed api #635
+        - Migrate Zend framework integration to sandboxed api #655
+        - Migrate Symfony framework integration to sandboxed api #667
+        - Migrate Mongo library integration to sandboxed api #669
+        - Refactor opcode hooks #659
+
+        ### Fixed
+
+        - CodeIgniter namespace definition #650
+        - Error reporting in case of fatal errors #671
+        - Mutation of Memcached result code #663
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
