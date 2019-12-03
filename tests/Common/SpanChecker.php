@@ -246,11 +246,25 @@ final class SpanChecker
 
         $spanMeta = isset($span['meta']) ? $span['meta'] : [];
 
+        $namePrefix = $exp->getOperationName() . ': ';
+
+        // Checking status code here because this can be tested also when we want to check only for existence
+        if ($exp->getStatusCode() !== SpanAssertion::NOT_TESTED) {
+            $actualStatusCode
+                = isset($span['meta']['http.status_code']) ? $span['meta']['http.status_code'] : '';
+            $expectedStatusCode = strval($exp->getStatusCode());
+            if ($actualStatusCode !== $expectedStatusCode) {
+                TestCase::assertSame(
+                    $exp->getStatusCode(),
+                    isset($span['meta']['http.status_code']) ? $span['meta']['http.status_code'] : '',
+                    $namePrefix . "Wrong value for 'status code'. Expected: $expectedStatusCode. Actual: $actualStatusCode"
+                );
+            }
+        }
+
         if ($exp->isOnlyCheckExistence()) {
             return;
         }
-
-        $namePrefix = $exp->getOperationName() . ': ';
 
         TestCase::assertSame(
             $exp->getOperationName(),

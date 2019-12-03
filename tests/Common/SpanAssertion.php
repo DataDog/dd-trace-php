@@ -27,6 +27,8 @@ final class SpanAssertion
 
     private $toBeSkipped = false;
 
+    private $statusCode = SpanAssertion::NOT_TESTED;
+
     /**
      * @param string $name
      * @param bool $error
@@ -246,6 +248,14 @@ final class SpanAssertion
             });
         }
         return $this->existingTags;
+    }
+
+    /**
+     * @return int
+     */
+    public function getStatusCode()
+    {
+        return $this->statusCode;
     }
 
     /**
