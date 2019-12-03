@@ -13,7 +13,6 @@
 #include "dispatch_compat.h"
 #include "engine_hooks.h"
 #include "span.h"
-#include "trace.h"
 
 // avoid Older GCC being overly cautious over {0} struct initializer
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
