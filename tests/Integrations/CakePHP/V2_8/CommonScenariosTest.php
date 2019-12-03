@@ -90,7 +90,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
-                        'http.status_code' => '500',
+                        'http.status_code' => '200',
                         'integration.name' => 'cakephp',
                     ])->withExistingTagsNames([
                         'error.stack'
