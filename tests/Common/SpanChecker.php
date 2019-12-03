@@ -257,6 +257,7 @@ final class SpanChecker
             isset($span['name']) ? $span['name'] : '',
             $namePrefix . "Wrong value for 'operation name'"
         );
+
         TestCase::assertSame(
             $exp->hasError(),
             isset($span['error']) && 1 === $span['error'],

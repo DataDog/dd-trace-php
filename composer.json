@@ -208,8 +208,6 @@
         ],
         "test-web-54": [
             "@test-metrics",
-            "@cakephp-28-update",
-            "@cakephp-28-test",
             "@laravel-42-update",
             "@laravel-42-test",
             "@yii-2-suite",
@@ -344,7 +342,7 @@
 
         "test-distributed-tracing": "phpunit --colors=always --configuration=phpunit.xml --testsuite=distributed-tracing",
 
-        "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",
+        "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8/app update",
         "cakephp-28-test": "@composer test -- --testsuite=cakephp-28-test",
 
         "codeigniter-22-test": "@composer test -- --testsuite=codeigniter-22-test",

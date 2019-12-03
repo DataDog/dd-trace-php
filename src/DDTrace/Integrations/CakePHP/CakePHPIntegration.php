@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\CakePHP;
 use DDTrace\Configuration;
 use DDTrace\Integrations\CakePHP\V2\CakePHPIntegrationLoader;
 use DDTrace\Integrations\Integration;
+use DDTrace\Util\Versions;
 
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
@@ -53,6 +54,10 @@ class CakePHPIntegration extends Integration
     public static function load()
     {
         if (!self::shouldLoad(self::NAME)) {
+            return self::NOT_AVAILABLE;
+        }
+
+        if (Versions::phpVersionMatches(5.4)) {
             return self::NOT_AVAILABLE;
         }
 

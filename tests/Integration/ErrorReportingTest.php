@@ -28,7 +28,7 @@ final class ErrorReportingTest extends WebFrameworkTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /user-fatal')
-                ->setError('fatal', 'Manually triggered user fatal error')
+                ->setError('fatal/uncaught exception', 'Manually triggered user fatal error')
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => '/user-fatal',
@@ -45,19 +45,10 @@ final class ErrorReportingTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('Testing a core fatal error', '/core-fatal'));
         });
 
-        /* phpcs:disable */
-        /* eslint-disable */
-        $message = "Uncaught LogicException: Function 'doesnt_exist' not found (function 'doesnt_exist' not found or invalid function name) in " . __DIR__ . "/fatalError.php:6
-Stack trace:
-#0 " . __DIR__ . "/fatalError.php(6): spl_autoload_register('doesnt_exist')
-#1 {main}
-  thrown";
-        /* eslint-enable */
-        /* phpcs:enable */
-
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /core-fatal')
-                ->setError('fatal', $message)
+                ->setError('fatal/uncaught exception')
+                ->withExistingTagsNames(['error.msg'])
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => '/core-fatal',
@@ -74,22 +65,33 @@ Stack trace:
             $this->call(GetSpec::create('Testing an exceptin not handled by the framework', '/unhandled-exception'));
         });
 
-        /* eslint-disable */
-        $message = "Uncaught Exception: Exception not hanlded by the framework! in " . __DIR__ . "/fatalError.php:8
-Stack trace:
-#0 {main}
-  thrown";
-        /* eslint-enable */
-
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'web.request', 'web', 'GET /unhandled-exception')
-                ->setError('fatal', $message)
+                ->setError('fatal/uncaught exception')
+                ->withExistingTagsNames(['error.msg'])
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => '/unhandled-exception',
                     'http.status_code' => '500',
                     'integration.name' => 'web',
                     'error.stack' => __DIR__ . '/fatalError.php(8)',
+                ]),
+        ]);
+    }
+
+    public function testExceptionThatHasBeenCaught()
+    {
+        $traces = $this->tracesFromWebRequest(function () {
+            $this->call(GetSpec::create('Testing an exceptin not handled by the framework', '/caught-exception'));
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'web.request', 'web', 'GET /caught-exception')
+                ->withExactTags([
+                    'http.method' => 'GET',
+                    'http.url' => '/caught-exception',
+                    'http.status_code' => '200',
+                    'integration.name' => 'web',
                 ]),
         ]);
     }

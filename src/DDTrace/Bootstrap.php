@@ -48,12 +48,16 @@ final class Bootstrap
                     return;
                 }
                 $span->setTag(Tag::ERROR, true);
-                $span->setTag(Tag::ERROR_TYPE, 'fatal/uncaught exception');
-                $span->setTag(Tag::HTTP_STATUS_CODE, '500');
-                if (isset($error['message'])) {
+                $existingTags = $span->getAllTags();
+                if (empty($existingTags[Tag::ERROR_TYPE])) {
+                    $span->setTag(Tag::ERROR_TYPE, 'fatal/uncaught exception');
+                }
+                if (isset($error['message']) && empty($existingTags[Tag::ERROR_MSG])) {
                     $span->setTag(Tag::ERROR_MSG, $error['message']);
                 }
-                if (isset($error['file']) && isset($error['line'])) {
+                $span->setTag(Tag::HTTP_STATUS_CODE, '500');
+
+                if (empty($existingTags[Tag::ERROR_STACK]) && isset($error['file']) && isset($error['line'])) {
                     $span->setTag(Tag::ERROR_STACK, $error['file'] . '(' . $error['line'] . ')');
                 }
             }
