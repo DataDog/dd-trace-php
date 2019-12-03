@@ -127,39 +127,6 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
     zval_ptr_dtor(&fname);
 }
 
-BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc, ddtrace_dispatch_t **dispatch) {
-    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
-        DDTRACE_G(function_lookup) == NULL) {
-        return FALSE;
-    }
-    *fbc = EX(call)->func;
-    if (!*fbc) {
-        return FALSE;
-    }
-
-    zval fname;
-    if ((*fbc)->common.function_name) {
-        ZVAL_STR_COPY(&fname, (*fbc)->common.function_name);
-    } else {
-        return FALSE;
-    }
-
-    // Don't trace closures
-    if ((*fbc)->common.fn_flags & ZEND_ACC_CLOSURE) {
-        zval_ptr_dtor(&fname);
-        return FALSE;
-    }
-
-    zval *this = ddtrace_this(execute_data);
-    *dispatch = ddtrace_find_dispatch(this, *fbc, &fname);
-    zval_ptr_dtor(&fname);
-    if (!*dispatch || (*dispatch)->busy) {
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
                          zend_fcall_info_cache *fcc) {
     int fcall_status;
