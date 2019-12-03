@@ -32,7 +32,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('Testing trace analytics config metric', '/simple'));
         });
 
-        $this->assertExpectedSpans(
+        $this->assertFlameGraph(
             $traces,
             [
                 SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@simple simple_route')
@@ -47,12 +47,14 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
                         '_sampling_priority_v1' => 1,
+                    ])
+                    ->withChildren([
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists('laravel.action'),
+                        SpanAssertion::exists('laravel.event.handle'),
                     ]),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.event.handle'),
-                SpanAssertion::exists('laravel.action'),
-                SpanAssertion::exists('laravel.event.handle'),
             ]
         );
     }

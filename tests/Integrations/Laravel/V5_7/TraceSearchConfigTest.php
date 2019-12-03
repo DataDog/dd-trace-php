@@ -32,7 +32,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('Testing trace analytics config metric', '/simple'));
         });
 
-        $this->assertExpectedSpans(
+        $this->assertFlameGraph(
             $traces,
             [
                 SpanAssertion::build(

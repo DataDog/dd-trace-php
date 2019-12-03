@@ -34,7 +34,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertExpectedSpans($traces, $spanExpectations);
+        $this->assertFlameGraph($traces, $spanExpectations);
     }
 
     public function provideSpecs()
@@ -68,14 +68,17 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
                         'integration.name' => 'laravel',
-                    ])->withExistingTagsNames(['laravel.route.name']),
-                    SpanAssertion::build(
-                        'laravel.view',
-                        'laravel_test_app',
-                        'web',
-                        'laravel.view'
-                    )->withExactTags([
-                        'integration.name' => 'laravel',
+                    ])->withExistingTagsNames([
+                        'laravel.route.name',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'laravel.view',
+                            'laravel_test_app',
+                            'web',
+                            'laravel.view'
+                        )->withExactTags([
+                            'integration.name' => 'laravel',
+                        ]),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -91,8 +94,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
                         'integration.name' => 'laravel',
-                    ])->setError(),
-                    SpanAssertion::exists('laravel.view')
+                    ])->setError()->withChildren([
+                        SpanAssertion::exists('laravel.view'),
+                    ]),
                 ],
             ]
         );

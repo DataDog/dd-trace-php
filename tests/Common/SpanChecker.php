@@ -257,7 +257,8 @@ final class SpanChecker
                 TestCase::assertSame(
                     $exp->getStatusCode(),
                     isset($span['meta']['http.status_code']) ? $span['meta']['http.status_code'] : '',
-                    $namePrefix . "Wrong value for 'status code'. Expected: $expectedStatusCode. Actual: $actualStatusCode"
+                    $namePrefix . "Wrong value for 'status code'. "
+                        . "Expected: $expectedStatusCode. Actual: $actualStatusCode"
                 );
             }
         }
