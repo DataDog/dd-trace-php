@@ -1,18 +1,10 @@
 #include "dispatch.h"
 
 #include <Zend/zend.h>
-#include <Zend/zend_closures.h>
-#include <Zend/zend_exceptions.h>
 #include <php.h>
 
-#include <ext/spl/spl_exceptions.h>
-
-#include "compatibility.h"
 #include "ddtrace.h"
 #include "debug.h"
-#include "dispatch_compat.h"
-#include "engine_hooks.h"
-#include "span.h"
 
 // avoid Older GCC being overly cautious over {0} struct initializer
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -23,6 +15,12 @@
 #define RETURN_VALUE_USED(opline) ((opline)->result_type != IS_UNUSED)
 #else
 #define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
+#endif
+
+#if PHP_VERSION_ID < 70000
+#include "php5/dispatch.c"
+#else
+#include "php7/dispatch.c"
 #endif
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);

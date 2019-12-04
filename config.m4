@@ -26,8 +26,6 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/configuration.c \
     src/ext/configuration_php_iface.c \
     src/ext/dispatch.c \
-    src/ext/dispatch_compat_php5.c \
-    src/ext/dispatch_compat_php7.c \
     src/ext/dispatch_setup.c \
     src/ext/engine_hooks.c \
     src/ext/env_config.c \

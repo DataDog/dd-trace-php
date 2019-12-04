@@ -24,7 +24,6 @@
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
-#include "dispatch_compat.h"
 #include "engine_hooks.h"
 #include "memory_limit.h"
 #include "random.h"

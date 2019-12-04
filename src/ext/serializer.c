@@ -11,7 +11,6 @@
 
 #include "compat_string.h"
 #include "ddtrace.h"
-#include "dispatch_compat.h"
 #include "logging.h"
 #include "mpack/mpack.h"
 

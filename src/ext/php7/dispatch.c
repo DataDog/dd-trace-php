@@ -1,24 +1,31 @@
-#include "php.h"
-#if PHP_VERSION_ID >= 70000
+#include "dispatch.h"
 
 #include <Zend/zend_exceptions.h>
+#include <php.h>
 
 #include <ext/spl/spl_exceptions.h>
 
 #include "compatibility.h"
 #include "ddtrace.h"
 #include "debug.h"
-#include "dispatch.h"
-#include "dispatch_compat.h"
-#include "env_config.h"
-#include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
-void ddtrace_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fci, zval **result) {
-    fci->param_count = ZEND_CALL_NUM_ARGS(execute_data);
-    fci->params = fci->param_count ? ZEND_CALL_ARG(execute_data, 1) : NULL;
-    fci->retval = *result;
+static int ddtrace_is_all_lower(zend_string *s) {
+    unsigned char *c, *e;
+
+    c = (unsigned char *)ZSTR_VAL(s);
+    e = c + ZSTR_LEN(s);
+
+    int rv = 1;
+    while (c < e) {
+        if (isupper(*c)) {
+            rv = 0;
+            break;
+        }
+        c++;
+    }
+    return rv;
 }
 
 zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
@@ -27,6 +34,7 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
     }
 
     zend_string *to_free = NULL, *key = Z_STR_P(name);
+    // todo: see if this can just be replaced with zend_string_tolower, which already does an optimization like this
     if (!ddtrace_is_all_lower(key)) {
         key = zend_string_tolower(key);
         to_free = key;
@@ -126,101 +134,3 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
 
     zval_ptr_dtor(&fname);
 }
-
-int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
-                         zend_fcall_info_cache *fcc) {
-    int fcall_status;
-
-#if PHP_VERSION_ID < 70300
-    fcc->initialized = 1;
-#endif
-    fcc->function_handler = fbc;
-    fcc->object = Z_TYPE(EX(This)) == IS_OBJECT ? Z_OBJ(EX(This)) : NULL;
-    fcc->calling_scope = fbc->common.scope;  // EG(scope);
-    fcc->called_scope = zend_get_called_scope(execute_data);
-
-    fci->size = sizeof(zend_fcall_info);
-    fci->no_separation = 1;
-    fci->object = fcc->object;
-
-    ddtrace_setup_fcall(execute_data, fci, &return_value);
-
-    fcall_status = zend_call_function(fci, fcc);
-    if (fcall_status == SUCCESS && Z_TYPE_P(return_value) != IS_UNDEF) {
-#if PHP_VERSION_ID >= 70100
-        if (Z_ISREF_P(return_value)) {
-            zend_unwrap_reference(return_value);
-        }
-#endif
-    }
-
-    // We don't want to clear the args with zend_fcall_info_args_clear() yet
-    // since our tracing closure might need them
-    return fcall_status;
-}
-
-BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
-                                       zval *user_args, zval *user_retval, zend_object *exception) {
-    BOOL_T status = TRUE;
-    zend_fcall_info fci = {0};
-    zend_fcall_info_cache fcc = {0};
-    zval rv;
-    INIT_ZVAL(rv);
-    zval args[4];
-    zval exception_arg = {.value = {0}};
-    ZVAL_UNDEF(&exception_arg);
-    if (exception) {
-        ZVAL_OBJ(&exception_arg, exception);
-    }
-    zval *this = ddtrace_this(execute_data);
-
-    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL) == FAILURE) {
-        ddtrace_log_debug("Could not init tracing closure");
-        return FALSE;
-    }
-
-    if (this) {
-        BOOL_T is_instance_method = (EX(call)->func->common.fn_flags & ZEND_ACC_STATIC) ? FALSE : TRUE;
-        BOOL_T is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? TRUE : FALSE;
-        if (is_instance_method && is_closure_static) {
-            ddtrace_log_debug("Cannot trace non-static method with static tracing closure");
-            return FALSE;
-        }
-    }
-
-    // Arg 0: DDTrace\SpanData $span
-    ZVAL_COPY(&args[0], span_data);
-
-    // Arg 1: array $args
-    ZVAL_COPY(&args[1], user_args);
-
-    // Arg 2: mixed $retval
-    ZVAL_COPY(&args[2], user_retval);
-
-    // Arg 3: Exception|null $exception
-    ZVAL_COPY(&args[3], &exception_arg);
-
-    fci.param_count = 4;
-    fci.params = args;
-    fci.retval = &rv;
-
-#if PHP_VERSION_ID < 70300
-    fcc.initialized = 1;
-#endif
-    fcc.object = this ? Z_OBJ_P(this) : NULL;
-    fcc.called_scope = zend_get_called_scope(EX(call));
-    // Give the tracing closure access to private & protected class members
-    fcc.function_handler->common.scope = fcc.called_scope;
-
-    if (zend_call_function(&fci, &fcc) == FAILURE) {
-        ddtrace_log_debug("Could not execute tracing closure");
-        status = FALSE;
-    } else if (Z_TYPE(rv) == IS_FALSE) {
-        status = FALSE;
-    }
-
-    zval_ptr_dtor(&rv);
-    zend_fcall_info_args_clear(&fci, 0);
-    return status;
-}
-#endif  // PHP_VERSION_ID >= 70000
