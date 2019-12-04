@@ -70,7 +70,6 @@ zend_bool ddtrace_dispatch_store(HashTable *class_lookup, ddtrace_dispatch_t *di
 void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC);
 BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
                                  ddtrace_dispatch_t **dispatch TSRMLS_DC);
-void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args);
 
 #if PHP_VERSION_ID < 70000
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC);

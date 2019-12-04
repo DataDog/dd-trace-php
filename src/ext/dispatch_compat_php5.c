@@ -328,45 +328,6 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
     return fcall_status;
 }
 
-void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args) {
-    /* This is taken from func_get_args
-     * PHP 5.3 - 5.5 are the same:
-     * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_builtin_functions.c#L445-L473
-     * In 5.6 it changed:
-     * @see https://github.com/php/php-src/blob/PHP-5.6/Zend/zend_builtin_functions.c#L443-L476
-     */
-    void **p = EX(function_state).arguments;
-    if (p && *p) {
-        int arg_count = (int)(zend_uintptr_t)*p;
-        array_init_size(user_args, arg_count);
-        for (int i = 0; i < arg_count; i++) {
-#if PHP_VERSION_ID < 50600
-            zval *element;
-
-            ALLOC_ZVAL(element);
-            *element = **((zval **)(p - (arg_count - i)));
-            zval_copy_ctor(element);
-            INIT_PZVAL(element);
-#else
-            zval *element, *arg;
-
-            arg = *((zval **)(p - (arg_count - i)));
-            if (!Z_ISREF_P(arg)) {
-                element = arg;
-                Z_ADDREF_P(element);
-            } else {
-                ALLOC_ZVAL(element);
-                INIT_PZVAL_COPY(element, arg);
-                zval_copy_ctor(element);
-            }
-#endif
-            zend_hash_next_index_insert(Z_ARRVAL_P(user_args), &element, sizeof(zval *), NULL);
-        }
-    } else {
-        array_init(user_args);
-    }
-}
-
 BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
                                        zval *user_args, zval *user_retval, zval *exception TSRMLS_DC) {
     BOOL_T status = TRUE;

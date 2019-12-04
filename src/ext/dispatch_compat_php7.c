@@ -159,39 +159,6 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
     return fcall_status;
 }
 
-void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *user_args) {
-    zend_execute_data *ex = EX(call);
-    uint32_t i;
-    zval *p, *q;
-    uint32_t arg_count = ZEND_CALL_NUM_ARGS(ex);
-
-    // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
-    array_init_size(user_args, arg_count);
-    if (arg_count) {
-        zend_hash_real_init(Z_ARRVAL_P(user_args), 1);
-        ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(user_args)) {
-            i = 0;
-            p = ZEND_CALL_ARG(ex, 1);
-            while (i < arg_count) {
-                q = p;
-                if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
-                    ZVAL_DEREF(q);
-                    if (Z_OPT_REFCOUNTED_P(q)) {
-                        Z_ADDREF_P(q);
-                    }
-                } else {
-                    q = &EG(uninitialized_zval);
-                }
-                ZEND_HASH_FILL_ADD(q);
-                p++;
-                i++;
-            }
-        }
-        ZEND_HASH_FILL_END();
-        Z_ARRVAL_P(user_args)->nNumOfElements = arg_count;
-    }
-}
-
 BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
                                        zval *user_args, zval *user_retval, zend_object *exception) {
     BOOL_T status = TRUE;
