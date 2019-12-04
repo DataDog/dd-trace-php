@@ -40,7 +40,6 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/signals.c \
     src/ext/span.c \
     src/ext/third-party/mt19937-64.c \
-    src/ext/trace.c \
   "
 
   PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
