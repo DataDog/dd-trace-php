@@ -223,11 +223,4 @@ BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
     zend_fcall_info_args_clear(&fci, 0);
     return status;
 }
-
-void ddtrace_span_attach_exception(ddtrace_span_t *span, zend_object *exception) {
-    if (exception) {
-        GC_ADDREF(exception);
-        span->exception = exception;
-    }
-}
 #endif  // PHP_VERSION_ID >= 70000

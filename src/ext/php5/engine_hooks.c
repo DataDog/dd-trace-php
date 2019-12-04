@@ -250,6 +250,14 @@ static void ddtrace_copy_function_args(zend_execute_data *execute_data, zval *us
     }
 }
 
+static void ddtrace_span_attach_exception(ddtrace_span_t *span, ddtrace_exception_t *exception) {
+    if (exception) {
+        MAKE_STD_ZVAL(span->exception);
+        ZVAL_COPY_VALUE(span->exception, exception);
+        zval_copy_ctor(span->exception);
+    }
+}
+
 void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
                             zend_execute_data *execute_data TSRMLS_DC) {
     int fcall_status;

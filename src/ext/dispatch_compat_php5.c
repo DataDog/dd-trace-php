@@ -394,12 +394,4 @@ BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
     zend_fcall_info_args_clear(&fci, 0);
     return status;
 }
-
-void ddtrace_span_attach_exception(ddtrace_span_t *span, zval *exception) {
-    if (exception) {
-        MAKE_STD_ZVAL(span->exception);
-        ZVAL_COPY_VALUE(span->exception, exception);
-        zval_copy_ctor(span->exception);
-    }
-}
 #endif  // PHP 5

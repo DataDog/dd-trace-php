@@ -92,6 +92,13 @@ static void ddtrace_copy_function_args(zend_execute_data *call, zval *user_args)
     }
 }
 
+static void ddtrace_span_attach_exception(ddtrace_span_t *span, ddtrace_exception_t *exception) {
+    if (exception) {
+        GC_ADDREF(exception);
+        span->exception = exception;
+    }
+}
+
 void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
                             zend_execute_data *execute_data TSRMLS_DC) {
     int fcall_status;

@@ -2,6 +2,7 @@
 #define DD_COMPATIBILITY_H
 
 #include <TSRM/TSRM.h>
+#include <Zend/zend.h>
 
 #define UNUSED_1(x) (void)(x)
 #define UNUSED_2(x, y) \
@@ -54,6 +55,12 @@
 #define COMPAT_RETVAL_STRING(c) RETVAL_STRING(c)
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval*)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
+#endif
+
+#if PHP_VERSION_ID < 70000
+typedef zval ddtrace_exception_t;
+#else
+typedef zend_object ddtrace_exception_t;
 #endif
 
 #endif  // DD_COMPATIBILITY_H

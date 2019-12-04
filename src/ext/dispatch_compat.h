@@ -73,13 +73,11 @@ BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function 
 
 #if PHP_VERSION_ID < 70000
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value TSRMLS_DC);
-void ddtrace_span_attach_exception(ddtrace_span_t *span, zval *exception);
 BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
                                        zval *user_args, zval *user_retval, zval *exception TSRMLS_DC);
 #else
 int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zval *return_value, zend_fcall_info *fci,
                          zend_fcall_info_cache *fcc TSRMLS_DC);
-void ddtrace_span_attach_exception(ddtrace_span_t *span, zend_object *exception);
 BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
                                        zval *user_args, zval *user_retval, zend_object *exception TSRMLS_DC);
 #endif
