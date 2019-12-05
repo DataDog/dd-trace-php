@@ -26,7 +26,9 @@ WORKDIR /var/www
 ADD ./Laravel57 /var/www
 ADD ./dockerfiles/www.conf /usr/local/etc/php-fpm.d/www.conf
 ADD ./dockerfiles/php-fpm.conf /usr/local/etc/php-fpm.conf
-ADD ./dockerfiles/99-ddtrace-custom.ini /usr/local/etc/php/conf.d
+ADD ./dockerfiles/99-ddtrace-custom.ini /usr/local/etc/php/conf.d/99-ddtrace-custom.ini
+ADD ./dockerfiles/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
+ADD ./dockerfiles/opcache.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
 
 ARG DD_TRACE_VERSION=0.35.0
 

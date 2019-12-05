@@ -22,6 +22,7 @@ services:
     volumes:
       - ../../:/opt/datadog-php/dd-trace-sources
       - ./dockerfiles/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+      - ./cachegrind-files:/var/www/cachegrind-files
       # - ./Laravel57:/var/www
 
   agent:
