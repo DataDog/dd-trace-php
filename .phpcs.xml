@@ -24,6 +24,7 @@
 
     <!-- PHP compatibility checks -->
     <config name="testVersion" value="5.4-7.3"/>
+    <exclude-pattern>dockerfiles/frameworks</exclude-pattern>
     <exclude-pattern>playground*.php</exclude-pattern>
     <exclude-pattern>run-tests.php</exclude-pattern>
     <exclude-pattern>src/dd-doctor.php</exclude-pattern>
@@ -32,4 +33,6 @@
     <exclude-pattern>tests/ext/*</exclude-pattern>
     <exclude-pattern>tests/Frameworks/*/Version_*/*</exclude-pattern>
     <exclude-pattern>tests/AutoInstrumentation</exclude-pattern>
+    <exclude-pattern>tests/overhead</exclude-pattern>
+    <exclude-pattern>src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php</exclude-pattern>
 </ruleset>

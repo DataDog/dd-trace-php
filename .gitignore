@@ -6,6 +6,7 @@ composer.lock
 .libs
 .deps
 **.code-workspace
+**/cachegrind*
 /Makefile*
 acinclude.m4
 aclocal.m4

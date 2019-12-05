@@ -1,0 +1,42 @@
+FROM php:7.2-fpm
+
+RUN apt update \
+    && apt install -y \
+        gdb \
+        git \
+        less \
+        libfcgi0ldbl \
+        procps \
+        sudo \
+        time \
+        unzip \
+        vim \
+    && pecl install xdebug \
+    && docker-php-ext-install opcache \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install composer
+RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
+        && php composer-setup.php  --install-dir="/usr/bin" --filename=composer \
+        && php -r "unlink('composer-setup.php');" \
+        && composer self-update
+
+WORKDIR /var/www
+
+ADD ./Laravel57 /var/www
+ADD ./dockerfiles/www.conf /usr/local/etc/php-fpm.d/www.conf
+ADD ./dockerfiles/php-fpm.conf /usr/local/etc/php-fpm.conf
+ADD ./dockerfiles/99-ddtrace-custom.ini /usr/local/etc/php/conf.d
+
+ARG DD_TRACE_VERSION=0.35.0
+
+# Install DDTrace deb
+ADD https://github.com/DataDog/dd-trace-php/releases/download/${DD_TRACE_VERSION}/datadog-php-tracer_${DD_TRACE_VERSION}_amd64.deb datadog-php-tracer.deb
+RUN dpkg -i datadog-php-tracer.deb
+
+# Add dd-doctor.php
+ADD https://raw.githubusercontent.com/DataDog/dd-trace-php/master/src/dd-doctor.php /var/www/public/dd-doctor.php
+
+RUN chmod -R 777 /var/www
+
+RUN composer install

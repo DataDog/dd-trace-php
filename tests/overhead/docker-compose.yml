@@ -1,0 +1,38 @@
+version: '3.7'
+
+services:
+
+  nginx-72-fpm-laravel-57:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_nginx
+    ports:
+      - 8888:80
+    depends_on:
+      - overhead-72-fpm-laravel-57
+    # volumes:
+    #   - ./Laravel57:/var/www
+
+  overhead-72-fpm-laravel-57:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile_72_fpm_Laravel57
+    depends_on:
+      - agent
+    volumes:
+      - ../../:/opt/datadog-php/dd-trace-sources
+      - ./dockerfiles/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+      # - ./Laravel57:/var/www
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /proc/:/host/proc/:ro
+    - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    - ./dockerfiles/php-fpm-agent-integration.yaml:/etc/datadog-agent/conf.d/php_fpm.d/conf.yaml
+    environment:
+    - DD_API_KEY=${DATADOG_API_KEY}
+    - DD_APM_ENABLED=true
+    - DD_APM_NON_LOCAL_TRAFFIC=true
+    - DD_LOG_LEVEL=debug
