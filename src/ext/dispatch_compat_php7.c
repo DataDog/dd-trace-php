@@ -12,6 +12,7 @@
 #include "dispatch_compat.h"
 #include "env_config.h"
 #include "logging.h"
+#include "trace.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
@@ -129,7 +130,7 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
 
 BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc, ddtrace_dispatch_t **dispatch) {
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
-        DDTRACE_G(function_lookup) == NULL) {
+        DDTRACE_G(function_lookup) == NULL || ddtrace_tracer_is_limited()) {
         return FALSE;
     }
     *fbc = EX(call)->func;

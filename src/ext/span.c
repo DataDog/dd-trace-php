@@ -6,6 +6,7 @@
 
 #include "ddtrace.h"
 #include "dispatch_compat.h"
+#include "random.h"
 #include "serializer.h"
 
 #define USE_REALTIME_CLOCK 0
@@ -21,16 +22,23 @@ void ddtrace_init_span_stacks(TSRMLS_D) {
 }
 
 static void _free_span(ddtrace_span_t *span) {
+    if (!span) {
+        return;
+    }
 #if PHP_VERSION_ID < 70000
     zval_ptr_dtor(&span->span_data);
     if (span->exception) {
         zval_ptr_dtor(&span->exception);
     }
 #else
-    zval_ptr_dtor(span->span_data);
-    efree(span->span_data);
+    if (span->span_data) {
+        zval_ptr_dtor(span->span_data);
+        efree(span->span_data);
+        span->span_data = NULL;
+    }
     if (span->exception) {
         OBJ_RELEASE(span->exception);
+        span->exception = NULL;
     }
 #endif
 
@@ -120,6 +128,12 @@ void ddtrace_drop_span(TSRMLS_D) {
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
+    // The tracer supports only one trace per request so free any remaining open spans
+    _free_span_stack(DDTRACE_G(open_spans_top));
+    DDTRACE_G(open_spans_top) = NULL;
+    DDTRACE_G(open_spans_count) = 0;
+    ddtrace_free_span_id_stack(TSRMLS_C);
+
     ddtrace_span_t *span = DDTRACE_G(closed_spans_top);
     array_init(serialized);
     while (span != NULL) {
@@ -127,6 +141,8 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
         span = tmp->next;
         ddtrace_serialize_span_to_array(tmp, serialized TSRMLS_CC);
         _free_span(tmp);
+        // Move the stack down one as ddtrace_serialize_span_to_array() might do a long jump
+        DDTRACE_G(closed_spans_top) = span;
     }
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(closed_spans_count) = 0;

@@ -1,14 +1,10 @@
 --TEST--
-dd_trace_tracer_is_limited() limits the tracer with a hard span limit
+[Sandbox regression] dd_trace_tracer_is_limited() limits the tracer with a hard span limit
 --ENV--
 DD_TRACE_SPANS_LIMIT=1000
 --FILE--
 <?php
-dd_trace('array_sum', function () {
-    dd_trace_push_span_id();
-    dd_trace_pop_span_id();
-    return dd_trace_forward_call();
-});
+dd_trace_function('array_sum', function () {});
 
 var_dump(dd_trace_tracer_is_limited());
 for ($i = 0; $i < 999; $i++) {
