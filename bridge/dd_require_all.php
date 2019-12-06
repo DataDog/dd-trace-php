@@ -79,6 +79,7 @@ require __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoClientIntegration.php
 require __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoDBIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoCollectionIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Slim/SlimIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonyIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonySandboxedIntegration.php';
