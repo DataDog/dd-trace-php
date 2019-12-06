@@ -4,10 +4,9 @@ namespace DDTrace\Contrib\ElasticSearch;
 
 use DDTrace\SpanData;
 
-require_once __DIR__ . '/_common.php';
-require_once __DIR__ . '/../config.php';
-require_once __DIR__ . '/../tags.php';
-require_once __DIR__ . '/../types.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../../tags.php';
+require_once __DIR__ . '/../../types.php';
 
 const NAME = 'elasticsearch';
 
@@ -42,7 +41,7 @@ function _dd_trace_client_method($name, $isTraceAnalyticsCandidate = false)
 
             $span->name = "Elasticsearch.Client.$name";
 
-            if (\dd_config_is_trace_analytics_enabled(NAME)) {
+            if ($isTraceAnalyticsCandidate && \dd_config_is_trace_analytics_enabled(NAME)) {
                 $span->metrics[\DD_TAG_ANALYTICS_KEY] = \dd_config_trace_analytics_sample_rate(NAME);
             }
 

@@ -148,6 +148,11 @@ class IntegrationsLoader
                 continue;
             }
 
+            if ($name === 'elasticsearch') {
+                require_once __DIR__ . '/../../../lib-php/index.php';
+                continue;
+            }
+
             // If the integration has already been loaded, we don't need to reload it. On the other hand, with
             // auto-instrumentation this method may be called many times as the hook is the autoloader callback.
             // So we want to make sure that we do not load the same integration twice if not required.

@@ -25,6 +25,8 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
      */
     public function init()
     {
+        return SandboxedIntegration::LOADED;
+
         // Client operations
         $this->traceClientMethod('__construct');
         $this->traceClientMethod('count');
