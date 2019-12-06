@@ -40,7 +40,23 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/third-party/mt19937-64.c \
   "
 
-  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
+  PHP_VERSION=$($PHP_CONFIG --vernum)
+
+  if test $PHP_VERSION -lt 70000; then
+    DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
+      src/ext/php5/dispatch.c \
+      src/ext/php5/engine_hooks.c \
+    "
+  elif test $PHP_VERSION -lt 80000; then
+    DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
+      src/ext/php7/dispatch.c \
+      src/ext/php7/engine_hooks.c \
+    "
+  else
+    DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES=""
+  fi
+
+  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_PHP_SOURCES $DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
   PHP_ADD_BUILD_DIR($ext_builddir/src/ext, 1)
 
   PHP_CHECK_LIBRARY(rt, shm_open, [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"])

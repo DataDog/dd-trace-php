@@ -17,12 +17,6 @@
 #define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
 #endif
 
-#if PHP_VERSION_ID < 70000
-#include "php5/dispatch.c"
-#else
-#include "php7/dispatch.c"
-#endif
-
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static ddtrace_dispatch_t *find_function_dispatch(const HashTable *lookup, zval *fname) {
