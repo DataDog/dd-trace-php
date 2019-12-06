@@ -2,6 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V5_8;
 
+use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class EloquentSandboxedTest extends EloquentTest
@@ -24,6 +25,7 @@ class EloquentSandboxedTest extends EloquentTest
             'integration.name' => 'eloquent',
         ]));
     }
+
     public function testRefresh()
     {
         $this->connection()->exec("insert into users (id, email) VALUES (1, 'test-user-deleted@email.com')");
