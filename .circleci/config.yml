@@ -265,7 +265,7 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - run:
           name: Install phpstan
-          command: composer global require phpstan/phpstan
+          command: composer global require phpstan/phpstan:0.11.*
       - run:
           name: Running phpstan
           command: PATH=$PATH:~/.composer/vendor/bin composer static-analyze

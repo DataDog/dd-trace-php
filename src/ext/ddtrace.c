@@ -32,7 +32,6 @@
 #include "serializer.h"
 #include "signals.h"
 #include "span.h"
-#include "trace.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
@@ -720,6 +719,18 @@ static PHP_FUNCTION(dd_trace_closed_spans_count) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
     RETURN_LONG(DDTRACE_G(closed_spans_count));
+}
+
+BOOL_T ddtrace_tracer_is_limited(TSRMLS_D) {
+    int64_t limit = get_dd_trace_spans_limit();
+    if (limit >= 0) {
+        int64_t open_spans = DDTRACE_G(open_spans_count);
+        int64_t closed_spans = DDTRACE_G(closed_spans_count);
+        if ((open_spans + closed_spans) >= limit) {
+            return TRUE;
+        }
+    }
+    return ddtrace_check_memory_under_limit(TSRMLS_C) == TRUE ? FALSE : TRUE;
 }
 
 /* {{{ proto string dd_trace_tracer_is_limited() */
