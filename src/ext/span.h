@@ -6,10 +6,12 @@
 #include <sys/types.h>
 
 #include "compatibility.h"
+#include "dispatch.h"
 
 typedef struct ddtrace_span_t {
     zval *span_data;
     ddtrace_exception_t *exception;
+    ddtrace_dispatch_t *dispatch;
     uint64_t trace_id;
     uint64_t parent_id;
     uint64_t span_id;
@@ -24,7 +26,7 @@ typedef struct ddtrace_span_t {
 
 void ddtrace_init_span_stacks(TSRMLS_D);
 void ddtrace_free_span_stacks(TSRMLS_D);
-ddtrace_span_t *ddtrace_open_span(TSRMLS_D);
+ddtrace_span_t *ddtrace_open_span(ddtrace_dispatch_t *dispatch TSRMLS_DC);
 void dd_trace_stop_span_time(ddtrace_span_t *span);
 void ddtrace_close_span(TSRMLS_D);
 void ddtrace_drop_span(TSRMLS_D);

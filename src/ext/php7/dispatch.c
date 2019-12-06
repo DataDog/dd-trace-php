@@ -51,6 +51,9 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
 void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
     zval_ptr_dtor(&dispatch->function_name);
     zval_ptr_dtor(&dispatch->callable);
+    if (dispatch->called_fqn) {
+        zend_string_release(dispatch->called_fqn);
+    }
 }
 
 void ddtrace_class_lookup_release_compat(zval *zv) {

@@ -19,12 +19,14 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static ddtrace_dispatch_t *find_function_dispatch(const HashTable *lookup, zval *fname) {
+static ddtrace_dispatch_t *find_function_dispatch(const HashTable *lookup, zval *fname, BOOL_T cache_fqn) {
     char *key = zend_str_tolower_dup(Z_STRVAL_P(fname), Z_STRLEN_P(fname));
     ddtrace_dispatch_t *dispatch = NULL;
     dispatch = zend_hash_str_find_ptr(lookup, key, Z_STRLEN_P(fname));
-
     efree(key);
+    if (cache_fqn && dispatch && !dispatch->called_fqn) {
+        dispatch->called_fqn = zend_string_init(Z_STRVAL_P(fname), Z_STRLEN_P(fname), 0);
+    }
     return dispatch;
 }
 
@@ -48,10 +50,17 @@ static ddtrace_dispatch_t *find_method_dispatch(const zend_class_entry *class, z
 
     ddtrace_dispatch_t *dispatch = NULL;
     if (class_lookup) {
-        dispatch = find_function_dispatch(class_lookup, fname);
+        dispatch = find_function_dispatch(class_lookup, fname, 0);
     }
 
     if (dispatch) {
+        if (!dispatch->called_fqn) {
+            // Surely there's a better way to do this.
+            dispatch->called_fqn = zend_string_alloc(ZSTR_LEN(class->name) + Z_STRLEN_P(fname) + 1, 0);
+            memcpy(&ZSTR_VAL(dispatch->called_fqn), ZSTR_VAL(class->name), ZSTR_LEN(class->name));
+            ZSTR_VAL(dispatch->called_fqn)[ZSTR_LEN(class->name)] = '.';
+            memcpy(&ZSTR_VAL(dispatch->called_fqn)[ZSTR_LEN(class->name) + 1], Z_STRVAL_P(fname), Z_STRLEN_P(fname));
+        }
         return dispatch;
     }
 
@@ -75,7 +84,7 @@ ddtrace_dispatch_t *ddtrace_find_dispatch(zval *this, zend_function *fbc, zval *
     if (class) {
         return find_method_dispatch(class, fname TSRMLS_CC);
     }
-    return find_function_dispatch(DDTRACE_G(function_lookup), fname);
+    return find_function_dispatch(DDTRACE_G(function_lookup), fname, 1);
 }
 
 void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }

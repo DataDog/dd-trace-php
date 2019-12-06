@@ -230,7 +230,7 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
     user_args = &user_args_zv;
     user_retval = (RETURN_VALUE_USED(opline) ? EX_VAR(opline->result.var) : &rv);
 
-    ddtrace_span_t *span = ddtrace_open_span();
+    ddtrace_span_t *span = ddtrace_open_span(dispatch);
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     fcall_status = ddtrace_forward_call(EX(call), fbc, user_retval, &fci, &fcc);

@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "ddtrace.h"
+#include "dispatch.h"
 #include "serializer.h"
 
 #define USE_REALTIME_CLOCK 0
@@ -26,8 +27,11 @@ static void _free_span(ddtrace_span_t *span) {
         zval_ptr_dtor(&span->exception);
     }
 #else
-    zval_ptr_dtor(span->span_data);
-    efree(span->span_data);
+    if (span->span_data) {
+        zval_ptr_dtor(span->span_data);
+        efree(span->span_data);
+        span->span_data = NULL;
+    }
     if (span->exception) {
         OBJ_RELEASE(span->exception);
     }
@@ -61,19 +65,22 @@ static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
     return 0;
 }
 
-ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
+ddtrace_span_t *ddtrace_open_span(ddtrace_dispatch_t *dispatch TSRMLS_DC) {
     ddtrace_span_t *span = ecalloc(1, sizeof(ddtrace_span_t));
     span->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = span;
 
-    /* On PHP 5 object_init_ex does not set refcount to 1, but on PHP 7 it does */
+    if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
+        /* On PHP 5 object_init_ex does not set refcount to 1, but on PHP 7 it does */
 #if PHP_VERSION_ID < 70000
-    MAKE_STD_ZVAL(span->span_data);
+        MAKE_STD_ZVAL(span->span_data);
 #else
-    span->span_data = (zval *)ecalloc(1, sizeof(zval));
+        span->span_data = (zval *)ecalloc(1, sizeof(zval));
 #endif
-    object_init_ex(span->span_data, ddtrace_ce_span_data);
+        object_init_ex(span->span_data, ddtrace_ce_span_data);
+    }
 
+    span->dispatch = dispatch;
     // Peek at the active span ID before we push a new one onto the stack
     span->parent_id = ddtrace_peek_span_id(TSRMLS_C);
     span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);

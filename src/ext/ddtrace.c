@@ -45,13 +45,13 @@ STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, st
                     ddtrace_globals)
 PHP_INI_END()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 3)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 2)
 ZEND_ARG_INFO(0, class_name)
 ZEND_ARG_INFO(0, method_name)
 ZEND_ARG_INFO(0, tracing_closure)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_function, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_function, 0, 0, 1)
 ZEND_ARG_INFO(0, function_name)
 ZEND_ARG_INFO(0, tracing_closure)
 ZEND_END_ARG_INFO()
@@ -298,7 +298,7 @@ static PHP_FUNCTION(dd_trace_method) {
         RETURN_BOOL(0);
     }
 
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzO", &class_name, &function,
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zz|O!", &class_name, &function,
                                  &tracing_closure, zend_ce_closure) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
@@ -331,7 +331,7 @@ static PHP_FUNCTION(dd_trace_function) {
         RETURN_BOOL(0);
     }
 
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zO", &function, &tracing_closure,
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "z|O!", &function, &tracing_closure,
                                  zend_ce_closure) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,

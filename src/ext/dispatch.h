@@ -7,11 +7,17 @@
 
 #include "compatibility.h"
 
+//#define DDTRACE_DISPATCH_FORCE_KEEP_SPAN    1 << 0
+
 typedef struct _ddtrace_dispatch_t {
+    //uint32_t flags;
     zval callable, function_name;
-    zend_bool run_as_postprocess;
-    zend_bool busy;
+    zend_bool run_as_postprocess; // Move to flags
+    zend_bool busy; // Move to flags
     uint32_t acquired;
+    zend_string *called_fqn;
+    //zend_string *type;
+    //zend_string *service; 
 } ddtrace_dispatch_t;
 
 ddtrace_dispatch_t *ddtrace_find_dispatch(zval *this, zend_function *fbc, zval *fname TSRMLS_DC);
