@@ -36,6 +36,9 @@ final class TraceOverrideMethodTest extends Framework\TestCase
 
     public function testMethodCanBeOverridenByTrace()
     {
+        // Clear existing internal spans to ensure limited tracing threshold is not reached
+        dd_trace_serialize_closed_spans();
+
         dd_trace('DDTrace\Scope', "close", function () {
             // Don't call close() to verify the method was successfully overwritten
         });
