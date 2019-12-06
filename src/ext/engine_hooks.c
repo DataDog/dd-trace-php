@@ -1,11 +1,5 @@
 #include "engine_hooks.h"
 
-#if PHP_VERSION_ID < 70000
-#include "php5/engine_hooks.c"
-#else
-#include "php7/engine_hooks.c"
-#endif
-
 #include <php.h>
 #include <time.h>
 
@@ -17,6 +11,9 @@ static zend_op_array *(*_prev_compile_file)(zend_file_handle *file_handle, int t
 
 static void _compile_minit(void);
 static void _compile_mshutdown(void);
+
+void ddtrace_opcode_minit(void);
+void ddtrace_opcode_mshutdown(void);
 
 void ddtrace_engine_hooks_minit(void) {
     ddtrace_opcode_minit();

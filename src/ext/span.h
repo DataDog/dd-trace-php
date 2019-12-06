@@ -9,11 +9,7 @@
 
 typedef struct ddtrace_span_t {
     zval *span_data;
-#if PHP_VERSION_ID < 70000
-    zval *exception;
-#else
-    zend_object *exception;
-#endif
+    ddtrace_exception_t *exception;
     uint64_t trace_id;
     uint64_t parent_id;
     uint64_t span_id;

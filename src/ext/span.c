@@ -5,7 +5,6 @@
 #include <unistd.h>
 
 #include "ddtrace.h"
-#include "dispatch_compat.h"
 #include "serializer.h"
 
 #define USE_REALTIME_CLOCK 0
