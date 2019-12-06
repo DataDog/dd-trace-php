@@ -2,11 +2,6 @@ version: "2.1"
 
 aliases:
 
-  - &DD_TRACE_CI_DOCKER_CREDENTIALS
-    auth:
-      username: $GITHUB_REGISTRY_USERNAME
-      password: $GITHUB_REGISTRY_PASSWORD
-
   - &CACHE_COMPOSER_KEY
     key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
 
@@ -37,19 +32,24 @@ aliases:
     name: memcached_integration
 
   - &IMAGE_DOCKER_MYSQL
-    image: docker.pkg.github.com/datadog/dd-trace-ci/php-mysql-dev:5.6
+    image: datadog/dd-trace-ci:php-mysql-dev-5.6
     name: mysql_integration
-    <<: *DD_TRACE_CI_DOCKER_CREDENTIALS
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
+  - &IMAGE_DOCKER_MONGO
+    image: "circleci/mongo:4.0"
+    name: mongodb_integration
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=test
+      - MONGO_INITDB_ROOT_PASSWORD=test
+
   - &IMAGE_DOCKER_REQUEST_REPLAYER
-    image: docker.pkg.github.com/datadog/dd-trace-ci/php-request-replayer
+    image: datadog/dd-trace-ci:php-request-replayer
     name: request-replayer
-    <<: *DD_TRACE_CI_DOCKER_CREDENTIALS
     environment:
       DD_REQUEST_DUMPER_FILE: dump.json
 
@@ -98,6 +98,11 @@ aliases:
       command: |
         echo "export $(cat .env.circleci | xargs)" >> $HOME/.profile
 
+  - &STEP_DISABLE_XDEBUG
+    run:
+      name: Disable Xdebug for built-in web tests
+      command: test -e /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && sudo rm -f $_ || true
+
   - &STEP_WAIT_AGENT
     run:
       name: Waiting for Dockerized agent
@@ -117,8 +122,8 @@ aliases:
     persist_to_workspace:
       root: '.'
       paths:
-      - vendor/
-      - tmp/build_extension
+        - vendor/
+        - tmp/build_extension
 
   - &STEP_STORE_TEST_RESULTS
     store_test_results:
@@ -134,9 +139,9 @@ commands:
       - run:
           name: Installing missing libcurl workaround
           command: |
-              if [[ ! "<<parameters.command>>" == "none" ]]; then
-                << parameters.command >>
-              fi;
+            if [[ ! "<<parameters.command>>" == "none" ]]; then
+              << parameters.command >>
+            fi;
   install_extension:
     parameters:
       lib_curl_command:
@@ -197,6 +202,7 @@ executors:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_MONGO
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
 
 jobs:
@@ -217,26 +223,26 @@ jobs:
       - save_cache:
           <<: *CACHE_NPM_KEY
           paths:
-          - node_modules/
+            - node_modules/
       - run:
           name: Creating directory for phpcs results
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!tests/ext/sandbox/*' '!config.*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!LICENSE' '!phpstan.neon' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!dockerfiles/**/*.patch' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!src/ext/mpack/**' '!src/ext/third-party/**' || touch .failure
+          command: node_modules/.bin/eclint check '**/*' '!tests/ext/sandbox/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.neon' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!dockerfiles/**/*.patch' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!src/ext/mpack/**' '!src/ext/third-party/**' || touch .failure
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
       - run:
           name: Install Clang
           command: |
-              wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-              (
-                echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
-                echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
-              ) | sudo tee /etc/apt/sources.list.d/llvm-toolchain.list
-              sudo apt-get update
-              sudo apt-get -y install clang-format
+            wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+            (
+              echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
+              echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
+            ) | sudo tee /etc/apt/sources.list.d/llvm-toolchain.list
+            sudo apt-get update
+            sudo apt-get -y install clang-format
       - run:
           name: Run clang-format
           command: make clang_format_check CLANG_FORMAT=clang-format
@@ -259,7 +265,7 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - run:
           name: Install phpstan
-          command: composer global require phpstan/phpstan
+          command: composer global require phpstan/phpstan:0.11.*
       - run:
           name: Running phpstan
           command: PATH=$PATH:~/.composer/vendor/bin composer static-analyze
@@ -386,12 +392,16 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_DISABLE_XDEBUG
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
           name: Run auto-instrumentation tests
           command: composer test-auto-instrumentation -- --log-junit test-results/php-auto-instrumentation/results.xml
+      - run:
+          name: Run distributed-tracing tests
+          command: DD_TRACE_AGENT_TIMEOUT=2000 composer test-distributed-tracing -- --log-junit test-results/php-distributed-tracing/results.xml
       - run:
           name: Run integration tests
           command: composer test-integration -- --log-junit test-results/php-integration/results.xml
@@ -446,7 +456,6 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - setup_remote_docker
-      - run: docker login docker.pkg.github.com --username $GITHUB_REGISTRY_USERNAME --password $GITHUB_REGISTRY_PASSWORD
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
   verify_package:
@@ -665,14 +674,16 @@ workflows:
           requires: [ "Framework tests" ]
           framework_target: laravel_no_ddtrace
           name: "Laravel baseline testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: symfony
-          name: "Symfony testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: symfony_no_ddtrace
-          name: "Symfony baseline testsuite"
+      # Symfony path needs to be updated as symfony/contracts 2.0 has been released and it changes
+      # test files where the patch is applied.
+      # - framework_tests:
+      #     requires: [ "Framework tests" ]
+      #     framework_target: symfony
+      #     name: "Symfony testsuite"
+      # - framework_tests:
+      #     requires: [ "Framework tests" ]
+      #     framework_target: symfony_no_ddtrace
+      #     name: "Symfony baseline testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
           framework_target: wordpress
