@@ -161,6 +161,7 @@
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure.phpt" role="test" />
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
+                        <file name="keep_spans_in_limited_tracing_functions.phpt" role="test" />
                         <file name="new_static.phpt" role="test" />
                         <file name="safe_to_string_metadata.phpt" role="test" />
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
@@ -174,6 +175,7 @@
                         <file name="case_insensitive_method_hook.phpt" role="test" />
                         <file name="closure_accessing_outside_variables.phpt" role="test" />
                         <file name="closure_set_inside_object_methods.phpt" role="test" />
+                        <file name="dd_trace_tracer_is_limited_hard.phpt" role="test" />
                         <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
                         <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
                         <file name="disable_tracing_disables_tracing.phpt" role="test" />
