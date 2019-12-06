@@ -92,10 +92,10 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration';
             $this->integrations[MemcachedSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration';
-            $this->integrations[MysqliSandboxedIntegration::NAME] =
-                '\DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration';
             $this->integrations[MongoSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Mongo\MongoSandboxedIntegration';
+            $this->integrations[MysqliSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration';
             $this->integrations[PDOSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
             // Symfony integration sandboxing is disabled until we support spans auto-closing on
