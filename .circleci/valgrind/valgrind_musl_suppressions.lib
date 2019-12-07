@@ -73,3 +73,34 @@
     obj:*
     obj:*
 }
+{
+    <leaks on exit opcode eq 70>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:compile_file
+    fun:phar_compile_file
+    fun:_dd_compile_file
+    fun:zend_execute_scripts
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}
+{
+    <leaks on exit opcode gt 70>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:zend_compile
+    fun:compile_file
+    fun:phar_compile_file
+    fun:_dd_compile_file
+    fun:zend_execute_scripts
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}

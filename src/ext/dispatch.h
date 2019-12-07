@@ -7,7 +7,7 @@
 
 #include "compatibility.h"
 
-typedef struct _ddtrace_dispatch_t {
+typedef struct ddtrace_dispatch_t {
     zval callable, function_name;
     zend_bool run_as_postprocess;
     zend_bool busy;
