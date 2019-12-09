@@ -46,6 +46,50 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 
     public function provideSpecs()
     {
+        $children = [
+            SpanAssertion::exists(
+                'wpdb.query',
+                "SELECT option_value FROM wp_options WHERE option_name = 'WPLANG' LIMIT 1"
+            )->withChildren([
+                SpanAssertion::exists('mysqli_query'),
+            ]),
+            SpanAssertion::exists(
+                'wpdb.query',
+                "SELECT option_value FROM wp_options WHERE option_name = 'theme_switched' LIMIT 1"
+            )->withChildren([
+                SpanAssertion::exists('mysqli_query'),
+            ]),
+            SpanAssertion::exists('WP.init'),
+            SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
+            SpanAssertion::exists('create_initial_taxonomies'),
+            SpanAssertion::exists('create_initial_post_types'),
+            SpanAssertion::exists('_wp_customize_include'),
+            SpanAssertion::exists('wp_maybe_load_embeds'),
+            SpanAssertion::exists('wp_maybe_load_widgets'),
+            SpanAssertion::exists('create_initial_post_types'),
+            SpanAssertion::exists('create_initial_taxonomies'),
+        ];
+
+        $exit_children = [
+            SpanAssertion::exists('WP.main')->withChildren([
+                SpanAssertion::exists('WP.init'),
+                SpanAssertion::exists('WP.parse_request')->withChildren([
+                    SpanAssertion::exists(
+                        'wpdb.query',
+                        "SELECT ID, post_name, post_parent, post_type
+                        FROM wp_posts
+                        WHERE post_name IN ('simple')
+                        AND post_type IN ('page','attachment')"
+                    )->withChildren([
+                        SpanAssertion::exists('mysqli_query'),
+                    ]),
+                ]),
+            ]),
+        ];
+
+        // In PHP 5, we don't yet support auto-closing sandbox spans with exit()
+        $children = \array_merge($children, \PHP_MAJOR_VERSION > 5 ? $exit_children : []);
+
         return $this->buildDataProvider(
             [
                 'A simple GET request returning a string' => [
@@ -59,43 +103,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
                         'integration.name' => 'wordpress',
-                    ])->withChildren([
-                        SpanAssertion::exists(
-                            'wpdb.query',
-                            "SELECT option_value FROM wp_options WHERE option_name = 'WPLANG' LIMIT 1"
-                        )->withChildren([
-                            SpanAssertion::exists('mysqli_query'),
-                        ]),
-                        SpanAssertion::exists(
-                            'wpdb.query',
-                            "SELECT option_value FROM wp_options WHERE option_name = 'theme_switched' LIMIT 1"
-                        )->withChildren([
-                            SpanAssertion::exists('mysqli_query'),
-                        ]),
-                        SpanAssertion::exists('WP.init'),
-                        SpanAssertion::exists('WP_Widget_Factory._register_widgets'),
-                        SpanAssertion::exists('create_initial_taxonomies'),
-                        SpanAssertion::exists('create_initial_post_types'),
-                        SpanAssertion::exists('_wp_customize_include'),
-                        SpanAssertion::exists('wp_maybe_load_embeds'),
-                        SpanAssertion::exists('wp_maybe_load_widgets'),
-                        SpanAssertion::exists('create_initial_post_types'),
-                        SpanAssertion::exists('create_initial_taxonomies'),
-                        // WARNING: something not properly working with the tracing of WP.main
-                        // causes these spans to exist but not having the proper parent. This is
-                        // prossible due to an exit/die in WP code. To be investigated. Once fixed this
-                        // test will fail.
-                        // SpanAssertion::exists('WP.init'),
-                        // SpanAssertion::exists(
-                        //     'wpdb.query',
-                        //     "SELECT ID, post_name, post_parent, post_type
-                        //         FROM wp_posts
-                        //         WHERE post_name IN ('simple')
-                        //         AND post_type IN ('page','attachment')"
-                        // )->withChildren([
-                        //     SpanAssertion::exists('mysqli_query'),
-                        // ]),
-                    ]),
+                    ])->withChildren($children),
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
