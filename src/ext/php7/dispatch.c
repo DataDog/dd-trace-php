@@ -69,12 +69,14 @@ HashTable *ddtrace_new_class_lookup(zval *class_name) {
     return class_lookup;
 }
 
-zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch_orig) {
 #if PHP_VERSION_ID >= 70300
-    ddtrace_dispatch_t *dispatch = pemalloc(sizeof(ddtrace_dispatch_t), lookup->u.flags & IS_ARRAY_PERSISTENT);
+#define DDTRACE_IS_ARRAY_PERSISTENT IS_ARRAY_PERSISTENT
 #else
-    ddtrace_dispatch_t *dispatch = pemalloc(sizeof(ddtrace_dispatch_t), lookup->u.flags & HASH_FLAG_PERSISTENT);
+#define DDTRACE_IS_ARRAY_PERSISTENT HASH_FLAG_PERSISTENT
 #endif
+
+zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch_orig) {
+    ddtrace_dispatch_t *dispatch = pemalloc(sizeof(ddtrace_dispatch_t), lookup->u.flags & DDTRACE_IS_ARRAY_PERSISTENT);
 
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
     ddtrace_class_lookup_acquire(dispatch);
