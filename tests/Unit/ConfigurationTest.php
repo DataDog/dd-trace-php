@@ -176,8 +176,8 @@ final class ConfigurationTest extends BaseTestCase
                 '[{"rate": 0.3}]',
                 [
                     [
-                        'service' => '*',
-                        'name' => '*',
+                        'service' => '.*',
+                        'name' => '.*',
                         'rate' => 0.3,
                     ],
                 ],
@@ -187,7 +187,7 @@ final class ConfigurationTest extends BaseTestCase
                 [
                     [
                         'service' => 'my_service',
-                        'name' => '*',
+                        'name' => '.*',
                         'rate' => 0.3,
                     ],
                 ],
@@ -196,7 +196,7 @@ final class ConfigurationTest extends BaseTestCase
                 '[{"name": "my_name", "rate": 0.3}]',
                 [
                     [
-                        'service' => '*',
+                        'service' => '.*',
                         'name' => 'my_name',
                         'rate' => 0.3,
                     ],
@@ -206,13 +206,13 @@ final class ConfigurationTest extends BaseTestCase
                 '[{"name": "my_name", "rate": 0.3}, {"service": "my_service", "rate": 0.7}]',
                 [
                     [
-                        'service' => '*',
+                        'service' => '.*',
                         'name' => 'my_name',
                         'rate' => 0.3,
                     ],
                     [
                         'service' => 'my_service',
-                        'name' => '*',
+                        'name' => '.*',
                         'rate' => 0.7,
                     ],
                 ],
@@ -221,8 +221,18 @@ final class ConfigurationTest extends BaseTestCase
                 '[{"name": 1, "rate": "0.3"}]',
                 [
                     [
-                        'service' => '*',
+                        'service' => '.*',
                         'name' => '1',
+                        'rate' => 0.3,
+                    ],
+                ],
+            ],
+            'DD_TRACE_SAMPLING_RULES regex can be provided' => [
+                '[{"name": "^a.*b$", "rate": 0.3}]',
+                [
+                    [
+                        'service' => '.*',
+                        'name' => '^a.*b$',
                         'rate' => 0.3,
                     ],
                 ],
