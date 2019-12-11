@@ -15,6 +15,7 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_TRACE_ANALYTICS_ENABLED');
         putenv('DD_TRACE_DEBUG');
         putenv('DD_TRACE_ENABLED');
+        putenv('DD_TRACE_SAMPLING_RULES');
     }
 
     public function testTracerEnabledByDefault()
@@ -132,5 +133,100 @@ final class ConfigurationTest extends BaseTestCase
     {
         putenv('DD_TRACE_ANALYTICS_ENABLED=true');
         $this->assertTrue(Configuration::get()->isAnalyticsEnabled());
+    }
+
+    /**
+     * @dataProvider dataProviderTestTraceSamplingRules
+     * @param mixed $rules
+     * @param array $expected
+     */
+    public function testTraceSamplingRules($rules, $expected)
+    {
+        if (false !== $rules) {
+            putenv('DD_TRACE_SAMPLING_RULES=' . $rules);
+        }
+
+        $this->assertSame($expected, Configuration::get()->getSamplingRules());
+    }
+
+    public function dataProviderTestTraceSamplingRules()
+    {
+        return [
+            'DD_TRACE_SAMPLING_RULES not defined' => [
+                false,
+                [],
+            ],
+            'DD_TRACE_SAMPLING_RULES empty string' => [
+                '',
+                [],
+            ],
+            'DD_TRACE_SAMPLING_RULES not a valid json' => [
+                '[a!}',
+                [],
+            ],
+            'DD_TRACE_SAMPLING_RULES empty array' => [
+                '[]',
+                [],
+            ],
+            'DD_TRACE_SAMPLING_RULES empty object' => [
+                '[{}]',
+                [],
+            ],
+            'DD_TRACE_SAMPLING_RULES only rate' => [
+                '[{"rate": 0.3}]',
+                [
+                    [
+                        'service' => '*',
+                        'name' => '*',
+                        'rate' => 0.3,
+                    ],
+                ],
+            ],
+            'DD_TRACE_SAMPLING_RULES service defined' => [
+                '[{"service": "my_service", "rate": 0.3}]',
+                [
+                    [
+                        'service' => 'my_service',
+                        'name' => '*',
+                        'rate' => 0.3,
+                    ],
+                ],
+            ],
+            'DD_TRACE_SAMPLING_RULES named defined' => [
+                '[{"name": "my_name", "rate": 0.3}]',
+                [
+                    [
+                        'service' => '*',
+                        'name' => 'my_name',
+                        'rate' => 0.3,
+                    ],
+                ],
+            ],
+            'DD_TRACE_SAMPLING_RULES multiple values keeps order' => [
+                '[{"name": "my_name", "rate": 0.3}, {"service": "my_service", "rate": 0.7}]',
+                [
+                    [
+                        'service' => '*',
+                        'name' => 'my_name',
+                        'rate' => 0.3,
+                    ],
+                    [
+                        'service' => 'my_service',
+                        'name' => '*',
+                        'rate' => 0.7,
+                    ],
+                ],
+            ],
+            'DD_TRACE_SAMPLING_RULES values converted to proper type' => [
+                '[{"name": 1, "rate": "0.3"}]',
+                [
+                    [
+                        'service' => '*',
+                        'name' => '1',
+                        'rate' => 0.3,
+                    ],
+                ],
+            ],
+        ];
     }
 }

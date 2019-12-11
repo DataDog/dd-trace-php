@@ -13,6 +13,13 @@ class Configuration extends AbstractConfiguration
     use LoggingTrait;
 
     /**
+     * Parsing sampling rules might be expensive so we cache values the first time we parse them.
+     *
+     * @var array
+     */
+    private $samplingRulesCache;
+
+    /**
      * Whether or not tracing is enabled.
      *
      * @return bool
@@ -85,6 +92,55 @@ class Configuration extends AbstractConfiguration
     public function getSamplingRate()
     {
         return $this->floatValue('sampling.rate', 1.0, 0.0, 1.0);
+    }
+
+    /**
+     * Returns the sampling rules defined for the current service.
+     * Results are cached so it is perfectly fine to call this method multiple times.
+     * The expected format for sampling rule env variable is:
+     * - example: DD_TRACE_SAMPLING_RULES=[]
+     *        --> sample rate is 100%
+     * - example: DD_TRACE_SAMPLING_RULES=[{"rate": 0.2}]
+     *        --> sample rate is 20%
+     * - example: DD_TRACE_SAMPLING_RULES=[{"rate": 0.2}, {"service": "a", "name": "b", rate: 0.1}]
+     *        --> sample rate is 20% except for spans of service 'a' and with name 'b' where rate is 10%
+     *
+     * Note that 'service' and 'name' is optional when when omitted the '*' pattern is assumed.
+     *
+     * @return float
+     */
+    public function getSamplingRules()
+    {
+        if (null !== $this->samplingRulesCache) {
+            return $this->samplingRulesCache;
+        }
+
+        $this->samplingRulesCache = [];
+
+        $parsed = \json_decode($this->stringValue('trace.sampling.rules'), true);
+        if (false === $parsed) {
+            $parsed = [];
+        }
+
+        // We do a proper parsing here to make sure that once the sampling rules leave this method
+        // they are always properly defined.
+        if (is_array($parsed)) {
+            foreach ($parsed as $rule) {
+                if (!is_array($rule) || !isset($rule['rate'])) {
+                    continue;
+                }
+                $service = isset($rule['service']) ? strval($rule['service']) : '*';
+                $name = isset($rule['name']) ? strval($rule['name']) : '*';
+                $rate = isset($rule['rate']) ? floatval($rule['rate']) : 1.0;
+                $this->samplingRulesCache[] = [
+                    'service' => $service,
+                    'name' => $name,
+                    'rate' => $rate,
+                ];
+            }
+        }
+
+        return $this->samplingRulesCache;
     }
 
     /**
