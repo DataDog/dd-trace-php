@@ -9,5 +9,11 @@ use DDTrace\Contracts\Span;
  */
 interface Sampler
 {
-    public function getPrioritySampling(Span $span);
+    /**
+     * Sample the current span. Note the it might have side effects, e.g. setting metrics on the span.
+     *
+     * @param Span $span
+     * @return int
+     */
+    public function sample(Span $span);
 }

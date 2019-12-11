@@ -13,6 +13,6 @@ final class AlwaysKeepSamplerTest extends BaseTestCase
     {
         $sampler = new AlwaysKeepSampler();
         $context = new SpanContext('', '');
-        $this->assertSame(1, $sampler->getPrioritySampling(new Span('', $context, '', '')));
+        $this->assertSame(1, $sampler->sample(new Span('', $context, '', '')));
     }
 }

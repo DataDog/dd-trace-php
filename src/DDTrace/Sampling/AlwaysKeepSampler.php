@@ -13,7 +13,7 @@ class AlwaysKeepSampler implements Sampler
      * @param Span $span
      * @return int
      */
-    public function getPrioritySampling(Span $span)
+    public function sample(Span $span)
     {
         return PrioritySampling::AUTO_KEEP;
     }
