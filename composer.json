@@ -282,7 +282,8 @@
             "@wordpress-48-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
+            "@custom-framework-autoloaded-suite",
+            "@opentracing-10-test"
         ],
         "test-web-72": [
             "@test-cache-link",
@@ -315,7 +316,8 @@
             "@wordpress-48-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
+            "@custom-framework-autoloaded-suite",
+            "@opentracing-10-test"
         ],
         "test-web-73": [
             "@test-cache-link",
@@ -338,11 +340,18 @@
             "@wordpress-48-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
+            "@custom-framework-autoloaded-suite",
+            "@opentracing-10-test"
         ],
 
         "inrease-memory-limit": "export COMPOSER_MEMORY_LIMIT=-1",
         "memory_test": "echo $COMPOSER_MEMORY_LIMIT",
+
+        "opentracing-10-test": [
+            "@composer scenario:update",
+            "@composer scenario opentracing1",
+            "@composer test -- --filter=testOTSpanContextAsParent tests/OpenTracerUnit/TracerTest.php"
+        ],
 
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
 
@@ -460,6 +469,14 @@
             "guzzle6": {
                 "require": {
                     "guzzlehttp/guzzle": "~6.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "opentracing1": {
+                "require": {
+                    "opentracing/opentracing": "1.0.0-beta6"
                 },
                 "scenario-options": {
                     "create-lockfile": false
