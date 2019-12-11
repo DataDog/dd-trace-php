@@ -102,7 +102,7 @@ class Configuration extends AbstractConfiguration
      *        --> sample rate is 100%
      * - example: DD_TRACE_SAMPLING_RULES=[{"rate": 0.2}]
      *        --> sample rate is 20%
-     * - example: DD_TRACE_SAMPLING_RULES=[{"rate": 0.2}, {"service": "a", "name": "b", rate: 0.1}]
+     * - example: DD_TRACE_SAMPLING_RULES=[{"service": "a", "name": "b", rate: 0.1}, {"rate": 0.2}]
      *        --> sample rate is 20% except for spans of service 'a' and with name 'b' where rate is 10%
      *
      * Note that 'service' and 'name' is optional when when omitted the '*' pattern is assumed.
