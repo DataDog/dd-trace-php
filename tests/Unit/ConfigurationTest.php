@@ -9,6 +9,17 @@ final class ConfigurationTest extends BaseTestCase
     protected function setUp()
     {
         parent::setUp();
+        $this->cleanUpEnvs();
+    }
+
+    protected function tearDown()
+    {
+        $this->cleanUpEnvs();
+        parent::tearDown();
+    }
+
+    private function cleanUpEnvs()
+    {
         putenv('DD_DISTRIBUTED_TRACING');
         putenv('DD_INTEGRATIONS_DISABLED');
         putenv('DD_PRIORITY_SAMPLING');

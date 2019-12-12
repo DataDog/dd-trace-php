@@ -49,11 +49,11 @@ final class ConfigurableSampler implements Sampler
     {
         $serviceName = $span->getService();
         $serviceNameMatches = $serviceName === \null
-            || preg_match($serviceName, $rule['service']);
+            || preg_match('/' . $rule['service'] . '/', $serviceName);
 
         $operationName = $span->getOperationName();
         $operationNameMatches = $operationName === \null
-            || preg_match($operationName, $rule['name']);
+            || preg_match('/' . $rule['name'] . '/', $operationName);
 
         return $serviceNameMatches && $operationNameMatches;
     }
