@@ -98,10 +98,10 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration';
             $this->integrations[PDOSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
-            // Symfony integration sandboxing is disabled until we support spans auto-closing on
-            // exit
-            // $this->integrations[SymfonySandboxedIntegration::NAME] =
-            //     '\DDTrace\Integrations\Symfony\SymfonySandboxedIntegration';
+            if (\PHP_MAJOR_VERSION > 5) {
+                $this->integrations[SymfonySandboxedIntegration::NAME] =
+                    '\DDTrace\Integrations\Symfony\SymfonySandboxedIntegration';
+            }
             $this->integrations[WordPressSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\WordPress\WordPressSandboxedIntegration';
             $this->integrations[YiiSandboxedIntegration::NAME] =

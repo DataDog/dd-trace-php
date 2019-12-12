@@ -7,6 +7,28 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Elasticsearch\Client;
 
+// also drops empty arrays
+function keep_non_symfony_spans($span)
+{
+    if (!\is_array($span)) {
+        return true;
+    }
+    if (isset($span['name'])) {
+        return \strpos($span['name'], 'symfony.') !== 0;
+    }
+    return !empty($span);
+}
+
+function array_filter_recursive(callable $keep_fn, array $input)
+{
+    foreach ($input as &$value) {
+        if (\is_array($value)) {
+            $value = array_filter_recursive($keep_fn, $value);
+        }
+    }
+    return \array_filter($input, $keep_fn);
+}
+
 /**
  * Tests for Elasticsearch Client. We test specifically only most commonly used tests, for the other tests we just make
  * sure that if a non existing method is provided, that for example does not exists for the used client version
@@ -629,5 +651,27 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch2_integration',
             ],
         ]);
+    }
+
+    /**
+     * @param $fn
+     * @param null $tracer
+     * @return array[]
+     */
+    public function isolateLimitedTracer($fn, $tracer = null)
+    {
+        $traces = parent::isolateLimitedTracer($fn, $tracer);
+        return array_filter_recursive(__NAMESPACE__ . '\\keep_non_symfony_spans', $traces);
+    }
+
+    /**
+     * @param $fn
+     * @param null $tracer
+     * @return array[]
+     */
+    public function isolateTracer($fn, $tracer = null)
+    {
+        $traces = parent::isolateTracer($fn, $tracer);
+        return array_filter_recursive(__NAMESPACE__ . '\\keep_non_symfony_spans', $traces);
     }
 }

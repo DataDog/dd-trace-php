@@ -66,14 +66,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
-                            // This will be required with sandboxed integration, that
-                            // instead put this span in the correct place in the gerarchy
-                            // SpanAssertion::exists('symfony.kernel.terminate')
-                            //     ->skipIf(!static::IS_SANDBOX),
+                            SpanAssertion::exists('symfony.kernel.terminate')->skipIf(!static::IS_SANDBOX),
                         ]),
-                    // 'symfony.kernel.terminate' Terminate has the wrong parent span in legacy api.
-                    // This test will fail as we enable the symfony sandboxed api.
-                    // SpanAssertion::exists('symfony.kernel.terminate'),
+                    SpanAssertion::exists('symfony.kernel.terminate')->skipIf(static::IS_SANDBOX),
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
@@ -108,14 +103,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
-                            // This will be required with sandboxed integration, that
-                            // instead put this span in the correct place in the gerarchy
-                            // SpanAssertion::exists('symfony.kernel.terminate')
-                            //     ->skipIf(!static::IS_SANDBOX),
+                            SpanAssertion::exists('symfony.kernel.terminate')->skipIf(!static::IS_SANDBOX),
                         ]),
-                    // 'symfony.kernel.terminate' Terminate has the wrong parent span in legacy api.
-                    // This test will fail as we enable the symfony sandboxed api.
-                    // SpanAssertion::exists('symfony.kernel.terminate'),
+                    SpanAssertion::exists('symfony.kernel.terminate')->skipIf(static::IS_SANDBOX),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
@@ -150,14 +140,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             SpanAssertion::exists('symfony.kernel.finish_request'),
                                         ]),
                                 ]),
-                            // This will be required with sandboxed integration, that
-                            // instead put this span in the correct place in the gerarchy
-                            // SpanAssertion::exists('symfony.kernel.terminate')
-                            //     ->skipIf(!static::IS_SANDBOX),
+                            SpanAssertion::exists('symfony.kernel.terminate')->skipIf(!static::IS_SANDBOX),
                         ]),
-                    // 'symfony.kernel.terminate' Terminate has the wrong parent span in legacy api.
-                    // This test will fail as we enable the symfony sandboxed api.
-                    // SpanAssertion::exists('symfony.kernel.terminate'),
+                    SpanAssertion::exists('symfony.kernel.terminate')->skipIf(static::IS_SANDBOX),
                 ],
             ]
         );
