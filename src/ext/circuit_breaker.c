@@ -9,6 +9,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "configuration.h"
 #include "env_config.h"
 #include "macros.h"
 
@@ -24,8 +25,10 @@ dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {{0}};
 dd_trace_circuit_breaker_t local_dd_trace_circuit_breaker = {0};
 #endif
 
-static void handle_perpare_error(const char *call_name) {
-    perror(call_name);
+static void handle_prepare_error(const char *call_name) {
+    if (get_dd_trace_debug()) {
+        perror(call_name);
+    }
 
     if (!dd_trace_circuit_breaker) {
         // if shared memory is not working use local copy
@@ -37,7 +40,7 @@ static void prepare_cb() {
     if (!dd_trace_circuit_breaker) {
         int shm_fd = shm_open(DD_TRACE_CIRCUIT_BREAKER_SHMEM_KEY, O_CREAT | O_RDWR, 0666);
         if (shm_fd < 0) {
-            handle_perpare_error("shm_open");
+            handle_prepare_error("shm_open");
             return;
         }
 
@@ -45,13 +48,13 @@ static void prepare_cb() {
         // fetch stat with shmem size
         struct stat stats;
         if (fstat(shm_fd, &stats) != 0) {
-            handle_perpare_error("fstat");
+            handle_prepare_error("fstat");
             return;
         }
         // do the resize if size is too small
         if (stats.st_size < 0 || (size_t)stats.st_size < sizeof(dd_trace_circuit_breaker_t)) {
             if (ftruncate(shm_fd, sizeof(dd_trace_circuit_breaker_t)) != 0) {
-                handle_perpare_error("ftruncate");
+                handle_prepare_error("ftruncate");
                 return;
             }
         }
@@ -59,7 +62,7 @@ static void prepare_cb() {
         dd_trace_circuit_breaker_t *shared_breaker =
             mmap(NULL, sizeof(dd_trace_circuit_breaker_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
         if (shared_breaker == MAP_FAILED) {
-            handle_perpare_error("mmap");
+            handle_prepare_error("mmap");
 
             return;
         }
