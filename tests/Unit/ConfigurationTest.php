@@ -188,7 +188,7 @@ final class ConfigurationTest extends BaseTestCase
                 [
                     [
                         'service' => '.*',
-                        'name' => '.*',
+                        'operation' => '.*',
                         'rate' => 0.3,
                     ],
                 ],
@@ -198,52 +198,52 @@ final class ConfigurationTest extends BaseTestCase
                 [
                     [
                         'service' => 'my_service',
-                        'name' => '.*',
+                        'operation' => '.*',
                         'rate' => 0.3,
                     ],
                 ],
             ],
             'DD_TRACE_SAMPLING_RULES named defined' => [
-                '[{"name": "my_name", "rate": 0.3}]',
+                '[{"operation": "my_name", "rate": 0.3}]',
                 [
                     [
                         'service' => '.*',
-                        'name' => 'my_name',
+                        'operation' => 'my_name',
                         'rate' => 0.3,
                     ],
                 ],
             ],
             'DD_TRACE_SAMPLING_RULES multiple values keeps order' => [
-                '[{"name": "my_name", "rate": 0.3}, {"service": "my_service", "rate": 0.7}]',
+                '[{"operation": "my_name", "rate": 0.3}, {"service": "my_service", "rate": 0.7}]',
                 [
                     [
                         'service' => '.*',
-                        'name' => 'my_name',
+                        'operation' => 'my_name',
                         'rate' => 0.3,
                     ],
                     [
                         'service' => 'my_service',
-                        'name' => '.*',
+                        'operation' => '.*',
                         'rate' => 0.7,
                     ],
                 ],
             ],
             'DD_TRACE_SAMPLING_RULES values converted to proper type' => [
-                '[{"name": 1, "rate": "0.3"}]',
+                '[{"operation": 1, "rate": "0.3"}]',
                 [
                     [
                         'service' => '.*',
-                        'name' => '1',
+                        'operation' => '1',
                         'rate' => 0.3,
                     ],
                 ],
             ],
             'DD_TRACE_SAMPLING_RULES regex can be provided' => [
-                '[{"name": "^a.*b$", "rate": 0.3}]',
+                '[{"operation": "^a.*b$", "rate": 0.3}]',
                 [
                     [
                         'service' => '.*',
-                        'name' => '^a.*b$',
+                        'operation' => '^a.*b$',
                         'rate' => 0.3,
                     ],
                 ],
