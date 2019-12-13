@@ -527,7 +527,7 @@ final class Tracer implements TracerInterface
             return;
         }
 
-        $rootScope = GlobalTracer::get()->getRootScope();
+        $rootScope = $this->getRootScope();
         if (null === $rootScope) {
             return;
         }
