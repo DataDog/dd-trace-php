@@ -58,6 +58,12 @@ final class ConfigurableSampler implements Sampler
         return $serviceNameMatches && $operationNameMatches;
     }
 
+    /**
+     * Given a float rate, it computes whether or not the current should be sampled.
+     *
+     * @param float $rate
+     * @return int
+     */
     private function computePrioritySampling($rate)
     {
         if ($rate === 1.0) {
