@@ -19,7 +19,7 @@ final class ConfigurableSampler implements Sampler
         $samplingRules = Configuration::get()->getSamplingRules();
         foreach ($samplingRules as $rule) {
             if ($this->ruleMatches($span, $rule)) {
-                $rate = $rule['rate'];
+                $rate = $rule['sample_rate'];
                 $prioritySampling = $this->computePrioritySampling($rate);
                 $span->setMetric('_dd.rule_psr', $rate);
                 return $prioritySampling;

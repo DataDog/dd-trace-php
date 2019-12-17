@@ -93,7 +93,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
                     [
                         'service' => 'something_else',
                         'name' => '.*',
-                        'rate' => 0.7,
+                        'sample_rate' => 0.7,
                     ],
                 ],
                 0.3,
@@ -103,7 +103,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
                     [
                         'service' => '.*',
                         'name' => '.*',
-                        'rate' => 0.7,
+                        'sample_rate' => 0.7,
                     ],
                 ],
                 0.7,
@@ -113,7 +113,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
                     [
                         'service' => 'my_.*',
                         'name' => '.*',
-                        'rate' => 0.7,
+                        'sample_rate' => 0.7,
                     ],
                 ],
                 0.7,
@@ -123,7 +123,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
                     [
                         'service' => 'my_.*',
                         'name' => '.*',
-                        'rate' => 0.7,
+                        'sample_rate' => 0.7,
                     ],
                 ],
                 0.7,
@@ -133,7 +133,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
                     [
                         'service' => 'wrong.*',
                         'name' => '.*',
-                        'rate' => 0.7,
+                        'sample_rate' => 0.7,
                     ],
                 ],
                 0.3,
@@ -143,7 +143,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
                     [
                         'service' => '.*',
                         'name' => 'wrong.*',
-                        'rate' => 0.7,
+                        'sample_rate' => 0.7,
                     ],
                 ],
                 0.3,
@@ -153,12 +153,12 @@ final class ConfigurableSamplerTest extends BaseTestCase
                     [
                         'service' => 'my_.*',
                         'name' => 'my_.*',
-                        'rate' => 0.7,
+                        'sample_rate' => 0.7,
                     ],
                     [
                         'service' => '.*',
                         'name' => '.*',
-                        'rate' => 0.5,
+                        'sample_rate' => 0.5,
                     ],
                 ],
                 0.7,
@@ -173,7 +173,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
                 [
                     'service' => '.*',
                     'name' => '.*',
-                    'rate' => 0.7,
+                    'sample_rate' => 0.7,
                 ],
             ],
         ]));

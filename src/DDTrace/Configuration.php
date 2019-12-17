@@ -100,9 +100,9 @@ class Configuration extends AbstractConfiguration
      * The expected format for sampling rule env variable is:
      * - example: DD_TRACE_SAMPLING_RULES=[]
      *        --> sample rate is 100%
-     * - example: DD_TRACE_SAMPLING_RULES=[{"rate": 0.2}]
+     * - example: DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.2}]
      *        --> sample rate is 20%
-     * - example: DD_TRACE_SAMPLING_RULES=[{"service": "a.*", "name": "b", rate: 0.1}, {"rate": 0.2}]
+     * - example: DD_TRACE_SAMPLING_RULES=[{"service": "a.*", "name": "b", "sample_rate": 0.1}, {"sample_rate": 0.2}]
      *        --> sample rate is 20% except for spans of service starting with 'a' and with name 'b' where rate is 10%
      *
      * Note that 'service' and 'name' is optional when when omitted the '*' pattern is assumed.
@@ -126,16 +126,16 @@ class Configuration extends AbstractConfiguration
         // they are always properly defined.
         if (is_array($parsed)) {
             foreach ($parsed as $rule) {
-                if (!is_array($rule) || !isset($rule['rate'])) {
+                if (!is_array($rule) || !isset($rule['sample_rate'])) {
                     continue;
                 }
                 $service = isset($rule['service']) ? strval($rule['service']) : '.*';
                 $name = isset($rule['name']) ? strval($rule['name']) : '.*';
-                $rate = isset($rule['rate']) ? floatval($rule['rate']) : 1.0;
+                $rate = isset($rule['sample_rate']) ? floatval($rule['sample_rate']) : 1.0;
                 $this->samplingRulesCache[] = [
                     'service' => $service,
                     'name' => $name,
-                    'rate' => $rate,
+                    'sample_rate' => $rate,
                 ];
             }
         }
