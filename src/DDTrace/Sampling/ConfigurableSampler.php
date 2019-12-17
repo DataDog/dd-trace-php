@@ -53,7 +53,7 @@ final class ConfigurableSampler implements Sampler
 
         $operationName = $span->getOperationName();
         $operationNameMatches = $operationName === \null
-            || preg_match('/' . $rule['operation'] . '/', $operationName);
+            || preg_match('/' . $rule['name'] . '/', $operationName);
 
         return $serviceNameMatches && $operationNameMatches;
     }

@@ -102,10 +102,10 @@ class Configuration extends AbstractConfiguration
      *        --> sample rate is 100%
      * - example: DD_TRACE_SAMPLING_RULES=[{"rate": 0.2}]
      *        --> sample rate is 20%
-     * - example: DD_TRACE_SAMPLING_RULES=[{"service": "a.*", "operation": "b", rate: 0.1}, {"rate": 0.2}]
+     * - example: DD_TRACE_SAMPLING_RULES=[{"service": "a.*", "name": "b", rate: 0.1}, {"rate": 0.2}]
      *        --> sample rate is 20% except for spans of service starting with 'a' and with name 'b' where rate is 10%
      *
-     * Note that 'service' and 'operation' is optional when when omitted the '*' pattern is assumed.
+     * Note that 'service' and 'name' is optional when when omitted the '*' pattern is assumed.
      *
      * @return float
      */
@@ -130,11 +130,11 @@ class Configuration extends AbstractConfiguration
                     continue;
                 }
                 $service = isset($rule['service']) ? strval($rule['service']) : '.*';
-                $name = isset($rule['operation']) ? strval($rule['operation']) : '.*';
+                $name = isset($rule['name']) ? strval($rule['name']) : '.*';
                 $rate = isset($rule['rate']) ? floatval($rule['rate']) : 1.0;
                 $this->samplingRulesCache[] = [
                     'service' => $service,
-                    'operation' => $name,
+                    'name' => $name,
                     'rate' => $rate,
                 ];
             }
