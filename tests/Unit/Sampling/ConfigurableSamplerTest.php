@@ -165,4 +165,24 @@ final class ConfigurableSamplerTest extends BaseTestCase
             ],
         ];
     }
+
+    public function testMetricIsAddedToCommunicateSampleRateUsed()
+    {
+        Configuration::replace(\Mockery::mock(Configuration::get(), [
+            'getSamplingRules' => [
+                [
+                    'service' => '.*',
+                    'name' => '.*',
+                    'rate' => 0.7,
+                ],
+            ],
+        ]));
+        $sampler = new ConfigurableSampler();
+
+        $context = new SpanContext('', dd_trace_generate_id());
+        $span = new Span('my_name', $context, 'my_service', '');
+        $sampler->sample($span);
+
+        $this->assertSame(0.7, $span->getMetrics()['_dd.rule_psr']);
+    }
 }
