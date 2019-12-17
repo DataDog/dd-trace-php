@@ -30,7 +30,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
 
         for ($i = 0; $i < self::REPETITIONS; $i++) {
             $context = new SpanContext('', dd_trace_generate_id());
-            $output += $sampler->sample(new Span('', $context, '', ''));
+            $output += $sampler->getPrioritySampling(new Span('', $context, '', ''));
         }
 
         $ratio = $output / self::REPETITIONS;
@@ -73,7 +73,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
 
         for ($i = 0; $i < self::REPETITIONS; $i++) {
             $context = new SpanContext('', dd_trace_generate_id());
-            $output += $sampler->sample(new Span('my_name', $context, 'my_service', ''));
+            $output += $sampler->getPrioritySampling(new Span('my_name', $context, 'my_service', ''));
         }
 
         $ratio = $output / self::REPETITIONS;
@@ -181,7 +181,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
 
         $context = new SpanContext('', dd_trace_generate_id());
         $span = new Span('my_name', $context, 'my_service', '');
-        $sampler->sample($span);
+        $sampler->getPrioritySampling($span);
 
         $this->assertSame(0.7, $span->getMetrics()['_dd.rule_psr']);
     }

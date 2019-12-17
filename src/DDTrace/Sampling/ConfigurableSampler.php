@@ -14,7 +14,7 @@ final class ConfigurableSampler implements Sampler
      * @param Span $span
      * @return int
      */
-    public function sample(Span $span)
+    public function getPrioritySampling(Span $span)
     {
         $samplingRules = Configuration::get()->getSamplingRules();
         foreach ($samplingRules as $rule) {
