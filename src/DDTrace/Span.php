@@ -14,6 +14,9 @@ use Throwable;
 
 final class Span extends DataSpan
 {
+    // This corresponds to 2^53. Operator '**' is only available after php 5.6
+    private const MAX_INT_AS_METRIC = 9007199254740992;
+
     private static $metricNames = [ Tag::ANALYTICS_KEY => true ];
     // associative array for quickly checking if tag has special meaning, should include metric_names
     private static $specialTags = [
@@ -185,6 +188,13 @@ final class Span extends DataSpan
                 $this->setMetric($key, $value);
                 return;
             }
+        }
+
+        // Integers -2^53 < $value < 2^53 are converted to float and passed on as metrics to better support
+        // numeric facets.
+        if (is_int($value) && $value < self::MAX_INT_AS_METRIC && $value > -self::MAX_INT_AS_METRIC) {
+            $this->setMetric($key, \floatval($value));
+            return;
         }
 
         $this->tags[$key] = (string)$value;
