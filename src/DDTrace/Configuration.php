@@ -107,7 +107,7 @@ class Configuration extends AbstractConfiguration
      *
      * Note that 'service' and 'name' is optional when when omitted the '*' pattern is assumed.
      *
-     * @return float
+     * @return array
      */
     public function getSamplingRules()
     {

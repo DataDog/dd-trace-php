@@ -417,7 +417,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testHttpHeadersIsCorrectlySetAgain()
     {
-        $this->inRootSpan(function () use (&$found) {
+        $this->inRootSpan(function () {
             $found = [];
 
             $ch = curl_init();
