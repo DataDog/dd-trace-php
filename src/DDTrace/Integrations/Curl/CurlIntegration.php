@@ -44,9 +44,9 @@ class CurlIntegration extends Integration
 
         dd_trace('curl_exec', function ($ch) use ($integration, $globalConfig) {
             $tracer = GlobalTracer::get();
+
             if ($tracer->limited()) {
                 CurlIntegration::injectDistributedTracingHeaders($ch);
-
                 return dd_trace_forward_call();
             }
 
