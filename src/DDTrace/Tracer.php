@@ -184,10 +184,6 @@ final class Tracer implements TracerInterface
             $options->getStartTime()
         );
 
-        if ($this->prioritySampling === Sampling\PrioritySampling::UNKNOWN) {
-            $this->setPrioritySamplingFromSpan($span);
-        }
-
         $tags = $options->getTags() + $this->config['global_tags'];
         if ($context->getParentId() === null) {
             $tags[Tag::PID] = getmypid();
@@ -275,12 +271,12 @@ final class Tracer implements TracerInterface
      */
     public function inject(SpanContextInterface $spanContext, $format, &$carrier)
     {
-        if (array_key_exists($format, $this->propagators)) {
-            $this->propagators[$format]->inject($spanContext, $carrier);
-            return;
+        if (!array_key_exists($format, $this->propagators)) {
+            throw UnsupportedFormat::forFormat($format);
         }
 
-        throw UnsupportedFormat::forFormat($format);
+        $this->enforcePrioritySamplingOnRootSpan();
+        $this->propagators[$format]->inject($spanContext, $carrier);
     }
 
     /**
@@ -319,6 +315,10 @@ final class Tracer implements TracerInterface
             ]);
         }
 
+        // At this time, for sure we need to enforce a decision on priority sampling.
+        // Most probably, especially if a distributed tracing request has been done, priority sampling
+        // will be already defined.
+        $this->enforcePrioritySamplingOnRootSpan();
         $this->transport->send($this);
     }
 
@@ -516,5 +516,26 @@ final class Tracer implements TracerInterface
     public function getTracesCount()
     {
         return count($this->traces);
+    }
+
+    /**
+     * Enforce priority sampling on the root span.
+     */
+    private function enforcePrioritySamplingOnRootSpan()
+    {
+        if ($this->prioritySampling !== Sampling\PrioritySampling::UNKNOWN) {
+            return;
+        }
+
+        $rootScope = $this->getRootScope();
+        if (null === $rootScope) {
+            return;
+        }
+        $rootSpan = $rootScope->getSpan();
+        if (null === $rootSpan) {
+            return;
+        }
+
+        $this->setPrioritySamplingFromSpan($rootSpan);
     }
 }
