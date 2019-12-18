@@ -23,9 +23,11 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_DISTRIBUTED_TRACING');
         putenv('DD_INTEGRATIONS_DISABLED');
         putenv('DD_PRIORITY_SAMPLING');
+        putenv('DD_SAMPLING_RATE');
         putenv('DD_TRACE_ANALYTICS_ENABLED');
         putenv('DD_TRACE_DEBUG');
         putenv('DD_TRACE_ENABLED');
+        putenv('DD_TRACE_SAMPLE_RATE');
         putenv('DD_TRACE_SAMPLING_RULES');
     }
 
@@ -247,6 +249,61 @@ final class ConfigurationTest extends BaseTestCase
                         'sample_rate' => 0.3,
                     ],
                 ],
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider dataProviderTestTraceSampleRate
+     * @param mixed $envs
+     * @param array $expected
+     */
+    public function testTraceSampleRate($envs, $expected)
+    {
+        foreach ($envs as $env) {
+            putenv($env);
+        }
+
+        $this->assertSame($expected, Configuration::get()->getSamplingRate());
+    }
+
+    public function dataProviderTestTraceSampleRate()
+    {
+        return [
+            'defaults to 1.0 when nothing is set' => [
+                [],
+                1.0,
+            ],
+            'DD_TRACE_SAMPLE_RATE can be set' => [
+                [
+                    'DD_TRACE_SAMPLE_RATE=0.7',
+                ],
+                0.7,
+            ],
+            'DD_TRACE_SAMPLE_RATE has a minimum of 0.0' => [
+                [
+                    'DD_TRACE_SAMPLE_RATE=-0.1',
+                ],
+                0.0,
+            ],
+            'DD_TRACE_SAMPLE_RATE has a maximum of 1.0' => [
+                [
+                    'DD_TRACE_SAMPLE_RATE=1.1',
+                ],
+                1.0,
+            ],
+            'deprecated DD_SAMPLING_RATE can still be used' => [
+                [
+                    'DD_SAMPLING_RATE=0.7',
+                ],
+                0.7,
+            ],
+            'DD_TRACE_SAMPLE_RATE wins over deprecated DD_SAMPLING_RATE' => [
+                [
+                    'DD_SAMPLING_RATE=0.3',
+                    'DD_TRACE_SAMPLE_RATE=0.7',
+                ],
+                0.7,
             ],
         ];
     }
