@@ -10,17 +10,31 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2019-12-19</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.36.0</release>
+        <api>0.36.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+**Note** environment variable `DD_SAMPLING_RATE` as been deprecated. Use `DD_TRACE_SAMPLE_RATE` instead.
+
+### Added
+
+- Close open sandboxed spans on exit on PHP 7 #679
+- Support for tracing without limits #686
+- Add extra info to curl errors #688
+
+### Changed
+
+- Enable Sandboxed Symfony Integration #682
+- Migrate Mongo library integration to sandboxed api #669
+- Rename env DD_SAMPLING_RATE to DD_TRACE_SAMPLE_RATE #687
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
