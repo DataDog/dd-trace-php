@@ -25,6 +25,7 @@
 #include "debug.h"
 #include "dispatch.h"
 #include "engine_hooks.h"
+#include "logging.h"
 #include "memory_limit.h"
 #include "random.h"
 #include "request_hooks.h"
@@ -288,6 +289,47 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
+static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, uint32_t *options) {
+    zval *value;
+    zend_string *key;
+
+    if (Z_TYPE_P(config_array) != IS_ARRAY) {
+        ddtrace_log_debug("Expected config_array to be an associative array");
+        return FALSE;
+    }
+
+    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(config_array), key, value) {
+        if (!key) {
+            ddtrace_log_debug("Expected config_array to be an associative array");
+            return FALSE;
+        }
+        // TODO Optimize this
+        if (strcmp("posthook", ZSTR_VAL(key)) == 0) {
+            if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
+                *tracing_closure = value;
+                *options |= DDTRACE_DSPCH_POSTHOOK;
+            } else {
+                ddtrace_log_debug("Expected an instance of Closure for posthook");
+                return FALSE;
+            }
+        } else if (strcmp("instrument_when_limited", ZSTR_VAL(key)) == 0) {
+            if (Z_TYPE_P(value) == IS_LONG) {
+                if (Z_LVAL_P(value)) {
+                    *options |= DDTRACE_DSPCH_INSTRUMENT_WHEN_LIMITED;
+                }
+            } else {
+                ddtrace_log_debug("Expected an int for instrument_when_limited");
+                return FALSE;
+            }
+        } else {
+            ddtrace_log_debug("Unknown option in config_array");
+            return FALSE;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    return TRUE;
+}
+
 static PHP_FUNCTION(dd_trace_method) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *class_name = NULL;
@@ -326,16 +368,19 @@ static PHP_FUNCTION(dd_trace_function) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *function = NULL;
     zval *tracing_closure = NULL;
+    zval *config_array = NULL;
+    uint32_t options = 0;
 
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zO", &function, &tracing_closure,
-                                 zend_ce_closure) != SUCCESS) {
+                                 zend_ce_closure) != SUCCESS &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "za", &function, &config_array) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameters, expected (function_name, tracing_closure)");
+                                    "unexpected parameters, expected (function_name, tracing_closure | config_array)");
         }
         RETURN_BOOL(0);
     }
@@ -349,7 +394,15 @@ static PHP_FUNCTION(dd_trace_function) {
         RETURN_BOOL(0);
     }
 
-    zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, DDTRACE_DSPCH_POSTHOOK TSRMLS_CC);
+    if (config_array) {
+        if (_parse_config_array(config_array, &tracing_closure, &options) == FALSE) {
+            RETURN_BOOL(0);
+        }
+    } else {
+        options |= DDTRACE_DSPCH_POSTHOOK;
+    }
+
+    zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, options TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
