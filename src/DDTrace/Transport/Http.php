@@ -141,10 +141,12 @@ final class Http implements Transport
         curl_setopt($handle, CURLOPT_TIMEOUT_MS, $this->config['timeout']);
         curl_setopt($handle, CURLOPT_CONNECTTIMEOUT_MS, $this->config['connect_timeout']);
 
+        // Empty Expect header to avoid curl auto-adding 100-Continue back and forth
         $curlHeaders = [
             'Content-Type: ' . $this->encoder->getContentType(),
             'Content-Length: ' . $bodySize,
             'X-Datadog-Trace-Count: ' . $tracesCount,
+            'Expect:',
         ];
         foreach ($headers as $key => $value) {
             $curlHeaders[] = "$key: $value";
