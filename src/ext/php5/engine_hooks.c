@@ -630,7 +630,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
-    if (dispatch->run_as_postprocess) {
+    if (dispatch->options & DDTRACE_DSPCH_POSTHOOK) {
         ddtrace_trace_dispatch(dispatch, current_fbc, execute_data TSRMLS_CC);
     } else {
         // Store original context for forwarding the call from userland

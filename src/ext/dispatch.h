@@ -7,15 +7,19 @@
 
 #include "compatibility.h"
 
+#define DDTRACE_DSPCH_BUSY                      (1 << 0)
+#define DDTRACE_DSPCH_POSTHOOK                  (1 << 1)
+#define DDTRACE_DSPCH_INSTRUMENT_WHEN_LIMITED   (1 << 2)
+
 typedef struct ddtrace_dispatch_t {
+    uint32_t options;
     zval callable, function_name;
-    zend_bool run_as_postprocess;
-    zend_bool busy;
+    zend_bool busy;  // Move to options?
     uint32_t acquired;
 } ddtrace_dispatch_t;
 
 ddtrace_dispatch_t *ddtrace_find_dispatch(zval *this, zend_function *fbc, zval *fname TSRMLS_DC);
-zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, zend_bool run_as_postprocess TSRMLS_DC);
+zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC);
 int ddtrace_wrap_fcall(zend_execute_data *TSRMLS_DC);
 void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *);
 void ddtrace_class_lookup_release(ddtrace_dispatch_t *);

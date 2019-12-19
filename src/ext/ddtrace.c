@@ -318,7 +318,7 @@ static PHP_FUNCTION(dd_trace_method) {
         RETURN_BOOL(0);
     }
 
-    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, 1 TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, DDTRACE_DSPCH_POSTHOOK TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
@@ -349,7 +349,7 @@ static PHP_FUNCTION(dd_trace_function) {
         RETURN_BOOL(0);
     }
 
-    zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, 1 TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, DDTRACE_DSPCH_POSTHOOK TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
