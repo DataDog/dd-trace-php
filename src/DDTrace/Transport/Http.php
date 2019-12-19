@@ -149,7 +149,7 @@ final class Http implements Transport
 
         // Empty Expect header to avoid curl auto-adding 100-Continue back and forth
         if (!isset($headers['Expect'])) {
-          $curlHeaders[] = "Expect:";
+            $curlHeaders[] = "Expect:";
         }
 
         foreach ($headers as $key => $value) {
