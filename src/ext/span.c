@@ -5,7 +5,6 @@
 #include <unistd.h>
 
 #include "ddtrace.h"
-#include "dispatch_compat.h"
 #include "serializer.h"
 
 #define USE_REALTIME_CLOCK 0
@@ -62,7 +61,11 @@ static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
     return 0;
 }
 
+#if PHP_VERSION_ID < 70000
 ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
+#else
+ddtrace_span_t *ddtrace_open_span(zend_execute_data *call, struct ddtrace_dispatch_t *dispatch TSRMLS_DC) {
+#endif
     ddtrace_span_t *span = ecalloc(1, sizeof(ddtrace_span_t));
     span->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = span;
@@ -86,6 +89,11 @@ ddtrace_span_t *ddtrace_open_span(TSRMLS_D) {
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+
+#if PHP_VERSION_ID >= 70000
+    span->call = call;
+    span->dispatch = dispatch;
+#endif
     return span;
 }
 

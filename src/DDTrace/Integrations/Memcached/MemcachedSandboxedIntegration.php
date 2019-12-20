@@ -107,7 +107,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
             $integration->setCommonData($span, 'cas');
             $span->meta['memcached.cas_token'] = $args[0];
             $span->meta['memcached.query'] = 'cas ?';
-            $integration->setServerTagsByKey($span, $this, $args[1]);
+            $integration->setServerTags($span, $this);
         });
 
         dd_trace_method('Memcached', 'casByKey', function (SpanData $span, $args) use ($integration) {
@@ -119,7 +119,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
             $span->meta['memcached.query'] = 'casByKey ?';
             $span->meta['memcached.server_key'] = $args[1];
 
-            $integration->setServerTagsByKey($span, $this, $args[0]);
+            $integration->setServerTags($span, $this);
         });
 
         return Integration::LOADED;
@@ -134,7 +134,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
             }
             $integration->setCommonData($span, $command);
             if (!is_array($args[0])) {
-                $integration->setServerTagsByKey($span, $this, $args[0]);
+                $integration->setServerTags($span, $this);
                 $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
             }
 
@@ -151,7 +151,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
             }
             $integration->setCommonData($span, $command);
             if (!is_array($args[0])) {
-                $integration->setServerTagsByKey($span, $this, $args[0]);
+                $integration->setServerTags($span, $this);
                 $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0]);
                 $span->meta['memcached.server_key'] = $args[0];
             }
@@ -169,7 +169,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
             }
             $integration->setCommonData($span, $command);
             if (!is_array($args[0])) {
-                $integration->setServerTagsByKey($span, $this, $args[0]);
+                $integration->setServerTags($span, $this);
             }
             $span->meta['memcached.query'] = $command . ' ' . Obfuscation::toObfuscatedString($args[0], ',');
             $integration->markForTraceAnalytics($span, $command);
@@ -185,7 +185,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
             }
             $integration->setCommonData($span, $command);
             $span->meta['memcached.server_key'] = $args[0];
-            $integration->setServerTagsByKey($span, $this, $args[0]);
+            $integration->setServerTags($span, $this);
             $query = "$command " . Obfuscation::toObfuscatedString($args[1], ',');
             $span->meta['memcached.query'] = $query;
             $integration->markForTraceAnalytics($span, $command);
@@ -208,25 +208,29 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
     }
 
     /**
-     * Memcached::getServerByKey() /might/ return incorrect information if the
-     * distribution would be rebuilt on a real call (Memcached::get(),
-     * Memcached::getByKey(), and other commands that actually hit the server
-     * include logic to regenerate the distribution if a server has been ejected
-     * or if a timer expires; Memcached::getServerByKey() does not check for the
-     * distribution being rebuilt. Getting around that would likely be
-     * prohibitively expensive though.
+     * Add the servers to the span metadata.
+     *
+     * Do not call `Memcached::getServerByKey()` since it mutates the
+     * result code. `Memcached::getServerList()` is more stable
+     * because it does not mutate the result code. One side effect to
+     * using the more stable API is that it is not possible to identify
+     * the specific server used in the original call when there are
+     * multiple servers.
+     *
+     * @param SpanData $span
+     * @param \Memcached $memcached
      */
-    public function setServerTagsByKey(SpanData $span, $memcached, $key)
+    public function setServerTags(SpanData $span, \Memcached $memcached)
     {
-        $server = $memcached->getServerByKey($key);
-
-        // getServerByKey() might return `false`: https://www.php.net/manual/en/memcached.getserverbykey.php
-        if (!is_array($server)) {
-            return;
+        $servers = $memcached->getServerList();
+        /*
+         * There can be a lot of servers in the list, so just take the
+         * top one to keep memory overhead low.
+         */
+        if (isset($servers[0]['host'], $servers[0]['port'])) {
+            $span->meta[Tag::TARGET_HOST] = $servers[0]['host'];
+            $span->meta[Tag::TARGET_PORT] = $servers[0]['port'];
         }
-
-        $span->meta[Tag::TARGET_HOST] = $server['host'];
-        $span->meta[Tag::TARGET_PORT] = $server['port'];
     }
 
     /**

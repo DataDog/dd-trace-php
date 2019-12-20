@@ -24,7 +24,6 @@
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
-#include "dispatch_compat.h"
 #include "engine_hooks.h"
 #include "memory_limit.h"
 #include "random.h"
@@ -32,15 +31,14 @@
 #include "serializer.h"
 #include "signals.h"
 #include "span.h"
-#include "trace.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals,
                     ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.internal_blacklisted_modules_list", "ionCube Loader,", PHP_INI_SYSTEM, OnUpdateString,
-                  internal_blacklisted_modules_list, zend_ddtrace_globals, ddtrace_globals)
+STD_PHP_INI_ENTRY("ddtrace.internal_blacklisted_modules_list", "ionCube Loader,newrelic,", PHP_INI_SYSTEM,
+                  OnUpdateString, internal_blacklisted_modules_list, zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
@@ -720,6 +718,18 @@ static PHP_FUNCTION(dd_trace_closed_spans_count) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
     RETURN_LONG(DDTRACE_G(closed_spans_count));
+}
+
+BOOL_T ddtrace_tracer_is_limited(TSRMLS_D) {
+    int64_t limit = get_dd_trace_spans_limit();
+    if (limit >= 0) {
+        int64_t open_spans = DDTRACE_G(open_spans_count);
+        int64_t closed_spans = DDTRACE_G(closed_spans_count);
+        if ((open_spans + closed_spans) >= limit) {
+            return TRUE;
+        }
+    }
+    return ddtrace_check_memory_under_limit(TSRMLS_C) == TRUE ? FALSE : TRUE;
 }
 
 /* {{{ proto string dd_trace_tracer_is_limited() */

@@ -149,13 +149,43 @@ final class Http implements Transport
         foreach ($headers as $key => $value) {
             $curlHeaders[] = "$key: $value";
         }
+
+        $isDebugEnabled = Configuration::get()->isDebugModeEnabled();
+        if ($isDebugEnabled) {
+            $verbose = \fopen('php://temp', 'w+b');
+            \curl_setopt($handle, \CURLOPT_VERBOSE, true);
+            \curl_setopt($handle, \CURLOPT_STDERR, $verbose);
+        }
+
         curl_setopt($handle, CURLOPT_HTTPHEADER, $curlHeaders);
 
         if (($response = curl_exec($handle)) === false) {
-            self::logError('Reporting of spans failed: {num} / {error}', [
+            $curlTimedout =  \version_compare(\PHP_VERSION, '5.5', '<')
+                ? \CURLE_OPERATION_TIMEOUTED
+                : \CURLE_OPERATION_TIMEDOUT;
+            $errno = \curl_errno($handle);
+            $extra = '';
+            if ($errno === $curlTimedout) {
+                $timeout = $this->config['timeout'];
+                $connectTimeout = $this->config['connect_timeout'];
+                $extra = " (TIMEOUT_MS={$timeout}, CONNECTTIMEOUT_MS={$connectTimeout})";
+            }
+            self::logError('Reporting of spans failed: {num} / {error}{extra}', [
                 'error' => curl_error($handle),
-                'num' => curl_errno($handle),
+                'num' => $errno,
+                'extra' => $extra,
             ]);
+
+            if ($isDebugEnabled && isset($verbose)) {
+                @\rewind($verbose);
+                $verboseLog = @\stream_get_contents($verbose);
+                if ($verboseLog !== false) {
+                    self::logError($verboseLog);
+                } else {
+                    self::logError("Error while retrieving curl error log");
+                }
+            }
+
             function_exists('dd_tracer_circuit_breaker_register_error') && dd_tracer_circuit_breaker_register_error();
 
             return;

@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Unit;
 
 use DDTrace\Configuration;
+use DDTrace\Format;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;
 use DDTrace\Tag;
@@ -146,10 +147,22 @@ final class TracerTest extends BaseTestCase
         $tracer->flush();
     }
 
-    public function testPrioritySamplingIsAssigned()
+    public function testPrioritySamplingIsLazilyAssignedOnInject()
     {
         $tracer = new Tracer(new DebugTransport());
-        $tracer->startSpan(self::OPERATION_NAME);
+        $span = $tracer->startRootSpan(self::OPERATION_NAME)->getSpan();
+        $this->assertNull($tracer->getPrioritySampling());
+        $carrier = [];
+        $tracer->inject($span->getContext(), Format::TEXT_MAP, $carrier);
+        $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
+    }
+
+    public function testPrioritySamplingIsLazilyAssignedBeforeFlush()
+    {
+        $tracer = new Tracer(new DebugTransport());
+        $tracer->startRootSpan(self::OPERATION_NAME);
+        $this->assertNull($tracer->getPrioritySampling());
+        $tracer->flush();
         $this->assertSame(PrioritySampling::AUTO_KEEP, $tracer->getPrioritySampling());
     }
 
@@ -158,9 +171,11 @@ final class TracerTest extends BaseTestCase
         $distributedTracingContext = new SpanContext('', '', '', [], true);
         $distributedTracingContext->setPropagatedPrioritySampling(PrioritySampling::USER_REJECT);
         $tracer = new Tracer(new DebugTransport());
-        $tracer->startSpan(self::OPERATION_NAME, [
+        $tracer->startRootSpan(self::OPERATION_NAME, [
             'child_of' => $distributedTracingContext,
         ]);
+        // We need to flush as priority sampling is lazily evaluated at inject time or flush time.
+        $tracer->flush();
         $this->assertSame(PrioritySampling::USER_REJECT, $tracer->getPrioritySampling());
     }
 

@@ -18,7 +18,7 @@ class SyntheticsTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             // Ensure that Synthetics requests do not get sampled
             // even with a really low sampling rate
-            'DD_SAMPLING_RATE' => '0.0',
+            'DD_TRACE_SAMPLE_RATE' => '0.0',
             // Disabling priority sampling will break Synthetic requests
             'DD_PRIORITY_SAMPLING' => 'true',
             // Disabling distributed tracing will break Synthetic requests

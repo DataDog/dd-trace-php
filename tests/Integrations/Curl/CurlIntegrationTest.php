@@ -414,4 +414,25 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ]),
         ]);
     }
+
+    public function testHttpHeadersIsCorrectlySetAgain()
+    {
+        $this->inRootSpan(function () {
+            $found = [];
+
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => self::URL . '/headers',
+                CURLOPT_HTTPHEADER => ['Accept: application/json', 'Host: test.invalid'],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FAILONERROR => false,
+                CURLOPT_HEADER => false,
+            ]);
+            $found = json_decode(curl_exec($ch), 1);
+
+            $this->assertSame('test.invalid', $found['headers']['Host']);
+            $this->assertSame('application/json', $found['headers']['Accept']);
+            $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
+        });
+    }
 }

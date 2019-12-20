@@ -2,11 +2,15 @@
 #define DDTRACE_H
 #include <stdint.h>
 
+#include "env_config.h"
 #include "random.h"
 #include "span.h"
 #include "version.h"
+
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
+
+BOOL_T ddtrace_tracer_is_limited(TSRMLS_D);
 
 typedef struct _ddtrace_original_context {
     zend_function *fbc;

@@ -706,6 +706,21 @@ class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
+    // https://github.com/DataDog/dd-trace-php/issues/622
+    // https://github.com/DataDog/dd-trace-php/issues/656
+    public function testResultCodeIsError()
+    {
+        $this->isolateTracer(function () {
+            $m = new \Memcached();
+            $m->addServer('memcached_server_does_not_exist', 11211);
+            $m->get('foo');
+            $this->assertSame(
+                \Memcached::RES_HOST_LOOKUP_FAILURE,
+                $m->getResultCode()
+            );
+        });
+    }
+
     private static function baseTags()
     {
         return [

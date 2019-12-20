@@ -97,7 +97,9 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
 
                 $symfonyRequestSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
                 $symfonyRequestSpan->setTag(Tag::HTTP_URL, $request->getUriForPath($request->getPathInfo()));
-                $symfonyRequestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
+                if (isset($response)) {
+                    $symfonyRequestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
+                }
 
                 $route = $request->get('_route');
                 if (null !== $route && null !== $request) {

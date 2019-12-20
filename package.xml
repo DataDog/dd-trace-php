@@ -53,10 +53,6 @@
                     <file name="vendor_stdatomic.h" role="src" />
                     <file name="dispatch.c" role="src" />
                     <file name="dispatch.h" role="src" />
-                    <file name="dispatch_compat.h" role="src" />
-                    <file name="dispatch_compat_php5.c" role="src" />
-                    <file name="dispatch_compat_php5.h" role="src" />
-                    <file name="dispatch_compat_php7.c" role="src" />
                     <file name="dispatch_setup.c" role="src" />
                     <file name="engine_hooks.c" role="src" />
                     <file name="engine_hooks.h" role="src" />
@@ -75,8 +71,6 @@
                     <file name="signals.h" role="src" />
                     <file name="span.c" role="src" />
                     <file name="span.h" role="src" />
-                    <file name="trace.c" role="src" />
-                    <file name="trace.h" role="src" />
                     <file name="version.h" role="src" />
                     <file name="compatibility.h" role="src" />
                     <dir name="mpack">
@@ -86,6 +80,14 @@
                         <file name="LICENSE" role="doc" />
                         <file name="mpack.c" role="src" />
                         <file name="mpack.h" role="src" />
+                    </dir>
+                    <dir name="php5">
+                        <file name="dispatch.c" role="src" />
+                        <file name="engine_hooks.c" role="src" />
+                    </dir>
+                    <dir name="php7">
+                        <file name="dispatch.c" role="src" />
+                        <file name="engine_hooks.c" role="src" />
                     </dir>
                     <dir name="third-party">
                         <file name="mt19937-64.c" role="src" />
@@ -138,6 +140,8 @@
                     <file name="dd_trace_tracer_is_limited_hard.phpt" role="test" />
                     <file name="dd_trace_tracer_is_limited_memory.phpt" role="test" />
                     <dir name="sandbox">
+                        <file name="close-on-exit.phpt" role="test" />
+                        <file name="close-on-exit-retval.phpt" role="test" />
                         <file name="dd_trace_closed_spans_count.phpt" role="test" />
                         <file name="dd_trace_function_complex.phpt" role="test" />
                         <file name="dd_trace_function_internal.phpt" role="test" />

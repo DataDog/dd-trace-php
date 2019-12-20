@@ -40,6 +40,13 @@ aliases:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
+  - &IMAGE_DOCKER_MONGO
+    image: "circleci/mongo:4.0"
+    name: mongodb_integration
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=test
+      - MONGO_INITDB_ROOT_PASSWORD=test
+
   - &IMAGE_DOCKER_REQUEST_REPLAYER
     image: datadog/dd-trace-ci:php-request-replayer
     name: request-replayer
@@ -195,6 +202,7 @@ executors:
       - <<: *IMAGE_DOCKER_REDIS
       - <<: *IMAGE_DOCKER_MEMCHACED
       - <<: *IMAGE_DOCKER_MYSQL
+      - <<: *IMAGE_DOCKER_MONGO
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
 
 jobs:
@@ -257,7 +265,7 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - run:
           name: Install phpstan
-          command: composer global require phpstan/phpstan
+          command: composer global require phpstan/phpstan:0.11.*
       - run:
           name: Running phpstan
           command: PATH=$PATH:~/.composer/vendor/bin composer static-analyze
