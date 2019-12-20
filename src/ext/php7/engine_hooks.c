@@ -64,6 +64,9 @@ static BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_fu
     if (!*dispatch || (*dispatch)->busy) {
         return FALSE;
     }
+    if (ddtrace_tracer_is_limited() && ((*dispatch)->options & DDTRACE_DSPCH_INSTRUMENT_WHEN_LIMITED) == 0) {
+        return FALSE;
+    }
 
     return TRUE;
 }
