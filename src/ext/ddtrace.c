@@ -307,7 +307,7 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
         if (strcmp("posthook", ZSTR_VAL(key)) == 0) {
             if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
                 *tracing_closure = value;
-                *options |= DDTRACE_DSPCH_POSTHOOK;
+                *options |= DDTRACE_DISPATCH_POSTHOOK;
             } else {
                 ddtrace_log_debug("Expected an instance of Closure for posthook");
                 return FALSE;
@@ -315,7 +315,7 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
         } else if (strcmp("instrument_when_limited", ZSTR_VAL(key)) == 0) {
             if (Z_TYPE_P(value) == IS_LONG) {
                 if (Z_LVAL_P(value)) {
-                    *options |= DDTRACE_DSPCH_INSTRUMENT_WHEN_LIMITED;
+                    *options |= DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED;
                 }
             } else {
                 ddtrace_log_debug("Expected an int for instrument_when_limited");
@@ -360,7 +360,7 @@ static PHP_FUNCTION(dd_trace_method) {
         RETURN_BOOL(0);
     }
 
-    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, DDTRACE_DSPCH_POSTHOOK TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, DDTRACE_DISPATCH_POSTHOOK TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
@@ -399,7 +399,7 @@ static PHP_FUNCTION(dd_trace_function) {
             RETURN_BOOL(0);
         }
     } else {
-        options |= DDTRACE_DSPCH_POSTHOOK;
+        options |= DDTRACE_DISPATCH_POSTHOOK;
     }
 
     zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, options TSRMLS_CC);
