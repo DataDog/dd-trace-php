@@ -162,6 +162,7 @@
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
                         <file name="keep_spans_in_limited_tracing_functions.phpt" role="test" />
+                        <file name="keep_spans_in_limited_tracing_methods.phpt" role="test" />
                         <file name="new_static.phpt" role="test" />
                         <file name="safe_to_string_metadata.phpt" role="test" />
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />

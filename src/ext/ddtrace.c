@@ -335,24 +335,25 @@ static PHP_FUNCTION(dd_trace_method) {
     zval *class_name = NULL;
     zval *function = NULL;
     zval *tracing_closure = NULL;
+    zval *config_array = NULL;
+    uint32_t options = 0;
 
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzO", &class_name, &function,
-                                 &tracing_closure, zend_ce_closure) != SUCCESS) {
+                                 &tracing_closure, zend_ce_closure) != SUCCESS &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zza", &class_name, &function,
+                                 &config_array) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameters, expected (class_name, method_name, tracing_closure)");
+                                    "unexpected parameters, expected (class_name, method_name, tracing_closure | config_array)");
         }
         RETURN_BOOL(0);
     }
 
     if (Z_TYPE_P(class_name) != IS_STRING || Z_TYPE_P(function) != IS_STRING) {
-        ddtrace_zval_ptr_dtor(class_name);
-        ddtrace_zval_ptr_dtor(function);
-        ddtrace_zval_ptr_dtor(tracing_closure);
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
                                     "class_name and method_name must be a string");
@@ -360,7 +361,15 @@ static PHP_FUNCTION(dd_trace_method) {
         RETURN_BOOL(0);
     }
 
-    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, DDTRACE_DISPATCH_POSTHOOK TSRMLS_CC);
+    if (config_array) {
+        if (_parse_config_array(config_array, &tracing_closure, &options) == FALSE) {
+            RETURN_BOOL(0);
+        }
+    } else {
+        options |= DDTRACE_DISPATCH_POSTHOOK;
+    }
+
+    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, options TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
@@ -386,8 +395,6 @@ static PHP_FUNCTION(dd_trace_function) {
     }
 
     if (Z_TYPE_P(function) != IS_STRING) {
-        ddtrace_zval_ptr_dtor(function);
-        ddtrace_zval_ptr_dtor(tracing_closure);
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "function_name must be a string");
         }
