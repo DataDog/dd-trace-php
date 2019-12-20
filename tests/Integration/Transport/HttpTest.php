@@ -174,6 +174,10 @@ final class HttpTest extends BaseTestCase
             'connect_timeout' => $curlTimeout,
             'timeout' => $timeout,
         ]);
+
+        // This helps it timeout more reliably
+        $httpTransport->setHeader('Expect', '100-continue');
+        
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
         $logger = $this->withDebugLogger();
