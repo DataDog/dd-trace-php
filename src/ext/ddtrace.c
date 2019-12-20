@@ -290,6 +290,7 @@ static PHP_FUNCTION(dd_trace) {
 }
 
 static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, uint32_t *options) {
+#if PHP_VERSION_ID >= 70000
     zval *value;
     zend_string *key;
 
@@ -328,6 +329,9 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
     }
     ZEND_HASH_FOREACH_END();
     return TRUE;
+#else  // TODO Implement PHP 5
+    return FALSE;
+#endif
 }
 
 static PHP_FUNCTION(dd_trace_method) {
