@@ -1,29 +1,38 @@
 --TEST--
-Keep spans in limited mode (functions)
+Keep spans in limited mode (userland functions)
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
 --FILE--
 <?php
-dd_trace_function('array_sum', function (\DDTrace\SpanData $span) {
-    $span->name = 'array_sum';
+function myFunc1($foo) {
+    return $foo;
+}
+
+function myFunc2($bar) {
+    return $bar;
+}
+
+dd_trace_function('myFunc1', function (\DDTrace\SpanData $span) {
+    $span->name = 'myFunc1';
 });
-dd_trace_function('mt_rand', [
+dd_trace_function('myFunc2', [
     'instrument_when_limited' => 1,
     'posthook' => function (\DDTrace\SpanData $span) {
-        $span->name = 'mt_rand';
+        $span->name = 'myFunc2';
     }
 ]);
 
 var_dump(dd_trace_tracer_is_limited());
-mt_rand();
+myFunc2('foo');
 for ($i = 0; $i < 100; $i++) {
-    array_sum([]);
+    myFunc1([]);
 }
 var_dump(dd_trace_tracer_is_limited());
-mt_rand();
-mt_rand();
+myFunc2(42);
+myFunc2(true);
+
 array_map(function($span) {
     echo $span['name'] . PHP_EOL;
 }, dd_trace_serialize_closed_spans());
@@ -31,10 +40,10 @@ array_map(function($span) {
 --EXPECT--
 bool(false)
 bool(true)
-mt_rand
-mt_rand
-array_sum
-array_sum
-array_sum
-array_sum
-mt_rand
+myFunc2
+myFunc2
+myFunc1
+myFunc1
+myFunc1
+myFunc1
+myFunc2
