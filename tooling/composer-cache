@@ -73,9 +73,9 @@ unlink-cache() {
     do
         DIRNAME=$(dirname "${composer_lock}")
         echo "Unlinking folder ${DIRNAME}/vendor"
-        rm -f "${DIRNAME}/vendor"
+        rm -rf "${DIRNAME}/vendor"
         echo "Unlinking file ${DIRNAME}/composer.lock"
-        rm -f "${DIRNAME}/composer.lock"
+        rm -rf "${DIRNAME}/composer.lock"
         echo "---"
     done
     echo "Done"
