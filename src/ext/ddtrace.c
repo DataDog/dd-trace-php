@@ -285,9 +285,7 @@ static PHP_FUNCTION(dd_trace) {
         }
     }
 
-    /* The legacy API still needs to check for limited mode in userland so all intrumentations
-       are technically DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED at this point */
-    zend_bool rv = ddtrace_trace(class_name, function, callable, DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED TSRMLS_CC);
+    zend_bool rv = ddtrace_trace(class_name, function, callable, 0 TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
