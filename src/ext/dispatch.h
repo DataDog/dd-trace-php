@@ -14,7 +14,7 @@
 typedef struct ddtrace_dispatch_t {
     uint32_t options;
     zval callable, function_name;
-    zend_bool busy;  // Move to options?
+    zend_bool busy;
     uint32_t acquired;
 } ddtrace_dispatch_t;
 
