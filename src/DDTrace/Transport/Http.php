@@ -146,6 +146,15 @@ final class Http implements Transport
             'Content-Length: ' . $bodySize,
             'X-Datadog-Trace-Count: ' . $tracesCount,
         ];
+
+        /* Curl will add Expect: 100-continue if it is a POST over a certain size. The trouble is that CURL will
+         * wait for *1 second* for 100 Continue response before sending the rest of the data. This wait is
+         * configurable, but requires a newer curl than we have on CentOS 6. So instead we send an empty Expect.
+         */
+        if (!isset($headers['Expect'])) {
+            $curlHeaders[] = "Expect:";
+        }
+
         foreach ($headers as $key => $value) {
             $curlHeaders[] = "$key: $value";
         }
