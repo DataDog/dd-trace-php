@@ -155,6 +155,7 @@
                         <file name="errors_are_flagged_from_userland.phpt" role="test" />
                         <file name="exception_handling_php5.phpt" role="test" />
                         <file name="exception_handling.phpt" role="test" />
+                        <file name="exception_is_defined.phpt" role="test" />
                         <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
                         <file name="exceptions_are_passed_to_the_tracing_closure.phpt" role="test" />
                         <file name="exceptions_are_passed_to_the_tracing_closure_php5.phpt" role="test" />

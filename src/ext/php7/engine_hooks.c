@@ -154,7 +154,7 @@ static BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, z
     INIT_ZVAL(rv);
     zval args[4];
     zval exception_arg = {.value = {0}};
-    ZVAL_UNDEF(&exception_arg);
+    ZVAL_NULL(&exception_arg);
     if (exception) {
         ZVAL_OBJ(&exception_arg, exception);
     }
