@@ -13,6 +13,19 @@ use DDTrace\Util\ArrayKVStore;
 use DDTrace\GlobalTracer;
 
 /**
+ * @param \DDTrace\Span $span
+ * @param string $tagName
+ * @param mixed $info
+ */
+function addTagFromCurlInfo($span, &$info, $tagName, $curlInfoOpt)
+{
+    if (isset($info[$curlInfoOpt]) && !\trim($info[$curlInfoOpt]) !== '') {
+        $span->setTag($tagName, $info[$curlInfoOpt]);
+        unset($info[$curlInfoOpt]);
+    }
+}
+
+/**
  * Integration for curl php client.
  */
 class CurlIntegration extends Integration
@@ -78,31 +91,31 @@ class CurlIntegration extends Integration
 
             $span->setTag(Tag::HTTP_URL, $sanitizedUrl);
 
-            CurlIntegration::tagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
+            addTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
 
             // Datadog sets durations in nanoseconds - convert from seconds
             $span->setTag('duration', $info['total_time'] * 1000000000);
             unset($info['duration']);
 
-            CurlIntegration::tagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
-            CurlIntegration::tagFromCurlInfo($span, $info, 'network.client.port', 'local_port');
+            addTagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
+            addTagFromCurlInfo($span, $info, 'network.client.port', 'local_port');
 
-            CurlIntegration::tagFromCurlInfo($span, $info, 'network.destination.ip', 'primary_ip');
-            CurlIntegration::tagFromCurlInfo($span, $info, 'network.destination.port', 'primary_port');
+            addTagFromCurlInfo($span, $info, 'network.destination.ip', 'primary_ip');
+            addTagFromCurlInfo($span, $info, 'network.destination.port', 'primary_port');
 
-            CurlIntegration::tagFromCurlInfo($span, $info, 'network.bytes_read', 'size_download');
-            CurlIntegration::tagFromCurlInfo($span, $info, 'network.bytes_written', 'size_upload');
+            addTagFromCurlInfo($span, $info, 'network.bytes_read', 'size_download');
+            addTagFromCurlInfo($span, $info, 'network.bytes_written', 'size_upload');
 
 
             // Add the rest to a 'curl.' object
             foreach ($info as $key => $val) {
                 // Datadog doesn't support arrays in tags
-                if (!is_array($val)) {
+                if (\is_scalar($val) && $val !== '') {
                     // Datadog sets durations in nanoseconds - convert from seconds
-                    if (substr_compare($key, '_time', -5) === 0) {
-                        $val = $val * 1000000000;
+                    if (\substr_compare($key, '_time', -5) === 0) {
+                        $val *= 1000000000;
                     }
-                    $span->setTag('curl.' . $key, $val);
+                    $span->setTag("curl.{$key}", $val);
                 }
             }
 
@@ -179,19 +192,6 @@ class CurlIntegration extends Integration
 
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeaders);
             }
-        }
-    }
-
-    /**
-     * @param span $span
-     * @param tagName $tagName
-     * @param info $info
-     */
-    public static function tagFromCurlInfo($span, &$info, $tagName, $curlInfoOpt)
-    {
-        if (array_key_exists($curlInfoOpt, $info)) {
-            $span->setTag($tagName, $info[$curlInfoOpt]);
-            unset($info[$curlInfoOpt]);
         }
     }
 }
