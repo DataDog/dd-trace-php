@@ -147,7 +147,10 @@ final class Http implements Transport
             'X-Datadog-Trace-Count: ' . $tracesCount,
         ];
 
-        // Empty Expect header to avoid curl auto-adding 100-Continue back and forth
+        /* Curl will add Expect: 100-continue if it is a POST over a certain size. The trouble is that CURL will
+         * wait for *1 second* for 100 Continue response before sending the rest of the data. This wait is
+         * configurable, but requires a newer curl than we have on CentOS 6. So instead we send an empty Expect.
+         */
         if (!isset($headers['Expect'])) {
             $curlHeaders[] = "Expect:";
         }
