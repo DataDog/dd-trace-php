@@ -289,15 +289,15 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
-static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, uint32_t *options) {
-#if PHP_VERSION_ID >= 70000
-    zval *value;
-    zend_string *key;
-
+static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, uint32_t *options TSRMLS_DC) {
     if (Z_TYPE_P(config_array) != IS_ARRAY) {
         ddtrace_log_debug("Expected config_array to be an associative array");
         return FALSE;
     }
+
+#if PHP_VERSION_ID >= 70000
+    zval *value;
+    zend_string *key;
 
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(config_array), key, value) {
         if (!key) {
@@ -329,8 +329,47 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
     }
     ZEND_HASH_FOREACH_END();
     return TRUE;
-#else  // TODO Implement PHP 5
-    return FALSE;
+#else
+    zval **value;
+    char *string_key;
+    uint str_len;
+    HashPosition iterator;
+    zend_ulong num_key;
+    int key_type;
+    HashTable *ht = Z_ARRVAL_P(config_array);
+
+    zend_hash_internal_pointer_reset_ex(ht, &iterator);
+    while (zend_hash_get_current_data_ex(ht, (void **)&value, &iterator) == SUCCESS) {
+        key_type = zend_hash_get_current_key_ex(ht, &string_key, &str_len, &num_key, 0, &iterator);
+        if (key_type != HASH_KEY_IS_STRING || !string_key) {
+            ddtrace_log_debug("Expected config_array to be an associative array");
+            return FALSE;
+        }
+        // TODO Optimize this
+        if (strcmp("posthook", string_key) == 0) {
+            if (Z_TYPE_PP(value) == IS_OBJECT && instanceof_function(Z_OBJCE_PP(value), zend_ce_closure TSRMLS_CC)) {
+                *tracing_closure = *value;
+                *options |= DDTRACE_DISPATCH_POSTHOOK;
+            } else {
+                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", string_key);
+                return FALSE;
+            }
+        } else if (strcmp("instrument_when_limited", string_key) == 0) {
+            if (Z_TYPE_PP(value) == IS_LONG) {
+                if (Z_LVAL_PP(value)) {
+                    *options |= DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED;
+                }
+            } else {
+                ddtrace_log_debugf("Expected '%s' to be an int", string_key);
+                return FALSE;
+            }
+        } else {
+            ddtrace_log_debugf("Unknown option '%s' in config_array", string_key);
+            return FALSE;
+        }
+        zend_hash_move_forward_ex(ht, &iterator);
+    }
+    return TRUE;
 #endif
 }
 
@@ -366,7 +405,7 @@ static PHP_FUNCTION(dd_trace_method) {
     }
 
     if (config_array) {
-        if (_parse_config_array(config_array, &tracing_closure, &options) == FALSE) {
+        if (_parse_config_array(config_array, &tracing_closure, &options TSRMLS_CC) == FALSE) {
             RETURN_BOOL(0);
         }
     } else {
@@ -406,7 +445,7 @@ static PHP_FUNCTION(dd_trace_function) {
     }
 
     if (config_array) {
-        if (_parse_config_array(config_array, &tracing_closure, &options) == FALSE) {
+        if (_parse_config_array(config_array, &tracing_closure, &options TSRMLS_CC) == FALSE) {
             RETURN_BOOL(0);
         }
     } else {
