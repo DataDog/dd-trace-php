@@ -310,7 +310,7 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
                 *tracing_closure = value;
                 *options |= DDTRACE_DISPATCH_POSTHOOK;
             } else {
-                ddtrace_log_debug("Expected an instance of Closure for posthook");
+                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
                 return FALSE;
             }
         } else if (strcmp("instrument_when_limited", ZSTR_VAL(key)) == 0) {
@@ -319,11 +319,11 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
                     *options |= DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED;
                 }
             } else {
-                ddtrace_log_debug("Expected an int for instrument_when_limited");
+                ddtrace_log_debugf("Expected '%s' to be an int", ZSTR_VAL(key));
                 return FALSE;
             }
         } else {
-            ddtrace_log_debug("Unknown option in config_array");
+            ddtrace_log_debugf("Unknown option '%s' in config_array", ZSTR_VAL(key));
             return FALSE;
         }
     }
