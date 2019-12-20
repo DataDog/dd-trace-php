@@ -21,6 +21,7 @@ var_dump(dd_trace_function('foo', [
 var_dump(dd_trace_function('foo', [
     'posthook' => new stdClass(),
 ]));
+var_dump(dd_trace_function('foo', []));
 
 # Methods
 echo PHP_EOL;
@@ -38,6 +39,7 @@ var_dump(dd_trace_method('foo', 'foo', [
 var_dump(dd_trace_method('foo', 'foo', [
     'posthook' => new stdClass(),
 ]));
+var_dump(dd_trace_method('foo', 'foo', []));
 ?>
 --EXPECT--
 bool(false)
@@ -51,6 +53,8 @@ Expected 'posthook' to be an instance of Closure
 bool(false)
 Expected 'posthook' to be an instance of Closure
 bool(false)
+Required key 'posthook' not found in config_array
+bool(false)
 
 bool(false)
 Expected config_array to be an associative array
@@ -62,4 +66,6 @@ bool(false)
 Expected 'posthook' to be an instance of Closure
 bool(false)
 Expected 'posthook' to be an instance of Closure
+bool(false)
+Required key 'posthook' not found in config_array
 bool(false)

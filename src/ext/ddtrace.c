@@ -328,7 +328,6 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
         }
     }
     ZEND_HASH_FOREACH_END();
-    return TRUE;
 #else
     zval **value;
     char *string_key;
@@ -369,8 +368,12 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
         }
         zend_hash_move_forward_ex(ht, &iterator);
     }
-    return TRUE;
 #endif
+    if (!*tracing_closure) {
+        ddtrace_log_debug("Required key 'posthook' not found in config_array");
+        return FALSE;
+    }
+    return TRUE;
 }
 
 static PHP_FUNCTION(dd_trace_method) {
