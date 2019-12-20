@@ -7,9 +7,9 @@
 
 #include "compatibility.h"
 
-#define DDTRACE_DISPATCH_BUSY                      (1 << 0)
-#define DDTRACE_DISPATCH_POSTHOOK                  (1 << 1)
-#define DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED   (1 << 2)
+#define DDTRACE_DISPATCH_BUSY (1 << 0)
+#define DDTRACE_DISPATCH_POSTHOOK (1 << 1)
+#define DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED (1 << 2)
 
 typedef struct ddtrace_dispatch_t {
     uint32_t options;
