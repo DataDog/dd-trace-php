@@ -7,14 +7,15 @@
 
 #include "compatibility.h"
 
-#define DDTRACE_DISPATCH_BUSY (1 << 0)
-#define DDTRACE_DISPATCH_POSTHOOK (1 << 1)
-#define DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED (1 << 2)
+#define DDTRACE_DISPATCH_DO_NOT_INSTRUMENT (1 << 0)
+#define DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED (1 << 1)
+#define DDTRACE_DISPATCH_PREHOOK (1 << 2)
+#define DDTRACE_DISPATCH_POSTHOOK (1 << 3)
 
 typedef struct ddtrace_dispatch_t {
     uint32_t options;
     zval callable, function_name;
-    zend_bool busy;  // Move to options?
+    zend_bool busy;
     uint32_t acquired;
 } ddtrace_dispatch_t;
 

@@ -420,6 +420,18 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data) {
     if (!ddtrace_should_trace_call(execute_data, &current_fbc, &dispatch)) {
         return ddtrace_opcode_default_dispatch(execute_data);
     }
+    if (
+        (dispatch->options & DDTRACE_DISPATCH_DO_NOT_INSTRUMENT) &&
+        (dispatch->options & DDTRACE_DISPATCH_PREHOOK)) {
+        ddtrace_class_lookup_acquire(dispatch);
+        dispatch->busy = 1;
+        // Run closure with args here
+        php_printf("PREHOOKING [%s]!\n", ZSTR_VAL(current_fbc->common.function_name));
+        dispatch->busy = 0;
+        ddtrace_class_lookup_release(dispatch);
+        return ddtrace_opcode_default_dispatch(execute_data);
+    }
+
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 

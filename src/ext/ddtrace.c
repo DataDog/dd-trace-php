@@ -83,6 +83,12 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_compile_time_microseconds, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_non_instrumented_prehook, 0, 0, 2)
+ZEND_ARG_INFO(0, class_name_or_function_name)
+ZEND_ARG_INFO(0, method_name_or_callable)
+ZEND_ARG_INFO(0, callable)
+ZEND_END_ARG_INFO()
+
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
 /* DDTrace\SpanData */
@@ -854,6 +860,43 @@ static PHP_FUNCTION(dd_trace_compile_time_microseconds) {
     RETURN_LONG(ddtrace_compile_time_get(TSRMLS_C));
 }
 
+static PHP_FUNCTION(dd_trace_non_instrumented_prehook) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
+    zval *function = NULL;
+    zval *class_name = NULL;
+    zval *callable = NULL;
+    uint32_t options = 0;
+
+    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
+        RETURN_BOOL(0);
+    }
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzO", &class_name, &function,
+                                 &callable, zend_ce_closure) != SUCCESS &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zO", &function, &callable, zend_ce_closure) !=
+            SUCCESS) {
+        ddtrace_log_debug("Unexpected parameter combination, expected (class, function, closure) or (function, closure)");
+        RETURN_BOOL(0);
+    }
+
+    if (class_name && Z_TYPE_P(class_name) != IS_STRING) {
+        ddtrace_log_debug("Class name parameter must be a string");
+        RETURN_BOOL(0);
+    }
+    if (!function || Z_TYPE_P(function) != IS_STRING) {
+        ddtrace_log_debugf("%s name parameter must be a string", class_name ? "Method" : "Function");
+        RETURN_BOOL(0);
+    }
+
+    options |= DDTRACE_DISPATCH_DO_NOT_INSTRUMENT;
+    options |= DDTRACE_DISPATCH_PREHOOK;
+    // All non-instrumation hooks should still fire in limited mode
+    options |= DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED;
+
+    zend_bool rv = ddtrace_trace(class_name, function, callable, options TSRMLS_CC);
+    RETURN_BOOL(rv);
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace, NULL),
     DDTRACE_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span),
@@ -883,6 +926,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_tracer_circuit_breaker_register_success, NULL),
     DDTRACE_FE(dd_untrace, NULL),
     DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds),
+    DDTRACE_FE(dd_trace_non_instrumented_prehook, arginfo_dd_trace_non_instrumented_prehook),
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
