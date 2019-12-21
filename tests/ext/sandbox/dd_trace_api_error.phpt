@@ -1,5 +1,5 @@
 --TEST--
-dd_trace_function() and dd_trace_method() error cases
+dd_trace_function() and dd_trace_method() declarative API error cases
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
@@ -21,6 +21,9 @@ var_dump(dd_trace_function('foo', [
 var_dump(dd_trace_function('foo', [
     'posthook' => new stdClass(),
 ]));
+var_dump(dd_trace_function('foo', [
+    'innerhook' => function () {},
+]));
 var_dump(dd_trace_function('foo', []));
 
 # Methods
@@ -39,6 +42,9 @@ var_dump(dd_trace_method('foo', 'foo', [
 var_dump(dd_trace_method('foo', 'foo', [
     'posthook' => new stdClass(),
 ]));
+var_dump(dd_trace_method('foo', 'foo', [
+    'innerhook' => function () {},
+]));
 var_dump(dd_trace_method('foo', 'foo', []));
 ?>
 --EXPECT--
@@ -53,7 +59,9 @@ Expected 'posthook' to be an instance of Closure
 bool(false)
 Expected 'posthook' to be an instance of Closure
 bool(false)
-Required key 'posthook' not found in config_array
+Sandbox API does not support 'innerhook'
+bool(false)
+Required key 'posthook' or 'innerhook' not found in config_array
 bool(false)
 
 bool(false)
@@ -67,5 +75,7 @@ Expected 'posthook' to be an instance of Closure
 bool(false)
 Expected 'posthook' to be an instance of Closure
 bool(false)
-Required key 'posthook' not found in config_array
+Sandbox API does not support 'innerhook'
+bool(false)
+Required key 'posthook' or 'innerhook' not found in config_array
 bool(false)

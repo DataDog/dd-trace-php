@@ -121,6 +121,7 @@
                     <file name="circuit_breaker_info.phpt" role="test" />
                     <file name="circuit_breaker_retry_time.phpt" role="test" />
                     <file name="circuit_breaker_max_failures.phpt" role="test" />
+                    <file name="dd_trace_api_error.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error_strict.phpt" role="test" />
@@ -246,6 +247,10 @@
                     <file name="check_memory_under_limit_low_limit.phpt" role="test" />
                     <file name="extension_disabled.phpt" role="test" />
                     <file name="get_memory_limit_0_percent.phpt" role="test" />
+                    <file name="keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
+                    <file name="keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
+                    <file name="keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
+                    <file name="keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
                     <file name="simple_function_hook.phpt" role="test" />
                     <file name="simple_method_hook.phpt" role="test" />
                     <file name="throw_exception.phpt" role="test" />
