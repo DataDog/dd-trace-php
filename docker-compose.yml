@@ -68,6 +68,7 @@ services:
     build:
       context: .
       dockerfile: dockerfiles/development/Dockerfile_70
+      target: final
       args:
         PHP_MAJOR_MINOR: '7.0'
         MCRYPT_PACKAGE: mcrypt
