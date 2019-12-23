@@ -80,6 +80,7 @@ services:
     build:
       context: .
       dockerfile: dockerfiles/development/Dockerfile_71_72_73
+      target: final
       args:
         PHP_MAJOR_MINOR: '7.1'
         MCRYPT_PACKAGE: mcrypt-1.0.0
@@ -93,6 +94,7 @@ services:
     build:
       context: .
       dockerfile: dockerfiles/development/Dockerfile_71_72_73
+      target: final
       args:
         PHP_MAJOR_MINOR: '7.2'
         MCRYPT_PACKAGE: mcrypt-1.0.3
@@ -104,6 +106,7 @@ services:
     build:
       context: .
       dockerfile: dockerfiles/development/Dockerfile_71_72_73
+      target: final
       args:
         PHP_MAJOR_MINOR: '7.3'
         MCRYPT_PACKAGE: mcrypt-1.0.3

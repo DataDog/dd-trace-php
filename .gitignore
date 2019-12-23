@@ -1,4 +1,4 @@
-**/vendor/
+**/vendor
 tmp/build_extension/
 composer.lock
 .scenarios.lock/

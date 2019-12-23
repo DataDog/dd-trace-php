@@ -6,47 +6,47 @@ FROM circleci/php:${PHP_MAJOR_MINOR}-cli-stretch AS base
 ARG PHP_MAJOR_MINOR
 ARG MCRYPT_PACKAGE
 
-USER root
-
-RUN apt-get update \
-    && apt-get install -y libmcrypt-dev \
-    && pecl install ${MCRYPT_PACKAGE} \
-    && docker-php-ext-enable mcrypt \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-ADD ./ /app
-
-# Manual fixes
-RUN chown -R root /app
-RUN rm -rf tests/Frameworks/Symfony/*/app/cache
-RUN rm -rf tests/Frameworks/Symfony/*/var/cache
-
-RUN composer test-cache-unlink
-RUN COMPOSER_PROCESS_TIMEOUT=0 composer test-cache
-
-FROM circleci/php:${PHP_MAJOR_MINOR}-cli-stretch AS final
-
-ARG PHP_MAJOR_MINOR
-ARG MCRYPT_PACKAGE
-
-USER root
-
 COPY dockerfiles/development/install-php7-common-dependencies.sh /tmp/install-php7-common-dependencies.sh
+
+USER root
 
 RUN apt-get update \
     && sh /tmp/install-php7-common-dependencies.sh \
-    && apt-get install -y libmcrypt-dev \
+    && apt-get install -y \
+        libmcrypt-dev \
     && pecl install ${MCRYPT_PACKAGE} \
     && docker-php-ext-enable mcrypt \
     && docker-php-ext-install pcntl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY dockerfiles/development/dd-test-env.ini /usr/local/etc/php/conf.d/dd-test-env.ini
-COPY --from=base /root/.dd-trace-php-composer-warmup /home/circleci/.dd-trace-php-composer-warmup
 
-RUN chown -R circleci /home/circleci/.dd-trace-php-composer-warmup
+WORKDIR /home/circleci/app
+RUN chown -R $(id -u circleci):$(id -u circleci) .
+
+# Building the cache
+
+FROM base AS cache
 
 USER circleci
+COPY ./ /home/circleci/app
+
+# Manual fixes
+RUN rm -rf tests/Frameworks/Symfony/*/app/cache
+RUN rm -rf tests/Frameworks/Symfony/*/var/cache
+
+# Unlinking existing composer locks and vendor folders
+RUN COMPOSER_PROCESS_TIMEOUT=0 composer test-cache-unlink
+
+# Creating cache
+RUN COMPOSER_PROCESS_TIMEOUT=0 composer test-cache
+
+# Building the final image
+
+FROM base as final
+
+USER circleci
+
+COPY --from=cache /home/circleci/.dd-trace-php-composer-warmup /home/circleci/.dd-trace-php-composer-warmup
 
 CMD bash

@@ -6,9 +6,9 @@ COMPOSER_WARMUP=~/.dd-trace-php-composer-warmup
 
 function usage {
     echo "Usage:"
-    echo "  ./composer-update-all.sh cache"
-    echo "  ./composer-update-all.sh link-cache"
-    echo "  ./composer-update-all.sh unlink-cache"
+    echo "  ./composer-cache cache"
+    echo "  ./composer-cache link-cache"
+    echo "  ./composer-cache unlink-cache"
     echo
 }
 
@@ -31,7 +31,7 @@ cache() {
         echo "Updating composer @ $DIRNAME"
         # If for some reason on some PHP version composer update don't work then we just skip caching it
         update_success=1
-        COMPOSER_MEMORY_LIMIT=-1 composer --working-dir="$DIRNAME" update || update_success=0
+        COMPOSER_MEMORY_LIMIT=-1 php -n $(which composer) --working-dir="$DIRNAME" update || update_success=0
         if [[ $update_success == '0' ]]; then
             echo "Error updating composer (nothing will be cached) @ $DIRNAME"
             continue;
