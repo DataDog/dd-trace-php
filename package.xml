@@ -10,17 +10,21 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2019-12-23</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.36.1</release>
+        <api>0.36.1</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+### Fixed
+  - Support OpenTracing contexts as parent contexts #695
+  - Add Empty Expect Header to Avoid Curl 100-Continue #691; thanks @draco2003!
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
