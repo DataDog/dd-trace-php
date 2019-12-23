@@ -131,7 +131,6 @@ final class GuzzleIntegration extends Integration
             }
 
             list($request) = $args;
-            $tracer = GlobalTracer::get();
             $activeSpan = GlobalTracer::get()->getActiveSpan();
 
             if ($activeSpan) {
