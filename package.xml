@@ -121,6 +121,10 @@
                     <file name="circuit_breaker_info.phpt" role="test" />
                     <file name="circuit_breaker_retry_time.phpt" role="test" />
                     <file name="circuit_breaker_max_failures.phpt" role="test" />
+                    <file name="dd_trace_basic_internal_functions.phpt" role="test" />
+                    <file name="dd_trace_basic_internal_methods.phpt" role="test" />
+                    <file name="dd_trace_basic_userland_functions.phpt" role="test" />
+                    <file name="dd_trace_basic_userland_methods.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error_strict.phpt" role="test" />
