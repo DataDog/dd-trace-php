@@ -265,10 +265,10 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - run:
           name: Install phpstan
-          command: composer global require phpstan/phpstan:0.11.*
+          command: composer global require phpstan/phpstan:0.11.* ; composer scenario:update
       - run:
           name: Running phpstan
-          command: PATH=$PATH:~/.composer/vendor/bin composer static-analyze
+          command: composer scenario opentracing1 ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
   unit_tests:
     parameters:
