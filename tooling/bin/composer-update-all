@@ -19,6 +19,6 @@ exec("find $path -name composer.json | grep -v '/vendor' | grep -v '/Vendor'", $
 
 foreach (array_reverse($foundComposerFiles) as $composerJson) {
     $directory = escapeshellarg(dirname($composerJson));
-    $cmd = "COMPOSER_MEMORY_LIMIT=-1 php -n $(which composer) --working-dir=$directory update --no-dev";
+    $cmd = "COMPOSER_MEMORY_LIMIT=-1 php -n $(which composer) --working-dir=$directory update";
     system($cmd);
 }

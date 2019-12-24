@@ -12,6 +12,7 @@ use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleIntegration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
+use DDTrace\Integrations\Laravel\LaravelSandboxedIntegration;
 use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration;
@@ -90,6 +91,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration';
             $this->integrations[EloquentSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration';
+            $this->integrations[LaravelSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\Laravel\LaravelSandboxedIntegration';
             $this->integrations[MemcachedSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration';
             $this->integrations[MongoSandboxedIntegration::NAME] =

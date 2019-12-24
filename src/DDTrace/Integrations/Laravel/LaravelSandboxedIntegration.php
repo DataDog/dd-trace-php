@@ -57,19 +57,39 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
 
         $integration = $this;
 
-        dd_trace_method(
-            'Illuminate\Routing\Events\RouteMatched',
-            '__construct',
-            function (SpanData $span, $args) use ($integration, $rootSpan) {
-                list($route, $request) = $args;
+        \dd_trace_method(
+            'Illuminate\Foundation\Application',
+            'handle',
+            function () use ($rootSpan, $integration) {
+                $rootSpan->overwriteOperationName('laravel.request');
+                // Overwriting the default web integration
+                $rootSpan->setIntegration($integration);
+                $rootSpan->setTraceAnalyticsCandidate();
+                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
+                $rootSpan->setTag(Tag::SERVICE_NAME, $integration->getAppName());
+
+                return false;
+            }
+        );
+
+        \dd_trace_method(
+            'Illuminate\Routing\Router',
+            'findRoute',
+            function ($span, $args, $route) use ($rootSpan, $integration) {
+                if (null === $route) {
+                    return false;
+                }
+
+                list($request) = $args;
+
                 // Overwriting the default web integration
                 $rootSpan->setIntegration($integration);
                 $rootSpan->setTraceAnalyticsCandidate();
                 $rootSpan->setTag(
                     Tag::RESOURCE_NAME,
-                    $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
+                    $route->getActionName() . ' ' . ($route->getName() ?: 'unnamed_route')
                 );
-                $rootSpan->setTag('laravel.route.name', Route::currentRouteName());
+                $rootSpan->setTag('laravel.route.name', $route->getName());
                 $rootSpan->setTag('laravel.route.action', $route->getActionName());
                 $rootSpan->setTag('http.url', $request->url());
                 $rootSpan->setTag('http.method', $request->method());
@@ -78,6 +98,26 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             }
         );
 
+        \dd_trace_method(
+            'Illuminate\Routing\Route',
+            'run',
+            function (SpanData $span) use ($integration) {
+                $span->name = 'laravel.action';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $integration->getAppName();
+                $span->resource = $this->uri;
+            }
+        );
+
         return SandboxedIntegration::LOADED;
+    }
+
+    public function getAppName()
+    {
+        $appName = Configuration::get()->appName();
+        if (empty($appName) && is_callable('config')) {
+            $appName = config('app.name');
+        }
+        return $appName ?: 'laravel';
     }
 }
