@@ -13,6 +13,19 @@ use DDTrace\Util\ArrayKVStore;
 use DDTrace\GlobalTracer;
 
 /**
+ * @param \DDTrace\Span $span
+ * @param string $tagName
+ * @param mixed $info
+ */
+function addTagFromCurlInfo($span, &$info, $tagName, $curlInfoOpt)
+{
+    if (isset($info[$curlInfoOpt]) && !\trim($info[$curlInfoOpt]) !== '') {
+        $span->setTag($tagName, $info[$curlInfoOpt]);
+        unset($info[$curlInfoOpt]);
+    }
+}
+
+/**
  * Integration for curl php client.
  */
 class CurlIntegration extends Integration
@@ -63,14 +76,48 @@ class CurlIntegration extends Integration
 
             $info = curl_getinfo($ch);
             $sanitizedUrl = Urls::sanitize($info['url']);
+            unset($info['url']);
+
             if ($globalConfig->isHttpClientSplitByDomain()) {
                 $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($sanitizedUrl));
             } else {
                 $span->setTag(Tag::SERVICE_NAME, 'curl');
             }
             $span->setTag(Tag::RESOURCE_NAME, $sanitizedUrl);
+
+
+            // Special case the Datadog Standard Attributes
+            //  https://docs.datadoghq.com/logs/processing/attributes_naming_convention/
+
             $span->setTag(Tag::HTTP_URL, $sanitizedUrl);
-            $span->setTag(Tag::HTTP_STATUS_CODE, $info['http_code']);
+
+            addTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
+
+            // Datadog sets durations in nanoseconds - convert from seconds
+            $span->setTag('duration', $info['total_time'] * 1000000000);
+            unset($info['duration']);
+
+            addTagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
+            addTagFromCurlInfo($span, $info, 'network.client.port', 'local_port');
+
+            addTagFromCurlInfo($span, $info, 'network.destination.ip', 'primary_ip');
+            addTagFromCurlInfo($span, $info, 'network.destination.port', 'primary_port');
+
+            addTagFromCurlInfo($span, $info, 'network.bytes_read', 'size_download');
+            addTagFromCurlInfo($span, $info, 'network.bytes_written', 'size_upload');
+
+
+            // Add the rest to a 'curl.' object
+            foreach ($info as $key => $val) {
+                // Datadog doesn't support arrays in tags
+                if (\is_scalar($val) && $val !== '') {
+                    // Datadog sets durations in nanoseconds - convert from seconds
+                    if (\substr_compare($key, '_time', -5) === 0) {
+                        $val *= 1000000000;
+                    }
+                    $span->setTag("curl.{$key}", $val);
+                }
+            }
 
             $scope->close();
             return $result;

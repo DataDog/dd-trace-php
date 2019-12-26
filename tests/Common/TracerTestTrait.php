@@ -100,6 +100,12 @@ trait TracerTestTrait
         $this->resetRequestDumper();
 
         $transport = new Http(new Json(), ['endpoint' => self::$agentRequestDumperUrl]);
+
+        /* Disable Expect: 100-Continue that automatically gets added by curl,
+         * as it adds a 1s delay, causing tests to sometimes fail.
+         */
+        $transport->setHeader('Expect', '');
+
         $tracer = $tracer ?: new Tracer($transport);
         GlobalTracer::set($tracer);
 
