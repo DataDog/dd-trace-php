@@ -54,3 +54,6 @@ static void _compile_mshutdown(void) {
 void ddtrace_compile_time_reset(TSRMLS_D) { DDTRACE_G(compile_time_microseconds) = 0; }
 
 int64_t ddtrace_compile_time_get(TSRMLS_D) { return DDTRACE_G(compile_time_microseconds); }
+
+extern inline void ddtrace_backup_error_handling(ddtrace_error_handling *eh, zend_error_handling_t mode TSRMLS_DC);
+extern inline void ddtrace_restore_error_handling(ddtrace_error_handling *eh TSRMLS_DC);
