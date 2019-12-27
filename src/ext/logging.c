@@ -2,10 +2,7 @@
 
 #include <php.h>
 
-void ddtrace_log_err(char *message) {
-    TSRMLS_FETCH();
-    php_log_err(message TSRMLS_CC);
-}
+extern inline void ddtrace_log_err(char *message);
 
 void _ddtrace_log_errf(const char *format, ...) {
     va_list args;
@@ -13,8 +10,7 @@ void _ddtrace_log_errf(const char *format, ...) {
 
     va_start(args, format);
     vspprintf(&buffer, 0, format, args);
-    TSRMLS_FETCH();
-    php_log_err(buffer TSRMLS_CC);
+    ddtrace_log_err(buffer);
 
     efree(buffer);
     va_end(args);

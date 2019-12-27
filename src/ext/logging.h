@@ -5,7 +5,10 @@
 #include "configuration.h"
 
 #define ddtrace_log_errf(...) _ddtrace_log_errf(__VA_ARGS__)
-void ddtrace_log_err(char *message);
+inline void ddtrace_log_err(char *message) {
+    TSRMLS_FETCH();
+    php_log_err(message TSRMLS_CC);
+}
 
 #define ddtrace_log_debugf(...)        \
     if (get_dd_trace_debug()) {        \
