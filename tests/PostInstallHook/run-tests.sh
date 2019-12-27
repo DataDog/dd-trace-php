@@ -7,12 +7,12 @@ pwd=$(dirname "$0")
 # The version that installed libapache2-mod-php* in the Dockerfile
 apachePhpVersion=7.3
 
-pv=$(php "$pwd/bootstrap.php" | grep "  --php-version")
-if [ -z "$pv" ]; then
+phpVersion=$(php "$pwd/bootstrap.php" | grep "  --php-version")
+if [ -z "$phpVersion" ]; then
     printf "No supported PHP versions found\n"
     exit 1
 fi
-phpVersions=${pv#"  --php-version    "}
+phpVersions=${phpVersion#"  --php-version    "}
 
 defaultPhpVersion=$(php-config --version | cut -d . -f -2)
 

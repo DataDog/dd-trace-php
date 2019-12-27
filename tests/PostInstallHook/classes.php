@@ -15,7 +15,7 @@ class CliInput
         $options = getopt('', ['php-version:', 'sapi:']);
         if (false === $options || !isset($options['php-version'], $options['sapi'])) {
             printf(
-                'Usage: php %s --php-version PHP VERSION --sapi SAPI NAME%s',
+                'Usage: php %s --php-version [PHP VERSION] --sapi [SAPI NAME]%s',
                 $_SERVER['PHP_SELF'],
                 PHP_EOL
             );

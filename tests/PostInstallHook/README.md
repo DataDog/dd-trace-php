@@ -20,7 +20,7 @@ $ cd ~/datadog \
 
 ## Adding new PHP versions
 
-1. Add the version number to the `CliInput::VALID_PHP_VERSIONS` array in **bootstrap.php**.
+1. Add the version number to the `CliInput::VALID_PHP_VERSIONS` array in **tests/PostInstallHook/classes.php**.
 2. Add the new port number `80<PHP VERSION>` to **docker-compose.yml**.
 3. Head over to [the Docker set up for `datadog/dd-trace-ci:php-nginx-apache2`](https://github.com/DataDog/dd-trace-ci/tree/master/php/nginx-apache2).
 4. Add the new version to the `apt-get install` line in the **Dockerfile**. _Note: there should only be one version that installs mod_php (`libapache2-mod-php<version>`). If you update it, make sure to also update **apache-ports.conf**._
