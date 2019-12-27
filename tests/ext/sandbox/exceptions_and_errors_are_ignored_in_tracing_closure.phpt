@@ -43,6 +43,7 @@ $test->testFoo();
 echo "---\n";
 
 var_dump(dd_trace_serialize_closed_spans());
+var_dump(error_get_last());
 ?>
 --EXPECTF--
 bool(true)
@@ -100,3 +101,4 @@ array(3) {
     string(6) "MTSeed"
   }
 }
+NULL

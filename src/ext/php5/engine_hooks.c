@@ -542,14 +542,14 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
 
     BOOL_T keep_span = TRUE;
     if (fcall_status == SUCCESS && Z_TYPE(dispatch->callable) == IS_OBJECT) {
-        zend_error_handling error_handling;
-        int orig_error_reporting = EG(error_reporting);
+        ddtrace_error_handling eh;
+        ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
         EG(error_reporting) = 0;
-        zend_replace_error_handling(EH_SUPPRESS, NULL, &error_handling TSRMLS_CC);
+
         keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, user_args,
                                                     user_retval, exception TSRMLS_CC);
-        zend_restore_error_handling(&error_handling TSRMLS_CC);
-        EG(error_reporting) = orig_error_reporting;
+
+        ddtrace_restore_error_handling(&eh TSRMLS_CC);
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
             ddtrace_log_debug("Exeception thrown in the tracing closure");

@@ -154,7 +154,7 @@ static BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, z
     INIT_ZVAL(rv);
     zval args[4];
     zval exception_arg = {.value = {0}};
-    ZVAL_UNDEF(&exception_arg);
+    ZVAL_NULL(&exception_arg);
     if (exception) {
         ZVAL_OBJ(&exception_arg, exception);
     }
@@ -229,14 +229,14 @@ static void _end_span(ddtrace_span_t *span, zval *user_retval) {
 
     BOOL_T keep_span = TRUE;
     if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
-        zend_error_handling error_handling;
-        int orig_error_reporting = EG(error_reporting);
+        ddtrace_error_handling eh;
+        ddtrace_backup_error_handling(&eh, EH_THROW);
         EG(error_reporting) = 0;
-        zend_replace_error_handling(EH_THROW, NULL, &error_handling);
+
         keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, call, &user_args, user_retval,
                                                     exception);
-        zend_restore_error_handling(&error_handling);
-        EG(error_reporting) = orig_error_reporting;
+
+        ddtrace_restore_error_handling(&eh);
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
             ddtrace_log_debug("Exeception thrown in the tracing closure");
