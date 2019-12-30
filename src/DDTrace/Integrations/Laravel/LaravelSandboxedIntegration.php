@@ -139,24 +139,30 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
         });
 
-        \dd_trace_method('Illuminate\View\Engines\CompilerEngine', 'get', function (SpanData $span, $args) use ($integration) {
-            $span->name = 'laravel.view';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $integration->getServiceName();
-            if (isset($args[0]) && \is_string($args[0])) {
-                $span->resource = $args[0];
-            }
-            $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
-        });
-
         \dd_trace_method(
+            'Illuminate\View\Engines\CompilerEngine',
+            'get',
+            function (SpanData $span, $args) use ($integration) {
+                $span->name = 'laravel.view';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $integration->getServiceName();
+                if (isset($args[0]) && \is_string($args[0])) {
+                    $span->resource = $args[0];
+                }
+                $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
+            }
+        );
+
+        // Using the legacy API only for this method because of orphaned spans in sandboxed api when `return false` is
+        // used
+        \dd_trace(
             'Illuminate\Foundation\ProviderRepository',
             'load',
             function () use ($rootSpan, $integration) {
                 $rootSpan->setIntegration($integration);
                 $rootSpan->overwriteOperationName('laravel.request');
                 $rootSpan->setTag(Tag::SERVICE_NAME, $integration->getServiceName());
-                return false;
+                return dd_trace_forward_call();
             }
         );
 
@@ -177,7 +183,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
         \dd_trace_method(
             'Symfony\Component\Console\Application',
             'renderException',
-            function (SpanData $spanData, $args) use ($rootSpan) {
+            function (SpanData $span, $args) use ($rootSpan) {
                 $rootSpan->setError($args[0]);
                 return false;
             }
