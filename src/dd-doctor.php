@@ -125,7 +125,14 @@ function check_agent_connectivity()
     curl_setopt($ch, CURLOPT_POSTFIELDS, "[]");
     curl_setopt($ch, CURLOPT_VERBOSE, true);
     curl_setopt($ch, CURLOPT_STDERR, $verbose);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+    curl_setopt(
+        $ch,
+        CURLOPT_HTTPHEADER,
+        array(
+            'Content-Type: application/json',
+            'X-Datadog-Trace-Count: 0',
+        )
+    );
     curl_exec($ch);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $success = $httpcode >= 200 && $httpcode < 300;
