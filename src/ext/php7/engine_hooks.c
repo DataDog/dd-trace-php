@@ -2,6 +2,7 @@
 
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_interfaces.h>
 
 #include <ext/spl/spl_exceptions.h>
 
@@ -209,6 +210,22 @@ static BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, z
     return status;
 }
 
+static zend_class_entry *ddtrace_get_exception_base(zval *object) {
+    return instanceof_function(Z_OBJCE_P(object), zend_ce_exception) ? zend_ce_exception : zend_ce_error;
+}
+
+#if PHP_VERSION_ID < 70100
+#define ZEND_STR_MESSAGE "message"
+#define GET_PROPERTY(object, name) \
+    zend_read_property(ddtrace_get_exception_base(object), (object), name, sizeof(name) - 1, 1, &rv)
+#elif PHP_VERSION_ID < 70200
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(ddtrace_get_exception_base(object), (object), CG(known_strings)[id], 1, &rv)
+#else
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(ddtrace_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
+#endif
+
 static void _end_span(ddtrace_span_t *span, zval *user_retval) {
     zend_execute_data *call = span->call;
     ddtrace_dispatch_t *dispatch = span->dispatch;
@@ -239,7 +256,18 @@ static void _end_span(ddtrace_span_t *span, zval *user_retval) {
         ddtrace_restore_error_handling(&eh);
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
-            ddtrace_log_debug("Exeception thrown in the tracing closure");
+            if (get_dd_trace_debug()) {
+                zend_object *ex = EG(exception);
+                const char *name = Z_STR(dispatch->function_name)->val;
+                const char *type = ex->ce->name->val;
+                zval rv, obj;
+                ZVAL_OBJ(&obj, ex);
+                zval *message = GET_PROPERTY(&obj, ZEND_STR_MESSAGE);
+                const char *msg = Z_TYPE_P(message) == IS_STRING ? Z_STR_P(message)->val
+                                                                 : "(internal error reading exception message)";
+                ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
+                zval_ptr_dtor(message);
+            }
             if (!DDTRACE_G(strict_mode)) {
                 zend_clear_exception();
             }

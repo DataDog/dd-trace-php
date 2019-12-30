@@ -3,6 +3,7 @@
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_interfaces.h>
 #include <php.h>
 
 #include <ext/spl/spl_exceptions.h>
@@ -515,6 +516,11 @@ static void ddtrace_span_attach_exception(ddtrace_span_t *span, ddtrace_exceptio
     }
 }
 
+static zval *ddtrace_exception_get_entry(zval *object, char *name, int name_len TSRMLS_DC) {
+    zend_class_entry *exception_ce = zend_exception_get_default(TSRMLS_C);
+    return zend_read_property(exception_ce, object, name, name_len, 1 TSRMLS_CC);
+}
+
 static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
                                    zend_execute_data *execute_data TSRMLS_DC) {
     int fcall_status;
@@ -552,7 +558,20 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
         ddtrace_restore_error_handling(&eh TSRMLS_CC);
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
-            ddtrace_log_debug("Exeception thrown in the tracing closure");
+            if (get_dd_trace_debug()) {
+                zval *ex = EG(exception), *message = NULL;
+                const char *type = Z_OBJCE_P(ex)->name;
+                const char *name = Z_STRVAL(dispatch->function_name);
+                message = ddtrace_exception_get_entry(ex, ZEND_STRL("message") TSRMLS_CC);
+                const char *msg = message && Z_TYPE_P(message) == IS_STRING
+                                      ? Z_STRVAL_P(message)
+                                      : "(internal error reading exception message)";
+
+                ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
+                if (message) {
+                    zval_ptr_dtor(&message);
+                }
+            }
             if (!DDTRACE_G(strict_mode)) {
                 zend_clear_exception(TSRMLS_C);
             }
