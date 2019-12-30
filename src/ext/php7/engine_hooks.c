@@ -7,6 +7,9 @@
 #include <ext/spl/spl_exceptions.h>
 
 #include "compatibility.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
@@ -61,6 +64,33 @@ static BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_fu
 
     zval *this = ddtrace_this(EX(call));
     *dispatch = ddtrace_find_dispatch(this, *fbc, &fname);
+#if defined(DDTRACE_AUTO_INSTRUMENTATION)
+    // This is slow and should be refactored into other areas.
+    // We just need to instrument all the things for testing purposes.
+    if (!*dispatch && DDTRACE_G(enable_auto_instrumentation)) {
+        zval cname, *callable;
+        ZVAL_NULL(&cname);
+
+        if (this) {
+            ZVAL_STR_COPY(&cname, Z_OBJCE_P(this)->name);
+        } else if (((*fbc)->common.fn_flags & ZEND_ACC_STATIC) != 0) {
+            ZVAL_STR_COPY(&cname, (*fbc)->common.scope->name);
+        }
+        callable = (zval *)ecalloc(1, sizeof(zval));
+        object_init_ex(callable, ddtrace_ce_fake_tracing_closure);
+        if (Z_TYPE(cname) == IS_STRING) {
+            ddtrace_trace(&cname, &fname, callable, DDTRACE_DISPATCH_POSTHOOK);
+        } else {
+            ddtrace_trace(NULL, &fname, callable, DDTRACE_DISPATCH_POSTHOOK);
+        }
+        zval_ptr_dtor(&cname);
+        zval_ptr_dtor(callable);
+        efree(callable);
+        callable = NULL;
+        // In the real implementation, we would get a dispatch when we add it
+        *dispatch = ddtrace_find_dispatch(this, *fbc, &fname);
+    }
+#endif
     zval_ptr_dtor(&fname);
     if (!*dispatch || (*dispatch)->busy) {
         return FALSE;

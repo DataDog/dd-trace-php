@@ -9,6 +9,9 @@
 #include <ext/spl/spl_exceptions.h>
 
 #include "compatibility.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
@@ -172,6 +175,31 @@ static BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_fu
 
     zval *this = ddtrace_this(execute_data);
     *dispatch = ddtrace_find_dispatch(this, *fbc, fname TSRMLS_CC);
+#if defined(DDTRACE_AUTO_INSTRUMENTATION)
+    // This is slow and should be refactored into other areas.
+    // We just need to instrument all the things for testing purposes.
+    if (!*dispatch && DDTRACE_G(enable_auto_instrumentation)) {
+        zval cname, *callable;
+        ZVAL_NULL(&cname);
+
+        if (this) {
+            ZVAL_STRING(&cname, Z_OBJCE_P(this)->name, 0);
+        } else if (((*fbc)->common.fn_flags & ZEND_ACC_STATIC) != 0) {
+            ZVAL_STRING(&cname, (*fbc)->common.scope->name, 0);
+        }
+        MAKE_STD_ZVAL(callable);
+        object_init_ex(callable, ddtrace_ce_fake_tracing_closure);
+        if (Z_TYPE(cname) == IS_STRING) {
+            ddtrace_trace(&cname, fname, callable, DDTRACE_DISPATCH_POSTHOOK TSRMLS_CC);
+        } else {
+            ddtrace_trace(NULL, fname, callable, DDTRACE_DISPATCH_POSTHOOK TSRMLS_CC);
+        }
+        zval_ptr_dtor(&callable);
+        callable = NULL;
+        // In the real implementation, we would get a dispatch when we add it
+        *dispatch = ddtrace_find_dispatch(this, *fbc, fname TSRMLS_CC);
+    }
+#endif
     if (!*dispatch || (*dispatch)->busy) {
         return FALSE;
     }

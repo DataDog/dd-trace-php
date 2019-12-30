@@ -141,6 +141,7 @@
                     <file name="dd_trace_tracer_is_limited_hard.phpt" role="test" />
                     <file name="dd_trace_tracer_is_limited_memory.phpt" role="test" />
                     <dir name="sandbox">
+                        <file name="auto_instrumentation.phpt" role="test" />
                         <file name="close-on-exit.phpt" role="test" />
                         <file name="close-on-exit-retval.phpt" role="test" />
                         <file name="dd_trace_closed_spans_count.phpt" role="test" />
