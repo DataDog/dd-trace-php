@@ -24,6 +24,11 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
     const NAME = 'laravel';
 
     /**
+     * @var string
+     */
+    private $serviceName;
+
+    /**
      * @return string The integration name.
      */
     public function getName()
@@ -60,22 +65,27 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
         \dd_trace_method(
             'Illuminate\Foundation\Application',
             'handle',
-            function () use ($rootSpan, $integration) {
-                $rootSpan->overwriteOperationName('laravel.request');
+            function (SpanData $span, $args, $response) use ($rootSpan, $integration) {
                 // Overwriting the default web integration
+                $rootSpan->overwriteOperationName('laravel.request');
                 $rootSpan->setIntegration($integration);
                 $rootSpan->setTraceAnalyticsCandidate();
-                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
-                $rootSpan->setTag(Tag::SERVICE_NAME, $integration->getAppName());
+                if (\method_exists($response, 'getStatusCode')) {
+                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
+                }
+                $rootSpan->setTag(Tag::SERVICE_NAME, $integration->getServiceName());
 
-                return false;
+                $span->name = 'laravel.application.handle';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $integration->getServiceName();
+                $span->resource = 'Illuminate\Foundation\Application@handle';
             }
         );
 
         \dd_trace_method(
             'Illuminate\Routing\Router',
             'findRoute',
-            function ($span, $args, $route) use ($rootSpan, $integration) {
+            function (SpanData $span, $args, $route) use ($rootSpan, $integration) {
                 if (null === $route) {
                     return false;
                 }
@@ -104,20 +114,49 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             function (SpanData $span) use ($integration) {
                 $span->name = 'laravel.action';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->getAppName();
+                $span->service = $integration->getServiceName();
                 $span->resource = $this->uri;
+                $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
             }
         );
+
+        \dd_trace_method(
+            'Symfony\Component\HttpFoundation\Response',
+            'setStatusCode',
+            function (SpanData $span, $args) use ($rootSpan) {
+                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
+                return false;
+            }
+        );
+
+        \dd_trace_method('Illuminate\Events\Dispatcher', 'fire', function (SpanData $span, $args) use ($integration) {
+            $span->name = 'laravel.event.handle';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $integration->getServiceName();
+            $span->resource = $args[0];
+            $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
+        });
+
+        \dd_trace_method('Illuminate\View\View', 'render', function (SpanData $span) use ($integration) {
+            $span->name = 'laravel.view.render';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $integration->getServiceName();
+            $span->resource = $this->view;
+            $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
+        });
 
         return SandboxedIntegration::LOADED;
     }
 
-    public function getAppName()
+    public function getServiceName()
     {
-        $appName = Configuration::get()->appName();
-        if (empty($appName) && is_callable('config')) {
-            $appName = config('app.name');
+        if (!empty($this->serviceName)) {
+            return $this->serviceName;
         }
-        return $appName ?: 'laravel';
+        $this->serviceName = Configuration::get()->appName();
+        if (empty($this->serviceName) && is_callable('config')) {
+            $this->serviceName = config('app.name');
+        }
+        return $this->serviceName ?: 'laravel';
     }
 }

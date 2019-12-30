@@ -383,6 +383,17 @@ final class Tracer implements TracerInterface
         }
 
         $internalSpans = dd_trace_serialize_closed_spans();
+
+        // Setting global tags for internal spans. Note that for userland spans global tags are added when
+        // the span is created.
+        if ($globalTags = $this->globalConfig->getGlobalTags()) {
+            foreach ($internalSpans as &$span) {
+                foreach ($globalTags as $name => $value) {
+                    $span['meta'][$name] = $value;
+                }
+            }
+        }
+
         if (dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
             array_map(function ($span) {
                 dd_trace_buffer_span($span);
