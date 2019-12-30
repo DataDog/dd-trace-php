@@ -5,16 +5,10 @@ namespace DDTrace\Integrations\Laravel;
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\SpanData;
-use DDTrace\Integrations\Laravel\V5\LaravelIntegrationLoader;
 use DDTrace\Integrations\SandboxedIntegration;
-use DDTrace\Util\Versions;
-use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Scope;
 use DDTrace\Tag;
 use DDTrace\Type;
-use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Facades\Route;
 
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
@@ -144,6 +138,27 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             $span->resource = $this->view;
             $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
         });
+
+        \dd_trace_method('Illuminate\View\Engines\CompilerEngine', 'get', function (SpanData $span, $args) use ($integration) {
+            $span->name = 'laravel.view';
+            $span->type = Type::WEB_SERVLET;
+            $span->service = $integration->getServiceName();
+            if (isset($args[0]) && \is_string($args[0])) {
+                $span->resource = $args[0];
+            }
+            $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
+        });
+
+        \dd_trace_method(
+            'Illuminate\Foundation\ProviderRepository',
+            'load',
+            function () use ($rootSpan, $integration) {
+                $rootSpan->setIntegration($integration);
+                $rootSpan->overwriteOperationName('laravel.request');
+                $rootSpan->setTag(Tag::SERVICE_NAME, $integration->getServiceName());
+                return false;
+            }
+        );
 
         return SandboxedIntegration::LOADED;
     }
