@@ -566,11 +566,7 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
                 const char *msg = message && Z_TYPE_P(message) == IS_STRING
                                       ? Z_STRVAL_P(message)
                                       : "(internal error reading exception message)";
-
                 ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
-                if (message) {
-                    zval_ptr_dtor(&message);
-                }
             }
             if (!DDTRACE_G(strict_mode)) {
                 zend_clear_exception(TSRMLS_C);

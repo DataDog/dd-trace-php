@@ -266,7 +266,9 @@ static void _end_span(ddtrace_span_t *span, zval *user_retval) {
                 const char *msg = Z_TYPE_P(message) == IS_STRING ? Z_STR_P(message)->val
                                                                  : "(internal error reading exception message)";
                 ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
-                zval_ptr_dtor(message);
+                if (message == &rv) {
+                    zval_dtor(message);
+                }
             }
             if (!DDTRACE_G(strict_mode)) {
                 zend_clear_exception();
