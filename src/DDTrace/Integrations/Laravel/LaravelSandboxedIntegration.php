@@ -160,6 +160,29 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             }
         );
 
+        \dd_trace_method(
+            'Illuminate\Console\Application',
+            '__construct',
+            function (SpanData $span, $args) use ($rootSpan, $integration) {
+                $rootSpan->setIntegration($integration);
+                $rootSpan->overwriteOperationName('laravel.artisan');
+                $rootSpan->setTag(
+                    Tag::RESOURCE_NAME,
+                    !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan'
+                );
+                return false;
+            }
+        );
+
+        \dd_trace_method(
+            'Symfony\Component\Console\Application',
+            'renderException',
+            function (SpanData $spanData, $args) use ($rootSpan) {
+                $rootSpan->setError($args[0]);
+                return false;
+            }
+        );
+
         return SandboxedIntegration::LOADED;
     }
 
