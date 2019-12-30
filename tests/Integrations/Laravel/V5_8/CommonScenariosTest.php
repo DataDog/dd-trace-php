@@ -59,7 +59,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             ->withExactTags([
                                 'integration.name' => 'laravel',
                             ])
-                            ->skipIf(!static::IS_SANDBOX),
+                            ->onlyIf(static::IS_SANDBOX),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -81,7 +81,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             ->withExactTags([
                                 'integration.name' => 'laravel',
                             ])
-                            ->skipIf(!static::IS_SANDBOX),
+                            ->onlyIf(static::IS_SANDBOX),
                         SpanAssertion::build(
                             'laravel.view',
                             'laravel_test_app',
