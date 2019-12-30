@@ -44,6 +44,10 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
                     ddtrace_globals)
+#if defined(DDTRACE_AUTO_INSTRUMENTATION)
+STD_PHP_INI_BOOLEAN("ddtrace.enable_auto_instrumentation", "0", PHP_INI_SYSTEM, OnUpdateBool,
+                    enable_auto_instrumentation, zend_ddtrace_globals, ddtrace_globals)
+#endif
 PHP_INI_END()
 
 #if PHP_VERSION_ID >= 50600
@@ -120,6 +124,44 @@ static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     DDTRACE_G(disable) = 1;
 }
 
+#if defined(DDTRACE_AUTO_INSTRUMENTATION)
+/* DDTrace\FakeTracingClosure */
+zend_class_entry *ddtrace_ce_fake_tracing_closure;
+
+PHP_METHOD(ddtrace_fake_tracing_closure, __invoke) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+
+    zval *span_data = NULL;
+    zval *args = NULL;
+    zval *retval = NULL;
+    zval *exception = NULL;
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "Oazz", &span_data,
+                                 ddtrace_ce_span_data, &args, &retval, &exception) != SUCCESS) {
+        ddtrace_log_debug("Error parsing fake tracing closure args");
+        RETURN_BOOL(0);
+    }
+    zend_update_property_string(ddtrace_ce_span_data, span_data, "name", sizeof("name") - 1,
+                                "__dd_auto_instrumented" TSRMLS_CC);
+    zend_update_property_string(ddtrace_ce_span_data, span_data, "resource", sizeof("resource") - 1,
+                                "__dd_auto_instrumented" TSRMLS_CC);
+    zend_update_property_string(ddtrace_ce_span_data, span_data, "service", sizeof("service") - 1, "ddtrace" TSRMLS_CC);
+    zend_update_property_string(ddtrace_ce_span_data, span_data, "type", sizeof("type") - 1, "web" TSRMLS_CC);
+
+    RETURN_BOOL(1);
+}
+
+zend_function_entry ddtrace_fake_tracing_closure_methods[] = {
+    PHP_ME(ddtrace_fake_tracing_closure, __invoke, NULL, ZEND_ACC_PUBLIC) PHP_FE_END};
+
+static void register_fake_tracing_closure_ce(TSRMLS_D) {
+    zend_class_entry ce_fake_tracing_closure;
+    INIT_NS_CLASS_ENTRY(ce_fake_tracing_closure, "DDTrace", "FakeTracingClosure", ddtrace_fake_tracing_closure_methods);
+    ddtrace_ce_fake_tracing_closure = zend_register_internal_class(&ce_fake_tracing_closure TSRMLS_CC);
+    ddtrace_ce_fake_tracing_closure->ce_flags |= ZEND_ACC_FINAL;
+}
+#endif
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
@@ -140,6 +182,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_signals_minit(TSRMLS_C);
 
     register_span_data_ce(TSRMLS_C);
+#if defined(DDTRACE_AUTO_INSTRUMENTATION)
+    register_fake_tracing_closure_ce(TSRMLS_C);
+#endif
 
     ddtrace_engine_hooks_minit();
 

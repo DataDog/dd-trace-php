@@ -1,5 +1,7 @@
 PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,
   [  --enable-ddtrace   Enable Datadog tracing support])
+PHP_ARG_ENABLE(ddtrace-auto-instrumentation-beta, whether to enable ddtrace beta auto instrumentation support,
+  [  --enable-ddtrace-auto-instrumentation-beta   Enable ddtrace beta auto instrumentation], no, no)
 
 PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
   [  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
@@ -9,6 +11,15 @@ if test "$PHP_DDTRACE" != "no"; then
   m4_include([m4/ax_execinfo.m4])
 
   AX_EXECINFO
+  PHP_VERSION=$($PHP_CONFIG --vernum)
+
+  if test "$PHP_DDTRACE_AUTO_INSTRUMENTATION_BETA" != "no"; then
+    if test "$PHP_VERSION" -lt 50600; then
+      AC_MSG_WARN(Auto instrumentation is only available for PHP 5.6 and greater.)
+    else
+      AC_DEFINE(DDTRACE_AUTO_INSTRUMENTATION, 1, [ ])
+    fi
+  fi
 
   AS_IF([test x"$ac_cv_header_execinfo_h" = xyes],
     dnl This duplicates some of AX_EXECINFO's work, but AX_EXECINFO puts the
@@ -49,8 +60,6 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/span.c \
     src/ext/third-party/mt19937-64.c \
   "
-
-  PHP_VERSION=$($PHP_CONFIG --vernum)
 
   if test $PHP_VERSION -lt 70000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\

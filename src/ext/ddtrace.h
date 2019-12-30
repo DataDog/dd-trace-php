@@ -3,6 +3,9 @@
 #include <dogstatsd_client/client.h>
 #include <stdint.h>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "env_config.h"
 #include "random.h"
 #include "span.h"
@@ -10,6 +13,9 @@
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
+#if defined(DDTRACE_AUTO_INSTRUMENTATION)
+extern zend_class_entry *ddtrace_ce_fake_tracing_closure;
+#endif
 
 BOOL_T ddtrace_tracer_is_limited(TSRMLS_D);
 
@@ -32,6 +38,9 @@ zend_bool disable_in_current_request;
 char *request_init_hook;
 char *internal_blacklisted_modules_list;
 zend_bool strict_mode;
+#if defined(DDTRACE_AUTO_INSTRUMENTATION)
+zend_bool enable_auto_instrumentation;
+#endif
 
 uint32_t traces_group_id;
 HashTable *class_lookup;
