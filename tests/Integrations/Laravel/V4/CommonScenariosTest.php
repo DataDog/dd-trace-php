@@ -34,7 +34,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () use ($spec) {
             $this->call($spec);
         });
-        error_log('Traces' . print_r($traces, 1));
 
         $this->assertFlameGraph($traces, $spanExpectations);
     }
