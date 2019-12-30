@@ -12,7 +12,7 @@ CUSTOM_INI_FILE_NAME='ddtrace-custom.ini'
 PATH="${PATH}:/usr/local/bin"
 
 if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
-    DD_TRACE_PHP_BIN=$(which php)
+    DD_TRACE_PHP_BIN=$(command -v php)
 fi
 
 function println(){
