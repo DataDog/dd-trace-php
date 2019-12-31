@@ -28,7 +28,6 @@
 static stack_t ddtrace_altstack;
 static struct sigaction ddtrace_sigaction;
 
-#define METRICS_CONST_TAGS "lang:php,lang_version:" PHP_VERSION ",tracer_version:" PHP_DDTRACE_VERSION
 #define MAX_STACK_SIZE 1024
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -37,33 +36,19 @@ static void ddtrace_sigsegv_handler(int sig) {
     TSRMLS_FETCH();
     if (!DDTRACE_G(backtrace_handler_already_run)) {
         DDTRACE_G(backtrace_handler_already_run) = TRUE;
+        ddtrace_log_errf("Segmentation fault");
+
 #if HAVE_SIGACTION
         BOOL_T health_metrics_enabled = get_dd_trace_heath_metrics_enabled();
-
         if (health_metrics_enabled) {
-            char *dogstatsd_host = get_dd_agent_host();
-            char *dogstatsd_port = get_dd_dogstatsd_port();
-
-            ddtrace_log_errf("Segmentation fault");
-
-            // todo: extract buffer, host, port, and client to module global, so this is just a send
-            char *buf = malloc(DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE);
-            size_t len = DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE;
-
-            dogstatsd_client client =
-                dogstatsd_client_ctor(dogstatsd_host, dogstatsd_port, buf, len, METRICS_CONST_TAGS);
-            dogstatsd_client_status status =
-                dogstatsd_client_count(&client, "datadog.tracer.uncaught_exceptions", "1", "class:sigsegv");
+            dogstatsd_client *client = &DDTRACE_G(dogstatsd_client);
+            const char *metric = "datadog.tracer.uncaught_exceptions";
+            const char *tags = "class:sigsegv";
+            dogstatsd_client_status status = dogstatsd_client_count(client, metric, "1", tags);
 
             if (status == DOGSTATSD_CLIENT_OK) {
                 ddtrace_log_errf("sigsegv health metric sent");
             }
-
-            dogstatsd_client_dtor(&client);
-
-            free(buf);
-            free(dogstatsd_port);
-            free(dogstatsd_host);
         }
 #endif
 

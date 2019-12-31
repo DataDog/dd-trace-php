@@ -24,6 +24,7 @@
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
+#include "dogstatsd_client.h"
 #include "engine_hooks.h"
 #include "logging.h"
 #include "memory_limit.h"
@@ -115,6 +116,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     // config initialization needs to be at the top
     ddtrace_initialize_config(TSRMLS_C);
+    ddtrace_dogstatsd_client_minit(TSRMLS_C);
     ddtrace_signals_minit(TSRMLS_C);
 
     register_span_data_ce(TSRMLS_C);
@@ -169,6 +171,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_dogstatsd_client_rinit(TSRMLS_C);
+
     ddtrace_seed_prng(TSRMLS_C);
     ddtrace_init_span_id_stack(TSRMLS_C);
     ddtrace_init_span_stacks(TSRMLS_C);
@@ -193,6 +197,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+    ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
 
     ddtrace_dispatch_destroy(TSRMLS_C);
     ddtrace_free_span_id_stack(TSRMLS_C);
