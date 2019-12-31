@@ -33,7 +33,7 @@ $(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
 	$(Q) (cd $(BUILD_DIR); phpize)
 
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
-	$(Q) (cd $(BUILD_DIR); ./configure)
+	$(Q) (cd $(BUILD_DIR); ./configure --enable-ddtrace-auto-instrumentation-beta)
 
 $(SO_FILE): $(ALL_FILES) $(BUILD_DIR)/Makefile
 	$(Q) $(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
