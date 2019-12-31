@@ -153,14 +153,17 @@
                         <file name="dd_trace_set_trace_id.phpt" role="test" />
                         <file name="drop_spans.phpt" role="test" />
                         <file name="errors_are_flagged_from_userland.phpt" role="test" />
+                        <file name="exception_error_log.phpt" role="test" />
                         <file name="exception_handling_php5.phpt" role="test" />
                         <file name="exception_handling.phpt" role="test" />
+                        <file name="exception_is_defined.phpt" role="test" />
                         <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
                         <file name="exceptions_are_passed_to_the_tracing_closure.phpt" role="test" />
                         <file name="exceptions_are_passed_to_the_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure.phpt" role="test" />
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
+                        <file name="get_last_error.phpt" role="test" />
                         <file name="new_static.phpt" role="test" />
                         <file name="safe_to_string_metadata.phpt" role="test" />
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />

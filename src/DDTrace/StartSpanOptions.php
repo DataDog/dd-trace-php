@@ -191,6 +191,10 @@ final class StartSpanOptions
             return Reference::create(Reference::CHILD_OF, $value);
         }
 
+        if ($value instanceof \DDTrace\OpenTracer\SpanContext) {
+            return Reference::create(Reference::CHILD_OF, $value->unwrapped());
+        }
+
         throw InvalidSpanOption::forInvalidChildOf($value);
     }
 

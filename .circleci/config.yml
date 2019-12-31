@@ -265,10 +265,29 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - run:
           name: Install phpstan
-          command: composer global require phpstan/phpstan:0.11.*
+          command: composer global require phpstan/phpstan:0.11.* ; composer scenario:update
       - run:
           name: Running phpstan
-          command: PATH=$PATH:~/.composer/vendor/bin composer static-analyze
+          command: composer scenario opentracing1 ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
+
+  "Post-Install Hook":
+    working_directory: ~/datadog
+    docker:
+      - image: datadog/dd-trace-ci:php-nginx-apache2
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Start Supervisor
+          command: supervisord
+          background: true
+      - run:
+          name: Copy post-install script
+          command: |
+              mkdir -p /src/ddtrace-scripts
+              cp package/post-install.sh /src/ddtrace-scripts
+      - run:
+          name: Test post-install hook
+          command: bash tests/PostInstallHook/run-tests.sh
 
   unit_tests:
     parameters:
@@ -841,29 +860,29 @@ workflows:
           requires: [ 'Code Checkout' ]
           name: "PHP 70 Web integration tests"
           integration_testsuite: "test-web-70"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+          docker_image: "datadog/dd-trace-ci:php-dev-7.0"
+          lib_curl_command: ":"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 71 Web integration tests"
           resource_class: medium+
           integration_testsuite: "test-web-71"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+          docker_image: "datadog/dd-trace-ci:php-dev-7.1"
+          lib_curl_command: ":"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 72 Web integration tests"
           resource_class: medium+
           integration_testsuite: "test-web-72"
-          docker_image: "datadog/docker-library:ddtrace_php_7_2"
-          lib_curl_command: sudo apt update ; sudo apt-get -y install libcurl4-nss-dev
+          docker_image: "datadog/dd-trace-ci:php-dev-7.2"
+          lib_curl_command: ":"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Web integration tests"
           resource_class: medium+
           integration_testsuite: "test-web-73"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+          docker_image: "datadog/dd-trace-ci:php-dev-7.3"
+          lib_curl_command: ":"
       - hyperfine_tests:
           requires: [ 'Code Checkout' ]
           name: "Hyperfine 54 benchmarks"
@@ -897,4 +916,6 @@ workflows:
       - "Lint files":
           requires: [ 'Code Checkout' ]
       - "Static Analysis":
+          requires: [ 'Code Checkout' ]
+      - "Post-Install Hook":
           requires: [ 'Code Checkout' ]

@@ -154,6 +154,65 @@ final class HttpTest extends BaseTestCase
         $this->assertEquals('1', $traceRequest['headers']['X-Datadog-Trace-Count']);
     }
 
+    private static function recordContainsPrefixAndSuffix($record, $prefix, $suffix)
+    {
+        if ($record[0] !== 'error') {
+            return false;
+        }
+
+        $resultPrefix = \strpos($record[1], $prefix);
+        $resultSuffix = \strpos($record[1], $suffix);
+        return \is_int($resultPrefix) && \is_int($resultSuffix);
+    }
+
+    public function testSendingTimeoutContainsTimeoutSettings()
+    {
+        $timeout = 1;
+        $curlTimeout = 1;
+        $httpTransport = new Http(new Json(), [
+            'endpoint' => $this->getAgentReplayerEndpoint(),
+            'connect_timeout' => $curlTimeout,
+            'timeout' => $timeout,
+        ]);
+
+        // This helps it timeout more reliably
+        $httpTransport->setHeader('Expect', '100-continue');
+
+        $tracer = new Tracer($httpTransport);
+        GlobalTracer::set($tracer);
+        $logger = $this->withDebugLogger();
+
+        // Add a few children; the larger payload helps it to timeout more reliably
+        $root = $tracer->startRootSpan('test');
+        /** @var \DDTrace\Contracts\Scope[] $children */
+        $children = [];
+        for ($i = 0; $i < 10; ++$i) {
+            $children[] = $tracer->startActiveSpan("child{$i}");
+        }
+        foreach (\array_reverse($children) as $child) {
+            $child->close();
+        }
+        $root->close();
+
+        $httpTransport->send($tracer);
+
+        $records = $logger->all();
+        $curlOperationTimedout = \version_compare(\PHP_VERSION, '5.5', '<')
+            ? \CURLE_OPERATION_TIMEOUTED
+            : \CURLE_OPERATION_TIMEDOUT;
+        $prefix = "Reporting of spans failed: {$curlOperationTimedout} / ";
+        $suffix = "(TIMEOUT_MS={$timeout}, CONNECTTIMEOUT_MS={$curlTimeout})";
+
+        $result = \array_filter(
+            $records,
+            function ($record) use ($prefix, $suffix) {
+                return self::recordContainsPrefixAndSuffix($record, $prefix, $suffix);
+            }
+        );
+
+        self::assertCount(1, $result);
+    }
+
     public function testSetHeader()
     {
         $httpTransport = new Http(new Json(), [

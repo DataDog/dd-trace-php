@@ -15,6 +15,8 @@ final class SpanAssertion
     private $exactTags = SpanAssertion::NOT_TESTED;
     /** @var string[] Tags the MUST be present but with any value */
     private $existingTags = ['system.pid'];
+    /** @var string[] Ignore any tags that match these regexp patterns */
+    private $skipTagPatterns = [];
     /** @var array Exact metrics set on the span */
     private $exactMetrics = SpanAssertion::NOT_TESTED;
     private $service = SpanAssertion::NOT_TESTED;
@@ -172,6 +174,21 @@ final class SpanAssertion
     {
         $this->existingTags = $merge ? array_merge($tagNames, $this->existingTags) : $tagNames;
         return $this;
+    }
+
+    /**
+     * @param string $pattern regular expression
+     * @return $this
+     */
+    public function skipTagsLike($pattern)
+    {
+        $this->skipTagPatterns[] = $pattern;
+        return $this;
+    }
+
+    public function getSkippedTagPatterns()
+    {
+        return $this->skipTagPatterns;
     }
 
     /**

@@ -10,6 +10,7 @@ use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\GlobalTracer;
+use DDTrace\Integrations\Web\WebIntegration;
 use PHPUnit\Framework\TestCase;
 
 trait TracerTestTrait
@@ -33,6 +34,26 @@ trait TracerTestTrait
 
         // Checking spans belong to the proper integration
         $this->assertSpansBelongsToProperIntegration($this->readTraces($tracer));
+
+        return $this->flushAndGetTraces($transport);
+    }
+
+    /**
+     * @param $fn
+     * @param null $tracer
+     * @return array[]
+     */
+    public function inRootSpan($fn, $tracer = null)
+    {
+        // Reset the current C-level array of generated spans
+        dd_trace_serialize_closed_spans();
+        $transport = new DebugTransport();
+        $tracer = $tracer ?: new Tracer($transport);
+        GlobalTracer::set($tracer);
+
+        $scope = $tracer->startRootSpan('root_span');
+        $fn($tracer);
+        $scope->close();
 
         return $this->flushAndGetTraces($transport);
     }
@@ -79,6 +100,12 @@ trait TracerTestTrait
         $this->resetRequestDumper();
 
         $transport = new Http(new Json(), ['endpoint' => self::$agentRequestDumperUrl]);
+
+        /* Disable Expect: 100-Continue that automatically gets added by curl,
+         * as it adds a 1s delay, causing tests to sometimes fail.
+         */
+        $transport->setHeader('Expect', '');
+
         $tracer = $tracer ?: new Tracer($transport);
         GlobalTracer::set($tracer);
 

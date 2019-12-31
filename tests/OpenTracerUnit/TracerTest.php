@@ -11,6 +11,8 @@ use DDTrace\Tag;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Time;
 use DDTrace\Transport\Noop as NoopTransport;
+use OpenTracing\GlobalTracer;
+use OpenTracing\Formats;
 use PHPUnit\Framework\TestCase;
 
 final class TracerTest extends TestCase
@@ -136,6 +138,25 @@ final class TracerTest extends TestCase
         $tracer = Tracer::make(new NoopTransport(), [self::FORMAT => $propagator->reveal()]);
         $actualContext = $tracer->extract(self::FORMAT, $carrier);
         $this->assertSame($expectedContext, $actualContext->unwrapped());
+    }
+
+    public function testOTSpanContextAsParent()
+    {
+        GlobalTracer::set(Tracer::make());
+
+        $tracer = GlobalTracer::get();
+
+        $header = <<<JSON
+{"x-datadog-trace-id":"2409624703365403319","x-datadog-parent-id":"2409624703365403319","x-datadog-sampling-priority":1}
+JSON;
+        $carrier = \json_decode($header, true);
+        // Create a span from carrier
+        $context = $tracer->extract(Formats\TEXT_MAP, $carrier);
+        $B = $tracer->startActiveSpan('B', ['child_of' => $context]);
+
+        $otcontext = $B->getSpan()->getContext();
+        self::assertInstanceOf('DDTrace\OpenTracer\SpanContext', $otcontext);
+        self::assertEquals('2409624703365403319', $otcontext->unwrapped()->getParentId());
     }
 
     public function testOnlyFinishedTracesAreBeingSent()
