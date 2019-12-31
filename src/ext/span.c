@@ -25,9 +25,13 @@ static void _free_span(ddtrace_span_t *span) {
         return;
     }
 #if PHP_VERSION_ID < 70000
-    zval_ptr_dtor(&span->span_data);
+    if (span->span_data) {
+        zval_ptr_dtor(&span->span_data);
+        span->span_data = NULL;
+    }
     if (span->exception) {
         zval_ptr_dtor(&span->exception);
+        span->exception = NULL;
     }
 #else
     if (span->span_data) {

@@ -223,6 +223,11 @@ BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
     zval *null_zval = &EG(uninitialized_zval);
     zval *this = ddtrace_this(execute_data);
 
+    if (!callable || !span_data || !user_args || !user_retval) {
+        ddtrace_log_debug("Tracing closure could not be run because it is in an invalid state");
+        return FALSE;
+    }
+
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
         return FALSE;
@@ -537,6 +542,10 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
     ddtrace_span_t *span = ddtrace_open_span(TSRMLS_C);
 
     fcall_status = ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
+    if (span != DDTRACE_G(open_spans_top)) {
+        ddtrace_log_debug("Cannot run tracing closure; spans out of sync");
+        goto _dispatch_exit_cleanup;
+    }
     dd_trace_stop_span_time(span);
 
     ddtrace_copy_function_args(execute_data, user_args);
@@ -577,8 +586,6 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
         }
     }
 
-    zval_ptr_dtor(&user_args);
-
     if (keep_span == TRUE) {
         ddtrace_close_span(TSRMLS_C);
     } else {
@@ -591,6 +598,9 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
         EG(opline_before_exception) = (zend_op *)opline;
         EG(current_execute_data)->opline = EG(exception_op);
     }
+
+_dispatch_exit_cleanup:
+    zval_ptr_dtor(&user_args);
 
 #if PHP_VERSION_ID < 50500
     (void)opline;  // TODO Make work on PHP 5.4
