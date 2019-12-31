@@ -2,7 +2,9 @@
 
 #include <php.h>
 
-void _ddtrace_log_errf(TSRMLS_FC const char *format, ...) {
+extern inline void ddtrace_log_err(char *message);
+
+void _ddtrace_log_errf(const char *format, ...) {
     va_list args;
     char *buffer;
 

@@ -65,6 +65,9 @@ static BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_fu
     if (!*dispatch || (*dispatch)->busy) {
         return FALSE;
     }
+    if (ddtrace_tracer_is_limited() && ((*dispatch)->options & DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED) == 0) {
+        return FALSE;
+    }
 
     return TRUE;
 }
@@ -450,7 +453,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data) {
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
-    if (dispatch->run_as_postprocess) {
+    if (dispatch->options & DDTRACE_DISPATCH_POSTHOOK) {
         ddtrace_trace_dispatch(dispatch, current_fbc, execute_data);
     } else {
         // Store original context for forwarding the call from userland
