@@ -56,15 +56,7 @@ typedef enum {
 
 // Creates a client whose operations will fail with E_NO_CLIENT
 inline dogstatsd_client dogstatsd_client_default_ctor() {
-  dogstatsd_client client = {
-      .socket = -1,
-      .address = NULL,
-      .addresslist = NULL,
-      .msg_buffer = NULL,
-      .msg_buffer_len = 0,
-      .const_tags = NULL,
-      .const_tags_len = 0,
-  };
+  dogstatsd_client client = {-1, NULL, NULL, NULL, 0, NULL, 0};
   return client;
 }
 
