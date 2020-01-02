@@ -18,87 +18,36 @@ class Test
     }
 }
 
-var_dump(dd_trace_method('Test', 'testFoo', function (SpanData $span) {
+dd_trace_method('Test', 'testFoo', function (SpanData $span) {
     $span->name = 'TestFoo';
     $span->service = $this_normally_raises_a_notice;
-}));
+});
 
-var_dump(dd_trace_function('mt_srand', function (SpanData $span) {
+dd_trace_function('mt_srand', function (SpanData $span) {
     $span->name = 'MTSeed';
     throw new Exception('This should be ignored');
-}));
+});
 
-var_dump(dd_trace_function('mt_rand', function (SpanData $span) {
+dd_trace_function('mt_rand', function (SpanData $span) {
     $span->name = 'MTRand';
     // TODO: Ignore fatals like this on PHP 5
     if (PHP_VERSION_ID >= 70000) {
         this_function_does_not_exist();
         //$foo = new ThisClassDoesNotExist();
     }
-}));
+});
 
 $test = new Test();
 $test->testFoo();
 
-echo "---\n";
-
-var_dump(dd_trace_serialize_closed_spans());
+array_map(function($span) {
+    echo $span['name'] . PHP_EOL;
+}, dd_trace_serialize_closed_spans());
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-bool(true)
-bool(true)
-bool(true)
 Test::testFoo() fav num: %d
----
-array(3) {
-  [0]=>
-  array(6) {
-    ["trace_id"]=>
-    int(%d)
-    ["span_id"]=>
-    int(%d)
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(7) "TestFoo"
-    ["meta"]=>
-    array(1) {
-      ["system.pid"]=>
-      int(%d)
-    }
-  }
-  [1]=>
-  array(6) {
-    ["trace_id"]=>
-    int(%d)
-    ["span_id"]=>
-    int(%d)
-    ["parent_id"]=>
-    int(%d)
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(6) "MTRand"
-  }
-  [2]=>
-  array(6) {
-    ["trace_id"]=>
-    int(%d)
-    ["span_id"]=>
-    int(%d)
-    ["parent_id"]=>
-    int(%d)
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(6) "MTSeed"
-  }
-}
+TestFoo
+MTRand
+MTSeed
 NULL
