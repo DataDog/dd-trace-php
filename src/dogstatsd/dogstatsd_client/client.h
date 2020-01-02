@@ -2,6 +2,7 @@
 #define DOGSTATSD_CLIENT_H
 
 #include <netdb.h>
+#include <stddef.h>
 
 /* This describes a simple interface to communicate with dogstatsd. It only
  * implements the portions of the interface that the PHP tracer needs. If it
@@ -18,7 +19,7 @@ typedef struct {
   struct addrinfo *address;      // freed on dtor as part of addresslist
   struct addrinfo *addresslist;  // freed on dtor
   char *msg_buffer;              // NOT freed on dtor
-  size_t msg_buffer_len;
+  int msg_buffer_len;
   const char *const_tags;  // NOT freed on dtor
   size_t const_tags_len;
 } dogstatsd_client;
@@ -54,18 +55,32 @@ typedef enum {
 #define DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE 1024
 
 // Creates a client whose operations will fail with E_NO_CLIENT
-dogstatsd_client dogstatsd_client_default_ctor();
-
-inline int dogstatsd_client_is_default_client(dogstatsd_client *client) {
-  return !client || client->socket == -1;
+inline dogstatsd_client dogstatsd_client_default_ctor() {
+  dogstatsd_client client = {
+      .socket = -1,
+      .address = NULL,
+      .addresslist = NULL,
+      .msg_buffer = NULL,
+      .msg_buffer_len = 0,
+      .const_tags = NULL,
+      .const_tags_len = 0,
+  };
+  return client;
 }
 
-/* If the client fails to open a socket to the host and port, it will
- * create a default client.
+inline _Bool dogstatsd_client_is_default_client(dogstatsd_client client) {
+  return client.socket == -1;
+}
+
+/* Wrapper around getaddrinfo to connect using UDP.
+ * Returns the result of getaddrinfo.
  */
-dogstatsd_client dogstatsd_client_ctor(const char *host, const char *port,
-                                       char *buffer, int buffer_len,
-                                       const char *const_tags);
+int dogstatsd_client_getaddrinfo(struct addrinfo **result, const char *host,
+                                 const char *port);
+
+/* If the client fails to open a socket, it will create a default client. */
+dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, char *buffer,
+                                       int buffer_len, const char *const_tags);
 
 // Uses sample_rate of 1.0
 dogstatsd_client_status dogstatsd_client_count(dogstatsd_client *client,

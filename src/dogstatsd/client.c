@@ -5,36 +5,14 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-dogstatsd_client dogstatsd_client_default_ctor() {
-  dogstatsd_client client = {
-      .socket = -1,
-      .address = NULL,
-      .addresslist = NULL,
-      .msg_buffer = NULL,
-      .msg_buffer_len = 0,
-      .const_tags = NULL,
-      .const_tags_len = 0,
-  };
-  return client;
-}
-
-/* This function is inline, but it needs to go in a translation unit somewhere
- * to avoid certain linker errors. This line instructs the tooling it should
- * go here.
+/* These functions are inline, but it needs to go in a translation unit
+ * somewhere to avoid certain linker errors. The extern inline handles this.
  */
-extern inline int dogstatsd_client_is_default_client(dogstatsd_client *);
+extern inline dogstatsd_client dogstatsd_client_default_ctor();
+extern inline _Bool dogstatsd_client_is_default_client(dogstatsd_client client);
 
-dogstatsd_client dogstatsd_client_ctor(const char *host, const char *port,
-                                       char *buffer, int buffer_len,
-                                       const char *const_tags) {
-  if (!host || !port || !buffer || buffer_len < 0) {
-    return dogstatsd_client_default_ctor();
-  }
-
-  struct addrinfo *result;
-  struct addrinfo *res;
-  int error;
-
+int dogstatsd_client_getaddrinfo(struct addrinfo **result, const char *host,
+                                 const char *port) {
   struct addrinfo hints;
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_DGRAM;
@@ -42,42 +20,40 @@ dogstatsd_client dogstatsd_client_ctor(const char *host, const char *port,
   hints.ai_flags = AI_NUMERICSERV;
 
   /* resolve the domain name into a list of addresses */
-  error = getaddrinfo(host, port, &hints, &result);
-  if (error != 0) {
-    if (error == EAI_SYSTEM) {
-      perror("getaddrinfo");
-    } else {
-      fprintf(stderr, "error in getaddrinfo: %s\n", gai_strerror(error));
-    }
-    return dogstatsd_client_default_ctor();
+  return getaddrinfo(host, port, &hints, result);
+}
+
+dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, char *buffer,
+                                       int buffer_len, const char *const_tags) {
+  dogstatsd_client client = dogstatsd_client_default_ctor();
+
+  if (!addrs) {
+    return client;
+  }
+  client.addresslist = addrs;
+
+  struct addrinfo *addr = NULL;
+  if (!buffer || buffer_len < 0) {
+    return client;
   }
 
-  int fd = -1;
   /* loop over all returned results and do inverse lookup */
-  for (res = result; res != NULL; res = res->ai_next) {
-    if ((fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) !=
-        -1) {
+  for (addr = client.addresslist; addr != NULL; addr = addr->ai_next) {
+    if ((client.socket = socket(addr->ai_family, addr->ai_socktype,
+                                addr->ai_protocol)) != -1) {
       break;
     }
-  }
-
-  if (res == NULL || fd == -1) {
-    return dogstatsd_client_default_ctor();
   }
 
   if (!const_tags) {
     const_tags = "";
   }
 
-  dogstatsd_client client = {
-      .socket = fd,
-      .addresslist = result,
-      .address = res,
-      .msg_buffer = buffer,
-      .msg_buffer_len = buffer_len,
-      .const_tags = const_tags,
-      .const_tags_len = strlen(const_tags),
-  };
+  client.const_tags = const_tags;
+  client.const_tags_len = strlen(const_tags);
+  client.address = addr;
+  client.msg_buffer = buffer;
+  client.msg_buffer_len = buffer_len;
 
   return client;
 }
@@ -88,9 +64,11 @@ void dogstatsd_client_dtor(dogstatsd_client *client) {
   }
   if (client->socket != -1) {
     close(client->socket);
+    client->socket = -1;
   }
   if (client->addresslist) {
     freeaddrinfo(client->addresslist);
+    client->addresslist = NULL;
   }
 }
 
@@ -101,7 +79,7 @@ void dogstatsd_client_dtor(dogstatsd_client *client) {
 static dogstatsd_client_status _dogstatsd_client_send(
     dogstatsd_client *client, const char *name, const char *value,
     const char *type, float sample_rate, const char *tags) {
-  if (dogstatsd_client_is_default_client(client)) {
+  if (dogstatsd_client_is_default_client(*client)) {
     return DOGSTATSD_CLIENT_E_NO_CLIENT;
   }
 
@@ -136,7 +114,7 @@ static dogstatsd_client_status _dogstatsd_client_send(
   /* snprintf does not report the null byte in the length, so if it is size or
    * more then it is an error
    */
-  if (((size_t)size) >= client->msg_buffer_len) {
+  if (size >= client->msg_buffer_len) {
     return DOGSTATSD_CLIENT_E_TOO_LONG;
   }
 

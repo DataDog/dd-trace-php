@@ -4,6 +4,7 @@
 
 #include "configuration.h"
 #include "ddtrace.h"
+#include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -31,7 +32,17 @@ void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
         buffer = malloc(DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE);
         size_t len = DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE;
 
-        client = dogstatsd_client_ctor(host, port, buffer, len, METRICS_CONST_TAGS);
+        struct addrinfo *addrs;
+        int err;
+        if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
+            ddtrace_log_debugf("Dogstatsd client failed looking up %s:%s: %s", host, port,
+                               (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
+        } else {
+            client = dogstatsd_client_ctor(addrs, buffer, len, METRICS_CONST_TAGS);
+            if (dogstatsd_client_is_default_client(client)) {
+                ddtrace_log_debugf("Dogstatsd client failed opening socket to %s:%s", host, port);
+            }
+        }
     }
     _set_dogstatsd_client_globals(client, host, port, buffer TSRMLS_CC);
 }

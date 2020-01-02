@@ -6,7 +6,7 @@ logging. If there is demand, it can be split into its own project.
 
 Requirements:
   - POSIX OS
-  - C99 compatible compiler and standard library, notably `snprintf`.
+  - C99 compatible compiler and standard library.
 
 Optional, but recommended:
   - CMake 3.10 or newer.
@@ -64,9 +64,24 @@ automatically. This example uses localhost and the default port.
 ```c
 char buf[DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE];
 size_t len = DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE;
-dogstatsd_client client;
-if (dogstatsd_client_ctor(&client, "localhost", "8125", buf, len, "lang:php") == 0) {
-  // success
+int error;
+struct addrinfo *addrs = NULL;
+if ((error = dogstatsd_client_getaddrinfo(&addrs, "localhost", "8125"))) {
+  fprintf(
+    stderr,
+    "Failed looking up localhost:8125: %s\n",
+    (error == EAI_SYSTEM) ? strerror(errno) : gai_strerror(error)
+  );
+} else {
+  /* the client will always be usable, but if
+   * dogstatsd_client_is_default_client(client) is true then it will always
+   * return E_NO_CLIENT instead of performing the operation.
+   *
+   * Note that the client will take responsibility for calling freeaddrinfo.
+   */
+  dogstatsd_client client = dogstatsd_client_ctor(addrs, buf, len, "lang:php");
+  // do client operations, then
+  dogstatsd_client_dtor(&client);
 }
 ```
 
@@ -77,9 +92,8 @@ dogstatsd_client_count(&client, "datadog.tracer.uncaught_exceptions", "1", "clas
 ```
 The tags parameter can be NULL or an empty string if you do not need to set any tags specific to this metric.
 
-Use the `dogstatsd_client_dtor` function to clean up. Note that it will _not_ free any arguments it has been passed;
-it will clean up only its own data.
+Use the `dogstatsd_client_dtor` function to clean up the client and the addrinfo. It will not free the buffer or
+constant tags. The dtor should always be called on the client.
 ```c
-dogstatsd_client_dtor(&dtor);
+dogstatsd_client_dtor(&client);
 ````
-The dtor function does not need to be called if the ctor fails.

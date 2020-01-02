@@ -33,7 +33,7 @@ dogstatsd_server dogstatsd_server_make() {
 
 void dogstatsd_server_listen(dogstatsd_server *server, dogstatsd_client *client,
                              const char *expected_string) {
-  socklen_t client_addr_size = sizeof(client->address);
+  socklen_t client_addr_size = sizeof(struct addrinfo);
   // 60 bytes for the IP header
   // 8 bytes for the UDP overhead
   int buffer_len = client->msg_buffer_len + 60 + 8;
@@ -66,9 +66,10 @@ void _test_tags(const char *tags, const char *const_tags, const char *expect) {
   getnameinfo((sockaddr *)&server.addr, server.addr.sin_len, host, NI_MAXHOST,
               port, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
 
-  dogstatsd_client client =
-      dogstatsd_client_ctor(host, port, buf, len, const_tags);
-  REQUIRE(!dogstatsd_client_is_default_client(&client));
+  struct addrinfo *addrs = nullptr;
+  REQUIRE(!dogstatsd_client_getaddrinfo(&addrs, host, port));
+  dogstatsd_client client = dogstatsd_client_ctor(addrs, buf, len, const_tags);
+  REQUIRE(!dogstatsd_client_is_default_client(client));
 
   // start a thread for the server
   std::thread server_thread{dogstatsd_server_listen, &server, &client, expect};
