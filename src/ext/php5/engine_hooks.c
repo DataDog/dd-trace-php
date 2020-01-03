@@ -573,6 +573,12 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
         keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, execute_data, user_args, user_retval,
                                                     exception TSRMLS_CC);
 
+        if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+            const char *fname = Z_STRVAL(dispatch->function_name);
+            ddtrace_log_errf("Error raised in tracing closure for %s(): %s in %s on line %d", fname,
+                             PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
+        }
+
         ddtrace_restore_error_handling(&eh TSRMLS_CC);
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {

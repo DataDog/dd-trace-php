@@ -264,6 +264,12 @@ static void _end_span(ddtrace_span_t *span, zval *user_retval) {
         keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, call, &user_args, user_retval,
                                                     exception);
 
+        if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+            const char *fname = Z_STRVAL(dispatch->function_name);
+            ddtrace_log_errf("Error raised in tracing closure for %s(): %s in %s on line %d", fname,
+                             PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
+        }
+
         ddtrace_restore_error_handling(&eh);
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
