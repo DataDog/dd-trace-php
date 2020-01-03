@@ -4,8 +4,11 @@ Fatal errors are ignored in shutdown handler
 This is how the tracer sandboxes the flushing functionality in userland
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+<?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
 --INI--
 memory_limit=2M
+--ENV--
+DD_TRACE_DEBUG=1
 --FILE--
 <?php
 function flushTracer() {
@@ -42,6 +45,7 @@ dd_trace_function('flushTracer', function () {
     // Trigger a fatal error (hit the memory limit)
     $a = str_repeat('.', 1024 * 1024 * 3); // 3MB
     echo 'You should not see this.' . PHP_EOL;
+    var_dump(error_get_last());
 });
 
 dd_trace_function('array_sum', function (DDTrace\SpanData $span) {
