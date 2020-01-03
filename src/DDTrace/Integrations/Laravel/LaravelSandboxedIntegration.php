@@ -152,16 +152,18 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        // Using the legacy API only for this method because of orphaned spans in sandboxed api when `return false` is
-        // used
-        \dd_trace(
+        \dd_trace_method(
             'Illuminate\Foundation\ProviderRepository',
             'load',
-            function () use ($rootSpan, $integration) {
+            function (SpanData $span) use ($rootSpan, $integration) {
+                $serviceName = $integration->getServiceName();
+                $span->name = 'laravel.provider.load';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $serviceName;
+                $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
                 $rootSpan->setIntegration($integration);
                 $rootSpan->overwriteOperationName('laravel.request');
-                $rootSpan->setTag(Tag::SERVICE_NAME, $integration->getServiceName());
-                return dd_trace_forward_call();
+                $rootSpan->setTag(Tag::SERVICE_NAME, $serviceName);
             }
         );
 
