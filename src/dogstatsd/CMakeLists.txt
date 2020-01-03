@@ -2,20 +2,20 @@
  We need to be able to set the C version in a standard way, which was not
  added until CMake 3.1 with the C_STANDARD property.
 
- The feature c_std_99 was added to CMake 3.8. The feature is more desriable
+ The feature c_std_99 was added to CMake 3.8. The feature is more desirable
  than C_STANDARD because it's a minimum rather than an exact. This way if a
  compiler prefers a newer version it is free to do so, and most compilers on
  the latest releases do prefer a newer C standard.
 
               Operating System Matrix
  OS      OS_VERSION  OS_CODENAME   CMAKE_VERSION
- Debian              Jessie        3.0.2
- Debian              Stretch       3.7.2
- Debian              Buster        3.13
+ Debian  8           Jessie        3.0.2
+ Debian  9           Stretch       3.7.2
+ Debian  10          Buster        3.13
  CentOS  6                         2.8.12
  CentOS  7                         2.8.12
  CentOS  8                         3.11
- Ubuntu  14.04       Xenial        2.8.12
+ Ubuntu  14.04       Trusty        2.8.12
  Ubuntu  16.04       Xenial        3.5
  Ubuntu  18.04       Bionic        3.10
 

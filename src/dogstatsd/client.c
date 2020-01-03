@@ -5,11 +5,24 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-/* These functions are inline, but it needs to go in a translation unit
- * somewhere to avoid certain linker errors. The extern inline handles this.
+/* These functions are inline, but need to go in a translation unit somewhere
+ * to avoid certain linker errors. The extern inline handles this.
  */
 extern inline dogstatsd_client dogstatsd_client_default_ctor();
-extern inline _Bool dogstatsd_client_is_default_client(dogstatsd_client client);
+extern inline bool dogstatsd_client_is_default_client(dogstatsd_client client);
+extern inline const char *dogstatsd_metric_type_to_str(dogstatsd_metric_t type);
+
+extern inline dogstatsd_client_status dogstatsd_client_count(
+    dogstatsd_client *client, const char *metric, const char *value,
+    const char *tags);
+
+extern inline dogstatsd_client_status dogstatsd_client_gauge(
+    dogstatsd_client *client, const char *metric, const char *value,
+    const char *tags);
+
+extern inline dogstatsd_client_status dogstatsd_client_histogram(
+    dogstatsd_client *client, const char *metric, const char *value,
+    const char *tags);
 
 int dogstatsd_client_getaddrinfo(struct addrinfo **result, const char *host,
                                  const char *port) {
@@ -76,14 +89,15 @@ void dogstatsd_client_dtor(dogstatsd_client *client) {
  * sample_rate must be between 0.0 and 1.0 (inclusive); if you are unsure then
  * specify 1.0.
  */
-static dogstatsd_client_status _dogstatsd_client_send(
+dogstatsd_client_status dogstatsd_client_metric_send(
     dogstatsd_client *client, const char *name, const char *value,
-    const char *type, float sample_rate, const char *tags) {
+    dogstatsd_metric_t type, double sample_rate, const char *tags) {
   if (dogstatsd_client_is_default_client(*client)) {
     return DOGSTATSD_CLIENT_E_NO_CLIENT;
   }
 
-  if (!name || !value || !type) {
+  const char *typestr = dogstatsd_metric_type_to_str(type);
+  if (!name || !value || !typestr || sample_rate < 0.0 || sample_rate > 1.0) {
     return DOGSTATSD_CLIENT_E_VALUE;
   }
 
@@ -102,9 +116,9 @@ static dogstatsd_client_status _dogstatsd_client_send(
   const char *tags_prefix = (tags_len + const_tags_len > 0) ? "|#" : "";
   const char *tags_separator = (tags_len > 0 && const_tags_len > 0) ? "," : "";
 
-  const char *format = "%s:%s|%s|@%f%s%s%s%s";
+  const char *format = "%s:%s|%s|@%.6f%s%s%s%s";
   int size = snprintf(client->msg_buffer, client->msg_buffer_len, format, name,
-                      value, type, sample_rate, tags_prefix, tags,
+                      value, typestr, sample_rate, tags_prefix, tags,
                       tags_separator, client->const_tags);
 
   if (size < 0) {
@@ -127,11 +141,4 @@ static dogstatsd_client_status _dogstatsd_client_send(
   }
 
   return DOGSTATSD_CLIENT_EWRITE;
-}
-
-dogstatsd_client_status dogstatsd_client_count(dogstatsd_client *client,
-                                               const char *metric,
-                                               const char *value,
-                                               const char *tags) {
-  return _dogstatsd_client_send(client, metric, value, "c", 1.0f, tags);
 }
