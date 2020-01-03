@@ -48,6 +48,22 @@ final class CurlIntegrationTest extends IntegrationTestCase
         putenv('DD_CURL_ANALYTICS_ENABLED');
     }
 
+    private static function commonCurlInfoTags()
+    {
+        $tags = [
+            'duration',
+            'network.bytes_read',
+            'network.bytes_written',
+        ];
+        if (\version_compare(\PHP_VERSION, '5.4.7', '>=')) {
+            $tags += \array_merge(
+                $tags,
+                ['network.client.ip', 'network.client.port', 'network.destination.ip', 'network.destination.port']
+            );
+        }
+        return $tags;
+    }
+
     public function testLoad200UrlOnInit()
     {
         $traces = $this->isolateTracer(function () {
@@ -64,7 +80,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
-                ]),
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
         ]);
     }
 
@@ -85,7 +103,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
-                ]),
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
         ]);
     }
 
@@ -106,7 +126,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
-                ]),
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
         ]);
     }
 
@@ -124,7 +146,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
-                ]),
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
         ]);
     }
 
@@ -144,7 +168,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/404',
                     'http.status_code' => '404',
-                ]),
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
         ]);
     }
 
@@ -166,6 +192,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '0',
                 ])
                 ->withExistingTagsNames(['error.msg'])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/')
                 ->setError('curl error'),
         ]);
     }
@@ -188,6 +216,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '0',
                 ])
                 ->withExistingTagsNames(['error.msg'])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/')
                 ->setError('curl error'),
         ]);
     }
@@ -209,6 +239,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'http.url' => 'http://__i_am_not_real__.invalid/',
                     'http.status_code' => '0',
                 ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/')
                 ->setError('curl error', 'Could not resolve host: __i_am_not_real__.invalid'),
         ]);
     }
@@ -411,7 +443,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
-                ]),
+                ])
+                ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->skipTagsLike('/^curl\..*/'),
         ]);
     }
 

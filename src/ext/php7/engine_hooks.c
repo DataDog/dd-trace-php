@@ -2,6 +2,7 @@
 
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_interfaces.h>
 
 #include <ext/spl/spl_exceptions.h>
 
@@ -62,6 +63,9 @@ static BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_fu
     *dispatch = ddtrace_find_dispatch(this, *fbc, &fname);
     zval_ptr_dtor(&fname);
     if (!*dispatch || (*dispatch)->busy) {
+        return FALSE;
+    }
+    if (ddtrace_tracer_is_limited() && ((*dispatch)->options & DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED) == 0) {
         return FALSE;
     }
 
@@ -154,7 +158,7 @@ static BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, z
     INIT_ZVAL(rv);
     zval args[4];
     zval exception_arg = {.value = {0}};
-    ZVAL_UNDEF(&exception_arg);
+    ZVAL_NULL(&exception_arg);
     if (exception) {
         ZVAL_OBJ(&exception_arg, exception);
     }
@@ -209,6 +213,22 @@ static BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, z
     return status;
 }
 
+static zend_class_entry *ddtrace_get_exception_base(zval *object) {
+    return instanceof_function(Z_OBJCE_P(object), zend_ce_exception) ? zend_ce_exception : zend_ce_error;
+}
+
+#if PHP_VERSION_ID < 70100
+#define ZEND_STR_MESSAGE "message"
+#define GET_PROPERTY(object, name) \
+    zend_read_property(ddtrace_get_exception_base(object), (object), name, sizeof(name) - 1, 1, &rv)
+#elif PHP_VERSION_ID < 70200
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(ddtrace_get_exception_base(object), (object), CG(known_strings)[id], 1, &rv)
+#else
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(ddtrace_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
+#endif
+
 static void _end_span(ddtrace_span_t *span, zval *user_retval) {
     zend_execute_data *call = span->call;
     ddtrace_dispatch_t *dispatch = span->dispatch;
@@ -229,17 +249,30 @@ static void _end_span(ddtrace_span_t *span, zval *user_retval) {
 
     BOOL_T keep_span = TRUE;
     if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
-        zend_error_handling error_handling;
-        int orig_error_reporting = EG(error_reporting);
+        ddtrace_error_handling eh;
+        ddtrace_backup_error_handling(&eh, EH_THROW);
         EG(error_reporting) = 0;
-        zend_replace_error_handling(EH_THROW, NULL, &error_handling);
+
         keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, call, &user_args, user_retval,
                                                     exception);
-        zend_restore_error_handling(&error_handling);
-        EG(error_reporting) = orig_error_reporting;
+
+        ddtrace_restore_error_handling(&eh);
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
-            ddtrace_log_debug("Exeception thrown in the tracing closure");
+            if (get_dd_trace_debug()) {
+                zend_object *ex = EG(exception);
+                const char *name = Z_STR(dispatch->function_name)->val;
+                const char *type = ex->ce->name->val;
+                zval rv, obj;
+                ZVAL_OBJ(&obj, ex);
+                zval *message = GET_PROPERTY(&obj, ZEND_STR_MESSAGE);
+                const char *msg = Z_TYPE_P(message) == IS_STRING ? Z_STR_P(message)->val
+                                                                 : "(internal error reading exception message)";
+                ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
+                if (message == &rv) {
+                    zval_dtor(message);
+                }
+            }
             if (!DDTRACE_G(strict_mode)) {
                 zend_clear_exception();
             }
@@ -420,7 +453,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data) {
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
-    if (dispatch->run_as_postprocess) {
+    if (dispatch->options & DDTRACE_DISPATCH_POSTHOOK) {
         ddtrace_trace_dispatch(dispatch, current_fbc, execute_data);
     } else {
         // Store original context for forwarding the call from userland

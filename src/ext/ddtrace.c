@@ -25,6 +25,7 @@
 #include "debug.h"
 #include "dispatch.h"
 #include "engine_hooks.h"
+#include "logging.h"
 #include "memory_limit.h"
 #include "random.h"
 #include "request_hooks.h"
@@ -230,24 +231,133 @@ static PHP_MINFO_FUNCTION(ddtrace) {
     DISPLAY_INI_ENTRIES();
 }
 
+static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, uint32_t *options TSRMLS_DC) {
+    if (Z_TYPE_P(config_array) != IS_ARRAY) {
+        ddtrace_log_debug("Expected config_array to be an associative array");
+        return FALSE;
+    }
+
+#if PHP_VERSION_ID >= 70000
+    zval *value;
+    zend_string *key;
+
+    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(config_array), key, value) {
+        if (!key) {
+            ddtrace_log_debug("Expected config_array to be an associative array");
+            return FALSE;
+        }
+        // TODO Optimize this
+        if (strcmp("posthook", ZSTR_VAL(key)) == 0) {
+            if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
+                *tracing_closure = value;
+                *options |= DDTRACE_DISPATCH_POSTHOOK;
+            } else {
+                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
+                return FALSE;
+            }
+        } else if (strcmp("innerhook", ZSTR_VAL(key)) == 0) {
+            if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
+                *tracing_closure = value;
+                *options |= DDTRACE_DISPATCH_INNERHOOK;
+            } else {
+                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
+                return FALSE;
+            }
+        } else if (strcmp("instrument_when_limited", ZSTR_VAL(key)) == 0) {
+            if (Z_TYPE_P(value) == IS_LONG) {
+                if (Z_LVAL_P(value)) {
+                    *options |= DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED;
+                }
+            } else {
+                ddtrace_log_debugf("Expected '%s' to be an int", ZSTR_VAL(key));
+                return FALSE;
+            }
+        } else {
+            ddtrace_log_debugf("Unknown option '%s' in config_array", ZSTR_VAL(key));
+            return FALSE;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+#else
+    zval **value;
+    char *string_key;
+    uint str_len;
+    HashPosition iterator;
+    zend_ulong num_key;
+    int key_type;
+    HashTable *ht = Z_ARRVAL_P(config_array);
+
+    zend_hash_internal_pointer_reset_ex(ht, &iterator);
+    while (zend_hash_get_current_data_ex(ht, (void **)&value, &iterator) == SUCCESS) {
+        key_type = zend_hash_get_current_key_ex(ht, &string_key, &str_len, &num_key, 0, &iterator);
+        if (key_type != HASH_KEY_IS_STRING || !string_key) {
+            ddtrace_log_debug("Expected config_array to be an associative array");
+            return FALSE;
+        }
+        // TODO Optimize this
+        if (strcmp("posthook", string_key) == 0) {
+            if (Z_TYPE_PP(value) == IS_OBJECT && instanceof_function(Z_OBJCE_PP(value), zend_ce_closure TSRMLS_CC)) {
+                *tracing_closure = *value;
+                *options |= DDTRACE_DISPATCH_POSTHOOK;
+            } else {
+                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", string_key);
+                return FALSE;
+            }
+        } else if (strcmp("innerhook", string_key) == 0) {
+            if (Z_TYPE_PP(value) == IS_OBJECT && instanceof_function(Z_OBJCE_PP(value), zend_ce_closure TSRMLS_CC)) {
+                *tracing_closure = *value;
+                *options |= DDTRACE_DISPATCH_INNERHOOK;
+            } else {
+                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", string_key);
+                return FALSE;
+            }
+        } else if (strcmp("instrument_when_limited", string_key) == 0) {
+            if (Z_TYPE_PP(value) == IS_LONG) {
+                if (Z_LVAL_PP(value)) {
+                    *options |= DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED;
+                }
+            } else {
+                ddtrace_log_debugf("Expected '%s' to be an int", string_key);
+                return FALSE;
+            }
+        } else {
+            ddtrace_log_debugf("Unknown option '%s' in config_array", string_key);
+            return FALSE;
+        }
+        zend_hash_move_forward_ex(ht, &iterator);
+    }
+#endif
+    if (!*tracing_closure) {
+        ddtrace_log_debug("Required key 'posthook' or 'innerhook' not found in config_array");
+        return FALSE;
+    }
+    return TRUE;
+}
+
 static PHP_FUNCTION(dd_trace) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *function = NULL;
     zval *class_name = NULL;
     zval *callable = NULL;
+    zval *config_array = NULL;
+    uint32_t options = 0;
 
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzz", &class_name, &function,
-                                 &callable) != SUCCESS &&
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zz", &function, &callable) !=
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzO", &class_name, &function,
+                                 &callable, zend_ce_closure) != SUCCESS &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zO", &function, &callable,
+                                 zend_ce_closure) != SUCCESS &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zza", &class_name, &function,
+                                 &config_array) != SUCCESS &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "za", &function, &config_array) !=
             SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(
-                spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                "unexpected parameter combination, expected (class, function, closure) or (function, closure)");
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                                    "unexpected parameter combination, expected (class, function, closure | "
+                                    "config_array) or (function, closure | config_array)");
         }
 
         RETURN_BOOL(0);
@@ -284,7 +394,19 @@ static PHP_FUNCTION(dd_trace) {
         }
     }
 
-    zend_bool rv = ddtrace_trace(class_name, function, callable, 0 TSRMLS_CC);
+    if (config_array) {
+        if (_parse_config_array(config_array, &callable, &options TSRMLS_CC) == FALSE) {
+            RETURN_BOOL(0);
+        }
+        if (options & DDTRACE_DISPATCH_POSTHOOK) {
+            ddtrace_log_debug("Legacy API does not support 'posthook'");
+            RETURN_BOOL(0);
+        }
+    } else {
+        options |= DDTRACE_DISPATCH_INNERHOOK;
+    }
+
+    zend_bool rv = ddtrace_trace(class_name, function, callable, options TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
@@ -293,24 +415,26 @@ static PHP_FUNCTION(dd_trace_method) {
     zval *class_name = NULL;
     zval *function = NULL;
     zval *tracing_closure = NULL;
+    zval *config_array = NULL;
+    uint32_t options = 0;
 
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zzO", &class_name, &function,
-                                 &tracing_closure, zend_ce_closure) != SUCCESS) {
+                                 &tracing_closure, zend_ce_closure) != SUCCESS &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zza", &class_name, &function,
+                                 &config_array) != SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameters, expected (class_name, method_name, tracing_closure)");
+            zend_throw_exception_ex(
+                spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
+                "unexpected parameters, expected (class_name, method_name, tracing_closure | config_array)");
         }
         RETURN_BOOL(0);
     }
 
     if (Z_TYPE_P(class_name) != IS_STRING || Z_TYPE_P(function) != IS_STRING) {
-        ddtrace_zval_ptr_dtor(class_name);
-        ddtrace_zval_ptr_dtor(function);
-        ddtrace_zval_ptr_dtor(tracing_closure);
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
                                     "class_name and method_name must be a string");
@@ -318,7 +442,19 @@ static PHP_FUNCTION(dd_trace_method) {
         RETURN_BOOL(0);
     }
 
-    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, 1 TSRMLS_CC);
+    if (config_array) {
+        if (_parse_config_array(config_array, &tracing_closure, &options TSRMLS_CC) == FALSE) {
+            RETURN_BOOL(0);
+        }
+        if (options & DDTRACE_DISPATCH_INNERHOOK) {
+            ddtrace_log_debug("Sandbox API does not support 'innerhook'");
+            RETURN_BOOL(0);
+        }
+    } else {
+        options |= DDTRACE_DISPATCH_POSTHOOK;
+    }
+
+    zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, options TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 
@@ -326,30 +462,44 @@ static PHP_FUNCTION(dd_trace_function) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *function = NULL;
     zval *tracing_closure = NULL;
+    zval *config_array = NULL;
+    uint32_t options = 0;
 
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
     }
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zO", &function, &tracing_closure,
-                                 zend_ce_closure) != SUCCESS) {
+                                 zend_ce_closure) != SUCCESS &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "za", &function, &config_array) !=
+            SUCCESS) {
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameters, expected (function_name, tracing_closure)");
+                                    "unexpected parameters, expected (function_name, tracing_closure | config_array)");
         }
         RETURN_BOOL(0);
     }
 
     if (Z_TYPE_P(function) != IS_STRING) {
-        ddtrace_zval_ptr_dtor(function);
-        ddtrace_zval_ptr_dtor(tracing_closure);
         if (DDTRACE_G(strict_mode)) {
             zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "function_name must be a string");
         }
         RETURN_BOOL(0);
     }
 
-    zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, 1 TSRMLS_CC);
+    if (config_array) {
+        if (_parse_config_array(config_array, &tracing_closure, &options TSRMLS_CC) == FALSE) {
+            RETURN_BOOL(0);
+        }
+        if (options & DDTRACE_DISPATCH_INNERHOOK) {
+            ddtrace_log_debug("Sandbox API does not support 'innerhook'");
+            RETURN_BOOL(0);
+        }
+    } else {
+        options |= DDTRACE_DISPATCH_POSTHOOK;
+    }
+
+    zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, options TSRMLS_CC);
     RETURN_BOOL(rv);
 }
 

@@ -4,6 +4,17 @@ namespace DDTrace\Tests\Common;
 
 use PHPUnit\Framework\TestCase;
 
+function array_filter_by_key($fn, array $input)
+{
+    $output = [];
+    foreach ($input as $key => $value) {
+        if ($fn($key)) {
+            $output[$key] = $value;
+        }
+    }
+    return $output;
+}
+
 /**
  * @see https://phpunit.de/manual/5.7/en/extending-phpunit.html#extending-phpunit.custom-assertions
  */
@@ -309,6 +320,20 @@ final class SpanChecker
                     $filtered[$key] = $value;
                 }
             }
+
+            $skipPatterns = $exp->getSkippedTagPatterns();
+            $out = $filtered;
+            foreach ($skipPatterns as $pattern) {
+                $out = array_filter_by_key(
+                    function ($key) use ($pattern) {
+                        // keep if it *doesn't* match
+                        return !\preg_match($pattern, $key);
+                    },
+                    $out
+                );
+            }
+
+            $filtered = $out;
             $expectedTags = $exp->getExactTags();
             foreach ($expectedTags as $tagName => $tagValue) {
                 TestCase::assertArrayHasKey(

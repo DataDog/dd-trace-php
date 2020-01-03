@@ -121,6 +121,7 @@
                     <file name="circuit_breaker_info.phpt" role="test" />
                     <file name="circuit_breaker_retry_time.phpt" role="test" />
                     <file name="circuit_breaker_max_failures.phpt" role="test" />
+                    <file name="dd_trace_api_error.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error_strict.phpt" role="test" />
@@ -143,6 +144,7 @@
                         <file name="close-on-exit.phpt" role="test" />
                         <file name="close-on-exit-retval.phpt" role="test" />
                         <file name="dd_trace_closed_spans_count.phpt" role="test" />
+                        <file name="dd_trace_api_error.phpt" role="test" />
                         <file name="dd_trace_function_complex.phpt" role="test" />
                         <file name="dd_trace_function_internal.phpt" role="test" />
                         <file name="dd_trace_function_userland.phpt" role="test" />
@@ -153,14 +155,21 @@
                         <file name="dd_trace_set_trace_id.phpt" role="test" />
                         <file name="drop_spans.phpt" role="test" />
                         <file name="errors_are_flagged_from_userland.phpt" role="test" />
+                        <file name="exception_error_log.phpt" role="test" />
                         <file name="exception_handling_php5.phpt" role="test" />
                         <file name="exception_handling.phpt" role="test" />
+                        <file name="exception_is_defined.phpt" role="test" />
                         <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
                         <file name="exceptions_are_passed_to_the_tracing_closure.phpt" role="test" />
                         <file name="exceptions_are_passed_to_the_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure.phpt" role="test" />
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
+                        <file name="get_last_error.phpt" role="test" />
+                        <file name="keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
+                        <file name="keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
+                        <file name="keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
+                        <file name="keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
                         <file name="new_static.phpt" role="test" />
                         <file name="safe_to_string_metadata.phpt" role="test" />
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
@@ -174,6 +183,7 @@
                         <file name="case_insensitive_method_hook.phpt" role="test" />
                         <file name="closure_accessing_outside_variables.phpt" role="test" />
                         <file name="closure_set_inside_object_methods.phpt" role="test" />
+                        <file name="dd_trace_tracer_is_limited_hard.phpt" role="test" />
                         <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
                         <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
                         <file name="disable_tracing_disables_tracing.phpt" role="test" />
@@ -238,6 +248,10 @@
                     <file name="check_memory_under_limit_low_limit.phpt" role="test" />
                     <file name="extension_disabled.phpt" role="test" />
                     <file name="get_memory_limit_0_percent.phpt" role="test" />
+                    <file name="keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
+                    <file name="keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
+                    <file name="keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
+                    <file name="keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
                     <file name="simple_function_hook.phpt" role="test" />
                     <file name="simple_method_hook.phpt" role="test" />
                     <file name="throw_exception.phpt" role="test" />
