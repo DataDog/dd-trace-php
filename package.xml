@@ -54,6 +54,8 @@
                     <file name="dispatch.c" role="src" />
                     <file name="dispatch.h" role="src" />
                     <file name="dispatch_setup.c" role="src" />
+                    <file name="dogstatsd_client.c" role="src" />
+                    <file name="dogstatsd_client.h" role="src" />
                     <file name="engine_hooks.c" role="src" />
                     <file name="engine_hooks.h" role="src" />
                     <file name="env_config.c" role="src" />

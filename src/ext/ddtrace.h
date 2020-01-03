@@ -1,5 +1,6 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
+#include <dogstatsd_client/client.h>
 #include <stdint.h>
 
 #include "env_config.h"
@@ -37,6 +38,10 @@ HashTable *class_lookup;
 HashTable *function_lookup;
 zend_bool log_backtrace;
 zend_bool backtrace_handler_already_run;
+dogstatsd_client dogstatsd_client;
+char *dogstatsd_host;
+char *dogstatsd_port;
+char *dogstatsd_buffer;
 ddtrace_original_context original_context;
 
 uint64_t trace_id;
