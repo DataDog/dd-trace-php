@@ -56,6 +56,10 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')
                             ->onlyIf(static::IS_SANDBOX),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
+                        )->onlyIf(static::IS_SANDBOX),
                     ]),
             ]
         );

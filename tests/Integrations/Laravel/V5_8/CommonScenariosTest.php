@@ -60,6 +60,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'integration.name' => 'laravel',
                             ])
                             ->onlyIf(static::IS_SANDBOX),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
+                        )->onlyIf(static::IS_SANDBOX),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -82,6 +86,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'integration.name' => 'laravel',
                             ])
                             ->onlyIf(static::IS_SANDBOX),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
+                        )->onlyIf(static::IS_SANDBOX),
                         SpanAssertion::build(
                             'laravel.view',
                             'laravel_test_app',
@@ -131,6 +139,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             ->withChildren([
                                 SpanAssertion::exists('laravel.view'),
                             ])->onlyIf(static::IS_SANDBOX),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
+                        )->onlyIf(static::IS_SANDBOX),
                     ]),
                 ],
             ]

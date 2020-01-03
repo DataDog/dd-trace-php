@@ -25,7 +25,7 @@ class CommonScenariosTest extends CLITestCase
     {
         $traces = $this->getTracesFromCommand();
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 'laravel.artisan',
                 'artisan_test_app',
@@ -33,7 +33,12 @@ class CommonScenariosTest extends CLITestCase
                 'artisan'
             )->withExactTags([
                 'integration.name' => 'laravel',
-            ])
+            ])->withChildren([
+                SpanAssertion::exists(
+                    'laravel.provider.load',
+                    'Illuminate\Foundation\ProviderRepository::load'
+                )->onlyIf(static::IS_SANDBOX),
+            ]),
         ]);
     }
 
@@ -41,7 +46,7 @@ class CommonScenariosTest extends CLITestCase
     {
         $traces = $this->getTracesFromCommand('route:list');
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 'laravel.artisan',
                 'artisan_test_app',
@@ -49,7 +54,12 @@ class CommonScenariosTest extends CLITestCase
                 'artisan route:list'
             )->withExactTags([
                 'integration.name' => 'laravel',
-            ])
+            ])->withChildren([
+                SpanAssertion::exists(
+                    'laravel.provider.load',
+                    'Illuminate\Foundation\ProviderRepository::load'
+                )->onlyIf(static::IS_SANDBOX),
+            ]),
         ]);
     }
 
@@ -57,7 +67,7 @@ class CommonScenariosTest extends CLITestCase
     {
         $traces = $this->getTracesFromCommand('foo:error');
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 'laravel.artisan',
                 'artisan_test_app',
@@ -68,7 +78,12 @@ class CommonScenariosTest extends CLITestCase
             ])->withExistingTagsNames([
                 'error.msg',
                 'error.stack'
-            ])->setError()
+            ])->withChildren([
+                SpanAssertion::exists(
+                    'laravel.provider.load',
+                    'Illuminate\Foundation\ProviderRepository::load'
+                )->onlyIf(static::IS_SANDBOX),
+            ])->setError(),
         ]);
     }
 }

@@ -47,13 +47,19 @@ class TraceSearchConfigSandboxedTest extends TraceSearchConfigTest
                                 SpanAssertion::exists('laravel.event.handle'),
                                 SpanAssertion::exists('laravel.event.handle'),
                             ]),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
+                        )->onlyIf(static::IS_SANDBOX)
+                            ->withChildren([
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                            ]),
                         SpanAssertion::exists('laravel.event.handle'),
                         SpanAssertion::exists('laravel.event.handle'),
                         SpanAssertion::exists('laravel.event.handle'),
