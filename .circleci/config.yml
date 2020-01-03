@@ -55,7 +55,7 @@ aliases:
 
   - &STEP_ATTACH_WORKSPACE
     attach_workspace:
-      at: ~/app
+      at: ~/datadog
 
   - &STEP_EXT_INSTALL
     run:
@@ -207,7 +207,7 @@ executors:
 
 jobs:
   "Lint files":
-    working_directory: ~/app
+    working_directory: ~/datadog
     docker:
       - image: circleci/php:7.2-cli-node-browsers
     steps:
@@ -255,7 +255,7 @@ jobs:
       - <<: *STEP_STORE_TEST_RESULTS
 
   "Static Analysis":
-    working_directory: ~/app
+    working_directory: ~/datadog
     docker:
       - image: circleci/php:7.3
     steps:
@@ -283,7 +283,7 @@ jobs:
       unit_test_target:
         type: string
         default: test_extension_ci
-    working_directory: ~/app
+    working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
@@ -322,7 +322,7 @@ jobs:
       xfail_list:
         type: string
         default: none
-    working_directory: ~/app
+    working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
@@ -366,7 +366,7 @@ jobs:
           path: /tmp/artifacts/tests/files/
 
   integration_tests:
-    working_directory: ~/app
+    working_directory: ~/datadog
     parameters:
       docker_image:
         type: string
@@ -417,7 +417,7 @@ jobs:
       - <<: *STEP_STORE_TEST_RESULTS
 
   hyperfine_tests:
-    working_directory: ~/app
+    working_directory: ~/datadog
     parameters:
       docker_image:
         type: string
@@ -445,7 +445,7 @@ jobs:
       - store_artifacts: { path: 'hyperfine.md', destination: /hyperfine.md }
 
   framework_tests:
-    working_directory: ~/app
+    working_directory: ~/datadog
     parameters:
       framework_target:
         type: string
@@ -459,7 +459,7 @@ jobs:
       - run: make -f dockerfiles/frameworks/Makefile << parameters.framework_target >>
 
   verify_package:
-    working_directory: ~/app
+    working_directory: ~/datadog
     parameters:
       docker_image:
         type: string
@@ -471,7 +471,7 @@ jobs:
       - run: sh dockerfiles/verify_packages/verify_<< parameters.package_type >>.sh
 
   compile_extension:
-    working_directory: ~/app
+    working_directory: ~/datadog
     parameters:
       docker_image:
         type: string
@@ -511,7 +511,7 @@ jobs:
 
 
   "Code Checkout":
-    working_directory: ~/app
+    working_directory: ~/datadog
     docker: [ image: 'circleci/buildpack-deps:latest' ]
     steps:
       - restore_cache:
@@ -530,7 +530,7 @@ jobs:
           paths: ['./']
 
   "package extension":
-    working_directory: ~/app
+    working_directory: ~/datadog
     docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
@@ -544,7 +544,7 @@ jobs:
           paths: ['./build/packages', 'dockerfiles/verify_packages']
 
   "package verification":
-    working_directory: ~/app
+    working_directory: ~/datadog
     machine:
       image: circleci/classic:latest
     steps:
