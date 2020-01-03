@@ -4,7 +4,6 @@
 
 #include "configuration.h"
 
-#define ddtrace_log_errf(...) _ddtrace_log_errf(__VA_ARGS__)
 inline void ddtrace_log_err(char *message) {
     TSRMLS_FETCH();
     php_log_err(message TSRMLS_CC);
@@ -19,6 +18,6 @@ inline void ddtrace_log_err(char *message) {
         ddtrace_log_err(message);  \
     }
 
-void _ddtrace_log_errf(const char *format, ...);
+void ddtrace_log_errf(const char *format, ...);
 
 #endif  // DD_LOGGING_H
