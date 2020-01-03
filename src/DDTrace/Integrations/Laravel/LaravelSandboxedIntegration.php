@@ -6,7 +6,6 @@ use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\SpanData;
 use DDTrace\Integrations\SandboxedIntegration;
-use DDTrace\Scope;
 use DDTrace\Tag;
 use DDTrace\Type;
 
@@ -110,7 +109,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
                 $span->resource = $this->uri;
-                $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
+                $integration->addIntegrationInfo($span);
             }
         );
 
@@ -128,7 +127,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             $span->type = Type::WEB_SERVLET;
             $span->service = $integration->getServiceName();
             $span->resource = $args[0];
-            $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
+            $integration->addIntegrationInfo($span);
         });
 
         \dd_trace_method('Illuminate\View\View', 'render', function (SpanData $span) use ($integration) {
@@ -136,7 +135,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             $span->type = Type::WEB_SERVLET;
             $span->service = $integration->getServiceName();
             $span->resource = $this->view;
-            $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
+            $integration->addIntegrationInfo($span);
         });
 
         \dd_trace_method(
@@ -169,7 +168,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
         \dd_trace_method(
             'Illuminate\Console\Application',
             '__construct',
-            function (SpanData $span, $args) use ($rootSpan, $integration) {
+            function () use ($rootSpan, $integration) {
                 $rootSpan->setIntegration($integration);
                 $rootSpan->overwriteOperationName('laravel.artisan');
                 $rootSpan->setTag(
