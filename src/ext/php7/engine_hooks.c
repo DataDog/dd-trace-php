@@ -165,7 +165,10 @@ static BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, z
     zval *this = ddtrace_this(call);
 
     if (!callable || !span_data || !user_args || !user_retval) {
-        ddtrace_log_debug("Tracing closure could not be run because it is in an invalid state");
+        if (get_dd_trace_debug()) {
+            const char *fname = ZSTR_VAL(call->func->common.function_name);
+            ddtrace_log_errf("Tracing closure could not be run for %s() because it is in an invalid state", fname);
+        }
         return FALSE;
     }
 
@@ -313,8 +316,9 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
     ddtrace_forward_call(EX(call), fbc, user_retval, &fci, &fcc);
     if (span == DDTRACE_G(open_spans_top)) {
         _end_span(span, user_retval);
-    } else {
-        ddtrace_log_debug("Cannot run tracing closure; spans out of sync");
+    } else if (get_dd_trace_debug()) {
+        const char *fname = Z_STRVAL(dispatch->function_name);
+        ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
     }
 
     zend_fcall_info_args_clear(&fci, 0);

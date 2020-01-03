@@ -213,7 +213,7 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
     return fcall_status;
 }
 
-BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+BOOL_T ddtrace_execute_tracing_closure(ddtrace_dispatch_t *dispatch, zval *span_data, zend_execute_data *execute_data,
                                        zval *user_args, zval *user_retval, zval *exception TSRMLS_DC) {
     BOOL_T status = TRUE;
     zend_fcall_info fci = {0};
@@ -223,12 +223,15 @@ BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
     zval *null_zval = &EG(uninitialized_zval);
     zval *this = ddtrace_this(execute_data);
 
-    if (!callable || !span_data || !user_args || !user_retval) {
-        ddtrace_log_debug("Tracing closure could not be run because it is in an invalid state");
+    if (!span_data || !user_args || !user_retval) {
+        if (get_dd_trace_debug()) {
+            const char *fname = Z_STRVAL(dispatch->function_name);
+            ddtrace_log_errf("Tracing closure could not be run for %s() because it is in an invalid state", fname);
+        }
         return FALSE;
     }
 
-    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
+    if (zend_fcall_info_init(&dispatch->callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
         return FALSE;
     }
@@ -543,7 +546,10 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
 
     fcall_status = ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
     if (span != DDTRACE_G(open_spans_top)) {
-        ddtrace_log_debug("Cannot run tracing closure; spans out of sync");
+        if (get_dd_trace_debug()) {
+            const char *fname = Z_STRVAL(dispatch->function_name);
+            ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
+        }
         goto _dispatch_exit_cleanup;
     }
     dd_trace_stop_span_time(span);
@@ -564,8 +570,8 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
         ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
         EG(error_reporting) = 0;
 
-        keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, user_args,
-                                                    user_retval, exception TSRMLS_CC);
+        keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, execute_data, user_args, user_retval,
+                                                    exception TSRMLS_CC);
 
         ddtrace_restore_error_handling(&eh TSRMLS_CC);
         // If the tracing closure threw an exception, ignore it to not impact the original call

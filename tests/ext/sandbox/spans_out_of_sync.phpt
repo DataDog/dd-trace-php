@@ -18,7 +18,7 @@ var_dump(dd_trace_serialize_closed_spans());
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECT--
-Cannot run tracing closure; spans out of sync
+Cannot run tracing closure for dd_trace_serialize_closed_spans(); spans out of sync
 array(0) {
 }
 Done.
