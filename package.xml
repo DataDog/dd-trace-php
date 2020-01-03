@@ -176,6 +176,7 @@
                         <file name="safe_to_string_metadata.phpt" role="test" />
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
                         <file name="safe_to_string_properties.phpt" role="test" />
+                        <file name="spans_out_of_sync.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     </dir>
                     <dir name="sandbox-regression">
