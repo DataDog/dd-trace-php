@@ -159,6 +159,29 @@ JSON;
         self::assertEquals('2409624703365403319', $otcontext->unwrapped()->getParentId());
     }
 
+    public function testOTStartSpanOptions()
+    {
+        GlobalTracer::set(Tracer::make());
+        $tracer = GlobalTracer::get();
+
+        $now = time();
+        $scope = $tracer->startActiveSpan(
+            self::OPERATION_NAME,
+            \OpenTracing\StartSpanOptions::create([
+                'tags' => [
+                    \OpenTracing\Tags\SPAN_KIND => \OpenTracing\Tags\SPAN_KIND_MESSAGE_BUS_PRODUCER,
+                    'message_id' => 'some id'
+                ],
+                'start_time' => $now,
+            ])
+        );
+        self::assertInstanceOf('DDTrace\OpenTracer\Scope', $scope);
+        $scope = $scope->unwrapped();
+        $span = $scope->getSpan();
+        self::assertSame(\OpenTracing\Tags\SPAN_KIND_MESSAGE_BUS_PRODUCER, $span->getTag(\OpenTracing\Tags\SPAN_KIND));
+        self::assertSame($now, $span->getStartTime());
+    }
+
     public function testOnlyFinishedTracesAreBeingSent()
     {
         $transport = $this->prophesize('DDTrace\Transport');
