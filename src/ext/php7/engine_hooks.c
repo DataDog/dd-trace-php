@@ -259,7 +259,6 @@ static void _end_span(ddtrace_span_t *span, zval *user_retval) {
     if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
         ddtrace_error_handling eh;
         ddtrace_backup_error_handling(&eh, EH_THROW);
-        EG(error_reporting) = 0;
 
         keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, call, &user_args, user_retval,
                                                     exception);
@@ -272,25 +271,21 @@ static void _end_span(ddtrace_span_t *span, zval *user_retval) {
 
         ddtrace_restore_error_handling(&eh);
         // If the tracing closure threw an exception, ignore it to not impact the original call
-        if (EG(exception)) {
-            if (get_dd_trace_debug()) {
-                zend_object *ex = EG(exception);
-                const char *name = Z_STR(dispatch->function_name)->val;
-                const char *type = ex->ce->name->val;
-                zval rv, obj;
-                ZVAL_OBJ(&obj, ex);
-                zval *message = GET_PROPERTY(&obj, ZEND_STR_MESSAGE);
-                const char *msg = Z_TYPE_P(message) == IS_STRING ? Z_STR_P(message)->val
-                                                                 : "(internal error reading exception message)";
-                ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
-                if (message == &rv) {
-                    zval_dtor(message);
-                }
-            }
-            if (!DDTRACE_G(strict_mode)) {
-                zend_clear_exception();
+        if (get_dd_trace_debug() && EG(exception)) {
+            zend_object *ex = EG(exception);
+            const char *name = Z_STR(dispatch->function_name)->val;
+            const char *type = ex->ce->name->val;
+            zval rv, obj;
+            ZVAL_OBJ(&obj, ex);
+            zval *message = GET_PROPERTY(&obj, ZEND_STR_MESSAGE);
+            const char *msg =
+                Z_TYPE_P(message) == IS_STRING ? Z_STR_P(message)->val : "(internal error reading exception message)";
+            ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
+            if (message == &rv) {
+                zval_dtor(message);
             }
         }
+        ddtrace_maybe_clear_exception();
     }
 
     if (keep_span == TRUE) {

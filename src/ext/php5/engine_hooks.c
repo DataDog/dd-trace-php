@@ -568,7 +568,6 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
     if (fcall_status == SUCCESS && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         ddtrace_error_handling eh;
         ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
-        EG(error_reporting) = 0;
 
         keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, execute_data, user_args, user_retval,
                                                     exception TSRMLS_CC);
@@ -581,21 +580,16 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
 
         ddtrace_restore_error_handling(&eh TSRMLS_CC);
         // If the tracing closure threw an exception, ignore it to not impact the original call
-        if (EG(exception)) {
-            if (get_dd_trace_debug()) {
-                zval *ex = EG(exception), *message = NULL;
-                const char *type = Z_OBJCE_P(ex)->name;
-                const char *name = Z_STRVAL(dispatch->function_name);
-                message = ddtrace_exception_get_entry(ex, ZEND_STRL("message") TSRMLS_CC);
-                const char *msg = message && Z_TYPE_P(message) == IS_STRING
-                                      ? Z_STRVAL_P(message)
-                                      : "(internal error reading exception message)";
-                ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
-            }
-            if (!DDTRACE_G(strict_mode)) {
-                zend_clear_exception(TSRMLS_C);
-            }
+        if (get_dd_trace_debug() && EG(exception)) {
+            zval *ex = EG(exception), *message = NULL;
+            const char *type = Z_OBJCE_P(ex)->name;
+            const char *name = Z_STRVAL(dispatch->function_name);
+            message = ddtrace_exception_get_entry(ex, ZEND_STRL("message") TSRMLS_CC);
+            const char *msg = message && Z_TYPE_P(message) == IS_STRING ? Z_STRVAL_P(message)
+                                                                        : "(internal error reading exception message)";
+            ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
         }
+        ddtrace_maybe_clear_exception(TSRMLS_C);
     }
 
     if (keep_span == TRUE) {
