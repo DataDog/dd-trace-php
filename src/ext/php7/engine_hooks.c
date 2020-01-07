@@ -65,6 +65,9 @@ static BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_fu
     if (!*dispatch || (*dispatch)->busy) {
         return FALSE;
     }
+    if (ddtrace_tracer_is_limited() && ((*dispatch)->options & DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED) == 0) {
+        return FALSE;
+    }
 
     return TRUE;
 }
@@ -161,6 +164,14 @@ static BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, z
     }
     zval *this = ddtrace_this(call);
 
+    if (!callable || !span_data || !user_args || !user_retval) {
+        if (get_dd_trace_debug()) {
+            const char *fname = ZSTR_VAL(call->func->common.function_name);
+            ddtrace_log_errf("Tracing closure could not be run for %s() because it is in an invalid state", fname);
+        }
+        return FALSE;
+    }
+
     if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
         return FALSE;
@@ -253,6 +264,12 @@ static void _end_span(ddtrace_span_t *span, zval *user_retval) {
         keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, call, &user_args, user_retval,
                                                     exception);
 
+        if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+            const char *fname = Z_STRVAL(dispatch->function_name);
+            ddtrace_log_errf("Error raised in tracing closure for %s(): %s in %s on line %d", fname,
+                             PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
+        }
+
         ddtrace_restore_error_handling(&eh);
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (EG(exception)) {
@@ -303,8 +320,12 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
     ddtrace_forward_call(EX(call), fbc, user_retval, &fci, &fcc);
-
-    _end_span(span, user_retval);
+    if (span == DDTRACE_G(open_spans_top)) {
+        _end_span(span, user_retval);
+    } else if (get_dd_trace_debug()) {
+        const char *fname = Z_STRVAL(dispatch->function_name);
+        ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
+    }
 
     zend_fcall_info_args_clear(&fci, 0);
     zval_dtor(&rv);
@@ -450,7 +471,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data) {
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
 
-    if (dispatch->run_as_postprocess) {
+    if (dispatch->options & DDTRACE_DISPATCH_POSTHOOK) {
         ddtrace_trace_dispatch(dispatch, current_fbc, execute_data);
     } else {
         // Store original context for forwarding the call from userland

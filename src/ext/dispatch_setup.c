@@ -61,7 +61,7 @@ void ddtrace_dispatch_reset(TSRMLS_D) {
     }
 }
 
-zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, zend_bool run_as_postprocess TSRMLS_DC) {
+zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC) {
     HashTable *overridable_lookup = NULL;
     if (class_name && DDTRACE_G(class_lookup)) {
 #if PHP_VERSION_ID < 70000
@@ -108,7 +108,7 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, z
 
     dispatch.callable = *callable;
     zval_copy_ctor(&dispatch.callable);
-    dispatch.run_as_postprocess = run_as_postprocess;
+    dispatch.options = options;
 
 #if PHP_VERSION_ID < 70000
     ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);

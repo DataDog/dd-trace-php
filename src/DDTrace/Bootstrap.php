@@ -30,14 +30,41 @@ final class Bootstrap
         self::initRootSpan($tracer);
         self::registerOpenTracing();
 
-        register_shutdown_function(function () {
+        $flushTracer = function () {
             dd_trace_disable_in_request(); //disable function tracing to speedup shutdown
 
             $tracer = GlobalTracer::get();
             $scopeManager = $tracer->getScopeManager();
             $scopeManager->close();
             $tracer->flush();
+        };
+        // Sandbox API is not supported on PHP 5.4
+        if (PHP_VERSION_ID < 50500) {
+            register_shutdown_function($flushTracer);
+            return;
+        }
+        dd_trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', $flushTracer);
+        register_shutdown_function(function () {
+            /*
+             * Register the shutdown handler during shutdown so that it is run after all the other shutdown handlers.
+             * Doing this ensures:
+             * 1) Calls in shutdown hooks will still be instrumented
+             * 2) Fatal errors (or any zend_bailout) during flush will happen after the user's shutdown handlers
+             * Note: Other code that implements this same technique will be run _after_ the tracer shutdown.
+             */
+            register_shutdown_function(function () {
+                // We wrap the call in a closure to prevent OPcache from skipping the call.
+                Bootstrap::flushTracerShutdown();
+            });
         });
+    }
+
+    public static function flushTracerShutdown()
+    {
+        dd_trace_disable_in_request(); // Ensure no more calls are instrumented
+        // Flushing happens in the sandboxed tracing closure after the call.
+        // Return a value from runtime to prevent OPcache from skipping the call.
+        return mt_rand();
     }
 
     /**

@@ -276,6 +276,9 @@ final class TracerTest extends BaseTestCase
             $this->markTestSkipped('Sandbox API not available on < PHP 5.6');
             return;
         }
+        // Clear existing internal spans
+        dd_trace_serialize_closed_spans();
+
         dd_trace_function('array_sum', function () {
             // Do nothing
         });
