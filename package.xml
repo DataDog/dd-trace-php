@@ -66,7 +66,6 @@
                     <file name="random.h" role="src" />
                     <file name="request_hooks.c" role="src" />
                     <file name="request_hooks.h" role="src" />
-                    <file name="sandbox.h" role="src" />
                     <file name="serializer.c" role="src" />
                     <file name="serializer.h" role="src" />
                     <file name="signals.c" role="src" />
@@ -104,6 +103,8 @@
                         <file name="try_catch_finally.php" role="test" />
                     </dir>
                     <dir name="request-init-hook">
+                        <file name="error_get_last_is_unaffected.phpt" role="test" />
+                        <file name="raises_e_notice.php" role="test" />
                         <file name="raises_fatal_error.php" role="test" />
                         <file name="request_init_hook_check_blacklisted_modules.phpt" role="test" />
                         <file name="request_init_hook_confined_to_open_basedir.phpt" role="test" />
@@ -168,6 +169,7 @@
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
                         <file name="fatal_errors_ignored_in_shutdown.phpt" role="test" />
+                        <file name="fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
                         <file name="get_last_error.phpt" role="test" />
                         <file name="keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
                         <file name="keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
