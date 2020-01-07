@@ -11,6 +11,8 @@
 extern inline dogstatsd_client dogstatsd_client_default_ctor();
 extern inline bool dogstatsd_client_is_default_client(dogstatsd_client client);
 extern inline const char *dogstatsd_metric_type_to_str(dogstatsd_metric_t type);
+extern inline const char *dogstatsd_client_status_to_str(
+    dogstatsd_client_status status);
 
 extern inline dogstatsd_client_status dogstatsd_client_count(
     dogstatsd_client *client, const char *metric, const char *value,
