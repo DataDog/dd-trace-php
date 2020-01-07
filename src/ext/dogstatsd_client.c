@@ -26,7 +26,7 @@ void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
     char *port = NULL;
     char *buffer = NULL;
 
-    if (health_metrics_enabled) {
+    while (health_metrics_enabled) {
         host = get_dd_agent_host();
         port = get_dd_dogstatsd_port();
         buffer = malloc(DOGSTATSD_CLIENT_RECOMMENDED_MAX_MESSAGE_SIZE);
@@ -37,12 +37,24 @@ void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
         if ((err = dogstatsd_client_getaddrinfo(&addrs, host, port))) {
             ddtrace_log_debugf("Dogstatsd client failed looking up %s:%s: %s", host, port,
                                (err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err));
-        } else {
-            client = dogstatsd_client_ctor(addrs, buffer, len, METRICS_CONST_TAGS);
-            if (dogstatsd_client_is_default_client(client)) {
-                ddtrace_log_debugf("Dogstatsd client failed opening socket to %s:%s", host, port);
-            }
+            break;
         }
+
+        client = dogstatsd_client_ctor(addrs, buffer, len, METRICS_CONST_TAGS);
+        if (dogstatsd_client_is_default_client(client)) {
+            ddtrace_log_debugf("Dogstatsd client failed opening socket to %s:%s", host, port);
+            break;
+        }
+
+        double sample_rate = get_dd_trace_heath_metrics_heartbeat_sample_rate();
+        const char *metric = "datadog.tracer.heartbeat";
+        dogstatsd_metric_t type = DOGSTATSD_METRIC_GAUGE;
+        dogstatsd_client_status status = dogstatsd_client_metric_send(&client, metric, "1", type, sample_rate, NULL);
+        if (status != DOGSTATSD_CLIENT_OK) {
+            const char *status_str = dogstatsd_client_status_to_str(status) ?: "(unknown dogstatsd_client_status)";
+            ddtrace_log_debugf("Health metric 'datadog.tracer.heartbeat' failed to send: %s", status_str);
+        }
+        break;
     }
     _set_dogstatsd_client_globals(client, host, port, buffer TSRMLS_CC);
 }

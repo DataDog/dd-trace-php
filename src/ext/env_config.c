@@ -115,11 +115,11 @@ double ddtrace_get_double_config(char *name, double def TSRMLS_DC) {
      * by endptr. If no conversion is performed, zero is returned and the value
      * of nptr is stored in the location referenced by endptr.
      */
-    int conversion_performed = endptr != env;
+    int conversion_performed = endptr != env && errno == 0;
 
     free(env);
 
-    return conversion_performed && errno == 0 ? result : def;
+    return conversion_performed ? result : def;
 }
 
 char *ddtrace_get_c_string_config(char *name TSRMLS_DC) {
