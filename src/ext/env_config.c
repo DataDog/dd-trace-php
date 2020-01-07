@@ -92,6 +92,36 @@ uint32_t ddtrace_get_uint32_config(char *name, uint32_t def TSRMLS_DC) {
     return value;
 }
 
+double ddtrace_get_double_config(char *name, double def TSRMLS_DC) {
+    char *env = get_local_env_or_sapi_env(name TSRMLS_CC);
+    if (!env) {
+        return def;
+    }
+
+    char *endptr = env;
+
+    // The strtod function is a bit tricky, so I've quoted docs to explain code
+
+    /* Since 0 can legitimately be returned on both success and failure, the
+     * calling program should set errno to 0 before the call, and then
+     * determine if an error occurred by checking whether errno has a nonzero
+     * value after the call.
+     */
+    errno = 0;
+    double result = strtod(env, &endptr);
+
+    /* If endptr is not NULL, a pointer to the character after the last
+     * character used in the conversion is stored in the location referenced
+     * by endptr. If no conversion is performed, zero is returned and the value
+     * of nptr is stored in the location referenced by endptr.
+     */
+    int conversion_performed = endptr != env;
+
+    free(env);
+
+    return conversion_performed && errno == 0 ? result : def;
+}
+
 char *ddtrace_get_c_string_config(char *name TSRMLS_DC) {
     char *env = get_local_env_or_sapi_env(name TSRMLS_CC);
     if (!env) {

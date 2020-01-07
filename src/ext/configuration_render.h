@@ -1,5 +1,5 @@
-#ifndef DD_CONFIGURATION_REDER_H
-#define DD_CONFIGURATION_REDER_H
+#ifndef DD_CONFIGURATION_RENDER_H
+#define DD_CONFIGURATION_RENDER_H
 #include <pthread.h>
 #include <string.h>
 
@@ -12,20 +12,24 @@ struct ddtrace_memoized_configuration_t {
 #define CHAR(getter_name, env_name, default, ...) \
     char* getter_name;                            \
     BOOL_T __is_set_##getter_name;
-#define INT(getter_name, env_name, default, ...) \
-    int64_t getter_name;                         \
-    BOOL_T __is_set_##getter_name;
 #define BOOL(getter_name, env_name, default, ...) \
     BOOL_T getter_name;                           \
     BOOL_T __is_set_##getter_name;
+#define INT(getter_name, env_name, default, ...) \
+    int64_t getter_name;                         \
+    BOOL_T __is_set_##getter_name;
+#define DOUBLE(getter_name, env_name, default, ...) \
+    double getter_name;                             \
+    double __is_set_##getter_name;
 
     // render configuration struct
     DD_CONFIGURATION
 
 // cleanup macros
 #undef CHAR
-#undef INT
 #undef BOOL
+#undef INT
+#undef DOUBLE
     // configuration mutex
     pthread_mutex_t mutex;
 };
@@ -51,15 +55,6 @@ struct ddtrace_memoized_configuration_t {
         }                                                                              \
     }
 
-#define INT(getter_name, env_name, default, ...)                     \
-    inline static int64_t getter_name() {                            \
-        if (ddtrace_memoized_configuration.__is_set_##getter_name) { \
-            return ddtrace_memoized_configuration.getter_name;       \
-        } else {                                                     \
-            return default;                                          \
-        }                                                            \
-    }
-
 #define BOOL(getter_name, env_name, default, ...)                    \
     inline static BOOL_T getter_name() {                             \
         if (ddtrace_memoized_configuration.__is_set_##getter_name) { \
@@ -69,12 +64,31 @@ struct ddtrace_memoized_configuration_t {
         }                                                            \
     }
 
+#define INT(getter_name, env_name, default, ...)                     \
+    inline static int64_t getter_name() {                            \
+        if (ddtrace_memoized_configuration.__is_set_##getter_name) { \
+            return ddtrace_memoized_configuration.getter_name;       \
+        } else {                                                     \
+            return default;                                          \
+        }                                                            \
+    }
+
+#define DOUBLE(getter_name, env_name, default, ...)                  \
+    inline static double getter_name() {                             \
+        if (ddtrace_memoized_configuration.__is_set_##getter_name) { \
+            return ddtrace_memoized_configuration.getter_name;       \
+        } else {                                                     \
+            return default;                                          \
+        }                                                            \
+    }
+
 // render configuration getters
 DD_CONFIGURATION
 
 // cleanup configuration getter macros
 #undef CHAR
-#undef INT
 #undef BOOL
+#undef INT
+#undef DOUBLE
 
-#endif  // DD_CONFIGURATION_REDER_H
+#endif  // DD_CONFIGURATION_RENDER_H
