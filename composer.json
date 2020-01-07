@@ -350,7 +350,7 @@
         "opentracing-10-test": [
             "@composer scenario:update",
             "@composer scenario opentracing1",
-            "@composer test -- --filter='testOTSpanContextAsParent|testOTStartSpanOptionsTags' tests/OpenTracerUnit/TracerTest.php"
+            "@composer test -- tests/OpenTracerUnit/TracerTest.php"
         ],
 
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
