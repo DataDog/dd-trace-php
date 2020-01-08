@@ -110,7 +110,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'laravel.view',
                                 'laravel_test_app',
                                 'web',
-                                '/home/circleci/app/tests/Frameworks/Laravel/Version_5_7/resources/views/simple_view.blade.php'
+                                '*/resources/views/simple_view.blade.php'
                             )->withExactTags([
                                 'integration.name' => 'laravel',
                             ]),
