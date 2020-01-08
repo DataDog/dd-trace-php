@@ -2,6 +2,10 @@
 Exceptions and errors are ignored when inside a tracing closure
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+--ENV--
+DD_TRACE_DEBUG=1
+--INI--
+error_reporting=E_ALL
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -18,87 +22,35 @@ class Test
     }
 }
 
-var_dump(dd_trace_method('Test', 'testFoo', function (SpanData $span) {
+dd_trace_method('Test', 'testFoo', function (SpanData $span) {
     $span->name = 'TestFoo';
-    $span->service = $this_normally_raises_a_notice;
-}));
+    $span->service = $this_normally_raises_a_notice; // E_NOTICE
+});
 
-var_dump(dd_trace_function('mt_srand', function (SpanData $span) {
+dd_trace_function('mt_srand', function (SpanData $span) {
     $span->name = 'MTSeed';
     throw new Exception('This should be ignored');
-}));
+});
 
-var_dump(dd_trace_function('mt_rand', function (SpanData $span) {
+dd_trace_function('mt_rand', function (SpanData $span) {
     $span->name = 'MTRand';
-    // TODO: Ignore fatals like this on PHP 5
-    if (PHP_VERSION_ID >= 70000) {
-        this_function_does_not_exist();
-        //$foo = new ThisClassDoesNotExist();
-    }
-}));
+    htmlentities('<b>', 0, 'BIG5'); // E_STRICT
+});
 
 $test = new Test();
 $test->testFoo();
 
-echo "---\n";
-
-var_dump(dd_trace_serialize_closed_spans());
+array_map(function($span) {
+    echo $span['name'] . PHP_EOL;
+}, dd_trace_serialize_closed_spans());
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-bool(true)
-bool(true)
-bool(true)
+Exception thrown in tracing closure for mt_srand: This should be ignored
+Error raised in tracing closure for mt_rand(): htmlentities(): Only basic entities substitution is supported for multi-byte encodings other than UTF-8; functionality is equivalent to htmlspecialchars in %s on line %d
 Test::testFoo() fav num: %d
----
-array(3) {
-  [0]=>
-  array(6) {
-    ["trace_id"]=>
-    int(%d)
-    ["span_id"]=>
-    int(%d)
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(7) "TestFoo"
-    ["meta"]=>
-    array(1) {
-      ["system.pid"]=>
-      int(%d)
-    }
-  }
-  [1]=>
-  array(6) {
-    ["trace_id"]=>
-    int(%d)
-    ["span_id"]=>
-    int(%d)
-    ["parent_id"]=>
-    int(%d)
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(6) "MTRand"
-  }
-  [2]=>
-  array(6) {
-    ["trace_id"]=>
-    int(%d)
-    ["span_id"]=>
-    int(%d)
-    ["parent_id"]=>
-    int(%d)
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(6) "MTSeed"
-  }
-}
+Error raised in tracing closure for testfoo(): Undefined variable: this_normally_raises_a_notice in %s on line %d
+TestFoo
+MTRand
+MTSeed
 NULL

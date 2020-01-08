@@ -213,7 +213,7 @@ int ddtrace_forward_call(zend_execute_data *execute_data, zend_function *fbc, zv
     return fcall_status;
 }
 
-BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *execute_data,
+BOOL_T ddtrace_execute_tracing_closure(ddtrace_dispatch_t *dispatch, zval *span_data, zend_execute_data *execute_data,
                                        zval *user_args, zval *user_retval, zval *exception TSRMLS_DC) {
     BOOL_T status = TRUE;
     zend_fcall_info fci = {0};
@@ -223,7 +223,15 @@ BOOL_T ddtrace_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
     zval *null_zval = &EG(uninitialized_zval);
     zval *this = ddtrace_this(execute_data);
 
-    if (zend_fcall_info_init(callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
+    if (!span_data || !user_args || !user_retval) {
+        if (get_dd_trace_debug()) {
+            const char *fname = Z_STRVAL(dispatch->function_name);
+            ddtrace_log_errf("Tracing closure could not be run for %s() because it is in an invalid state", fname);
+        }
+        return FALSE;
+    }
+
+    if (zend_fcall_info_init(&dispatch->callable, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) == FAILURE) {
         ddtrace_log_debug("Could not init tracing closure");
         return FALSE;
     }
@@ -537,6 +545,13 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
     ddtrace_span_t *span = ddtrace_open_span(TSRMLS_C);
 
     fcall_status = ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
+    if (span != DDTRACE_G(open_spans_top)) {
+        if (get_dd_trace_debug()) {
+            const char *fname = Z_STRVAL(dispatch->function_name);
+            ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
+        }
+        goto _dispatch_exit_cleanup;
+    }
     dd_trace_stop_span_time(span);
 
     ddtrace_copy_function_args(execute_data, user_args);
@@ -553,31 +568,29 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
     if (fcall_status == SUCCESS && Z_TYPE(dispatch->callable) == IS_OBJECT) {
         ddtrace_error_handling eh;
         ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
-        EG(error_reporting) = 0;
 
-        keep_span = ddtrace_execute_tracing_closure(&dispatch->callable, span->span_data, execute_data, user_args,
-                                                    user_retval, exception TSRMLS_CC);
+        keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, execute_data, user_args, user_retval,
+                                                    exception TSRMLS_CC);
+
+        if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+            const char *fname = Z_STRVAL(dispatch->function_name);
+            ddtrace_log_errf("Error raised in tracing closure for %s(): %s in %s on line %d", fname,
+                             PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
+        }
 
         ddtrace_restore_error_handling(&eh TSRMLS_CC);
         // If the tracing closure threw an exception, ignore it to not impact the original call
-        if (EG(exception)) {
-            if (get_dd_trace_debug()) {
-                zval *ex = EG(exception), *message = NULL;
-                const char *type = Z_OBJCE_P(ex)->name;
-                const char *name = Z_STRVAL(dispatch->function_name);
-                message = ddtrace_exception_get_entry(ex, ZEND_STRL("message") TSRMLS_CC);
-                const char *msg = message && Z_TYPE_P(message) == IS_STRING
-                                      ? Z_STRVAL_P(message)
-                                      : "(internal error reading exception message)";
-                ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
-            }
-            if (!DDTRACE_G(strict_mode)) {
-                zend_clear_exception(TSRMLS_C);
-            }
+        if (get_dd_trace_debug() && EG(exception)) {
+            zval *ex = EG(exception), *message = NULL;
+            const char *type = Z_OBJCE_P(ex)->name;
+            const char *name = Z_STRVAL(dispatch->function_name);
+            message = ddtrace_exception_get_entry(ex, ZEND_STRL("message") TSRMLS_CC);
+            const char *msg = message && Z_TYPE_P(message) == IS_STRING ? Z_STRVAL_P(message)
+                                                                        : "(internal error reading exception message)";
+            ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
         }
+        ddtrace_maybe_clear_exception(TSRMLS_C);
     }
-
-    zval_ptr_dtor(&user_args);
 
     if (keep_span == TRUE) {
         ddtrace_close_span(TSRMLS_C);
@@ -591,6 +604,9 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
         EG(opline_before_exception) = (zend_op *)opline;
         EG(current_execute_data)->opline = EG(exception_op);
     }
+
+_dispatch_exit_cleanup:
+    zval_ptr_dtor(&user_args);
 
 #if PHP_VERSION_ID < 50500
     (void)opline;  // TODO Make work on PHP 5.4

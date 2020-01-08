@@ -6,9 +6,9 @@
 #include <string.h>
 
 #include "ddtrace.h"
+#include "engine_hooks.h"
 #include "env_config.h"
 #include "logging.h"
-#include "sandbox.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -82,9 +82,17 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
 
     BOOL_T rv = FALSE;
 
-    DD_TRACE_SANDBOX_OPEN
+    ddtrace_error_handling eh_stream;
+    ddtrace_backup_error_handling(&eh_stream, EH_SUPPRESS TSRMLS_CC);
+
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE TSRMLS_CC);
-    DD_TRACE_SANDBOX_CLOSE
+
+    if (get_dd_trace_debug() && PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
+        ddtrace_log_errf("Error raised while opening request-init-hook stream: %s in %s on line %d",
+                         PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
+    }
+
+    ddtrace_restore_error_handling(&eh_stream TSRMLS_CC);
 
     if (ret == SUCCESS) {
         if (!file_handle.opened_path) {
@@ -105,10 +113,18 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
                 zend_rebuild_symbol_table(TSRMLS_C);
             }
 
-            DD_TRACE_SANDBOX_OPEN
+            ddtrace_error_handling eh;
+            ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
+
             zend_try { zend_execute(new_op_array TSRMLS_CC); }
             zend_end_try();
-            DD_TRACE_SANDBOX_CLOSE
+
+            if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+                ddtrace_log_errf("Error raised in request init hook: %s in %s on line %d", PG(last_error_message),
+                                 PG(last_error_file), PG(last_error_lineno));
+            }
+
+            ddtrace_restore_error_handling(&eh TSRMLS_CC);
 
             destroy_op_array(new_op_array TSRMLS_CC);
             efree(new_op_array);
@@ -117,9 +133,11 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
                     zval_ptr_dtor(EG(return_value_ptr_ptr));
                 }
             }
-            DD_TRACE_MAYBE_CLEAR_EXCEPTION
+            ddtrace_maybe_clear_exception(TSRMLS_C);
             rv = TRUE;
         }
+    } else {
+        ddtrace_log_debugf("Error opening request init hook: %s", filename);
     }
 
     return rv;
@@ -136,11 +154,21 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     zend_op_array *new_op_array;
     zval result;
     int ret, rv = FALSE;
-    DD_TRACE_SANDBOX_OPEN
-    ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
-    DD_TRACE_SANDBOX_CLOSE
 
-    if (ret == SUCCESS) {
+    ddtrace_error_handling eh_stream;
+    // Using an EH_THROW here causes a non-recoverable zend_bailout()
+    ddtrace_backup_error_handling(&eh_stream, EH_NORMAL);
+
+    ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
+
+    if (get_dd_trace_debug() && PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
+        ddtrace_log_errf("Error raised while opening request-init-hook stream: %s in %s on line %d",
+                         PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
+    }
+
+    ddtrace_restore_error_handling(&eh_stream);
+
+    if (!EG(exception) && ret == SUCCESS) {
         zend_string *opened_path;
         if (!file_handle.opened_path) {
             file_handle.opened_path = zend_string_init(filename, filename_len, 0);
@@ -157,18 +185,30 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
         zend_string_release(opened_path);
         if (new_op_array) {
             ZVAL_UNDEF(&result);
-            DD_TRACE_SANDBOX_OPEN
+
+            ddtrace_error_handling eh;
+            ddtrace_backup_error_handling(&eh, EH_THROW);
+
             zend_execute(new_op_array, &result);
-            DD_TRACE_SANDBOX_CLOSE
+
+            if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+                ddtrace_log_errf("Error raised in request init hook: %s in %s on line %d", PG(last_error_message),
+                                 PG(last_error_file), PG(last_error_lineno));
+            }
+
+            ddtrace_restore_error_handling(&eh);
 
             destroy_op_array(new_op_array);
             efree(new_op_array);
             if (!EG(exception)) {
                 zval_ptr_dtor(&result);
             }
-            DD_TRACE_MAYBE_CLEAR_EXCEPTION
+            ddtrace_maybe_clear_exception();
             rv = TRUE;
         }
+    } else {
+        ddtrace_maybe_clear_exception();
+        ddtrace_log_debugf("Error opening request init hook: %s", filename);
     }
 
     return rv;
