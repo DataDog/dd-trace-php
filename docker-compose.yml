@@ -195,3 +195,67 @@ services:
       - ./tests/Frameworks:/var/www
       - ./tests/dockerfiles/symfony_34_virtualhost.conf:/etc/apache2/sites-available/000-default.conf
       - ./:/var/dd-trace-php
+
+################################################################
+# Images used for performance overhead calculation
+################################################################
+
+  overhead-nginx:
+    build:
+      context: .
+      dockerfile: ./tests/overhead/dockerfiles/Dockerfile_nginx
+    ports:
+      - 8888:80
+    depends_on:
+      - overhead-php-fpm-master
+      - overhead-php-fpm-release
+
+  overhead-php-fpm-release:
+    build:
+      context: .
+      dockerfile: ./tests/overhead/dockerfiles/Dockerfile_72_fpm_Laravel57
+      target: release
+      args:
+        - DD_TRACER_LIBRARY_VERSION=0.37.0
+    depends_on:
+      - agent
+    volumes:
+      - ./tests/overhead/cachegrind-files:/var/www/cachegrind-files
+
+  overhead-php-fpm-master:
+    build:
+      context: .
+      dockerfile: ./tests/overhead/dockerfiles/Dockerfile_72_fpm_Laravel57
+      target: master
+    depends_on:
+      - agent
+    volumes:
+      - ./tests/overhead/cachegrind-files:/var/www/cachegrind-files
+
+  overhead-php-fpm-head:
+    build:
+      context: .
+      dockerfile: ./tests/overhead/dockerfiles/Dockerfile_72_fpm_Laravel57
+      target: head
+    depends_on:
+      - agent
+    volumes:
+      - ./tests/overhead/cachegrind-files:/var/www/cachegrind-files
+      - ./:/dd-trace-php
+
+  overhead-agent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - ./tests/overhead/dockerfiles/php-fpm-agent-integration.yaml:/etc/datadog-agent/conf.d/php_fpm.d/conf.yaml
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_LOG_LEVEL=debug
+
+################################################################
+# End of images used for performance overhead calculation
+################################################################
