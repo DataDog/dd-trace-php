@@ -205,10 +205,13 @@ services:
       context: .
       dockerfile: ./tests/overhead/dockerfiles/Dockerfile_nginx
     ports:
-      - 8888:80
+      - 8887:8887
+      - 8888:8888
+      - 8889:8889
     depends_on:
       - overhead-php-fpm-master
       - overhead-php-fpm-release
+      - overhead-php-fpm-head
 
   overhead-php-fpm-release:
     build:

@@ -11,4 +11,4 @@
 |
 */
 
-Route::get('/{scenario}', ['as' => 'example_route', 'uses' => 'ExampleController@example']);
+Route::get('/', ['as' => 'example_route', 'uses' => 'ExampleController@example']);
