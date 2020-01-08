@@ -10,17 +10,32 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2020-01-08</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.37.0</release>
+        <api>0.37.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Added
+        - Target a specific PHP version during install by setting `DD_TRACE_PHP_BIN` #604
+        - Curl Integration: Add all available information from `curl_getinfo()` as span tags #642
+
+        ### Changed
+        - Move dogstatsd client init to rinit #703
+
+        ### Fixed
+        - Issues related to limited tracing #689
+        - Backup and restore last error (related to `error_get_last()` issue) #694
+        - Handle out-of-sync spans #702
+        - Sandbox tracer flushing #707
+        - Enhance OpenTracing StartSpanOptions support #708
+        - Ensure errors raised in request init hook do not affect `error_get_last()` #709
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
