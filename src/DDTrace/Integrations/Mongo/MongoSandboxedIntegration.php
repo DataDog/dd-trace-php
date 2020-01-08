@@ -215,9 +215,9 @@ class MongoSandboxedIntegration extends SandboxedIntegration
                 $span->meta[Tag::MONGODB_QUERY] = json_encode($args[0]['query']);
             }
             if (isset($args[1]['socketTimeoutMS'])) {
-                $span->meta[Tag::MONGODB_TIMEOUT] = $args[1]['socketTimeoutMS'];
+                $integration->setPotentialNumericTag($span, Tag::MONGODB_TIMEOUT, $args[1]['socketTimeoutMS']);
             } elseif (isset($args[1]['timeout'])) {
-                $span->meta[Tag::MONGODB_TIMEOUT] = $args[1]['timeout'];
+                $integration->setPotentialNumericTag($span, Tag::MONGODB_TIMEOUT, $args[1]['timeout']);
             }
         });
 

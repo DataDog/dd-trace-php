@@ -15,7 +15,7 @@ use Throwable;
 final class Span extends DataSpan
 {
     // This corresponds to 2^53. Operator '**' is only available after php 5.6
-    private const MAX_INT_AS_METRIC = 9007199254740992;
+    public const MAX_INT_AS_METRIC = 9007199254740992;
 
     private static $metricNames = [ Tag::ANALYTICS_KEY => true ];
     // associative array for quickly checking if tag has special meaning, should include metric_names

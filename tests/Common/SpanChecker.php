@@ -104,8 +104,8 @@ final class SpanChecker
             // while with an error log we are still able to proceed with tests.
             error_log(sprintf(
                 "WARNING: More then one candidate found for '%s' at the same level. "
-                . "Proceeding in the order they appears. "
-                . "This might not work if this span is not a leaf span.",
+                    . "Proceeding in the order they appears. "
+                    . "This might not work if this span is not a leaf span.",
                 $expectedNodeRoot
             ));
         } elseif (count($found) === 0) {
@@ -375,6 +375,11 @@ final class SpanChecker
                 $namePrefix . "Wrong value for 'resource'"
             );
         }
+    }
+
+    private function tagShouldBeInMetrics($value)
+    {
+        return \is_numeric($value) && \abs(\floatval($value)) < 9007199254740992; // 2^53
     }
 
     /**

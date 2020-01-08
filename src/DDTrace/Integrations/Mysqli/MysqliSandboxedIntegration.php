@@ -254,7 +254,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
     {
         $hostInfo = MysqliCommon::extractHostInfo($mysqli);
         foreach ($hostInfo as $tagName => $value) {
-            $span->meta[$tagName] = $value;
+            $this->setPotentialNumericTag($span, $tagName, $value);
         }
     }
 

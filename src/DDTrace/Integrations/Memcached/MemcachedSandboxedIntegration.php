@@ -229,7 +229,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
          */
         if (isset($servers[0]['host'], $servers[0]['port'])) {
             $span->meta[Tag::TARGET_HOST] = $servers[0]['host'];
-            $span->meta[Tag::TARGET_PORT] = $servers[0]['port'];
+            $this->setPotentialNumericTag($span, Tag::TARGET_PORT, $servers[0]['port']);
         }
     }
 

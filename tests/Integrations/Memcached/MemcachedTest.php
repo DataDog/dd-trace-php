@@ -17,7 +17,7 @@ class MemcachedTest extends IntegrationTestCase
     private $client;
 
     private static $host = 'memcached_integration';
-    private static $port = '11211';
+    private static $port = 11211;
 
     protected function setUp()
     {
@@ -534,7 +534,8 @@ class MemcachedTest extends IntegrationTestCase
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'replace ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'replace',
-                ])),
+                ]))
+                ->withExactMetrics(),
             SpanAssertion::exists('Memcached.get'),
         ]);
     }
@@ -702,6 +703,7 @@ class MemcachedTest extends IntegrationTestCase
                     'memcached.command' => 'casByKey',
                     'memcached.server_key' => 'my_server',
                 ]))
+                ->withExactMetrics(self::baseMetrics())
                 ->withExistingTagsNames(['memcached.cas_token']),
         ]);
     }
@@ -725,6 +727,12 @@ class MemcachedTest extends IntegrationTestCase
     {
         return [
             'out.host' => self::$host,
+        ];
+    }
+
+    private static function baseMetrics()
+    {
+        return [
             'out.port' => self::$port,
         ];
     }

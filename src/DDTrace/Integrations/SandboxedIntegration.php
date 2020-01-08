@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations;
 
+use DDTrace\Span;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 
@@ -33,6 +34,32 @@ abstract class SandboxedIntegration extends Integration
         $span->meta[Tag::ERROR_MSG] = $exception->getMessage();
         $span->meta[Tag::ERROR_TYPE] = get_class($exception);
         $span->meta[Tag::ERROR_STACK] = $exception->getTraceAsString();
+    }
+
+    /**
+     * Set a tag or alternatively a metric if the value is numeric and abs($value) < 2^53 .
+     *
+     * @param SpanData $span
+     * @param string $name
+     * @param mixed $value
+     */
+    public function setPotentialNumericTag(SpanData $span, $name, $value)
+    {
+        if (null === $value) {
+            return;
+        }
+
+        if (!is_numeric($value)) {
+            $span->meta[$name] = $value;
+            return;
+        }
+
+        $asFloat = \floatval($value);
+        if (\abs($asFloat) < Span::MAX_INT_AS_METRIC) {
+            $span->metrics[$name] = $asFloat;
+        } else {
+            $span->meta[$name] = $value;
+        }
     }
 
     /**

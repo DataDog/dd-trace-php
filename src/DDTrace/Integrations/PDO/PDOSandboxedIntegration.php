@@ -85,9 +85,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             $span->type = Type::SQL;
             $span->resource = $args[0];
             if ($retval instanceof \PDOStatement) {
-                $span->meta = [
-                    'db.rowcount' => $retval->rowCount(),
-                ];
+                $integration->setPotentialNumericTag($span, 'db.rowcount', $retval->rowCount());
                 PDOSandboxedIntegration::storeStatementFromConnection($this, $retval);
             }
             PDOSandboxedIntegration::setConnectionTags($this, $span);
@@ -129,9 +127,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             $span->type = Type::SQL;
             $span->resource = $this->queryString;
             if ($retval === true) {
-                $span->meta = [
-                    'db.rowcount' => $this->rowCount(),
-                ];
+                $integration->setPotentialNumericTag($span, 'db.rowcount', $this->rowCount());
             }
             PDOSandboxedIntegration::setStatementTags($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
@@ -225,7 +221,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             return;
         }
         foreach (self::$connections[$hash] as $tag => $value) {
-            $span->meta[$tag] = $value;
+            $this->setPotentialNumericTag($span, $tag, $value);
         }
     }
 
@@ -239,7 +235,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             return;
         }
         foreach (self::$connections[self::$statements[$stmtHash]] as $tag => $value) {
-            $span->meta[$tag] = $value;
+            $this->setPotentialNumericTag($span, $tag, $value);
         }
     }
 }
