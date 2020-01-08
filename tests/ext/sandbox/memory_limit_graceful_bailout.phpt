@@ -5,11 +5,16 @@ This test ensures that when the span stack is left in a "dirty" state from a zen
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 <?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
+--ENV--
+DD_TRACE_SPANS_LIMIT=-1
+DD_TRACE_MEMORY_LIMIT=0
 --INI--
 memory_limit=2M
+max_execution_time=5
 --FILE--
 <?php
 register_shutdown_function(function () {
+    echo 'Flushing...' . PHP_EOL;
     dd_trace_serialize_closed_spans();
     echo 'You should not see this.' . PHP_EOL;
 });
@@ -21,7 +26,10 @@ dd_trace_function('array_sum', function (DDTrace\SpanData $span) {
     $span->type = 'web';
 });
 
-for ($i = 0; $i < 900; $i++) {
+define('ALMOST_AT_MAX_MEMORY', 1024 * 1024 * 1.8); // 1.8M
+
+// Added max_execution_time INI setting in case something goes wrong here
+while (memory_get_usage() <= ALMOST_AT_MAX_MEMORY) {
     array_sum([]);
 }
 
@@ -29,5 +37,6 @@ echo 'Done' . PHP_EOL;
 ?>
 --EXPECTF--
 Done
+Flushing...
 
 PHP Fatal error:  Allowed memory size of 2097152 bytes exhausted %s (tried to allocate %d bytes) in %s on line %d
