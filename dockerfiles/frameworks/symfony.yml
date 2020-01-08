@@ -10,7 +10,7 @@ services:
     build:
       context: src
       target: symfony
-    image: 'datadog/dd-trace-php:symfony-4.3-php-7.3'
+    image: 'datadog/dd-trace-ci:php-framework-symfony'
     ulimits:
       core: 99999999999
     cap_add:
