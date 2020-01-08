@@ -205,13 +205,25 @@ services:
       context: .
       dockerfile: ./tests/overhead/dockerfiles/Dockerfile_nginx
     ports:
+      - 8886:8886
       - 8887:8887
       - 8888:8888
       - 8889:8889
     depends_on:
+      - overhead-php-fpm-notracer
       - overhead-php-fpm-master
       - overhead-php-fpm-release
       - overhead-php-fpm-head
+
+  overhead-php-fpm-notracer:
+    build:
+      context: .
+      dockerfile: ./tests/overhead/dockerfiles/Dockerfile_72_fpm_Laravel57
+      target: notracer
+    depends_on:
+      - agent
+    volumes:
+      - ./tests/overhead/cachegrind-files:/var/www/cachegrind-files
 
   overhead-php-fpm-release:
     build:
