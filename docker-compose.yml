@@ -205,9 +205,14 @@ services:
       context: .
       dockerfile: ./tests/overhead/dockerfiles/Dockerfile_nginx
     ports:
+      # no tracer
       - 8886:8886
+      # current master on GitHub
       - 8887:8887
+      # current local head
       - 8888:8888
+      # a specific release, set DD_TRACER_LIBRARY_VERSION=X.Y.Z in service
+      # 'overhead-php-fpm-release'
       - 8889:8889
     depends_on:
       - overhead-php-fpm-notracer
@@ -223,7 +228,7 @@ services:
     depends_on:
       - agent
     volumes:
-      - ./tests/overhead/cachegrind-files:/var/www/cachegrind-files
+      - ./tests/overhead/callgrind-files:/var/www/callgrind-files
 
   overhead-php-fpm-release:
     build:
@@ -235,7 +240,7 @@ services:
     depends_on:
       - agent
     volumes:
-      - ./tests/overhead/cachegrind-files:/var/www/cachegrind-files
+      - ./tests/overhead/callgrind-files:/var/www/callgrind-files
 
   overhead-php-fpm-master:
     build:
@@ -245,7 +250,7 @@ services:
     depends_on:
       - agent
     volumes:
-      - ./tests/overhead/cachegrind-files:/var/www/cachegrind-files
+      - ./tests/overhead/callgrind-files:/var/www/callgrind-files
 
   overhead-php-fpm-head:
     build:
@@ -255,7 +260,7 @@ services:
     depends_on:
       - agent
     volumes:
-      - ./tests/overhead/cachegrind-files:/var/www/cachegrind-files
+      - ./tests/overhead/callgrind-files:/var/www/callgrind-files
       - ./:/dd-trace-php
 
   overhead-agent:
