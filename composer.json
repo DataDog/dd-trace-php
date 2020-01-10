@@ -505,6 +505,14 @@
     },
     "extra": {
         "scenarios": {
+            "aws-sdk3": {
+                "require": {
+                    "aws/aws-sdk-php": "~3.0"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "elasticsearch1": {
                 "require": {
                     "elasticsearch/elasticsearch": "1.2.*",

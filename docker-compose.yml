@@ -14,14 +14,15 @@ x-aliases:
       tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec' ]
       depends_on:
         - agent
+        - aws_integration
         - ddagent_integration
-        - request-replayer
         - elasticsearch2_integration
         - httpbin_integration
-        - redis_integration
+        - memcached_integration
         - mongodb_integration
         - mysql_integration
-        - memcached_integration
+        - redis_integration
+        - request-replayer
       environment:
         - REDIS_HOSTNAME=redis_integration
         - DDAGENT_HOSTNAME=ddagent_integration
@@ -148,6 +149,17 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=test
       - MONGO_INITDB_ROOT_PASSWORD=test
+
+  aws_integration:
+    image: localstack/localstack:0.9.6
+    ports:
+      - 9000:9000
+    environment:
+      - DEBUG=1
+      - SERVICES=sqs
+      - PORT_WEB_UI=9000
+      - HOSTNAME=aws_integration
+      - HOSTNAME_EXTERNAL=aws_integration
 
   redis_integration:
     image: "circleci/redis:4.0-alpine"
