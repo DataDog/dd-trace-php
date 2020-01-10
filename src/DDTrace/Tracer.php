@@ -389,6 +389,9 @@ final class Tracer implements TracerInterface
         if ($globalTags) {
             foreach ($internalSpans as &$internalSpan) {
                 foreach ($globalTags as $globalTagName => $globalTagValue) {
+                    if (isset($internalSpan['meta'][$globalTagName])) {
+                        continue;
+                    }
                     $internalSpan['meta'][$globalTagName] = $globalTagValue;
                 }
             }

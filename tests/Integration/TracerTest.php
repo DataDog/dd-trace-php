@@ -6,6 +6,7 @@ use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\SpanData;
+use DDTrace\Util\Versions;
 
 final class TracerTest extends BaseTestCase
 {
@@ -14,7 +15,7 @@ final class TracerTest extends BaseTestCase
     protected function setUp()
     {
         parent::setUp();
-        \putenv('DD_TRACE_GLOBAL_TAGS=global_tag:global');
+        \putenv('DD_TRACE_GLOBAL_TAGS=global_tag:global,also_in_span:should_not_ovverride');
     }
 
     protected function tearUp()
@@ -29,6 +30,7 @@ final class TracerTest extends BaseTestCase
             $scope = $tracer->startRootSpan('custom.name', [
                 'tags' => [
                     'local_tag' => 'local',
+                    'also_in_span' => 'span_wins',
                 ],
             ]);
             $scope->getSpan()->finish();
@@ -37,16 +39,21 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('custom.name', $traces[0][0]['name']);
         $this->assertSame('local', $traces[0][0]['meta']['local_tag']);
         $this->assertSame('global', $traces[0][0]['meta']['global_tag']);
+        $this->assertSame('span_wins', $traces[0][0]['meta']['also_in_span']);
     }
 
     public function testGlobalTagsArePresentOnInternalSpansByFlushTime()
     {
+        if (Versions::phpVersionMatches('5.4')) {
+            $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
+        }
         \dd_trace_method('DDTrace\Tests\Integration\TracerTest', 'dummyMethod', function (SpanData $span) {
             $span->service = 'custom.service';
             $span->name = 'custom.name';
             $span->resource = 'custom.resource';
             $span->type = 'custom';
             $span->meta['local_tag'] = 'local';
+            $span->meta['also_in_span'] = 'span_wins';
         });
 
         $test = $this;
@@ -57,6 +64,7 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('custom.name', $traces[0][0]['name']);
         $this->assertSame('local', $traces[0][0]['meta']['local_tag']);
         $this->assertSame('global', $traces[0][0]['meta']['global_tag']);
+        $this->assertSame('span_wins', $traces[0][0]['meta']['also_in_span']);
     }
 
     public function dummyMethod()
