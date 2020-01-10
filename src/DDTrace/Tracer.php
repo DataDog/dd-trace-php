@@ -383,6 +383,20 @@ final class Tracer implements TracerInterface
         }
 
         $internalSpans = dd_trace_serialize_closed_spans();
+
+        // Setting global tags on internal spans, if any
+        $globalTags = $this->globalConfig->getGlobalTags();
+        if ($globalTags) {
+            foreach ($internalSpans as &$internalSpan) {
+                foreach ($globalTags as $globalTagName => $globalTagValue) {
+                    if (isset($internalSpan['meta'][$globalTagName])) {
+                        continue;
+                    }
+                    $internalSpan['meta'][$globalTagName] = $globalTagValue;
+                }
+            }
+        }
+
         if (dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
             array_map(function ($span) {
                 dd_trace_buffer_span($span);
