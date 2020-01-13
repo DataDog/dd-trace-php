@@ -157,6 +157,39 @@ class EnvVariableRegistry implements Registry
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function indexedStringArrayValue($key)
+    {
+        if (isset($this->registry[$key])) {
+            return $this->registry[$key];
+        }
+
+        $default = [];
+        $value = $this->get($key);
+
+        if (null === $value) {
+            return $default;
+        }
+
+        // For now we provide no escaping
+        $this->registry[$key] = [];
+        $elements = explode(',', $value);
+
+        foreach ($elements as $element) {
+            $processedValue = trim($element);
+
+            if (empty($processedValue)) {
+                continue;
+            }
+
+            $this->registry[$key][] = $processedValue;
+        }
+
+        return $this->registry[$key];
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function inArray($key, $name)

@@ -165,6 +165,14 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Returns the global tags to be set on all spans.
+     */
+    public function getTraceEntryPoints()
+    {
+        return $this->indexedStringArrayValue('trace.entry.points');
+    }
+
+    /**
      * Append hostname as a root span tag
      *
      * @return bool
