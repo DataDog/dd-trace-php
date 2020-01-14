@@ -123,25 +123,38 @@ void ddtrace_coms_setup_atexit_hook() {
 
 void ddtrace_coms_disable_atexit_hook() { ptr_at_exit_callback = NULL; }
 
-inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
+#define DD_TRACE_COUNT_HEADER "X-Datadog-Trace-Count: "
+
+static void _curl_set_headers(struct _writer_loop_data_t *writer, size_t trace_count) {
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
+    headers = curl_slist_append(headers, "Content-Type: application/msgpack");
+    curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
+
+    char buffer[64];
+    int bytes_written = snprintf(buffer, sizeof buffer, DD_TRACE_COUNT_HEADER "%zu", trace_count);
+    if (bytes_written > (int) sizeof(DD_TRACE_COUNT_HEADER) && bytes_written < (int) sizeof buffer) {
+        headers = curl_slist_append(headers, buffer);
+    }
+
+    if (writer->headers) {
+        curl_slist_free_all(writer->headers);
+    }
+    writer->headers = headers;
+}
+
+static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
     if (!writer->curl) {
         writer->curl = curl_easy_init();
-
-        struct curl_slist *headers = NULL;
-        headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
-        headers = curl_slist_append(headers, "Content-Type: application/msgpack");
-        curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
-
         curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, ddtrace_coms_read_callback);
         curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, dummy_write_callback);
-        writer->headers = headers;
     }
 
     if (writer->curl) {
         CURLcode res;
 
         void *read_data = ddtrace_init_read_userdata(stack);
-
+        _curl_set_headers(writer, ddtrace_read_userdata_get_total_groups(read_data));
         curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
         curl_set_hostname(writer->curl);
         curl_set_timeout(writer->curl);

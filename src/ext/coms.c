@@ -427,7 +427,7 @@ static inline size_t append_entry(struct _entry_t *entry, struct _grouped_stack_
     }
 }
 
-void ddtrace_msgpack_group_stack_by_id(ddtrace_coms_stack_t *stack, struct _grouped_stack_t *dest) {
+static void ddtrace_msgpack_group_stack_by_id(ddtrace_coms_stack_t *stack, struct _grouped_stack_t *dest) {
     // perform an insertion sort by group_id
     uint32_t current_group_id = 0;
     struct _entry_t first_entry = create_entry(stack, 0);
@@ -515,6 +515,11 @@ void ddtrace_deinit_read_userdata(void *userdata) {
         free(data->dest_data);
     }
     free(userdata);
+}
+
+size_t ddtrace_read_userdata_get_total_groups(void *userdata) {
+    struct _grouped_stack_t *data = userdata;
+    return data->total_groups;
 }
 
 ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack() {

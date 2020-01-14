@@ -40,6 +40,7 @@ void ddtrace_coms_shutdown();
 size_t ddtrace_coms_read_callback(char *buffer, size_t size, size_t nitems, void *userdata);
 void *ddtrace_init_read_userdata(ddtrace_coms_stack_t *stack);
 void ddtrace_deinit_read_userdata(void *);
+size_t ddtrace_read_userdata_get_total_groups(void *);
 uint32_t ddtrace_coms_next_group_id();
 
 void ddtrace_coms_free_stack();
