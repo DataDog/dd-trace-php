@@ -52,7 +52,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost:9999/simple',
-                        Tag::HTTP_STATUS_CODE => '200',
+                        Tag::HTTP_STATUS_CODE => 200,
                         'integration.name' => 'yii',
                         'app.endpoint' => 'app\controllers\SimpleController::actionIndex',
                         'app.route.path' => '/simple',
@@ -85,7 +85,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost:9999/simple_view',
-                        Tag::HTTP_STATUS_CODE => '200',
+                        Tag::HTTP_STATUS_CODE => 200,
                         'integration.name' => 'yii',
                         'app.endpoint' => 'app\controllers\SimpleController::actionView',
                         'app.route.path' => '/simple_view',
@@ -120,7 +120,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost:9999/error',
-                        Tag::HTTP_STATUS_CODE => '500',
+                        Tag::HTTP_STATUS_CODE => 500,
                         'integration.name' => 'yii',
                         'app.endpoint' => 'app\controllers\SimpleController::actionError',
                         'app.route.path' => '/error',

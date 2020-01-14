@@ -46,7 +46,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'laravel',
                     ])
                     ->withExactMetrics([

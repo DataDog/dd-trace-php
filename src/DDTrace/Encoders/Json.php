@@ -15,7 +15,13 @@ final class Json implements Encoder
      */
     public function encodeTraces(Tracer $tracer)
     {
-        $json = json_encode($tracer->getTracesAsArray());
+        $tracesAsArray = $tracer->getTracesAsArray();
+        if (\defined('JSON_PRESERVE_ZERO_FRACTION')) {
+            // Only available for PHP 5.6.6+
+            $json = json_encode($tracesAsArray, JSON_PRESERVE_ZERO_FRACTION);
+        } else {
+            $json = json_encode($tracesAsArray);
+        }
         if (false === $json) {
             self::logDebug('Failed to json-encode trace: ' . json_last_error_msg());
             return '[[]]';

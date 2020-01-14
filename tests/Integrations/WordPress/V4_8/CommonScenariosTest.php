@@ -101,7 +101,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'wordpress',
                     ])->withChildren($children),
                 ],
@@ -114,7 +114,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'wordpress',
                     ])->withChildren([
                         SpanAssertion::exists('WP.init'),
@@ -215,7 +215,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         // WordPress doesn't appear to automatically set the proper error code
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'wordpress',
                     ])->withChildren([
                         SpanAssertion::exists('WP.main')

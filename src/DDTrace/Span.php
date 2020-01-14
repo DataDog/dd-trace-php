@@ -190,14 +190,20 @@ final class Span extends DataSpan
             }
         }
 
+        $this->setMetaOrMetric($key, $value);
+    }
+
+    private function setMetaOrMetric($key, $value)
+    {
         // Integers -2^53 < $value < 2^53 are converted to float and passed on as metrics to better support
         // numeric facets.
         if (is_int($value) && $value < self::MAX_INT_AS_METRIC && $value > -self::MAX_INT_AS_METRIC) {
             $this->setMetric($key, \floatval($value));
-            return;
+        } elseif (is_float($value)) {
+            $this->setMetric($key, $value);
+        } else {
+            $this->tags[$key] = (string)$value;
         }
-
-        $this->tags[$key] = (string)$value;
     }
 
     /**

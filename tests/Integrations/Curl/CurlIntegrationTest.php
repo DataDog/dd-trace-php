@@ -79,7 +79,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -102,7 +102,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -125,7 +125,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -145,7 +145,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -167,7 +167,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/404',
-                    'http.status_code' => '404',
+                    'http.status_code' => 404,
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -442,7 +442,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),

@@ -52,7 +52,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.route.name' => 'simple',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'symfony',
                     ])->withChildren([
                         SpanAssertion::exists('symfony.kernel.handle')
@@ -77,7 +77,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'symfony.route.name' => 'simple_view',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'symfony',
                     ])->withChildren([
                         SpanAssertion::exists('symfony.kernel.handle')
@@ -111,7 +111,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'symfony.route.name' => 'error',
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error',
-                            'http.status_code' => '500',
+                            'http.status_code' => 500,
                             'integration.name' => 'symfony',
                         ])
                         ->setError('Exception', 'An exception occurred')

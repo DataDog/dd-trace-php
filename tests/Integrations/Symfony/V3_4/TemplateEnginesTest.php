@@ -33,7 +33,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                     'symfony.route.name' => 'alternate_templating',
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:9999/alternate_templating',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                     'integration.name' => 'symfony',
                 ])
                 ->withChildren([

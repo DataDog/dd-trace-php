@@ -14,7 +14,7 @@ final class SpanAssertion
     /** @var string[] Tags the MUST match in both key and value */
     private $exactTags = SpanAssertion::NOT_TESTED;
     /** @var string[] Tags the MUST be present but with any value */
-    private $existingTags = ['system.pid'];
+    private $existingTags = [];
     /** @var string[] Ignore any tags that match these regexp patterns */
     private $skipTagPatterns = [];
     /** @var array Exact metrics set on the span */
@@ -147,11 +147,28 @@ final class SpanAssertion
      */
     public function withExactTags($tags)
     {
-        if (is_array($this->exactTags) && is_array($tags)) {
-            $this->exactTags = array_merge($this->exactTags, $tags);
-        } else {
-            $this->exactTags = $tags;
+        if (SpanAssertion::NOT_TESTED === $tags) {
+            return $this;
         }
+
+        // At this point, tags and metrics are tested, so they should not be NOT_TESTED anymore.
+        $this->exactTags = is_array($this->exactTags) ? $this->exactTags : [];
+        $this->exactMetrics = is_array($this->exactMetrics) ? $this->exactMetrics : [];
+
+        foreach ($tags as $name => $value) {
+            if ($name === '_sampling_priority_v1') {
+                $this->exactMetrics[$name] = $value;
+            } elseif (is_int($value) && abs($value) < 9007199254740992) {
+                // ints with abs() > 2^53 cannot be correctly converted to float64, which is what
+                // the metric array expects.
+                $this->exactMetrics[$name] = (float)$value;
+            } elseif (\is_float($value)) {
+                $this->exactMetrics[$name] = $value;
+            } else {
+                $this->exactTags[$name] = $value;
+            }
+        }
+
         return $this;
     }
 
@@ -161,7 +178,7 @@ final class SpanAssertion
      */
     public function withExactMetrics($metrics)
     {
-        $this->exactMetrics = $metrics;
+        $this->withExactTags($metrics);
         return $this;
     }
 

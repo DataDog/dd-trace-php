@@ -40,7 +40,7 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
                     'symfony.route.name' => 'terminated_by_exit',
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:9999/terminated_by_exit',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                     'integration.name' => 'symfony',
                 ])
                 ->withChildren([

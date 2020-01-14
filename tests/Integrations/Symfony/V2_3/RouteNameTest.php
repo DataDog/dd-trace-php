@@ -34,7 +34,7 @@ class RouteNameTest extends WebFrameworkTestCase
             )->withExactTags([
                 'http.method' => 'GET',
                 'http.url' => '/',
-                'http.status_code' => '200',
+                'http.status_code' => 200,
                 'integration.name' => 'symfony',
             ]),
         ]);

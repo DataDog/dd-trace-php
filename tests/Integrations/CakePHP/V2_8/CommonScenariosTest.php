@@ -50,7 +50,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'cakephp',
                     ]),
                 ],
@@ -65,7 +65,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'cakephp',
                     ]),
                     SpanAssertion::build(
@@ -90,7 +90,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         // CakePHP doesn't appear to set the proper error code
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'cakephp',
                     ])->withExistingTagsNames([
                         'error.stack'

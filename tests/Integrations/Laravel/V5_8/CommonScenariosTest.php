@@ -52,7 +52,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'laravel',
                     ]),
                 ],
@@ -66,7 +66,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple_view',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
-                        'http.status_code' => '200',
+                        'http.status_code' => 200,
                         'integration.name' => 'laravel',
                     ])->withExistingTagsNames([
                         'laravel.route.name',
@@ -92,7 +92,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@error',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
-                        'http.status_code' => '500',
+                        'http.status_code' => 500,
                         'integration.name' => 'laravel',
                     ])->setError()->withChildren([
                         SpanAssertion::exists('laravel.view'),

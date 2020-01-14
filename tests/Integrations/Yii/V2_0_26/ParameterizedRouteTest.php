@@ -45,7 +45,7 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                 )->withExactTags([
                     Tag::HTTP_METHOD => 'GET',
                     Tag::HTTP_URL => 'http://localhost:9999/homes/new-york/new-york/manhattan',
-                    Tag::HTTP_STATUS_CODE => '200',
+                    Tag::HTTP_STATUS_CODE => 200,
                     'integration.name' => 'yii',
                     'app.route.path' => '/homes/:state/:city/:neighborhood',
                     'app.endpoint' => 'app\controllers\HomesController::actionView',

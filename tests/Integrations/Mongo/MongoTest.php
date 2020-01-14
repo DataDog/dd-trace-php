@@ -198,7 +198,7 @@ class MongoTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'mongodb.query' => '{"age":{"$gte":18}}',
-                    'mongodb.timeout' => '500',
+                    'mongodb.timeout' => 500,
                 ]),
         ]);
     }

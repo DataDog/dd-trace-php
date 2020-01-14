@@ -41,7 +41,7 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                 )->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => '/simple',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                     'integration.name' => 'web',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,

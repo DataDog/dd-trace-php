@@ -255,8 +255,6 @@ final class SpanChecker
     {
         TestCase::assertNotNull($span, 'Expected span was not found \'' . $exp->getOperationName() . '\'.');
 
-        $spanMeta = isset($span['meta']) ? $span['meta'] : [];
-
         $namePrefix = $exp->getOperationName() . ': ';
 
         // Checking status code here because this can be tested also when we want to check only for existence
@@ -288,72 +286,6 @@ final class SpanChecker
             isset($span['error']) && 1 === $span['error'],
             $namePrefix . "Wrong value for 'error'"
         );
-        if ($exp->getExactTags() !== SpanAssertion::NOT_TESTED) {
-            $filtered = [];
-            foreach ($spanMeta as $key => $value) {
-                if (!in_array($key, $exp->getExistingTagNames())) {
-                    $filtered[$key] = $value;
-                }
-            }
-
-            $skipPatterns = $exp->getSkippedTagPatterns();
-            $out = $filtered;
-            foreach ($skipPatterns as $pattern) {
-                $out = array_filter_by_key(
-                    function ($key) use ($pattern) {
-                        // keep if it *doesn't* match
-                        return !\preg_match($pattern, $key);
-                    },
-                    $out
-                );
-            }
-
-            $filtered = $out;
-            $expectedTags = $exp->getExactTags();
-            foreach ($expectedTags as $tagName => $tagValue) {
-                TestCase::assertArrayHasKey(
-                    $tagName,
-                    $filtered,
-                    $namePrefix . 'Expected tag name ' . $tagName . ' not found'
-                );
-                if (!isset($filtered[$tagName])) {
-                    continue;
-                }
-                if (is_string($tagValue)) {
-                    TestCase::assertStringMatchesFormat(
-                        $tagValue,
-                        $filtered[$tagName],
-                        $namePrefix . "Expected tag format for '$tagName' does not match actual value"
-                    );
-                } else {
-                    TestCase::assertEquals(
-                        $tagValue,
-                        $filtered[$tagName],
-                        $namePrefix . "Expected tag value for '$tagName' does not match actual value"
-                    );
-                }
-                unset($filtered[$tagName]);
-            }
-            TestCase::assertEmpty(
-                $filtered,
-                $namePrefix . "Unexpected extra values for 'tags':\n" . print_r($filtered, true)
-            );
-            foreach ($exp->getExistingTagNames(isset($span['parent_id'])) as $tagName) {
-                TestCase::assertArrayHasKey($tagName, $spanMeta);
-            }
-        }
-        $metrics = $exp->getExactMetrics();
-        if ($metrics !== SpanAssertion::NOT_TESTED) {
-            // Ignore compilation-time metric unless explicitly tested
-            if (!isset($metrics['php.compilation.total_time_ms'])) {
-                unset($span['metrics']['php.compilation.total_time_ms']);
-            }
-            TestCase::assertEquals(
-                $metrics,
-                isset($span['metrics']) ? $span['metrics'] : [],
-                $namePrefix . "Wrong value for 'metrics'"
-            );
-        }
         if ($exp->getService() != SpanAssertion::NOT_TESTED) {
             TestCase::assertSame(
                 $exp->getService(),
@@ -375,11 +307,50 @@ final class SpanChecker
                 $namePrefix . "Wrong value for 'resource'"
             );
         }
-    }
 
-    private function tagShouldBeInMetrics($value)
-    {
-        return \is_numeric($value) && \abs(\floatval($value)) < 9007199254740992; // 2^53
+        if ($exp->getExactTags() === SpanAssertion::NOT_TESTED) {
+            return;
+        }
+
+        $checkedForExistence = $exp->getExistingTagNames();
+        $spanMeta = isset($span['meta']) ? $span['meta'] : [];
+        $spanMetrics = isset($span['metrics']) ? $span['metrics'] : [];
+        $spanMetaAndMetrics = array_merge([], $spanMeta, $spanMetrics);
+        // Ignore compilation-time metric unless explicitly tested
+        if (!isset($exp->getExactMetrics()['php.compilation.total_time_ms'])) {
+            unset($spanMetaAndMetrics['php.compilation.total_time_ms']);
+        }
+
+        $expectedMetaAndMetrics = array_merge([], $exp->getExactTags(), $exp->getExactMetrics());
+        // Root span MUST have priority sampling
+        if (empty($span['parent_id']) && !array_key_exists('_sampling_priority_v1', $expectedMetaAndMetrics)) {
+            $expectedMetaAndMetrics['_sampling_priority_v1'] = 1;
+        }
+        // Root span MUST have the system.pid
+        if (empty($span['parent_id']) && !array_key_exists('system.pid', $expectedMetaAndMetrics)) {
+            $checkedForExistence[] = 'system.pid';
+        }
+
+        if (count($spanMetaAndMetrics) !== (count($expectedMetaAndMetrics) + count($checkedForExistence))) {
+            $expectedNames = \array_merge(\array_keys($expectedMetaAndMetrics), $checkedForExistence);
+            sort($expectedNames);
+            $actualNames = \array_keys($spanMetaAndMetrics);
+            sort($actualNames);
+            TestCase::assertEquals(
+                $expectedNames,
+                $actualNames,
+                "$namePrefix Additional or unexpected meta/metric names found."
+            );
+        }
+
+        foreach ($expectedMetaAndMetrics as $expectedKey => $expectedValue) {
+            $context = array_key_exists($expectedKey, $spanMeta) ? 'meta' : 'metric';
+            TestCase::assertSame(
+                $expectedValue,
+                $spanMetaAndMetrics[$expectedKey],
+                "$namePrefix Wrong value for $context '$expectedKey'"
+            );
+        }
     }
 
     /**

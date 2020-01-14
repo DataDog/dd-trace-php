@@ -50,7 +50,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                 ]),
         ]);
     }
@@ -81,7 +81,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                 ]),
         ]);
     }
@@ -97,7 +97,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                 ]),
         ]);
     }
@@ -213,7 +213,7 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
                 ->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
-                    'http.status_code' => '200',
+                    'http.status_code' => 200,
                 ]),
         ]);
     }
