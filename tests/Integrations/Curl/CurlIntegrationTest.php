@@ -82,6 +82,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'http.status_code' => 200,
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->withNoPrioritySampling()
                 ->skipTagsLike('/^curl\..*/'),
         ]);
     }
@@ -104,6 +105,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => 200,
                 ])
+                ->withNoPrioritySampling()
+                ->setTraceAnalyticsCandidate()
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
         ]);
@@ -127,6 +130,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => 200,
                 ])
+                ->withNoPrioritySampling()
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
         ]);
@@ -147,6 +151,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => 200,
                 ])
+                ->withNoPrioritySampling()
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
         ]);
@@ -169,6 +174,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'http.url' => self::URL . '/status/404',
                     'http.status_code' => 404,
                 ])
+                ->withNoPrioritySampling()
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
         ]);
@@ -189,8 +195,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
-                    'http.status_code' => '0',
+                    'http.status_code' => 0,
                 ])
+                ->withNoPrioritySampling()
                 ->withExistingTagsNames(['error.msg'])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/')
@@ -213,8 +220,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => 'http://10.255.255.1/',
-                    'http.status_code' => '0',
+                    'http.status_code' => 0,
                 ])
+                ->withNoPrioritySampling()
                 ->withExistingTagsNames(['error.msg'])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/')
@@ -237,9 +245,10 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => 'http://__i_am_not_real__.invalid/',
-                    'http.status_code' => '0',
+                    'http.status_code' => 0,
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
+                ->withNoPrioritySampling()
                 ->skipTagsLike('/^curl\..*/')
                 ->setError('curl error', 'Could not resolve host: __i_am_not_real__.invalid'),
         ]);
@@ -444,6 +453,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => 200,
                 ])
+                ->withNoPrioritySampling()
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
         ]);

@@ -31,6 +31,8 @@ final class SpanAssertion
 
     private $statusCode = SpanAssertion::NOT_TESTED;
 
+    private $assertPrioritySampling = true;
+
     /**
      * @param string $name
      * @param bool $error
@@ -252,6 +254,23 @@ final class SpanAssertion
     public function getChildren()
     {
         return $this->children;
+    }
+
+    /**
+     * @return $this
+     */
+    public function withNoPrioritySampling()
+    {
+        $this->assertPrioritySampling = false;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function shouldAssertPrioritySamling()
+    {
+        return $this->assertPrioritySampling;
     }
 
     /**

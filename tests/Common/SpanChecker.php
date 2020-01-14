@@ -347,13 +347,26 @@ final class SpanChecker
 
         $expectedMetaAndMetrics = array_merge([], $exp->getExactTags(), $exp->getExactMetrics());
         // Root span MUST have priority sampling
-        if (empty($span['parent_id']) && !array_key_exists('_sampling_priority_v1', $expectedMetaAndMetrics)) {
+        if (
+            empty($span['parent_id'])
+                && !array_key_exists('_sampling_priority_v1', $expectedMetaAndMetrics)
+                && $exp->shouldAssertPrioritySamling()
+        ) {
             $expectedMetaAndMetrics['_sampling_priority_v1'] = 1;
         }
         // Root span MUST have the system.pid
         if (empty($span['parent_id']) && !array_key_exists('system.pid', $expectedMetaAndMetrics)) {
             $checkedForExistence[] = 'system.pid';
         }
+
+        // Expetation was configured with trace seaerch and analytics
+        if ($exp->isTraceAnalyticsCandidate() && !array_key_exists('_dd1.sr.eausr', $expectedMetaAndMetrics)) {
+            $checkedForExistence[] = '_dd1.sr.eausr';
+        }
+
+        // Removing skip patterns
+        $expectedMetaAndMetrics = $this->removeSkipPatterns($exp, $expectedMetaAndMetrics);
+        $spanMetaAndMetrics = $this->removeSkipPatterns($exp, $spanMetaAndMetrics);
 
         if (count($spanMetaAndMetrics) !== (count($expectedMetaAndMetrics) + count($checkedForExistence))) {
             $expectedNames = \array_merge(\array_keys($expectedMetaAndMetrics), $checkedForExistence);
@@ -392,5 +405,17 @@ final class SpanChecker
         }
 
         return $result;
+    }
+
+    private function removeSkipPatterns(SpanAssertion $assertion, $tags)
+    {
+        return array_filter_by_key(function ($key) use ($assertion) {
+            foreach ($assertion->getSkippedTagPatterns() as $pattern) {
+                if (\preg_match($pattern, $key)) {
+                    return false;
+                }
+            }
+            return true;
+        }, $tags);
     }
 }
