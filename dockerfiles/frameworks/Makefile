@@ -26,9 +26,6 @@ build_file_server: $(DDTRACE_DEB)
 clean:
 	test -e $(DDTRACE_DEB) && rm $(DDTRACE_DEB) || true
 
-base:
-	docker build ./src --target $@
-
 .PHONY: $(TARGETS)
 $(DDTRACE_TARGETS): build_file_server
 	@echo Running $@

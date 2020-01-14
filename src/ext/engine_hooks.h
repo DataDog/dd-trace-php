@@ -1,8 +1,14 @@
 #ifndef DD_ENGINE_HOOKS_H
 #define DD_ENGINE_HOOKS_H
 
+#include <Zend/zend.h>
+#include <Zend/zend_exceptions.h>
 #include <php.h>
 #include <stdint.h>
+
+#include "ddtrace.h"
+
+ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 void ddtrace_engine_hooks_minit(void);
 void ddtrace_engine_hooks_mshutdown(void);
@@ -51,5 +57,28 @@ inline void ddtrace_restore_error_handling(ddtrace_error_handling *eh TSRMLS_DC)
     PG(last_error_lineno) = eh->lineno;
     EG(error_reporting) = eh->error_reporting;
 }
+
+#if PHP_VERSION_ID < 70000
+inline void ddtrace_maybe_clear_exception(TSRMLS_D) {
+    if (EG(exception) && !DDTRACE_G(strict_mode)) {
+        // Cannot use zend_clear_exception() in PHP 5 since there is no NULL check on the opline
+        zval_ptr_dtor(&EG(exception));
+        EG(exception) = NULL;
+        if (EG(prev_exception)) {
+            zval_ptr_dtor(&EG(prev_exception));
+            EG(prev_exception) = NULL;
+        }
+        if (EG(current_execute_data)) {
+            EG(current_execute_data)->opline = EG(opline_before_exception);
+        }
+    }
+}
+#else
+inline void ddtrace_maybe_clear_exception(void) {
+    if (EG(exception) && !DDTRACE_G(strict_mode)) {
+        zend_clear_exception();
+    }
+}
+#endif
 
 #endif  // DD_ENGINE_HOOKS_H

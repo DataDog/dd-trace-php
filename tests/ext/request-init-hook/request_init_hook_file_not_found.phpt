@@ -1,5 +1,7 @@
 --TEST--
 Do not fail when PHP code couldn't be loaded
+--ENV--
+DD_TRACE_DEBUG=1
 --INI--
 ddtrace.request_init_hook=tests/ext/request-init-hook/this_file_doesnt_exist.php
 --FILE--
@@ -7,5 +9,6 @@ ddtrace.request_init_hook=tests/ext/request-init-hook/this_file_doesnt_exist.php
 echo "Request start" . PHP_EOL;
 
 ?>
---EXPECT--
+--EXPECTF--
+Error opening request init hook: %s/this_file_doesnt_exist.php
 Request start

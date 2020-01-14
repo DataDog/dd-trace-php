@@ -39,6 +39,26 @@ enum dogstatsd_client_status {
 };
 typedef enum dogstatsd_client_status dogstatsd_client_status;
 
+inline const char *dogstatsd_client_status_to_str(
+    dogstatsd_client_status status) {
+  switch (status) {
+    case DOGSTATSD_CLIENT_OK:
+      return "OK";
+    case DOGSTATSD_CLIENT_E_NO_CLIENT:
+      return "E_NO_CLIENT";
+    case DOGSTATSD_CLIENT_E_VALUE:
+      return "E_VALUE";
+    case DOGSTATSD_CLIENT_E_TOO_LONG:
+      return "E_TOO_LONG";
+    case DOGSTATSD_CLIENT_E_FORMATTING:
+      return "E_FORMATTING";
+    case DOGSTATSD_CLIENT_EWRITE:
+      return "E_WRITE";
+    default:
+      return NULL;
+  }
+}
+
 /* A typical IPv4 header is 20 bytes, but can be up to 60 bytes.
  * The UDP header is 8 bytes.
  * The minimum maximum reassembly buffer size required by RFC 1122 is 576.

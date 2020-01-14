@@ -151,13 +151,38 @@ final class SpanChecker
         $normalizedActual = $this->normalizeString($actual);
         $normalizedExpectation = $this->normalizeString($expectation);
 
-        if ($wildcards && substr($normalizedExpectation, -1) === '*') {
+        return $wildcards
+            ? $this->exactWildcardsMatches($normalizedExpectation, $normalizedActual)
+            : $normalizedExpectation === $normalizedActual;
+    }
+
+    /**
+     * Tells if two strings match. Support wildcard '*' at the begin and at the end of the string.
+     *
+     * @param string $expected
+     * @param string $actual
+     * @return boolean
+     */
+    private function exactWildcardsMatches($expected, $actual)
+    {
+        $normalizedExpected = $expected;
+        $normalizedActual = $actual;
+
+        if (substr($normalizedExpected, -1) === '*') {
             // Ends with *
-            $length = strlen($normalizedExpectation) - 1;
-            return substr($normalizedActual, 0, $length) === substr($normalizedExpectation, 0, $length);
+            $length = strlen($normalizedExpected) - 1;
+            $normalizedExpected = substr($normalizedExpected, 0, $length);
+            $normalizedActual = substr($normalizedActual, 0, $length);
         }
 
-        return $normalizedExpectation === $normalizedActual;
+        if (substr($normalizedExpected, 0, 1) === '*') {
+            // Starts with *
+            $length = strlen($normalizedExpected) - 1;
+            $normalizedExpected = substr($normalizedExpected, -$length);
+            $normalizedActual = substr($normalizedActual, -$length);
+        }
+
+        return $normalizedExpected === $normalizedActual;
     }
 
     /**
@@ -301,9 +326,8 @@ final class SpanChecker
             );
         }
         if ($exp->getResource() != SpanAssertion::NOT_TESTED) {
-            TestCase::assertSame(
-                $exp->getResource(),
-                isset($span['resource']) ? $span['resource'] : '',
+            TestCase::assertTrue(
+                $this->exactWildcardsMatches($exp->getResource(), isset($span['resource']) ? $span['resource'] : ''),
                 $namePrefix . "Wrong value for 'resource'"
             );
         }
