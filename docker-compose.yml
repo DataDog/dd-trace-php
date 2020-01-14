@@ -236,7 +236,7 @@ services:
       dockerfile: ./tests/overhead/dockerfiles/Dockerfile_72_fpm_Laravel57
       target: release
       args:
-        - DD_TRACER_LIBRARY_VERSION=0.37.0
+        - DD_TRACE_LIBRARY_VERSION=${DD_TRACE_LIBRARY_VERSION:-0.37.1}
     depends_on:
       - agent
     volumes:
