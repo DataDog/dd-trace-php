@@ -10,17 +10,20 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2020-01-14</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.37.1</release>
+        <api>0.37.1</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Fixed
+        - Set global tags in internal spans #716
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
