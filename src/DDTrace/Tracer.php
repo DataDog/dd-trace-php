@@ -29,7 +29,7 @@ final class Tracer implements TracerInterface
     /**
      * @deprecated Use Tracer::version() instead
      */
-    const VERSION = '1.0.0-nightly'; // Update ./version.php too
+    const VERSION = '0.37.1'; // Update ./version.php too
 
     /**
      * @var Span[][]
@@ -383,6 +383,20 @@ final class Tracer implements TracerInterface
         }
 
         $internalSpans = dd_trace_serialize_closed_spans();
+
+        // Setting global tags on internal spans, if any
+        $globalTags = $this->globalConfig->getGlobalTags();
+        if ($globalTags) {
+            foreach ($internalSpans as &$internalSpan) {
+                foreach ($globalTags as $globalTagName => $globalTagValue) {
+                    if (isset($internalSpan['meta'][$globalTagName])) {
+                        continue;
+                    }
+                    $internalSpan['meta'][$globalTagName] = $globalTagValue;
+                }
+            }
+        }
+
         if (dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
             array_map(function ($span) {
                 dd_trace_buffer_span($span);
