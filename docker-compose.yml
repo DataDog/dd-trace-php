@@ -280,3 +280,16 @@ services:
 ################################################################
 # End of images used for performance overhead calculation
 ################################################################
+
+  phalcon:
+    build:
+      context: ./tests/Frameworks/Phalcon/Version_3_4/docker
+      args:
+        - DD_TRACE_LIBRARY_VERSION=0.37.1
+    volumes:
+      - ./tests/Frameworks/Phalcon/Version_3_4:/app
+      - ./tests/Frameworks/Phalcon/Version_3_4/docker/nginx.conf:/etc/nginx/sites-enabled/default:ro
+    ports:
+      - 7777:80
+    depends_on:
+      - agent
