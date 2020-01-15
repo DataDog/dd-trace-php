@@ -114,6 +114,8 @@ services:
   '7.3-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-debug' }
   '7.3-zts-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-zts-debug' }
   '7.3-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-zts' }
+  '7.4-debug-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-buster' }
+  '7.4-debug': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
   '7.4-debug-asan': { <<: *base_php_service, image: 'datadog/dd-trace-php:7.4-buster-debug-asan' }
   'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }
   'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }
