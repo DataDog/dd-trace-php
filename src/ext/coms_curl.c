@@ -2,12 +2,10 @@
 
 #include <curl/curl.h>
 #include <pthread.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -34,9 +32,9 @@ struct _writer_loop_data_t {
 
     struct _writer_thread_variables_t *thread;
 
-    _Atomic(BOOL_T) running, starting_up;
+    _Atomic(bool) running, starting_up;
     _Atomic(pid_t) current_pid;
-    _Atomic(BOOL_T) shutdown_when_idle, suspended, sending, allocate_new_stacks;
+    _Atomic(bool) shutdown_when_idle, suspended, sending, allocate_new_stacks;
     _Atomic(uint32_t) flush_interval, request_counter, flush_processed_stacks_total, writer_cycle,
         requests_since_last_flush;
 };
@@ -49,17 +47,15 @@ static struct _writer_loop_data_t global_writer = {.thread = NULL,
                                                    .allocate_new_stacks = ATOMIC_VAR_INIT(0),
                                                    .sending = ATOMIC_VAR_INIT(0)};
 
-inline static struct _writer_loop_data_t *get_writer() { return &global_writer; }
+static struct _writer_loop_data_t *get_writer() { return &global_writer; }
 
-inline static void curl_set_timeout(CURL *curl) {
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, get_dd_trace_agent_timeout());
-}
+static void curl_set_timeout(CURL *curl) { curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, get_dd_trace_agent_timeout()); }
 
-inline static void curl_set_connect_timeout(CURL *curl) {
+static void curl_set_connect_timeout(CURL *curl) {
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, get_dd_trace_agent_connect_timeout());
 }
 
-inline static void curl_set_hostname(CURL *curl) {
+static void curl_set_hostname(CURL *curl) {
     char *hostname = get_dd_agent_host();
     int64_t port = get_dd_trace_agent_port();
     if (port <= 0 || port > 65535) {
@@ -80,7 +76,7 @@ inline static void curl_set_hostname(CURL *curl) {
     }
 }
 
-inline static struct timespec deadline_in_ms(uint32_t ms) {
+static struct timespec deadline_in_ms(uint32_t ms) {
     struct timespec deadline;
     struct timeval now;
 
@@ -123,7 +119,7 @@ void ddtrace_coms_setup_atexit_hook() {
 
 void ddtrace_coms_disable_atexit_hook() { ptr_at_exit_callback = NULL; }
 
-inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
+static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
     if (!writer->curl) {
         writer->curl = curl_easy_init();
 
@@ -170,26 +166,26 @@ inline static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_c
         ddtrace_deinit_read_userdata(read_data);
     }
 }
-static inline void signal_writer_started(struct _writer_loop_data_t *writer) {
+static void signal_writer_started(struct _writer_loop_data_t *writer) {
     if (writer->thread) {
         // at the moment no actual signal is sent but we will set a threadsafe state variable
         // ordering is important to correctly state that writer is either running or stil is starting up
-        atomic_store(&writer->running, TRUE);
-        atomic_store(&writer->starting_up, FALSE);
+        atomic_store(&writer->running, true);
+        atomic_store(&writer->starting_up, false);
     }
 }
 
-static inline void signal_writer_finished(struct _writer_loop_data_t *writer) {
+static void signal_writer_finished(struct _writer_loop_data_t *writer) {
     if (writer->thread) {
         pthread_mutex_lock(&writer->thread->writer_shutdown_signal_mutex);
-        atomic_store(&writer->running, FALSE);
+        atomic_store(&writer->running, false);
 
         pthread_cond_signal(&writer->thread->writer_shutdown_signal_condition);
         pthread_mutex_unlock(&writer->thread->writer_shutdown_signal_mutex);
     }
 }
 
-static inline void signal_data_processed(struct _writer_loop_data_t *writer) {
+static void signal_data_processed(struct _writer_loop_data_t *writer) {
     if (writer->thread) {
         pthread_mutex_lock(&writer->thread->finished_flush_mutex);
         pthread_cond_signal(&writer->thread->finished_flush_condition);
@@ -201,7 +197,7 @@ static void *writer_loop(void *_) {
     UNUSED(_);
     struct _writer_loop_data_t *writer = get_writer();
 
-    BOOL_T running = TRUE;
+    bool running = true;
     signal_writer_started(writer);
     do {
         atomic_fetch_add(&writer->writer_cycle, 1);
@@ -247,7 +243,7 @@ static void *writer_loop(void *_) {
         if (processed_stacks > 0) {
             atomic_fetch_add(&writer->flush_processed_stacks_total, processed_stacks);
         } else if (atomic_load(&writer->shutdown_when_idle)) {
-            running = FALSE;
+            running = false;
         }
 
         signal_data_processed(writer);
@@ -260,31 +256,31 @@ static void *writer_loop(void *_) {
     return NULL;
 }
 
-BOOL_T ddtrace_coms_set_writer_send_on_flush(BOOL_T send) {
+bool ddtrace_coms_set_writer_send_on_flush(bool send) {
     struct _writer_loop_data_t *writer = get_writer();
-    BOOL_T previous_value = atomic_load(&writer->sending);
+    bool previous_value = atomic_load(&writer->sending);
     atomic_store(&writer->sending, send);
 
     return previous_value;
 }
 
-static inline void writer_set_shutdown_state(struct _writer_loop_data_t *writer) {
+static void writer_set_shutdown_state(struct _writer_loop_data_t *writer) {
     // spin the writer without waiting to speedup processing time
     atomic_store(&writer->flush_interval, 0);
     // stop allocating new stacks on flush
-    atomic_store(&writer->allocate_new_stacks, FALSE);
+    atomic_store(&writer->allocate_new_stacks, false);
     // make the writer exit once it finishes the processing
-    atomic_store(&writer->shutdown_when_idle, TRUE);
+    atomic_store(&writer->shutdown_when_idle, true);
 }
 
-static inline void writer_set_operational_state(struct _writer_loop_data_t *writer) {
-    atomic_store(&writer->sending, TRUE);
+static void writer_set_operational_state(struct _writer_loop_data_t *writer) {
+    atomic_store(&writer->sending, true);
     atomic_store(&writer->flush_interval, get_dd_trace_agent_flush_interval());
-    atomic_store(&writer->allocate_new_stacks, TRUE);
-    atomic_store(&writer->shutdown_when_idle, FALSE);
+    atomic_store(&writer->allocate_new_stacks, true);
+    atomic_store(&writer->shutdown_when_idle, false);
 }
 
-static inline struct _writer_thread_variables_t *create_thread_variables() {
+static struct _writer_thread_variables_t *create_thread_variables() {
     struct _writer_thread_variables_t *thread = calloc(1, sizeof(struct _writer_thread_variables_t));
     pthread_mutex_init(&thread->interval_flush_mutex, NULL);
     pthread_mutex_init(&thread->finished_flush_mutex, NULL);
@@ -299,38 +295,38 @@ static inline struct _writer_thread_variables_t *create_thread_variables() {
     return thread;
 }
 
-BOOL_T ddtrace_coms_init_and_start_writer() {
+bool ddtrace_coms_init_and_start_writer(void) {
     struct _writer_loop_data_t *writer = get_writer();
     writer_set_operational_state(writer);
     atomic_store(&writer->current_pid, getpid());
 
     if (writer->thread) {
-        return FALSE;
+        return false;
     }
     struct _writer_thread_variables_t *thread = create_thread_variables();
     writer->thread = thread;
-    atomic_store(&writer->starting_up, TRUE);
+    atomic_store(&writer->starting_up, true);
     if (pthread_create(&thread->self, NULL, &writer_loop, NULL) == 0) {
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
-static inline BOOL_T has_pid_changed() {
+static bool has_pid_changed(void) {
     struct _writer_loop_data_t *writer = get_writer();
     pid_t current_pid = getpid();
     pid_t previous_pid = atomic_load(&writer->current_pid);
     return current_pid != previous_pid;
 }
 
-BOOL_T ddtrace_coms_on_pid_change() {
+bool ddtrace_coms_on_pid_change(void) {
     struct _writer_loop_data_t *writer = get_writer();
 
     pid_t current_pid = getpid();
     pid_t previous_pid = atomic_load(&writer->current_pid);
     if (current_pid == previous_pid) {
-        return TRUE;
+        return true;
     }
 
     // ensure this reinitialization is done only once on pid change
@@ -341,15 +337,15 @@ BOOL_T ddtrace_coms_on_pid_change() {
         }
 
         ddtrace_coms_init_and_start_writer();
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
-BOOL_T ddtrace_coms_threadsafe_rotate_stack(BOOL_T attempt_allocate_new) {
+bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new) {
     struct _writer_loop_data_t *writer = get_writer();
-    BOOL_T rv = FALSE;
+    bool rv = false;
     if (writer->thread) {
         pthread_mutex_lock(&writer->thread->stack_rotation_mutex);
         rv = ddtrace_coms_rotate_stack(attempt_allocate_new);
@@ -358,7 +354,7 @@ BOOL_T ddtrace_coms_threadsafe_rotate_stack(BOOL_T attempt_allocate_new) {
     return rv;
 }
 
-BOOL_T ddtrace_coms_trigger_writer_flush() {
+bool ddtrace_coms_trigger_writer_flush(void) {
     struct _writer_loop_data_t *writer = get_writer();
     if (writer->thread) {
         pthread_mutex_lock(&writer->thread->interval_flush_mutex);
@@ -366,10 +362,10 @@ BOOL_T ddtrace_coms_trigger_writer_flush() {
         pthread_mutex_unlock(&writer->thread->interval_flush_mutex);
     }
 
-    return TRUE;
+    return true;
 }
 
-BOOL_T ddtrace_coms_on_request_finished() {
+void ddtrace_coms_on_request_finished(void) {
     struct _writer_loop_data_t *writer = get_writer();
 
     atomic_fetch_add(&writer->request_counter, 1);
@@ -379,15 +375,13 @@ BOOL_T ddtrace_coms_on_request_finished() {
     if (requests_since_last_flush > get_dd_trace_agent_flush_after_n_requests()) {
         ddtrace_coms_trigger_writer_flush();
     }
-
-    return TRUE;
 }
 
-// Returns TRUE if writer is shutdown completely
-BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
+// Returns true if writer is shutdown completely
+bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
     struct _writer_loop_data_t *writer = get_writer();
     if (!writer->thread) {
-        return TRUE;
+        return true;
     }
 
     writer_set_shutdown_state(writer);
@@ -396,7 +390,7 @@ BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
     pthread_mutex_lock(&writer->thread->writer_shutdown_signal_mutex);
     ddtrace_coms_trigger_writer_flush();
 
-    BOOL_T should_join = FALSE;
+    bool should_join = false;
     // see signal_writer_started
     if (atomic_load(&writer->starting_up) || atomic_load(&writer->running)) {
         struct timespec deadline = deadline_in_ms(get_dd_trace_shutdown_timeout());
@@ -404,10 +398,10 @@ BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
         int rv = pthread_cond_timedwait(&writer->thread->writer_shutdown_signal_condition,
                                         &writer->thread->writer_shutdown_signal_mutex, &deadline);
         if (rv == 0) {
-            should_join = TRUE;
+            should_join = true;
         }
     } else {
-        should_join = TRUE;
+        should_join = true;
     }
     pthread_mutex_unlock(&writer->thread->writer_shutdown_signal_mutex);
 
@@ -417,12 +411,12 @@ BOOL_T ddtrace_coms_flush_shutdown_writer_synchronous() {
         pthread_join(writer->thread->self, NULL);
         free(writer->thread);
         writer->thread = NULL;
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
-BOOL_T ddtrace_coms_synchronous_flush(uint32_t timeout) {
+bool ddtrace_coms_synchronous_flush(uint32_t timeout) {
     struct _writer_loop_data_t *writer = get_writer();
     uint32_t previous_writer_cycle = atomic_load(&writer->writer_cycle);
     uint32_t previous_processed_stacks_total = atomic_load(&writer->flush_processed_stacks_total);
@@ -454,10 +448,10 @@ BOOL_T ddtrace_coms_synchronous_flush(uint32_t timeout) {
     return processed_stacks_total > 0;
 }
 
-BOOL_T ddtrace_in_writer_thread() {
+bool ddtrace_in_writer_thread(void) {
     struct _writer_loop_data_t *writer = get_writer();
     if (!writer->thread) {
-        return FALSE;
+        return false;
     }
 
     return (pthread_self() == writer->thread->self);
