@@ -2,16 +2,17 @@
 
 #include <errno.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "coms_curl.h"
 #include "configuration.h"
-#include "env_config.h"
 #include "mpack.h"
 #include "vendor_stdatomic.h"
+
+extern inline bool ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack);
+extern inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack);
 
 typedef uint32_t group_id_t;
 
@@ -27,13 +28,13 @@ ddtrace_coms_state_t ddtrace_coms_global_state = {{0}};
 ddtrace_coms_state_t ddtrace_coms_global_state = {.stacks = NULL};
 #endif
 
-static inline BOOL_T is_memory_pressure_high() {
+static bool is_memory_pressure_high(void) {
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_global_state.current_stack);
     if (stack) {
         int64_t used = (((double)atomic_load(&stack->position) / (double)stack->size) * 100);
-        return (used > get_dd_trace_beta_high_memory_pressure_percent());
+        return used > get_dd_trace_beta_high_memory_pressure_percent();
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -68,9 +69,9 @@ static uint32_t store_data(group_id_t group_id, const char *src, size_t size) {
     return 0;
 }
 
-static inline ddtrace_coms_stack_t *new_stack() {
+static ddtrace_coms_stack_t *new_stack(void) {
     ddtrace_coms_stack_t *stack = calloc(1, sizeof(ddtrace_coms_stack_t));
-    stack->size = DD_TRACE_COMS_STACK_SIZE;
+    stack->size = DDTRACE_COMS_STACK_SIZE;
     stack->data = calloc(1, stack->size);
 
     return stack;
@@ -81,7 +82,7 @@ void ddtrace_coms_free_stack(ddtrace_coms_stack_t *stack) {
     free(stack);
 }
 
-static inline void recycle_stack(ddtrace_coms_stack_t *stack) {
+static void recycle_stack(ddtrace_coms_stack_t *stack) {
     char *data = stack->data;
     size_t size = stack->size;
 
@@ -92,19 +93,19 @@ static inline void recycle_stack(ddtrace_coms_stack_t *stack) {
     stack->size = size;
 }
 
-BOOL_T ddtrace_coms_initialize() {
+bool ddtrace_coms_initialize(void) {
     ddtrace_coms_stack_t *stack = new_stack();
     if (!ddtrace_coms_global_state.stacks) {
-        ddtrace_coms_global_state.stacks = calloc(DD_TRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(ddtrace_coms_stack_t *));
+        ddtrace_coms_global_state.stacks = calloc(DDTRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(ddtrace_coms_stack_t *));
     }
 
     atomic_store(&ddtrace_coms_global_state.next_group_id, 1);
     atomic_store(&ddtrace_coms_global_state.current_stack, stack);
 
-    return TRUE;
+    return true;
 }
 
-void ddtrace_coms_shutdown() {
+void ddtrace_coms_shutdown(void) {
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
     if (current_stack) {
         if (current_stack->data) {
@@ -126,7 +127,7 @@ static void printf_stack_info(ddtrace_coms_stack_t *stack) {
 #endif
 
 static void unsafe_store_or_discard_stack(ddtrace_coms_stack_t *stack) {
-    for (int i = 0; i < DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+    for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
         ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
         if (stack_tmp == stack) {
             return;
@@ -141,7 +142,7 @@ static void unsafe_store_or_discard_stack(ddtrace_coms_stack_t *stack) {
     ddtrace_coms_free_stack(stack);
 }
 
-static inline void unsafe_cleanup_dirty_stack_area() {
+static void unsafe_cleanup_dirty_stack_area(void) {
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
     if (!ddtrace_coms_global_state.tmp_stack) {
         return;
@@ -156,7 +157,7 @@ static inline void unsafe_cleanup_dirty_stack_area() {
     ddtrace_coms_global_state.tmp_stack = NULL;
 }
 
-static void unsafe_store_or_swap_current_stack_for_empty_stack() {
+static void unsafe_store_or_swap_current_stack_for_empty_stack(void) {
     unsafe_cleanup_dirty_stack_area();
 
     // store the temp variable if we ever need to recover it
@@ -171,7 +172,7 @@ static void unsafe_store_or_swap_current_stack_for_empty_stack() {
 
     if (*current_stack) {
         // try to swap out current stack for an empty stack
-        for (int i = 0; i < DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+        for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
             ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
             if (stack_tmp && ddtrace_coms_is_stack_free(stack_tmp)) {
                 // order is important due to ability to restore state on thread restart
@@ -187,7 +188,7 @@ static void unsafe_store_or_swap_current_stack_for_empty_stack() {
 
     // if we couldn't swap for a empty stack lets store it
     if (*current_stack) {
-        for (int i = 0; i < DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+        for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
             ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
             if (!stack_tmp) {
                 atomic_store(&ddtrace_coms_global_state.current_stack, NULL);
@@ -202,13 +203,13 @@ static void unsafe_store_or_swap_current_stack_for_empty_stack() {
     *current_stack = NULL;
 }
 
-BOOL_T ddtrace_coms_rotate_stack(BOOL_T attempt_allocate_new) {
+bool ddtrace_coms_rotate_stack(bool attempt_allocate_new) {
     unsafe_store_or_swap_current_stack_for_empty_stack();
 
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
 
     if (current_stack && ddtrace_coms_is_stack_free(current_stack)) {
-        return TRUE;
+        return true;
     }
 
     // old current stack was stored so set a new stack
@@ -218,46 +219,42 @@ BOOL_T ddtrace_coms_rotate_stack(BOOL_T attempt_allocate_new) {
             *next_stack = new_stack();
             atomic_store(&ddtrace_coms_global_state.current_stack, *next_stack);
             *next_stack = NULL;
-            return TRUE;
+            return true;
         }
     }
 
     // we couldn't store old stack or allocate a new one so we cannot provide new empty stack
-    return FALSE;
+    return false;
 }
 
-BOOL_T ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) {
+bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) {
     if (!data) {
-        return FALSE;
-    }
-
-    if (data && size == 0) {
-        size = strlen(data);
+        return false;
     }
 
     if (size == 0) {
-        return FALSE;
+        size = strlen(data);
+        if (size == 0) {
+            return false;
+        }
     }
-    BOOL_T store_result = store_data(group_id, data, size);
+
+    uint32_t store_result = store_data(group_id, data, size);
 
     if (is_memory_pressure_high()) {
         ddtrace_coms_trigger_writer_flush();
     }
 
     if (store_result == ENOMEM) {
-        ddtrace_coms_threadsafe_rotate_stack(TRUE);
+        ddtrace_coms_threadsafe_rotate_stack(true);
         ddtrace_coms_trigger_writer_flush();
         store_result = store_data(group_id, data, size);
     }
 
-    if (store_result == 0) {
-        return TRUE;
-    } else {
-        return FALSE;
-    }
+    return store_result == 0;
 }
 
-group_id_t ddtrace_coms_next_group_id() { return atomic_fetch_add(&ddtrace_coms_global_state.next_group_id, 1); }
+group_id_t ddtrace_coms_next_group_id(void) { return atomic_fetch_add(&ddtrace_coms_global_state.next_group_id, 1); }
 
 struct _grouped_stack_t {
     size_t position, total_bytes, total_groups;
@@ -272,7 +269,7 @@ static size_t write_array_header(char *buffer, size_t buffer_size, size_t positi
     char *data = buffer + position;
     if (array_size < 16) {
         if (free_space >= 1) {
-            mpack_store_u8(data, (uint8_t)(0x90 | array_size));
+            mpack_store_u8(data, (uint8_t)(0x90u | array_size));
             return 1;
         }
     } else if (array_size < UINT16_MAX) {
@@ -311,7 +308,7 @@ static size_t write_to_buffer(char *buffer, size_t buffer_size, size_t position,
     return write_size;
 }
 
-static inline BOOL_T ensure_correct_dest_capacity(struct _grouped_stack_t *dest, size_t position, size_t write_size) {
+static bool ensure_correct_dest_capacity(struct _grouped_stack_t *dest, size_t position, size_t write_size) {
     size_t requested_size = position + write_size;
 
     if (requested_size > dest->dest_size) {
@@ -322,11 +319,11 @@ static inline BOOL_T ensure_correct_dest_capacity(struct _grouped_stack_t *dest,
             dest->dest_data = new_ptr;
             dest->dest_size = requested_size;
         } else {
-            return FALSE;
+            return false;
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 void write_metadata(struct _grouped_stack_t *dest, size_t position, size_t elements_in_group, size_t bytes_in_group) {
@@ -389,7 +386,7 @@ struct _entry_t {
     char *raw_entry;
 };
 
-static inline struct _entry_t create_entry(ddtrace_coms_stack_t *stack, size_t position) {
+static struct _entry_t create_entry(ddtrace_coms_stack_t *stack, size_t position) {
     struct _entry_t rv = {.size = 0, .group_id = 0, .data = NULL, .next_entry_offset = 0};
     size_t bytes_written = atomic_load(&stack->bytes_written);
 
@@ -413,12 +410,12 @@ static inline struct _entry_t create_entry(ddtrace_coms_stack_t *stack, size_t p
     return rv;
 }
 
-static inline void mark_entry_as_processed(struct _entry_t *entry) {
+static void mark_entry_as_processed(struct _entry_t *entry) {
     group_id_t processed_special_id = GROUP_ID_PROCESSED;
     memcpy(entry->raw_entry + sizeof(size_t), &processed_special_id, sizeof(group_id_t));
 }
 
-static inline size_t append_entry(struct _entry_t *entry, struct _grouped_stack_t *dest, size_t position) {
+static size_t append_entry(struct _entry_t *entry, struct _grouped_stack_t *dest, size_t position) {
     if (ensure_correct_dest_capacity(dest, position, entry->size)) {
         memcpy(dest->dest_data + position, entry->data, entry->size);
         return entry->size;
@@ -427,7 +424,7 @@ static inline size_t append_entry(struct _entry_t *entry, struct _grouped_stack_
     }
 }
 
-void ddtrace_msgpack_group_stack_by_id(ddtrace_coms_stack_t *stack, struct _grouped_stack_t *dest) {
+static void _msgpack_group_stack_by_id(ddtrace_coms_stack_t *stack, struct _grouped_stack_t *dest) {
     // perform an insertion sort by group_id
     uint32_t current_group_id = 0;
     struct _entry_t first_entry = create_entry(stack, 0);
@@ -490,23 +487,19 @@ void ddtrace_msgpack_group_stack_by_id(ddtrace_coms_stack_t *stack, struct _grou
         current_src_beginning = next_src_beginning;
     }
     dest->total_bytes = group_dest_beginning_position;  // save total bytes count after conversion
-
-    return;
 }
 
 void *ddtrace_init_read_userdata(ddtrace_coms_stack_t *stack) {
     size_t total_bytes = atomic_load(&stack->bytes_written);
 
-    struct _grouped_stack_t *readstack_ptr = malloc(sizeof(struct _grouped_stack_t));
-    struct _grouped_stack_t readstack = {.position = 0, .total_bytes = total_bytes};
+    struct _grouped_stack_t *readstack = calloc(1, sizeof(struct _grouped_stack_t));
+    readstack->total_bytes = total_bytes;
+    readstack->dest_size = atomic_load(&stack->bytes_written) + 2000;
+    readstack->dest_data = malloc(readstack->dest_size);
 
-    readstack.dest_size = atomic_load(&stack->bytes_written) + 2000;
-    readstack.dest_data = malloc(readstack.dest_size);
+    _msgpack_group_stack_by_id(stack, readstack);
 
-    ddtrace_msgpack_group_stack_by_id(stack, &readstack);
-    *readstack_ptr = readstack;
-
-    return readstack_ptr;
+    return readstack;
 }
 
 void ddtrace_deinit_read_userdata(void *userdata) {
@@ -517,10 +510,10 @@ void ddtrace_deinit_read_userdata(void *userdata) {
     free(userdata);
 }
 
-ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack() {
+ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack(void) {
     ddtrace_coms_stack_t *stack = NULL;
 
-    for (int i = 0; i < DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+    for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
         ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
         if (stack_tmp && atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) > 0) {
             stack = stack_tmp;

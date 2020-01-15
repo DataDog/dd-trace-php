@@ -1,12 +1,13 @@
 #ifndef DD_COMS_H
 #define DD_COMS_H
+
+#include <stdbool.h>
 #include <stdint.h>
 
-#include "env_config.h"
 #include "vendor_stdatomic.h"
 
-#define DD_TRACE_COMS_STACK_SIZE (1024 * 1024 * 10)  // 10 MB
-#define DD_TRACE_COMS_STACKS_BACKLOG_SIZE 10
+#define DDTRACE_COMS_STACK_SIZE (1024 * 1024 * 10)  // 10 MB
+#define DDTRACE_COMS_STACKS_BACKLOG_SIZE 10
 
 typedef struct ddtrace_coms_stack_t {
     size_t size;
@@ -23,24 +24,22 @@ typedef struct ddtrace_coms_state_t {
     _Atomic(uint32_t) next_group_id;
 } ddtrace_coms_state_t;
 
-inline static BOOL_T ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack) {
-    return atomic_load(&stack->refcount) == 0;
-}
+inline bool ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack) { return atomic_load(&stack->refcount) == 0; }
 
-inline static BOOL_T ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
+inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
     return ddtrace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0;
 }
 
-BOOL_T ddtrace_coms_rotate_stack(BOOL_T allocate_new);
+bool ddtrace_coms_rotate_stack(bool allocate_new);
 ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack();
 
-BOOL_T ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size);
-BOOL_T ddtrace_coms_initialize();
-void ddtrace_coms_shutdown();
+bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size);
+bool ddtrace_coms_initialize(void);
+void ddtrace_coms_shutdown(void);
 size_t ddtrace_coms_read_callback(char *buffer, size_t size, size_t nitems, void *userdata);
 void *ddtrace_init_read_userdata(ddtrace_coms_stack_t *stack);
 void ddtrace_deinit_read_userdata(void *);
-uint32_t ddtrace_coms_next_group_id();
+uint32_t ddtrace_coms_next_group_id(void);
 
 void ddtrace_coms_free_stack();
 
