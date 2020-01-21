@@ -5,6 +5,7 @@ use DDTrace\Tests\Integrations\AWS\SQS\TestSQSClientSupport;
 require __DIR__ . '/../../../../../vendor/autoload.php';
 require __DIR__ . '/../TestSQSClientSupport.php';
 
+use DDTrace\Tag;
 
 function my_message_handler(array $message)
 {
@@ -12,9 +13,24 @@ function my_message_handler(array $message)
 }
 
 $tracer = DDTrace\GlobalTracer::get();
-$tracer->isolateTracedFunction('my_message_handler', function () {
-    error_log('I am in callback');
-    return dd_trace_forward_call();
+$tracer->isolateTracedFunction('my_message_handler', function () use ($tracer) {
+    error_log('I am in callback ' . get_class($tracer));
+    $scope = $tracer->startRootSpan('my_operation');
+    error_log('before');
+    try {
+        $result = dd_trace_forward_call();
+        error_log('after');
+        $span = $scope->getSpan();
+        $span->setTag(Tag::SERVICE_NAME, 'my_service');
+        $span->setTag(Tag::RESOURCE_NAME, 'my_resource');
+        $span->finish();
+        $scope->close();
+        error_log('Hey!');
+        $tracer->flush();
+        return $result;
+    } catch (\Exception $ex) {
+        error_log('Caught exception: ' . print_r($ex, 1));
+    }
 });
 
 $client = TestSQSClientSupport::newInstance();

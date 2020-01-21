@@ -16,7 +16,7 @@ final class SQSSandboxedIntegrationTest extends CLITestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_APP_NAME' => 'sqs_test_app',
-            'DD_TRACE_DEBUG' => 'false',
+            'DD_TRACE_DEBUG' => 'true',
         ]);
     }
 

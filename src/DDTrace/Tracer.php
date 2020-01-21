@@ -160,6 +160,7 @@ final class Tracer implements TracerInterface
      */
     public function startSpan($operationName, $options = [])
     {
+        error_log('Starting span');
         if (!$this->config['enabled']) {
             return NoopSpan::create();
         }
@@ -296,6 +297,7 @@ final class Tracer implements TracerInterface
      */
     public function flush()
     {
+        error_log('FLushing......................');
         if (!$this->config['enabled']) {
             return;
         }
@@ -404,10 +406,9 @@ final class Tracer implements TracerInterface
     public function isolateTracedFunction($functionName, $callback)
     {
         $tracer = $this;
-        error_log('Tracing ' . $functionName);
-        \dd_trace($functionName, function () use ($tracer, $callback) {
+        \dd_trace_function($functionName, function () use ($tracer, $callback) {
             $tracer->reset();
-            dd_trace_forward_call();
+            // dd_trace_forward_call();
             // $callback();
             Bootstrap::flushTracerShutdown();
         });
