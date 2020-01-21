@@ -172,6 +172,11 @@ class Configuration extends AbstractConfiguration
         return $this->indexedStringArrayValue('trace.entry.points');
     }
 
+    public function isExplicitTracingEnabled()
+    {
+        return true;
+    }
+
     /**
      * Append hostname as a root span tag
      *

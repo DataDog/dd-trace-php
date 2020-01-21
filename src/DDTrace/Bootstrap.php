@@ -26,6 +26,8 @@ final class Bootstrap
         }
 
         self::$bootstrapped = true;
+
+        $config = Configuration::get();
         $tracer = self::resetTracer();
         self::registerOpenTracing();
 
@@ -38,48 +40,52 @@ final class Bootstrap
             $tracer->flush();
         };
 
-        $entryPoints = Configuration::get()->getTraceEntryPoints();
-        if ($entryPoints) {
-            foreach ($entryPoints as $entryPoint) {
-                error_log('Registering entry point: ' . print_r($entryPoint, 1));
-                $parts = \explode('::', $entryPoint);
-                $class_or_function = $parts[0];
-                if (empty($parts[1])) {
-                    dd_trace_function($class_or_function, function (SpanData $span) {
-                        $span->service = "__service";
-                        $span->name = "__class_or_function";
-                        $span->resource = "__class_or_function";
-                        $span->type = "custom";
+        // $entryPoints = Configuration::get()->getTraceEntryPoints();
+        // if ($entryPoints) {
+        //     foreach ($entryPoints as $entryPoint) {
+        //         error_log('Registering entry point: ' . print_r($entryPoint, 1));
+        //         $parts = \explode('::', $entryPoint);
+        //         $class_or_function = $parts[0];
+        //         if (empty($parts[1])) {
+        //             dd_trace_function($class_or_function, function (SpanData $span) {
+        //                 $span->service = "__service";
+        //                 $span->name = "__class_or_function";
+        //                 $span->resource = "__class_or_function";
+        //                 $span->type = "custom";
 
-                        Bootstrap::flushTracerShutdown();
-                        error_log('Flushed tracer....');
-                    });
-                }
+        //                 Bootstrap::flushTracerShutdown();
+        //                 error_log('Flushed tracer....');
+        //             });
+        //         }
+        //     }
+        //     return;
+        // }
+
+        // Sandbox API is not supported on PHP 5.4
+        if (PHP_VERSION_ID < 50500) {
+            if (!$config->isExplicitTracingEnabled()) {
+                register_shutdown_function($flushTracer);
             }
             return;
         }
 
-        // Sandbox API is not supported on PHP 5.4
-        if (PHP_VERSION_ID < 50500) {
-            register_shutdown_function($flushTracer);
-            return;
-        }
-
-        self::initRootSpan($tracer);
         dd_trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', $flushTracer);
-        register_shutdown_function(function () {
-            /*
-             * Register the shutdown handler during shutdown so that it is run after all the other shutdown handlers.
-             * Doing this ensures:
-             * 1) Calls in shutdown hooks will still be instrumented
-             * 2) Fatal errors (or any zend_bailout) during flush will happen after the user's shutdown handlers
-             * Note: Other code that implements this same technique will be run _after_ the tracer shutdown.
-             */
+        if (!$config->isExplicitTracingEnabled()) {
+            self::initRootSpan($tracer);
             register_shutdown_function(function () {
-                // We wrap the call in a closure to prevent OPcache from skipping the call.
-                Bootstrap::flushTracerShutdown();
+                /*
+                * Register the shutdown handler during shutdown so that it is run after all the other shutdown handlers.
+                * Doing this ensures:
+                * 1) Calls in shutdown hooks will still be instrumented
+                * 2) Fatal errors (or any zend_bailout) during flush will happen after the user's shutdown handlers
+                * Note: Other code that implements this same technique will be run _after_ the tracer shutdown.
+                */
+                register_shutdown_function(function () {
+                    // We wrap the call in a closure to prevent OPcache from skipping the call.
+                    Bootstrap::flushTracerShutdown();
+                });
             });
-        });
+        }
     }
 
     public static function flushTracerShutdown()

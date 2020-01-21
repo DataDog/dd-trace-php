@@ -64,7 +64,9 @@ abstract class CLITestCase extends IntegrationTestCase
         $inis = (string) new IniSerializer(static::getInis());
         $script = escapeshellarg($this->getScriptLocation());
         $arguments = escapeshellarg($arguments);
-        `$envs php $inis $script $arguments`;
+        $command = "$envs php $inis $script $arguments";
+        error_log('Command: ' . print_r($command, 1));
+        `$command`;
         return $this->loadTrace();
     }
 

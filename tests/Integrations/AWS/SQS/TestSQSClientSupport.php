@@ -21,11 +21,10 @@ final class TestSQSClientSupport
             'version' => '2012-11-05',
             'endpoint' => 'http://aws_integration:4576',
         ]);
-        self::resetTestQueue($client);
         return $client;
     }
 
-    private static function resetTestQueue(SqsClient $client)
+    public static function resetTestQueue(SqsClient $client)
     {
         $queueExists = false;
         try {
@@ -38,7 +37,6 @@ final class TestSQSClientSupport
 
         if ($queueExists) {
             $client->deleteQueue(['QueueUrl' => self::QUEUE_URL]);
-            //\sleep(1);
         }
 
         $client->createQueue([

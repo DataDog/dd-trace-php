@@ -401,6 +401,18 @@ final class Tracer implements TracerInterface
         return $tracesToBeSent;
     }
 
+    public function isolateTracedFunction($functionName, $callback)
+    {
+        $tracer = $this;
+        error_log('Tracing ' . $functionName);
+        \dd_trace($functionName, function () use ($tracer, $callback) {
+            $tracer->reset();
+            dd_trace_forward_call();
+            // $callback();
+            Bootstrap::flushTracerShutdown();
+        });
+    }
+
     private function addHostnameToRootSpan()
     {
         $hostname = gethostname();
