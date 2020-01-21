@@ -77,6 +77,7 @@ Zend/tests/type_declarations/iterable_003.phpt
 Zend/tests/type_declarations/scalar_return_basic_64bit.phpt
 Zend/tests/type_declarations/scalar_strict_64bit.phpt
 Zend/tests/type_declarations/self_on_closure_in_method.phpt
+ext/curl/tests/bug64267.phpt
 ext/date/tests/012.phpt
 ext/date/tests/013.phpt
 ext/date/tests/DateTimeZone_serialize_type_3.phpt
@@ -257,6 +258,7 @@ ext/standard/tests/array/uasort_object1.phpt
 ext/standard/tests/assert/assert_variation.phpt
 ext/standard/tests/class_object/get_object_vars_variation_002.phpt
 ext/standard/tests/class_object/get_object_vars_variation_004.phpt
+ext/standard/tests/file/disk_free_space_basic.phpt
 ext/standard/tests/general_functions/bug73973.phpt
 ext/standard/tests/general_functions/get_included_files.phpt
 ext/standard/tests/general_functions/gettype_settype_basic.phpt

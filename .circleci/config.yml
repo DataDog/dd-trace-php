@@ -361,7 +361,8 @@ jobs:
               cp "<<parameters.xfail_list>>" /usr/src/php/xfail_tests.list
               (
                 cd /usr/src/php
-                cat xfail_tests.list | xargs -n 1 sed -i -e $'s/\(--FILE.*--\)/--XFAIL--\\\nvar_dump missmatch\\\n\\1/g'
+                cat xfail_tests.list | xargs -n 1 grep -L '\-\-SKIPIF\-\-' | xargs -n 1 -r sed -i -e $'s/\(--FILE.*--\)/--SKIPIF--\\\n\\1/g' || true
+                cat xfail_tests.list | xargs -n 1 sed -i -e $'s/\(--SKIPIF--\)/\\1\\\nskip Unreliable output or flaky test/g'
               )
             fi
             cd /usr/src/php
@@ -378,11 +379,13 @@ jobs:
             cd /usr/src/php
             mkdir -p /tmp/artifacts/core_dumps
             find ./ -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            mkdir -p /tmp/artifacts/diffs
+            find -type f -name '*.diff' -exec cp --parents '{}' /tmp/artifacts/diffs \;
           when: on_fail
       - store_test_results:
           path: /tmp/artifacts/tests/
       - store_artifacts:
-          path: /tmp/artifacts/tests/files/
+          path: /tmp/artifacts/
 
   integration_tests:
     working_directory: ~/datadog
@@ -393,6 +396,7 @@ jobs:
         type: string
       lib_curl_command:
         type: string
+        default: none
       resource_class:
         type: string
         default: medium
@@ -442,6 +446,7 @@ jobs:
         type: string
       lib_curl_command:
         type: string
+        default: none
     executor:
       name: with_agent
       docker_image: << parameters.docker_image >>
@@ -502,6 +507,7 @@ jobs:
         default: true
       lib_curl_command:
         type: string
+        default: none
     docker: [ image: << parameters.docker_image >> ]
     environment:
       CFLAGS: ""
@@ -630,6 +636,11 @@ workflows:
           so_suffix: "20180731"
       - compile_extension:
           requires: [ 'Code Checkout' ]
+          name: "Compile PHP 74"
+          docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
+          so_suffix: "20190902"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
           name: "Compile PHP 56-zts"
           docker_image: "circleci/php:5.6-zts"
           lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
@@ -658,6 +669,12 @@ workflows:
           docker_image: "circleci/php:7.3-zts"
           lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
           so_suffix: "20180731-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 74-zts"
+          docker_image: "circleci/php:7.4-zts"
+          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
+          so_suffix: "20190902-zts"
       - "package extension":
           requires:
             - "Compile PHP 54"
@@ -666,11 +683,13 @@ workflows:
             - "Compile PHP 71"
             - "Compile PHP 72"
             - "Compile PHP 73"
+            - "Compile PHP 74"
             - "Compile PHP 56-zts"
             - "Compile PHP 70-zts"
             - "Compile PHP 71-zts"
             - "Compile PHP 72-zts"
             - "Compile PHP 73-zts"
+            - "Compile PHP 74-zts"
       - "package verification":
           requires:
             - "package extension"
@@ -771,12 +790,22 @@ workflows:
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - unit_tests:
           requires: [ 'Code Checkout' ]
+          name: "PHP 74 Unit tests"
+          docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
+          valgrind_config: 7_4_musl
+      - unit_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 74 asan tests"
           docker_image: "datadog/dd-trace-php:7.4-buster-debug-asan"
           unit_test_target: test_c_asan
       - placeholder:
           requires: [ 'Code Checkout' ]
           name: Language tests
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 74 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/7.4.list
+          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 73 language tests"
@@ -845,6 +874,11 @@ workflows:
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Code Checkout' ]
+          name: "PHP 74 Integration tests"
+          integration_testsuite: "test-integrations-74"
+          docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
+      - integration_tests:
+          requires: [ 'Code Checkout' ]
           name: "PHP 54 Web integration tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
           integration_testsuite: "test-web-54"
@@ -861,28 +895,30 @@ workflows:
           name: "PHP 70 Web integration tests"
           integration_testsuite: "test-web-70"
           docker_image: "datadog/dd-trace-ci:php-dev-7.0"
-          lib_curl_command: ":"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 71 Web integration tests"
           resource_class: medium+
           integration_testsuite: "test-web-71"
           docker_image: "datadog/dd-trace-ci:php-dev-7.1"
-          lib_curl_command: ":"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 72 Web integration tests"
           resource_class: medium+
           integration_testsuite: "test-web-72"
           docker_image: "datadog/dd-trace-ci:php-dev-7.2"
-          lib_curl_command: ":"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 73 Web integration tests"
           resource_class: medium+
           integration_testsuite: "test-web-73"
           docker_image: "datadog/dd-trace-ci:php-dev-7.3"
-          lib_curl_command: ":"
+      - integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 74 Web integration tests"
+          resource_class: medium+
+          integration_testsuite: "test-web-74"
+          docker_image: "datadog/dd-trace-ci:php-dev-7.4"
       - hyperfine_tests:
           requires: [ 'Code Checkout' ]
           name: "Hyperfine 54 benchmarks"
@@ -913,6 +949,10 @@ workflows:
           name: "Hyperfine 73 benchmarks"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - hyperfine_tests:
+          requires: [ 'Code Checkout' ]
+          name: "Hyperfine 74 benchmarks"
+          docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
       - "Lint files":
           requires: [ 'Code Checkout' ]
       - "Static Analysis":

@@ -39,4 +39,4 @@ echo 'Done' . PHP_EOL;
 Done
 Flushing...
 
-PHP Fatal error:  Allowed memory size of 2097152 bytes exhausted %s (tried to allocate %d bytes) in %s on line %d
+%sAllowed memory size of 2097152 bytes exhausted%s(tried to allocate %d bytes) in %s on line %d
