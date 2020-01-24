@@ -26,7 +26,7 @@ final class TracerTest extends BaseTestCase
 
     public function testGlobalTagsArePresentOnLegacySpansByFlushTime()
     {
-        $traces = $this->isolateTracer(function (Tracer $tracer) {
+        $traces = $this->simulateAgent(function (Tracer $tracer) {
             $scope = $tracer->startRootSpan('custom.name', [
                 'tags' => [
                     'local_tag' => 'local',
@@ -57,7 +57,7 @@ final class TracerTest extends BaseTestCase
         });
 
         $test = $this;
-        $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
+        $traces = $this->simulateAgent(function (Tracer $tracer) use ($test) {
             $test->dummyMethod();
         });
 

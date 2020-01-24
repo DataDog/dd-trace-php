@@ -26,16 +26,7 @@ trait TracerTestTrait
     {
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
-        $transport = new DebugTransport();
-        $tracer = $tracer ?: new Tracer($transport);
-        GlobalTracer::set($tracer);
-
-        $fn($tracer);
-
-        // Checking spans belong to the proper integration
-        $this->assertSpansBelongsToProperIntegration($this->readTraces($tracer));
-
-        return $this->flushAndGetTraces($transport);
+        return $this->simulateAgent($fn, $tracer);
     }
 
     /**
@@ -47,15 +38,13 @@ trait TracerTestTrait
     {
         // Reset the current C-level array of generated spans
         dd_trace_serialize_closed_spans();
-        $transport = new DebugTransport();
-        $tracer = $tracer ?: new Tracer($transport);
-        GlobalTracer::set($tracer);
 
-        $scope = $tracer->startRootSpan('root_span');
-        $fn($tracer);
-        $scope->close();
-
-        return $this->flushAndGetTraces($transport);
+        return $this->simulateAgent(function () use ($fn) {
+            $tracer = GlobalTracer::get();
+            $scope = $tracer->startRootSpan('root_span');
+            $fn($tracer);
+            $scope->close();
+        }, $tracer);
     }
 
 
@@ -71,13 +60,7 @@ trait TracerTestTrait
         putenv('DD_TRACE_SPANS_LIMIT=0');
         dd_trace_internal_fn('ddtrace_reload_config');
 
-        $transport = new DebugTransport();
-        $tracer = $tracer ?: new Tracer($transport);
-        GlobalTracer::set($tracer);
-
-        $fn($tracer);
-
-        $traces =  $this->flushAndGetTraces($transport);
+        $traces =  $this->simulateAgent($fn, $tracer);
 
         putenv('DD_TRACE_SPANS_LIMIT');
         dd_trace_internal_fn('ddtrace_reload_config');
@@ -115,10 +98,8 @@ trait TracerTestTrait
         /** @var DebugTransport $transport */
         $tracer->flush();
 
-        // Checking that spans belong to the correct integrations.
-        $this->assertSpansBelongsToProperIntegration($this->readTraces($tracer));
-
-        return $this->parseTracesFromDumpedData();
+        $traces = $this->parseTracesFromDumpedData();
+        return $traces;
     }
 
     /**
@@ -314,20 +295,5 @@ trait TracerTestTrait
         $tracesProperty = $tracerReflection->getProperty('traces');
         $tracesProperty->setAccessible(true);
         return $tracesProperty->getValue($tracer);
-    }
-
-    /**
-     * Asserting that a Span belongs to the expected integration.
-     *
-     * @param array $traces
-     */
-    private function assertSpansBelongsToProperIntegration(array $traces)
-    {
-        $spanIntegrationChecker = new SpanIntegrationChecker();
-        foreach ($traces as $trace) {
-            foreach ($trace as $span) {
-                $spanIntegrationChecker->checkIntegration($this, $span);
-            }
-        }
     }
 }
