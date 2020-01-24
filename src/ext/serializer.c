@@ -92,6 +92,11 @@ static int write_hash_table(mpack_writer_t *writer, HashTable *ht TSRMLS_DC) /* 
 
 static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) /* {{{ */
 {
+#if PHP_VERSION_ID >= 70000
+    if (Z_TYPE_P(trace) == IS_REFERENCE) {
+        trace = Z_REFVAL_P(trace);
+    }
+#endif
     switch (Z_TYPE_P(trace)) {
         case IS_ARRAY:
             if (write_hash_table(writer, Z_ARRVAL_P(trace) TSRMLS_CC) != 1) {
@@ -124,10 +129,7 @@ static int msgpack_write_zval(mpack_writer_t *writer, zval *trace TSRMLS_DC) /* 
             break;
 #endif
         default:
-            if (DDTRACE_G(strict_mode)) {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                        "Serialize values must be of type array, string, int, float, bool or null");
-            }
+            ddtrace_log_debug("Serialize values must be of type array, string, int, float, bool or null");
             return 0;
             break;
     }
