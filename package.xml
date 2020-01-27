@@ -279,6 +279,9 @@
                 <file name="polyfill.m4" role="src" />
             </dir>
             <file name="LICENSE" role="doc" />
+            <file name="LICENSE.Apache" role="doc" />
+            <file name="LICENSE.BSD3" role="doc" />
+            <file name="NOTICE" role="doc" />
             <file name="README.md" role="doc" />
             <file name="UPGRADE-0.10.md" role="doc" />
         </dir>
