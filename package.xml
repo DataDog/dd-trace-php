@@ -10,17 +10,30 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2020-01-27</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.38.0</release>
+        <api>0.38.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Added
+        - Official support for PHP 7.4 #723
+        - Tools to measure memory overhead #718
+
+        ### Changed
+        - Move Laravel to sanboxed api #700
+        - Remove the sandbox API for PHP 5.4 #719
+        - Dual-licensed under Apache 2.0 or BSD3 #727
+
+        ### Fixed
+        - README reference to RELEASING.md was removed #720 (thanks @v1v!)
+        - MessagePack serialization with a reference #730
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
