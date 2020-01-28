@@ -265,6 +265,8 @@ struct _grouped_stack_t {
 };
 
 static size_t write_array_header(char *buffer, size_t buffer_size, size_t position, uint32_t array_size) {
+    // todo: fix background sender's model now that we send complete traces
+    return 0;
     size_t free_space = buffer_size - position;
     char *data = buffer + position;
     if (array_size < 16) {
@@ -508,6 +510,11 @@ void ddtrace_deinit_read_userdata(void *userdata) {
         free(data->dest_data);
     }
     free(userdata);
+}
+
+size_t ddtrace_read_userdata_get_total_groups(void *userdata) {
+    struct _grouped_stack_t *data = userdata;
+    return data->total_groups;
 }
 
 ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack(void) {

@@ -365,11 +365,7 @@ final class Tracer implements TracerInterface
 
                 $this->traceAnalyticsProcessor->process($span);
                 $encodedSpan = SpanEncoder::encode($span);
-                if (dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
-                    dd_trace_buffer_span($encodedSpan);
-                } else {
-                    $traceToBeSent[] = $encodedSpan;
-                }
+                $traceToBeSent[] = $encodedSpan;
             }
 
             if ($traceToBeSent === null) {
@@ -397,19 +393,10 @@ final class Tracer implements TracerInterface
             }
         }
 
-        if (dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')) {
-            array_map(function ($span) {
-                dd_trace_buffer_span($span);
-            }, $internalSpans);
-        } elseif (!empty($internalSpans)) {
+        if (!empty($internalSpans)) {
             $tracesToBeSent[0] = isset($tracesToBeSent[0])
                 ? array_merge($tracesToBeSent[0], $internalSpans)
                 : $internalSpans;
-        }
-
-        if (empty($tracesToBeSent)) {
-            self::logDebug('No finished traces to be sent to the agent');
-            return [];
         }
 
         return $tracesToBeSent;
