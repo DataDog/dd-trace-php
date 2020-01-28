@@ -29,10 +29,6 @@ The **ddtrace** package provides an [OpenTracing-compatible tracer](https://docs
 
 Before contributing to this open source project, read our [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Releasing
-
-See [RELEASING](RELEASING.md) for more information on releasing new versions.
-
 ## Security Vulnerabilities
 
 If you have found a security issue, please contact the security team directly at [security@datadoghq.com](mailto:security@datadoghq.com).

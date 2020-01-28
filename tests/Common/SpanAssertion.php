@@ -352,6 +352,15 @@ final class SpanAssertion
     }
 
     /**
+     * @param $condition
+     * @return $this
+     */
+    public function onlyIf($condition)
+    {
+        return $this->skipIf(!$condition);
+    }
+
+    /**
      * @return bool
      */
     public function isToBeSkipped()

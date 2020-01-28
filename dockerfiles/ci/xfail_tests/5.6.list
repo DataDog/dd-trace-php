@@ -72,6 +72,7 @@ Zend/tests/strict_001.phpt
 Zend/tests/traits/property008.phpt
 Zend/tests/traits/property009.phpt
 Zend/tests/unset_cv08.phpt
+ext/curl/tests/bug64267.phpt
 ext/curl/tests/curl_basic_009.phpt
 ext/date/tests/012.phpt
 ext/date/tests/013.phpt
@@ -236,6 +237,7 @@ ext/standard/tests/class_object/property_exists_variation1.phpt
 ext/standard/tests/class_object/trait_exists_basic_001.phpt
 ext/standard/tests/class_object/trait_exists_variation_001.phpt
 ext/standard/tests/class_object/trait_exists_variation_002.phpt
+ext/standard/tests/file/disk_free_space_basic.phpt
 ext/standard/tests/general_functions/bug35229.phpt
 ext/standard/tests/general_functions/error_get_last.phpt
 ext/standard/tests/general_functions/get_included_files.phpt

@@ -21,7 +21,7 @@ static void *test_writer_function(void *_) {
     return NULL;
 }
 
-uint32_t ddtrace_coms_test_writers() {
+uint32_t ddtrace_coms_test_writers(void) {
     int threads = 100, ret = -1;
 
     pthread_t *thread = malloc(sizeof(pthread_t) * threads);
@@ -46,12 +46,12 @@ uint32_t ddtrace_coms_test_writers() {
     return 1;
 }
 
-uint32_t ddtrace_coms_test_consumer() {
-    if (!ddtrace_coms_rotate_stack(TRUE)) {
+uint32_t ddtrace_coms_test_consumer(void) {
+    if (!ddtrace_coms_rotate_stack(true)) {
         printf("error rotating stacks");
     }
 
-    for (int i = 0; i < DD_TRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
+    for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
         ddtrace_coms_stack_t *stack = ddtrace_coms_global_state.stacks[i];
         if (!stack) continue;
 
@@ -100,8 +100,8 @@ uint32_t ddtrace_coms_test_consumer() {
         }                                                       \
     } while (0)
 
-uint32_t ddtrace_coms_test_msgpack_consumer() {
-    ddtrace_coms_rotate_stack(TRUE);
+uint32_t ddtrace_coms_test_msgpack_consumer(void) {
+    ddtrace_coms_rotate_stack(true);
 
     ddtrace_coms_stack_t *stack = ddtrace_coms_attempt_acquire_stack();
     if (!stack) {

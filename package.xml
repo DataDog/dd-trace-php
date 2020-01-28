@@ -127,7 +127,7 @@
                     <file name="dd_trace_api_error.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack_error.phpt" role="test" />
-                    <file name="dd_trace_serialize_msgpack_error_strict.phpt" role="test" />
+                    <file name="dd_trace_serialize_msgpack_reference.phpt" role="test" />
                     <file name="dd_trace_coms_empty_stacks_correctly_recycled.phpt" role="test" />
                     <file name="dd_trace_coms_curl_out.phpt" role="test" />
                     <file name="dd_trace_coms_test_span_concatenation.phpt" role="test" />
@@ -180,6 +180,7 @@
                         <file name="safe_to_string_metadata.phpt" role="test" />
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
                         <file name="safe_to_string_properties.phpt" role="test" />
+                        <file name="sandbox_api_not_available_on_unsupported_versions.phpt" role="test" />
                         <file name="spans_out_of_sync.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     </dir>
@@ -286,7 +287,7 @@
         <required>
             <php>
                 <min>5.6</min>
-                <max>7.3.99</max>
+                <max>7.4.99</max>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>

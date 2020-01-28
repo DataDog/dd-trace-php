@@ -11,6 +11,8 @@
 extern inline dogstatsd_client dogstatsd_client_default_ctor();
 extern inline bool dogstatsd_client_is_default_client(dogstatsd_client client);
 extern inline const char *dogstatsd_metric_type_to_str(dogstatsd_metric_t type);
+extern inline const char *dogstatsd_client_status_to_str(
+    dogstatsd_client_status status);
 
 extern inline dogstatsd_client_status dogstatsd_client_count(
     dogstatsd_client *client, const char *metric, const char *value,
@@ -116,10 +118,22 @@ dogstatsd_client_status dogstatsd_client_metric_send(
   const char *tags_prefix = (tags_len + const_tags_len > 0) ? "|#" : "";
   const char *tags_separator = (tags_len > 0 && const_tags_len > 0) ? "," : "";
 
-  const char *format = "%s:%s|%s|@%.6f%s%s%s%s";
-  int size = snprintf(client->msg_buffer, client->msg_buffer_len, format, name,
-                      value, typestr, sample_rate, tags_prefix, tags,
-                      tags_separator, client->const_tags);
+  const char *format;
+  int size;
+  /* Omit the sample rate iff it is 1.0; a sample rate of 1.000000 causes issues
+   * for the agent, for some reason
+   */
+  if (sample_rate != 1.0) {
+    format = "%s:%s|%s|@%.6f%s%s%s%s";
+    size = snprintf(client->msg_buffer, client->msg_buffer_len, format, name,
+                    value, typestr, sample_rate, tags_prefix, tags,
+                    tags_separator, client->const_tags);
+  } else {
+    format = "%s:%s|%s%s%s%s%s";
+    size = snprintf(client->msg_buffer, client->msg_buffer_len, format, name,
+                    value, typestr, tags_prefix, tags, tags_separator,
+                    client->const_tags);
+  }
 
   if (size < 0) {
     return DOGSTATSD_CLIENT_E_FORMATTING;

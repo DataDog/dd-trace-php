@@ -1,9 +1,10 @@
-#ifndef DD_COMS_TEST_H
-#define DD_COMS_TEST_H
+#ifndef DD_COMS_DEBUG_H
+#define DD_COMS_DEBUG_H
+
 #include <stdint.h>
 
-uint32_t ddtrace_coms_test_writers();
-uint32_t ddtrace_coms_test_consumer();
-uint32_t ddtrace_coms_test_msgpack_consumer();
+uint32_t ddtrace_coms_test_writers(void);
+uint32_t ddtrace_coms_test_consumer(void);
+uint32_t ddtrace_coms_test_msgpack_consumer(void);
 
-#endif  // DD_COMS_TEST_H
+#endif  // DD_COMS_DEBUG_H

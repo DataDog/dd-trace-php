@@ -100,6 +100,7 @@ Zend/tests/type_declarations/closure_with_variadic.phpt
 Zend/tests/type_declarations/scalar_return_basic_64bit.phpt
 Zend/tests/type_declarations/scalar_strict_64bit.phpt
 Zend/tests/type_declarations/self_on_closure_in_method.phpt
+ext/curl/tests/bug64267.phpt
 ext/curl/tests/curl_basic_009.phpt
 ext/date/tests/012.phpt
 ext/date/tests/013.phpt
@@ -297,6 +298,7 @@ ext/standard/tests/class_object/trait_exists_basic_001.phpt
 ext/standard/tests/class_object/trait_exists_variation_001.phpt
 ext/standard/tests/class_object/trait_exists_variation_002.phpt
 ext/standard/tests/dns_get_record.phpt
+ext/standard/tests/file/disk_free_space_basic.phpt
 ext/standard/tests/general_functions/bug35229.phpt
 ext/standard/tests/general_functions/bug73973.phpt
 ext/standard/tests/general_functions/get_included_files.phpt
@@ -320,3 +322,4 @@ ext/standard/tests/serialize/bug70219_1.phpt
 ext/standard/tests/serialize/serialization_objects_007.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/streams/proc_open_bug69900.phpt
+sapi/cli/tests/upload_2G.phpt

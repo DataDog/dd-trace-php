@@ -126,7 +126,7 @@ void _test_metric(const char *expect, const char *metric, const char *value,
 }
 
 TEST_CASE("count -tags -const_tags", "[dogstatsd_client]") {
-  const char *expect = "page.views:1|c|@1.000000";
+  const char *expect = "page.views:1|c";
   const char *metric = "page.views";
   dogstatsd_metric_t type = DOGSTATSD_METRIC_COUNT;
 
@@ -135,7 +135,7 @@ TEST_CASE("count -tags -const_tags", "[dogstatsd_client]") {
 }
 
 TEST_CASE("count -tags +const_tags", "[dogstatsd_client]") {
-  const char *expect = "page.views:1|c|@1.000000|#hello:world";
+  const char *expect = "page.views:1|c|#hello:world";
   const char *metric = "page.views";
   dogstatsd_metric_t type = DOGSTATSD_METRIC_COUNT;
   const char *const_tags = "hello:world";
@@ -145,7 +145,7 @@ TEST_CASE("count -tags +const_tags", "[dogstatsd_client]") {
 }
 
 TEST_CASE("count +tags -const_tags", "[dogstatsd_client]") {
-  const char *expect = "page.views:1|c|@1.000000|#lang:c";
+  const char *expect = "page.views:1|c|#lang:c";
   const char *metric = "page.views";
   dogstatsd_metric_t type = DOGSTATSD_METRIC_COUNT;
   const char *tags = "lang:c";
@@ -155,7 +155,7 @@ TEST_CASE("count +tags -const_tags", "[dogstatsd_client]") {
 }
 
 TEST_CASE("count +tags +const_tags", "[dogstatsd_client]") {
-  const char *expect = "page.views:1|c|@1.000000|#lang:c,hello:world";
+  const char *expect = "page.views:1|c|#lang:c,hello:world";
   const char *metric = "page.views";
   dogstatsd_metric_t type = DOGSTATSD_METRIC_COUNT;
   const char *tags = "lang:c";
@@ -166,7 +166,7 @@ TEST_CASE("count +tags +const_tags", "[dogstatsd_client]") {
 }
 
 TEST_CASE("gauge +tags +const_tags", "[dogstatsd_client]") {
-  const char *expect = "fuel.level:0.5|g|@1.000000|#lang:c,hello:world";
+  const char *expect = "fuel.level:0.5|g|#lang:c,hello:world";
   const char *metric = "fuel.level";
   dogstatsd_metric_t type = DOGSTATSD_METRIC_GAUGE;
   const char *tags = "lang:c";
@@ -177,7 +177,7 @@ TEST_CASE("gauge +tags +const_tags", "[dogstatsd_client]") {
 }
 
 TEST_CASE("histogram +tags +const_tags", "[dogstatsd_client]") {
-  const char *expect = "song.length:240|h|@1.000000|#lang:c,hello:world";
+  const char *expect = "song.length:240|h|#lang:c,hello:world";
   const char *metric = "song.length";
   dogstatsd_metric_t type = DOGSTATSD_METRIC_HISTOGRAM;
   const char *tags = "lang:c";

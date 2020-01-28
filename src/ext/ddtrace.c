@@ -47,6 +47,7 @@ STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, st
                     ddtrace_globals)
 PHP_INI_END()
 
+#if PHP_VERSION_ID >= 50600
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 3)
 ZEND_ARG_INFO(0, class_name)
 ZEND_ARG_INFO(0, method_name)
@@ -57,6 +58,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_function, 0, 0, 2)
 ZEND_ARG_INFO(0, function_name)
 ZEND_ARG_INFO(0, tracing_closure)
 ZEND_END_ARG_INFO()
+#endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_closed_spans, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -416,6 +418,7 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
+#if PHP_VERSION_ID >= 50600
 static PHP_FUNCTION(dd_trace_method) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *class_name = NULL;
@@ -508,6 +511,7 @@ static PHP_FUNCTION(dd_trace_function) {
     zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, options TSRMLS_CC);
     RETURN_BOOL(rv);
 }
+#endif
 
 static PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
@@ -620,9 +624,7 @@ static PHP_FUNCTION(dd_trace_serialize_msgpack) {
     zval *trace_array;
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "a", &trace_array) == FAILURE) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected an array");
-        }
+        ddtrace_log_debug("Expected argument to dd_trace_serialize_msgpack() to be an array");
         RETURN_BOOL(0);
     }
 
@@ -912,10 +914,14 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_disable_in_request, NULL),
     DDTRACE_FE(dd_trace_env_config, arginfo_dd_trace_env_config),
     DDTRACE_FE(dd_trace_forward_call, NULL),
+#if PHP_VERSION_ID >= 50600
     DDTRACE_FE(dd_trace_function, arginfo_dd_trace_function),
+#endif
     DDTRACE_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL),
     DDTRACE_FE(dd_trace_internal_fn, NULL),
+#if PHP_VERSION_ID >= 50600
     DDTRACE_FE(dd_trace_method, arginfo_dd_trace_method),
+#endif
     DDTRACE_FE(dd_trace_noop, NULL),
     DDTRACE_FE(dd_trace_peek_span_id, NULL),
     DDTRACE_FE(dd_trace_pop_span_id, NULL),

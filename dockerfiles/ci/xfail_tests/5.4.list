@@ -216,6 +216,7 @@ ext/standard/tests/class_object/trait_exists_basic_001.phpt
 ext/standard/tests/class_object/trait_exists_variation_001.phpt
 ext/standard/tests/class_object/trait_exists_variation_002.phpt
 ext/standard/tests/file/007_error.phpt
+ext/standard/tests/file/disk_free_space_basic.phpt
 ext/standard/tests/file/fgetss_error.phpt
 ext/standard/tests/file/ftruncate_error.phpt
 ext/standard/tests/file/lchown_error.phpt
