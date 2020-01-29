@@ -9,7 +9,15 @@ use DDTrace\Tag;
 
 function my_message_handler(array $message)
 {
-    error_log('Handling message: ' . print_r($message, 1));
+    // A integration using the legacy api
+    $ch = curl_init('http://httpbin_integration/status/200');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_exec($ch);
+    curl_close($ch);
+
+    // An integration using the sandboxed API
+    $mysqli = \mysqli_connect('mysql_integration', 'test', 'test', 'test');
+    $mysqli->close();
 }
 
 $tracer = DDTrace\GlobalTracer::get();
