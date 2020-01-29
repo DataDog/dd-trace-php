@@ -18,6 +18,15 @@
 
 atomic_uintptr_t memoized_agent_curl_headers;
 
+void ddtrace_coms_mshutdown(void) {
+    uintptr_t desired = (uintptr_t)NULL;
+    uintptr_t expect = atomic_load(&memoized_agent_curl_headers);
+    if (expect != (uintptr_t)NULL) {
+        atomic_compare_exchange_strong(&memoized_agent_curl_headers, &expect, desired);
+        curl_slist_free_all((struct curl_slist *)expect);
+    }
+}
+
 struct _writer_thread_variables_t {
     pthread_t self;
     pthread_mutex_t interval_flush_mutex, finished_flush_mutex, stack_rotation_mutex;

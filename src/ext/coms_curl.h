@@ -20,5 +20,6 @@ bool ddtrace_coms_synchronous_flush(uint32_t timeout);
 bool ddtrace_coms_on_pid_change(void);
 void ddtrace_coms_setup_atexit_hook(void);
 void ddtrace_coms_disable_atexit_hook(void);
+void ddtrace_coms_mshutdown(void);
 
 #endif  // DD_COMS_CURL_H
