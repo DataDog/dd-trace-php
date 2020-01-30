@@ -731,7 +731,11 @@ static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
         ddtrace_log_debug("Successfully memoized Agent HTTP headers");
     }
 
-    if (!ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), payload, payload_len)) {
+    /* Encoders encode X traces, but we need to do concatenation at the
+     * transport layer too, so we strip away the msgpack array prefix.
+     * todo: properly read msgpack encoding instead of assuming 1 trace
+     */
+    if (!ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), payload + 1, payload_len - 1)) {
         ddtrace_log_debug("Unable to send payload to background sender's buffer");
     }
 

@@ -159,7 +159,8 @@ final class Http implements Transport
         }
 
         if (
-            \dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')
+            $tracesCount === 1
+            && \dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')
             && $this->encoder->getContentType() === 'application/msgpack'
         ) {
             \dd_trace_send_traces_via_thread($url, $curlHeaders, $body);

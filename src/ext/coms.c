@@ -282,8 +282,6 @@ struct _grouped_stack_t {
 };
 
 static size_t write_array_header(char *buffer, size_t buffer_size, size_t position, uint32_t array_size) {
-    // todo: fix background sender's model now that we send complete traces
-    return 0;
     size_t free_space = buffer_size - position;
     char *data = buffer + position;
     if (array_size < 16) {
@@ -388,7 +386,7 @@ size_t ddtrace_coms_read_callback(char *buffer, size_t size, size_t nitems, void
         if (read->bytes_to_write == 0) {
             break;
         }
-        written += write_array_header(buffer, buffer_size, written, num_elements);
+        // written += write_array_header(buffer, buffer_size, written, num_elements);
         read->position += sizeof(size_t) * 2;
 
         written += write_to_buffer(buffer, buffer_size, written, read);

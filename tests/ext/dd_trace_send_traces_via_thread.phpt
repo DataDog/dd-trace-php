@@ -16,11 +16,13 @@ $headers = [
     'Datadog-Meta-Lang' => 'php',
 ];
 
-// payload = [[]]
-$payload = "\x91\x90";
+// payload = []
+$payload = "\x90";
 
 
 dd_trace_send_traces_via_thread($url, $headers, $payload);
 
+echo "Done.";
 ?>
 --EXPECT--
+Done.
