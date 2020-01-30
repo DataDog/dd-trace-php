@@ -22,14 +22,14 @@ typedef uint32_t group_id_t;
 // disable checks since older GCC is throwing false errors
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-ddtrace_coms_state_t ddtrace_coms_global_state = {{0}};
+ddtrace_coms_state_t ddtrace_coms_globals = {{0}};
 #pragma GCC diagnostic pop
 #else  //__clang__
-ddtrace_coms_state_t ddtrace_coms_global_state = {.stacks = NULL};
+ddtrace_coms_state_t ddtrace_coms_globals = {.stacks = NULL};
 #endif
 
 static bool is_memory_pressure_high(void) {
-    ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_global_state.current_stack);
+    ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
     if (stack) {
         int64_t used = (((double)atomic_load(&stack->position) / (double)stack->size) * 100);
         return used > get_dd_trace_beta_high_memory_pressure_percent();
@@ -39,7 +39,7 @@ static bool is_memory_pressure_high(void) {
 }
 
 static uint32_t store_data(group_id_t group_id, const char *src, size_t size) {
-    ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_global_state.current_stack);
+    ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
     if (stack == NULL) {
         // no stack to save data to
         return ENOMEM;
@@ -70,9 +70,20 @@ static uint32_t store_data(group_id_t group_id, const char *src, size_t size) {
 }
 
 static ddtrace_coms_stack_t *new_stack(size_t min_size) {
-    size_t size = DDTRACE_COMS_STACK_SIZE;
-    while (min_size > size) {
+    size_t initial_size = atomic_load(&ddtrace_coms_globals.stack_size);
+    size_t size = initial_size;
+    while (min_size > size && size <= DDTRACE_COMS_STACK_HALF_MAX_SIZE) {
         size *= 2;
+    }
+    if (size != initial_size) {
+        // If we fail to update the global twice in a row, we can just rely on dynamic size allocation in the future
+        int i = 2;
+        while (!atomic_compare_exchange_weak(&ddtrace_coms_globals.stack_size, &initial_size, size) && i--) {
+            if (initial_size > size) {
+                size = initial_size;
+                break;
+            }
+        };
     }
     ddtrace_coms_stack_t *stack = calloc(1, sizeof(ddtrace_coms_stack_t));
     stack->size = size;
@@ -98,28 +109,29 @@ static void recycle_stack(ddtrace_coms_stack_t *stack) {
 }
 
 bool ddtrace_coms_initialize(void) {
-    ddtrace_coms_stack_t *stack = new_stack(DDTRACE_COMS_STACK_SIZE);
-    if (!ddtrace_coms_global_state.stacks) {
-        ddtrace_coms_global_state.stacks = calloc(DDTRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(ddtrace_coms_stack_t *));
+    atomic_store(&ddtrace_coms_globals.stack_size, DDTRACE_COMS_STACK_INITIAL_SIZE);
+    ddtrace_coms_stack_t *stack = new_stack(DDTRACE_COMS_STACK_INITIAL_SIZE);
+    if (!ddtrace_coms_globals.stacks) {
+        ddtrace_coms_globals.stacks = calloc(DDTRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(ddtrace_coms_stack_t *));
     }
 
-    atomic_store(&ddtrace_coms_global_state.next_group_id, 1);
-    atomic_store(&ddtrace_coms_global_state.current_stack, stack);
+    atomic_store(&ddtrace_coms_globals.next_group_id, 1);
+    atomic_store(&ddtrace_coms_globals.current_stack, stack);
 
     return true;
 }
 
 void ddtrace_coms_shutdown(void) {
-    ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
+    ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_globals.current_stack);
     if (current_stack) {
         if (current_stack->data) {
             free(current_stack->data);
         }
         free(current_stack);
     }
-    if (ddtrace_coms_global_state.stacks) {
-        free(ddtrace_coms_global_state.stacks);
-        ddtrace_coms_global_state.stacks = NULL;
+    if (ddtrace_coms_globals.stacks) {
+        free(ddtrace_coms_globals.stacks);
+        ddtrace_coms_globals.stacks = NULL;
     }
 }
 
@@ -132,13 +144,13 @@ static void printf_stack_info(ddtrace_coms_stack_t *stack) {
 
 static void unsafe_store_or_discard_stack(ddtrace_coms_stack_t *stack) {
     for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
+        ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
         if (stack_tmp == stack) {
             return;
         }
 
         if (stack_tmp == NULL) {
-            ddtrace_coms_global_state.stacks[i] = stack;
+            ddtrace_coms_globals.stacks[i] = stack;
             return;
         }
     }
@@ -147,27 +159,27 @@ static void unsafe_store_or_discard_stack(ddtrace_coms_stack_t *stack) {
 }
 
 static void unsafe_cleanup_dirty_stack_area(void) {
-    ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
-    if (!ddtrace_coms_global_state.tmp_stack) {
+    ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_globals.current_stack);
+    if (!ddtrace_coms_globals.tmp_stack) {
         return;
     }
 
-    if (ddtrace_coms_global_state.tmp_stack != current_stack) {
-        ddtrace_coms_stack_t *stack = ddtrace_coms_global_state.tmp_stack;
+    if (ddtrace_coms_globals.tmp_stack != current_stack) {
+        ddtrace_coms_stack_t *stack = ddtrace_coms_globals.tmp_stack;
 
         atomic_store(&stack->refcount, 0);
         unsafe_store_or_discard_stack(stack);
     }
-    ddtrace_coms_global_state.tmp_stack = NULL;
+    ddtrace_coms_globals.tmp_stack = NULL;
 }
 
 static void unsafe_store_or_swap_current_stack_for_empty_stack(size_t min_size) {
     unsafe_cleanup_dirty_stack_area();
 
     // store the temp variable if we ever need to recover it
-    ddtrace_coms_stack_t **current_stack = &ddtrace_coms_global_state.tmp_stack;
+    ddtrace_coms_stack_t **current_stack = &ddtrace_coms_globals.tmp_stack;
 
-    *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
+    *current_stack = atomic_load(&ddtrace_coms_globals.current_stack);
 
     if (*current_stack && (*current_stack)->size >= min_size && ddtrace_coms_is_stack_free(*current_stack)) {
         *current_stack = NULL;
@@ -177,12 +189,12 @@ static void unsafe_store_or_swap_current_stack_for_empty_stack(size_t min_size) 
     if (*current_stack) {
         // try to swap out current stack for an empty stack
         for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-            ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
+            ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
             if (stack_tmp && stack_tmp->size >= min_size && ddtrace_coms_is_stack_free(stack_tmp)) {
                 // order is important due to ability to restore state on thread restart
                 recycle_stack(stack_tmp);
-                atomic_store(&ddtrace_coms_global_state.current_stack, stack_tmp);
-                ddtrace_coms_global_state.stacks[i] = *current_stack;
+                atomic_store(&ddtrace_coms_globals.current_stack, stack_tmp);
+                ddtrace_coms_globals.stacks[i] = *current_stack;
 
                 *current_stack = NULL;
                 break;
@@ -193,10 +205,10 @@ static void unsafe_store_or_swap_current_stack_for_empty_stack(size_t min_size) 
     // if we couldn't swap for a empty stack lets store it
     if (*current_stack) {
         for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-            ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
+            ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
             if (!stack_tmp) {
-                atomic_store(&ddtrace_coms_global_state.current_stack, NULL);
-                ddtrace_coms_global_state.stacks[i] = *current_stack;
+                atomic_store(&ddtrace_coms_globals.current_stack, NULL);
+                ddtrace_coms_globals.stacks[i] = *current_stack;
                 *current_stack = NULL;
 
                 break;
@@ -210,7 +222,7 @@ static void unsafe_store_or_swap_current_stack_for_empty_stack(size_t min_size) 
 bool ddtrace_coms_rotate_stack(bool attempt_allocate_new, size_t min_size) {
     unsafe_store_or_swap_current_stack_for_empty_stack(min_size);
 
-    ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
+    ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_globals.current_stack);
 
     if (current_stack && current_stack->size >= min_size && ddtrace_coms_is_stack_free(current_stack)) {
         return true;
@@ -219,9 +231,9 @@ bool ddtrace_coms_rotate_stack(bool attempt_allocate_new, size_t min_size) {
     // old current stack was stored so set a new stack
     if (!current_stack) {
         if (attempt_allocate_new) {
-            ddtrace_coms_stack_t **next_stack = &ddtrace_coms_global_state.tmp_stack;
+            ddtrace_coms_stack_t **next_stack = &ddtrace_coms_globals.tmp_stack;
             *next_stack = new_stack(min_size);
-            atomic_store(&ddtrace_coms_global_state.current_stack, *next_stack);
+            atomic_store(&ddtrace_coms_globals.current_stack, *next_stack);
             *next_stack = NULL;
             return true;
         }
@@ -232,7 +244,7 @@ bool ddtrace_coms_rotate_stack(bool attempt_allocate_new, size_t min_size) {
 }
 
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) {
-    if (!data) {
+    if (!data || size > DDTRACE_COMS_STACK_MAX_SIZE) {
         return false;
     }
 
@@ -259,7 +271,7 @@ bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) 
     return store_result == 0;
 }
 
-group_id_t ddtrace_coms_next_group_id(void) { return atomic_fetch_add(&ddtrace_coms_global_state.next_group_id, 1); }
+group_id_t ddtrace_coms_next_group_id(void) { return atomic_fetch_add(&ddtrace_coms_globals.next_group_id, 1); }
 
 struct _grouped_stack_t {
     size_t position, total_bytes, total_groups;
@@ -526,10 +538,10 @@ ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack(void) {
     ddtrace_coms_stack_t *stack = NULL;
 
     for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
+        ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
         if (stack_tmp && atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) > 0) {
             stack = stack_tmp;
-            ddtrace_coms_global_state.stacks[i] = NULL;
+            ddtrace_coms_globals.stacks[i] = NULL;
             break;
         }
     }

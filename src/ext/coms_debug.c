@@ -10,7 +10,7 @@
 #define DDTRACE_NUMBER_OF_DATA_TO_WRITE 2000
 #define DDTRACE_DATA_TO_WRITE "0123456789"
 
-extern ddtrace_coms_state_t ddtrace_coms_global_state;
+extern ddtrace_coms_state_t ddtrace_coms_globals;
 
 static void *test_writer_function(void *_) {
     (void)_;
@@ -47,12 +47,12 @@ uint32_t ddtrace_coms_test_writers(void) {
 }
 
 uint32_t ddtrace_coms_test_consumer(void) {
-    if (!ddtrace_coms_rotate_stack(true, DDTRACE_COMS_STACK_SIZE)) {
+    if (!ddtrace_coms_rotate_stack(true, atomic_load(&ddtrace_coms_globals.stack_size))) {
         printf("error rotating stacks");
     }
 
     for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
-        ddtrace_coms_stack_t *stack = ddtrace_coms_global_state.stacks[i];
+        ddtrace_coms_stack_t *stack = ddtrace_coms_globals.stacks[i];
         if (!stack) continue;
 
         if (!ddtrace_coms_is_stack_unused(stack)) {
@@ -101,7 +101,7 @@ uint32_t ddtrace_coms_test_consumer(void) {
     } while (0)
 
 uint32_t ddtrace_coms_test_msgpack_consumer(void) {
-    ddtrace_coms_rotate_stack(true, DDTRACE_COMS_STACK_SIZE);
+    ddtrace_coms_rotate_stack(true, atomic_load(&ddtrace_coms_globals.stack_size));
 
     ddtrace_coms_stack_t *stack = ddtrace_coms_attempt_acquire_stack();
     if (!stack) {

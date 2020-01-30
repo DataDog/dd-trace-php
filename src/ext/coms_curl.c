@@ -249,7 +249,8 @@ static void *writer_loop(void *_) {
         atomic_store(&writer->requests_since_last_flush, 0);
 
         ddtrace_coms_stack_t **stack = &writer->tmp_stack;
-        ddtrace_coms_threadsafe_rotate_stack(atomic_load(&writer->allocate_new_stacks), DDTRACE_COMS_STACK_SIZE);
+        ddtrace_coms_threadsafe_rotate_stack(atomic_load(&writer->allocate_new_stacks),
+                                             DDTRACE_COMS_STACK_INITIAL_SIZE);
 
         uint32_t processed_stacks = 0;
         if (!*stack) {
