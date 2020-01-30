@@ -15,9 +15,9 @@ $url = "http://{$host}:{$port}/0.4/traces";
 $headers = [
     'Datadog-Meta-Lang' => 'php',
 ];
-$trace = [[]];
 
-$payload = dd_trace_serialize_msgpack($trace);
+// payload = [[]]
+$payload = "\x91\x90";
 
 
 dd_trace_send_traces_via_thread($url, $headers, $payload);
