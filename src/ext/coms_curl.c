@@ -249,7 +249,7 @@ static void *writer_loop(void *_) {
         atomic_store(&writer->requests_since_last_flush, 0);
 
         ddtrace_coms_stack_t **stack = &writer->tmp_stack;
-        ddtrace_coms_threadsafe_rotate_stack(atomic_load(&writer->allocate_new_stacks));
+        ddtrace_coms_threadsafe_rotate_stack(atomic_load(&writer->allocate_new_stacks), DDTRACE_COMS_STACK_SIZE);
 
         uint32_t processed_stacks = 0;
         if (!*stack) {
@@ -376,12 +376,12 @@ bool ddtrace_coms_on_pid_change(void) {
     return false;
 }
 
-bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new) {
+bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new, size_t min_size) {
     struct _writer_loop_data_t *writer = get_writer();
     bool rv = false;
     if (writer->thread) {
         pthread_mutex_lock(&writer->thread->stack_rotation_mutex);
-        rv = ddtrace_coms_rotate_stack(attempt_allocate_new);
+        rv = ddtrace_coms_rotate_stack(attempt_allocate_new, min_size);
         pthread_mutex_unlock(&writer->thread->stack_rotation_mutex);
     }
     return rv;

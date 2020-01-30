@@ -47,7 +47,7 @@ uint32_t ddtrace_coms_test_writers(void) {
 }
 
 uint32_t ddtrace_coms_test_consumer(void) {
-    if (!ddtrace_coms_rotate_stack(true)) {
+    if (!ddtrace_coms_rotate_stack(true, DDTRACE_COMS_STACK_SIZE)) {
         printf("error rotating stacks");
     }
 
@@ -101,7 +101,7 @@ uint32_t ddtrace_coms_test_consumer(void) {
     } while (0)
 
 uint32_t ddtrace_coms_test_msgpack_consumer(void) {
-    ddtrace_coms_rotate_stack(true);
+    ddtrace_coms_rotate_stack(true, DDTRACE_COMS_STACK_SIZE);
 
     ddtrace_coms_stack_t *stack = ddtrace_coms_attempt_acquire_stack();
     if (!stack) {

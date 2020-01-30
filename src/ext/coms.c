@@ -69,10 +69,14 @@ static uint32_t store_data(group_id_t group_id, const char *src, size_t size) {
     return 0;
 }
 
-static ddtrace_coms_stack_t *new_stack(void) {
+static ddtrace_coms_stack_t *new_stack(size_t min_size) {
+    size_t size = DDTRACE_COMS_STACK_SIZE;
+    while (min_size > size) {
+        size *= 2;
+    }
     ddtrace_coms_stack_t *stack = calloc(1, sizeof(ddtrace_coms_stack_t));
-    stack->size = DDTRACE_COMS_STACK_SIZE;
-    stack->data = calloc(1, stack->size);
+    stack->size = size;
+    stack->data = calloc(1, size);
 
     return stack;
 }
@@ -94,7 +98,7 @@ static void recycle_stack(ddtrace_coms_stack_t *stack) {
 }
 
 bool ddtrace_coms_initialize(void) {
-    ddtrace_coms_stack_t *stack = new_stack();
+    ddtrace_coms_stack_t *stack = new_stack(DDTRACE_COMS_STACK_SIZE);
     if (!ddtrace_coms_global_state.stacks) {
         ddtrace_coms_global_state.stacks = calloc(DDTRACE_COMS_STACKS_BACKLOG_SIZE, sizeof(ddtrace_coms_stack_t *));
     }
@@ -157,7 +161,7 @@ static void unsafe_cleanup_dirty_stack_area(void) {
     ddtrace_coms_global_state.tmp_stack = NULL;
 }
 
-static void unsafe_store_or_swap_current_stack_for_empty_stack(void) {
+static void unsafe_store_or_swap_current_stack_for_empty_stack(size_t min_size) {
     unsafe_cleanup_dirty_stack_area();
 
     // store the temp variable if we ever need to recover it
@@ -165,7 +169,7 @@ static void unsafe_store_or_swap_current_stack_for_empty_stack(void) {
 
     *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
 
-    if (*current_stack && ddtrace_coms_is_stack_free(*current_stack)) {
+    if (*current_stack && (*current_stack)->size >= min_size && ddtrace_coms_is_stack_free(*current_stack)) {
         *current_stack = NULL;
         return;  // stack is empty and unusued - no need to swap it out
     }
@@ -174,7 +178,7 @@ static void unsafe_store_or_swap_current_stack_for_empty_stack(void) {
         // try to swap out current stack for an empty stack
         for (int i = 0; i < DDTRACE_COMS_STACKS_BACKLOG_SIZE; i++) {
             ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_global_state.stacks[i];
-            if (stack_tmp && ddtrace_coms_is_stack_free(stack_tmp)) {
+            if (stack_tmp && stack_tmp->size >= min_size && ddtrace_coms_is_stack_free(stack_tmp)) {
                 // order is important due to ability to restore state on thread restart
                 recycle_stack(stack_tmp);
                 atomic_store(&ddtrace_coms_global_state.current_stack, stack_tmp);
@@ -203,12 +207,12 @@ static void unsafe_store_or_swap_current_stack_for_empty_stack(void) {
     *current_stack = NULL;
 }
 
-bool ddtrace_coms_rotate_stack(bool attempt_allocate_new) {
-    unsafe_store_or_swap_current_stack_for_empty_stack();
+bool ddtrace_coms_rotate_stack(bool attempt_allocate_new, size_t min_size) {
+    unsafe_store_or_swap_current_stack_for_empty_stack(min_size);
 
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_global_state.current_stack);
 
-    if (current_stack && ddtrace_coms_is_stack_free(current_stack)) {
+    if (current_stack && current_stack->size >= min_size && ddtrace_coms_is_stack_free(current_stack)) {
         return true;
     }
 
@@ -216,7 +220,7 @@ bool ddtrace_coms_rotate_stack(bool attempt_allocate_new) {
     if (!current_stack) {
         if (attempt_allocate_new) {
             ddtrace_coms_stack_t **next_stack = &ddtrace_coms_global_state.tmp_stack;
-            *next_stack = new_stack();
+            *next_stack = new_stack(min_size);
             atomic_store(&ddtrace_coms_global_state.current_stack, *next_stack);
             *next_stack = NULL;
             return true;
@@ -246,7 +250,8 @@ bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) 
     }
 
     if (store_result == ENOMEM) {
-        ddtrace_coms_threadsafe_rotate_stack(true);
+        size_t padding = 2;
+        ddtrace_coms_threadsafe_rotate_stack(true, size + padding);
         ddtrace_coms_trigger_writer_flush();
         store_result = store_data(group_id, data, size);
     }

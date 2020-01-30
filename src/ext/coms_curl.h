@@ -14,7 +14,7 @@ bool ddtrace_coms_trigger_writer_flush(void);
 void ddtrace_coms_on_request_finished(void);
 bool ddtrace_coms_set_writer_send_on_flush(bool send);
 bool ddtrace_in_writer_thread(void);
-bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new);
+bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new, size_t min_size);
 bool ddtrace_coms_flush_shutdown_writer_synchronous(void);
 bool ddtrace_coms_synchronous_flush(uint32_t timeout);
 bool ddtrace_coms_on_pid_change(void);

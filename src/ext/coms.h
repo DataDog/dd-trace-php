@@ -6,7 +6,7 @@
 
 #include "vendor_stdatomic.h"
 
-#define DDTRACE_COMS_STACK_SIZE (1024 * 1024 * 10)  // 10 MB
+#define DDTRACE_COMS_STACK_SIZE (1024 * 128)  // 1 MB
 #define DDTRACE_COMS_STACKS_BACKLOG_SIZE 10
 
 typedef struct ddtrace_coms_stack_t {
@@ -30,7 +30,7 @@ inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
     return ddtrace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0;
 }
 
-bool ddtrace_coms_rotate_stack(bool allocate_new);
+bool ddtrace_coms_rotate_stack(bool allocate_new, size_t min_size);
 ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack();
 
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size);
