@@ -411,9 +411,9 @@ final class Tracer implements TracerInterface
 
     public function isolateTracedFunction($functionName, $callback)
     {
-        $tracer = $this;
         $this->reset();
         \dd_trace($functionName, $callback);
+        $this->flush();
     }
 
     private function addHostnameToRootSpan()

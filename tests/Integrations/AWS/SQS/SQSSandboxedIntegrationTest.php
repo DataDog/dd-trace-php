@@ -3,10 +3,14 @@
 namespace DDTrace\Tests\Integrations\AWS\SQS;
 
 use DDTrace\Tests\Common\IntegrationTestCase;
+use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Integrations\CLI\CLITestCase;
 
 final class SQSSandboxedIntegrationTest extends CLITestCase
 {
+    use TracerTestTrait;
+
     protected function getScriptLocation()
     {
         return __DIR__ . '/scripts/consume_sync.php';
@@ -29,45 +33,71 @@ final class SQSSandboxedIntegrationTest extends CLITestCase
 
     public function testReceiveOneMessage()
     {
-        $params = [
+        $client = TestSQSClientSupport::newInstance();
+        TestSQSClientSupport::resetTestQueue($client);
+        $client->sendMessage($this->sampleMessage());
+        $traces = $this->getTracesFromCommand();
+
+        error_log('Traces' . print_r($traces, 1));
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'my_operation',
+                'my_service',
+                'custom',
+                'some message'
+            )->withChildren([
+                SpanAssertion::exists('curl_exec'),
+                SpanAssertion::exists('mysqli_connect'),
+            ]),
+        ]);
+    }
+
+    public function testReceiveTwoMessages()
+    {
+        $client = TestSQSClientSupport::newInstance();
+        TestSQSClientSupport::resetTestQueue($client);
+
+        $client->sendMessage($this->sampleMessage("message 1"));
+        $client->sendMessage($this->sampleMessage("message 2"));
+
+        $traces = $this->getTracesFromCommand();
+        error_log('Traces: ' . print_r($traces, 1));
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'my_operation',
+                'my_service',
+                'custom',
+                'message 1'
+            )->withChildren([
+                SpanAssertion::exists('curl_exec'),
+                SpanAssertion::exists('mysqli_connect'),
+            ]),
+            SpanAssertion::build(
+                'my_operation',
+                'my_service',
+                'custom',
+                'message 2'
+            )->withChildren([
+                SpanAssertion::exists('curl_exec'),
+                SpanAssertion::exists('mysqli_connect'),
+            ]),
+        ]);
+    }
+
+    private function sampleMessage($resource = "some message")
+    {
+        return [
             'DelaySeconds' => 0,
             'MessageAttributes' => [
                 "title" => [
                     'DataType' => "String",
-                    'StringValue' => "this is the title"
+                    'StringValue' => $resource
                 ],
             ],
             'MessageBody' => "message body",
             'QueueUrl' => TestSQSClientSupport::QUEUE_URL,
         ];
-        $client = TestSQSClientSupport::newInstance();
-        TestSQSClientSupport::resetTestQueue($client);
-
-        $result = $client->sendMessage($params);
-        error_log('Sent messages: ' . print_r($result, 1));
-
-        $traces = $this->getTracesFromCommand();
-        error_log('Traces: ' . print_r($traces, 1));
-
-        // $result = $client->receiveMessage(array(
-        //     'AttributeNames' => ['SentTimestamp'],
-        //     'MaxNumberOfMessages' => 1,
-        //     'MessageAttributeNames' => ['All'],
-        //     'QueueUrl' => TestSQSClientSupport::QUEUE_URL,
-        //     'WaitTimeSeconds' => 1,
-        // ));
-
-        // if (!empty($messages = $result->get('Messages'))) {
-        //     foreach ($messages as $message) {
-        //         $this->handleMessage($messages);
-        //     }
-        // } else {
-        //     error_log('No messages in queue');
-        // }
-    }
-
-    public function handleMessage(array $message)
-    {
-        error_log('Messages: ' . print_r($message, 1));
     }
 }
