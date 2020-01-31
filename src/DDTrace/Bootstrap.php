@@ -42,14 +42,14 @@ final class Bootstrap
 
         // Sandbox API is not supported on PHP 5.4
         if (PHP_VERSION_ID < 50500) {
-            if (!$config->isExplicitTracingEnabled()) {
+            if ($config->isGenerateRootSpan()) {
                 register_shutdown_function($flushTracer);
             }
             return;
         }
 
         dd_trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', $flushTracer);
-        if (!$config->isExplicitTracingEnabled()) {
+        if ($config->isGenerateRootSpan()) {
             self::initRootSpan($tracer);
             register_shutdown_function(function () {
                 /*

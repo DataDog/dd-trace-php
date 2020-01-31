@@ -172,9 +172,12 @@ class Configuration extends AbstractConfiguration
         return $this->indexedStringArrayValue('trace.entry.points');
     }
 
-    public function isExplicitTracingEnabled()
+    /**
+     * Returns false if we want to skip generation of the root span.
+     */
+    public function isGenerateRootSpan()
     {
-        return true;
+        return $this->boolValue('trace.generate.root.span', true);
     }
 
     /**
