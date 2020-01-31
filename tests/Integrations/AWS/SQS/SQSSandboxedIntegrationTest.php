@@ -38,8 +38,6 @@ final class SQSSandboxedIntegrationTest extends CLITestCase
         $client->sendMessage($this->sampleMessage());
         $traces = $this->getTracesFromCommand();
 
-        error_log('Traces' . print_r($traces, 1));
-
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 'my_operation',
@@ -57,10 +55,8 @@ final class SQSSandboxedIntegrationTest extends CLITestCase
     {
         $client = TestSQSClientSupport::newInstance();
         TestSQSClientSupport::resetTestQueue($client);
-
         $client->sendMessage($this->sampleMessage("message 1"));
         $client->sendMessage($this->sampleMessage("message 2"));
-
         $traces = $this->getTracesFromCommand();
         error_log('Traces: ' . print_r($traces, 1));
 

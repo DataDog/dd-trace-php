@@ -21,14 +21,13 @@ function my_message_handler(array $message)
 }
 
 $tracer = DDTrace\GlobalTracer::get();
-$tracer->isolateTracedFunction('my_message_handler', function () use ($tracer) {
+\dd_trace('my_message_handler', function () use ($tracer) {
     list($message) = func_get_args();
-    // error_log('I am in callback ' . get_class($tracer));
+    $tracer->reset();
+    error_log('reset');
     $scope = $tracer->startRootSpan('my_operation');
-    // error_log('before');
     try {
         $result = dd_trace_forward_call();
-        // error_log('after');
         $span = $scope->getSpan();
         $span->setTag(Tag::SERVICE_NAME, 'my_service');
         $span->setTag(Tag::RESOURCE_NAME, $message['MessageAttributes']['title']['StringValue']);
@@ -37,8 +36,14 @@ $tracer->isolateTracedFunction('my_message_handler', function () use ($tracer) {
         $scope->close();
         return $result;
     } catch (\Exception $ex) {
-        error_log('Caught exception: ' . print_r($ex, 1));
+        $span->setError($ex);
+        throw $ex;
+    } finally {
+        $span->finish();
+        $scope->close();
+        $tracer->flush();
     }
+    error_log('done');
 });
 
 $client = TestSQSClientSupport::newInstance();

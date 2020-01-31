@@ -160,7 +160,6 @@ final class Tracer implements TracerInterface
      */
     public function startSpan($operationName, $options = [])
     {
-        error_log('Starting span');
         if (!$this->config['enabled']) {
             return NoopSpan::create();
         }
@@ -297,7 +296,7 @@ final class Tracer implements TracerInterface
      */
     public function flush()
     {
-        error_log('FLushing......................');
+        error_log('Flushing.');
         if (!$this->config['enabled']) {
             return;
         }
@@ -409,13 +408,6 @@ final class Tracer implements TracerInterface
         return $tracesToBeSent;
     }
 
-    public function isolateTracedFunction($functionName, $callback)
-    {
-        $this->reset();
-        \dd_trace($functionName, $callback);
-        $this->flush();
-    }
-
     private function addHostnameToRootSpan()
     {
         $hostname = gethostname();
@@ -448,6 +440,7 @@ final class Tracer implements TracerInterface
 
     private function record(Span $span)
     {
+        error_log('Recording span: ' . print_r($span, 1));
         if (!array_key_exists($span->context->traceId, $this->traces)) {
             $this->traces[$span->context->traceId] = [];
         }
