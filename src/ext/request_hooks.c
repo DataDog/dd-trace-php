@@ -49,7 +49,7 @@ int dd_no_blacklisted_modules(TSRMLS_D) {
 
     while (zend_hash_get_current_data_ex(&module_registry, (void *)&module, &pos) != FAILURE) {
         if (module && module->name && find_exact_match(blacklist, module->name)) {
-            ddtrace_log_errf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
+            ddtrace_log_debugf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
             no_blacklisted_modules = 0;
             break;
         }
@@ -58,7 +58,7 @@ int dd_no_blacklisted_modules(TSRMLS_D) {
 #else
     ZEND_HASH_FOREACH_PTR(&module_registry, module) {
         if (module && module->name && find_exact_match(blacklist, module->name)) {
-            ddtrace_log_errf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
+            ddtrace_log_debugf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
             no_blacklisted_modules = 0;
             break;
         }
