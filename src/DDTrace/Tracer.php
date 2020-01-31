@@ -440,7 +440,6 @@ final class Tracer implements TracerInterface
 
     private function record(Span $span)
     {
-        error_log('Recording span: ' . print_r($span, 1));
         if (!array_key_exists($span->context->traceId, $this->traces)) {
             $this->traces[$span->context->traceId] = [];
         }

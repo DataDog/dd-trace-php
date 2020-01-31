@@ -65,7 +65,6 @@ abstract class CLITestCase extends IntegrationTestCase
         $script = escapeshellarg($this->getScriptLocation());
         $arguments = escapeshellarg($arguments);
         $command = "$envs php $inis $script $arguments";
-        error_log('Command: ' . print_r($command, 1));
         `$command`;
         return $this->loadTrace();
     }

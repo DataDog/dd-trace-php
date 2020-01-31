@@ -40,27 +40,6 @@ final class Bootstrap
             $tracer->flush();
         };
 
-        // $entryPoints = Configuration::get()->getTraceEntryPoints();
-        // if ($entryPoints) {
-        //     foreach ($entryPoints as $entryPoint) {
-        //         error_log('Registering entry point: ' . print_r($entryPoint, 1));
-        //         $parts = \explode('::', $entryPoint);
-        //         $class_or_function = $parts[0];
-        //         if (empty($parts[1])) {
-        //             dd_trace_function($class_or_function, function (SpanData $span) {
-        //                 $span->service = "__service";
-        //                 $span->name = "__class_or_function";
-        //                 $span->resource = "__class_or_function";
-        //                 $span->type = "custom";
-
-        //                 Bootstrap::flushTracerShutdown();
-        //                 error_log('Flushed tracer....');
-        //             });
-        //         }
-        //     }
-        //     return;
-        // }
-
         // Sandbox API is not supported on PHP 5.4
         if (PHP_VERSION_ID < 50500) {
             if (!$config->isExplicitTracingEnabled()) {

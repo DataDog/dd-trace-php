@@ -36,6 +36,7 @@ final class SQSSandboxedIntegrationTest extends CLITestCase
         $client = TestSQSClientSupport::newInstance();
         TestSQSClientSupport::resetTestQueue($client);
         $client->sendMessage($this->sampleMessage());
+        usleep(300 * 000);
         $traces = $this->getTracesFromCommand();
 
         $this->assertFlameGraph($traces, [
@@ -51,14 +52,13 @@ final class SQSSandboxedIntegrationTest extends CLITestCase
         ]);
     }
 
-    public function testReceiveTwoMessages()
+    public function testReceiveMultipleMessages()
     {
         $client = TestSQSClientSupport::newInstance();
         TestSQSClientSupport::resetTestQueue($client);
         $client->sendMessage($this->sampleMessage("message 1"));
-        $client->sendMessage($this->sampleMessage("message 2"));
+        usleep(300 * 000);
         $traces = $this->getTracesFromCommand();
-        error_log('Traces: ' . print_r($traces, 1));
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
@@ -66,6 +66,31 @@ final class SQSSandboxedIntegrationTest extends CLITestCase
                 'my_service',
                 'custom',
                 'message 1'
+            )->withChildren([
+                SpanAssertion::exists('curl_exec'),
+                SpanAssertion::exists('mysqli_connect'),
+            ]),
+            SpanAssertion::build(
+                'my_operation',
+                'my_service',
+                'custom',
+                'message 1'
+            )->withChildren([
+                SpanAssertion::exists('curl_exec'),
+                SpanAssertion::exists('mysqli_connect'),
+            ]),
+        ]);
+
+        $client->sendMessage($this->sampleMessage("message 2"));
+        usleep(300 * 000);
+        $traces = $this->getTracesFromCommand();
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'my_operation',
+                'my_service',
+                'custom',
+                'message 2'
             )->withChildren([
                 SpanAssertion::exists('curl_exec'),
                 SpanAssertion::exists('mysqli_connect'),
