@@ -886,6 +886,7 @@ workflows:
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 56 Web integration tests"
+          resource_class: medium+
           integration_testsuite: "test-web-56"
           # docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
           docker_image: "datadog/docker-library:ddtrace_php_5_6"
