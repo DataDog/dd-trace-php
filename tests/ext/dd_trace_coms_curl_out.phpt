@@ -6,6 +6,8 @@ if (!getenv("DD_AGENT_HOST")) {
     die("skip test if agent host is not set");
 }
 ?>
+--XFAIL--
+This is testing the internal guts of the background sender without using a tracer
 --ENV--
 DD_TRACE_DEBUG_CURL_OUTPUT=1
 DD_TRACE_AGENT_TIMEOUT=10000

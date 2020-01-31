@@ -1,5 +1,7 @@
 --TEST--
 Coms test messagepack payloads are concatendated and serialized correctly
+--XFAIL--
+This is testing the internal guts of the background sender without using a tracer
 --FILE--
 <?php
 

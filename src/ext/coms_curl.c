@@ -1,6 +1,5 @@
 #include "coms_curl.h"
 
-#include <curl/curl.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +15,17 @@
 #include "vendor_stdatomic.h"
 
 #define HOST_FORMAT_STR "http://%s:%u/v0.4/traces"
+
+atomic_uintptr_t memoized_agent_curl_headers;
+
+void ddtrace_coms_mshutdown(void) {
+    uintptr_t desired = (uintptr_t)NULL;
+    uintptr_t expect = atomic_load(&memoized_agent_curl_headers);
+    if (expect != (uintptr_t)NULL) {
+        atomic_compare_exchange_strong(&memoized_agent_curl_headers, &expect, desired);
+        curl_slist_free_all((struct curl_slist *)expect);
+    }
+}
 
 struct _writer_thread_variables_t {
     pthread_t self;
@@ -119,25 +129,43 @@ void ddtrace_coms_setup_atexit_hook() {
 
 void ddtrace_coms_disable_atexit_hook() { ptr_at_exit_callback = NULL; }
 
+#define DD_TRACE_COUNT_HEADER "X-Datadog-Trace-Count: "
+
+static void _curl_set_headers(struct _writer_loop_data_t *writer, size_t trace_count) {
+    struct curl_slist *static_headers = (struct curl_slist *)atomic_load(&memoized_agent_curl_headers);
+    struct curl_slist *headers = NULL;
+    for (struct curl_slist *current = static_headers; current; current = current->next) {
+        headers = curl_slist_append(headers, current->data);
+    }
+    headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
+    headers = curl_slist_append(headers, "Content-Type: application/msgpack");
+
+    char buffer[64];
+    int bytes_written = snprintf(buffer, sizeof buffer, DD_TRACE_COUNT_HEADER "%zu", trace_count);
+    if (bytes_written > ((int)sizeof(DD_TRACE_COUNT_HEADER)) - 1 && bytes_written < ((int)sizeof buffer)) {
+        headers = curl_slist_append(headers, buffer);
+    }
+
+    if (writer->headers) {
+        curl_slist_free_all(writer->headers);
+    }
+
+    curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
+    writer->headers = headers;
+}
+
 static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_stack_t *stack) {
     if (!writer->curl) {
         writer->curl = curl_easy_init();
-
-        struct curl_slist *headers = NULL;
-        headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
-        headers = curl_slist_append(headers, "Content-Type: application/msgpack");
-        curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
-
         curl_easy_setopt(writer->curl, CURLOPT_READFUNCTION, ddtrace_coms_read_callback);
         curl_easy_setopt(writer->curl, CURLOPT_WRITEFUNCTION, dummy_write_callback);
-        writer->headers = headers;
     }
 
     if (writer->curl) {
         CURLcode res;
 
         void *read_data = ddtrace_init_read_userdata(stack);
-
+        _curl_set_headers(writer, ddtrace_read_userdata_get_total_groups(read_data));
         curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
         curl_set_hostname(writer->curl);
         curl_set_timeout(writer->curl);
@@ -164,6 +192,8 @@ static void curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms_sta
         }
 
         ddtrace_deinit_read_userdata(read_data);
+        curl_slist_free_all(writer->headers);
+        writer->headers = NULL;
     }
 }
 static void signal_writer_started(struct _writer_loop_data_t *writer) {
@@ -219,7 +249,8 @@ static void *writer_loop(void *_) {
         atomic_store(&writer->requests_since_last_flush, 0);
 
         ddtrace_coms_stack_t **stack = &writer->tmp_stack;
-        ddtrace_coms_threadsafe_rotate_stack(atomic_load(&writer->allocate_new_stacks));
+        ddtrace_coms_threadsafe_rotate_stack(atomic_load(&writer->allocate_new_stacks),
+                                             DDTRACE_COMS_STACK_INITIAL_SIZE);
 
         uint32_t processed_stacks = 0;
         if (!*stack) {
@@ -250,6 +281,8 @@ static void *writer_loop(void *_) {
     } while (running);
 
     curl_slist_free_all(writer->headers);
+    writer->headers = NULL;
+
     curl_easy_cleanup(writer->curl);
     ddtrace_coms_shutdown();
     signal_writer_finished(writer);
@@ -299,6 +332,7 @@ bool ddtrace_coms_init_and_start_writer(void) {
     struct _writer_loop_data_t *writer = get_writer();
     writer_set_operational_state(writer);
     atomic_store(&writer->current_pid, getpid());
+    atomic_store(&memoized_agent_curl_headers, (uintptr_t)NULL);
 
     if (writer->thread) {
         return false;
@@ -343,12 +377,12 @@ bool ddtrace_coms_on_pid_change(void) {
     return false;
 }
 
-bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new) {
+bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new, size_t min_size) {
     struct _writer_loop_data_t *writer = get_writer();
     bool rv = false;
     if (writer->thread) {
         pthread_mutex_lock(&writer->thread->stack_rotation_mutex);
-        rv = ddtrace_coms_rotate_stack(attempt_allocate_new);
+        rv = ddtrace_coms_rotate_stack(attempt_allocate_new, min_size);
         pthread_mutex_unlock(&writer->thread->stack_rotation_mutex);
     }
     return rv;
