@@ -18,7 +18,9 @@ if test "$PHP_DDTRACE" != "no"; then
   dnl ddtrace.c comes first, then everything else alphabetically
   DD_TRACE_PHP_SOURCES="src/ext/ddtrace.c \
     src/dogstatsd/client.c \
+    src/ext/arrays.c \
     src/ext/circuit_breaker.c \
+    src/ext/comms_php.c \
     src/ext/compat_string.c \
     src/ext/coms.c \
     src/ext/coms_curl.c \

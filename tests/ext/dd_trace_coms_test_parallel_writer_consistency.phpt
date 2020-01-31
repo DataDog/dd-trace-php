@@ -1,5 +1,7 @@
 --TEST--
 Coms test parallel writer consistency
+--XFAIL--
+This is testing the internal guts of the background sender without using a tracer
 --FILE--
 <?php
 // store two packets separately

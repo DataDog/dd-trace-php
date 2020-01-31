@@ -14,6 +14,7 @@
 #include <ext/standard/info.h>
 
 #include "circuit_breaker.h"
+#include "comms_php.h"
 #include "compat_string.h"
 #include "compatibility.h"
 #include "coms.h"
@@ -83,6 +84,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_push_span_id, 0, 0, 0)
 ZEND_ARG_INFO(0, existing_id)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_send_traces_via_thread, 0, 0, 3)
+ZEND_ARG_INFO(0, url)
+ZEND_ARG_INFO(0, http_headers)
+ZEND_ARG_INFO(0, body)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_compile_time_microseconds, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -146,6 +153,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     // when extension is properly unloaded disable the at_exit hook
     ddtrace_coms_disable_atexit_hook();
     if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
+        ddtrace_coms_mshutdown();
         // if writer is ensured to be shutdown we can free up config resources safely
         ddtrace_config_shutdown();
     }
@@ -699,6 +707,41 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
     return;
 }
 
+#if PHP_VERSION_ID < 70000
+typedef int ddtrace_zppstrlen_t;
+typedef long ddtrace_zpplong_t;
+#else
+typedef size_t ddtrace_zppstrlen_t;
+typedef zend_long ddtrace_zpplong_t;
+#endif
+
+static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    char *url = NULL, *payload = NULL;
+    ddtrace_zppstrlen_t url_len = 0, payload_len = 0;
+    zval *curl_headers = NULL;
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "sas", &url, &url_len,
+                                 &curl_headers, &payload, &payload_len) == FAILURE) {
+        ddtrace_log_debug("dd_trace_send_traces_via_thread() expects url, http headers, and http body");
+        RETURN_FALSE
+    }
+
+    if (ddtrace_memoize_http_headers(Z_ARRVAL_P(curl_headers))) {
+        ddtrace_log_debug("Successfully memoized Agent HTTP headers");
+    }
+
+    /* Encoders encode X traces, but we need to do concatenation at the
+     * transport layer too, so we strip away the msgpack array prefix.
+     * todo: properly read msgpack encoding instead of assuming 1 trace
+     */
+    if (!ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), payload + 1, payload_len - 1)) {
+        ddtrace_log_debug("Unable to send payload to background sender's buffer");
+    }
+
+    RETURN_TRUE
+}
+
 static PHP_FUNCTION(dd_trace_buffer_span) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
 
@@ -927,6 +970,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_pop_span_id, NULL),
     DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_FE(dd_trace_reset, NULL),
+    DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
     DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_dd_trace_serialize_closed_spans),
     DDTRACE_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack),
     DDTRACE_FE(dd_trace_set_trace_id, arginfo_dd_trace_set_trace_id),

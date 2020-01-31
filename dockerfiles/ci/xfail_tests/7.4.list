@@ -369,3 +369,8 @@ ext/standard/tests/serialize/__serialize_004.phpt
 ext/standard/tests/serialize/__serialize_005.phpt
 ext/standard/tests/serialize/bug45706.phpt
 ext/standard/tests/serialize/typed_property_refs.phpt
+Zend/tests/bug73816.phpt
+Zend/tests/bug78999.phpt
+Zend/tests/overloaded_assign_prop_return_value.phpt
+ext/session/tests/bug79031.phpt
+ext/standard/tests/serialize/sleep_uninitialized_typed_prop.phpt
