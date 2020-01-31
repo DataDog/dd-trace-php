@@ -433,6 +433,7 @@
         "symfony-23-suite": [ "@symfony-23-update", "@symfony-23-test" ],
 
         "symfony-28-update": [
+            "@inrease-memory-limit",
             "@composer --working-dir=tests/Frameworks/Symfony/Version_2_8 update"
         ],
         "symfony-28-test": "@composer test -- tests/Integrations/Symfony/V2_8",
