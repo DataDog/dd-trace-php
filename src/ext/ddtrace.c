@@ -113,18 +113,29 @@ static void register_span_data_ce(TSRMLS_D) {
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
+static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
+    if (strcmp("fpm-fcgi", sapi_module.name) == 0 || strcmp("apache2handler", sapi_module.name) == 0 ||
+        strcmp("cli", sapi_module.name) == 0 || strcmp("cli-server", sapi_module.name) == 0) {
+        return;
+    }
+    ddtrace_log_debugf("Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
+    DDTRACE_G(disable) = 1;
+}
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
     ZEND_INIT_MODULE_GLOBALS(ddtrace, php_ddtrace_init_globals, NULL);
     REGISTER_INI_ENTRIES();
 
+    // config initialization needs to be at the top
+    ddtrace_initialize_config(TSRMLS_C);
+    _dd_disable_if_incompatible_sapi_detected(TSRMLS_C);
+
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
 
-    // config initialization needs to be at the top
-    ddtrace_initialize_config(TSRMLS_C);
     ddtrace_dogstatsd_client_minit(TSRMLS_C);
     ddtrace_signals_minit(TSRMLS_C);
 
@@ -145,6 +156,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     UNREGISTER_INI_ENTRIES();
 
     if (DDTRACE_G(disable)) {
+        ddtrace_config_shutdown();
         return SUCCESS;
     }
 

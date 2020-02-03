@@ -296,3 +296,8 @@ ext/standard/tests/serialize/bug72785.phpt
 ext/standard/tests/serialize/serialize_globals_var_refs.phpt
 ext/standard/tests/strings/implode1.phpt
 sapi/cli/tests/upload_2G.phpt
+Zend/tests/bug78999.phpt
+Zend/tests/gc_041.phpt
+Zend/tests/gc_042.phpt
+ext/readline/tests/libedit_callback_handler_install_001.phpt
+ext/readline/tests/libedit_callback_handler_remove_001.phpt
