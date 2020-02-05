@@ -384,7 +384,7 @@
             "@opentracing-10-test"
         ],
 
-        "inrease-memory-limit": "export COMPOSER_MEMORY_LIMIT=-1",
+        "increase-memory-limit": "export COMPOSER_MEMORY_LIMIT=-1",
         "memory_test": "echo $COMPOSER_MEMORY_LIMIT",
 
         "opentracing-10-test": [
@@ -460,7 +460,7 @@
         "symfony-34-suite": [ "@symfony-34-update", "@symfony-34-test" ],
 
         "symfony-40-update": [
-            "@inrease-memory-limit",
+            "@increase-memory-limit",
             "@memory_test",
             "@composer --working-dir=tests/Frameworks/Symfony/Version_4_0 update",
             "@php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod"
@@ -468,7 +468,7 @@
         "symfony-40-test": "@composer test -- tests/Integrations/Symfony/V4_0",
         "symfony-40-suite": [ "@symfony-40-update", "@symfony-40-test" ],
         "symfony-42-update": [
-            "@inrease-memory-limit",
+            "@increase-memory-limit",
             "@composer --working-dir=tests/Frameworks/Symfony/Version_4_2 update",
             "php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod"
         ],

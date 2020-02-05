@@ -356,7 +356,7 @@ jobs:
       - run:
           name: Run tests
           command: |
-            docker-php-source extract
+            sudo rm -f /usr/local/etc/php/conf.d/docker-php-ext-memcached.ini
             if [[ ! "<<parameters.xfail_list>>" == "none" ]]; then
               cp "<<parameters.xfail_list>>" /usr/src/php/xfail_tests.list
               (
@@ -796,7 +796,7 @@ workflows:
       - unit_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 74 asan tests"
-          docker_image: "datadog/dd-trace-php:7.4-buster-debug-asan"
+          docker_image: "datadog/dd-trace-ci:php-7.4-debug-asan-buster"
           unit_test_target: test_c_asan
       - placeholder:
           requires: [ 'Code Checkout' ]
@@ -810,32 +810,32 @@ workflows:
           requires: [ 'Language tests' ]
           name: "PHP 73 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.3.list
-          docker_image: "datadog/dd-trace-php:7.3-buster-debug"
+          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 72 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.2.list
-          docker_image: "datadog/dd-trace-php:7.2-buster-debug"
+          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 71 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.1.list
-          docker_image: "datadog/dd-trace-php:7.1-buster-debug"
+          docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 70 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.0.list
-          docker_image: "datadog/dd-trace-php:7.0-buster-debug"
+          docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 56 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.6.list
-          docker_image: "datadog/dd-trace-php:5.6-buster-debug"
+          docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 54 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.4.list
-          docker_image: "datadog/dd-trace-php:5.4-buster-debug"
+          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Integration tests"
@@ -886,6 +886,7 @@ workflows:
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 56 Web integration tests"
+          resource_class: medium+
           integration_testsuite: "test-web-56"
           # docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
           docker_image: "datadog/docker-library:ddtrace_php_5_6"
