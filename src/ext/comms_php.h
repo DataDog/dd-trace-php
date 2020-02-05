@@ -5,7 +5,6 @@
 #include <curl/curl.h>
 #include <stdbool.h>
 
-struct curl_slist *ddtrace_convert_hashtable_to_curl_slist(HashTable *input);
-bool ddtrace_memoize_http_headers(HashTable *input);
+bool ddtrace_send_traces_via_thread(size_t num_traces, zval *curl_headers, char *payload, size_t payload_len TSRMLS_DC);
 
 #endif  // DDTRACE_COMMS_PHP_H
