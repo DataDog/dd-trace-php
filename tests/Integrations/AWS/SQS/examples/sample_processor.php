@@ -50,7 +50,7 @@ TestSQSClientSupport::resetTestQueue($client);
 while (true) {
     $result = $client->receiveMessage(array(
         'AttributeNames' => ['SentTimestamp'],
-        'MaxNumberOfMessages' => 2,
+        'MaxNumberOfMessages' => 10,
         'MessageAttributeNames' => ['All'],
         'QueueUrl' => TestSQSClientSupport::QUEUE_URL,
         'WaitTimeSeconds' => 1,
@@ -59,8 +59,13 @@ while (true) {
     $messages = $result->get('Messages');
 
     if (!empty($messages)) {
+        error_log('Received messages: ' . print_r(count($messages), 1));
         foreach ($messages as $message) {
             my_message_handler($message);
+            $client->deleteMessage([
+                'ReceiptHandle' => $message['ReceiptHandle'],
+                'QueueUrl' => TestSQSClientSupport::QUEUE_URL,
+            ]);
         }
     } else {
         sleep(1);
