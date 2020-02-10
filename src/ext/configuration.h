@@ -10,6 +10,17 @@ void ddtrace_initialize_config(TSRMLS_D);
 void ddtrace_reload_config(TSRMLS_D);
 void ddtrace_config_shutdown(void);
 
+/* From the curl docs on CONNECT_TIMEOUT_MS:
+ *     If libcurl is built to use the standard system name resolver, that
+ *     portion of the transfer will still use full-second resolution for
+ *     timeouts with a minimum timeout allowed of one second.
+ * The default is 0, which means to wait indefinitely. Even in the background
+ * we don't want to wait forever, but I'm not sure what to set the connect
+ * timeout to.
+ * A user hit an issue with the previous time of 100.
+ */
+#define DD_TRACE_AGENT_CONNECT_TIMEOUT 1000L
+
 #define DD_CONFIGURATION                                                                                             \
     CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost")                                                            \
     CHAR(get_dd_dogstatsd_port, "DD_DOGSTATSD_PORT", "8125")                                                         \
@@ -23,7 +34,7 @@ void ddtrace_config_shutdown(void);
     INT(get_dd_trace_agent_flush_interval, "DD_TRACE_AGENT_FLUSH_INTERVAL", 5000)                                    \
     INT(get_dd_trace_agent_flush_after_n_requests, "DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS", 10)                      \
     INT(get_dd_trace_agent_timeout, "DD_TRACE_AGENT_TIMEOUT", 500)                                                   \
-    INT(get_dd_trace_agent_connect_timeout, "DD_TRACE_AGENT_CONNECT_TIMEOUT", 100)                                   \
+    INT(get_dd_trace_agent_connect_timeout, "DD_TRACE_AGENT_CONNECT_TIMEOUT", DD_TRACE_AGENT_CONNECT_TIMEOUT)        \
     INT(get_dd_trace_debug_prng_seed, "DD_TRACE_DEBUG_PRNG_SEED", -1)                                                \
     BOOL(get_dd_log_backtrace, "DD_LOG_BACKTRACE", FALSE)                                                            \
     INT(get_dd_trace_shutdown_timeout, "DD_TRACE_SHUTDOWN_TIMEOUT", 5000)                                            \

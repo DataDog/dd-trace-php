@@ -729,29 +729,18 @@ typedef zend_long ddtrace_zpplong_t;
 
 static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
-    char *url = NULL, *payload = NULL;
-    ddtrace_zppstrlen_t url_len = 0, payload_len = 0;
+    char *payload = NULL;
+    ddtrace_zpplong_t num_traces = 0;
+    ddtrace_zppstrlen_t payload_len = 0;
     zval *curl_headers = NULL;
 
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "sas", &url, &url_len,
-                                 &curl_headers, &payload, &payload_len) == FAILURE) {
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "las", &num_traces, &curl_headers,
+                                 &payload, &payload_len) == FAILURE) {
         ddtrace_log_debug("dd_trace_send_traces_via_thread() expects url, http headers, and http body");
         RETURN_FALSE
     }
 
-    if (ddtrace_memoize_http_headers(Z_ARRVAL_P(curl_headers))) {
-        ddtrace_log_debug("Successfully memoized Agent HTTP headers");
-    }
-
-    /* Encoders encode X traces, but we need to do concatenation at the
-     * transport layer too, so we strip away the msgpack array prefix.
-     * todo: properly read msgpack encoding instead of assuming 1 trace
-     */
-    if (!ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), payload + 1, payload_len - 1)) {
-        ddtrace_log_debug("Unable to send payload to background sender's buffer");
-    }
-
-    RETURN_TRUE
+    RETURN_BOOL(ddtrace_send_traces_via_thread(num_traces, curl_headers, payload, payload_len TSRMLS_CC));
 }
 
 static PHP_FUNCTION(dd_trace_buffer_span) {
