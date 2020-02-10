@@ -43,7 +43,11 @@ final class Bootstrap
             register_shutdown_function($flushTracer);
             return;
         }
-        dd_trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', $flushTracer);
+        dd_trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', [
+            'instrument_when_limited' => 1,
+            'posthook' => $flushTracer,
+        ]);
+
         register_shutdown_function(function () {
             /*
              * Register the shutdown handler during shutdown so that it is run after all the other shutdown handlers.
