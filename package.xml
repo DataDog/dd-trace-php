@@ -10,17 +10,27 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2020-02-11</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.39.2</release>
+        <api>0.39.2</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+### Fixed
+
+ - Traces are flushed when in limited mode #745
+
+### Changed:
+
+- Tracer will disable itself when an unsupported SAPI is detected #742
+- Move the "Found blacklisted module" message to the debug level #742
+- Increase connect timeout for background sender #744
+</notes>
     <contents>
         <dir name="/">
             <dir name="src">
