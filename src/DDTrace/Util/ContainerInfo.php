@@ -33,8 +33,11 @@ class ContainerInfo
      */
     public function getContainerId()
     {
-        // We do not want to emit a warning if user application uses ini setting 'open_basedir'
-        // and '/proc/self' is not included in the ini setting.
+        // We check open_basedir because even if we use @file_exists an annoying error message is printed.
+        if (!Runtime::openBaseDirAllowsFile($this->cgroupProcFile)) {
+            return null;
+        }
+
         if (!@file_exists($this->cgroupProcFile)) {
             return null;
         }

@@ -8,6 +8,29 @@ namespace DDTrace\Util;
 final class Runtime
 {
     /**
+     * Tells whether or not open_basedir ini param allows access to a specific file.
+     *
+     * @param string $absFilePath The absolute file path
+     * @return bool
+     */
+    public static function openBaseDirAllowsFile($absFilePath)
+    {
+        $openBaseDir = ini_get('open_basedir');
+        if (empty($openBaseDir)) {
+            return true;
+        }
+
+        $fragments = \explode(':', $openBaseDir);
+        foreach ($fragments as $fragment) {
+            if (substr($absFilePath, 0, strlen($fragment)) === $fragment) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Tells whether or not a given autoloader is registered.
      *
      * @param string $class
