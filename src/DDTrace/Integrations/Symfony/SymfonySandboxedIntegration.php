@@ -39,6 +39,7 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
     public function init()
     {
         $integration = $this;
+        $globalConfig = Configuration::get();
         $appName = null;
         $symfonyRequestSpan = null;
         $isSymfony2 = false;
@@ -145,20 +146,22 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         );
 
         // Tracing templating engines
-        $renderTraceCallback = function (SpanData $span, $args) use (&$appName, $integration, &$isSymfony2) {
-            if ($isSymfony2) {
-                // Disabled for symfony 2
-                return false;
-            }
+        $renderTraceCallback =
+            function (SpanData $span, $args) use (&$appName, $integration, &$isSymfony2, $globalConfig) {
+                if ($isSymfony2) {
+                    // Disabled for symfony 2
+                    return false;
+                }
 
-            $span->name = 'symfony.templating.render';
-            $span->service = $appName;
-            $span->type = Type::WEB_SERVLET;
-
-            $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);
-            $span->resource = $resourceName;
-            $span->meta[Tag::INTEGRATION_NAME] = $integration->getName();
-        };
+                $span->name = 'symfony.templating.render';
+                // Template engines might be used outside of Symfony, so if app name was not defined by the
+                // symfony integration then we get it here.
+                $span->service = empty($appName) ? $globalConfig->appName('symfony-templating') : $appName;
+                $span->type = Type::WEB_SERVLET;
+                $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);
+                $span->resource = $resourceName;
+                $span->meta[Tag::INTEGRATION_NAME] = $integration->getName();
+            };
         dd_trace_method('Symfony\Bridge\Twig\TwigEngine', 'render', $renderTraceCallback);
         dd_trace_method('Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $renderTraceCallback);
         dd_trace_method('Symfony\Bundle\TwigBundle\TwigEngine', 'render', $renderTraceCallback);
