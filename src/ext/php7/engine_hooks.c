@@ -435,7 +435,6 @@ static int _dd_opcode_default_dispatch(zend_execute_data *execute_data) {
                 return _prev_icall_handler(execute_data);
             }
             break;
-
         case ZEND_DO_UCALL:
             if (_prev_ucall_handler) {
                 return _prev_ucall_handler(execute_data);
@@ -446,7 +445,6 @@ static int _dd_opcode_default_dispatch(zend_execute_data *execute_data) {
                 return _prev_fcall_handler(execute_data);
             }
             break;
-
         case ZEND_DO_FCALL_BY_NAME:
             if (_prev_fcall_by_name_handler) {
                 return _prev_fcall_by_name_handler(execute_data);
@@ -461,6 +459,12 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data) {
     ddtrace_dispatch_t *dispatch = NULL;
     if (!_dd_should_trace_call(execute_data, &current_fbc, &dispatch)) {
         return _dd_opcode_default_dispatch(execute_data);
+    }
+    int vm_retval = _dd_opcode_default_dispatch(execute_data);
+    if (vm_retval != ZEND_USER_OPCODE_DISPATCH) {
+        ddtrace_log_debugf("A neighboring extension has altered the VM state for '%s()'; cannot reliably instrument",
+                           ZSTR_VAL(current_fbc->common.function_name));
+        return vm_retval;
     }
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution

@@ -144,8 +144,8 @@ static zend_function *_get_current_fbc(zend_execute_data *execute_data TSRMLS_DC
     }
 }
 
-static BOOL_T ddtrace_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
-                                        ddtrace_dispatch_t **dispatch TSRMLS_DC) {
+static BOOL_T _dd_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
+                                    ddtrace_dispatch_t **dispatch TSRMLS_DC) {
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
         DDTRACE_G(function_lookup) == NULL) {
         return FALSE;
@@ -288,7 +288,7 @@ BOOL_T ddtrace_execute_tracing_closure(ddtrace_dispatch_t *dispatch, zval *span_
     return status;
 }
 
-static void update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
+static void _dd_update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
     DD_PRINTF("Update opcode leave");
 #if PHP_VERSION_ID < 50500
     EX(function_state).function = (zend_function *)EX(op_array);
@@ -635,7 +635,7 @@ _dispatch_exit_cleanup:
 #endif
 }
 
-static int ddtrace_opcode_default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
+static int _dd_opcode_default_dispatch(zend_execute_data *execute_data TSRMLS_DC) {
     if (!EX(opline)->opcode) {
         return ZEND_USER_OPCODE_DISPATCH;
     }
@@ -658,8 +658,17 @@ static int ddtrace_opcode_default_dispatch(zend_execute_data *execute_data TSRML
 int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     zend_function *current_fbc = NULL;
     ddtrace_dispatch_t *dispatch = NULL;
-    if (!ddtrace_should_trace_call(execute_data, &current_fbc, &dispatch TSRMLS_CC)) {
-        return ddtrace_opcode_default_dispatch(execute_data TSRMLS_CC);
+    if (!_dd_should_trace_call(execute_data, &current_fbc, &dispatch TSRMLS_CC)) {
+        return _dd_opcode_default_dispatch(execute_data TSRMLS_CC);
+    }
+    int vm_retval = _dd_opcode_default_dispatch(execute_data TSRMLS_CC);
+    if (vm_retval != ZEND_USER_OPCODE_DISPATCH) {
+        if (get_dd_trace_debug()) {
+            const char *fname = current_fbc->common.function_name ?: Z_STRVAL_P(EX(opline)->op1.zv);
+            ddtrace_log_errf("A neighboring extension has altered the VM state for '%s()'; cannot reliably instrument",
+                             fname ?: "{unknown}");
+        }
+        return vm_retval;
     }
     ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
@@ -689,7 +698,7 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
         DDTRACE_G(original_context).calling_fbc = previous_calling_fbc;
         DDTRACE_G(original_context).fbc = previous_fbc;
 
-        update_opcode_leave(execute_data TSRMLS_CC);
+        _dd_update_opcode_leave(execute_data TSRMLS_CC);
     }
 
     dispatch->busy = 0;
