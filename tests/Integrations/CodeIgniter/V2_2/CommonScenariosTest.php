@@ -110,6 +110,51 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'Error_.index'
                     )->setError('Exception', 'datadog', true),
                 ],
+                'A GET request ended in http_status_code(200)' => [
+                    SpanAssertion::build(
+                        'codeigniter.request',
+                        'codeigniter_test_app',
+                        'web',
+                        'GET /http_response_code_success'
+                    )->withExactTags(
+                        [
+                            Tag::HTTP_METHOD      => 'GET',
+                            Tag::HTTP_URL         => 'http://localhost:9999/http_response_code_success',
+                            // CodeIgniter's error handler does not adjust the status code
+                            Tag::HTTP_STATUS_CODE => '200',
+                            'integration.name'    => 'codeigniter',
+                            'app.endpoint'        => 'Simple::http_response_code_success',
+                        ]
+                    ),
+                    SpanAssertion::build(
+                        'Error_.index',
+                        'codeigniter_test_app',
+                        Type::WEB_SERVLET,
+                        'Simple.http_response_code_success'
+                    ),
+                'A GET request ended in http_status_code(500)' => [
+                    SpanAssertion::build(
+                        'codeigniter.request',
+                        'codeigniter_test_app',
+                        'web',
+                        'GET /error/http_response_code_failure'
+                    )->withExactTags(
+                        [
+                            Tag::HTTP_METHOD      => 'GET',
+                            Tag::HTTP_URL         => 'http://localhost:9999/error/http_response_code_failure',
+                            // CodeIgniter's error handler does not adjust the status code
+                            Tag::HTTP_STATUS_CODE => '200',
+                            'integration.name'    => 'codeigniter',
+                            'app.endpoint'        => 'Error_::http_response_code_failure',
+                        ]
+                    ),
+                    SpanAssertion::build(
+                        'Error_.index',
+                        'codeigniter_test_app',
+                        Type::WEB_SERVLET,
+                        'Error_.http_response_code_failure'
+                    )->setError('Exception', 'datadog', true),
+                ]
             ]
         );
     }
