@@ -127,7 +127,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         ]
                     ),
                     SpanAssertion::build(
-                        'Http_Response_Code.index',
+                        'Http_Response_Code.success',
                         'codeigniter_test_app',
                         Type::WEB_SERVLET,
                         'Http_Response_Code.success'
