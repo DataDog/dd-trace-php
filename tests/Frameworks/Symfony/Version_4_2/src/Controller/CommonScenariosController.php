@@ -39,4 +39,19 @@ class CommonScenariosController extends AbstractController
     {
         throw new \Exception('An exception occurred');
     }
+
+    /**
+     * @Route("/http_response_code_success", name="http_response_code_success")
+     */
+    public function httpResponseCodeSuccessfulAction(Request $request)
+    {
+        http_response_code(Response::HTTP_OK);
+    }
+
+    /**
+     * @Route("/http_response_code_failure", name="http_response_code_failure")
+     */
+    public function httpResponseCodeFailureAction(Request $request) {
+        http_response_code(Response::HTTP_INTERNAL_SERVER_ERROR);
+    }
 }
