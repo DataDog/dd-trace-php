@@ -3,6 +3,7 @@
 #include <php.h>
 #include <time.h>
 
+#include "configuration.h"
 #include "ddtrace.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -41,12 +42,14 @@ static zend_op_array *_dd_compile_file(zend_file_handle *file_handle, int type T
 }
 
 static void _compile_minit(void) {
-    _prev_compile_file = zend_compile_file;
-    zend_compile_file = _dd_compile_file;
+    if (get_dd_trace_measure_compile_time()) {
+        _prev_compile_file = zend_compile_file;
+        zend_compile_file = _dd_compile_file;
+    }
 }
 
 static void _compile_mshutdown(void) {
-    if (zend_compile_file == _dd_compile_file) {
+    if (get_dd_trace_measure_compile_time() && zend_compile_file == _dd_compile_file) {
         zend_compile_file = _prev_compile_file;
     }
 }

@@ -64,8 +64,10 @@ final class SpanEncoder
             if ($prioritySampling !== PrioritySampling::UNKNOWN) {
                 $metrics['_sampling_priority_v1'] = $prioritySampling;
             }
-            // Metric expects milliseconds
-            $metrics['php.compilation.total_time_ms'] = (float) dd_trace_compile_time_microseconds() / 1000;
+            if (\dd_trace_env_config('DD_TRACE_MEASURE_COMPILE_TIME')) {
+                // Metric expects milliseconds
+                $metrics['php.compilation.total_time_ms'] = (float) dd_trace_compile_time_microseconds() / 1000;
+            }
         }
         if (!empty($metrics)) {
             $arraySpan['metrics'] = $metrics;
