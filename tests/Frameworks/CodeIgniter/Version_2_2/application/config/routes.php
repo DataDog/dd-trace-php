@@ -41,8 +41,6 @@
 $route['default_controller'] = "welcome";
 $route['404_override'] = '';
 $route['error'] = 'error_';
-$route['error/http_response_code_failure'] = 'error_/http_response_code_failure';
-$route['http_response_code_success'] = 'simple/http_response_code_success';
 
 
 /* End of file routes.php */
