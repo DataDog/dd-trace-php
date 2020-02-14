@@ -41,7 +41,7 @@ class CommonScenariosController extends AbstractController
     }
 
     /**
-     * @Route("/http_response_code_success", name="http_response_code_success")
+     * @Route("/http_response_code/success", name="http_response_code_success")
      */
     public function httpResponseCodeSuccessfulAction(Request $request)
     {
@@ -49,7 +49,7 @@ class CommonScenariosController extends AbstractController
     }
 
     /**
-     * @Route("/http_response_code_failure", name="http_response_code_failure")
+     * @Route("/http_response_code/failure", name="http_response_code_failure")
      */
     public function httpResponseCodeFailureAction(Request $request) {
         http_response_code(Response::HTTP_INTERNAL_SERVER_ERROR);

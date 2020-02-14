@@ -83,11 +83,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web.request',
                         'web.request',
                         'web',
-                        'GET /http_response_code_success'
+                        'GET /http_response_code/success'
                     )->withExactTags(
                         [
                             'http.method'      => 'GET',
-                            'http.url'         => '/http_response_code_success',
+                            'http.url'         => '/http_response_code/success',
                             'http.status_code' => '200',
                             'integration.name' => 'web',
                         ]
@@ -98,11 +98,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web.request',
                         'web.request',
                         'web',
-                        'GET /http_response_code_failure'
+                        'GET /http_response_code/failure'
                     )->withExactTags(
                         [
                             'http.method'      => 'GET',
-                            'http.url'         => '/http_response_code_failure',
+                            'http.url'         => '/http_response_code/failure',
                             'http.status_code' => '500',
                             'integration.name' => 'web',
                         ]
