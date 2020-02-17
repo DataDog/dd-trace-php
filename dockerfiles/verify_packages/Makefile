@@ -46,4 +46,7 @@ $(CENTOS7_MANUAL_PHP_VERSIONS): %.centos7-compiled:
 
 $(ALPINE_PHP_VERSIONS): %.alpine:
 	@echo Verifying Alpine - PHP $*
-	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run -T --rm ${*}-alpine sh /build_src/dockerfiles/verify_packages/verify_apk.sh
+	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run -T --rm ${*}-alpine3.5 sh /build_src/dockerfiles/verify_packages/verify_apk.sh
+
+prepare_docker_images_alpine:
+	@docker-compose -f $(ROOT_DIR)/docker-compose.yml build 5.6-alpine3.5

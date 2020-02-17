@@ -5,7 +5,7 @@
 FROM circleci/ruby:2.5
 
 USER root
-WORKDIR /home/circleci
+WORKDIR /dd-trace-php
 
 ADD fpm_apk_pax_header.patch /tmp
 
@@ -21,4 +21,3 @@ RUN apt update && \
     && rm -f /tmp/fpm_apk_pax_header.patch
 
 USER circleci
-ENTRYPOINT [ "bash" ]

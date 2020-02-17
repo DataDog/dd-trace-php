@@ -1,6 +1,9 @@
 PROJECT_ROOT := $(realpath ../../)
 WORKDIR := /dd-trace-php
 
+package: packaging-tools 5.6-alpine
+	docker run --rm -v ${PROJECT_ROOT}:${WORKDIR} datadog/packaging-tools make .apk
+
 packaging-tools: Dockerfile_fpm
 	docker build -t datadog/packaging-tools -f Dockerfile_fpm .
 
@@ -13,4 +16,4 @@ packaging-tools: Dockerfile_fpm
 	cp ${PROJECT_ROOT}/tmp/build_extension/.libs/ddtrace.so ${PROJECT_ROOT}/extensions/ddtrace-20131106.so
 	# docker run --rm -v ${PROJECT_ROOT}:${WORKDIR} -w ${WORKDIR} datadog/packaging-tools make packages
 
-.PHONY: 5.6-alpine packaging-tools
+.PHONY: 5.6-alpine package packaging-tools
