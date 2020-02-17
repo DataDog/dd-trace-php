@@ -240,7 +240,7 @@ renderSuccessOrFailure('DDTrace\\Tracer class exists', class_exists('\\DDTrace\\
 
 // Checking background sender status
 $isBackgroundSenderEnabled = is_flag_enabled(getenv('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD'));
-render("Background sender is enabled", $isBackgroundSenderEnabled ? 'YES' : 'NO');
+render("Background sender is enabled?", $isBackgroundSenderEnabled ? 'YES' : 'NO');
 if (!$isBackgroundSenderEnabled) {
     sub_paragraph('You can enable the background sender via DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=true');
 }
