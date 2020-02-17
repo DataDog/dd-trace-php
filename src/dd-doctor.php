@@ -7,7 +7,7 @@ const WARN = '__WARN__';
 const TEXT_WIDTH = 50;
 
 /**
- * Returns true if and only if the provided row value is truthy, e.g. 1, true, TrUe.
+ * Returns true if and only if the provided raw value is truthy, e.g. 1, true, TrUe.
  * @param string $rawValue
  * @return bool
  */
