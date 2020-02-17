@@ -161,7 +161,7 @@ $(PACKAGES_BUILD_DIR):
 .rpm: $(PACKAGES_BUILD_DIR)
 	fpm -p $(PACKAGES_BUILD_DIR) -t rpm $(FPM_OPTS) $(FPM_FILES)
 .apk: $(PACKAGES_BUILD_DIR)
-	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(FPM_OPTS) --depends=libc6-compat --depends=bash --depends=libexecinfo $(FPM_FILES)
+	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(FPM_OPTS) --depends=libc6-compat --depends=bash --depends=curl --depends=libexecinfo $(FPM_FILES)
 .tar.gz: $(PACKAGES_BUILD_DIR)
 	fpm -p $(PACKAGES_BUILD_DIR)/$(PACKAGE_NAME)-$(VERSION).x86_64.tar.gz -t tar $(FPM_OPTS) $(FPM_FILES)
 
