@@ -1,0 +1,24 @@
+# Copied from:
+# https://github.com/DataDog/docker-library/blob/62ddd87b86b8917307f23944586486270fadf065/dd-trace-php/Dockerfile_fpm
+# while considering migrating back dockerfiles to our code repo.
+
+FROM circleci/ruby:2.5
+
+USER root
+WORKDIR /home/circleci
+
+ADD fpm_apk_pax_header.patch /tmp
+
+RUN apt update && \
+    apt -y install \
+        vim \
+        less \
+        build-essential \
+        rpm \
+        lintian \
+    && gem install fpm -v 1.11.0 \
+    && (cd /usr/local/bundle/gems/fpm-1.11.0/; patch -p 1 < /tmp/fpm_apk_pax_header.patch ) \
+    && rm -f /tmp/fpm_apk_pax_header.patch
+
+USER circleci
+ENTRYPOINT [ "bash" ]
