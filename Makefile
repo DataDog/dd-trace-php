@@ -103,7 +103,7 @@ dist_clean:
 	rm -rf $(BUILD_DIR)
 
 clean:
-	$(MAKE) -C $(BUILD_DIR) clean
+	if [ -d "$(BUILD_DIR)/Makefile" ]; then $(MAKE) -C $(BUILD_DIR) clean; fi
 
 sudo:
 	$(eval SUDO:=sudo)
