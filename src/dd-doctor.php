@@ -6,13 +6,21 @@ const WARN = '__WARN__';
 
 const TEXT_WIDTH = 50;
 
+/**
+ * Returns true if and only if the provided row value is truthy, e.g. 1, true, TrUe.
+ * @param string $rawValue
+ * @return bool
+ */
+function is_flag_enabled($rawValue)
+{
+    return in_array(strtolower($rawValue), ['1', 'true']);
+}
 
 if ('cli' === PHP_SAPI) {
     echo 'WARNING: Script is running from the CLI SAPI.' . PHP_EOL;
     echo '         Please run this script from your web browser.' . PHP_EOL;
     echo PHP_EOL;
-    $cliEnabled = getenv('DD_TRACE_CLI_ENABLED');
-    $cliEnabled = ('1' === $cliEnabled || 'true' === $cliEnabled);
+    $cliEnabled = is_flag_enabled(getenv('DD_TRACE_CLI_ENABLED'));
     if (!$cliEnabled) {
         echo 'Tracing from the CLI SAPI is not enabled.' . PHP_EOL;
         echo 'To enable, set: DD_TRACE_CLI_ENABLED=1' . PHP_EOL;
@@ -229,6 +237,13 @@ if ($integrationsLoaderExists) {
 }
 
 renderSuccessOrFailure('DDTrace\\Tracer class exists', class_exists('\\DDTrace\\Tracer'));
+
+// Checking background sender status
+$isBackgroundSenderEnabled = is_flag_enabled(getenv('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD'));
+render("Background sender is enabled", $isBackgroundSenderEnabled ? 'YES' : 'NO');
+if (!$isBackgroundSenderEnabled) {
+    sub_paragraph('You can enable the background sender via DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=true');
+}
 
 check_agent_connectivity();
 
