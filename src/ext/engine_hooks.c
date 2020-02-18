@@ -10,6 +10,9 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static zend_op_array *(*_prev_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
+void ddtrace_execute_internal_minit(void);
+void ddtrace_execute_internal_mshutdown(void);
+
 static void _compile_minit(void);
 static void _compile_mshutdown(void);
 
@@ -17,12 +20,15 @@ void ddtrace_opcode_minit(void);
 void ddtrace_opcode_mshutdown(void);
 
 void ddtrace_engine_hooks_minit(void) {
+    ddtrace_execute_internal_minit();
     ddtrace_opcode_minit();
     _compile_minit();
 }
+
 void ddtrace_engine_hooks_mshutdown(void) {
     _compile_mshutdown();
     ddtrace_opcode_mshutdown();
+    ddtrace_execute_internal_mshutdown();
 }
 
 static uint64_t _get_microseconds() {
