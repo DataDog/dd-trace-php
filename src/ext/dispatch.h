@@ -21,7 +21,6 @@ typedef struct ddtrace_dispatch_t {
 
 ddtrace_dispatch_t *ddtrace_find_dispatch(zval *this, zend_function *fbc, zval *fname TSRMLS_DC);
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC);
-int ddtrace_wrap_fcall(zend_execute_data *TSRMLS_DC);
 void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *);
 void ddtrace_class_lookup_release(ddtrace_dispatch_t *);
 zend_class_entry *ddtrace_target_class_entry(zval *, zval *TSRMLS_DC);
