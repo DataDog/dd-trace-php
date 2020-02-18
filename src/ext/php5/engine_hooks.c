@@ -663,7 +663,7 @@ static int _dd_opcode_default_dispatch(zend_execute_data *execute_data TSRMLS_DC
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
-int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
+static int _dd_begin_fcall_handler(zend_execute_data *execute_data TSRMLS_DC) {
     zend_function *current_fbc = NULL;
     ddtrace_dispatch_t *dispatch = NULL;
     if (!_dd_should_trace_call(execute_data, &current_fbc, &dispatch TSRMLS_CC)) {
@@ -739,8 +739,8 @@ static int _dd_exit_handler(zend_execute_data *execute_data TSRMLS_DC) {
 void ddtrace_opcode_minit(void) {
     _prev_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     _prev_fcall_by_name_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL_BY_NAME);
-    zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);
-    zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, ddtrace_wrap_fcall);
+    zend_set_user_opcode_handler(ZEND_DO_FCALL, _dd_begin_fcall_handler);
+    zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, _dd_begin_fcall_handler);
 
     _prev_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
     zend_set_user_opcode_handler(ZEND_EXIT, _dd_exit_handler);
@@ -751,4 +751,12 @@ void ddtrace_opcode_mshutdown(void) {
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, NULL);
 
     zend_set_user_opcode_handler(ZEND_EXIT, NULL);
+}
+
+void ddtrace_execute_internal_minit(void) {
+    // TODO
+}
+
+void ddtrace_execute_internal_mshutdown(void) {
+    // TODO
 }
