@@ -88,16 +88,6 @@ final class Http implements Transport
      */
     public function send(Tracer $tracer)
     {
-        if ($this->isLogDebugActive() && function_exists('dd_tracer_circuit_breaker_info')) {
-            self::logDebug('circuit breaker status: closed => {closed}, total_failures => {total_failures},'
-            . 'consecutive_failures => {consecutive_failures}, opened_timestamp => {opened_timestamp}, '
-            . 'last_failure_timestamp=> {last_failure_timestamp}', dd_tracer_circuit_breaker_info());
-        }
-
-        if (function_exists('dd_tracer_circuit_breaker_can_try') && !dd_tracer_circuit_breaker_can_try()) {
-            self::logError('Reporting of spans skipped due to open circuit breaker');
-            return;
-        }
         $tracesCount = $tracer->getTracesCount();
         $tracesPayload = $this->encoder->encodeTraces($tracer);
 
@@ -163,6 +153,17 @@ final class Http implements Transport
             && $this->encoder->getContentType() === 'application/msgpack'
             && \dd_trace_send_traces_via_thread($tracesCount, $curlHeaders, $body)
         ) {
+            return;
+        }
+
+        if ($this->isLogDebugActive() && function_exists('dd_tracer_circuit_breaker_info')) {
+            self::logDebug('circuit breaker status: closed => {closed}, total_failures => {total_failures},'
+            . 'consecutive_failures => {consecutive_failures}, opened_timestamp => {opened_timestamp}, '
+            . 'last_failure_timestamp=> {last_failure_timestamp}', dd_tracer_circuit_breaker_info());
+        }
+
+        if (function_exists('dd_tracer_circuit_breaker_can_try') && !dd_tracer_circuit_breaker_can_try()) {
+            self::logError('Reporting of spans skipped due to open circuit breaker');
             return;
         }
 
