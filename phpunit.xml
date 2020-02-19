@@ -40,6 +40,7 @@
             <directory>tests/Integrations/Slim/V3_12</directory>
         </testsuite>
         <testsuite name="custom-framework-autoloaded-test">
+            <file>tests/Integrations/Custom/Autoloaded/CircuitBreakerTest.php</file>
             <file>tests/Integrations/Custom/Autoloaded/CommonScenariosTest.php</file>
             <directory>tests/Integrations/CLI/Custom/Autoloaded</directory>
         </testsuite>
