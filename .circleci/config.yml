@@ -539,7 +539,8 @@ jobs:
     parameters:
       php_version:
         type: string
-    docker: [ image: "datadog/dd-trace-ci:php-build-extension-<< parameters.php_version >>-alpine" ]
+    machine:
+      image: "ubuntu-1604:201903-01"
     environment:
       CFLAGS: ""
     steps:
@@ -552,7 +553,6 @@ jobs:
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions']
-
 
   "Code Checkout":
     working_directory: ~/datadog
