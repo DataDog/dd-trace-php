@@ -177,6 +177,7 @@
                         <file name="keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
                         <file name="memory_limit_graceful_bailout.phpt" role="test" />
                         <file name="new_static.phpt" role="test" />
+                        <file name="return_by_ref.phpt" role="test" />
                         <file name="retval_is_null_with_exception.phpt" role="test" />
                         <file name="safe_to_string_metadata.phpt" role="test" />
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
@@ -184,6 +185,7 @@
                         <file name="sandbox_api_not_available_on_unsupported_versions.phpt" role="test" />
                         <file name="spans_out_of_sync.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
+                        <file name="vm_var_types_return.phpt" role="test" />
                     </dir>
                     <dir name="sandbox-prehook">
                         <file name="access_modifier_method_access_hook.phpt" role="test" />
