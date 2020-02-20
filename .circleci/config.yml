@@ -616,177 +616,177 @@ workflows:
             branches:
               # Always build on master and on release branches
               only: /^.*(master|build|[0-9]+.[0-9]+.[0-9]+|ddtrace-[0-9]+.[0-9]+).*$/
-      # - compile_extension:
-      #     name: "Compile PHP 54"
-      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
-      #     catch_warnings: false
-      #     lib_curl_command: yum -y install libcurl-devel
-      #     so_suffix: "20100412"
-      #     requires: [ 'Code Checkout' ]
-      # # - compile_extension_alpine:
-      # #     name: "Compile PHP 54 Alpine"
-      # #     php_version: "5.4"
-      # #     requires: [ 'Code Checkout' ]
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 56"
-      #     lib_curl_command: yum -y install libcurl-devel
-      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_6"
-      #     so_suffix: "20131106"
+      - compile_extension:
+          name: "Compile PHP 54"
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
+          catch_warnings: false
+          lib_curl_command: yum -y install libcurl-devel
+          so_suffix: "20100412"
+          requires: [ 'Code Checkout' ]
       # - compile_extension_alpine:
-      #     name: "Compile PHP 56 Alpine"
-      #     php_version: "5.6"
+      #     name: "Compile PHP 54 Alpine"
+      #     php_version: "5.4"
       #     requires: [ 'Code Checkout' ]
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 70"
-      #     lib_curl_command: yum -y install libcurl-devel
-      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_0"
-      #     so_suffix: "20151012"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 56"
+          lib_curl_command: yum -y install libcurl-devel
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_6"
+          so_suffix: "20131106"
+      - compile_extension_alpine:
+          name: "Compile PHP 56 Alpine"
+          php_version: "5.6"
+          requires: [ 'Code Checkout' ]
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 70"
+          lib_curl_command: yum -y install libcurl-devel
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_0"
+          so_suffix: "20151012"
       - compile_extension_alpine:
           name: "Compile PHP 70 Alpine"
           php_version: "7.0"
           requires: [ 'Code Checkout' ]
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 71"
-      #     lib_curl_command: yum -y install libcurl-devel
-      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_1"
-      #     so_suffix: "20160303"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 71"
+          lib_curl_command: yum -y install libcurl-devel
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_1"
+          so_suffix: "20160303"
+      - compile_extension_alpine:
+          name: "Compile PHP 71 Alpine"
+          php_version: "7.1"
+          requires: [ 'Code Checkout' ]
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 72"
+          lib_curl_command: yum -y install libcurl-devel
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
+          so_suffix: "20170718"
+      - compile_extension_alpine:
+          name: "Compile PHP 72 Alpine"
+          php_version: "7.2"
+          requires: [ 'Code Checkout' ]
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 73"
+          lib_curl_command: yum -y install libcurl-devel
+          docker_image: "datadog/docker-library:ddtrace_centos_7_php_73"
+          so_suffix: "20180731"
       # - compile_extension_alpine:
-      #     name: "Compile PHP 71 Alpine"
-      #     php_version: "7.1"
+      #     name: "Compile PHP 73 Alpine"
+      #     php_version: "7.3"
       #     requires: [ 'Code Checkout' ]
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 72"
-      #     lib_curl_command: yum -y install libcurl-devel
-      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
-      #     so_suffix: "20170718"
-      # - compile_extension_alpine:
-      #     name: "Compile PHP 72 Alpine"
-      #     php_version: "7.2"
-      #     requires: [ 'Code Checkout' ]
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 73"
-      #     lib_curl_command: yum -y install libcurl-devel
-      #     docker_image: "datadog/docker-library:ddtrace_centos_7_php_73"
-      #     so_suffix: "20180731"
-      # # - compile_extension_alpine:
-      # #     name: "Compile PHP 73 Alpine"
-      # #     php_version: "7.3"
-      # #     requires: [ 'Code Checkout' ]
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 74"
-      #     docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
-      #     so_suffix: "20190902"
-      # - compile_extension_alpine:
-      #     name: "Compile PHP 74 Alpine"
-      #     php_version: "7.4"
-      #     requires: [ 'Code Checkout' ]
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 56-zts"
-      #     docker_image: "circleci/php:5.6-zts"
-      #     lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-      #     so_suffix: "20131106-zts"
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 70-zts"
-      #     docker_image: "circleci/php:7.0-zts"
-      #     lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-      #     so_suffix: "20151012-zts"
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 71-zts"
-      #     docker_image: "circleci/php:7.1-zts"
-      #     lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-      #     so_suffix: "20160303-zts"
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 72-zts"
-      #     docker_image: "circleci/php:7.2-zts"
-      #     lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-      #     so_suffix: "20170718-zts"
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 73-zts"
-      #     docker_image: "circleci/php:7.3-zts"
-      #     lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-      #     so_suffix: "20180731-zts"
-      # - compile_extension:
-      #     requires: [ 'Code Checkout' ]
-      #     name: "Compile PHP 74-zts"
-      #     docker_image: "circleci/php:7.4-zts"
-      #     lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-      #     so_suffix: "20190902-zts"
-      # - "package extension":
-      #     requires:
-      #       - "Compile PHP 54"
-      #       - "Compile PHP 56"
-      #       - "Compile PHP 70"
-      #       - "Compile PHP 71"
-      #       - "Compile PHP 72"
-      #       - "Compile PHP 73"
-      #       - "Compile PHP 74"
-      #       - "Compile PHP 56-zts"
-      #       - "Compile PHP 70-zts"
-      #       - "Compile PHP 71-zts"
-      #       - "Compile PHP 72-zts"
-      #       - "Compile PHP 73-zts"
-      #       - "Compile PHP 74-zts"
-      # - "package verification":
-      #     requires:
-      #       - "package extension"
-      # - placeholder:
-      #     requires: [ 'package extension' ]
-      #     name: Framework tests
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 74"
+          docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
+          so_suffix: "20190902"
+      - compile_extension_alpine:
+          name: "Compile PHP 74 Alpine"
+          php_version: "7.4"
+          requires: [ 'Code Checkout' ]
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 56-zts"
+          docker_image: "circleci/php:5.6-zts"
+          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
+          so_suffix: "20131106-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 70-zts"
+          docker_image: "circleci/php:7.0-zts"
+          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
+          so_suffix: "20151012-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 71-zts"
+          docker_image: "circleci/php:7.1-zts"
+          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
+          so_suffix: "20160303-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 72-zts"
+          docker_image: "circleci/php:7.2-zts"
+          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
+          so_suffix: "20170718-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 73-zts"
+          docker_image: "circleci/php:7.3-zts"
+          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
+          so_suffix: "20180731-zts"
+      - compile_extension:
+          requires: [ 'Code Checkout' ]
+          name: "Compile PHP 74-zts"
+          docker_image: "circleci/php:7.4-zts"
+          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
+          so_suffix: "20190902-zts"
+      - "package extension":
+          requires:
+            - "Compile PHP 54"
+            - "Compile PHP 56"
+            - "Compile PHP 70"
+            - "Compile PHP 71"
+            - "Compile PHP 72"
+            - "Compile PHP 73"
+            - "Compile PHP 74"
+            - "Compile PHP 56-zts"
+            - "Compile PHP 70-zts"
+            - "Compile PHP 71-zts"
+            - "Compile PHP 72-zts"
+            - "Compile PHP 73-zts"
+            - "Compile PHP 74-zts"
+      - "package verification":
+          requires:
+            - "package extension"
+      - placeholder:
+          requires: [ 'package extension' ]
+          name: Framework tests
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: flow
+          name: "Flow testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: flow_no_ddtrace
+          name: "Flow baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: laravel
+          name: "Laravel testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: laravel_no_ddtrace
+          name: "Laravel baseline testsuite"
+      # Symfony path needs to be updated as symfony/contracts 2.0 has been released and it changes
+      # test files where the patch is applied.
       # - framework_tests:
       #     requires: [ "Framework tests" ]
-      #     framework_target: flow
-      #     name: "Flow testsuite"
+      #     framework_target: symfony
+      #     name: "Symfony testsuite"
       # - framework_tests:
       #     requires: [ "Framework tests" ]
-      #     framework_target: flow_no_ddtrace
-      #     name: "Flow baseline testsuite"
-      # - framework_tests:
-      #     requires: [ "Framework tests" ]
-      #     framework_target: laravel
-      #     name: "Laravel testsuite"
-      # - framework_tests:
-      #     requires: [ "Framework tests" ]
-      #     framework_target: laravel_no_ddtrace
-      #     name: "Laravel baseline testsuite"
-      # # Symfony path needs to be updated as symfony/contracts 2.0 has been released and it changes
-      # # test files where the patch is applied.
-      # # - framework_tests:
-      # #     requires: [ "Framework tests" ]
-      # #     framework_target: symfony
-      # #     name: "Symfony testsuite"
-      # # - framework_tests:
-      # #     requires: [ "Framework tests" ]
-      # #     framework_target: symfony_no_ddtrace
-      # #     name: "Symfony baseline testsuite"
-      # - framework_tests:
-      #     requires: [ "Framework tests" ]
-      #     framework_target: wordpress
-      #     name: "WordPress testsuite"
-      # - framework_tests:
-      #     requires: [ "Framework tests" ]
-      #     framework_target: wordpress_no_ddtrace
-      #     name: "WordPress baseline testsuite"
-      # - verify_package:
-      #     requires: [ "package extension" ]
-      #     name: "webdevops/php:7.1"
-      #     docker_image: webdevops/php:7.1
-      #     package_type: deb
-      # - verify_package:
-      #     requires: [ "package extension" ]
-      #     name: "php:7.3"
-      #     docker_image: php:7.3
-      #     package_type: deb
+      #     framework_target: symfony_no_ddtrace
+      #     name: "Symfony baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: wordpress
+          name: "WordPress testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: wordpress_no_ddtrace
+          name: "WordPress baseline testsuite"
+      - verify_package:
+          requires: [ "package extension" ]
+          name: "webdevops/php:7.1"
+          docker_image: webdevops/php:7.1
+          package_type: deb
+      - verify_package:
+          requires: [ "package extension" ]
+          name: "php:7.3"
+          docker_image: php:7.3
+          package_type: deb
   # build:
   #   jobs:
   #     - "Code Checkout"
