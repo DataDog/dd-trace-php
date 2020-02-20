@@ -1,7 +1,16 @@
 PROJECT_ROOT := $(realpath ../../)
 WORKDIR := /dd-trace-php
 
-ALL_ALPINE := 5.6.alpine 7.0.alpine 7.1.alpine 7.2.alpine 7.3.alpine 7.4.alpine
+PHP_VERSIONS_ALPINE := 5.6 7.0 7.1 7.2 7.4 # (5.4 bison2 required) (7.3 error to be debugged)
+PHP_VERSIONS_ALPINE_IMAGES_PUBLISH_TASKS := $(addsuffix .image.alpine.publish,$(PHP_VERSIONS_ALPINE))
+PHP_VERSIONS_ALPINE_EXTENSION_BUILD_TASKS := $(addsuffix .extension.alpine.build,$(PHP_VERSIONS_ALPINE))
+API_VERSION_5.4 := 20100412
+API_VERSION_5.6 := 20131106
+API_VERSION_7.0 := 20151012
+API_VERSION_7.1 := 20160303
+API_VERSION_7.2 := 20170718
+API_VERSION_7.3 := 20180731
+API_VERSION_7.4 := 20190902
 
 package: packaging-tools 5.6-alpine
 	docker run --rm -v ${PROJECT_ROOT}:${WORKDIR} datadog/packaging-tools make .apk
@@ -14,75 +23,30 @@ folders:
 	rm -rf ${PROJECT_ROOT}/build/packages/*
 	mkdir -p ${PROJECT_ROOT}/extensions
 
-php-src:
-	git clone https://github.com/php/php-src.git .php-src
+update-php-src:
+	if [ -d ".php-src" ]; then git pull; else git clone https://github.com/php/php-src.git .php-src; fi
 
-all.alpine: $(ALL_ALPINE)
+images.alpine.publish: $(PHP_VERSIONS_ALPINE_IMAGES_PUBLISH_TASKS)
+	@echo "Built and published docker images to build extensions for the following php verisons: ${PHP_VERSIONS_ALPINE}"
 
-5.4.alpine: folders
-	# Temporarily not using alpine to build 5.4 as it requires bison 2 which requires some effort to be installed
-	# in alpine
-	# $(call docker-build-alpine,$@,5.4)
-	# $(call docker-build-extension,$@)
-	# $(call copy-extension-alpine,20100412)
+%.image.alpine.publish: %.image.alpine.build
+	docker push datadog/dd-trace-ci:php-build-extension-${*}-alpine
 
-5.6.alpine: folders
-	$(call docker-build-alpine,$@,5.6)
-	$(call docker-build-extension,$@)
-	$(call copy-extension-alpine,20131106)
-	$(call docker-build-extension-debug,$@)
-	$(call copy-extension-alpine,20131106-debug)
+%.image.alpine.build: update-php-src
+	docker build -t datadog/dd-trace-ci:php-build-extension-${*}-alpine --build-arg php_version=${*} -f Dockerfile_alpine --target final .
 
-7.0.alpine: folders
-	$(call docker-build-alpine,$@,7.0)
-	$(call docker-build-extension,$@)
-	$(call copy-extension-alpine,20151012)
-	$(call docker-build-extension-debug,$@)
-	$(call copy-extension-alpine,20151012-debug)
+extensions.alpine.build: $(PHP_VERSIONS_ALPINE_EXTENSION_BUILD_TASKS)
+	@echo "Built no-debug and debug extensions for PHP version: ${PHP_VERSIONS_ALPINE}"
 
-7.1.alpine: folders
-	$(call docker-build-alpine,$@,7.1)
-	$(call docker-build-extension,$@)
-	$(call copy-extension-alpine,20160303)
-	$(call docker-build-extension-debug,$@)
-	$(call copy-extension-alpine,20160303-debug)
+%.extension.alpine.build: %.extension.no-debug.alpine.build %.extension.debug.alpine.build
+	@echo "Built no-debug and debug extension for PHP version: ${*}"
 
-7.2.alpine: folders
-	$(call docker-build-alpine,$@,7.2)
-	$(call docker-build-extension,$@)
-	$(call copy-extension-alpine,20170718)
-	$(call docker-build-extension-debug,$@)
-	$(call copy-extension-alpine,20170718-debug)
+%.extension.no-debug.alpine.build: folders
+	@echo "Building no-debug extension for PHP version: ${*}"
+	docker run --rm -v ${PROJECT_ROOT}:${WORKDIR} datadog/dd-trace-ci:php-build-extension-${*}-alpine make clean dist_clean all CFLAGS="-std=gnu11 -O2 -Wall -Wextra -Werror" ECHO_ARG="-e"
+	cp ${PROJECT_ROOT}/tmp/build_extension/.libs/ddtrace.so ${PROJECT_ROOT}/extensions/ddtrace-${API_VERSION_${*}}-alpine.so
 
-7.3.alpine: folders
-	# Temporarily not using alpine to build 7.3 as it generates an error to be investigated
-	# $(call docker-build-alpine,$@,7.3)
-	# $(call docker-build-extension,$@)
-	# $(call copy-extension-alpine,20180731)
-	# $(call docker-build-extension-debug,$@)
-	# $(call copy-extension-alpine,20180731-debug)
-
-7.4.alpine: folders
-	$(call docker-build-alpine,$@,7.4)
-	$(call docker-build-extension,$@)
-	$(call copy-extension-alpine,20190902)
-	$(call docker-build-extension-debug,$@)
-	$(call copy-extension-alpine,20190902-debug)
-
-.PHONY: folders package packaging-tools php-src all.alpine 5.6.alpine 7.0.alpine 7.1.alpine 7.2.alpine 7.3.alpine 7.4.alpine
-
-define docker-build-alpine
-	docker build -t ${1} --build-arg php_version=${2} -f Dockerfile_alpine --target final .
-endef
-
-define docker-build-extension
-	docker run --rm -v ${PROJECT_ROOT}:${WORKDIR} ${1} make clean dist_clean all CFLAGS="-std=gnu11 -O2 -Wall -Wextra -Werror" ECHO_ARG="-e"
-endef
-
-define docker-build-extension-debug
-	docker run --rm -v ${PROJECT_ROOT}:${WORKDIR} ${1} make clean dist_clean all CFLAGS="-std=gnu11 -g -Wall -Wextra -Werror" ECHO_ARG="-e"
-endef
-
-define copy-extension-alpine
-	cp ${PROJECT_ROOT}/tmp/build_extension/.libs/ddtrace.so ${PROJECT_ROOT}/extensions/ddtrace-${1}-alpine.so
-endef
+%.extension.debug.alpine.build: folders
+	@echo "Building debug extension for PHP version: ${*}"
+	docker run --rm -v ${PROJECT_ROOT}:${WORKDIR} datadog/dd-trace-ci:php-build-extension-${*}-alpine make clean dist_clean all CFLAGS="-std=gnu11 -g -Wall -Wextra -Werror" ECHO_ARG="-e"
+	cp ${PROJECT_ROOT}/tmp/build_extension/.libs/ddtrace.so ${PROJECT_ROOT}/extensions/ddtrace-${API_VERSION_${*}}-debug-alpine.so
