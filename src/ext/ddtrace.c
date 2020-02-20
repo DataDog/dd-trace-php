@@ -18,8 +18,6 @@
 #include "compat_string.h"
 #include "compatibility.h"
 #include "coms.h"
-#include "coms_curl.h"
-#include "coms_debug.h"
 #include "configuration.h"
 #include "configuration_php_iface.h"
 #include "ddtrace.h"
@@ -143,8 +141,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_engine_hooks_minit();
 
-    ddtrace_coms_initialize();
-    ddtrace_coms_setup_atexit_hook();
+    ddtrace_coms_minit();
     ddtrace_coms_init_and_start_writer();
 
     return SUCCESS;
@@ -162,10 +159,9 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_signals_mshutdown();
 
-    // when extension is properly unloaded disable the at_exit hook
-    ddtrace_coms_disable_atexit_hook();
+    ddtrace_coms_mshutdown();
     if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
-        ddtrace_coms_mshutdown();
+        ddtrace_coms_curl_shutdown();
         // if writer is ensured to be shutdown we can free up config resources safely
         ddtrace_config_shutdown();
     }
@@ -225,7 +221,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_dispatch_destroy(TSRMLS_C);
     ddtrace_free_span_id_stack(TSRMLS_C);
     ddtrace_free_span_stacks(TSRMLS_C);
-    ddtrace_coms_on_request_finished();
+    ddtrace_coms_rshutdown();
 
     return SUCCESS;
 }

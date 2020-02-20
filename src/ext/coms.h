@@ -33,18 +33,27 @@ inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
     return ddtrace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0;
 }
 
-bool ddtrace_coms_rotate_stack(bool allocate_new, size_t min_size);
-ddtrace_coms_stack_t *ddtrace_coms_attempt_acquire_stack();
-
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size);
-bool ddtrace_coms_initialize(void);
-void ddtrace_coms_shutdown(void);
-size_t ddtrace_coms_read_callback(char *buffer, size_t size, size_t nitems, void *userdata);
-void *ddtrace_init_read_userdata(ddtrace_coms_stack_t *stack);
-void ddtrace_deinit_read_userdata(void *);
+bool ddtrace_coms_minit(void);
+void ddtrace_coms_mshutdown(void);
+void ddtrace_coms_curl_shutdown(void);
+void ddtrace_coms_rshutdown(void);
 uint32_t ddtrace_coms_next_group_id(void);
-size_t ddtrace_read_userdata_get_total_groups(void *);
 
-void ddtrace_coms_free_stack();
+extern atomic_uintptr_t memoized_agent_curl_headers;
+
+bool ddtrace_coms_init_and_start_writer(void);
+bool ddtrace_coms_trigger_writer_flush(void);
+bool ddtrace_coms_set_writer_send_on_flush(bool send);
+bool ddtrace_in_writer_thread(void);
+bool ddtrace_coms_flush_shutdown_writer_synchronous(void);
+bool ddtrace_coms_synchronous_flush(uint32_t timeout);
+bool ddtrace_coms_on_pid_change(void);
+
+/* exposed for testing {{{ */
+uint32_t ddtrace_coms_test_writers(void);
+uint32_t ddtrace_coms_test_consumer(void);
+uint32_t ddtrace_coms_test_msgpack_consumer(void);
+/* }}} */
 
 #endif  // DD_COMS_H
