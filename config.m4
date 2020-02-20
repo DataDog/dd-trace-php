@@ -8,10 +8,16 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AX_EXECINFO
 
+  AS_IF([test x"$ac_cv_header_execinfo_h" = xyes],
+    dnl This duplicates some of AX_EXECINFO's work, but AX_EXECINFO puts the
+    dnl library into LIBS, which we don't use anywhere else and am worried that
+    dnl it may contain things we are not expecting aside from execinfo
+    PHP_CHECK_LIBRARY(execinfo, backtrace, [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lexecinfo"]))
+
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
     EXTRA_LDFLAGS="-lasan"
-	  EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
-	  PHP_SUBST(EXTRA_LDFLAGS)
+    EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
+    PHP_SUBST(EXTRA_LDFLAGS)
     PHP_SUBST(EXTRA_CFLAGS)
   fi
 
