@@ -541,8 +541,6 @@ jobs:
         type: string
     machine:
       image: "ubuntu-1604:201903-01"
-    environment:
-      CFLAGS: ""
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: mkdir -p extensions
@@ -725,12 +723,19 @@ workflows:
       - "package extension":
           requires:
             - "Compile PHP 54"
+            # - "Compile PHP 54 Alpine"
             - "Compile PHP 56"
+            - "Compile PHP 56 Alpine"
             - "Compile PHP 70"
+            - "Compile PHP 70 Alpine"
             - "Compile PHP 71"
+            - "Compile PHP 71 Alpine"
             - "Compile PHP 72"
+            - "Compile PHP 72 Alpine"
             - "Compile PHP 73"
+            # - "Compile PHP 73 Alpine"
             - "Compile PHP 74"
+            - "Compile PHP 74 Alpine"
             - "Compile PHP 56-zts"
             - "Compile PHP 70-zts"
             - "Compile PHP 71-zts"
