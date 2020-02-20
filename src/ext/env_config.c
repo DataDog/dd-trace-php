@@ -10,7 +10,7 @@
 #include <php.h>
 #include <stdint.h>
 
-#include "coms_curl.h"
+#include "coms.h"
 
 #define EQUALS(stra, stra_len, literal_strb) \
     (stra_len == (sizeof(literal_strb) - 1) && memcmp(stra, literal_strb, sizeof(literal_strb) - 1) == 0)

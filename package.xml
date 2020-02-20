@@ -42,10 +42,6 @@
                     <file name="configuration_php_iface.c" role="src" />
                     <file name="coms.c" role="src" />
                     <file name="coms.h" role="src" />
-                    <file name="coms_debug.c" role="src" />
-                    <file name="coms_debug.h" role="src" />
-                    <file name="coms_curl.c" role="src" />
-                    <file name="coms_curl.h" role="src" />
                     <file name="macros.h" role="src" />
                     <file name="ddtrace.c" role="src" />
                     <file name="ddtrace.h" role="src" />

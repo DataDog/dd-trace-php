@@ -3,7 +3,6 @@
 #include "arrays.h"
 #include "compat_string.h"
 #include "coms.h"
-#include "coms_curl.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "mpack.h"

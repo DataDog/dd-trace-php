@@ -23,8 +23,6 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/comms_php.c \
     src/ext/compat_string.c \
     src/ext/coms.c \
-    src/ext/coms_curl.c \
-    src/ext/coms_debug.c \
     src/ext/configuration.c \
     src/ext/configuration_php_iface.c \
     src/ext/dispatch.c \
