@@ -1,3 +1,6 @@
-FROM alpine:3.5
+ARG alpine_version
+ARG php_package
 
-RUN apk add php5 --no-cache
+FROM alpine:${alpine_version}
+
+RUN apk add ${php_package} --no-cache

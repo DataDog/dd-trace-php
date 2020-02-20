@@ -13,6 +13,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile_alpine
+      args:
+        - alpine_version=3.5
+        - php_package=php5
   '5.4-centos6': &base_image
     <<: *base
     image: 'datadog/docker-library:ddtrace_centos_6_php_5_4'
@@ -35,6 +38,10 @@ services:
   '5.6-alpine3.5':
     <<: *alpine_base
     image: 'datadog/dd-trace-ci:php-php5.6-alpine3.5-package-verification'
+    build:
+      args:
+        - alpine_version=3.5
+        - php_package=php5
   '5.6-alpine':  { <<: *base_image, image: 'php:5.6-alpine' }
   '7.0-alpine':  { <<: *base_image, image: 'php:7.0-alpine' }
   '7.1-alpine':  { <<: *base_image, image: 'php:7.1-alpine' }

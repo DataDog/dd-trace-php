@@ -49,4 +49,6 @@ $(ALPINE_PHP_VERSIONS): %.alpine:
 	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run -T --rm ${*}-alpine3.5 sh /build_src/dockerfiles/verify_packages/verify_apk.sh
 
 prepare_docker_images_alpine:
-	@docker-compose -f $(ROOT_DIR)/docker-compose.yml build 5.6-alpine3.5
+	# PHP 5.6
+	@docker build -f Dockerfile_alpine --build-arg alpine_version=3.5 --build-arg php_package=php5-dev -t datadog/dd-trace-ci:php-php5.6-alpine3.5-package-verification .
+	@docker build -f Dockerfile_alpine --build-arg alpine_version=3.11 --build-arg php_package=php5-dev -t datadog/dd-trace-ci:php-php5.6-alpine3.11-package-verification .

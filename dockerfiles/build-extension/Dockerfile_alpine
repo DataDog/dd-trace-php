@@ -1,0 +1,45 @@
+FROM alpine:3.11 as build
+
+WORKDIR /php-src
+ADD .php-src .
+
+ARG php_version
+
+# We are only downloading from main repository
+RUN sed -i '/main$/!d' /etc/apk/repositories
+
+RUN apk add --no-cache \
+    alpine-sdk \
+    autoconf \
+    bash \
+    bison \
+    git \
+    curl-dev \
+    re2c \
+    libxml2-dev \
+    libexecinfo-dev
+
+RUN git checkout PHP-${php_version}
+RUN ./buildconf
+RUN ./configure --prefix=/php-install --without-sqlite3 --without-pdo-sqlite --with-curl --enable-debug
+RUN make -j4
+RUN make install
+
+FROM alpine:3.11 AS final
+
+# We are only downloading from main repository
+RUN sed -i '/main$/!d' /etc/apk/repositories
+
+RUN apk add --no-cache \
+    alpine-sdk \
+    autoconf \
+    bash \
+    curl-dev \
+    libxml2-dev \
+    libexecinfo-dev
+
+COPY --from=build /php-install /php-install
+
+ENV PATH="/php-install/bin:${PATH}"
+
+WORKDIR /dd-trace-php
