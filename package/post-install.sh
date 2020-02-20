@@ -159,7 +159,12 @@ if [[ -n $PHP_THREAD_SAFETY ]]; then
     VERSION_SUFFIX="-zts"
 fi
 
-EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}.so"
+OS_SPECIFIER=""
+if [ -f "/etc/os-release" ] && [ grep -q 'NAME="Alpine Luinux"' "/etc/os-release" ]; then
+    OS_SPECIFIER="-alpine"
+fi
+
+EXTENSION_NAME="ddtrace-${PHP_VERSION}${OS_SPECIFIER}${VERSION_SUFFIX}.so"
 EXTENSION_FILE_PATH="${EXTENSION_DIR}/${EXTENSION_NAME}"
 INI_FILE_CONTENTS=$(cat <<EOF
 [datadog]
