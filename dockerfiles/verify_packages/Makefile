@@ -3,7 +3,7 @@ STRETCH_PHP_VERSIONS:=5.6.stretch 7.0.stretch 7.1.stretch 7.2.stretch
 CENTOS6_PHP_VERSIONS:=5.4.centos6 5.6.centos6 7.0.centos6 7.1.centos6 7.2.centos6
 CENTOS7_PHP_VERSIONS:=5.4.centos7 5.6.centos7 7.0.centos7 7.1.centos7 7.2.centos7 #7.3.centos7
 CENTOS7_MANUAL_PHP_VERSIONS:=71.centos7-compiled
-ALPINE_PHP_VERSIONS:=5.6.alpine 7.0.alpine 7.1.alpine 7.2.alpine  #7.3.alpine # No ZTS tests - it fails on alpine due to relying on pthread and libc 5.6-zts.alpine 7.0-zts.alpine 7.1-zts.alpine 7.2-zts.alpine 7.3-zts.alpine
+ALPINE_PHP_VERSIONS:=5.6.alpine.3.4 5.6.alpine.3.5 5.6.alpine.3.6 5.6.alpine.3.7 5.6.alpine.3.8 7.0.alpine.3.5 7.1.alpine.3.6 7.1.alpine.3.7 7.2.alpine.3.8 7.2.alpine.3.9 7.3.alpine.3.10 7.3.alpine.3.11
 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
@@ -44,11 +44,15 @@ $(CENTOS7_MANUAL_PHP_VERSIONS): %.centos7-compiled:
 	@echo Building Centos 7 - PHP $*
 	@docker build --no-cache -t centos_7_compiled:$* -f dockerfiles/verify_packages/centos7-compiled/Dockerfile .
 
-$(ALPINE_PHP_VERSIONS): %.alpine:
-	@echo Verifying Alpine - PHP $*
-	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run -T --rm ${*}-alpine3.5 sh /build_src/dockerfiles/verify_packages/verify_apk.sh
+# $(ALPINE_PHP_VERSIONS): %.alpine:
+# 	@echo Verifying Alpine - PHP $*
+# 	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run -T --rm ${*}-alpine3.5 sh /build_src/dockerfiles/verify_packages/verify_apk.sh
 
-prepare_docker_images_alpine:
-	# PHP 5.6
-	@docker build -f Dockerfile_alpine --build-arg alpine_version=3.5 --build-arg php_package=php5-dev -t datadog/dd-trace-ci:php-php5.6-alpine3.5-package-verification .
-	@docker build -f Dockerfile_alpine --build-arg alpine_version=3.11 --build-arg php_package=php5-dev -t datadog/dd-trace-ci:php-php5.6-alpine3.11-package-verification .
+%.alpine_image_build:
+	@docker build -f Dockerfile_alpine --target="php.${*}" -t datadog/dd-trace-ci:php-${*}-package-verification .
+
+%.alpine_image_publish: %.alpine_image_build
+	@docker push datadog/dd-trace-ci:php-${*}-package-verification
+
+alpine_images_publish: $(addsuffix .alpine_image_publish,$(ALPINE_PHP_VERSIONS))
+	@echo "Published all alpine images"
