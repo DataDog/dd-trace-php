@@ -517,9 +517,13 @@ static int _dd_exit_handler(zend_execute_data *execute_data) {
     while ((span = DDTRACE_G(open_spans_top))) {
         zval retval;
         ZVAL_NULL(&retval);
+        // Save pointer to dispatch since span can be dropped from _dd_end_span()
+        ddtrace_dispatch_t *dispatch = span->dispatch;
         _dd_end_span(span, &retval);
-        span->dispatch->busy = 0;
-        ddtrace_class_lookup_release(span->dispatch);
+        if (dispatch) {
+            dispatch->busy = 0;
+            ddtrace_class_lookup_release(dispatch);
+        }
     }
 
     return _prev_exit_handler ? _prev_exit_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;

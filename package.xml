@@ -170,6 +170,7 @@
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure.phpt" role="test" />
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
+                        <file name="exit_and_drop_span.phpt" role="test" />
                         <file name="fatal_errors_ignored_in_shutdown.phpt" role="test" />
                         <file name="fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
                         <file name="get_last_error.phpt" role="test" />
