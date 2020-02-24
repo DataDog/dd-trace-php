@@ -801,3 +801,11 @@ void ddtrace_engine_hooks_rshutdown(TSRMLS_D) {
     PHP5_UNUSED(TSRMLS_C);
 #endif
 }
+
+void ddtrace_error_cb_minit(void) {
+    // TODO
+}
+
+void ddtrace_error_cb_mshutdown(void) {
+    // TODO
+}
