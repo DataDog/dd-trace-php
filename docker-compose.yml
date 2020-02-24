@@ -58,8 +58,8 @@ services:
     <<: *base_php_service
     image: datadog/dd-trace-ci:php-dev-5.6
     build:
-      context: .
-      dockerfile: dockerfiles/development/Dockerfile_56
+      context: dockerfiles/development/
+      dockerfile: Dockerfile_56
   '5.6-original': { <<: *base_56_service, image: 'circleci/php:5.6-zts' }
   '5.6-debug-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.6-debug-buster' }
   '5.6-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.6-debug' }

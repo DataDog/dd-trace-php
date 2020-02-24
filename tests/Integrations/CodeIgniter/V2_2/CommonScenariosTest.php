@@ -148,13 +148,13 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'integration.name'    => 'codeigniter',
                             'app.endpoint'        => 'Http_Response_Code::error',
                         ]
-                    ),
+                    )->setError(),
                     SpanAssertion::build(
                         'Http_Response_Code.error',
                         'codeigniter_test_app',
                         Type::WEB_SERVLET,
                         'Http_Response_Code.error'
-                    )->setError(),
+                    ),
                 ]
             ]
         );
