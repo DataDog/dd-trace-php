@@ -210,7 +210,7 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
 
-static void register_span_data_ce(TSRMLS_D) {
+static void dd_register_span_data_ce(TSRMLS_D) {
     zend_class_entry ce_span_data;
     INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", NULL);
     ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data TSRMLS_CC);
@@ -243,6 +243,19 @@ zval *ddtrace_spandata_property_meta(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ
 // SpanData::$metrics
 zval *ddtrace_spandata_property_metrics(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 5); }
 #endif
+
+/* DDTrace\FatalError */
+zend_class_entry *ddtrace_ce_fatal_error;
+
+static void dd_register_fatal_error_ce(TSRMLS_D) {
+    zend_class_entry ce;
+    INIT_NS_CLASS_ENTRY(ce, "DDTrace", "FatalError", NULL);
+#if PHP_VERSION_ID < 70000
+    ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+#else
+    ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_ce_exception TSRMLS_CC);
+#endif
+}
 
 static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     if (strcmp("fpm-fcgi", sapi_module.name) == 0 || strcmp("apache2handler", sapi_module.name) == 0 ||
@@ -284,7 +297,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_dogstatsd_client_minit(TSRMLS_C);
     ddtrace_signals_minit(TSRMLS_C);
 
-    register_span_data_ce(TSRMLS_C);
+    dd_register_span_data_ce(TSRMLS_C);
+    dd_register_fatal_error_ce(TSRMLS_C);
 
     ddtrace_engine_hooks_minit();
 

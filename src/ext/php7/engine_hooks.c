@@ -29,6 +29,11 @@ int ddtrace_op_array_extension = 0;
 
 ZEND_TLS zend_function *dd_integrations_load_deferred_integration = NULL;
 
+static void (*_prev_error_cb)(int type, const char *error_filename, const uint error_lineno, const char *format,
+                              va_list args);
+static void _dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
+                         va_list args);
+
 // True gloals; only modify in minit/mshutdown
 static user_opcode_handler_t prev_ucall_handler;
 static user_opcode_handler_t prev_fcall_handler;
@@ -1151,4 +1156,40 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
     if (span_fci) {
         dd_observer_end(EX(func), span_fci, return_value);
     }
+}
+
+void ddtrace_error_cb_minit(void) {
+    _prev_error_cb = zend_error_cb;
+    zend_error_cb = _dd_error_cb;
+}
+
+void ddtrace_error_cb_mshutdown(void) { zend_error_cb = _prev_error_cb; }
+
+static zend_object *dd_make_exception_from_error(int type, const char *format, va_list args) {
+    zval ex, tmp;
+    va_list args2;
+    char message[1024];
+    object_init_ex(&ex, ddtrace_ce_fatal_error);
+
+    va_copy(args2, args);
+    vsnprintf(message, sizeof(message), format, args2);
+    va_end(args2);
+    ZVAL_STRING(&tmp, message);
+    zend_update_property(ddtrace_ce_fatal_error, &ex, "message", sizeof("message") - 1, &tmp);
+    zval_ptr_dtor(&tmp);
+
+    ZVAL_LONG(&tmp, (zend_long)type);
+    zend_update_property(ddtrace_ce_fatal_error, &ex, "code", sizeof("code") - 1, &tmp);
+
+    return Z_OBJ(ex);
+}
+
+static void _dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
+                         va_list args) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    if (span && (type == E_ERROR || type == E_CORE_ERROR || type == E_USER_ERROR)) {
+        span->exception = dd_make_exception_from_error(type, format, args);
+        //_dd_close_all_open_spans(); TODO Make this work
+    }
+    _prev_error_cb(type, error_filename, error_lineno, format, args);
 }

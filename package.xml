@@ -219,6 +219,10 @@
             <file name="tests/ext/sandbox/fake_global_tracer.inc" role="test" />
             <file name="tests/ext/sandbox/fake_tracer.inc" role="test" />
             <file name="tests/ext/sandbox/fake_tracer_exception.inc" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_001.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_002.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_003.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_004.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
             <file name="tests/ext/sandbox/generator.phpt" role="test" />
