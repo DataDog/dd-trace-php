@@ -12,8 +12,8 @@ API_VERSION_7.2 := 20170718
 API_VERSION_7.3 := 20180731
 API_VERSION_7.4 := 20190902
 
-package: packaging-tools 5.6-alpine
-	docker run --rm -v ${PROJECT_ROOT}:${WORKDIR} datadog/packaging-tools make .apk
+packages: packaging-tools
+	docker run --rm -v ${PROJECT_ROOT}:${WORKDIR} datadog/packaging-tools make packages
 
 packaging-tools: Dockerfile_fpm
 	docker build -t datadog/packaging-tools -f Dockerfile_fpm .

@@ -21,7 +21,7 @@ RUN apk add --no-cache \
 
 RUN git checkout PHP-${php_version}
 RUN ./buildconf
-RUN ./configure --prefix=/php-install --without-sqlite3 --without-pdo-sqlite --with-curl --enable-debug
+RUN ./configure --prefix=/php-install --without-sqlite3 --without-pdo-sqlite --with-curl
 RUN make -j4
 RUN make install
 

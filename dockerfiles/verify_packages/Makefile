@@ -56,3 +56,6 @@ $(CENTOS7_MANUAL_PHP_VERSIONS): %.centos7-compiled:
 
 alpine_images_publish: $(addsuffix .alpine_image_publish,$(ALPINE_PHP_VERSIONS))
 	@echo "Published all alpine images"
+
+%.alpine_verify:
+	docker run --rm -v ${ROOT_DIR}/../../:/build_src/ -v ${ROOT_DIR}/verify_apk.sh:/verify_apk.sh datadog/dd-trace-ci:php-${*}-package-verification sh verify_apk.sh

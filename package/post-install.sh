@@ -1,7 +1,5 @@
 #!/bin/bash --login
 
-return 0;
-
 EXTENSION_BASE_DIR=/opt/datadog-php
 EXTENSION_DIR=${EXTENSION_BASE_DIR}/extensions
 EXTENSION_CFG_DIR=${EXTENSION_BASE_DIR}/etc
@@ -13,8 +11,18 @@ CUSTOM_INI_FILE_NAME='ddtrace-custom.ini'
 
 PATH="${PATH}:/usr/local/bin"
 
+# We attempt in this order the following binary names:
+#    1. php
+#    1. php7
+#    1. php5
 if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
     DD_TRACE_PHP_BIN=$(command -v php)
+fi
+if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
+    DD_TRACE_PHP_BIN=$(command -v php7)
+fi
+if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
+    DD_TRACE_PHP_BIN=$(command -v php5)
 fi
 
 function invoke_php(){
@@ -162,7 +170,7 @@ if [[ -n $PHP_THREAD_SAFETY ]]; then
 fi
 
 OS_SPECIFIER=""
-if [ -f "/etc/os-release" ] && [ grep -q 'NAME="Alpine Luinux"' "/etc/os-release" ]; then
+if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release"); then
     OS_SPECIFIER="-alpine"
 fi
 
