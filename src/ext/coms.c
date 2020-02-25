@@ -619,12 +619,16 @@ void ddtrace_coms_curl_shutdown(void) {
     }
 }
 
+static long _dd_max_long(long a, long b) { return a >= b ? a : b; }
+
 static void _dd_curl_set_timeout(CURL *curl) {
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, get_dd_trace_agent_timeout());
+    long timeout = _dd_max_long(get_dd_trace_bgs_timeout(), get_dd_trace_agent_timeout());
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout);
 }
 
 static void _dd_curl_set_connect_timeout(CURL *curl) {
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, get_dd_trace_agent_connect_timeout());
+    long timeout = _dd_max_long(get_dd_trace_bgs_connect_timeout(), get_dd_trace_agent_connect_timeout());
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
 }
 
 static void _dd_curl_set_hostname(CURL *curl) {
