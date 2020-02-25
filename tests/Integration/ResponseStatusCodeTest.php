@@ -1,14 +1,16 @@
 <?php
 
-
 namespace DDTrace\Tests\Integration;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
-use PHPUnit\Framework\TestCase;
 
 class ResponseStatusCodeTest extends WebFrameworkTestCase {
+    protected static function getAppIndexScript() {
+        return __DIR__ . '/ResponseStatusCodeTest_files/index.php';
+    }
+
     protected static function getEnvs() {
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_NO_AUTOLOADER' => '1',
@@ -23,17 +25,13 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase {
     public function testResponseStatusCodeSuccess() {
         $traces = $this->tracesFromWebRequest(
             function () {
-                $response = $this->call(GetSpec::create('Root', '/index.php'));
-                // We explicitly assert the configured value of 'DD_TRACE_SPANS_LIMIT' echoed by the web app
-                // because if we add tests to this test case that require a larger limit the current test would still pass
-                // but would not test the specific edge case.
-                TestCase::assertSame('1', $response);
+                $this->call(GetSpec::create('Root', '/index.php'));
             }
         );
 
         $this->assertExpectedSpans(
             $traces, [
-                SpanAssertion::build('web.request', 'web.request', 'web', 'web.request')->withExactTags([
+                SpanAssertion::build('web.request', 'web.request', 'web', 'GET /index.php')->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => '/index.php',
                     'http.status_code' => '200',
@@ -50,24 +48,20 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase {
     public function testResponseStatusCodeError() {
         $traces = $this->tracesFromWebRequest(
             function () {
-                $response = $this->call(GetSpec::create('Root', '/error.php'));
-                // We explicitly assert the configured value of 'DD_TRACE_SPANS_LIMIT' echoed by the web app
-                // because if we add tests to this test case that require a larger limit the current test would still pass
-                // but would not test the specific edge case.
-                TestCase::assertSame('1', $response);
+                $this->call(GetSpec::create('Root', '/error.php')->expectStatusCode(500));
             }
         );
 
         $this->assertExpectedSpans(
             $traces, [
-                       SpanAssertion::build('web.request', 'web.request', 'web', 'web.request')->withExactTags(
+                       SpanAssertion::build('web.request', 'web.request', 'web', 'GET /error.php')->withExactTags(
                            [
                                'http.method'      => 'GET',
                                'http.url'         => '/error.php',
                                'http.status_code' => '500',
                                'integration.name' => 'web',
                            ]
-                       ),
+                       )->setError(),
                    ]
         );
     }
