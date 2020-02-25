@@ -24,7 +24,12 @@ folders:
 	mkdir -p ${PROJECT_ROOT}/extensions
 
 update-php-src:
-	if [ -d ".php-src" ]; then git pull; else git clone https://github.com/php/php-src.git .php-src; fi
+	@if [ -d ".php-src" ]; then \
+		git -C .php-src checkout master; \
+		git -C .php-src pull; \
+	else \
+		git clone https://github.com/php/php-src.git .php-src; \
+	fi
 
 images.alpine.publish: $(PHP_VERSIONS_ALPINE_IMAGES_PUBLISH_TASKS)
 	@echo "Built and published docker images to build extensions for the following php verisons: ${PHP_VERSIONS_ALPINE}"
