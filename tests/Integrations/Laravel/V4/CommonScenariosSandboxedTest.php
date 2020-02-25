@@ -34,7 +34,7 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () use ($spec) {
             $this->call($spec);
         });
-
+//var_dump($traces[0][3]);
         $this->assertFlameGraph($traces, $spanExpectations);
     }
 
@@ -171,6 +171,113 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                             SpanAssertion::exists('laravel.event.handle'),
                             SpanAssertion::exists('laravel.event.handle'),
                         ]),
+                ],
+                'A GET request ended in http_status_code(500)' => [
+                    SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@http_response_error http_response_error')
+                        ->withExactTags(
+                            [
+                                'laravel.route.name'   => 'http_response_error',
+                                'laravel.route.action' => 'HomeController@http_response_error',
+                                'http.method'          => 'GET',
+                                'http.url'             => 'http://localhost:9999/http_response_code/error',
+                                'http.status_code'     => '500',
+                                'some.key1'            => 'value',
+                                'some.key2'            => 'value2',
+                                'integration.name'     => 'laravel',
+                            ]
+                        )->setError()->withChildren(
+                            [
+                                SpanAssertion::exists('laravel.application.handle')
+                                    ->withChildren(
+                                        [
+                                            SpanAssertion::build('laravel.action', 'laravel', 'web', 'http_response_code/error')
+                                                ->withExactTags(
+                                                    [
+                                                        'some.key1'        => 'value',
+                                                        'some.key2'        => 'value2',
+                                                        'integration.name' => 'laravel',
+                                                    ]
+                                                ),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                        ]
+                                    ),
+                                SpanAssertion::exists(
+                                    'laravel.provider.load',
+                                    'Illuminate\Foundation\ProviderRepository::load'
+                                )->onlyIf(static::IS_SANDBOX)
+                                    ->withChildren(
+                                        [
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                        ]
+                                    ),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                            ]
+                        ),
+                ],
+                'A GET request ended in http_status_code(200)' => [
+                    SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@http_response_success http_response_success')
+                        ->withExactTags(
+                            [
+                                'laravel.route.name'   => 'http_response_success',
+                                'laravel.route.action' => 'HomeController@http_response_success',
+                                'http.method'          => 'GET',
+                                'http.url'             => 'http://localhost:9999/http_response_code/success',
+                                'http.status_code'     => '200',
+                                'some.key1'            => 'value',
+                                'some.key2'            => 'value2',
+                                'integration.name'     => 'laravel',
+                            ]
+                        )
+                        ->withChildren(
+                            [
+                                SpanAssertion::exists('laravel.application.handle')
+                                    ->withChildren(
+                                        [
+                                            SpanAssertion::build('laravel.action', 'laravel', 'web', 'http_response_code/success')
+                                                ->withExactTags(
+                                                    [
+                                                        'some.key1'        => 'value',
+                                                        'some.key2'        => 'value2',
+                                                        'integration.name' => 'laravel',
+                                                    ]
+                                                ),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                        ]
+                                    ),
+                                SpanAssertion::exists(
+                                    'laravel.provider.load',
+                                    'Illuminate\Foundation\ProviderRepository::load'
+                                )->onlyIf(static::IS_SANDBOX)
+                                    ->withChildren(
+                                        [
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                        ]
+                                    ),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                            ]
+                        ),
                 ],
             ]
         );
