@@ -92,39 +92,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'error.stack'
                     ])->setError(null, 'Foo error'),
                 ],
-
-                'A GET request ended in http_status_code(500)' => [
-                    SpanAssertion::build(
-                        'slim.request',
-                        'slim_test_app',
-                        'web',
-                        'GET /http_response_code/error'
-                    )->withExactTags(
-                        [
-                            'slim.route.controller' => 'Closure::__invoke',
-                            'http.method'           => 'GET',
-                            'http.url'              => 'http://localhost:9999/http_response_code/error',
-                            'http.status_code'      => '500',
-                            'integration.name'      => 'slim',
-                        ]
-                    )->setError(),
-                ],
-                'A GET request ended in http_status_code(200)' => [
-                    SpanAssertion::build(
-                        'slim.request',
-                        'slim_test_app',
-                        'web',
-                        'GET /http_response_code/success'
-                    )->withExactTags(
-                        [
-                            'slim.route.controller' => 'Closure::__invoke',
-                            'http.method'           => 'GET',
-                            'http.url'              => 'http://localhost:9999/http_response_code/success',
-                            'http.status_code'      => '200',
-                            'integration.name'      => 'slim',
-                        ]
-                    ),
-                ],
             ]
         );
     }

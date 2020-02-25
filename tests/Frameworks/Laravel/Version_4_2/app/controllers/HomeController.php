@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Routing\Controller;
-use Illuminate\Http\Response;
 
 class HomeController extends Controller {
 
@@ -31,23 +30,5 @@ class HomeController extends Controller {
 	public function error()
 	{
 		throw new Exception('Controller error');
-	}
-
-	public function http_response_success()
-	{
-		$response = new Response();
-		$response->setStatusCode(Response::HTTP_OK);
-		http_response_code(Response::HTTP_OK);
-
-		return $response;
-	}
-
-	public function http_response_error()
-	{
-		$response = new Response();
-		$response->setStatusCode(Response::HTTP_INTERNAL_SERVER_ERROR);
-		http_response_code(Response::HTTP_INTERNAL_SERVER_ERROR);
-
-		return $response;
 	}
 }

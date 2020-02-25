@@ -78,36 +78,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'integration.name' => 'web',
                     ])->setError(),
                 ],
-                'A GET request ended in http_status_code(200)' => [
-                    SpanAssertion::build(
-                        'web.request',
-                        'web.request',
-                        'web',
-                        'GET /http_response_code/success'
-                    )->withExactTags(
-                        [
-                            'http.method'      => 'GET',
-                            'http.url'         => '/http_response_code/success',
-                            'http.status_code' => '200',
-                            'integration.name' => 'web',
-                        ]
-                    ),
-                ],
-                'A GET request ended in http_status_code(500)' => [
-                    SpanAssertion::build(
-                        'web.request',
-                        'web.request',
-                        'web',
-                        'GET /http_response_code/error'
-                    )->withExactTags(
-                        [
-                            'http.method'      => 'GET',
-                            'http.url'         => '/http_response_code/error',
-                            'http.status_code' => '500',
-                            'integration.name' => 'web',
-                        ]
-                    )->setError(),
-                ],
             ]
         );
     }

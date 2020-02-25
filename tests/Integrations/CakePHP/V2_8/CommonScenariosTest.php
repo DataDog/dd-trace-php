@@ -105,40 +105,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'integration.name' => 'cakephp',
                     ]),
                 ],
-                'A GET request ended in http_status_code(500)' => [
-                    SpanAssertion::build(
-                        'cakephp.request',
-                        'cakephp_test_app',
-                        'web',
-                        'GET HttpResponseCodeController@error'
-                    )->withExactTags(
-                        [
-                            'cakephp.route.controller' => 'http_response_code',
-                            'cakephp.route.action'     => 'error',
-                            'http.method'              => 'GET',
-                            'http.url'                 => 'http://localhost:9999/http_response_code/error',
-                            'http.status_code'         => '500',
-                            'integration.name'         => 'cakephp'
-                        ]
-                    )->setError(),
-                ],
-                'A GET request ended in http_status_code(200)' => [
-                    SpanAssertion::build(
-                        'cakephp.request',
-                        'cakephp_test_app',
-                        'web',
-                        'GET HttpResponseCodeController@success'
-                    )->withExactTags(
-                        [
-                            'cakephp.route.controller' => 'http_response_code',
-                            'cakephp.route.action'     => 'success',
-                            'http.method'              => 'GET',
-                            'http.url'                 => 'http://localhost:9999/http_response_code/success',
-                            'http.status_code'         => '200',
-                            'integration.name'         => 'cakephp',
-                        ]
-                    ),
-                ],
             ]
         );
     }
