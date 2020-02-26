@@ -60,15 +60,15 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
         $this->assertExpectedSpans(
             $traces,
             [
-                       SpanAssertion::build('web.request', 'web.request', 'web', 'GET /error')->withExactTags(
-                           [
-                               'http.method'      => 'GET',
-                               'http.url'         => '/error',
-                               'http.status_code' => '500',
-                               'integration.name' => 'web',
-                           ]
-                       )->setError(),
-                   ]
+                        SpanAssertion::build('web.request', 'web.request', 'web', 'GET /error')->withExactTags(
+                            [
+                                'http.method'      => 'GET',
+                                'http.url'         => '/error',
+                                'http.status_code' => '500',
+                                'integration.name' => 'web',
+                            ]
+                        )->setError(),
+                    ]
         );
     }
 }
