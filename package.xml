@@ -165,8 +165,13 @@
                         <file name="dd_trace_set_trace_id.phpt" role="test" />
                         <file name="drop_spans.phpt" role="test" />
                         <file name="errors_are_flagged_from_userland.phpt" role="test" />
+                        <file name="exception_does_not_close_span_that_catches.phpt" role="test" />
                         <file name="exception_error_log.phpt" role="test" />
                         <file name="exception_from_user_error_handler_internal.phpt" role="test" />
+                        <file name="exception_handled_for_correct_catch_block.phpt" role="test" />
+                        <file name="exception_handled_in_correct_catch_frame.phpt" role="test" />
+                        <file name="exception_handled_in_multicatch.phpt" role="test" />
+                        <file name="exception_handled_with_finally.phpt" role="test" />
                         <file name="exception_handling_php5.phpt" role="test" />
                         <file name="exception_handling.phpt" role="test" />
                         <file name="exception_is_defined.phpt" role="test" />

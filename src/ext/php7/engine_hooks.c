@@ -27,6 +27,7 @@ static user_opcode_handler_t _prev_fcall_handler;
 static user_opcode_handler_t _prev_fcall_by_name_handler;
 static user_opcode_handler_t _prev_return_handler;
 static user_opcode_handler_t _prev_return_by_ref_handler;
+static user_opcode_handler_t _prev_handle_exception_handler;
 static user_opcode_handler_t _prev_exit_handler;
 
 #if PHP_VERSION_ID < 70100
@@ -107,7 +108,7 @@ static void _dd_copy_function_args(zend_execute_data *call, zval *user_args) {
 }
 
 static void _dd_span_attach_exception(ddtrace_span_t *span, ddtrace_exception_t *exception) {
-    if (exception) {
+    if (exception && span->exception == NULL) {
         GC_ADDREF(exception);
         span->exception = exception;
     }
@@ -531,6 +532,129 @@ static int _dd_return_by_ref_handler(zend_execute_data *execute_data) {
     return _prev_return_by_ref_handler ? _prev_return_by_ref_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
+#if PHP_MINOR_VERSION == 0
+static zend_op *_dd_get_next_catch_block(zend_execute_data *execute_data, zend_op *opline) {
+    if (opline->result.num) {
+        return NULL;
+    }
+    return &EX(func)->op_array.opcodes[opline->extended_value];
+}
+#elif PHP_MINOR_VERSION < 3
+static zend_op *_dd_get_next_catch_block(zend_op *opline) {
+    if (opline->result.num) {
+        return NULL;
+    }
+    return ZEND_OFFSET_TO_OPLINE(opline, opline->extended_value);
+}
+#else
+static zend_op *_dd_get_next_catch_block(zend_op *opline) {
+    if (opline->extended_value & ZEND_LAST_CATCH) {
+        return NULL;
+    }
+    return OP_JMP_ADDR(opline, opline->op2);
+}
+#endif
+
+static zend_class_entry *_dd_get_catching_ce(zend_execute_data *execute_data, const zend_op *opline) {
+    zend_class_entry *catch_ce = NULL;
+#if PHP_MINOR_VERSION < 3
+    catch_ce = CACHED_PTR(Z_CACHE_SLOT_P(EX_CONSTANT(opline->op1)));
+    if (catch_ce == NULL) {
+        catch_ce = zend_fetch_class_by_name(Z_STR_P(EX_CONSTANT(opline->op1)), EX_CONSTANT(opline->op1) + 1,
+                                            ZEND_FETCH_CLASS_NO_AUTOLOAD);
+    }
+#elif PHP_MINOR_VERSION == 3
+    catch_ce = CACHED_PTR(opline->extended_value & ~ZEND_LAST_CATCH);
+    if (catch_ce == NULL) {
+        catch_ce = zend_fetch_class_by_name(Z_STR_P(RT_CONSTANT(opline, opline->op1)),
+                                            RT_CONSTANT(opline, opline->op1) + 1, ZEND_FETCH_CLASS_NO_AUTOLOAD);
+    }
+#else
+    catch_ce = CACHED_PTR(opline->extended_value & ~ZEND_LAST_CATCH);
+    if (catch_ce == NULL) {
+        catch_ce =
+            zend_fetch_class_by_name(Z_STR_P(RT_CONSTANT(opline, opline->op1)),
+                                     Z_STR_P(RT_CONSTANT(opline, opline->op1) + 1), ZEND_FETCH_CLASS_NO_AUTOLOAD);
+    }
+#endif
+    return catch_ce;
+}
+
+static bool _dd_is_catching_frame(zend_execute_data *execute_data) {
+    zend_class_entry *ce, *catch_ce;
+    zend_try_catch_element *try_catch;
+    const zend_op *throw_op = EG(opline_before_exception);
+    uint32_t throw_op_num = throw_op - EX(func)->op_array.opcodes;
+    int i, current_try_catch_offset = -1;
+
+    // TODO Handle exceptions thrown because of loop var destruction on return/break/...
+    // https://heap.space/xref/PHP-7.4/Zend/zend_vm_def.h?r=760faa12#7494-7503
+
+    // TODO Handle exceptions thrown from generator context
+
+    // Find the innermost try/catch block the exception was thrown in
+    for (i = 0; i < EX(func)->op_array.last_try_catch; i++) {
+        try_catch = &EX(func)->op_array.try_catch_array[i];
+        if (try_catch->try_op > throw_op_num) {
+            // Exception was thrown before any remaining try/catch blocks
+            break;
+        }
+        if (throw_op_num < try_catch->catch_op) {
+            current_try_catch_offset = i;
+        }
+        // Ignore "finally" (try_catch->finally_end)
+    }
+
+    while (current_try_catch_offset > -1) {
+        try_catch = &EX(func)->op_array.try_catch_array[current_try_catch_offset];
+        // Found a catch block
+        if (throw_op_num < try_catch->catch_op) {
+            zend_op *opline = &EX(func)->op_array.opcodes[try_catch->catch_op];
+            // Travese all the catch blocks
+            do {
+                catch_ce = _dd_get_catching_ce(execute_data, opline);
+                if (catch_ce != NULL) {
+                    ce = EG(exception)->ce;
+                    if (ce == catch_ce || instanceof_function(ce, catch_ce)) {
+                        return true;
+                    }
+                }
+#if PHP_MINOR_VERSION == 0
+                opline = _dd_get_next_catch_block(execute_data, opline);
+#else
+                opline = _dd_get_next_catch_block(opline);
+#endif
+            } while (opline != NULL);
+        }
+        current_try_catch_offset--;
+    }
+
+    return false;
+}
+
+static int _dd_handle_exception_handler(zend_execute_data *execute_data) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    if (span && span->call == execute_data) {
+        zval retval;
+        ZVAL_NULL(&retval);
+        // Save pointer to dispatch since span can be dropped from _dd_end_span()
+        ddtrace_dispatch_t *dispatch = span->dispatch;
+        // The catching frame's span will get closed by the return handler so we leave it open
+        if (_dd_is_catching_frame(execute_data) == false) {
+            if (EG(exception)) {
+                _dd_span_attach_exception(span, EG(exception));
+            }
+            _dd_end_span(span, &retval);
+            if (dispatch) {
+                dispatch->busy = 0;
+                ddtrace_class_lookup_release(dispatch);
+            }
+        }
+    }
+
+    return _prev_handle_exception_handler ? _prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+}
+
 static int _dd_exit_handler(zend_execute_data *execute_data) {
     ddtrace_span_t *span;
     while ((span = DDTRACE_G(open_spans_top))) {
@@ -562,6 +686,8 @@ void ddtrace_opcode_minit(void) {
     zend_set_user_opcode_handler(ZEND_RETURN, _dd_return_handler);
     _prev_return_by_ref_handler = zend_get_user_opcode_handler(ZEND_RETURN_BY_REF);
     zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, _dd_return_by_ref_handler);
+    _prev_handle_exception_handler = zend_get_user_opcode_handler(ZEND_HANDLE_EXCEPTION);
+    zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, _dd_handle_exception_handler);
     _prev_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
     zend_set_user_opcode_handler(ZEND_EXIT, _dd_exit_handler);
 }
