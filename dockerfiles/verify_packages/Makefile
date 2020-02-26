@@ -24,9 +24,8 @@ all_alpine: $(ALPINE_PHP_VERSIONS)
 all_5.6: 56.centos6 56.centos7 5.6.stretch 5.6.jessie 5.6.alpine 5.6-zts.alpine
 
 docker_compose_pull:
-	# Centos/Debian
+	# Centos/Debian only
 	@docker-compose -f $(ROOT_DIR)/docker-compose.yml pull --parallel
-
 
 $(JESSIE_PHP_VERSIONS): %.jessie:
 	@echo Building Debian Jessie - PHP $*

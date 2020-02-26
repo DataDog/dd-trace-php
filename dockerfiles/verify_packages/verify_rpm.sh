@@ -2,4 +2,4 @@
 
 rpm -Uvh /build_src/build/packages/*.rpm
 
-php -m | grep ddtrace
+php -m | grep -q ddtrace
