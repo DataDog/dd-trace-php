@@ -188,6 +188,8 @@ final class Bootstrap
                     $span->setTag(Tag::HTTP_STATUS_CODE, $httpStatusCode);
                 }
             }
+
+            return dd_trace_forward_call();
         });
     }
 
