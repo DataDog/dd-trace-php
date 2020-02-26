@@ -25,6 +25,7 @@ folders:
 
 update-php-src:
 	@if [ -d ".php-src" ]; then \
+		git -C .php-src reset --hard; \
 		git -C .php-src checkout master; \
 		git -C .php-src pull; \
 	else \
@@ -40,7 +41,7 @@ images.alpine.publish: $(PHP_VERSIONS_ALPINE_IMAGES_PUBLISH_TASKS)
 %.image.alpine.build: update-php-src
 	docker build -t datadog/dd-trace-ci:php-build-extension-${*}-alpine --build-arg php_version=${*} -f Dockerfile_alpine --target final .
 
-extensions.alpine.build: $(PHP_VERSIONS_ALPINE_EXTENSION_BUILD_TASKS)
+extension.alpine.build: $(PHP_VERSIONS_ALPINE_EXTENSION_BUILD_TASKS)
 	@echo "Built no-debug and debug extensions for PHP version: ${PHP_VERSIONS_ALPINE}"
 
 %.extension.alpine.build: %.extension.no-debug.alpine.build %.extension.debug.alpine.build
