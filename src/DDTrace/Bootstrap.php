@@ -181,10 +181,10 @@ final class Bootstrap
 
         dd_trace('http_response_code', function () use ($span) {
             $args = func_get_args();
-            if ($args) {
+            if (isset($args[0]) {
                 $httpStatusCode = $args[0];
 
-                if (isset($httpStatusCode) && is_numeric($httpStatusCode)) {
+                if (is_numeric($httpStatusCode)) {
                     $span->setTag(Tag::HTTP_STATUS_CODE, $httpStatusCode);
                 }
             }
