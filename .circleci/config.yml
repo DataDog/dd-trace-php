@@ -593,8 +593,11 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: mkdir -p test-results
       - run:
-          name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile docker_compose_pull all
+          name: Test installing packages on target systems for Debian and Centos ONLY
+          command: make -C dockerfiles/verify_packages docker_compose_pull all
+      - run:
+          name: Test installing packages on target systems for Alpine
+          command: make -C dockerfiles/verify_packages alpine_images_verify
       - store_test_results:
           path: test-results
   placeholder:
