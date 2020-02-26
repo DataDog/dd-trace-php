@@ -11,6 +11,7 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **PHP Info**
+- Output of `php -v`
 - Output of `php -m`
 
 **OS Info**
