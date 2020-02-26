@@ -5,7 +5,7 @@ CENTOS7_PHP_VERSIONS:=5.4.centos7 5.6.centos7 7.0.centos7 7.1.centos7 7.2.centos
 CENTOS7_MANUAL_PHP_VERSIONS:=71.centos7-compiled
 
 ALPINE_PHP_VERSIONS:= \
-	5.6.alpine.3.4 5.6.alpine.3.5 5.6.alpine.3.6 5.6.alpine.3.7 5.6.alpine.3.8 \
+	5.6.alpine.3.5 5.6.alpine.3.6 5.6.alpine.3.7 5.6.alpine.3.8 \
 	7.0.alpine.3.5 \
 	7.1.alpine.3.6 7.1.alpine.3.7 \
 	7.2.alpine.3.8 7.2.alpine.3.9 \
