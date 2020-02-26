@@ -101,6 +101,22 @@
             "@test-integrations-72",
             "@test-web-72"
         ],
+        "test-all-73": [
+            "@test-unit",
+            "@test-auto-instrumentation",
+            "@test-distributed-tracing",
+            "@test-integration",
+            "@test-integrations-73",
+            "@test-web-73"
+        ],
+        "test-all-74": [
+            "@test-unit",
+            "@test-auto-instrumentation",
+            "@test-distributed-tracing",
+            "@test-integration",
+            "@test-integrations-74",
+            "@test-web-74"
+        ],
         "test-integration": [
             "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
             "@composer test -- --testsuite=integration"
