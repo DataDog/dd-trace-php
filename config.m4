@@ -1,4 +1,4 @@
-PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,[  --enable-ddtrace   Enable Datadog training support])
+PHP_ARG_ENABLE(ddtrace,whether to enable Datadog tracing support,[  --enable-ddtrace   Enable Datadog tracing support])
 
 PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,[  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
@@ -12,12 +12,13 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl This duplicates some of AX_EXECINFO's work, but AX_EXECINFO puts the
     dnl library into LIBS, which we don't use anywhere else and am worried that
     dnl it may contain things we are not expecting aside from execinfo
-    PHP_CHECK_LIBRARY(execinfo, backtrace, [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lexecinfo"]))
+    PHP_CHECK_LIBRARY(execinfo, backtrace,
+      [PHP_ADD_LIBRARY(execinfo, , EXTRA_LDFLAGS)])
+  )
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
-    EXTRA_LDFLAGS="-lasan"
+    PHP_ADD_LIBRARY(asan, , EXTRA_LDFLAGS)
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
-    PHP_SUBST(EXTRA_LDFLAGS)
     PHP_SUBST(EXTRA_CFLAGS)
   fi
 
@@ -66,8 +67,13 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_PHP_SOURCES $DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
   PHP_ADD_BUILD_DIR($ext_builddir/src/ext, 1)
 
-  PHP_CHECK_LIBRARY(rt, shm_open, [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"])
-  PHP_CHECK_LIBRARY(curl, curl_easy_setopt, [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lcurl"])
+  PHP_CHECK_LIBRARY(rt, shm_open,
+    [PHP_ADD_LIBRARY(rt, , EXTRA_LDFLAGS)])
+
+  PHP_CHECK_LIBRARY(curl, curl_easy_setopt,
+    [PHP_ADD_LIBRARY(curl, , EXTRA_LDFLAGS)],
+    [AC_MSG_ERROR([cannot find or include curl])])
+
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
   PHP_SUBST(EXTRA_LDFLAGS)
 
