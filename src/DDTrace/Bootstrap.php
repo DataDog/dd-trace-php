@@ -180,9 +180,13 @@ final class Bootstrap
         });
 
         dd_trace('http_response_code', function () use ($span) {
-            $httpStatusCode = func_get_args()[0];
-            if (isset($httpStatusCode) && is_numeric($httpStatusCode)) {
-                $span->setTag(Tag::HTTP_STATUS_CODE, $httpStatusCode);
+            $args = func_get_args();
+            if ($args) {
+                $httpStatusCode = $args[0];
+
+                if (isset($httpStatusCode) && is_numeric($httpStatusCode)) {
+                    $span->setTag(Tag::HTTP_STATUS_CODE, $httpStatusCode);
+                }
             }
         });
     }
