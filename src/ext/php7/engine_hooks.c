@@ -26,6 +26,7 @@ static user_opcode_handler_t _prev_ucall_handler;
 static user_opcode_handler_t _prev_fcall_handler;
 static user_opcode_handler_t _prev_fcall_by_name_handler;
 static user_opcode_handler_t _prev_return_handler;  // TODO ZEND_RETURN_BY_REF
+static user_opcode_handler_t _prev_handle_exception_handler;
 static user_opcode_handler_t _prev_exit_handler;
 
 #if PHP_VERSION_ID < 70100
@@ -522,6 +523,26 @@ static int _dd_return_handler(zend_execute_data *execute_data) {
     return _prev_return_handler ? _prev_return_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
+static int _dd_handle_exception_handler(zend_execute_data *execute_data) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    if (span && span->call == execute_data) {
+        zval retval;
+        ZVAL_NULL(&retval);
+        if (EG(exception)) {
+            _dd_span_attach_exception(span, EG(exception));
+        }
+        // Save pointer to dispatch since span can be dropped from _dd_end_span()
+        ddtrace_dispatch_t *dispatch = span->dispatch;
+        _dd_end_span(span, &retval);
+        if (dispatch) {
+            dispatch->busy = 0;
+            ddtrace_class_lookup_release(dispatch);
+        }
+    }
+
+    return _prev_handle_exception_handler ? _prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+}
+
 static int _dd_exit_handler(zend_execute_data *execute_data) {
     ddtrace_span_t *span;
     while ((span = DDTRACE_G(open_spans_top))) {
@@ -551,6 +572,8 @@ void ddtrace_opcode_minit(void) {
 
     _prev_return_handler = zend_get_user_opcode_handler(ZEND_RETURN);
     zend_set_user_opcode_handler(ZEND_RETURN, _dd_return_handler);
+    _prev_handle_exception_handler = zend_get_user_opcode_handler(ZEND_HANDLE_EXCEPTION);
+    zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, _dd_handle_exception_handler);
     _prev_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
     zend_set_user_opcode_handler(ZEND_EXIT, _dd_exit_handler);
 }

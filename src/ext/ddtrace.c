@@ -5,6 +5,7 @@
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_vm.h>
 #include <inttypes.h>
 #include <php.h>
 #include <php_ini.h>
@@ -193,6 +194,10 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
         return SUCCESS;
     }
+
+    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
+    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
+    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
 
     ddtrace_dogstatsd_client_rinit(TSRMLS_C);
 
