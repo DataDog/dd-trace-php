@@ -745,53 +745,53 @@ workflows:
       - "package verification":
           requires:
             - "package extension"
-      - placeholder:
-          requires: [ 'package extension' ]
-          name: Framework tests
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: flow
-          name: "Flow testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: flow_no_ddtrace
-          name: "Flow baseline testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: laravel
-          name: "Laravel testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: laravel_no_ddtrace
-          name: "Laravel baseline testsuite"
-      # Symfony path needs to be updated as symfony/contracts 2.0 has been released and it changes
-      # test files where the patch is applied.
+      # - placeholder:
+      #     requires: [ 'package extension' ]
+      #     name: Framework tests
       # - framework_tests:
       #     requires: [ "Framework tests" ]
-      #     framework_target: symfony
-      #     name: "Symfony testsuite"
+      #     framework_target: flow
+      #     name: "Flow testsuite"
       # - framework_tests:
       #     requires: [ "Framework tests" ]
-      #     framework_target: symfony_no_ddtrace
-      #     name: "Symfony baseline testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: wordpress
-          name: "WordPress testsuite"
-      - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: wordpress_no_ddtrace
-          name: "WordPress baseline testsuite"
-      - verify_package:
-          requires: [ "package extension" ]
-          name: "webdevops/php:7.1"
-          docker_image: webdevops/php:7.1
-          package_type: deb
-      - verify_package:
-          requires: [ "package extension" ]
-          name: "php:7.3"
-          docker_image: php:7.3
-          package_type: deb
+      #     framework_target: flow_no_ddtrace
+      #     name: "Flow baseline testsuite"
+      # - framework_tests:
+      #     requires: [ "Framework tests" ]
+      #     framework_target: laravel
+      #     name: "Laravel testsuite"
+      # - framework_tests:
+      #     requires: [ "Framework tests" ]
+      #     framework_target: laravel_no_ddtrace
+      #     name: "Laravel baseline testsuite"
+      # # Symfony path needs to be updated as symfony/contracts 2.0 has been released and it changes
+      # # test files where the patch is applied.
+      # # - framework_tests:
+      # #     requires: [ "Framework tests" ]
+      # #     framework_target: symfony
+      # #     name: "Symfony testsuite"
+      # # - framework_tests:
+      # #     requires: [ "Framework tests" ]
+      # #     framework_target: symfony_no_ddtrace
+      # #     name: "Symfony baseline testsuite"
+      # - framework_tests:
+      #     requires: [ "Framework tests" ]
+      #     framework_target: wordpress
+      #     name: "WordPress testsuite"
+      # - framework_tests:
+      #     requires: [ "Framework tests" ]
+      #     framework_target: wordpress_no_ddtrace
+      #     name: "WordPress baseline testsuite"
+      # - verify_package:
+      #     requires: [ "package extension" ]
+      #     name: "webdevops/php:7.1"
+      #     docker_image: webdevops/php:7.1
+      #     package_type: deb
+      # - verify_package:
+      #     requires: [ "package extension" ]
+      #     name: "php:7.3"
+      #     docker_image: php:7.3
+      #     package_type: deb
   # build:
   #   jobs:
   #     - "Code Checkout"
