@@ -6,10 +6,6 @@ Exceptions from original call are passed to tracing closure (PHP 7)
 <?php
 use DDTrace\SpanData;
 
-register_shutdown_function(function () {
-
-});
-
 function testExceptionIsNull()
 {
     echo "testExceptionIsNull()\n";
@@ -46,7 +42,7 @@ array_map(function($span) {
     echo PHP_EOL;
 }, dd_trace_serialize_closed_spans());
 ?>
---EXPECTF--
+--EXPECT--
 testExceptionIsNull()
 bool(true)
 testExceptionIsPassed()
