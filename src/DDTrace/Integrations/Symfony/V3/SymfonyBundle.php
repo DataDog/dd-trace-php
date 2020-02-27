@@ -14,17 +14,8 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
- * DataDog Symfony tracing bundle. Use by installing the dd-trace library:
- *
- * composer require datadog/dd-trace
- *
- * And then add the bundle in app/AppKernel.php:
- *
- *         $bundles = [
- *             // ...
- *             new DDTrace\Integrations\SymfonyBundle(),
- *             // ...
- *         ];
+ * @deprecated: this class is deprecated and should not be added to the list of bundles. Automatic instrumentation
+ * from a long time does not require adding any bundle as tracing is done automatically.
  */
 class SymfonyBundle extends Bundle
 {
