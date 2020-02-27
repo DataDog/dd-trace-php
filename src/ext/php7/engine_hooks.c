@@ -75,31 +75,65 @@ static bool _dd_should_trace_call(zend_execute_data *call, zend_function *fbc, d
     return true;
 }
 
-static void _dd_copy_function_args(zend_execute_data *call, zval *user_args) {
-    uint32_t i;
+#define _DD_TRACE_COPY_NULLABLE_ARG(q)      \
+    {                                       \
+        if (Z_TYPE_INFO_P(q) != IS_UNDEF) { \
+            ZVAL_DEREF(q);                  \
+            if (Z_OPT_REFCOUNTED_P(q)) {    \
+                Z_ADDREF_P(q);              \
+            }                               \
+        } else {                            \
+            q = &EG(uninitialized_zval);    \
+        }                                   \
+        ZEND_HASH_FILL_ADD(q);              \
+    }
+
+static void _dd_copy_function_args(zend_execute_data *call, zval *user_args, bool extra_args_moved) {
+    uint32_t i, first_extra_arg, extra_arg_count;
     zval *p, *q;
     uint32_t arg_count = ZEND_CALL_NUM_ARGS(call);
 
     // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
     array_init_size(user_args, arg_count);
     if (arg_count) {
+        first_extra_arg = call->func->op_array.num_args;
+        bool has_extra_args = first_extra_arg > 0 && arg_count > first_extra_arg;
+
         zend_hash_real_init(Z_ARRVAL_P(user_args), 1);
         ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(user_args)) {
             i = 0;
             p = ZEND_CALL_ARG(call, 1);
-            while (i < arg_count) {
-                q = p;
-                if (EXPECTED(Z_TYPE_INFO_P(q) != IS_UNDEF)) {
-                    ZVAL_DEREF(q);
-                    if (Z_OPT_REFCOUNTED_P(q)) {
-                        Z_ADDREF_P(q);
+            if (has_extra_args) {
+                if (extra_args_moved) {
+                    while (i < first_extra_arg) {
+                        q = p;
+                        _DD_TRACE_COPY_NULLABLE_ARG(q);
+                        p++;
+                        i++;
+                    }
+                    if (call->func->type != ZEND_INTERNAL_FUNCTION) {
+                        p = ZEND_CALL_VAR_NUM(call, call->func->op_array.last_var + call->func->op_array.T);
                     }
                 } else {
-                    q = &EG(uninitialized_zval);
+                    i = arg_count - first_extra_arg;
                 }
-                ZEND_HASH_FILL_ADD(q);
+            }
+            while (i < arg_count) {
+                q = p;
+                _DD_TRACE_COPY_NULLABLE_ARG(q);
                 p++;
                 i++;
+            }
+            /* If we are copying arguments before i_init_func_execute_data() has run, the extra agruments
+               have not yet been moved to a separate array. */
+            if (has_extra_args && !extra_args_moved) {
+                p = ZEND_CALL_VAR_NUM(call, first_extra_arg);
+                extra_arg_count = arg_count - first_extra_arg;
+                while (extra_arg_count--) {
+                    q = p;
+                    _DD_TRACE_COPY_NULLABLE_ARG(q);
+                    p++;
+                }
             }
         }
         ZEND_HASH_FILL_END();
@@ -220,7 +254,7 @@ static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_t *span, zval *user_
         return true;
     }
 
-    _dd_copy_function_args(call, &user_args);
+    _dd_copy_function_args(call, &user_args, dispatch->options & DDTRACE_DISPATCH_POSTHOOK);
     if (EG(exception)) {
         exception = EG(exception);
         EG(exception) = NULL;
