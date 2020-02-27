@@ -178,6 +178,19 @@ final class Bootstrap
 
             return $result;
         });
+
+        dd_trace('http_response_code', function () use ($span) {
+            $args = func_get_args();
+            if (isset($args[0])) {
+                $httpStatusCode = $args[0];
+
+                if (is_numeric($httpStatusCode)) {
+                    $span->setTag(Tag::HTTP_STATUS_CODE, $httpStatusCode);
+                }
+            }
+
+            return dd_trace_forward_call();
+        });
     }
 
     /**
