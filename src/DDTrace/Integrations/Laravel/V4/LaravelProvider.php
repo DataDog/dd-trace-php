@@ -11,18 +11,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * DataDog Laravel 4.2 tracing provider. Use by installing the dd-trace library:
- *
- * composer require datadog/dd-trace
- *
- * And then load the provider in config/app.php:
- *
- *     'providers' => array_merge(include(base_path('modules/system/providers.php')), [
- *        // 'Illuminate\Html\HtmlServiceProvider', // Example
- *
- *        'DDTrace\Integrations\Laravel\V4\LaravelProvider',
- *        'System\ServiceProvider',
- *   ]),
+ * @deprecated: this class is deprecated and should not be added to the list of providers. Automatic instrumentation
+ * does not require a provider anymore.
  */
 class LaravelProvider extends ServiceProvider
 {
