@@ -1,7 +1,7 @@
 PROJECT_ROOT := $(realpath ../../)
 WORKDIR := /dd-trace-php
 
-PHP_VERSIONS_ALPINE := 5.6 7.0 7.1 7.2 7.4 # (5.4 bison2 required) (7.3 error to be debugged)
+PHP_VERSIONS_ALPINE := 5.6 7.0 7.1 7.2 7.3 7.4 # (5.4 bison2 required)
 PHP_VERSIONS_ALPINE_IMAGES_PUBLISH_TASKS := $(addsuffix .image.alpine.publish,$(PHP_VERSIONS_ALPINE))
 PHP_VERSIONS_ALPINE_EXTENSION_BUILD_TASKS := $(addsuffix .extension.alpine.build,$(PHP_VERSIONS_ALPINE))
 API_VERSION_5.4 := 20100412
@@ -32,7 +32,7 @@ update-php-src:
 		git clone https://github.com/php/php-src.git .php-src; \
 	fi
 
-images.alpine.publish: $(PHP_VERSIONS_ALPINE_IMAGES_PUBLISH_TASKS)
+image.alpine.publish: $(PHP_VERSIONS_ALPINE_IMAGES_PUBLISH_TASKS)
 	@echo "Built and published docker images to build extensions for the following php verisons: ${PHP_VERSIONS_ALPINE}"
 
 %.image.alpine.publish: %.image.alpine.build
