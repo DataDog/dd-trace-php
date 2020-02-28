@@ -43,3 +43,27 @@ RUN apk --no-cache add 'php7=7.3.14-r0'
 
 FROM alpine:3.11 AS php.7.3.alpine.3.11
 RUN apk --no-cache add 'php7=7.3.14-r0'
+
+##############################################################
+# PHP 7.4
+FROM alpine:3.11 AS php.7.4.alpine.3.11.build
+RUN apk add --no-cache \
+    alpine-sdk \
+    autoconf \
+    bash \
+    bison \
+    curl-dev \
+    libxml2-dev \
+    re2c
+RUN wget https://www.php.net/distributions/php-7.4.3.tar.gz -O php.tar.gz
+RUN tar xvzf php.tar.gz
+WORKDIR /php-7.4.3
+RUN ./buildconf
+RUN ./configure --prefix=/php-install --without-sqlite3 --without-pdo-sqlite --with-curl
+RUN make
+RUN make install
+FROM alpine:3.11 AS php.7.4.alpine.3.11
+RUN apk add --no-cache \
+    libxml2
+COPY --from=php.7.4.alpine.3.11.build /php-install /php-install
+ENV PATH=/php-install/bin:$PATH

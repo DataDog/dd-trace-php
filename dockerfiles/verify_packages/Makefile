@@ -9,7 +9,8 @@ ALPINE_PHP_VERSIONS:= \
 	7.0.alpine.3.5 \
 	7.1.alpine.3.6 7.1.alpine.3.7 \
 	7.2.alpine.3.8 7.2.alpine.3.9 \
-	7.3.alpine.3.10 7.3.alpine.3.11
+	7.3.alpine.3.10 7.3.alpine.3.11 \
+	7.4.alpine.3.11
 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 

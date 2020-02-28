@@ -1,7 +1,7 @@
 PROJECT_ROOT := $(realpath ../../)
 WORKDIR := /dd-trace-php
 
-PHP_VERSIONS_ALPINE := 5.6 7.0 7.1 7.2 7.3 7.4 # (5.4 bison2 required)
+PHP_VERSIONS_ALPINE := 5.6 7.0 7.1 7.2 7.3 7.4
 PHP_VERSIONS_ALPINE_IMAGES_PUBLISH_TASKS := $(addsuffix .image.alpine.publish,$(PHP_VERSIONS_ALPINE))
 PHP_VERSIONS_ALPINE_EXTENSION_BUILD_TASKS := $(addsuffix .extension.alpine.build,$(PHP_VERSIONS_ALPINE))
 API_VERSION_5.4 := 20100412
