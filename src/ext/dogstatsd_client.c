@@ -20,7 +20,7 @@ static void _set_dogstatsd_client_globals(dogstatsd_client client, char *host, c
 }
 
 void ddtrace_dogstatsd_client_rinit(TSRMLS_D) {
-    BOOL_T health_metrics_enabled = get_dd_trace_heath_metrics_enabled();
+    bool health_metrics_enabled = get_dd_trace_heath_metrics_enabled();
     dogstatsd_client client = dogstatsd_client_default_ctor();
     char *host = NULL;
     char *port = NULL;

@@ -118,3 +118,16 @@ void ddtrace_config_shutdown(void) {
 #undef INT
 #undef DOUBLE
 }
+
+// define configuration getters macros
+#define CHAR(getter_name, ...) extern inline char* getter_name(void);
+#define BOOL(getter_name, ...) extern inline bool getter_name(void);
+#define INT(getter_name, ...) extern inline int64_t getter_name(void);
+#define DOUBLE(getter_name, ...) extern inline double getter_name(void);
+
+DD_CONFIGURATION
+
+#undef CHAR
+#undef BOOL
+#undef INT
+#undef DOUBLE
