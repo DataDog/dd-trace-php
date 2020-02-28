@@ -39,7 +39,7 @@ static void ddtrace_sigsegv_handler(int sig) {
         ddtrace_log_errf("Segmentation fault");
 
 #if HAVE_SIGACTION
-        BOOL_T health_metrics_enabled = get_dd_trace_heath_metrics_enabled();
+        bool health_metrics_enabled = get_dd_trace_heath_metrics_enabled();
         if (health_metrics_enabled) {
             dogstatsd_client *client = &DDTRACE_G(dogstatsd_client);
             const char *metric = "datadog.tracer.uncaught_exceptions";
@@ -78,7 +78,7 @@ static void ddtrace_sigsegv_handler(int sig) {
 }
 
 void ddtrace_signals_minit(TSRMLS_D) {
-    BOOL_T install_handler = get_dd_trace_heath_metrics_enabled();
+    bool install_handler = get_dd_trace_heath_metrics_enabled();
 
 #if DDTRACE_HAVE_BACKTRACE
     install_handler |= get_dd_log_backtrace();

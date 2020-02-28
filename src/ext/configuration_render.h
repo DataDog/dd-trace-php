@@ -11,13 +11,13 @@
 struct ddtrace_memoized_configuration_t {
 #define CHAR(getter_name, env_name, default, ...) \
     char* getter_name;                            \
-    BOOL_T __is_set_##getter_name;
+    bool __is_set_##getter_name;
 #define BOOL(getter_name, env_name, default, ...) \
-    BOOL_T getter_name;                           \
-    BOOL_T __is_set_##getter_name;
+    bool getter_name;                             \
+    bool __is_set_##getter_name;
 #define INT(getter_name, env_name, default, ...) \
     int64_t getter_name;                         \
-    BOOL_T __is_set_##getter_name;
+    bool __is_set_##getter_name;
 #define DOUBLE(getter_name, env_name, default, ...) \
     double getter_name;                             \
     double __is_set_##getter_name;
@@ -36,7 +36,7 @@ struct ddtrace_memoized_configuration_t {
 
 // define configuration getters macros
 #define CHAR(getter_name, env_name, default, ...)                                      \
-    inline static char* getter_name() {                                                \
+    inline char* getter_name(void) {                                                   \
         if (ddtrace_memoized_configuration.__is_set_##getter_name) {                   \
             if (ddtrace_memoized_configuration.getter_name) {                          \
                 pthread_mutex_lock(&ddtrace_memoized_configuration.mutex);             \
@@ -56,16 +56,16 @@ struct ddtrace_memoized_configuration_t {
     }
 
 #define BOOL(getter_name, env_name, default, ...)                    \
-    inline static BOOL_T getter_name() {                             \
+    inline bool getter_name(void) {                                  \
         if (ddtrace_memoized_configuration.__is_set_##getter_name) { \
             return ddtrace_memoized_configuration.getter_name;       \
         } else {                                                     \
-            return 1;                                                \
+            return true;                                             \
         }                                                            \
     }
 
 #define INT(getter_name, env_name, default, ...)                     \
-    inline static int64_t getter_name() {                            \
+    inline int64_t getter_name(void) {                               \
         if (ddtrace_memoized_configuration.__is_set_##getter_name) { \
             return ddtrace_memoized_configuration.getter_name;       \
         } else {                                                     \
@@ -74,7 +74,7 @@ struct ddtrace_memoized_configuration_t {
     }
 
 #define DOUBLE(getter_name, env_name, default, ...)                  \
-    inline static double getter_name() {                             \
+    inline double getter_name(void) {                                \
         if (ddtrace_memoized_configuration.__is_set_##getter_name) { \
             return ddtrace_memoized_configuration.getter_name;       \
         } else {                                                     \
