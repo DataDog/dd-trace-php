@@ -29,6 +29,8 @@ final class Http implements Transport
     const DEFAULT_TRACE_AGENT_PORT = '8126';
     const DEFAULT_TRACE_AGENT_PATH = '/v0.3/traces';
     const PRIORITY_SAMPLING_TRACE_AGENT_PATH = '/v0.4/traces';
+
+    /* Keep these in sync with configuration.h's values */
     const DEFAULT_AGENT_CONNECT_TIMEOUT = 100;
     const DEFAULT_AGENT_TIMEOUT = 500;
 
@@ -149,7 +151,10 @@ final class Http implements Transport
         }
 
         if (
-            \dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')
+            (
+                \dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')
+                || \dd_trace_env_config('DD_TRACE_BGS_ENABLED')
+            )
             && $this->encoder->getContentType() === 'application/msgpack'
             && \dd_trace_send_traces_via_thread($tracesCount, $curlHeaders, $body)
         ) {
