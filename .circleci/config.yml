@@ -624,10 +624,6 @@ workflows:
           lib_curl_command: yum -y install libcurl-devel
           so_suffix: "20100412"
           requires: [ 'Code Checkout' ]
-      # - compile_extension_alpine:
-      #     name: "Compile PHP 54 Alpine"
-      #     php_version: "5.4"
-      #     requires: [ 'Code Checkout' ]
       - compile_extension:
           requires: [ 'Code Checkout' ]
           name: "Compile PHP 56"
@@ -726,7 +722,6 @@ workflows:
       - "package extension":
           requires:
             - "Compile PHP 54"
-            # - "Compile PHP 54 Alpine"
             - "Compile PHP 56"
             - "Compile PHP 56 Alpine"
             - "Compile PHP 70"
