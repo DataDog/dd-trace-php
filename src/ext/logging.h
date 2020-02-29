@@ -20,4 +20,12 @@ inline void ddtrace_log_err(char *message) {
 
 void ddtrace_log_errf(const char *format, ...);
 
+/* These are used by the background sender; use other functions from PHP thread.
+ * {{{ */
+extern char *php_ini_error_log;
+void ddtrace_bgs_log_minit(char *error_log);
+void ddtrace_bgs_log_mshutdown(void);
+int ddtrace_bgs_logf(const char *fmt, ...);
+/* }}} */
+
 #endif  // DD_LOGGING_H
