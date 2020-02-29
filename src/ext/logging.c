@@ -26,22 +26,20 @@ void ddtrace_bgs_log_minit(char *error_log) {
 
 void ddtrace_bgs_log_mshutdown(void) { free(php_ini_error_log); }
 
+#undef ddtrace_bgs_logf
 int ddtrace_bgs_logf(const char *fmt, ...) {
-    if (php_ini_error_log && get_dd_trace_debug_curl_output()) {
-        int ret = 0;
-        va_list args;
-        FILE *fh = fopen(php_ini_error_log, "a");
+    int ret = 0;
+    va_list args;
+    FILE *fh = fopen(php_ini_error_log, "a");
 
-        if (fh) {
-            va_start(args, fmt);
-            ret = vfprintf(fh, fmt, args);
-            va_end(args);
-            fclose(fh);
-        }
-
-        return ret;
+    if (fh) {
+        va_start(args, fmt);
+        ret = vfprintf(fh, fmt, args);
+        va_end(args);
+        fclose(fh);
     }
-    return 0;
+
+    return ret;
 }
 
 extern inline void ddtrace_log_err(char *message);

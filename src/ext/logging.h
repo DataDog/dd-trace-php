@@ -25,7 +25,12 @@ void ddtrace_log_errf(const char *format, ...);
 extern char *php_ini_error_log;
 void ddtrace_bgs_log_minit(char *error_log);
 void ddtrace_bgs_log_mshutdown(void);
+
 int ddtrace_bgs_logf(const char *fmt, ...);
+/* variadic functions cannot be inlined; we use a macro to essentially inline
+ * the part we care about: the early return */
+#define ddtrace_bgs_logf(fmt, ...) \
+    ((php_ini_error_log && get_dd_trace_debug_curl_output()) ? ddtrace_bgs_logf(fmt, __VA_ARGS__) : 0)
 /* }}} */
 
 #endif  // DD_LOGGING_H
