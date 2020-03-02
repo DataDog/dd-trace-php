@@ -13,6 +13,7 @@
 
 #include "compatibility.h"
 #include "configuration.h"
+#include "logging.h"
 #include "mpack.h"
 
 extern inline bool ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack);
@@ -672,9 +673,7 @@ static struct timespec _dd_deadline_in_ms(uint32_t ms) {
 static size_t _dd_dummy_write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     UNUSED(userdata);
     size_t data_length = size * nmemb;
-    if (get_dd_trace_debug_curl_output()) {
-        printf("%s", ptr);
-    }
+    ddtrace_bgs_logf("%s", ptr);
     return data_length;
 }
 
@@ -728,17 +727,11 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
         res = curl_easy_perform(writer->curl);
 
         if (res != CURLE_OK) {
-            if (get_dd_trace_debug_curl_output()) {
-                printf("curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-                fflush(stdout);
-            }
-        } else {
-            if (get_dd_trace_debug_curl_output()) {
-                double uploaded;
-                curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
-                printf("UPLOADED %.0f bytes\n", uploaded);
-                fflush(stdout);
-            }
+            ddtrace_bgs_logf("[bgs] curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        } else if (get_dd_trace_debug_curl_output()) {
+            double uploaded;
+            curl_easy_getinfo(writer->curl, CURLINFO_SIZE_UPLOAD, &uploaded);
+            ddtrace_bgs_logf("[bgs] uploaded %.0f bytes\n", uploaded);
         }
 
         _dd_deinit_read_userdata(read_data);

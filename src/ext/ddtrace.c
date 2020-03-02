@@ -134,6 +134,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_bgs_log_minit(PG(error_log));
+
     ddtrace_dogstatsd_client_minit(TSRMLS_C);
     ddtrace_signals_minit(TSRMLS_C);
 
@@ -164,6 +166,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_coms_curl_shutdown();
         // if writer is ensured to be shutdown we can free up config resources safely
         ddtrace_config_shutdown();
+
+        ddtrace_bgs_log_mshutdown();
     }
 
     ddtrace_engine_hooks_mshutdown();
