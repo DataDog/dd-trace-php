@@ -77,8 +77,16 @@ if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
   PHP_SUBST(EXTRA_LDFLAGS)
 
-  PHP_ADD_INCLUDE($ext_builddir)
-  PHP_ADD_INCLUDE($ext_builddir/src/ext)
-  PHP_ADD_INCLUDE($ext_builddir/src/ext/mpack)
-  PHP_ADD_INCLUDE($ext_builddir/src/dogstatsd)
+  PHP_ADD_INCLUDE([$ext_srcdir])
+  PHP_ADD_INCLUDE([$ext_srcdir/src/ext])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/src/ext/mpack])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/mpack])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
+
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php7])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/third-party])
 fi
