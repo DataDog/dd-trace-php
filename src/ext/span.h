@@ -23,20 +23,14 @@ typedef struct ddtrace_span_t {
     pid_t pid;
     struct ddtrace_span_t *next;
 
-#if PHP_VERSION_ID >= 70000
     zend_execute_data *call;
     struct ddtrace_dispatch_t *dispatch;
-#endif
 } ddtrace_span_t;
 
 void ddtrace_init_span_stacks(TSRMLS_D);
 void ddtrace_free_span_stacks(TSRMLS_D);
 
-#if PHP_VERSION_ID < 70000
-ddtrace_span_t *ddtrace_open_span(TSRMLS_D);
-#else
 ddtrace_span_t *ddtrace_open_span(zend_execute_data *call, struct ddtrace_dispatch_t *dispatch TSRMLS_DC);
-#endif
 void dd_trace_stop_span_time(ddtrace_span_t *span);
 void ddtrace_close_span(TSRMLS_D);
 void ddtrace_drop_span(TSRMLS_D);

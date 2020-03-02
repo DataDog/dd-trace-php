@@ -532,29 +532,16 @@ static zval *ddtrace_exception_get_entry(zval *object, char *name, int name_len 
     return zend_read_property(exception_ce, object, name, name_len, 1 TSRMLS_CC);
 }
 
-static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
-                                   zend_execute_data *execute_data TSRMLS_DC) {
-    int fcall_status;
-    const zend_op *opline = EX(opline);
-
-    zval *user_retval = NULL, *user_args;
-    ALLOC_INIT_ZVAL(user_retval);
+static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, const zend_op *opline_before_exception TSRMLS_DC) {
+    zend_execute_data *call = span->call;
+    ddtrace_dispatch_t *dispatch = span->dispatch;
+    zval *user_args;
     ALLOC_INIT_ZVAL(user_args);
     zval *exception = NULL, *prev_exception = NULL;
 
-    ddtrace_span_t *span = ddtrace_open_span(TSRMLS_C);
-
-    fcall_status = ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
-    if (span != DDTRACE_G(open_spans_top)) {
-        if (get_dd_trace_debug()) {
-            const char *fname = Z_STRVAL(dispatch->function_name);
-            ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
-        }
-        goto _dispatch_exit_cleanup;
-    }
     dd_trace_stop_span_time(span);
 
-    ddtrace_copy_function_args(execute_data, user_args);
+    ddtrace_copy_function_args(call, user_args);
     if (EG(exception)) {
         exception = EG(exception);
         EG(exception) = NULL;
@@ -565,11 +552,11 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
     }
 
     BOOL_T keep_span = TRUE;
-    if (fcall_status == SUCCESS && Z_TYPE(dispatch->callable) == IS_OBJECT) {
+    if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
         ddtrace_error_handling eh;
         ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
 
-        keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, execute_data, user_args, user_retval,
+        keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, call, user_args, user_retval,
                                                     exception TSRMLS_CC);
 
         if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
@@ -601,12 +588,31 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
     if (exception) {
         EG(exception) = exception;
         EG(prev_exception) = prev_exception;
-        EG(opline_before_exception) = (zend_op *)opline;
+        EG(opline_before_exception) = (zend_op *)opline_before_exception;
         EG(current_execute_data)->opline = EG(exception_op);
     }
 
-_dispatch_exit_cleanup:
     zval_ptr_dtor(&user_args);
+}
+
+static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
+                                   zend_execute_data *execute_data TSRMLS_DC) {
+    const zend_op *opline = EX(opline);
+
+    zval *user_retval = NULL;
+    ALLOC_INIT_ZVAL(user_retval);
+
+    ddtrace_span_t *span = ddtrace_open_span(execute_data, dispatch TSRMLS_CC);
+
+    ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
+    if (span == DDTRACE_G(open_spans_top)) {
+        _dd_end_span(span, user_retval, opline TSRMLS_CC);
+    } else {
+        if (get_dd_trace_debug()) {
+            const char *fname = Z_STRVAL(dispatch->function_name);
+            ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
+        }
+    }
 
 #if PHP_VERSION_ID < 50500
     (void)opline;  // TODO Make work on PHP 5.4
