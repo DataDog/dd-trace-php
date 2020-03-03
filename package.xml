@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2020-03-02</date>
+    <date>2020-03-03</date>
     <version>
-        <release>0.41.0</release>
-        <api>0.41.0</api>
+        <release>0.41.1</release>
+        <api>0.41.1</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,20 +21,9 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-        ### Added
-        - Put compile_file hook behind a feature flag, default on #757
-
-        ### Changed
-        - Require curl at configuration time #766
-        - Log background sender messages to error_log #776
-        - Deprecate manual usage of legacy Symfony bundles and Laravel provider #772
-        - Separate background sender timeout env vars from userland #773
-
         ### Fixed
-        - Gracefully handle a dropped span on exit #765
-        - Update contribution guidelines #769
-        - Trace http response code when set via function 'http_response_code' #755 - thanks @aderiyenko
-        - Fix execinfo on builds from source in Alpine containers #752
+        - Fix pecl installs #781
+        - Fix background sender logging for ZTS #783
     </notes>
     <contents>
         <dir name="/">
