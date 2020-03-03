@@ -1,6 +1,8 @@
-PHP_ARG_ENABLE(ddtrace,whether to enable Datadog tracing support,[  --enable-ddtrace   Enable Datadog tracing support])
+PHP_ARG_ENABLE(ddtrace, whether to enable Datadog tracing support,
+  [  --enable-ddtrace   Enable Datadog tracing support])
 
-PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,[  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
+PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
+  [  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
 if test "$PHP_DDTRACE" != "no"; then
   m4_include([m4/polyfill.m4])
@@ -77,8 +79,16 @@ if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
   PHP_SUBST(EXTRA_LDFLAGS)
 
-  PHP_ADD_INCLUDE($ext_builddir)
-  PHP_ADD_INCLUDE($ext_builddir/src/ext)
-  PHP_ADD_INCLUDE($ext_builddir/src/ext/mpack)
-  PHP_ADD_INCLUDE($ext_builddir/src/dogstatsd)
+  PHP_ADD_INCLUDE([$ext_srcdir])
+  PHP_ADD_INCLUDE([$ext_srcdir/src/ext])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/src/ext/mpack])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/mpack])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
+
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php7])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/third-party])
 fi
