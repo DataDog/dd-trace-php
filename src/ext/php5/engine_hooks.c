@@ -19,6 +19,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 // True gloals; only modify in minit/mshutdown
 static user_opcode_handler_t _prev_fcall_handler;
 static user_opcode_handler_t _prev_fcall_by_name_handler;
+static user_opcode_handler_t _prev_exit_handler;
 
 #define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
 
@@ -603,6 +604,7 @@ static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *
     ALLOC_INIT_ZVAL(user_retval);
 
     ddtrace_span_t *span = ddtrace_open_span(execute_data, dispatch TSRMLS_CC);
+    span->retval = user_retval;
 
     ddtrace_forward_call(execute_data, fbc, user_retval TSRMLS_CC);
     if (span == DDTRACE_G(open_spans_top)) {
@@ -715,14 +717,38 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
     return ZEND_USER_OPCODE_LEAVE;
 }
 
+static int _dd_exit_handler(zend_execute_data *execute_data TSRMLS_DC) {
+    ddtrace_span_t *span;
+    while ((span = DDTRACE_G(open_spans_top))) {
+        if (span->retval) {
+            zval_ptr_dtor(&span->retval);
+            span->retval = NULL;
+        }
+        // Save pointer to dispatch since span can be dropped from _dd_end_span()
+        ddtrace_dispatch_t *dispatch = span->dispatch;
+        _dd_end_span(span, &EG(uninitialized_zval), EX(opline) TSRMLS_CC);
+        if (dispatch) {
+            dispatch->busy = 0;
+            ddtrace_class_lookup_release(dispatch);
+        }
+    }
+
+    return _prev_exit_handler ? _prev_exit_handler(execute_data TSRMLS_CC) : ZEND_USER_OPCODE_DISPATCH;
+}
+
 void ddtrace_opcode_minit(void) {
     _prev_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     _prev_fcall_by_name_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL_BY_NAME);
     zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, ddtrace_wrap_fcall);
+
+    _prev_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
+    zend_set_user_opcode_handler(ZEND_EXIT, _dd_exit_handler);
 }
 
 void ddtrace_opcode_mshutdown(void) {
     zend_set_user_opcode_handler(ZEND_DO_FCALL, NULL);
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, NULL);
+
+    zend_set_user_opcode_handler(ZEND_EXIT, NULL);
 }

@@ -25,6 +25,9 @@ typedef struct ddtrace_span_t {
 
     zend_execute_data *call;
     struct ddtrace_dispatch_t *dispatch;
+#if PHP_VERSION_ID < 70000
+    zval *retval;
+#endif
 } ddtrace_span_t;
 
 void ddtrace_init_span_stacks(TSRMLS_D);
