@@ -64,6 +64,7 @@ RUN make
 RUN make install
 FROM alpine:3.11 AS php.7.4.alpine.3.11
 RUN apk add --no-cache \
+    curl \
     libxml2
 COPY --from=php.7.4.alpine.3.11.build /php-install /php-install
 ENV PATH=/php-install/bin:$PATH
