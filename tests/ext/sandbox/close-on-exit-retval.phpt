@@ -1,7 +1,7 @@
 --TEST--
 Ensure tracing closure's $retval arg is null if invoked due to exit()
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip PHP < 7 not supported'); ?>
+<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -30,7 +30,7 @@ function outer() {
     inner();
     exit();
 
-    // ensure we did not break something    
+    // ensure we did not break something
     return 1;
 }
 
