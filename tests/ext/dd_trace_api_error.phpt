@@ -59,7 +59,7 @@ Expected 'innerhook' to be an instance of Closure
 bool(false)
 Legacy API does not support 'posthook'
 bool(false)
-Required key 'posthook' or 'innerhook' not found in config_array
+Required key 'posthook', 'prehook' or 'innerhook' not found in config_array
 bool(false)
 
 bool(false)
@@ -75,5 +75,5 @@ Expected 'innerhook' to be an instance of Closure
 bool(false)
 Legacy API does not support 'posthook'
 bool(false)
-Required key 'posthook' or 'innerhook' not found in config_array
+Required key 'posthook', 'prehook' or 'innerhook' not found in config_array
 bool(false)
