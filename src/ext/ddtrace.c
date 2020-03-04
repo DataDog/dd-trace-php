@@ -134,7 +134,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-    ddtrace_bgs_log_minit(PG(error_log));
+    ddtrace_bgs_log_minit();
 
     ddtrace_dogstatsd_client_minit(TSRMLS_C);
     ddtrace_signals_minit(TSRMLS_C);
@@ -186,6 +186,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
 
