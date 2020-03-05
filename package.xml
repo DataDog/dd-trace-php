@@ -188,11 +188,28 @@
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     </dir>
                     <dir name="sandbox-prehook">
+                        <file name="access_modifier_method_access_hook.phpt" role="test" />
+                        <file name="access_modifier_property_access_hook.phpt" role="test" />
                         <file name="args_copy_before_mutation.phpt" role="test" />
+                        <file name="close_on_exit.phpt" role="test" />
                         <file name="closure_arg_exception.phpt" role="test" />
                         <file name="closure_arg_retval.phpt" role="test" />
                         <file name="dd_trace_api_error.phpt" role="test" />
+                        <file name="dd_trace_function_internal.phpt" role="test" />
+                        <file name="dd_trace_function_userland.phpt" role="test" />
+                        <file name="dd_trace_method.phpt" role="test" />
+                        <file name="dd_trace_method_binds_called_object.phpt" role="test" />
+                        <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
+                        <file name="drop_spans.phpt" role="test" />
+                        <file name="exception_error_log.phpt" role="test" />
+                        <file name="exception_handling.phpt" role="test" />
+                        <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
+                        <file name="exit_and_drop_span.phpt" role="test" />
+                        <file name="keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
+                        <file name="new_static.phpt" role="test" />
                         <file name="php5_unsupported.phpt" role="test" />
+                        <file name="trace_static_method.phpt" role="test" />
+                        <file name="variable_length_parameter_list.phpt" role="test" />
                     </dir>
                     <dir name="sandbox-regression">
                         <file name="access_modifier_method_access_hook.phpt" role="test" />
