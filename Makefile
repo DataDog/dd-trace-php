@@ -132,7 +132,7 @@ FPM_FILES=extensions/=$(EXT_DIR)/extensions \
 	docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md UPGRADE-0.10.md=$(EXT_DIR)/docs/UPGRADE-0.10.md\
 	src=$(EXT_DIR)/dd-trace-sources \
 	bridge=$(EXT_DIR)/dd-trace-sources
-FPM_OPTS=$(FPM_INFO_OPTS) $(FPM_DIR_OPTS) --after-install=package/post-install.sh --depends="php > 7"
+FPM_OPTS=$(FPM_INFO_OPTS) $(FPM_DIR_OPTS) --after-install=package/post-install.sh
 
 PACKAGES_BUILD_DIR:=build/packages
 
