@@ -317,7 +317,7 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval) {
 static bool _dd_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc, zend_execute_data *execute_data) {
     ddtrace_span_t *span = ddtrace_open_span(EX(call), dispatch);
 
-    if (dispatch->options & DDTRACE_DISPATCH_PREHOOK && _dd_call_sandboxed_tracing_closure(span, NULL) == false) {
+    if ((dispatch->options & DDTRACE_DISPATCH_PREHOOK) && _dd_call_sandboxed_tracing_closure(span, NULL) == false) {
         ddtrace_drop_span();
         return false;
     }

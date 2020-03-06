@@ -10,7 +10,7 @@ register_shutdown_function(function () {
     $spans = dd_trace_serialize_closed_spans();
     array_map(
         function($span) {
-            echo @$span['name'], PHP_EOL;
+            echo $span['name'], PHP_EOL;
         },
         $spans
     );

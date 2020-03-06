@@ -13,7 +13,7 @@ var_dump(dd_trace_function('filter_to_array', ['prehook' => function (SpanData $
 function filter_to_array($fn, $input) {
     $output = array();
     foreach ($input as $x) {
-        if (call_user_func($fn, $x)) {
+        if ($fn($x)) {
             $output[] = $x;
         }
     }
