@@ -18,6 +18,9 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
 {
     const NAME = 'symfony';
 
+    public $symfonyRequestSpan;
+    public $appName;
+
     public function getName()
     {
         return static::NAME;
@@ -39,120 +42,123 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
     public function init()
     {
         $integration = $this;
-        $appName = null;
-        $symfonyRequestSpan = null;
-        $isSymfony2 = false;
 
         dd_trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             '__construct',
-            function () use (&$appName, &$symfonyRequestSpan, $integration, &$isSymfony2) {
+            function () use ($integration) {
                 $tracer = GlobalTracer::get();
                 $scope = $tracer->getRootScope();
+                if (!$scope) {
+                    return false;
+                }
                 /** @var Span $symfonyRequestSpan */
-                $symfonyRequestSpan = $scope->getSpan();
+                $integration->symfonyRequestSpan = $scope->getSpan();
 
                 if (
                     defined('\Symfony\Component\HttpKernel\Kernel::VERSION')
                         && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)
                 ) {
-                    $isSymfony2 = true;
+                    $integration->loadSymfony2($integration);
                     return false;
                 }
 
-                $appName = Configuration::get()->appName('symfony');
-                $symfonyRequestSpan->overwriteOperationName('symfony.request');
-                $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $appName);
-                $symfonyRequestSpan->setIntegration($integration);
-                $symfonyRequestSpan->setTraceAnalyticsCandidate();
-
+                $integration->loadSymfony($integration);
                 return false;
             }
         );
 
+        return Integration::LOADED;
+    }
+
+    public function loadSymfony($integration)
+    {
+        $integration->appName = Configuration::get()->appName('symfony');
+        $integration->symfonyRequestSpan->overwriteOperationName('symfony.request');
+        $integration->symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
+        $integration->symfonyRequestSpan->setIntegration($integration);
+        $integration->symfonyRequestSpan->setTraceAnalyticsCandidate();
+
         dd_trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
-            function (
-                SpanData $span,
-                $args,
-                $response
-            ) use (
-                &$appName,
-                &$symfonyRequestSpan,
-                $integration,
-                &$isSymfony2
-            ) {
-                if ($isSymfony2) {
-                    // Disabled for symfony 2
-                    return false;
-                }
-
+            function (SpanData $span, $args, $response) use ($integration) {
                 /** @var Request $request */
                 list($request) = $args;
 
                 $span->name = $span->resource = 'symfony.kernel.handle';
-                $span->service = $appName;
+                $span->service = $integration->appName;
                 $span->type = Type::WEB_SERVLET;
 
-                $symfonyRequestSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
-                $symfonyRequestSpan->setTag(Tag::HTTP_URL, $request->getUriForPath($request->getPathInfo()));
+                $integration->symfonyRequestSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
+                $integration->symfonyRequestSpan->setTag(
+                    Tag::HTTP_URL,
+                    $request->getUriForPath($request->getPathInfo())
+                );
                 if (isset($response)) {
-                    $symfonyRequestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
+                    $integration->symfonyRequestSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
                 }
 
                 $route = $request->get('_route');
                 if (null !== $route && null !== $request) {
-                    $symfonyRequestSpan->setTag(Tag::RESOURCE_NAME, $route);
-                    $symfonyRequestSpan->setTag('symfony.route.name', $route);
+                    $integration->symfonyRequestSpan->setTag(Tag::RESOURCE_NAME, $route);
+                    $integration->symfonyRequestSpan->setTag('symfony.route.name', $route);
                 }
             }
         );
 
+        /*
+         * EventDispatcher v4.3 introduced an arg hack that mutates the arguments.
+         * @see https://github.com/symfony/event-dispatcher/blob/4.3/EventDispatcher.php#L51-L64
+         * Since the arguments passed to the tracing closure on PHP 7 are mutable,
+         * the closure must be run _before_ the original call via 'prehook'.
+        */
+        $hookType = (PHP_MAJOR_VERSION >= 7) ? 'prehook' : 'posthook';
+
         dd_trace_method(
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
-            function (SpanData $span, $args) use (&$appName, &$symfonyRequestSpan, $integration, &$isSymfony2) {
-                if ($isSymfony2) {
-                    // Disabled for symfony 2
-                    return false;
+            [
+                $hookType => function (SpanData $span, $args) use ($integration) {
+                    if (!isset($args[0])) {
+                        return false;
+                    }
+                    if (\is_object($args[0])) {
+                        // dispatch($event, string $eventName = null)
+                        $event = $args[0];
+                        $eventName = isset($args[1]) && \is_string($args[1]) ? $args[1] : \get_class($event);
+                    } elseif (\is_string($args[0])) {
+                        // dispatch($eventName, Event $event = null)
+                        $eventName = $args[0];
+                        $event = isset($args[1]) && \is_object($args[1]) ? $args[1] : null;
+                    } else {
+                        // Invalid API usage
+                        return false;
+                    }
+                    $span->name = $span->resource = 'symfony.' . $eventName;
+                    $span->service = $integration->appName;
+                    if ($event === null) {
+                        return;
+                    }
+                    $integration->injectActionInfo($event, $eventName, $integration->symfonyRequestSpan);
                 }
-
-                if (isset($args[1]) && is_string($args[1])) {
-                    $eventName = $args[1];
-                } else {
-                    $eventName = is_object($args[0]) ? get_class($args[0]) : $args[0];
-                }
-                $span->name = $span->resource = 'symfony.' . $eventName;
-                $span->service = $appName;
-                $integration->injectActionInfo($args, $symfonyRequestSpan);
-            }
+            ]
         );
 
         dd_trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handleException',
-            function (SpanData $span, $args) use (&$appName, &$symfonyRequestSpan, $integration, &$isSymfony2) {
-                if ($isSymfony2) {
-                    // Disabled for symfony 2
-                    return false;
-                }
-
+            function (SpanData $span, $args) use ($integration) {
                 $span->name = $span->resource = 'symfony.kernel.handleException';
-                $span->service = $appName;
-                $symfonyRequestSpan->setError($args[0]);
+                $span->service = $integration->appName;
+                $integration->symfonyRequestSpan->setError($args[0]);
             }
         );
 
         // Tracing templating engines
-        $renderTraceCallback = function (SpanData $span, $args) use (&$appName, $integration, &$isSymfony2) {
-            if ($isSymfony2) {
-                // Disabled for symfony 2
-                return false;
-            }
-
+        $renderTraceCallback = function (SpanData $span, $args) use ($integration) {
             $span->name = 'symfony.templating.render';
-            $span->service = $appName;
+            $span->service = $integration->appName;
             $span->type = Type::WEB_SERVLET;
 
             $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);
@@ -166,16 +172,15 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         dd_trace_method('Symfony\Component\Templating\PhpEngine', 'render', $renderTraceCallback);
         dd_trace_method('Twig\Environment', 'render', $renderTraceCallback);
         dd_trace_method('Twig_Environment', 'render', $renderTraceCallback);
+    }
 
+    public function loadSymfony2($integration)
+    {
         // Symfony 2.x specific resource name assignment
         dd_trace_method(
             'Symfony\Component\HttpKernel\Event\FilterControllerEvent',
             'setController',
-            function (SpanData $span, $args) use (&$symfonyRequestSpan, $integration, &$isSymfony2) {
-                if (!$isSymfony2) {
-                    return false;
-                }
-
+            function (SpanData $span, $args) use ($integration) {
                 list($controllerInfo) = $args;
                 $resourceParts = [];
 
@@ -194,49 +199,30 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
                     }
                 }
 
-                if ($symfonyRequestSpan) {
-                    $symfonyRequestSpan->setIntegration($integration);
+                if ($integration->symfonyRequestSpan) {
+                    $integration->symfonyRequestSpan->setIntegration($integration);
                     if (count($resourceParts) > 0) {
-                        $symfonyRequestSpan->setResource(implode(' ', $resourceParts));
+                        $integration->symfonyRequestSpan->setResource(\implode(' ', $resourceParts));
                     }
                 }
 
                 return false;
             }
         );
-
-        return Integration::LOADED;
     }
 
     /**
-     * @param mixed $args
-     * @param Request $request
+     * @param \Symfony\Component\EventDispatcher\Event $event
+     * @param string $eventName
      * @param Span $requestSpan
      */
-    public function injectActionInfo($args, Span $requestSpan)
+    public function injectActionInfo($event, $eventName, Span $requestSpan)
     {
-        if (count($args) < 2) {
-            return;
-        }
-        if (is_object($args[0])) {
-            list($event, $eventName) = $args;
-        } else {
-            list($eventName, $event) = $args;
-        }
-
         if (
-            defined("KernelEvents::CONTROLLER_ARGUMENTS")
-                &&  $eventName !== KernelEvents::CONTROLLER_ARGUMENTS
+            !\defined("\Symfony\Component\HttpKernel\KernelEvents::CONTROLLER")
+            || $eventName !== KernelEvents::CONTROLLER
+            || !method_exists($event, 'getController')
         ) {
-            // Symfony 3.0 check
-            return;
-        } elseif ($eventName !== KernelEvents::CONTROLLER) {
-            // Symfony 3.3+ check (we do not test 3.1 and 3.2 so we do not know
-            // under which case they fall)
-            return;
-        }
-
-        if (!method_exists($event, 'getController')) {
             return;
         }
 
