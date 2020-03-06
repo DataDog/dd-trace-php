@@ -59,12 +59,5 @@ COPY php-fpm.conf /usr/local/etc/php-fpm.conf
 # Configuring supervisord
 COPY supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 
-# Installing tracer if provided
-ARG TRACER_DOWNLOAD_URL
-RUN if [ ! -z "${TRACER_DOWNLOAD_URL}" ] ; then \
-        wget -O dd-trace-php.deb "${TRACER_DOWNLOAD_URL}"; \
-        dpkg -i dd-trace-php.deb; \
-    fi
-
 EXPOSE 80
 CMD [ "/usr/bin/supervisord" ]
