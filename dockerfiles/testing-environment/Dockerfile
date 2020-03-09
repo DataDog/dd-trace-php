@@ -1,5 +1,7 @@
 FROM ubuntu:18.04 AS base
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update \
     && apt-get install -y \
         autoconf \
@@ -13,6 +15,7 @@ RUN apt-get update \
         libssl-dev \
         libtool \
         libxml2-dev \
+        libfcgi0ldbl \
         nginx \
         re2c \
         supervisor \
@@ -21,21 +24,28 @@ RUN apt-get update \
         zip \
     && rm -rf /var/lib/apt/lists/*
 
-# Building PHP
+# Installing PHP
 ARG PHP_VERSION
-RUN git clone https://github.com/php/php-src.git --depth=1 --branch "PHP-${PHP_VERSION}" --single-branch /php-src
 WORKDIR /php-src
-RUN ./buildconf
+ADD https://www.php.net/distributions/php-${PHP_VERSION}.tar.gz php.tar.gz
+RUN tar -zxvf php.tar.gz --strip-components=1
+RUN rm php.tar.gz
 RUN ./configure \
+    --prefix=/opt/php \
     --enable-fpm \
+    --with-fpm-user=www-data \
+    --with-fpm-group=www-data \
     --enable-mbstring \
     --enable-opcache \
     --with-curl \
+    --with-gettext \
+    --with-pear \
     --with-openssl \
     --without-pdo-sqlite \
     --without-sqlite3
 RUN make -j2
 RUN make install
+ENV PATH="/opt/php/bin:/opt/php/sbin:${PATH}"
 
 # Installing composer
 WORKDIR /tmp
@@ -49,15 +59,14 @@ WORKDIR /var/www/html/
 COPY Laravel57 /var/www/html/
 RUN composer update --no-dev
 
-# Configuring nginx and PHP
-RUN ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log \
-    && ln -sf /dev/stderr /var/log/php-fpm.log
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY php-fpm.conf /usr/local/etc/php-fpm.conf
-
-# Configuring supervisord
-COPY supervisor.conf /etc/supervisor/conf.d/supervisor.conf
-
 EXPOSE 80
-CMD [ "/usr/bin/supervisord" ]
+
+RUN touch /var/log/php-fpm.log && chmod 777 /var/log/php-fpm.log
+
+# Copying configuration files
+COPY supervisor.conf /etc/supervisor/conf.d/supervisor.conf
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY php-fpm.conf /opt/php/etc/php-fpm.conf
+COPY local-run.sh local-run.sh
+
+CMD [ "supervisord" ]
