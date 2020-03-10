@@ -6,7 +6,7 @@ all: $(addsuffix .build,ALL_VERSIONS)
 	@:
 
 %.build:
-	@docker build --build-arg PHP_VERSION="${${*}_VERSION}" -t registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:$@ .
+	@docker build --build-arg PHP_VERSION="${${*}_VERSION}" -t registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:$* .
 
 %.publish: %.build
-	@docker push registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:$@ .
+	@docker push registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:$*
