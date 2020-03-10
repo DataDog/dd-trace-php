@@ -7,6 +7,7 @@
 #include "ddtrace.h"
 #include "random.h"
 #include "serializer.h"
+#include "spandata.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -84,7 +85,13 @@ ddtrace_span_t *ddtrace_open_span(zend_execute_data *call, struct ddtrace_dispat
 #else
     span->span_data = (zval *)ecalloc(1, sizeof(zval));
 #endif
-    object_init_ex(span->span_data, ddtrace_ce_span_data);
+
+    object_init_ex(span->span_data, ddtrace_spandata_ce);
+
+#if PHP_VERSION_ID >= 70000
+    ddtrace_spandata *spandata = ddtrace_spandata_from_zval(span->span_data);
+    spandata->backptr = span;
+#endif
 
     // Peek at the active span ID before we push a new one onto the stack
     span->parent_id = ddtrace_peek_span_id(TSRMLS_C);

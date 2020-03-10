@@ -32,6 +32,7 @@
 #include "serializer.h"
 #include "signals.h"
 #include "span.h"
+#include "spandata.h"
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
@@ -93,23 +94,7 @@ ZEND_END_ARG_INFO()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
-/* DDTrace\SpanData */
-zend_class_entry *ddtrace_ce_span_data;
-
-static void register_span_data_ce(TSRMLS_D) {
-    zend_class_entry ce_span_data;
-    INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", NULL);
-    ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data TSRMLS_CC);
-
-    // trace_id, span_id, parent_id, start & duration are stored directly on
-    // ddtrace_span_t so we don't need to make them properties on DDTrace\SpanData
-    zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "service", sizeof("service") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "type", sizeof("type") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-}
+static void _dd_register_class_entries(TSRMLS_D) { ddtrace_spandata_register_ce(TSRMLS_C); }
 
 static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     if (strcmp("fpm-fcgi", sapi_module.name) == 0 || strcmp("apache2handler", sapi_module.name) == 0 ||
@@ -139,7 +124,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_dogstatsd_client_minit(TSRMLS_C);
     ddtrace_signals_minit(TSRMLS_C);
 
-    register_span_data_ce(TSRMLS_C);
+    _dd_register_class_entries(TSRMLS_C);
 
     ddtrace_engine_hooks_minit();
 
@@ -853,6 +838,12 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
             ddtrace_coms_synchronous_flush(timeout);
             RETVAL_TRUE;
         }
+#if PHP_VERSION_ID >= 70000
+        else if (FUNCTION_NAME_MATCHES("spandata_is_top")) {
+            zval *span_data = ZVAL_VARARG_PARAM(params, 0);
+            RETVAL_BOOL(ddtrace_spandata_is_top(span_data));
+        }
+#endif
     }
 #if PHP_VERSION_ID < 70000
     if (params_count > 0) {

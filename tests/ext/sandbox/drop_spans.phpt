@@ -29,9 +29,12 @@ array_sum([42, 0, 1]); // Should drop
 new DateTime('2000-01-01');
 new DateTime('2019-09-10'); // Should drop
 
-array_map(function($span) {
-    echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+array_map(
+    function($span) {
+        echo $span['name'] . PHP_EOL;
+    },
+    dd_trace_serialize_closed_spans()
+);
 ?>
 --EXPECT--
 Traced array_sum

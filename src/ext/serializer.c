@@ -13,6 +13,7 @@
 #include "ddtrace.h"
 #include "logging.h"
 #include "mpack/mpack.h"
+#include "spandata.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -183,7 +184,7 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval TSRMLS_DC) {
 
 #if PHP_VERSION_ID < 70000
 static zval *_read_span_property(zval *span_data, const char *name, size_t name_len TSRMLS_DC) {
-    return zend_read_property(ddtrace_ce_span_data, span_data, name, name_len, 1 TSRMLS_CC);
+    return zend_read_property(ddtrace_spandata_ce, span_data, name, name_len, 1 TSRMLS_CC);
 }
 
 static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
@@ -391,7 +392,7 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
 #else
 static zval *_read_span_property(zval *span_data, const char *name, size_t name_len) {
     zval rv;
-    return zend_read_property(ddtrace_ce_span_data, span_data, name, name_len, 1, &rv);
+    return zend_read_property(ddtrace_spandata_ce, span_data, name, name_len, 1, &rv);
 }
 
 static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {

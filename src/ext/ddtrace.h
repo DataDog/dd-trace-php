@@ -9,7 +9,6 @@
 #include "version.h"
 
 extern zend_module_entry ddtrace_module_entry;
-extern zend_class_entry *ddtrace_ce_span_data;
 
 BOOL_T ddtrace_tracer_is_limited(TSRMLS_D);
 

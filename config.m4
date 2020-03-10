@@ -20,8 +20,10 @@ if test "$PHP_DDTRACE" != "no"; then
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
     PHP_ADD_LIBRARY(asan, , EXTRA_LDFLAGS)
+    EXTRA_LDFLAGS="-fsanitize=address -fno-omit-frame-pointer"
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
     PHP_SUBST(EXTRA_CFLAGS)
+    PHP_SUBST(EXTRA_LDFLAGS)
   fi
 
   dnl ddtrace.c comes first, then everything else alphabetically
@@ -56,11 +58,13 @@ if test "$PHP_DDTRACE" != "no"; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
       src/ext/php5/dispatch.c \
       src/ext/php5/engine_hooks.c \
+      src/ext/php5/spandata.c \
     "
   elif test $PHP_VERSION -lt 80000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
       src/ext/php7/dispatch.c \
       src/ext/php7/engine_hooks.c \
+      src/ext/php7/spandata.c \
     "
   else
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES=""
@@ -68,6 +72,12 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_PHP_SOURCES $DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
   PHP_ADD_BUILD_DIR($ext_builddir/src/ext, 1)
+
+  if test $PHP_VERSION -lt 70000; then
+    PHP_ADD_INCLUDE([$ext_srcdir/src/ext/php5])
+  elif test $PHP_VERSION -lt 80000; then
+    PHP_ADD_INCLUDE([$ext_srcdir/src/ext/php7])
+  fi
 
   PHP_CHECK_LIBRARY(rt, shm_open,
     [PHP_ADD_LIBRARY(rt, , EXTRA_LDFLAGS)])

@@ -85,10 +85,14 @@
                     <dir name="php5">
                         <file name="dispatch.c" role="src" />
                         <file name="engine_hooks.c" role="src" />
+                        <file name="spandata.c" role="src" />
+                        <file name="spandata.h" role="src" />
                     </dir>
                     <dir name="php7">
                         <file name="dispatch.c" role="src" />
                         <file name="engine_hooks.c" role="src" />
+                        <file name="spandata.c" role="src" />
+                        <file name="spandata.h" role="src" />
                     </dir>
                     <dir name="third-party">
                         <file name="mt19937-64.c" role="src" />
@@ -184,6 +188,7 @@
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
                         <file name="safe_to_string_properties.phpt" role="test" />
                         <file name="sandbox_api_not_available_on_unsupported_versions.phpt" role="test" />
+                        <file name="spandata_is_top.phpt" role="test" />
                         <file name="spans_out_of_sync.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                     </dir>
