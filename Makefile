@@ -14,6 +14,7 @@ INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 C_FILES := $(shell find src/{dogstatsd,ext} -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+PHP_FILES := $(shell find bridge src/DDTrace -name '*.php*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
 ALL_FILES := $(C_FILES) $(TEST_FILES) $(BUILD_DIR)/config.m4 $(M4_FILES)
 
@@ -153,6 +154,11 @@ packages: .apk .rpm .deb .tar.gz
 
 verify_pecl_file_definitions:
 	@for i in $(notdir $(C_FILES) $(TEST_FILES)); do\
+		grep -q $$i package.xml && continue;\
+		echo package.xml is missing \"$$i\"; \
+		exit 1;\
+	done
+	@for i in $(notdir $(PHP_FILES)); do\
 		grep -q $$i package.xml && continue;\
 		echo package.xml is missing \"$$i\"; \
 		exit 1;\

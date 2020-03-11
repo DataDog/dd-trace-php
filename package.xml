@@ -10,20 +10,169 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>1970-01-01</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>1.0.0dev</release>
+        <api>1.0.0dev</api>
     </version>
     <stability>
-        <release>stable</release>
-        <api>stable</api>
+        <release>snapshot</release>
+        <api>devel</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>${notes}</notes>
     <contents>
-        <dir name="/">
+        <dir name="/" baseinstalldir="datadog_trace">
+            <dir name="bridge">
+                <file name='functions.php' role='php' />
+                <file name='dd_autoloader.php' role='php' />
+                <file name='dd_init.php' role='php' />
+                <file name='dd_require_all.php' role='php' />
+                <file name='dd_required_deps_autoloader.php' role='php' />
+                <file name='dd_wrap_autoloader.php' role='php' />
+                <file name='dd_optional_deps_autoloader.php' role='php' />
+            </dir>
             <dir name="src">
+                <file name='PostInstall.php' role="php">
+                    <tasks:postinstallscript />
+                </file>
+                <dir name="DDTrace">
+                    <file name='Bootstrap.php' role='php' />
+                    <file name='Configuration.php' role='php' />
+                    <file name='Configuration/AbstractConfiguration.php' role='php' />
+                    <file name='Configuration/EnvVariableRegistry.php' role='php' />
+                    <file name='Configuration/Registry.php' role='php' />
+                    <file name='Contracts/Scope.php' role='php' />
+                    <file name='Contracts/ScopeManager.php' role='php' />
+                    <file name='Contracts/Span.php' role='php' />
+                    <file name='Contracts/SpanContext.php' role='php' />
+                    <file name='Contracts/Tracer.php' role='php' />
+                    <file name='Data/Span.php' role='php' />
+                    <file name='Data/SpanContext.php' role='php' />
+                    <file name='Encoder.php' role='php' />
+                    <file name='Encoders/Json.php' role='php' />
+                    <file name='Encoders/MessagePack.php' role='php' />
+                    <file name='Encoders/Noop.php' role='php' />
+                    <file name='Encoders/SpanEncoder.php' role='php' />
+                    <file name='Exceptions/InvalidReferenceArgument.php' role='php' />
+                    <file name='Exceptions/InvalidReferencesSet.php' role='php' />
+                    <file name='Exceptions/InvalidSpanArgument.php' role='php' />
+                    <file name='Exceptions/InvalidSpanOption.php' role='php' />
+                    <file name='Exceptions/UnsupportedFormat.php' role='php' />
+                    <file name='Format.php' role='php' />
+                    <file name='GlobalTracer.php' role='php' />
+                    <file name='Http/Request.php' role='php' />
+                    <file name='Http/Urls.php' role='php' />
+                    <file name='Integrations/AbstractIntegrationConfiguration.php' role='php' />
+                    <file name='Integrations/CakePHP/CakePHPIntegration.php' role='php' />
+                    <file name='Integrations/CakePHP/V2/CakePHPIntegrationLoader.php' role='php' />
+                    <file name='Integrations/CodeIgniter/V2/CodeIgniterSandboxedIntegration.php' role='php' />
+                    <file name='Integrations/Curl/CurlIntegration.php' role='php' />
+                    <file name='Integrations/DefaultIntegrationConfiguration.php' role='php' />
+                    <file name='Integrations/ElasticSearch/V1/ElasticSearchCommon.php' role='php' />
+                    <file name='Integrations/ElasticSearch/V1/ElasticSearchIntegration.php' role='php' />
+                    <file name='Integrations/ElasticSearch/V1/ElasticSearchSandboxedIntegration.php' role='php' />
+                    <file name='Integrations/Eloquent/EloquentIntegration.php' role='php' />
+                    <file name='Integrations/Eloquent/EloquentSandboxedIntegration.php' role='php' />
+                    <file name='Integrations/Guzzle/GuzzleIntegration.php' role='php' />
+                    <file name='Integrations/Integration.php' role='php' />
+                    <file name='Integrations/IntegrationsLoader.php' role='php' />
+                    <file name='Integrations/Laravel/LaravelIntegration.php' role='php' />
+                    <file name='Integrations/Laravel/LaravelSandboxedIntegration.php' role='php' />
+                    <file name='Integrations/Laravel/V4/LaravelIntegration.php' role='php' />
+                    <file name='Integrations/Laravel/V4/LaravelProvider.php' role='php' />
+                    <file name='Integrations/Laravel/V5/LaravelIntegrationLoader.php' role='php' />
+                    <file name='Integrations/Lumen/LumenIntegration.php' role='php' />
+                    <file name='Integrations/Lumen/V5/LumenIntegrationLoader.php' role='php' />
+                    <file name='Integrations/Memcached/MemcachedIntegration.php' role='php' />
+                    <file name='Integrations/Memcached/MemcachedSandboxedIntegration.php' role='php' />
+                    <file name='Integrations/Mongo/MongoClientIntegration.php' role='php' />
+                    <file name='Integrations/Mongo/MongoCollectionIntegration.php' role='php' />
+                    <file name='Integrations/Mongo/MongoDBIntegration.php' role='php' />
+                    <file name='Integrations/Mongo/MongoIntegration.php' role='php' />
+                    <file name='Integrations/Mongo/MongoSandboxedIntegration.php' role='php' />
+                    <file name='Integrations/Mysqli/MysqliCommon.php' role='php' />
+                    <file name='Integrations/Mysqli/MysqliIntegration.php' role='php' />
+                    <file name='Integrations/Mysqli/MysqliSandboxedIntegration.php' role='php' />
+                    <file name='Integrations/PDO/PDOIntegration.php' role='php' />
+                    <file name='Integrations/PDO/PDOSandboxedIntegration.php' role='php' />
+                    <file name='Integrations/Predis/PredisIntegration.php' role='php' />
+                    <file name='Integrations/SandboxedIntegration.php' role='php' />
+                    <file name='Integrations/Slim/SlimIntegration.php' role='php' />
+                    <file name='Integrations/Slim/V3/SlimIntegrationLoader.php' role='php' />
+                    <file name='Integrations/Symfony/SymfonyIntegration.php' role='php' />
+                    <file name='Integrations/Symfony/SymfonySandboxedIntegration.php' role='php' />
+                    <file name='Integrations/Symfony/V3/SymfonyBundle.php' role='php' />
+                    <file name='Integrations/Symfony/V4/SymfonyBundle.php' role='php' />
+                    <file name='Integrations/Web/WebIntegration.php' role='php' />
+                    <file name='Integrations/WordPress/V4/WordPressIntegrationLoader.php' role='php' />
+                    <file name='Integrations/WordPress/WordPressSandboxedIntegration.php' role='php' />
+                    <file name='Integrations/Yii/V2/YiiIntegrationLoader.php' role='php' />
+                    <file name='Integrations/Yii/YiiSandboxedIntegration.php' role='php' />
+                    <file name='Integrations/ZendFramework/V1/Ddtrace.php' role='php' />
+                    <file name='Integrations/ZendFramework/V1/TraceRequest.php' role='php' />
+                    <file name='Integrations/ZendFramework/ZendFrameworkIntegration.php' role='php' />
+                    <file name='Integrations/ZendFramework/ZendFrameworkSandboxedIntegration.php' role='php' />
+                    <file name='Log/AbstractLogger.php' role='php' />
+                    <file name='Log/ErrorLogLogger.php' role='php' />
+                    <file name='Log/InterpolateTrait.php' role='php' />
+                    <file name='Log/LogLevel.php' role='php' />
+                    <file name='Log/Logger.php' role='php' />
+                    <file name='Log/LoggerInterface.php' role='php' />
+                    <file name='Log/LoggingTrait.php' role='php' />
+                    <file name='Log/NullLogger.php' role='php' />
+                    <file name='Log/PsrLogger.php' role='php' />
+                    <file name='NoopScope.php' role='php' />
+                    <file name='NoopScopeManager.php' role='php' />
+                    <file name='NoopSpan.php' role='php' />
+                    <file name='NoopSpanContext.php' role='php' />
+                    <file name='NoopTracer.php' role='php' />
+                    <file name='Obfuscation.php' role='php' />
+                    <file name='Obfuscation/WildcardToRegex.php' role='php' />
+                    <file name='OpenTracer/Scope.php' role='php' />
+                    <file name='OpenTracer/ScopeManager.php' role='php' />
+                    <file name='OpenTracer/Span.php' role='php' />
+                    <file name='OpenTracer/SpanContext.php' role='php' />
+                    <file name='OpenTracer/Tracer.php' role='php' />
+                    <file name='Processing/TraceAnalyticsProcessor.php' role='php' />
+                    <file name='Propagator.php' role='php' />
+                    <file name='Propagators/CurlHeadersMap.php' role='php' />
+                    <file name='Propagators/Noop.php' role='php' />
+                    <file name='Propagators/TextMap.php' role='php' />
+                    <file name='Reference.php' role='php' />
+                    <file name='Sampling/AlwaysKeepSampler.php' role='php' />
+                    <file name='Sampling/ConfigurableSampler.php' role='php' />
+                    <file name='Sampling/PrioritySampling.php' role='php' />
+                    <file name='Sampling/Sampler.php' role='php' />
+                    <file name='Scope.php' role='php' />
+                    <file name='ScopeManager.php' role='php' />
+                    <file name='Span.php' role='php' />
+                    <file name='SpanContext.php' role='php' />
+                    <file name='StartSpanOptions.php' role='php' />
+                    <file name='StartSpanOptionsFactory.php' role='php' />
+                    <file name='Tag.php' role='php' />
+                    <file name='Time.php' role='php' />
+                    <file name="Tracer.php" role="php">
+                        <tasks:replace from="1.0.0-nightly" to="version" type="package-info" />
+                    </file>
+                    <file name='Transport.php' role='php' />
+                    <file name='Transport/Http.php' role='php' />
+                    <file name='Transport/Noop.php' role='php' />
+                    <file name='Transport/Stream.php' role='php' />
+                    <file name='Type.php' role='php' />
+                    <file name='Util/ArrayKVStore.php' role='php' />
+                    <file name='Util/CodeTracer.php' role='php' />
+                    <file name='Util/ContainerInfo.php' role='php' />
+                    <file name='Util/ObjectKVStore.php' role='php' />
+                    <file name='Util/Runtime.php' role='php' />
+                    <file name='Util/TryCatchFinally.php' role='php' />
+                    <file name='Util/Versions.php' role='php' />
+                    <file name='autoload.php' role='php' />
+                    <file name='try_catch_finally.php' role='php' />
+                    <file name="version.php" role="php">
+                        <tasks:replace from="1.0.0-nightly" to="version" type="package-info" />
+                    </file>
+                </dir>
                 <dir name="dogstatsd">
                     <file name="client.c" role="src" />
                     <file name="dogstatsd_client/client.h" role="src" />
@@ -72,7 +221,9 @@
                     <file name="signals.h" role="src" />
                     <file name="span.c" role="src" />
                     <file name="span.h" role="src" />
-                    <file name="version.h" role="src" />
+                    <file name="version.h" role="src">
+                        <tasks:replace from="1.0.0-nightly" to="version" type="package-info" />
+                    </file>
                     <file name="compatibility.h" role="src" />
                     <dir name="mpack">
                         <file name="AUTHORS.md" role="doc" />
@@ -305,6 +456,7 @@
     </dependencies>
     <providesextension>ddtrace</providesextension>
     <extsrcrelease>
-        <configureoption name="enable-ddtrace-debug" default="no" prompt="Enable internal debugging in ddtrace" />
+        <configureoption name="with-ddtrace-sanitize" default="no"
+                         prompt="Build Datadog tracing with AddressSanitizer support (php must also be built with AddressSanitizer support)" />
     </extsrcrelease>
 </package>
