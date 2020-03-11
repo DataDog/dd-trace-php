@@ -192,8 +192,11 @@ static bool _dd_execute_tracing_closure(zval *callable, zval *span_data, zend_ex
     // Arg 1: array $args
     ZVAL_COPY(&args[1], user_args);
 
-    // Arg 2: mixed|null $retval
-    ZVAL_COPY(&args[2], user_retval ?: &EG(uninitialized_zval));
+    // Arg 2: mixed $retval
+    if (!user_retval || Z_TYPE_INFO_P(user_retval) == IS_UNDEF) {
+        user_retval = &EG(uninitialized_zval);
+    }
+    ZVAL_COPY(&args[2], user_retval);
 
     // Arg 3: Exception|null $exception
     ZVAL_COPY(&args[3], &exception_arg);
