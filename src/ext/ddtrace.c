@@ -284,6 +284,14 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
                 ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
                 return FALSE;
             }
+        } else if (strcmp("prehook", ZSTR_VAL(key)) == 0) {
+            if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
+                *tracing_closure = value;
+                *options |= DDTRACE_DISPATCH_PREHOOK;
+            } else {
+                ddtrace_log_debugf("Expected '%s' to be an instance of Closure", ZSTR_VAL(key));
+                return FALSE;
+            }
         } else if (strcmp("innerhook", ZSTR_VAL(key)) == 0) {
             if (Z_TYPE_P(value) == IS_OBJECT && instanceof_function(Z_OBJCE_P(value), zend_ce_closure)) {
                 *tracing_closure = value;
@@ -332,6 +340,9 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
                 ddtrace_log_debugf("Expected '%s' to be an instance of Closure", string_key);
                 return FALSE;
             }
+        } else if (strcmp("prehook", string_key) == 0) {
+            ddtrace_log_debugf("'%s' not supported on PHP 5", string_key);
+            return FALSE;
         } else if (strcmp("innerhook", string_key) == 0) {
             if (Z_TYPE_PP(value) == IS_OBJECT && instanceof_function(Z_OBJCE_PP(value), zend_ce_closure TSRMLS_CC)) {
                 *tracing_closure = *value;
@@ -357,7 +368,7 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
     }
 #endif
     if (!*tracing_closure) {
-        ddtrace_log_debug("Required key 'posthook' or 'innerhook' not found in config_array");
+        ddtrace_log_debug("Required key 'posthook', 'prehook' or 'innerhook' not found in config_array");
         return FALSE;
     }
     return TRUE;
@@ -429,6 +440,10 @@ static PHP_FUNCTION(dd_trace) {
         }
         if (options & DDTRACE_DISPATCH_POSTHOOK) {
             ddtrace_log_debug("Legacy API does not support 'posthook'");
+            RETURN_BOOL(0);
+        }
+        if (options & DDTRACE_DISPATCH_PREHOOK) {
+            ddtrace_log_debug("Legacy API does not support 'prehook'");
             RETURN_BOOL(0);
         }
     } else {
