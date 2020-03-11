@@ -1,6 +1,28 @@
 version: "3.7"
 
 services:
+  "7.1-0.41.1":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.1"
+    depends_on:
+      - agent
+    ports:
+      - 7776:80
+    volumes:
+      - ./public:/var/www/html/public
+      - ./cores:/cores
+    privileged: true
+    ulimits:
+      core: 9999999999
+    environment:
+      - DD_SERVICE_NAME=7.1-0.41.1
+      - DD_AGENT_HOST=agent
+      - DD_TRACE_NO_AUTOLOADER=true
+      - DD_TRACE_MEASURE_COMPILE_TIME=true
+      # - DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=true
+      # - DD_TRACE_DEBUG=true
+      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.41.1/datadog-php-tracer_0.41.1_amd64.deb
+    command: [ "./local-run.sh" ]
+
   "7.3-0.41.1-bgs-on":
     image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3.build"
     depends_on:

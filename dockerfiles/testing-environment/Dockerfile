@@ -59,6 +59,12 @@ WORKDIR /var/www/html/
 COPY Laravel57 /var/www/html/
 RUN composer update --no-dev
 
+# TMP
+RUN apt-get update \
+    && apt-get install -y \
+        gdb \
+    && rm -rf /var/lib/apt/lists/*
+
 EXPOSE 80
 
 RUN touch /var/log/php-fpm.log && chmod 777 /var/log/php-fpm.log
@@ -70,3 +76,5 @@ COPY php-fpm.conf /opt/php/etc/php-fpm.conf
 COPY local-run.sh local-run.sh
 
 CMD [ "supervisord" ]
+
+

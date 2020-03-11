@@ -1,6 +1,7 @@
 7.3_VERSION = 7.3.15
+7.1_VERSION = 7.1.33
 
-ALL_VERSIONS = 7.3
+ALL_VERSIONS = 7.3 7.1
 
 all: $(addsuffix .build,ALL_VERSIONS)
 	@:
