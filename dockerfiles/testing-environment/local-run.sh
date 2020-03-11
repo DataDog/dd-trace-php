@@ -12,10 +12,10 @@ if [ ! -z ${TRACER_DOWNLOAD_URL} ]; then
 fi
 
 #### For dubug purposes
-ulimit -c unlimited
-mkdir -p /cores
-chmod -R 777 /cores/
-echo '/cores/core_%e.%p' | tee /proc/sys/kernel/core_pattern
+# ulimit -c unlimited
+# mkdir -p /cores
+# chmod -R 777 /cores/
+# echo '/cores/core_%e.%p' | tee /proc/sys/kernel/core_pattern
 
 
 supervisord
