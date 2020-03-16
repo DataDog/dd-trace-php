@@ -67,4 +67,4 @@ RUN apk add --no-cache \
     curl \
     libxml2
 COPY --from=php.7.4.alpine.3.11.build /php-install /php-install
-ENV PATH=/php-install/bin:$PATH
+RUN ln -s /php-install/bin/php /usr/bin/php

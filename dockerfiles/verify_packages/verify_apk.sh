@@ -1,4 +1,5 @@
 #!/bin/sh
+
 apk add /build_src/build/packages/*.apk --allow-untrusted --no-cache
 
 # We attempt in this order the following binary names:
