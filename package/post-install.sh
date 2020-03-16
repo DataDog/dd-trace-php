@@ -15,6 +15,14 @@ if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
     DD_TRACE_PHP_BIN=$(command -v php)
 fi
 
+function invoke_php(){
+    # In case of .apk post-install hooks the script has no access the set of exported ENVS.
+    # In case when 1) users import large ini files (e.g. browsercap.ini) and 2) they set memory_limit using an env
+    # variable we would fail because of the memory limit reached. In order to avoid this we set a sane memory limit
+    # that should cause no problem in any machine when our tracer is installed.
+    $DD_TRACE_PHP_BIN -d memory_limit=128M $*
+}
+
 function println(){
     echo -e '###' "$@"
 }
@@ -125,7 +133,7 @@ function fail_print_and_exit() {
 }
 
 function verify_installation() {
-    $DD_TRACE_PHP_BIN -m | grep ddtrace && \
+    invoke_php -m | grep ddtrace && \
         println "Extension enabled successfully" || \
         fail_print_and_exit
 }
@@ -139,12 +147,12 @@ println
 println "Logging $DD_TRACE_PHP_BIN -i to a file"
 println
 
-$DD_TRACE_PHP_BIN -i > "$EXTENSION_LOGS_DIR/php-info.log"
+invoke_php -i > "$EXTENSION_LOGS_DIR/php-info.log"
 
-PHP_VERSION=$($DD_TRACE_PHP_BIN -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
-PHP_CFG_DIR=$($DD_TRACE_PHP_BIN -i | grep 'Scan this dir for additional .ini files =>' | sed -e 's/Scan this dir for additional .ini files =>//g' | head -n 1 | awk '{print $1}')
+PHP_VERSION=$(invoke_php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
+PHP_CFG_DIR=$(invoke_php -i | grep 'Scan this dir for additional .ini files =>' | sed -e 's/Scan this dir for additional .ini files =>//g' | head -n 1 | awk '{print $1}')
 
-PHP_THREAD_SAFETY=$($DD_TRACE_PHP_BIN -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
+PHP_THREAD_SAFETY=$(invoke_php -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
 
 VERSION_SUFFIX=""
 if [[ -n $PHP_THREAD_SAFETY ]]; then
@@ -163,7 +171,7 @@ EOF
 if [[ ! -e $PHP_CFG_DIR ]]; then
     println
     println 'conf.d folder not found falling back to appending extension config to main "php.ini"'
-    PHP_CFG_FILE_PATH=$($DD_TRACE_PHP_BIN -i | grep 'Configuration File (php.ini) Path =>' | sed -e 's/Configuration File (php.ini) Path =>//g' | head -n 1 | awk '{print $1}')
+    PHP_CFG_FILE_PATH=$(invoke_php -i | grep 'Configuration File (php.ini) Path =>' | sed -e 's/Configuration File (php.ini) Path =>//g' | head -n 1 | awk '{print $1}')
     PHP_CFG_FILE="${PHP_CFG_FILE_PATH}/php.ini"
     if [[ ! -e $PHP_CFG_FILE_PATH ]]; then
         fail_print_and_exit
