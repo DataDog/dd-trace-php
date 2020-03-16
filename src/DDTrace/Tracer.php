@@ -180,7 +180,7 @@ final class Tracer implements TracerInterface
             $operationName,
             $context,
             $this->config['service_name'],
-            array_key_exists('resource', $this->config) ? $this->config['resource'] : $operationName,
+            array_key_exists('resource', $this->config) ? $this->config['resource'] : null,
             $options->getStartTime()
         );
 
@@ -353,6 +353,9 @@ final class Tracer implements TracerInterface
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
             foreach ($trace as $span) {
+                if ($span->getResource() === null) {
+                    $span->setResource($span->getOperationName());
+                }
                 if ($span->duration === null) { // is span not finished
                     if (!$autoFinishSpans) {
                         $traceToBeSent = null;
@@ -384,6 +387,9 @@ final class Tracer implements TracerInterface
         $globalTags = $this->globalConfig->getGlobalTags();
         if ($globalTags) {
             foreach ($internalSpans as &$internalSpan) {
+                if ($internalSpan['resource'] === null) {
+                    $internalSpan['resource'] === $internalSpan['name'];
+                }
                 foreach ($globalTags as $globalTagName => $globalTagValue) {
                     if (isset($internalSpan['meta'][$globalTagName])) {
                         continue;
