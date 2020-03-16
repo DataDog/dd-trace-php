@@ -55,15 +55,6 @@ class PDOIntegration extends Integration
             return Integration::NOT_AVAILABLE;
         }
 
-        /**
-         * Workaround for the Drupal DBAL bug.
-         * Delete this `if` block once the bug is fixed.
-         * @see https://github.com/DataDog/dd-trace-php/pull/284
-         */
-        if (defined('DRUPAL_CORE_COMPATIBILITY')) {
-            return Integration::NOT_AVAILABLE;
-        }
-
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         dd_trace('PDO', '__construct', function () {
             $tracer = GlobalTracer::get();
