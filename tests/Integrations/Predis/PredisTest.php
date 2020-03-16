@@ -83,12 +83,63 @@ final class PredisTest extends IntegrationTestCase
         ]);
     }
 
-    public function testPredisClusterConnect()
+    public function testPredisUnixSocketConnect()
+    {
+        $traces = $this->isolateTracer(function () {
+            // did not call connect or similar methods that interact with the node, as it needs a real socket which is not trivial to mock.
+            $client = new \Predis\Client([ 'scheme' => 'unix', 'path' => '/tmp/redis.sock' ]);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('Predis.Client.__construct', 'redis', 'cache', 'Predis.Client.__construct')
+                ->withExactTags([
+                    'out.host' => '127.0.0.1', // default value on library
+                    'out.port' => $this->port
+                ]),
+        ]);
+    }
+
+    public function testPredisClientSideClusterConnect()
     {
         $connectionString = "tcp://{$this->host}";
 
         $traces = $this->isolateTracer(function () use ($connectionString) {
             $client = new \Predis\Client([ $connectionString, $connectionString, $connectionString ]);
+            $client->connect();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Predis.Client.__construct'),
+            SpanAssertion::build('Predis.Client.connect', 'redis', 'cache', 'Predis.Client.connect')
+                ->withExactTags([]),
+        ]);
+    }
+
+    public function testPredisClusterConnect()
+    {
+        $connectionString = "tcp://{$this->host}";
+
+        $traces = $this->isolateTracer(function () use ($connectionString) {
+            $client = new \Predis\Client([ $connectionString, $connectionString, $connectionString ], [ 'cluster' => 'redis' ]);
+            $client->connect();
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('Predis.Client.__construct'),
+            SpanAssertion::build('Predis.Client.connect', 'redis', 'cache', 'Predis.Client.connect')
+                ->withExactTags([]),
+        ]);
+    }
+
+    public function testPredisReplicationConnect()
+    {
+        $connectionString = "tcp://{$this->host}";
+
+        $traces = $this->isolateTracer(function () use ($connectionString) {
+            $client = new \Predis\Client(
+                [ $connectionString, $connectionString, $connectionString ],
+                ['replication' => true]
+            );
             $client->connect();
         });
 
