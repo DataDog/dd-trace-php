@@ -394,9 +394,11 @@ final class SpanChecker
             );
         }
         if ($exp->getResource() != SpanAssertion::NOT_TESTED) {
+            $expectedResource = $exp->getResource();
+            $actualResource = isset($span['resource']) ? $span['resource'] : '';
             TestCase::assertTrue(
-                $this->exactWildcardsMatches($exp->getResource(), isset($span['resource']) ? $span['resource'] : ''),
-                $namePrefix . "Wrong value for 'resource'"
+                $this->exactWildcardsMatches($expectedResource, $actualResource),
+                $namePrefix . "Wrong value for 'resource'. Exp: '$expectedResource' - Act: '$actualResource'"
             );
         }
     }
