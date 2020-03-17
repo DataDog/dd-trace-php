@@ -6,6 +6,7 @@ use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\SpanData;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Util\Versions;
 
 final class TracerTest extends BaseTestCase
@@ -21,6 +22,7 @@ final class TracerTest extends BaseTestCase
     protected function tearUp()
     {
         \putenv('DD_TRACE_GLOBAL_TAGS');
+        \putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
         parent::tearDown();
     }
 
@@ -69,5 +71,122 @@ final class TracerTest extends BaseTestCase
 
     public function dummyMethod()
     {
+    }
+
+    /**
+     * When resource is set through tracer's $config object, it should be honored for CLI
+     */
+    public function testResourceNormalizationCLILegacyApiExplicitViaOptionsDefault()
+    {
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.operation');
+            $scope->close();
+        }, null, ['resource' => 'explicit']);
+
+        $this->assertSame('explicit', $traces[0][0]['resource']);
+    }
+
+    /**
+     * When resource is not set through tracer's $config object, it sohuld fallback to operation name for CLI
+     */
+    public function testResourceNormalizationCLILegacyApiImplicitDefault()
+    {
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.operation');
+            $scope->close();
+        });
+
+        $this->assertSame('custom.operation', $traces[0][0]['resource']);
+    }
+
+    /**
+     * When request to resource is OFF, it should fallback to operation name for CLI
+     */
+    public function testResourceNormalizationCLILegacyApiImplicitViaRequestToResourceOFF()
+    {
+        putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=false');
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.operation');
+            $scope->close();
+        });
+
+        $this->assertSame('custom.operation', $traces[0][0]['resource']);
+    }
+
+    /**
+     * When request to resource is ON, it should fallback to operation name for CLI
+     */
+    public function testResourceNormalizationCLILegacyApiImplicitViaRequestToResourceON()
+    {
+        putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=true');
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.operation');
+            $scope->close();
+        });
+
+        $this->assertSame('custom.operation', $traces[0][0]['resource']);
+    }
+
+    public function testResourceNormalizationWebDefault()
+    {
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $execute(GetSpec::create('default', '/'));
+            },
+            __DIR__ . '/TracerTest_files/index.php',
+            [
+                'DD_TRACE_NO_AUTOLOADER' => true,
+            ]
+        );
+
+        $this->assertSame('GET /', $traces[0][0]['resource']);
+    }
+
+    public function testResourceNormalizationWebON()
+    {
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $execute(GetSpec::create('ON', '/'));
+            },
+            __DIR__ . '/TracerTest_files/index.php',
+            [
+                'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => true,
+                'DD_TRACE_NO_AUTOLOADER' => true,
+            ]
+        );
+
+        $this->assertSame('GET /', $traces[0][0]['resource']);
+    }
+
+    public function testResourceNormalizationWebOFF()
+    {
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $execute(GetSpec::create('OFF', '/'));
+            },
+            __DIR__ . '/TracerTest_files/index.php',
+            [
+                'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => false,
+                'DD_TRACE_NO_AUTOLOADER' => true,
+            ]
+        );
+
+        $this->assertSame('web.request', $traces[0][0]['resource']);
+    }
+
+    public function testResourceNormalizationWebHonorOverride()
+    {
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $execute(GetSpec::create('override-resource', '/override-resource'));
+            },
+            __DIR__ . '/TracerTest_files/index.php',
+            [
+                'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => true,
+                'DD_TRACE_NO_AUTOLOADER' => true,
+            ]
+        );
+
+        $this->assertSame('custom-resource', $traces[0][0]['resource']);
     }
 }

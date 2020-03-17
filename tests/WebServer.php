@@ -50,7 +50,7 @@ class WebServer
 
     private $defaultInis = [
         'log_errors' => 'on',
-        'error_log' => null,
+        'error_log' => 'error.log',
     ];
 
     /**
@@ -63,7 +63,7 @@ class WebServer
         $this->indexFile = $indexFile;
         $this->defaultInis['error_log'] = dirname($indexFile) .  '/error.log';
         // Enable auto-instrumentation
-        $this->defaultInis['ddtrace.request_init_hook'] = __DIR__ .  '/../bridge/dd_autoloader.php';
+        $this->defaultInis['ddtrace.request_init_hook'] = __DIR__ .  '/../bridge/dd_wrap_autoloader.php';
         $this->host = $host;
         $this->port = $port;
     }
@@ -107,12 +107,32 @@ class WebServer
     }
 
     /**
+     * @param array $envs
+     * @return WebServer
+     */
+    public function mergeEnvs($envs)
+    {
+        $this->envs = array_merge($this->envs, $envs);
+        return $this;
+    }
+
+    /**
      * @param array $inis
      * @return WebServer
      */
     public function setInis($inis)
     {
         $this->inis = $inis;
+        return $this;
+    }
+
+    /**
+     * @param array $inis
+     * @return WebServer
+     */
+    public function mergeInis($inis)
+    {
+        $this->inis = array_merge($this->inis, $inis);
         return $this;
     }
 
