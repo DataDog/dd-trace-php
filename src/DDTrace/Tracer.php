@@ -353,6 +353,7 @@ final class Tracer implements TracerInterface
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
             foreach ($trace as $span) {
+                // If resource is empty, we normalize it the the operation name.
                 if ($span->getResource() === null) {
                     $span->setResource($span->getOperationName());
                 }
@@ -387,6 +388,7 @@ final class Tracer implements TracerInterface
         $globalTags = $this->globalConfig->getGlobalTags();
         if ($globalTags) {
             foreach ($internalSpans as &$internalSpan) {
+                // If resource is empty, we normalize it the the operation name.
                 if ($internalSpan['resource'] === null) {
                     $internalSpan['resource'] === $internalSpan['name'];
                 }
@@ -426,7 +428,7 @@ final class Tracer implements TracerInterface
             return;
         }
         $span = $scope->getSpan();
-        if ('web.request' !== $span->getResource()) {
+        if (null !== $span->getResource()) {
             return;
         }
         // Normalized URL as the resource name
