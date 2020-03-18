@@ -129,6 +129,10 @@ final class TracerTest extends BaseTestCase
      */
     public function testResourceNormalizationNonRootSpanInternalApi()
     {
+        if (Versions::phpVersionMatches('5.4')) {
+            $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
+        }
+
         \dd_trace_method(
             'DDTrace\Tests\Integration\TracerTest',
             'dummyMethodResourceNormalizationInternalApi',
