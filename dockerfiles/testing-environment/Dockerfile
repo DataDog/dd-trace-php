@@ -69,4 +69,8 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY php-fpm.conf /opt/php/etc/php-fpm.conf
 COPY local-run.sh local-run.sh
 
+# Adding the latest version of dd-doctor.php
+ADD https://raw.githubusercontent.com/DataDog/dd-trace-php/master/src/dd-doctor.php /var/www/html/public/dd-doctor.php
+RUN chmod a+r /var/www/html/public/dd-doctor.php
+
 CMD [ "supervisord" ]

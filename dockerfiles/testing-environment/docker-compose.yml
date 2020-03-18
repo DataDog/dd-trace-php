@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   "7.3-0.41.1-bgs-on":
-    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3.build"
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3"
     depends_on:
       - agent
     ports:
@@ -16,7 +16,7 @@ services:
     command: [ "./local-run.sh" ]
 
   "7.3-0.41.1-bgs-off":
-    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3.build"
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3"
     depends_on:
       - agent
     ports:
@@ -30,7 +30,7 @@ services:
     command: [ "./local-run.sh" ]
 
   "7.3-none":
-    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3.build"
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3"
     depends_on:
       - agent
     ports:
