@@ -29,6 +29,7 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_TRACE_ENABLED');
         putenv('DD_TRACE_SAMPLE_RATE');
         putenv('DD_TRACE_SAMPLING_RULES');
+        putenv('DD_TRACE_SERVICE_MAPPING');
     }
 
     public function testTracerEnabledByDefault()
@@ -304,6 +305,46 @@ final class ConfigurationTest extends BaseTestCase
                     'DD_TRACE_SAMPLE_RATE=0.7',
                 ],
                 0.7,
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider dataProviderTestServiceMapping
+     * @param mixed $envs
+     * @param array $expected
+     */
+    public function testTraceServiceMapping($env, $expected)
+    {
+        if (false !== $env) {
+            putenv("DD_TRACE_SERVICE_MAPPING=$env");
+        }
+
+        $this->assertSame($expected, Configuration::get()->getServiceMapping());
+    }
+
+    public function dataProviderTestServiceMapping()
+    {
+        return [
+            'not set' => [
+                false,
+                [],
+            ],
+            'empty' => [
+                false,
+                [],
+            ],
+            'one service mapping' => [
+                'service1:service2',
+                [ 'service1' => 'service2' ],
+            ],
+            'multiple service mappings' => [
+                'service1:service2,service3:service4',
+                [ 'service1' => 'service2', 'service3' => 'service4' ],
+            ],
+            'tolerant to extra whitespace' => [
+                'service1 :    service2 ,         service3 : service4                    ',
+                [ 'service1' => 'service2', 'service3' => 'service4' ],
             ],
         ];
     }

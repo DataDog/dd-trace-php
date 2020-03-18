@@ -165,6 +165,14 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Returns the service mapping.
+     */
+    public function getServiceMapping()
+    {
+        return $this->associativeStringArrayValue('trace.service.mapping');
+    }
+
+    /**
      * Append hostname as a root span tag
      *
      * @return bool
