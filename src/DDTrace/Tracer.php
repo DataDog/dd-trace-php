@@ -349,6 +349,7 @@ final class Tracer implements TracerInterface
     {
         $tracesToBeSent = [];
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
+        $serviceMappings = $this->globalConfig->getServiceMapping();
 
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
@@ -368,6 +369,13 @@ final class Tracer implements TracerInterface
                 // the internal (hard-coded) processors programmatically.
 
                 $this->traceAnalyticsProcessor->process($span);
+
+                // Doing service mapping here to avoid an external call, one more part to be refactored in the future
+                $serviceName = $span->getService();
+                if ($serviceName && !empty($serviceMappings[$serviceName])) {
+                    $span->setTag(Tag::SERVICE_NAME, $serviceMappings[$serviceName]);
+                }
+
                 $encodedSpan = SpanEncoder::encode($span);
                 $traceToBeSent[] = $encodedSpan;
             }
@@ -397,6 +405,11 @@ final class Tracer implements TracerInterface
                         continue;
                     }
                     $internalSpan['meta'][$globalTagName] = $globalTagValue;
+                }
+
+                // Doing service mapping here to avoid an external call, one more part to be refactored in the future
+                if (!empty($internalSpan['service']) && !empty($serviceMappings[$internalSpan['service']])) {
+                    $internalSpan['service'] = $serviceMappings[$internalSpan['service']];
                 }
             }
         }
