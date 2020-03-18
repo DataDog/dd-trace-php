@@ -49,7 +49,7 @@ final class TracerTest extends BaseTestCase
         if (Versions::phpVersionMatches('5.4')) {
             $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
         }
-        \dd_trace_method('DDTrace\Tests\Integration\TracerTest', 'dummyMethod', function (SpanData $span) {
+        \dd_trace_method('DDTrace\Tests\Integration\TracerTest', 'dummyMethodGlobalTags', function (SpanData $span) {
             $span->service = 'custom.service';
             $span->name = 'custom.name';
             $span->resource = 'custom.resource';
@@ -60,17 +60,13 @@ final class TracerTest extends BaseTestCase
 
         $test = $this;
         $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
-            $test->dummyMethod();
+            $test->dummyMethodGlobalTags();
         });
 
         $this->assertSame('custom.name', $traces[0][0]['name']);
         $this->assertSame('local', $traces[0][0]['meta']['local_tag']);
         $this->assertSame('global', $traces[0][0]['meta']['global_tag']);
         $this->assertSame('span_wins', $traces[0][0]['meta']['also_in_span']);
-    }
-
-    public function dummyMethod()
-    {
     }
 
     /**
@@ -125,6 +121,48 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertSame('custom.operation', $traces[0][0]['resource']);
+    }
+
+    /**
+     * An internal api span that is not a root span should have resource = name if resource has not been explicitly set.
+     * If it was a root span, then the resource name would have been set to the uri.
+     */
+    public function testResourceNormalizationNonRootSpanInternalApi()
+    {
+        \dd_trace_method(
+            'DDTrace\Tests\Integration\TracerTest',
+            'dummyMethodResourceNormalizationInternalApi',
+            function (SpanData $span) {
+                $span->service = 'custom.service';
+                $span->name = 'custom.internal';
+                $span->type = 'custom';
+                // NOT SETTING: $span->resource = 'custom.resource';
+            }
+        );
+
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $this->dummyMethodResourceNormalizationInternalApi();
+            $scope->close();
+        });
+
+        $this->assertSame('custom.internal', $traces[0][1]['resource']);
+    }
+
+    /**
+     * A legacy api span that is not a root span should have resource = name if resource has not been explicitly set.
+     * If it was a root span, then the resource name would have been set to the uri.
+     */
+    public function testResourceNormalizationNonRootSpanLegacyApi()
+    {
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scopeInternal = $tracer->startActiveSpan('custom.internal');
+            $scopeInternal->close();
+            $scope->close();
+        });
+
+        $this->assertSame('custom.internal', $traces[0][1]['resource']);
     }
 
     public function testResourceNormalizationWebDefault()
@@ -188,5 +226,13 @@ final class TracerTest extends BaseTestCase
         );
 
         $this->assertSame('custom-resource', $traces[0][0]['resource']);
+    }
+
+    public function dummyMethodGlobalTags()
+    {
+    }
+
+    public function dummyMethodResourceNormalizationInternalApi()
+    {
     }
 }

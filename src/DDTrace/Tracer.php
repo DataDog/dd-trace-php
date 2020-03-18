@@ -389,8 +389,8 @@ final class Tracer implements TracerInterface
         if ($globalTags) {
             foreach ($internalSpans as &$internalSpan) {
                 // If resource is empty, we normalize it the the operation name.
-                if ($internalSpan['resource'] === null) {
-                    $internalSpan['resource'] === $internalSpan['name'];
+                if (empty($internalSpan['resource'])) {
+                    $internalSpan['resource'] = $internalSpan['name'];
                 }
                 foreach ($globalTags as $globalTagName => $globalTagValue) {
                     if (isset($internalSpan['meta'][$globalTagName])) {
