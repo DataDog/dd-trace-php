@@ -16,7 +16,7 @@ void ddtrace_bgs_log_rinit(char *error_log) {
         return;
     }
 
-    uintptr_t desired = (uintptr_t)strdup(error_log);
+    uintptr_t desired = (uintptr_t)ddtrace_strdup(error_log);
     uintptr_t expected = (uintptr_t)NULL;
     if (!atomic_compare_exchange_strong(&php_ini_error_log, &expected, desired)) {
         // if it didn't exchange, then we need to free our duplicated string
