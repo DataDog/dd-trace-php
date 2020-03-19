@@ -358,6 +358,13 @@ final class Tracer implements TracerInterface
                 if ($span->getResource() === null) {
                     $span->setResource($span->getOperationName());
                 }
+
+                // Doing service mapping here to avoid an external call, one more part to be refactored in the future
+                $serviceName = $span->getService();
+                if ($serviceName && !empty($serviceMappings[$serviceName])) {
+                    $span->setTag(Tag::SERVICE_NAME, $serviceMappings[$serviceName], true);
+                }
+
                 if ($span->duration === null) { // is span not finished
                     if (!$autoFinishSpans) {
                         $traceToBeSent = null;
@@ -369,12 +376,6 @@ final class Tracer implements TracerInterface
                 // the internal (hard-coded) processors programmatically.
 
                 $this->traceAnalyticsProcessor->process($span);
-
-                // Doing service mapping here to avoid an external call, one more part to be refactored in the future
-                $serviceName = $span->getService();
-                if ($serviceName && !empty($serviceMappings[$serviceName])) {
-                    $span->setTag(Tag::SERVICE_NAME, $serviceMappings[$serviceName]);
-                }
 
                 $encodedSpan = SpanEncoder::encode($span);
                 $traceToBeSent[] = $encodedSpan;

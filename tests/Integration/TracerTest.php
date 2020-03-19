@@ -2,10 +2,12 @@
 
 namespace DDTrace\Tests\Integration;
 
+use DDTrace\Configuration;
 use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\SpanData;
+use DDTrace\Tag;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Util\Versions;
 
@@ -23,6 +25,7 @@ final class TracerTest extends BaseTestCase
     {
         \putenv('DD_TRACE_GLOBAL_TAGS');
         \putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
+        \putenv('DD_TRACE_SERVICE_MAPPING');
         parent::tearDown();
     }
 
@@ -232,11 +235,81 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('custom-resource', $traces[0][0]['resource']);
     }
 
+    public function testServiceMappingNoEnvMapping()
+    {
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->getSpan()->setTag(Tag::SERVICE_NAME, 'original_service');
+            $scope->close();
+        });
+
+        $this->assertSame('original_service', $traces[0][0]['service']);
+    }
+
+    public function testServiceMappingRootSpan()
+    {
+        putenv('DD_TRACE_SERVICE_MAPPING=original_service:changed_service');
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->getSpan()->setTag(Tag::SERVICE_NAME, 'original_service');
+            $scope->close();
+        });
+
+        $this->assertSame('changed_service', $traces[0][0]['service']);
+    }
+
+    public function testServiceMappingNestedSpanLegacyApi()
+    {
+        putenv('DD_TRACE_SERVICE_MAPPING=original_service:changed_service');
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->getSpan()->setTag(Tag::SERVICE_NAME, 'root_service');
+            $scopeInternal = $tracer->startActiveSpan('custom.internal');
+            $scopeInternal->getSpan()->setTag(Tag::SERVICE_NAME, 'original_service');
+            $scopeInternal->close();
+            $scope->close();
+        });
+
+        $this->assertSame('root_service', $traces[0][0]['service']);
+        $this->assertSame('changed_service', $traces[0][1]['service']);
+    }
+
+    public function testServiceMappingInternalApi()
+    {
+        putenv('DD_TRACE_SERVICE_MAPPING=original_service:changed_service');
+
+        if (Versions::phpVersionMatches('5.4')) {
+            $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
+        }
+
+        \dd_trace_method(
+            'DDTrace\Tests\Integration\TracerTest',
+            'dummyMethodServiceMappingInternalApi',
+            function (SpanData $span) {
+                $span->service = 'original_service';
+                $span->name = 'custom.name';
+                $span->resource = 'custom.resource';
+                $span->type = 'custom';
+            }
+        );
+
+        $test = $this;
+        $traces = $this->isolateTracer(function () use ($test) {
+            $test->dummyMethodServiceMappingInternalApi();
+        });
+
+        $this->assertSame('changed_service', $traces[0][0]['service']);
+    }
+
     public function dummyMethodGlobalTags()
     {
     }
 
     public function dummyMethodResourceNormalizationInternalApi()
+    {
+    }
+
+    public function dummyMethodServiceMappingInternalApi()
     {
     }
 }
