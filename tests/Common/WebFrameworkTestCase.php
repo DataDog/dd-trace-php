@@ -50,10 +50,18 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         $envs = [
             'DD_TEST_INTEGRATION' => 'true',
-            'DD_TRACE_ENCODER' => 'json',
+            'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => 'true',
+
+            // Settings for the background sender (BGS)
+            'DD_TRACE_BGS_ENABLED' => true,
+            'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
+            'DD_TRACE_ENCODER' => 'msgpack',
+
+            /* Transport\Http settings, but BGS will still use them for compat
+             * if they are longer than the defaults
+             */
             'DD_TRACE_AGENT_TIMEOUT' => '10000',
             'DD_TRACE_AGENT_CONNECT_TIMEOUT' => '10000',
-            'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => 'true',
         ];
 
         if (!self::isSandboxed()) {
