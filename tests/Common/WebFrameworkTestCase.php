@@ -119,7 +119,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'http://localhost:' . self::PORT . $spec->getPath(),
             $spec->getHeaders()
         );
-        \usleep(static::FLUSH_INTERVAL_MS * 2000);
         return $response;
     }
 
@@ -133,13 +132,17 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected function sendRequest($method, $url, $headers = [])
     {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        if ($headers) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        }
-        $response = curl_exec($ch);
+        $n = 0;
+        do {
+            \usleep(static::FLUSH_INTERVAL_MS);
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            if ($headers) {
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            }
+            $response = curl_exec($ch);
+        } while ($response === false && ++$n < 10);
 
         if ($response === false) {
             $message = sprintf(
