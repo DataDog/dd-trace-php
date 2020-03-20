@@ -13,7 +13,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 {
     use CommonScenariosDataProviderTrait;
 
-    const FLUSH_INTERVAL_MS = 250;
+    const FLUSH_INTERVAL_MS = 333;
 
     const PORT = 9999;
 
@@ -53,18 +53,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         $envs = [
             'DD_TEST_INTEGRATION' => 'true',
             'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => 'true',
-
-            // Settings for the background sender (BGS)
-            'DD_TRACE_BGS_ENABLED' => true,
-            'DD_TRACE_ENCODER' => 'msgpack',
+            'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
             // Short flush interval by default or our tests will take all day
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
-
-            /* Transport\Http settings, but BGS will still use them for compat
-             * if they are longer than the defaults
-             */
-            'DD_TRACE_AGENT_TIMEOUT' => '10000',
-            'DD_TRACE_AGENT_CONNECT_TIMEOUT' => '10000',
         ];
 
         if (!self::isSandboxed()) {
