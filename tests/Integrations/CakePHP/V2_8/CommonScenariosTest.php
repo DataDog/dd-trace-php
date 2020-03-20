@@ -8,6 +8,9 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 final class CommonScenariosTest extends WebFrameworkTestCase
 {
+    // use a longer timeout; this one tends to be a bit flakier
+    const FLUSH_INTERVAL_MS = 1000;
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CakePHP/Version_2_8/app/webroot/index.php';
