@@ -13,6 +13,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 {
     use CommonScenariosDataProviderTrait;
 
+    const FLUSH_INTERVAL_MS = 100;
+
     const PORT = 9999;
 
     /**
@@ -56,6 +58,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'DD_TRACE_BGS_ENABLED' => true,
             'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
             'DD_TRACE_ENCODER' => 'msgpack',
+            'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
 
             /* Transport\Http settings, but BGS will still use them for compat
              * if they are longer than the defaults
@@ -120,11 +123,13 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected function call(RequestSpec $spec)
     {
-        return $this->sendRequest(
+        $response = $this->sendRequest(
             $spec->getMethod(),
             'http://localhost:' . self::PORT . $spec->getPath(),
             $spec->getHeaders()
         );
+        \usleep(static::FLUSH_INTERVAL_MS * 1000);
+        return $response;
     }
 
     /**
