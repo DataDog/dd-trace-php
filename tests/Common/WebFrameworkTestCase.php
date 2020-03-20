@@ -128,7 +128,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'http://localhost:' . self::PORT . $spec->getPath(),
             $spec->getHeaders()
         );
-        \usleep(static::FLUSH_INTERVAL_MS * 1000);
+        \usleep(static::FLUSH_INTERVAL_MS * 2000);
         return $response;
     }
 

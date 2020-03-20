@@ -20,7 +20,7 @@ final class CircuitBreakerTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_BGS_ENABLED' => '1',
             'DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES' => 2,
-            'DD_TRACE_AGENT_FLUSH_INTERVAL' => self::FLUSH_INTERVAL_MS,
+            'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
         ]);
     }
 
