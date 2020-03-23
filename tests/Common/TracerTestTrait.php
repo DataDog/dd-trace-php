@@ -161,7 +161,7 @@ trait TracerTestTrait
         // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
         // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
         // for loop.
-        for ($attemptNumber = 1; $attemptNumber <= 5; $attemptNumber++) {
+        for ($attemptNumber = 1; $attemptNumber <= 10; $attemptNumber++) {
             $curl =  curl_init(self::$agentRequestDumperUrl . '/replay');
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             // Retrieving data
