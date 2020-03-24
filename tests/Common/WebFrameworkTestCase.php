@@ -132,9 +132,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected function sendRequest($method, $url, $headers = [])
     {
-        $n = 0;
-        do {
-            \usleep(static::FLUSH_INTERVAL_MS);
+        for ($i = 0; $i < 10; ++$i) {
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
@@ -142,7 +140,14 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             }
             $response = curl_exec($ch);
-        } while ($response === false && ++$n < 10);
+            if ($response === false && $i < 9) {
+                \curl_close($ch);
+                // sleep for 100 milliseconds before trying again
+                \usleep(100 * 1000);
+            } else {
+                break;
+            }
+        }
 
         if ($response === false) {
             $message = sprintf(
