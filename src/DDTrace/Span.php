@@ -26,7 +26,7 @@ final class Span extends DataSpan
         Tag::HTTP_STATUS_CODE => true,
         Tag::MANUAL_KEEP => true,
         Tag::MANUAL_DROP => true,
-        Tag::SERVICE_VERSION -> true,
+        Tag::SERVICE_VERSION => true,
     ];
 
     /**
