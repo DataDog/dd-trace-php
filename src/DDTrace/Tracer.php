@@ -193,6 +193,22 @@ final class Tracer implements TracerInterface
             $span->setTag($key, $value);
         }
 
+        // Set extra default tags from configuration
+        // These take precedence over user defined global tags to encourage
+        // configuring them individually
+
+        // Application version
+        $version = $this->globalConfig->version();
+        if (null !== $version) {
+            $span->setTag(Tag::VERSION, $version);
+        }
+
+        // Application environment
+        $env = $this->globalConfig->env();
+        if (null !== $env) {
+            $span->setTag(Tag::ENV, $env);
+        }
+
         $this->record($span);
 
         return $span;
