@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 
-SCRIPT_DIR=$(realpath $(dirname "$0"))
+set -e
+
+SCRIPT_DIR="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 PROJECT_ROOT=$(dirname "$SCRIPT_DIR")
 REQUEST_INIT_HOOK="$PROJECT_ROOT/bridge/dd_wrap_autoloader.php"
 WEB_ENTRY_POINT="${SCRIPT_DIR}/index.php"
 
+echo "Script directory: ${SCRIPT_DIR}"
+echo "Project root: ${PROJECT_ROOT}"
 echo "Serving with request init hook: ${REQUEST_INIT_HOOK}"
 echo "Web server entry point: ${WEB_ENTRY_POINT}"
 

@@ -176,7 +176,6 @@ final class Http implements Transport
             $curlHeaders,
             [
                 'Content-Type: ' . $this->encoder->getContentType(),
-                'Content-Length: ' . $bodySize,
                 'X-Datadog-Trace-Count: ' . $tracesCount,
             ]
         );
