@@ -150,11 +150,11 @@ final class Http implements Transport
             $curlHeaders[] = "$key: $value";
         }
 
+        // Now that bgs is enabled by default, allow disabling it by disabling either option
+        $bgs_enabled = \dd_trace_env_config('DD_TRACE_BGS_ENABLED')
+                    && \dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD');
         if (
-            (
-                \dd_trace_env_config('DD_TRACE_BETA_SEND_TRACES_VIA_THREAD')
-                || \dd_trace_env_config('DD_TRACE_BGS_ENABLED')
-            )
+            $bgs_enabled
             && $this->encoder->getContentType() === 'application/msgpack'
             && \dd_trace_send_traces_via_thread($tracesCount, $curlHeaders, $body)
         ) {
