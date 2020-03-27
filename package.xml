@@ -117,6 +117,8 @@
                     <file name="access_modifier_method_access_hook.phpt" role="test" />
                     <file name="access_modifier_property_access_hook.phpt" role="test" />
                     <file name="allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
+                    <file name="cake_01.phpt" role="test" />
+                    <file name="cake_02.phpt" role="test" />
                     <file name="case_insensitive_class_hook.phpt" role="test" />
                     <file name="case_insensitive_method_hook.phpt" role="test" />
                     <file name="closure_accessing_outside_variables.phpt" role="test" />
