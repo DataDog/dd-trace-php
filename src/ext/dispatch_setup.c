@@ -14,12 +14,12 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 #if PHP_VERSION_ID >= 70000
-static inline void dispatch_table_dtor(zval *zv) {
+static void _dd_dispatch_hashtable_dtor(zval *zv) {
     zend_hash_destroy(Z_PTR_P(zv));
     efree(Z_PTR_P(zv));
 }
 #else
-static inline void dispatch_table_dtor(void *zv) {
+static void _dd_dispatch_hashtable_dtor(void *zv) {
     HashTable *ht = *(HashTable **)zv;
     zend_hash_destroy(ht);
     efree(ht);
@@ -29,12 +29,12 @@ static inline void dispatch_table_dtor(void *zv) {
 void ddtrace_dispatch_init(TSRMLS_D) {
     if (!DDTRACE_G(class_lookup)) {
         ALLOC_HASHTABLE(DDTRACE_G(class_lookup));
-        zend_hash_init(DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)dispatch_table_dtor, 0);
+        zend_hash_init(DDTRACE_G(class_lookup), 8, NULL, (dtor_func_t)_dd_dispatch_hashtable_dtor, 0);
     }
 
     if (!DDTRACE_G(function_lookup)) {
         ALLOC_HASHTABLE(DDTRACE_G(function_lookup));
-        zend_hash_init(DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_class_lookup_release_compat, 0);
+        zend_hash_init(DDTRACE_G(function_lookup), 8, NULL, (dtor_func_t)ddtrace_dispatch_dtor, 0);
     }
 }
 

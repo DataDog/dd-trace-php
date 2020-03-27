@@ -491,13 +491,11 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data) {
                            ZSTR_VAL(current_fbc->common.function_name));
         return vm_retval;
     }
-    ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
-    dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
+    dispatch->busy = 1;  // guard against recursion, catching only topmost execution
 
     if (dispatch->options & (DDTRACE_DISPATCH_POSTHOOK | DDTRACE_DISPATCH_PREHOOK)) {
         if (_dd_trace_dispatch(dispatch, current_fbc, execute_data) == false) {
             dispatch->busy = 0;
-            ddtrace_class_lookup_release(dispatch);
             return vm_retval;
         }
     } else {
@@ -534,7 +532,6 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data) {
     }
 
     dispatch->busy = 0;
-    ddtrace_class_lookup_release(dispatch);
 
     EX(opline)++;
 
@@ -551,7 +548,6 @@ static int _dd_exit_handler(zend_execute_data *execute_data) {
         _dd_end_span(span, &retval);
         if (dispatch) {
             dispatch->busy = 0;
-            ddtrace_class_lookup_release(dispatch);
         }
     }
 
