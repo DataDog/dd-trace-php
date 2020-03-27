@@ -1,0 +1,49 @@
+FROM centos:7
+
+ENV container docker
+
+RUN yum update -y \
+    && yum install -y \
+        dnf \
+        wget \
+    && yum clean all \
+    && rm -rf /var/cache/yum
+
+RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == \
+    systemd-tmpfiles-setup.service ] || rm -f $i; done); \
+    rm -f /lib/systemd/system/multi-user.target.wants/*;\
+    rm -f /etc/systemd/system/*.wants/*;\
+    rm -f /lib/systemd/system/local-fs.target.wants/*; \
+    rm -f /lib/systemd/system/sockets.target.wants/*udev*; \
+    rm -f /lib/systemd/system/sockets.target.wants/*initctl*; \
+    rm -f /lib/systemd/system/basic.target.wants/*;\
+    rm -f /lib/systemd/system/anaconda.target.wants/*;
+VOLUME [ "/sys/fs/cgroup" ]
+
+# Remi
+# RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+# RUN dnf install -y https://rpms.remirepo.net/enterprise/remi-release-7.rpm
+# RUN dnf module install -y php:remi-7.2
+
+# Remi 7
+RUN yum -y install \
+    epel-release \
+    yum-utils \
+    && yum clean all \
+    && rm -rf /var/cache/yum
+RUN yum-config-manager --enable remi-php72
+RUN yum install -y php
+
+RUN dnf install -y httpd httpd-tools
+
+RUN wget -O dd-trace-php.rpm \
+    https://github.com/DataDog/dd-trace-php/releases/download/0.41.1/datadog-php-tracer-0.41.1-1.x86_64.rpm \
+    && rpm -ivh dd-trace-php.rpm
+
+RUN mkdir -p /run/php-fpm && touch /run/php-fpm/www.sock
+
+ADD www.conf /etc/php-fpm.d/www.conf
+ADD virtual-host.conf /etc/httpd/conf.d/virtual-host.conf
+ADD index.php /var/www/html/index.php
+
+CMD ["/usr/sbin/init"]
