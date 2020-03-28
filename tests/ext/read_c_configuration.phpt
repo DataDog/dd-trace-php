@@ -6,7 +6,7 @@ DD_TRACE_MEMORY_LIMIT=9999
 --FILE--
 
 <?php
-$bgs_should_be_enabled = PHP_VERSION_ID >= 50600;
+$bgsShouldBeEnabled = PHP_VERSION_ID >= 50600;
 echo dd_trace_env_config("DD_AGENT_HOST");
 echo PHP_EOL;
 echo dd_trace_env_config("DD_TRACE_AGENT_PORT");
@@ -16,9 +16,9 @@ echo PHP_EOL;
 echo dd_trace_env_config("DD_TRACE_DEBUG_CURL_OUTPUT") ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
 echo "DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=";
-echo dd_trace_env_config("DD_TRACE_BETA_SEND_TRACES_VIA_THREAD") === $bgs_should_be_enabled ? 'TRUE' : 'FALSE';
+echo dd_trace_env_config("DD_TRACE_BETA_SEND_TRACES_VIA_THREAD") === $bgsShouldBeEnabled ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
-echo "DD_TRACE_BGS_ENABLED=", dd_trace_env_config("DD_TRACE_BGS_ENABLED") === $bgs_should_be_enabled ? 'TRUE' : 'FALSE';
+echo "DD_TRACE_BGS_ENABLED=", dd_trace_env_config("DD_TRACE_BGS_ENABLED") === $bgsShouldBeEnabled ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
 echo dd_trace_env_config("DD_TRACE_MEMORY_LIMIT");
 echo PHP_EOL;
@@ -35,7 +35,7 @@ echo PHP_EOL;
 echo dd_trace_env_config("trace.debug.curl.output") ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
 echo "trace.beta.send.traces.via.thread=";
-echo dd_trace_env_config("trace.beta.send.traces.via.thread") === $bgs_should_be_enabled ? 'TRUE' : 'FALSE';
+echo dd_trace_env_config("trace.beta.send.traces.via.thread") === $bgsShouldBeEnabled ? 'TRUE' : 'FALSE';
 echo PHP_EOL;
 echo dd_trace_env_config("trace.memory.limit");
 echo PHP_EOL;
