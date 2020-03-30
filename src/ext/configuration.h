@@ -44,9 +44,9 @@ void ddtrace_config_shutdown(void);
     INT(get_dd_trace_debug_prng_seed, "DD_TRACE_DEBUG_PRNG_SEED", -1)                                                \
     BOOL(get_dd_log_backtrace, "DD_LOG_BACKTRACE", false)                                                            \
     INT(get_dd_trace_spans_limit, "DD_TRACE_SPANS_LIMIT", 1000)                                                      \
-    BOOL(get_dd_trace_send_traces_via_thread, "DD_TRACE_BETA_SEND_TRACES_VIA_THREAD", false,                         \
+    BOOL(get_dd_trace_send_traces_via_thread, "DD_TRACE_BETA_SEND_TRACES_VIA_THREAD", true,                          \
          "use background thread to send traces to the agent")                                                        \
-    BOOL(get_dd_trace_bgs_enabled, "DD_TRACE_BGS_ENABLED", false,                                                    \
+    BOOL(get_dd_trace_bgs_enabled, "DD_TRACE_BGS_ENABLED", true,                                                     \
          "use background sender (BGS) to send traces to the agent")                                                  \
     INT(get_dd_trace_bgs_connect_timeout, "DD_TRACE_BGS_CONNECT_TIMEOUT", DD_TRACE_BGS_CONNECT_TIMEOUT)              \
     INT(get_dd_trace_bgs_timeout, "DD_TRACE_BGS_TIMEOUT", DD_TRACE_BGS_TIMEOUT)                                      \

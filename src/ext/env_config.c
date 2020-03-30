@@ -144,22 +144,12 @@ char *ddtrace_get_c_string_config_with_default(char *name, const char *def TSRML
     }
 }
 
-#if !defined(__clang__) && (__GNUC__ >= 7)
-// disable checks since some GCC trigger false positives
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-#endif  // !defined(__clang__) && (__GNUC__ >= 7)
-
-char *ddtrace_strdup(const char *c) {
-    size_t len = strlen(c);
-    char *dup = malloc(len + 1);
-
-    if (dup != NULL) {
-        strncpy(dup, c, len + 1);
+// Do not use regular strdup! On some platforms it segfaults with C11.
+char *ddtrace_strdup(const char *source) {
+    size_t size = strlen(source) + 1;
+    char *dest = malloc(size);
+    if (dest) {
+        memcpy(dest, source, size);
     }
-    return dup;
+    return dest;
 }
-
-#if !defined(__clang__) && __GNUC__ >= 7
-#pragma GCC diagnostic pop
-#endif  //! defined(__clang__) && __GNUC__ >= 7
