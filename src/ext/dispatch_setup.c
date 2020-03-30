@@ -120,7 +120,7 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
     if (ddtrace_dispatch_store(overridable_lookup, &dispatch)) {
         return 1;
     } else {
-        ddtrace_dispatch_free_owned_data(&dispatch);
+        ddtrace_dispatch_dtor(&dispatch);
         return 0;
     }
 }

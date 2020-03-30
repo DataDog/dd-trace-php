@@ -48,7 +48,7 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
     return ptr;
 }
 
-void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
+void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch) {
     zval_ptr_dtor(&dispatch->function_name);
     zval_ptr_dtor(&dispatch->callable);
 }
@@ -56,7 +56,7 @@ void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
 void ddtrace_class_lookup_release_compat(zval *zv) {
     DD_PRINTF("freeing %p", (void *)zv);
     ddtrace_dispatch_t *dispatch = Z_PTR_P(zv);
-    ddtrace_class_lookup_release(dispatch);
+    ddtrace_dispatch_release(dispatch);
 }
 
 HashTable *ddtrace_new_class_lookup(zval *class_name) {
@@ -79,7 +79,7 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
     ddtrace_dispatch_t *dispatch = pemalloc(sizeof(ddtrace_dispatch_t), lookup->u.flags & DDTRACE_IS_ARRAY_PERSISTENT);
 
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
-    ddtrace_class_lookup_acquire(dispatch);
+    ddtrace_dispatch_copy(dispatch);
     return zend_hash_update_ptr(lookup, Z_STR(dispatch->function_name), dispatch) != NULL;
 }
 
