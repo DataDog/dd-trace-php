@@ -3,6 +3,7 @@
 
 #include <TSRM/TSRM.h>
 #include <Zend/zend.h>
+#include <php_version.h>
 
 #define UNUSED_1(x) (void)(x)
 #define UNUSED_2(x, y) \

@@ -935,7 +935,12 @@ void ddtrace_coms_rshutdown(void) {
     struct _writer_loop_data_t *writer = _dd_get_writer();
 
     atomic_fetch_add(&writer->request_counter, 1);
-    uint32_t requests_since_last_flush = atomic_fetch_add(&writer->requests_since_last_flush, 1);
+
+    /* atomic_fetch_add returns the old value, so +1 to get the current value;
+     * this allows DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS=1 act almost
+     * synchronously for our test suite
+     */
+    uint32_t requests_since_last_flush = atomic_fetch_add(&writer->requests_since_last_flush, 1) + 1;
 
     // simple heuristic to flush every n request to improve memory used
     if (requests_since_last_flush > get_dd_trace_agent_flush_after_n_requests()) {
