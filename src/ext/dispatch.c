@@ -19,6 +19,9 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+extern inline void ddtrace_dispatch_copy(ddtrace_dispatch_t *dispatch);
+extern inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch);
+
 static ddtrace_dispatch_t *find_function_dispatch(const HashTable *lookup, zval *fname) {
     char *key = zend_str_tolower_dup(Z_STRVAL_P(fname), Z_STRLEN_P(fname));
     ddtrace_dispatch_t *dispatch = NULL;
@@ -76,20 +79,6 @@ ddtrace_dispatch_t *ddtrace_find_dispatch(zval *this, zend_function *fbc, zval *
         return find_method_dispatch(class, fname TSRMLS_CC);
     }
     return find_function_dispatch(DDTRACE_G(function_lookup), fname);
-}
-
-void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }
-
-void ddtrace_class_lookup_release(ddtrace_dispatch_t *dispatch) {
-    if (dispatch->acquired > 0) {
-        dispatch->acquired--;
-    }
-
-    // free when no one has acquired this resource
-    if (dispatch->acquired == 0) {
-        ddtrace_dispatch_free_owned_data(dispatch);
-        efree(dispatch);
-    }
 }
 
 static int _find_method(zend_class_entry *ce, zval *name, zend_function **function) {

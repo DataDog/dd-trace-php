@@ -583,7 +583,7 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, const zend_op 
     if (keep_span == TRUE) {
         ddtrace_close_span(TSRMLS_C);
     } else {
-        ddtrace_drop_span(TSRMLS_C);
+        ddtrace_drop_top_open_span(TSRMLS_C);
     }
 
     if (exception) {
@@ -678,8 +678,8 @@ static int _dd_begin_fcall_handler(zend_execute_data *execute_data TSRMLS_DC) {
         }
         return vm_retval;
     }
-    ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
-    dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
+    ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
+    dispatch->busy = 1;               // guard against recursion, catching only topmost execution
 
     if (dispatch->options & DDTRACE_DISPATCH_POSTHOOK) {
         ddtrace_trace_dispatch(dispatch, current_fbc, execute_data TSRMLS_CC);
@@ -707,10 +707,10 @@ static int _dd_begin_fcall_handler(zend_execute_data *execute_data TSRMLS_DC) {
         DDTRACE_G(original_context).fbc = previous_fbc;
 
         _dd_update_opcode_leave(execute_data TSRMLS_CC);
-    }
 
-    dispatch->busy = 0;
-    ddtrace_class_lookup_release(dispatch);
+        dispatch->busy = 0;
+        ddtrace_dispatch_release(dispatch);
+    }
 
     EX(opline)++;
 
@@ -724,13 +724,7 @@ static int _dd_exit_handler(zend_execute_data *execute_data TSRMLS_DC) {
             zval_ptr_dtor(&span->retval);
             span->retval = NULL;
         }
-        // Save pointer to dispatch since span can be dropped from _dd_end_span()
-        ddtrace_dispatch_t *dispatch = span->dispatch;
         _dd_end_span(span, &EG(uninitialized_zval), EX(opline) TSRMLS_CC);
-        if (dispatch) {
-            dispatch->busy = 0;
-            ddtrace_class_lookup_release(dispatch);
-        }
     }
 
     return _prev_exit_handler ? _prev_exit_handler(execute_data TSRMLS_CC) : ZEND_USER_OPCODE_DISPATCH;

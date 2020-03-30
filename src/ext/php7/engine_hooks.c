@@ -318,7 +318,7 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval) {
     if (keep_span) {
         ddtrace_close_span();
     } else {
-        ddtrace_drop_span();
+        ddtrace_drop_top_open_span();
     }
 }
 
@@ -468,16 +468,14 @@ static int _dd_begin_fcall_handler(zend_execute_data *execute_data) {
         dispatch->options & (DDTRACE_DISPATCH_POSTHOOK | DDTRACE_DISPATCH_PREHOOK)) {
         return vm_retval;
     }
-    ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
-    dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
+    ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
+    dispatch->busy = 1;               // guard against recursion, catching only topmost execution
 
     if (dispatch->options & (DDTRACE_DISPATCH_POSTHOOK | DDTRACE_DISPATCH_PREHOOK)) {
         ddtrace_span_t *span = ddtrace_open_span(EX(call), dispatch);
 
         if ((dispatch->options & DDTRACE_DISPATCH_PREHOOK) && _dd_call_sandboxed_tracing_closure(span, NULL) == false) {
-            ddtrace_drop_span();
-            dispatch->busy = 0;
-            ddtrace_class_lookup_release(dispatch);
+            ddtrace_drop_top_open_span();
         }
 
         return ZEND_USER_OPCODE_DISPATCH;
@@ -515,7 +513,7 @@ static int _dd_begin_fcall_handler(zend_execute_data *execute_data) {
     _dd_update_opcode_leave(execute_data);
 
     dispatch->busy = 0;
-    ddtrace_class_lookup_release(dispatch);
+    ddtrace_dispatch_release(dispatch);
 
     EX(opline)++;
 
@@ -546,13 +544,7 @@ static void _dd_do_return_handler(zend_execute_data *execute_data) {
             ZVAL_NULL(&rv);
             retval = &rv;
         }
-        // Save pointer to dispatch since span can be dropped from _dd_end_span()
-        ddtrace_dispatch_t *dispatch = span->dispatch;
         _dd_end_span(span, retval);
-        if (dispatch) {
-            dispatch->busy = 0;
-            ddtrace_class_lookup_release(dispatch);
-        }
     }
 }
 
@@ -671,18 +663,12 @@ static int _dd_handle_exception_handler(zend_execute_data *execute_data) {
     if (span && span->call == execute_data) {
         zval retval;
         ZVAL_NULL(&retval);
-        // Save pointer to dispatch since span can be dropped from _dd_end_span()
-        ddtrace_dispatch_t *dispatch = span->dispatch;
         // The catching frame's span will get closed by the return handler so we leave it open
         if (_dd_is_catching_frame(execute_data) == false) {
             if (EG(exception)) {
                 _dd_span_attach_exception(span, EG(exception));
             }
             _dd_end_span(span, &retval);
-            if (dispatch) {
-                dispatch->busy = 0;
-                ddtrace_class_lookup_release(dispatch);
-            }
         }
     }
 
@@ -694,13 +680,7 @@ static int _dd_exit_handler(zend_execute_data *execute_data) {
     while ((span = DDTRACE_G(open_spans_top))) {
         zval retval;
         ZVAL_NULL(&retval);
-        // Save pointer to dispatch since span can be dropped from _dd_end_span()
-        ddtrace_dispatch_t *dispatch = span->dispatch;
         _dd_end_span(span, &retval);
-        if (dispatch) {
-            dispatch->busy = 0;
-            ddtrace_class_lookup_release(dispatch);
-        }
     }
 
     return _prev_exit_handler ? _prev_exit_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
@@ -764,14 +744,12 @@ static void _dd_execute_internal(zend_execute_data *execute_data, zval *return_v
         return;
     }
 
-    ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
-    dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
+    ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
+    dispatch->busy = 1;               // guard against recursion, catching only topmost execution
 
     ddtrace_span_t *span = ddtrace_open_span(execute_data, dispatch);
     if ((dispatch->options & DDTRACE_DISPATCH_PREHOOK) && _dd_call_sandboxed_tracing_closure(span, NULL) == false) {
-        ddtrace_drop_span();
-        dispatch->busy = 0;
-        ddtrace_class_lookup_release(dispatch);
+        ddtrace_drop_top_open_span();
 
         _prev_execute_internal(execute_data, return_value);
         return;
@@ -782,11 +760,11 @@ static void _dd_execute_internal(zend_execute_data *execute_data, zval *return_v
             _dd_span_attach_exception(span, EG(exception));
         }
         _dd_end_span(span, return_value);
-    } else if (get_dd_trace_debug()) {
+        return;
+    }
+    if (get_dd_trace_debug()) {
         ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync",
                          ZSTR_VAL(current_fbc->common.function_name));
     }
-
     dispatch->busy = 0;
-    ddtrace_class_lookup_release(dispatch);
 }
