@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class CircuitBreakerTest extends WebFrameworkTestCase
 {
-    const FLUSH_INTERVAL_MS = 1500;
+    const FLUSH_INTERVAL_MS = 500;
 
     protected static function getAppIndexScript()
     {
@@ -18,7 +18,8 @@ final class CircuitBreakerTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_BETA_SEND_TRACES_VIA_THREAD' => '1',
+            'DD_TRACE_BETA_SEND_TRACES_VIA_THREAD' => 'true',
+            'DD_TRACE_BGS_ENABLED' => 'true',
             'DD_TRACE_ENCODER' => 'msgpack',
             'DD_TRACE_AGENT_MAX_CONSECUTIVE_FAILURES' => 2,
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => self::FLUSH_INTERVAL_MS,
@@ -38,7 +39,7 @@ final class CircuitBreakerTest extends WebFrameworkTestCase
             $this->call($spec);
 
             // allow time for background sender to trigger
-            usleep(self::FLUSH_INTERVAL_MS * 1000);
+            usleep(self::FLUSH_INTERVAL_MS * 2 * 1000);
         });
 
         $this->assertExpectedSpans(

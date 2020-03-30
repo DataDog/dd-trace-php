@@ -37,7 +37,7 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                     'web.request',
                     'web.request',
                     'web',
-                    'web.request'
+                    'GET /simple'
                 )->withExactTags([
                     'http.method' => 'GET',
                     'http.url' => '/simple',

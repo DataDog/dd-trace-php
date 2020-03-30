@@ -7,7 +7,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class BackgroundSenderLogTest extends WebFrameworkTestCase
 {
-    const BGS_FLUSH_INTERVAL_MS = 1000;
+    const BGS_FLUSH_INTERVAL_MS = 500;
 
     protected static function getAppIndexScript()
     {
@@ -24,7 +24,8 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_BGS_ENABLED' => true,
+            'DD_TRACE_BETA_SEND_TRACES_VIA_THREAD' => 'true',
+            'DD_TRACE_BGS_ENABLED' => 'true',
             'DD_TRACE_DEBUG_CURL_OUTPUT' => true,
             'DD_TRACE_ENCODER' => 'msgpack',
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => self::BGS_FLUSH_INTERVAL_MS,

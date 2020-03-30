@@ -13,6 +13,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 {
     use CommonScenariosDataProviderTrait;
 
+    const FLUSH_INTERVAL_MS = 333;
+
     const PORT = 9999;
 
     /**
@@ -50,9 +52,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         $envs = [
             'DD_TEST_INTEGRATION' => 'true',
-            'DD_TRACE_ENCODER' => 'json',
-            'DD_TRACE_AGENT_TIMEOUT' => '10000',
-            'DD_TRACE_AGENT_CONNECT_TIMEOUT' => '10000',
+            'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
+            // Short flush interval by default or our tests will take all day
+            'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
         ];
 
         if (!self::isSandboxed()) {
@@ -111,11 +113,12 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected function call(RequestSpec $spec)
     {
-        return $this->sendRequest(
+        $response = $this->sendRequest(
             $spec->getMethod(),
             'http://localhost:' . self::PORT . $spec->getPath(),
             $spec->getHeaders()
         );
+        return $response;
     }
 
     /**
@@ -128,13 +131,22 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     protected function sendRequest($method, $url, $headers = [])
     {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        if ($headers) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        for ($i = 0; $i < 10; ++$i) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            if ($headers) {
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            }
+            $response = curl_exec($ch);
+            if ($response === false && $i < 9) {
+                \curl_close($ch);
+                // sleep for 100 milliseconds before trying again
+                \usleep(100 * 1000);
+            } else {
+                break;
+            }
         }
-        $response = curl_exec($ch);
 
         if ($response === false) {
             $message = sprintf(
