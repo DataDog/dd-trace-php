@@ -25,7 +25,8 @@ static user_opcode_handler_t _prev_icall_handler;
 static user_opcode_handler_t _prev_ucall_handler;
 static user_opcode_handler_t _prev_fcall_handler;
 static user_opcode_handler_t _prev_fcall_by_name_handler;
-static user_opcode_handler_t _prev_return_handler;  // TODO ZEND_RETURN_BY_REF
+static user_opcode_handler_t _prev_return_handler;
+static user_opcode_handler_t _prev_return_by_ref_handler;
 static user_opcode_handler_t _prev_handle_exception_handler;
 static user_opcode_handler_t _prev_exit_handler;
 
@@ -689,6 +690,8 @@ void ddtrace_opcode_minit(void) {
 
     _prev_return_handler = zend_get_user_opcode_handler(ZEND_RETURN);
     zend_set_user_opcode_handler(ZEND_RETURN, _dd_return_handler);
+    _prev_return_by_ref_handler = zend_get_user_opcode_handler(ZEND_RETURN_BY_REF);
+    zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, _dd_return_handler);
     _prev_handle_exception_handler = zend_get_user_opcode_handler(ZEND_HANDLE_EXCEPTION);
     zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, _dd_handle_exception_handler);
     _prev_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
@@ -702,6 +705,7 @@ void ddtrace_opcode_mshutdown(void) {
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, NULL);
 
     zend_set_user_opcode_handler(ZEND_RETURN, NULL);
+    zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, NULL);
     zend_set_user_opcode_handler(ZEND_EXIT, NULL);
 }
 
