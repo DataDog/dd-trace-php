@@ -95,7 +95,7 @@ static void _dd_copy_function_args(zend_execute_data *call, zval *user_args, boo
 
     // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
     array_init_size(user_args, arg_count);
-    if (arg_count) {
+    if (arg_count && call->func) {
         first_extra_arg = call->func->op_array.num_args;
         bool has_extra_args = first_extra_arg > 0 && arg_count > first_extra_arg;
 
@@ -171,7 +171,7 @@ static bool _dd_execute_tracing_closure(zval *callable, zval *span_data, zend_ex
 
     if (!callable || !span_data || !user_args) {
         if (get_dd_trace_debug()) {
-            const char *fname = ZSTR_VAL(call->func->common.function_name);
+            const char *fname = call->func ? ZSTR_VAL(call->func->common.function_name) : "{unknown}";
             ddtrace_log_errf("Tracing closure could not be run for %s() because it is in an invalid state", fname);
         }
         return false;
@@ -183,7 +183,7 @@ static bool _dd_execute_tracing_closure(zval *callable, zval *span_data, zend_ex
     }
 
     if (this) {
-        bool is_instance_method = (call->func->common.fn_flags & ZEND_ACC_STATIC) ? false : true;
+        bool is_instance_method = (call->func && call->func->common.fn_flags & ZEND_ACC_STATIC) ? false : true;
         bool is_closure_static = (fcc.function_handler->common.fn_flags & ZEND_ACC_STATIC) ? true : false;
         if (is_instance_method && is_closure_static) {
             ddtrace_log_debug("Cannot trace non-static method with static tracing closure");
