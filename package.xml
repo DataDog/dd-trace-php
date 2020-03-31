@@ -181,6 +181,7 @@
                         <file name="keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
                         <file name="memory_limit_graceful_bailout.phpt" role="test" />
                         <file name="new_static.phpt" role="test" />
+                        <file name="return_by_ref.phpt" role="test" />
                         <file name="retval_is_null_with_exception.phpt" role="test" />
                         <file name="safe_to_string_metadata.phpt" role="test" />
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
