@@ -162,6 +162,7 @@
                         <file name="exception_handled_for_correct_catch_block.phpt" role="test" />
                         <file name="exception_handled_in_correct_catch_frame.phpt" role="test" />
                         <file name="exception_handled_in_multicatch.phpt" role="test" />
+                        <file name="exception_handled_with_finally.phpt" role="test" />
                         <file name="exception_handling_php5.phpt" role="test" />
                         <file name="exception_handling.phpt" role="test" />
                         <file name="exception_is_defined.phpt" role="test" />
