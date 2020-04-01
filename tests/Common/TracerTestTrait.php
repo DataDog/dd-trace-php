@@ -158,10 +158,22 @@ trait TracerTestTrait
      */
     private function parseTracesFromDumpedData()
     {
-        // Retrieving data
-        $curl =  curl_init(self::$agentRequestDumperUrl . '/replay');
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        $response = curl_exec($curl);
+        // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
+        // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
+        // for loop.
+        for ($attemptNumber = 1; $attemptNumber <= 20; $attemptNumber++) {
+            $curl =  curl_init(self::$agentRequestDumperUrl . '/replay');
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            // Retrieving data
+            $response = curl_exec($curl);
+            if (!$response) {
+                \usleep(100 * 1000); // Waiting for 100 ms
+                continue;
+            } else {
+                break;
+            }
+        }
+
         if (!$response) {
             return [];
         }

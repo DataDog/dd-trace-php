@@ -154,6 +154,23 @@ final class HttpTest extends BaseTestCase
         $this->assertEquals('1', $traceRequest['headers']['X-Datadog-Trace-Count']);
     }
 
+    public function testContentLengthAutomaticallyAddedByCurl()
+    {
+        $httpTransport = new Http(new Json(), [
+            'endpoint' => $this->getAgentReplayerEndpoint(),
+        ]);
+        $tracer = new Tracer($httpTransport);
+        GlobalTracer::set($tracer);
+
+        $span = $tracer->startSpan('test');
+        $span->finish();
+
+        $httpTransport->send($tracer);
+        $traceRequest = $this->getLastAgentRequest();
+
+        $this->assertArrayHasKey('Content-Length', $traceRequest['headers']);
+    }
+
     private static function recordContainsPrefixAndSuffix($record, $prefix, $suffix)
     {
         if ($record[0] !== 'error') {
