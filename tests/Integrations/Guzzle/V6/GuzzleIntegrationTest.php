@@ -14,8 +14,11 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\GlobalTracer;
 
-final class GuzzleIntegrationTest extends IntegrationTestCase
+class GuzzleIntegrationTest extends IntegrationTestCase
 {
+
+    const IS_SANDBOX = false;
+
     const URL = 'http://httpbin_integration';
 
     public static function setUpBeforeClass()
@@ -34,6 +37,12 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
     protected function getRealClient()
     {
         return new Client();
+    }
+
+    protected function tearDown()
+    {
+        parent::tearDown();
+        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
     }
 
     /**
@@ -74,15 +83,22 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
             $request = new Request('put', 'http://example.com');
             $this->getMockedClient()->send($request);
         });
-        $this->assertSpans($traces, [
-            SpanAssertion::exists('GuzzleHttp\Client.send', 'guzzle', 'http', 'send'),
-            SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
-                ->setTraceAnalyticsCandidate()
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
                 ->withExactTags([
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
-                ]),
+                ])
+                ->withChildren([
+                    SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                        ->setTraceAnalyticsCandidate()
+                        ->withExactTags([
+                            'http.method' => 'PUT',
+                            'http.url' => 'http://example.com',
+                            'http.status_code' => '200',
+                        ]),
+                ])
         ]);
     }
 
@@ -125,8 +141,18 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 
         // trace is: custom
         $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
+
         // parent is: curl_exec, used under the hood
-        $this->assertSame($traces[0][2]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+        $curl_exec = null;
+        foreach ($traces[0] as $span) {
+            if ($span['name'] === 'curl_exec') {
+                $curl_exec = $span;
+                break;
+            }
+        }
+        self::assertNotNull($curl_exec, 'Unable to find curl_exec in spans!');
+        self::assertSame($curl_exec['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+
         $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
         $this->assertSame('preserved_value', $found['headers']['Honored']);

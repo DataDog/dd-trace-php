@@ -14,8 +14,10 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\GlobalTracer;
 use DDTrace\Util\Versions;
 
-final class GuzzleIntegrationTest extends IntegrationTestCase
+class GuzzleIntegrationTest extends IntegrationTestCase
 {
+    const IS_SANDBOX = false;
+
     const URL = 'http://httpbin_integration';
 
     /** @var Client */
@@ -43,6 +45,12 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
     protected function getRealClient()
     {
         return new Client();
+    }
+
+    protected function tearDown()
+    {
+        parent::tearDown();
+        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
     }
 
     /**
@@ -133,13 +141,21 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 
         // trace is: custom
         $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
-        // parent is: curl_exec, used under the hood
 
         if (Versions::phpVersionMatches('5.4')) {
             // in 5.4 curl_exec is not included in the trace due to being run through `call_func_array`
             $this->assertSame($traces[0][1]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
         } else {
-            $this->assertSame($traces[0][2]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+            // parent is: curl_exec, used under the hood
+            $curl_exec = null;
+            foreach ($traces[0] as $span) {
+                if ($span['name'] === 'curl_exec') {
+                    $curl_exec = $span;
+                    break;
+                }
+            }
+            self::assertNotNull($curl_exec, 'Unable to find curl_exec in spans!');
+            self::assertSame($curl_exec['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
         }
 
         $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
