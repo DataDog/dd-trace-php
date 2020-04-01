@@ -22,6 +22,49 @@ final class TracerTest extends TestCase
     const TAG_KEY = 'test_key';
     const TAG_VALUE = 'test_value';
     const FORMAT = 'test_format';
+    const ENVIRONMENT = 'my-env';
+    const VERSION = '1.2.3';
+
+    public function testCreateSpanWithDefaultTags()
+    {
+        $tracer = Tracer::make(new NoopTransport());
+
+        $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
+        $this->assertNull($span->getTag(Tag::ENV));
+        $this->assertNull($span->getTag(Tag::VERSION));
+    }
+
+    public function testCreateSpanWithEnvAndVersionConfigured()
+    {
+        $tracer = Tracer::make(new NoopTransport());
+
+        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+            'env' => self::ENVIRONMENT,
+            'version' => self::VERSION,
+        ]));
+
+        $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
+        $this->assertSame(self::ENVIRONMENT, $span->getTag(Tag::ENV));
+        $this->assertSame(self::VERSION, $span->getTag(Tag::VERSION));
+    }
+
+    public function testCreateSpanWithEnvAndVersionPrecedence()
+    {
+        $tracer = Tracer::make(new NoopTransport());
+
+        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
+            'getGlobalTags' => [
+                'env' => 'global-tag-env',
+                'version' => '4.5.6',
+            ],
+            'env' => self::ENVIRONMENT,
+            'version' => self::VERSION,
+        ]));
+
+        $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
+        $this->assertSame(self::ENVIRONMENT, $span->getTag(Tag::ENV));
+        $this->assertSame(self::VERSION, $span->getTag(Tag::VERSION));
+    }
 
     public function testCreateSpanWithExpectedValues()
     {
