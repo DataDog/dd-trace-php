@@ -197,7 +197,7 @@ trait TracerTestTrait
             // Retrieving data
             $response = curl_exec($curl);
             if (!$response) {
-                \usleep(100 * 1000); // Waiting for 100 ms
+                \usleep(50 * 1000); // Waiting for 50 ms
                 continue;
             } else {
                 break;
