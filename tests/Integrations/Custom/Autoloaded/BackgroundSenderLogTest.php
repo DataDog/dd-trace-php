@@ -24,6 +24,7 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
+            'DD_TRACE_BETA_SEND_TRACES_VIA_THREAD' => true,
             'DD_TRACE_BGS_ENABLED' => true,
             'DD_TRACE_DEBUG_CURL_OUTPUT' => true,
             'DD_TRACE_ENCODER' => 'msgpack',

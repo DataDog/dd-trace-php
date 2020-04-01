@@ -89,8 +89,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         $rootPath = static::getAppIndexScript();
         if ($rootPath) {
             self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT);
-            self::$appServer->setEnvs(static::getEnvs());
-            self::$appServer->setInis(static::getInis());
+            self::$appServer->mergeEnvs(static::getEnvs());
+            self::$appServer->mergeInis(static::getInis());
             self::$appServer->start();
         }
     }
