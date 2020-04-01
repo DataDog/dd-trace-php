@@ -568,6 +568,18 @@ jobs:
           root: '.'
           paths: ['./build/packages', 'dockerfiles/verify_packages']
 
+  "copy_artifact_s3":
+    docker:
+      - image: circleci/python:3.6.4
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          command: |
+            sudo pip install boto3
+            python .circleci/copy_artifact_s3.py
+
   "package verification":
     working_directory: ~/datadog
     machine:
@@ -580,6 +592,7 @@ jobs:
           command: make -f dockerfiles/verify_packages/Makefile docker_compose_pull all
       - store_test_results:
           path: test-results
+
   placeholder:
     docker:
       - image: busybox
@@ -691,6 +704,9 @@ workflows:
             - "Compile PHP 73-zts"
             - "Compile PHP 74-zts"
       - "package verification":
+          requires:
+            - "package extension"
+      - copy_artifact_s3:
           requires:
             - "package extension"
       - placeholder:
