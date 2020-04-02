@@ -3,6 +3,7 @@
 #include <Zend/zend_closures.h>
 #include <Zend/zend_compile.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_generators.h>
 #include <Zend/zend_interfaces.h>
 #include <stdbool.h>
 
@@ -27,6 +28,10 @@ static user_opcode_handler_t _prev_fcall_handler;
 static user_opcode_handler_t _prev_fcall_by_name_handler;
 static user_opcode_handler_t _prev_return_handler;
 static user_opcode_handler_t _prev_return_by_ref_handler;
+#if PHP_VERSION_ID >= 70100
+static user_opcode_handler_t _prev_yield_handler;
+static user_opcode_handler_t _prev_yield_from_handler;
+#endif
 static user_opcode_handler_t _prev_handle_exception_handler;
 static user_opcode_handler_t _prev_exit_handler;
 
@@ -468,6 +473,19 @@ static int _dd_begin_fcall_handler(zend_execute_data *execute_data) {
         dispatch->options & (DDTRACE_DISPATCH_POSTHOOK | DDTRACE_DISPATCH_PREHOOK)) {
         return vm_retval;
     }
+
+#if PHP_VERSION_ID < 70100
+    /*
+    For PHP < 7.1: The current execute_data gets replaced in the DO_FCALL handler and freed shortly
+    afterward, so there is no way to track the execute_data that is allocated for a generator.
+    */
+    if ((current_fbc->common.fn_flags & ZEND_ACC_GENERATOR) != 0 &&
+        dispatch->options & (DDTRACE_DISPATCH_POSTHOOK | DDTRACE_DISPATCH_PREHOOK)) {
+        ddtrace_log_debug("Cannot instrument generators for PHP versions < 7.1");
+        return vm_retval;
+    }
+#endif
+
     ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
     dispatch->busy = 1;               // guard against recursion, catching only topmost execution
 
@@ -557,6 +575,52 @@ static int _dd_return_by_ref_handler(zend_execute_data *execute_data) {
     _dd_do_return_handler(execute_data);
     return _prev_return_by_ref_handler ? _prev_return_by_ref_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
+
+#if PHP_VERSION_ID >= 70100
+static void _dd_do_yield_handler(zend_execute_data *execute_data) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    /*
+    Generators store their execute data on the heap and we lose the address to the original call
+    so we grab the original address from the executor globals.
+    */
+    zend_execute_data *orig_ex = (zend_execute_data *)EG(vm_stack_top);
+    if (span && span->call == orig_ex) {
+        zval rv;
+        zval *retval = NULL;
+        span->call = execute_data;
+        switch (EX(opline)->op1_type) {
+            case IS_CONST:
+#if PHP_VERSION_ID >= 70300
+                retval = RT_CONSTANT(EX(opline), EX(opline)->op1);
+#else
+                retval = EX_CONSTANT(EX(opline)->op1);
+#endif
+                break;
+            case IS_TMP_VAR:
+            case IS_VAR:
+            case IS_CV:
+                retval = EX_VAR(EX(opline)->op1.var);
+                break;
+                /* IS_UNUSED is NULL */
+        }
+        if (!retval || Z_TYPE_INFO_P(retval) == IS_UNDEF) {
+            ZVAL_NULL(&rv);
+            retval = &rv;
+        }
+        _dd_end_span(span, retval);
+    }
+}
+
+static int _dd_yield_handler(zend_execute_data *execute_data) {
+    _dd_do_yield_handler(execute_data);
+    return _prev_yield_handler ? _prev_yield_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+}
+
+static int _dd_yield_from_handler(zend_execute_data *execute_data) {
+    _dd_do_yield_handler(execute_data);
+    return _prev_yield_from_handler ? _prev_yield_from_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+}
+#endif
 
 #if PHP_MINOR_VERSION == 0
 static zend_op *_dd_get_next_catch_block(zend_execute_data *execute_data, zend_op *opline) {
@@ -700,6 +764,12 @@ void ddtrace_opcode_minit(void) {
     zend_set_user_opcode_handler(ZEND_RETURN, _dd_return_handler);
     _prev_return_by_ref_handler = zend_get_user_opcode_handler(ZEND_RETURN_BY_REF);
     zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, _dd_return_by_ref_handler);
+#if PHP_VERSION_ID >= 70100
+    _prev_yield_handler = zend_get_user_opcode_handler(ZEND_YIELD);
+    zend_set_user_opcode_handler(ZEND_YIELD, _dd_yield_handler);
+    _prev_yield_from_handler = zend_get_user_opcode_handler(ZEND_YIELD_FROM);
+    zend_set_user_opcode_handler(ZEND_YIELD_FROM, _dd_yield_from_handler);
+#endif
     _prev_handle_exception_handler = zend_get_user_opcode_handler(ZEND_HANDLE_EXCEPTION);
     zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, _dd_handle_exception_handler);
     _prev_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
@@ -714,6 +784,10 @@ void ddtrace_opcode_mshutdown(void) {
 
     zend_set_user_opcode_handler(ZEND_RETURN, NULL);
     zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, NULL);
+#if PHP_VERSION_ID >= 70100
+    zend_set_user_opcode_handler(ZEND_YIELD, NULL);
+    zend_set_user_opcode_handler(ZEND_YIELD_FROM, NULL);
+#endif
     zend_set_user_opcode_handler(ZEND_EXIT, NULL);
 }
 
