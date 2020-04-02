@@ -3,6 +3,7 @@
 #include <Zend/zend_interfaces.h>
 #include <php.h>
 
+#include "configuration.h"
 #include "engine_hooks.h"  // for ddtrace_backup_error_handling
 #include "logging.h"
 
@@ -32,6 +33,9 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
 }
 
 void ddtrace_curl_handlers_startup(void) {
+    if (!get_dd_trace_sandbox_enabled()) {
+        return;
+    }
     zend_function *curl_exec;
     curl_exec = zend_hash_str_find_ptr(CG(function_table), "curl_exec", sizeof("curl_exec") - 1);
     if (curl_exec != NULL) {

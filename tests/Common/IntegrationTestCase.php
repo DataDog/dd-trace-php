@@ -22,7 +22,8 @@ abstract class IntegrationTestCase extends TestCase
     {
         parent::setUpBeforeClass();
         if (!static::isSandboxed()) {
-            putenv('DD_TRACE_SANDBOX_ENABLED=false');
+            \putenv('DD_TRACE_SANDBOX_ENABLED=false');
+            \dd_trace_internal_fn('ddtrace_reload_config');
         }
         IntegrationsLoader::reload();
     }
