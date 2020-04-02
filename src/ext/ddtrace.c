@@ -21,6 +21,7 @@
 #include "coms.h"
 #include "configuration.h"
 #include "configuration_php_iface.h"
+#include "curl_handlers.h"
 #include "ddtrace.h"
 #include "debug.h"
 #include "dispatch.h"
@@ -50,6 +51,8 @@ PHP_INI_END()
 static int ddtrace_startup(struct _zend_extension *extension) {
     PHP5_UNUSED(extension);
     PHP7_UNUSED(extension);
+
+    ddtrace_curl_handlers_startup();
     return SUCCESS;
 }
 
@@ -235,6 +238,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_curl_handlers_rinit();
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
