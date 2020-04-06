@@ -5,6 +5,7 @@ namespace DDTrace\Tests\Integrations\Predis;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Util\Versions;
 use Predis\Configuration\Options;
 
 class PredisTest extends IntegrationTestCase
@@ -167,12 +168,18 @@ class PredisTest extends IntegrationTestCase
             $this->assertInstanceOf('Predis\Response\Status', $responseFlush);
         });
 
+        if (Versions::phpVersionMatches('7')) {
+            $exactTags = [
+                'redis.pipeline_length' => '2',
+            ];
+        } else {
+            $exactTags = [];
+        }
+
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Pipeline.executePipeline', 'redis', 'cache', 'Predis.Pipeline.executePipeline')
-                ->withExactTags([
-                    'redis.pipeline_length' => '2'
-                ]),
+                ->withExactTags($exactTags),
         ]);
     }
 

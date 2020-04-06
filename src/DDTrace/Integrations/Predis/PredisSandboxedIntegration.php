@@ -6,6 +6,7 @@ use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\Versions;
 use Predis\Configuration\OptionsInterface;
 use Predis\Connection\AbstractConnection;
 
@@ -95,21 +96,36 @@ class PredisSandboxedIntegration extends SandboxedIntegration
             $span->meta['redis.raw_command'] = $query;
         });
 
-        \dd_trace_method('Predis\Pipeline\Pipeline', 'executePipeline', [
-
-            'prehook' => function (SpanData $span, $args) {
+        // PHP 5 does not support prehook, which is required to get the pipeline count before
+        // tasks have been dequeued.
+        if (Versions::phpVersionMatches('7')) {
+            \dd_trace_method(
+                'Predis\Pipeline\Pipeline',
+                'executePipeline',
+                [
+                    'prehook' => function (SpanData $span, $args) {
+                        $span->name = 'Predis.Pipeline.executePipeline';
+                        $span->resource = $span->name;
+                        $span->type = Type::CACHE;
+                        $span->service = 'redis';
+                        PredisSandboxedIntegration::setConnectionTags($this, $span);
+                        if (\count($args) < 2) {
+                            return;
+                        }
+                        $commands = $args[1];
+                        $span->meta['redis.pipeline_length'] = count($commands);
+                    },
+                ]
+            );
+        } else {
+            \dd_trace_method('Predis\Pipeline\Pipeline', 'executePipeline', function (SpanData $span, $args) {
                 $span->name = 'Predis.Pipeline.executePipeline';
                 $span->resource = $span->name;
                 $span->type = Type::CACHE;
                 $span->service = 'redis';
                 PredisSandboxedIntegration::setConnectionTags($this, $span);
-                if (\count($args) < 2) {
-                    return;
-                }
-                $commands = $args[1];
-                $span->meta['redis.pipeline_length'] = count($commands);
-            },
-        ]);
+            });
+        }
 
         return SandboxedIntegration::LOADED;
     }
