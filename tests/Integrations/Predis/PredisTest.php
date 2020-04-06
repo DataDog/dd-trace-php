@@ -7,7 +7,7 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Predis\Configuration\Options;
 
-final class PredisTest extends IntegrationTestCase
+class PredisTest extends IntegrationTestCase
 {
     private $host = 'redis_integration';
     private $port = '6379';
@@ -47,7 +47,7 @@ final class PredisTest extends IntegrationTestCase
             $this->assertNotNull($client);
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Predis.Client.__construct', 'redis', 'cache', 'Predis.Client.__construct')
                 ->withExactTags($this->baseTags()),
         ]);
@@ -63,7 +63,7 @@ final class PredisTest extends IntegrationTestCase
         });
 
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Predis.Client.__construct', 'redis', 'cache', 'Predis.Client.__construct')
                 ->withExactTags($this->baseTags()),
         ]);
@@ -76,7 +76,7 @@ final class PredisTest extends IntegrationTestCase
             $client->connect();
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.connect', 'redis', 'cache', 'Predis.Client.connect')
                 ->withExactTags($this->baseTags()),
@@ -92,7 +92,7 @@ final class PredisTest extends IntegrationTestCase
             $client->connect();
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.connect', 'redis', 'cache', 'Predis.Client.connect')
                 ->withExactTags([]),
@@ -106,7 +106,7 @@ final class PredisTest extends IntegrationTestCase
             $client->set('foo', 'value');
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'cache', 'SET foo value')
                 ->setTraceAnalyticsCandidate()
@@ -125,7 +125,7 @@ final class PredisTest extends IntegrationTestCase
             $this->assertSame('value', $client->get('key'));
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::exists('Predis.Client.executeCommand'),
             SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'cache', 'GET key')
@@ -144,7 +144,7 @@ final class PredisTest extends IntegrationTestCase
             $client->executeRaw(["SET", "key", "value"]);
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.executeRaw', 'redis', 'cache', 'SET key value')
                 ->setTraceAnalyticsCandidate()
@@ -167,7 +167,7 @@ final class PredisTest extends IntegrationTestCase
             $this->assertInstanceOf('Predis\Response\Status', $responseFlush);
         });
 
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Pipeline.executePipeline', 'redis', 'cache', 'Predis.Pipeline.executePipeline')
                 ->withExactTags([
