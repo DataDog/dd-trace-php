@@ -18,11 +18,6 @@ class PredisSandboxedIntegration extends SandboxedIntegration
      */
     private static $connections = [];
 
-    // /**
-    //  * @var array
-    //  */
-    // private static $statements = [];
-
     /**
      * @return string The integration name.
      */
