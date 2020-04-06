@@ -19,7 +19,7 @@ final class TracerTest extends BaseTestCase
         \putenv('DD_TRACE_GLOBAL_TAGS=global_tag:global,also_in_span:should_not_ovverride');
     }
 
-    protected function tearUp()
+    protected function tearDown()
     {
         \putenv('DD_TRACE_GLOBAL_TAGS');
         \putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
