@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\PDO;
+namespace DDTrace\Tests\Integrations\Predis;
 
 use DDTrace\Tests\Integrations\Predis\PredisTest;
 
