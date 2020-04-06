@@ -97,8 +97,16 @@ class PredisSandboxedIntegration extends SandboxedIntegration
         });
 
         // PHP 5 does not support prehook, which is required to get the pipeline count before
-        // tasks have been dequeued.
-        if (Versions::phpVersionMatches('7')) {
+        // tasks are dequeued.
+        if (Versions::phpVersionMatches('5')) {
+            \dd_trace_method('Predis\Pipeline\Pipeline', 'executePipeline', function (SpanData $span, $args) {
+                $span->name = 'Predis.Pipeline.executePipeline';
+                $span->resource = $span->name;
+                $span->type = Type::CACHE;
+                $span->service = 'redis';
+                PredisSandboxedIntegration::setConnectionTags($this, $span);
+            });
+        } else {
             \dd_trace_method(
                 'Predis\Pipeline\Pipeline',
                 'executePipeline',
@@ -117,14 +125,6 @@ class PredisSandboxedIntegration extends SandboxedIntegration
                     },
                 ]
             );
-        } else {
-            \dd_trace_method('Predis\Pipeline\Pipeline', 'executePipeline', function (SpanData $span, $args) {
-                $span->name = 'Predis.Pipeline.executePipeline';
-                $span->resource = $span->name;
-                $span->type = Type::CACHE;
-                $span->service = 'redis';
-                PredisSandboxedIntegration::setConnectionTags($this, $span);
-            });
         }
 
         return SandboxedIntegration::LOADED;

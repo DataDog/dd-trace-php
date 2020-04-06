@@ -168,12 +168,12 @@ class PredisTest extends IntegrationTestCase
             $this->assertInstanceOf('Predis\Response\Status', $responseFlush);
         });
 
-        if (Versions::phpVersionMatches('7')) {
+        if (Versions::phpVersionMatches('5') && static::IS_SANDBOX) {
+            $exactTags = [];
+        } else {
             $exactTags = [
                 'redis.pipeline_length' => '2',
             ];
-        } else {
-            $exactTags = [];
         }
 
         $this->assertFlameGraph($traces, [
