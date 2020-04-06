@@ -9,7 +9,7 @@ use Symfony\Component\Process\Process;
 /**
  * A controllable php server running in a separate process.
  */
-class WebServer
+final class WebServer
 {
     /**
      * Symfony Process object managing the server
@@ -41,6 +41,9 @@ class WebServer
     private $defaultEnvs = [
         'DD_TRACE_AGENT_PORT' => 80,
         'DD_AGENT_HOST' => 'request-replayer',
+        'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
+        // Short flush interval by default or our tests will take all day
+        'DD_TRACE_AGENT_FLUSH_INTERVAL' => 333,
     ];
 
     /**
@@ -50,7 +53,7 @@ class WebServer
 
     private $defaultInis = [
         'log_errors' => 'on',
-        'error_log' => null,
+        'error_log' => 'error.log',
     ];
 
     /**
@@ -63,7 +66,7 @@ class WebServer
         $this->indexFile = $indexFile;
         $this->defaultInis['error_log'] = dirname($indexFile) .  '/error.log';
         // Enable auto-instrumentation
-        $this->defaultInis['ddtrace.request_init_hook'] = __DIR__ .  '/../bridge/dd_autoloader.php';
+        $this->defaultInis['ddtrace.request_init_hook'] = __DIR__ .  '/../bridge/dd_wrap_autoloader.php';
         $this->host = $host;
         $this->port = $port;
     }
@@ -92,6 +95,12 @@ class WebServer
     public function stop()
     {
         if ($this->process) {
+            $shouldWaitForBgs = !isset($this->envs['DD_TRACE_BGS_ENABLED']) || !$this->envs['DD_TRACE_BGS_ENABLED'];
+            if ($shouldWaitForBgs) {
+                // If we don't before stopping the server the main process might die before traces
+                // are actually sent to the agent via the BGS.
+                \usleep($this->envs['DD_TRACE_AGENT_FLUSH_INTERVAL'] * 2 * 1000);
+            }
             $this->process->stop(0);
         }
     }
@@ -107,12 +116,32 @@ class WebServer
     }
 
     /**
+     * @param array $envs
+     * @return WebServer
+     */
+    public function mergeEnvs($envs)
+    {
+        $this->envs = array_merge($this->defaultEnvs, $this->envs, $envs);
+        return $this;
+    }
+
+    /**
      * @param array $inis
      * @return WebServer
      */
     public function setInis($inis)
     {
         $this->inis = $inis;
+        return $this;
+    }
+
+    /**
+     * @param array $inis
+     * @return WebServer
+     */
+    public function mergeInis($inis)
+    {
+        $this->inis = array_merge($this->defaultInis, $this->inis, $inis);
         return $this;
     }
 

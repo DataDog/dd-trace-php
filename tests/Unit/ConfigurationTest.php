@@ -307,4 +307,15 @@ final class ConfigurationTest extends BaseTestCase
             ],
         ];
     }
+
+    public function testUriAsResourceNameEnabledDefault()
+    {
+        $this->assertTrue(Configuration::get()->isURLAsResourceNameEnabled());
+    }
+
+    public function testUriAsResourceNameCanBeDisabled()
+    {
+        putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=false');
+        $this->assertFalse(Configuration::get()->isURLAsResourceNameEnabled());
+    }
 }

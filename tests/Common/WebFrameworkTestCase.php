@@ -52,7 +52,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     {
         $envs = [
             'DD_TEST_INTEGRATION' => 'true',
-            'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => 'true',
             'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
             // Short flush interval by default or our tests will take all day
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
@@ -90,8 +89,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         $rootPath = static::getAppIndexScript();
         if ($rootPath) {
             self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT);
-            self::$appServer->setEnvs(static::getEnvs());
-            self::$appServer->setInis(static::getInis());
+            self::$appServer->mergeEnvs(static::getEnvs());
+            self::$appServer->mergeInis(static::getInis());
             self::$appServer->start();
         }
     }

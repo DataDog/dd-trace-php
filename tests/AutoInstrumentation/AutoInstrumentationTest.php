@@ -82,11 +82,11 @@ class AutoInstrumentationTest extends BaseTestCase
         $scenarioFolder = $this->buildScenarioAbsPath($scenario);
         $indexFile = "$scenarioFolder/index.php";
         $webServer = new WebServer($indexFile, $host = '0.0.0.0', $port = 9876);
-        $webServer->setInis([
+        $webServer->mergeInis([
             'error_log' => __DIR__ . '/error.log',
             'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
         ]);
-        $webServer->setEnvs([
+        $webServer->mergeEnvs([
             'DD_TRACE_DEBUG' => 'true',
         ]);
         $webServer->start();

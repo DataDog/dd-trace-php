@@ -21,8 +21,17 @@ final class EnvSerializer
     {
         $envs = [];
         foreach ($this->envs as $name => $value) {
-            $envs[] = $name . '=' . escapeshellarg($value);
+            $envs[] = $name . '=' . escapeshellarg($this->normalizeValue($value));
         }
         return implode(' ', $envs);
+    }
+
+    private function normalizeValue($value)
+    {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        return $value;
     }
 }

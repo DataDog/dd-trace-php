@@ -46,7 +46,7 @@ final class Span extends DataSpan
         $this->context = $context;
         $this->operationName = (string)$operationName;
         $this->service = (string)$service;
-        $this->resource = (string)$resource;
+        $this->resource = null === $resource ? null : (string)$resource;
         $this->startTime = $startTime ?: Time::now();
     }
 
