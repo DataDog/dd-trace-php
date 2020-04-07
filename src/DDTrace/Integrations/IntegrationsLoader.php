@@ -24,6 +24,7 @@ use DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\PDO\PDOSandboxedIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
+use DDTrace\Integrations\Predis\PredisSandboxedIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Symfony\SymfonySandboxedIntegration;
@@ -104,6 +105,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration';
             $this->integrations[PDOSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
+            $this->integrations[PredisSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\Predis\PredisSandboxedIntegration';
             if (\PHP_MAJOR_VERSION > 5) {
                 $this->integrations[SymfonySandboxedIntegration::NAME] =
                     '\DDTrace\Integrations\Symfony\SymfonySandboxedIntegration';
