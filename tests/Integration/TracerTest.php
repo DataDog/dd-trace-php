@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integration;
 
-use DDTrace\Configuration;
 use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Tests\Common\TracerTestTrait;
@@ -299,6 +298,40 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertSame('changed_service', $traces[0][0]['service']);
+    }
+
+    public function testServiceMappingHttpClientsSplitByDomainHost()
+    {
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $execute(GetSpec::create('split by domain', '/curl-host'));
+            },
+            __DIR__ . '/TracerTest_files/index.php',
+            [
+                'DD_TRACE_SERVICE_MAPPING' => 'host-httpbin_integration:changed_service',
+                'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN' => true,
+                'DD_TRACE_NO_AUTOLOADER' => true,
+            ]
+        );
+
+        $this->assertSame('changed_service', $traces[0][1]['service']);
+    }
+
+    public function testServiceMappingHttpClientsSplitByDomainIp()
+    {
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $execute(GetSpec::create('split by domain', '/curl-ip'));
+            },
+            __DIR__ . '/TracerTest_files/index.php',
+            [
+                'DD_TRACE_SERVICE_MAPPING' => 'host-127.0.0.1:changed_service',
+                'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN' => true,
+                'DD_TRACE_NO_AUTOLOADER' => true,
+            ]
+        );
+
+        $this->assertSame('changed_service', $traces[0][1]['service']);
     }
 
     public function dummyMethodGlobalTags()
