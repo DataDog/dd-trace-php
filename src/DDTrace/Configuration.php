@@ -169,7 +169,9 @@ class Configuration extends AbstractConfiguration
      */
     public function getServiceMapping()
     {
-        return $this->associativeStringArrayValue('trace.service.mapping');
+        // We use the format 'service.mapping' instead of 'trace.service.mapping' for consistency
+        // with java naming pattern for this very same config: DD_SERVICE_MAPING
+        return $this->associativeStringArrayValue('service.mapping');
     }
 
     /**

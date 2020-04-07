@@ -24,7 +24,7 @@ final class TracerTest extends BaseTestCase
     {
         \putenv('DD_TRACE_GLOBAL_TAGS');
         \putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
-        \putenv('DD_TRACE_SERVICE_MAPPING');
+        \putenv('DD_SERVICE_MAPPING');
         parent::tearDown();
     }
 
@@ -247,7 +247,7 @@ final class TracerTest extends BaseTestCase
 
     public function testServiceMappingRootSpan()
     {
-        putenv('DD_TRACE_SERVICE_MAPPING=original_service:changed_service');
+        putenv('DD_SERVICE_MAPPING=original_service:changed_service');
         $traces = $this->isolateTracer(function (Tracer $tracer) {
             $scope = $tracer->startActiveSpan('custom.root');
             $scope->getSpan()->setTag(Tag::SERVICE_NAME, 'original_service');
@@ -259,7 +259,7 @@ final class TracerTest extends BaseTestCase
 
     public function testServiceMappingNestedSpanLegacyApi()
     {
-        putenv('DD_TRACE_SERVICE_MAPPING=original_service:changed_service');
+        putenv('DD_SERVICE_MAPPING=original_service:changed_service');
         $traces = $this->isolateTracer(function (Tracer $tracer) {
             $scope = $tracer->startActiveSpan('custom.root');
             $scope->getSpan()->setTag(Tag::SERVICE_NAME, 'root_service');
@@ -275,7 +275,7 @@ final class TracerTest extends BaseTestCase
 
     public function testServiceMappingInternalApi()
     {
-        putenv('DD_TRACE_SERVICE_MAPPING=original_service:changed_service');
+        putenv('DD_SERVICE_MAPPING=original_service:changed_service');
 
         if (Versions::phpVersionMatches('5.4')) {
             $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
@@ -308,7 +308,7 @@ final class TracerTest extends BaseTestCase
             },
             __DIR__ . '/TracerTest_files/index.php',
             [
-                'DD_TRACE_SERVICE_MAPPING' => 'host-httpbin_integration:changed_service',
+                'DD_SERVICE_MAPPING' => 'host-httpbin_integration:changed_service',
                 'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN' => true,
                 'DD_TRACE_NO_AUTOLOADER' => true,
             ]
@@ -325,7 +325,7 @@ final class TracerTest extends BaseTestCase
             },
             __DIR__ . '/TracerTest_files/index.php',
             [
-                'DD_TRACE_SERVICE_MAPPING' => 'host-127.0.0.1:changed_service',
+                'DD_SERVICE_MAPPING' => 'host-127.0.0.1:changed_service',
                 'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN' => true,
                 'DD_TRACE_NO_AUTOLOADER' => true,
             ]

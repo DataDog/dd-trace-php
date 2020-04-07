@@ -359,7 +359,8 @@ final class Tracer implements TracerInterface
                     $span->setResource($span->getOperationName());
                 }
 
-                // Doing service mapping here to avoid an external call, one more part to be refactored in the future
+                // Doing service mapping here to avoid an external call. This will be refactored once
+                // we completely move to internal span API.
                 $serviceName = $span->getService();
                 if ($serviceName && !empty($serviceMappings[$serviceName])) {
                     $span->setTag(Tag::SERVICE_NAME, $serviceMappings[$serviceName], true);
@@ -408,7 +409,8 @@ final class Tracer implements TracerInterface
                     $internalSpan['meta'][$globalTagName] = $globalTagValue;
                 }
 
-                // Doing service mapping here to avoid an external call, one more part to be refactored in the future
+                // Doing service mapping here to avoid an external call. This will be refactored once
+                // we completely move to internal span API.
                 if (!empty($internalSpan['service']) && !empty($serviceMappings[$internalSpan['service']])) {
                     $internalSpan['service'] = $serviceMappings[$internalSpan['service']];
                 }
