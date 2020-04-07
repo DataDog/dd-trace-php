@@ -72,6 +72,7 @@ require __DIR__ . '/../src/DDTrace/Integrations/Eloquent/EloquentSandboxedIntegr
 require __DIR__ . '/../src/DDTrace/Integrations/Memcached/MemcachedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Memcached/MemcachedSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Curl/CurlIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/Curl/CurlSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Mysqli/MysqliCommon.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Mysqli/MysqliIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Mysqli/MysqliSandboxedIntegration.php';

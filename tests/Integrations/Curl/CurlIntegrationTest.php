@@ -30,7 +30,7 @@ class PrivateCallbackRequest
     }
 }
 
-final class CurlIntegrationTest extends IntegrationTestCase
+class CurlIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
@@ -46,6 +46,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
     {
         parent::tearDown();
         putenv('DD_CURL_ANALYTICS_ENABLED');
+        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
     }
 
     private static function commonCurlInfoTags()
@@ -336,6 +337,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
         $found = [];
+
         Configuration::replace(\Mockery::mock(Configuration::get(), [
             'isAutofinishSpansEnabled' => false,
             'isAnalyticsEnabled' => false,

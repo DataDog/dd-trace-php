@@ -99,6 +99,9 @@ trait TracerTestTrait
         // Clearing existing dumped file
         $this->resetRequestDumper();
 
+        // Reset the current C-level array of generated spans
+        dd_trace_serialize_closed_spans();
+
         $transport = new Http(new Json(), ['endpoint' => self::$agentRequestDumperUrl]);
 
         /* Disable Expect: 100-Continue that automatically gets added by curl,
