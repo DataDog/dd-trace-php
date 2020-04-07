@@ -538,7 +538,7 @@ static int _dd_begin_fcall_handler(zend_execute_data *execute_data) {
     return ZEND_USER_OPCODE_LEAVE;
 }
 
-static int _dd_return_handler(zend_execute_data *execute_data) {
+static void _dd_do_return_handler(zend_execute_data *execute_data) {
     ddtrace_span_t *span = DDTRACE_G(open_spans_top);
     if (span && span->call == execute_data) {
         zval rv;
@@ -564,8 +564,16 @@ static int _dd_return_handler(zend_execute_data *execute_data) {
         }
         _dd_end_span(span, retval);
     }
+}
 
+static int _dd_return_handler(zend_execute_data *execute_data) {
+    _dd_do_return_handler(execute_data);
     return _prev_return_handler ? _prev_return_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+}
+
+static int _dd_return_by_ref_handler(zend_execute_data *execute_data) {
+    _dd_do_return_handler(execute_data);
+    return _prev_return_by_ref_handler ? _prev_return_by_ref_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
 #if PHP_VERSION_ID >= 70100
@@ -755,7 +763,7 @@ void ddtrace_opcode_minit(void) {
     _prev_return_handler = zend_get_user_opcode_handler(ZEND_RETURN);
     zend_set_user_opcode_handler(ZEND_RETURN, _dd_return_handler);
     _prev_return_by_ref_handler = zend_get_user_opcode_handler(ZEND_RETURN_BY_REF);
-    zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, _dd_return_handler);
+    zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, _dd_return_by_ref_handler);
 #if PHP_VERSION_ID >= 70100
     _prev_yield_handler = zend_get_user_opcode_handler(ZEND_YIELD);
     zend_set_user_opcode_handler(ZEND_YIELD, _dd_yield_handler);
