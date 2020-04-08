@@ -274,12 +274,18 @@ static void (*_dd_curl_close_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 ZEND_FUNCTION(ddtrace_curl_close) {
     zval *ch;
 
+    ddtrace_error_handling eh;
+    ddtrace_backup_error_handling(&eh, EH_THROW);
+
     if (_dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "r", &ch) == SUCCESS) {
         zval retval;
         zend_call_method_with_1_params(NULL, _dd_ArrayKVStore_ce, &_dd_ArrayKVStore_deleteResource_fe, "deleteresource",
                                        &retval, ch);
     }
+
+    ddtrace_restore_error_handling(&eh);
+    ddtrace_maybe_clear_exception();
 
     _dd_curl_close_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
@@ -310,6 +316,8 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
 
     if (Z_TYPE_P(return_value) == IS_RESOURCE) {
         zval *ch2 = return_value;
+        ddtrace_error_handling eh;
+        ddtrace_backup_error_handling(&eh, EH_THROW);
 
         zval default_headers;
         array_init(&default_headers);
@@ -323,6 +331,8 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
         }
 
         zval_dtor(&default_headers);
+        ddtrace_restore_error_handling(&eh);
+        ddtrace_maybe_clear_exception();
     }
 }
 
@@ -458,6 +468,8 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
 
     if (_dd_load_curl_integration() && Z_TYPE(_dd_curl_httpheaders) == IS_LONG &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "r", &ch) == SUCCESS) {
+        ddtrace_error_handling eh;
+        ddtrace_backup_error_handling(&eh, EH_THROW);
         void *resource = zend_fetch_resource(Z_RES_P(ch), NULL, le_curl);
         if (resource) {
             zval default_headers;
@@ -481,6 +493,8 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
             }
             zval_dtor(&default_headers);
         }
+        ddtrace_restore_error_handling(&eh);
+        ddtrace_maybe_clear_exception();
     }
 
     _dd_curl_exec_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
@@ -511,10 +525,16 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
 
     _dd_curl_setopt_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
+    ddtrace_error_handling eh;
+    ddtrace_backup_error_handling(&eh, EH_THROW);
+
     if (Z_TYPE_P(return_value) == IS_TRUE && Z_TYPE(_dd_curl_httpheaders) == IS_LONG &&
         Z_LVAL(_dd_curl_httpheaders) == option) {
         _dd_ArrayKVStore_putForResource(zid, &_dd_format_curl_http_headers, zvalue);
     }
+
+    ddtrace_restore_error_handling(&eh);
+    ddtrace_maybe_clear_exception();
 }
 
 static void _dd_install_curl_setopt(void) {
@@ -536,6 +556,9 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
     // todo: does merely parsing the array args here increase the refcount?
     if (_dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &zid, &arr) == SUCCESS) {
+        ddtrace_error_handling eh;
+        ddtrace_backup_error_handling(&eh, EH_THROW);
+
         void *resource = zend_fetch_resource(Z_RES_P(zid), NULL, le_curl);
         if (resource) {
             if (Z_TYPE(_dd_curl_httpheaders) == IS_LONG) {
@@ -545,6 +568,9 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
                 }
             }
         }
+
+        ddtrace_restore_error_handling(&eh);
+        ddtrace_maybe_clear_exception();
     }
 
     _dd_curl_setopt_array_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
@@ -577,7 +603,6 @@ void ddtrace_curl_handlers_startup(void) {
     _dd_install_curl_exec();
 
     /* todo: skip if distributed tracing is not enabled
-     * todo: sandbox the PHP_FUNCTION of each of these
      * {{{ */
     _dd_install_curl_close();
     _dd_install_curl_copy_handle();
