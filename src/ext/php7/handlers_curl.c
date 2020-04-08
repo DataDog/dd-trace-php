@@ -34,14 +34,18 @@ bool _dd_ext_curl_loaded = false;  // True global -- do not modify after startup
 ZEND_TLS int le_curl = 0;
 
 /* Cache things we tend to use a few times */
+ZEND_TLS zval _dd_Configuration_obj = {.u1.type_info = IS_UNDEF};
 ZEND_TLS zval _dd_curl_httpheaders = {.u1.type_info = IS_UNDEF};
 ZEND_TLS zval _dd_format_curl_http_headers = {.u1.type_info = IS_UNDEF};
 ZEND_TLS zend_class_entry *_dd_ArrayKVStore_ce = NULL;
+ZEND_TLS zend_class_entry *_dd_Configuration_ce = NULL;
 ZEND_TLS zend_class_entry *_dd_GlobalTracer_ce = NULL;
 ZEND_TLS zend_class_entry *_dd_SpanContext_ce = NULL;
 ZEND_TLS zend_function *_dd_ArrayKVStore_putForResource_fe = NULL;
 ZEND_TLS zend_function *_dd_ArrayKVStore_getForResource_fe = NULL;
 ZEND_TLS zend_function *_dd_ArrayKVStore_deleteResource_fe = NULL;
+ZEND_TLS zend_function *_dd_Configuration_get_fe = NULL;
+ZEND_TLS zend_function *_dd_Configuration_isDistributedTracingEnabled_fe = NULL;
 ZEND_TLS zend_function *_dd_GlobalTracer_get_fe = NULL;
 ZEND_TLS zend_function *_dd_GlobalTracer_inject_fe = NULL;
 ZEND_TLS zend_function *_dd_SpanContext_ctor = NULL;
@@ -58,10 +62,11 @@ static bool _dd_load_curl_integration(void) {
     }
 
     _dd_ArrayKVStore_ce = ddtrace_lookup_ce(ZEND_STRL("DDTrace\\Util\\ArrayKVStore"));
+    _dd_Configuration_ce = ddtrace_lookup_ce(ZEND_STRL("DDTrace\\Configuration"));
     _dd_GlobalTracer_ce = ddtrace_lookup_ce(ZEND_STRL("DDTrace\\GlobalTracer"));
     _dd_SpanContext_ce = ddtrace_lookup_ce(ZEND_STRL("DDTrace\\SpanContext"));
 
-    if (!_dd_ArrayKVStore_ce || !_dd_GlobalTracer_ce || !_dd_SpanContext_ce) {
+    if (!_dd_ArrayKVStore_ce || !_dd_Configuration_ce || !_dd_GlobalTracer_ce || !_dd_SpanContext_ce) {
         return false;
     }
 
@@ -83,8 +88,21 @@ static bool _dd_load_curl_integration(void) {
         return false;
     }
 
+    if (ddtrace_call_method(NULL, _dd_Configuration_ce, &_dd_Configuration_get_fe, ZEND_STRL("get"),
+                            &_dd_Configuration_obj, 0, NULL) == FAILURE) {
+        return false;
+    }
+
     _dd_curl_integration_loaded = true;
     return true;
+}
+
+static bool _dd_Configuration_isDistributedTracingEnabled(void) {
+    zval enabled;
+    ZEND_RESULT_CODE result = ddtrace_call_method(Z_OBJ(_dd_Configuration_obj), _dd_Configuration_ce,
+                                                  &_dd_Configuration_isDistributedTracingEnabled_fe,
+                                                  ZEND_STRL("isDistributedTracingEnabled"), &enabled, 0, NULL);
+    return result == SUCCESS && Z_TYPE(enabled) == IS_TRUE;
 }
 
 static zval *_dd_ArrayKVStore_getForResource(zval *ch, zval *format, zval *value, zval *retval) {
@@ -153,10 +171,11 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
 
     _dd_curl_copy_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (Z_TYPE_P(return_value) == IS_RESOURCE) {
+    ddtrace_error_handling eh;
+    ddtrace_backup_error_handling(&eh, EH_THROW);
+
+    if (Z_TYPE_P(return_value) == IS_RESOURCE && _dd_Configuration_isDistributedTracingEnabled()) {
         zval *ch2 = return_value;
-        ddtrace_error_handling eh;
-        ddtrace_backup_error_handling(&eh, EH_THROW);
 
         zval default_headers;
         array_init(&default_headers);
@@ -170,9 +189,10 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
         }
 
         zval_dtor(&default_headers);
-        ddtrace_restore_error_handling(&eh);
-        ddtrace_maybe_clear_exception();
     }
+
+    ddtrace_restore_error_handling(&eh);
+    ddtrace_maybe_clear_exception();
 }
 
 static void _dd_install_curl_copy_handle(void) {
@@ -288,7 +308,6 @@ static ZEND_RESULT_CODE _dd_tracer_inject_helper(zval *headers, zval *format, dd
     // $tracer->inject($context, Format::CURL_HTTP_HEADERS, $httpHeaders);
 
     if (result == SUCCESS) {
-        // todo: dtor headers?
         ZVAL_COPY_DEREF(headers, &inject_args[2]);
         zval_dtor(&inject_args[2]);
     }
@@ -324,7 +343,6 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
                     ddtrace_span_t *active_span = DDTRACE_G(open_spans_top);
                     if (_dd_tracer_inject_helper(existing_headers, &_dd_format_curl_http_headers, active_span) ==
                         SUCCESS) {
-                        // curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeaders);
                         zval setopt_args[3] = {*ch, _dd_curl_httpheaders, *existing_headers};
                         zval retval;
                         ddtrace_call_function(ZEND_STRL("curl_setopt"), &retval, 3, setopt_args);
@@ -371,7 +389,9 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
 
     if (Z_TYPE_P(return_value) == IS_TRUE && Z_TYPE(_dd_curl_httpheaders) == IS_LONG &&
         Z_LVAL(_dd_curl_httpheaders) == option) {
-        _dd_ArrayKVStore_putForResource(zid, &_dd_format_curl_http_headers, zvalue);
+        if (_dd_Configuration_isDistributedTracingEnabled()) {
+            _dd_ArrayKVStore_putForResource(zid, &_dd_format_curl_http_headers, zvalue);
+        }
     }
 
     ddtrace_restore_error_handling(&eh);
@@ -394,7 +414,6 @@ static void (*_dd_curl_setopt_array_handler)(INTERNAL_FUNCTION_PARAMETERS) = NUL
 ZEND_FUNCTION(ddtrace_curl_setopt_array) {
     zval *zid, *arr;
 
-    // todo: does merely parsing the array args here increase the refcount?
     if (_dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &zid, &arr) == SUCCESS) {
         ddtrace_error_handling eh;
@@ -404,7 +423,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
         if (resource) {
             if (Z_TYPE(_dd_curl_httpheaders) == IS_LONG) {
                 zval *value = zend_hash_index_find(Z_ARR_P(arr), Z_LVAL(_dd_curl_httpheaders));
-                if (value) {
+                if (value && _dd_Configuration_isDistributedTracingEnabled()) {
                     _dd_ArrayKVStore_putForResource(zid, &_dd_format_curl_http_headers, value);
                 }
             }
@@ -441,15 +460,11 @@ void ddtrace_curl_handlers_startup(void) {
         return;
     }
 
-    _dd_install_curl_exec();
-
-    /* todo: skip if distributed tracing is not enabled
-     * {{{ */
     _dd_install_curl_close();
     _dd_install_curl_copy_handle();
+    _dd_install_curl_exec();
     _dd_install_curl_setopt();
     _dd_install_curl_setopt_array();
-    /* }}} */
 }
 
 static void _dd_find_curl_resource_type(void) {
@@ -475,4 +490,7 @@ static void _dd_find_curl_resource_type(void) {
 }
 
 void ddtrace_curl_handlers_rinit(void) { _dd_find_curl_resource_type(); }
-void ddtrace_curl_handlers_rshutdown(void) { zval_dtor(&_dd_format_curl_http_headers); }
+void ddtrace_curl_handlers_rshutdown(void) {
+    zval_dtor(&_dd_Configuration_obj);
+    zval_dtor(&_dd_format_curl_http_headers);
+}
