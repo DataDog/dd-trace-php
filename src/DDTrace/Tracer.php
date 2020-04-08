@@ -349,6 +349,7 @@ final class Tracer implements TracerInterface
     {
         $tracesToBeSent = [];
         $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
+        $serviceMappings = $this->globalConfig->getServiceMapping();
 
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
@@ -357,6 +358,14 @@ final class Tracer implements TracerInterface
                 if ($span->getResource() === null) {
                     $span->setResource($span->getOperationName());
                 }
+
+                // Doing service mapping here to avoid an external call. This will be refactored once
+                // we completely move to internal span API.
+                $serviceName = $span->getService();
+                if ($serviceName && !empty($serviceMappings[$serviceName])) {
+                    $span->setTag(Tag::SERVICE_NAME, $serviceMappings[$serviceName], true);
+                }
+
                 if ($span->duration === null) { // is span not finished
                     if (!$autoFinishSpans) {
                         $traceToBeSent = null;
@@ -368,6 +377,7 @@ final class Tracer implements TracerInterface
                 // the internal (hard-coded) processors programmatically.
 
                 $this->traceAnalyticsProcessor->process($span);
+
                 $encodedSpan = SpanEncoder::encode($span);
                 $traceToBeSent[] = $encodedSpan;
             }
@@ -397,6 +407,12 @@ final class Tracer implements TracerInterface
                         continue;
                     }
                     $internalSpan['meta'][$globalTagName] = $globalTagValue;
+                }
+
+                // Doing service mapping here to avoid an external call. This will be refactored once
+                // we completely move to internal span API.
+                if (!empty($internalSpan['service']) && !empty($serviceMappings[$internalSpan['service']])) {
+                    $internalSpan['service'] = $serviceMappings[$internalSpan['service']];
                 }
             }
         }
