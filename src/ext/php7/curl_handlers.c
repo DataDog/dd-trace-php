@@ -47,9 +47,13 @@ ZEND_TLS zend_function *_dd_SpanContext_ctor = NULL;
 ZEND_TLS bool _dd_curl_integration_loaded = false;
 
 // Do not pass things like "parent", "self", "static" -- fully qualified names only!
-static zend_class_entry *_dd_lookup_ce(const char *str, size_t len, int use_autoload) {
+static zend_class_entry *_dd_lookup_ce(const char *str, size_t len, bool autoload) {
     zend_string *name = zend_string_init(str, len, 0);
-    zend_class_entry *ce = zend_lookup_class_ex(name, NULL, use_autoload);
+#if PHP_VERSION_ID < 70400
+    zend_class_entry *ce = zend_lookup_class_ex(name, NULL, autoload);
+#else
+    zend_class_entry *ce = zend_lookup_class_ex(name, NULL, autoload ? 0 : ZEND_FETCH_CLASS_NO_AUTOLOAD);
+#endif
     zend_string_release(name);
     return ce;
 }
