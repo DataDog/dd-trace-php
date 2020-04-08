@@ -66,7 +66,6 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
 
                 $ch = $args[0];
                 if (isset($retval) && $retval === false) {
-                    $span->hasError = true;
                     $span->meta[Tag::ERROR_MSG] = \curl_error($ch);
                     $span->meta[Tag::ERROR_TYPE] = 'curl error';
                 }
