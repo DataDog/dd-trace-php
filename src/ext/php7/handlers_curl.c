@@ -284,7 +284,7 @@ ZEND_FUNCTION(ddtrace_curl_close) {
     _dd_curl_close_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
-static void _dd_instrument_curl_close(void) {
+static void _dd_install_curl_close(void) {
     zend_function *curl_close;
     curl_close = zend_hash_str_find_ptr(CG(function_table), "curl_close", sizeof("curl_close") - 1);
     if (curl_close != NULL) {
@@ -326,7 +326,7 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
     }
 }
 
-static void _dd_instrument_curl_copy_handle(void) {
+static void _dd_install_curl_copy_handle(void) {
     zend_function *curl_copy_handle;
     curl_copy_handle = zend_hash_str_find_ptr(CG(function_table), "curl_copy_handle", sizeof("curl_copy_handle") - 1);
     if (curl_copy_handle != NULL) {
@@ -486,7 +486,7 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
     _dd_curl_exec_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
-static void _dd_instrument_curl_exec(void) {
+static void _dd_install_curl_exec(void) {
     zend_function *curl_exec;
     curl_exec = zend_hash_str_find_ptr(CG(function_table), "curl_exec", sizeof("curl_exec") - 1);
     if (curl_exec != NULL) {
@@ -517,7 +517,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
     }
 }
 
-static void _dd_instrument_curl_setopt(void) {
+static void _dd_install_curl_setopt(void) {
     zend_function *curl_setopt;
     curl_setopt = zend_hash_str_find_ptr(CG(function_table), "curl_setopt", sizeof("curl_setopt") - 1);
     if (curl_setopt != NULL) {
@@ -550,7 +550,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
     _dd_curl_setopt_array_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
-static void _dd_instrument_curl_setopt_array(void) {
+static void _dd_install_curl_setopt_array(void) {
     zend_function *curl_setopt_array;
     curl_setopt_array =
         zend_hash_str_find_ptr(CG(function_table), "curl_setopt_array", sizeof("curl_setopt_array") - 1);
@@ -574,15 +574,15 @@ void ddtrace_curl_handlers_startup(void) {
         return;
     }
 
-    _dd_instrument_curl_exec();
+    _dd_install_curl_exec();
 
     /* todo: skip if distributed tracing is not enabled
      * todo: sandbox the PHP_FUNCTION of each of these
      * {{{ */
-    _dd_instrument_curl_close();
-    _dd_instrument_curl_copy_handle();
-    _dd_instrument_curl_setopt();
-    _dd_instrument_curl_setopt_array();
+    _dd_install_curl_close();
+    _dd_install_curl_copy_handle();
+    _dd_install_curl_setopt();
+    _dd_install_curl_setopt_array();
     /* }}} */
 }
 
