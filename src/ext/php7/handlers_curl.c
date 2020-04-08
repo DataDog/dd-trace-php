@@ -1,4 +1,4 @@
-#include "curl_handlers.h"
+#include "handlers_curl.h"
 
 #include <Zend/zend_interfaces.h>
 #include <php.h>
