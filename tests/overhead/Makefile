@@ -25,7 +25,7 @@ start_env:
 	@echo "Environment started: might take a few seconds!"
 
 clear:
-	@rm ./callgrind-files/callgrind.*
+	@rm -f ./callgrind-files/callgrind.*
 
 request: request_notracer request_master request_head request_release
 	@echo "Done!"
