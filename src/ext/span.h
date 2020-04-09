@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include "clocks.h"
 #include "compatibility.h"
 
 struct ddtrace_dispatch_t;
@@ -15,10 +16,10 @@ typedef struct ddtrace_span_t {
     uint64_t trace_id;
     uint64_t parent_id;
     uint64_t span_id;
-    uint64_t start;
+    ddtrace_realtime_nsec_t start;
     union {
-        uint64_t duration_start;
-        uint64_t duration;
+        ddtrace_monotonic_nsec_t duration_start;
+        ddtrace_monotonic_nsec_t duration;
     };
     pid_t pid;
     struct ddtrace_span_t *next;
