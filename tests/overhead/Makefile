@@ -27,16 +27,25 @@ start_env:
 clear:
 	@rm ./callgrind-files/callgrind.*
 
-request_all:
-	@echo "no tracer"
+request: request_notracer request_master request_head request_release
+	@echo "Done!"
+
+request_notracer:
+	@echo "Issuing request to testing env: notracer"
 	@curl localhost:8886
-	@echo ""
-	@echo "master"
+	@echo "\n------------"
+
+request_master:
+	@echo "Issuing request to testing env: master"
 	@curl localhost:8887
-	@echo ""
-	@echo "head"
+	@echo "\n------------"
+
+request_head:
+	@echo "Issuing request to testing env: head"
 	@curl localhost:8888
-	@echo ""
-	@echo "release"
+	@echo "\n------------"
+
+request_release:
+	@echo "Issuing request to testing env: release"
 	@curl localhost:8889
-	@echo ""
+	@echo "\n------------"
