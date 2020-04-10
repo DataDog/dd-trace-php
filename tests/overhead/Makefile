@@ -1,8 +1,8 @@
-build: nginx 73_notracer 73_master 73_head 73_release
+build: 73_notracer 73_master 73_head 73_release
 	@echo "Build completed!"
 
-nginx:
-	@docker build -t overhead-nginx -f dockerfiles/Dockerfile_nginx ../..
+# nginx:
+# 	@docker build -t overhead-nginx -f dockerfiles/Dockerfile_nginx ../..
 
 73_base:
 	@docker build -t overhead-php-fpm-base -f dockerfiles/Dockerfile_73_fpm_base ../..
@@ -27,25 +27,19 @@ start_env:
 clear:
 	@rm -f ./callgrind-files/callgrind.*
 
-request: request_notracer request_master request_head request_release
-	@echo "Done!"
+request_l57: request_l57_notracer request_l57_master request_l57_head request_l57_release
+	@echo "Done Laravel 5.7!"
 
-request_notracer:
-	@echo "Issuing request to testing env: notracer"
-	@curl localhost:8886
+request_synthetic: request_synthetic_notracer request_synthetic_master request_synthetic_head request_synthetic_release
+	@echo "Done Synthetic request!"
+
+request_l57_%:
+	@echo "Laravel 5.7 request: $*"
+	@docker-compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/index.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000'
 	@echo "\n------------"
 
-request_master:
-	@echo "Issuing request to testing env: master"
-	@curl localhost:8887
-	@echo "\n------------"
-
-request_head:
-	@echo "Issuing request to testing env: head"
-	@curl localhost:8888
-	@echo "\n------------"
-
-request_release:
-	@echo "Issuing request to testing env: release"
-	@curl localhost:8889
+request_synthetic_%:
+	@echo "Synthetic request: $*"
+	# @docker-compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/synthetic.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000'
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true php /var/www/public/synthetic.php'
 	@echo "\n------------"

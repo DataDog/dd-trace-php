@@ -2,6 +2,7 @@ FROM php:7.3-fpm
 
 RUN apt update \
     && apt install -y \
+    libfcgi0ldbl \
     gdb \
     git \
     less \
@@ -22,6 +23,7 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
     && php -r "unlink('composer-setup.php');" \
     && composer self-update
 
+RUN mkdir -p /var/www/public
 ADD ./tests/overhead/Laravel57 /var/www
 WORKDIR /var/www
 RUN composer update
