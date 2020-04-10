@@ -165,6 +165,16 @@ class Configuration extends AbstractConfiguration
     }
 
     /**
+     * Returns the service mapping.
+     */
+    public function getServiceMapping()
+    {
+        // We use the format 'service.mapping' instead of 'trace.service.mapping' for consistency
+        // with java naming pattern for this very same config: DD_SERVICE_MAPPING
+        return $this->associativeStringArrayValue('service.mapping');
+    }
+
+    /**
      * Append hostname as a root span tag
      *
      * @return bool
