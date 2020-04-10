@@ -93,6 +93,8 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
                 }
             }
         );
+
+        return SandboxedIntegration::LOADED;
     }
 
     public function addRequestInfo(SpanData $span, $request)
