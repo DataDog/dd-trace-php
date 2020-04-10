@@ -33,6 +33,9 @@ request_l57: request_l57_notracer request_l57_master request_l57_head request_l5
 request_synthetic: request_synthetic_notracer request_synthetic_master request_synthetic_head request_synthetic_release
 	@echo "Done Synthetic request!"
 
+request_hook: request_hook_notracer request_hook_master request_hook_head request_hook_release
+	@echo "Done Synthetic request!"
+
 request_l57_%:
 	@echo "Laravel 5.7 request: $*"
 	@docker-compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/index.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000'
@@ -42,4 +45,9 @@ request_synthetic_%:
 	@echo "Synthetic request: $*"
 	# @docker-compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/synthetic.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000'
 	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true php /var/www/public/synthetic.php'
+	@echo "\n------------"
+
+request_hook_%:
+	@echo "Reequest init hook: $*"
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true  php -dddtrace.request_init_hook="" /var/www/public/inithook.php'
 	@echo "\n------------"

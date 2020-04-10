@@ -55,8 +55,8 @@ services:
       - DD_TRACE_NO_AUTOLOADER=true
     volumes:
       - ./callgrind-files:/var/www/callgrind-files
-      - ../../:/dd-trace-php
-      # - ./dockerfiles/synthetic.php:/var/www/public/index.php
+      # - ../../:/dd-trace-php
+      # - ./Laravel57/public/inithook.php:/var/www/public/inithook.php
 
   php-fpm-release:
     image: overhead-php-fpm-release

@@ -11,7 +11,7 @@ From this directory :
     # Build all images
     make build
 
-    # Edit the env appropriately in the .env file
+    # Edit the env appropriately in the .env file (you can use .env.example as a template)
     XDEBUG_ENABLE_PROFILER=1
     DD_TRACE_ENABLED=true
     DD_TRACE_DEBUG=false
@@ -19,8 +19,14 @@ From this directory :
     # Start the env
     make start_env
 
-    # Execute the same request to ALL the images
-    make request
+    # Execute request to Laravel 5.7 app via php-fpm
+    make request_l57_(notracer|master|release|head)
+
+    # Execute request to synthetic script via php-fpm
+    make request_synthetic_(notracer|master|release|head)
+
+    # Execute ONLY dd request init hook with profiling (if enabled in .env)
+    make request_hook_(notracer|master|release|head)
 
 Profile output is dumped into `./callgrind-files`.
 
