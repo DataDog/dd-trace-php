@@ -56,11 +56,14 @@ if test "$PHP_DDTRACE" != "no"; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
       src/ext/php5/dispatch.c \
       src/ext/php5/engine_hooks.c \
+      src/ext/php5/handlers_curl.c \
     "
   elif test $PHP_VERSION -lt 80000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
       src/ext/php7/dispatch.c \
+      src/ext/php7/engine_api.c \
       src/ext/php7/engine_hooks.c \
+      src/ext/php7/handlers_curl.c \
     "
   else
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES=""
