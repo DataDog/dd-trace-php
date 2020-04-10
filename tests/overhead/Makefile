@@ -24,6 +24,9 @@ start_env:
 	docker-compose up -d
 	@echo "Environment started: might take a few seconds!"
 
+ssh_%:
+	docker-compose exec php-fpm-$* bash
+
 clear:
 	@rm -f ./callgrind-files/callgrind.*
 
@@ -43,7 +46,6 @@ request_l57_%:
 
 request_synthetic_%:
 	@echo "Synthetic request: $*"
-	# @docker-compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/synthetic.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000'
 	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true php /var/www/public/synthetic.php'
 	@echo "\n------------"
 
