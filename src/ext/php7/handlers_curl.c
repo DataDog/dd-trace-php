@@ -179,7 +179,7 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
 
         zval default_headers;
         array_init(&default_headers);
-        zval http_headers;
+        zval http_headers = ddtrace_zval_null();
         zval *existing_headers =
             _dd_ArrayKVStore_getForResource(ch1, &_dd_format_curl_http_headers, &default_headers, &http_headers);
 
@@ -334,7 +334,7 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
         if (resource) {
             zval default_headers;
             array_init(&default_headers);
-            zval http_headers;
+            zval http_headers = ddtrace_zval_null();
             zval *existing_headers =
                 _dd_ArrayKVStore_getForResource(ch, &_dd_format_curl_http_headers, &default_headers, &http_headers);
 
@@ -452,11 +452,7 @@ void ddtrace_curl_handlers_startup(void) {
     zend_string *curl = zend_string_init(ZEND_STRL("curl"), 0);
     _dd_ext_curl_loaded = zend_hash_exists(&module_registry, curl);
     zend_string_release(curl);
-    if (!_dd_ext_curl_loaded) {
-        return;
-    }
-
-    if (!get_dd_trace_sandbox_enabled()) {
+    if (!_dd_ext_curl_loaded || !get_dd_trace_sandbox_enabled()) {
         return;
     }
 
@@ -470,7 +466,7 @@ void ddtrace_curl_handlers_startup(void) {
 static void _dd_find_curl_resource_type(void) {
     zval retval;
 
-    if (!_dd_ext_curl_loaded) {
+    if (!_dd_ext_curl_loaded || !get_dd_trace_sandbox_enabled() || le_curl) {
         return;
     }
 
@@ -493,4 +489,20 @@ void ddtrace_curl_handlers_rinit(void) { _dd_find_curl_resource_type(); }
 void ddtrace_curl_handlers_rshutdown(void) {
     zval_dtor(&_dd_Configuration_obj);
     zval_dtor(&_dd_format_curl_http_headers);
+    ZVAL_UNDEF(&_dd_Configuration_obj);
+    ZVAL_UNDEF(&_dd_curl_httpheaders);
+    ZVAL_UNDEF(&_dd_format_curl_http_headers);
+    _dd_ArrayKVStore_ce = NULL;
+    _dd_Configuration_ce = NULL;
+    _dd_GlobalTracer_ce = NULL;
+    _dd_SpanContext_ce = NULL;
+    _dd_ArrayKVStore_putForResource_fe = NULL;
+    _dd_ArrayKVStore_getForResource_fe = NULL;
+    _dd_ArrayKVStore_deleteResource_fe = NULL;
+    _dd_Configuration_get_fe = NULL;
+    _dd_Configuration_isDistributedTracingEnabled_fe = NULL;
+    _dd_GlobalTracer_get_fe = NULL;
+    _dd_GlobalTracer_inject_fe = NULL;
+    _dd_SpanContext_ctor = NULL;
+    _dd_curl_integration_loaded = false;
 }

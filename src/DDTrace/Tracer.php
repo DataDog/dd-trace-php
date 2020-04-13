@@ -359,13 +359,6 @@ final class Tracer implements TracerInterface
                     $span->setResource($span->getOperationName());
                 }
 
-                // Doing service mapping here to avoid an external call. This will be refactored once
-                // we completely move to internal span API.
-                $serviceName = $span->getService();
-                if ($serviceName && !empty($serviceMappings[$serviceName])) {
-                    $span->setTag(Tag::SERVICE_NAME, $serviceMappings[$serviceName], true);
-                }
-
                 if ($span->duration === null) { // is span not finished
                     if (!$autoFinishSpans) {
                         $traceToBeSent = null;
@@ -408,12 +401,6 @@ final class Tracer implements TracerInterface
                     }
                     $internalSpan['meta'][$globalTagName] = $globalTagValue;
                 }
-
-                // Doing service mapping here to avoid an external call. This will be refactored once
-                // we completely move to internal span API.
-                if (!empty($internalSpan['service']) && !empty($serviceMappings[$internalSpan['service']])) {
-                    $internalSpan['service'] = $serviceMappings[$internalSpan['service']];
-                }
             }
         }
 
@@ -421,6 +408,15 @@ final class Tracer implements TracerInterface
             $tracesToBeSent[0] = isset($tracesToBeSent[0])
                 ? array_merge($tracesToBeSent[0], $internalSpans)
                 : $internalSpans;
+        }
+        if (isset($tracesToBeSent[0])) {
+            foreach ($tracesToBeSent[0] as &$serviceSpan) {
+                // Doing service mapping here to avoid an external call. This will be refactored once
+                // we completely move to internal span API.
+                if (!empty($serviceSpan['service']) && !empty($serviceMappings[$serviceSpan['service']])) {
+                    $serviceSpan['service'] = $serviceMappings[$serviceSpan['service']];
+                }
+            }
         }
 
         return $tracesToBeSent;

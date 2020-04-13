@@ -74,6 +74,7 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
 
                 $info = \curl_getinfo($ch);
                 $sanitizedUrl = Urls::sanitize($info['url']);
+                unset($info['url']);
 
                 if ($globalConfig->isHttpClientSplitByDomain()) {
                     $span->service = Urls::hostnameForTag($sanitizedUrl);
