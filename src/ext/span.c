@@ -4,7 +4,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "auto_flush.h"
+#include "configuration.h"
 #include "ddtrace.h"
+#include "logging.h"
 #include "random.h"
 #include "serializer.h"
 
@@ -119,6 +122,12 @@ void ddtrace_close_span(TSRMLS_D) {
     // ddtrace_coms_buffer_data() and free the span
     span->next = DDTRACE_G(closed_spans_top);
     DDTRACE_G(closed_spans_top) = span;
+
+    if (DDTRACE_G(open_spans_top) == NULL && get_dd_trace_auto_flush_enabled()) {
+        if (ddtrace_flush_tracer() == FAILURE) {
+            ddtrace_log_debug("Unable to auto flush the tracer");
+        }
+    }
 }
 
 void ddtrace_drop_span(TSRMLS_D) {
