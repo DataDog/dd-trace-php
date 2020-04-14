@@ -1,0 +1,86 @@
+version: '3.6'
+
+services:
+
+  # nginx:
+  #   image: overhead-nginx
+  #   ports:
+  #     # no tracer
+  #     - 8886:8886
+  #     # current master on GitHub
+  #     - 8887:8887
+  #     # current local head
+  #     - 8888:8888
+  #     # a specific release, set DD_TRACER_LIBRARY_VERSION=X.Y.Z in service
+  #     # 'php-fpm-release'
+  #     - 8889:8889
+  #   depends_on:
+  #     - php-fpm-notracer
+  #     - php-fpm-master
+  #     - php-fpm-release
+  #     - php-fpm-head
+
+  php-fpm-notracer:
+    image: overhead-php-fpm-notracer
+    environment:
+      - XDEBUG_ENABLE_PROFILER=${XDEBUG_ENABLE_PROFILER:-1}
+      - OPCACHE_ENABLE=${OPCACHE_ENABLE:-1}
+    depends_on:
+      - agent
+    volumes:
+      - ./callgrind-files:/var/www/callgrind-files
+      # - ./dockerfiles/synthetic.php:/var/www/public/index.php
+
+  php-fpm-master:
+    image: overhead-php-fpm-master
+    environment:
+      - XDEBUG_ENABLE_PROFILER=${XDEBUG_ENABLE_PROFILER:-1}
+      - OPCACHE_ENABLE=${OPCACHE_ENABLE:-1}
+      - DD_TRACE_ENABLED=${DD_TRACE_ENABLED:-true}
+      - DD_TRACE_DEBUG=${DD_TRACE_DEBUG:-false}
+    depends_on:
+      - agent
+    volumes:
+      - ./callgrind-files:/var/www/callgrind-files
+
+  php-fpm-head:
+    image: overhead-php-fpm-head
+    depends_on:
+      - agent
+    environment:
+      - XDEBUG_ENABLE_PROFILER=${XDEBUG_ENABLE_PROFILER:-1}
+      - OPCACHE_ENABLE=${OPCACHE_ENABLE:-1}
+      - DD_TRACE_ENABLED=${DD_TRACE_ENABLED:-true}
+      - DD_TRACE_DEBUG=${DD_TRACE_DEBUG:-false}
+      - DD_TRACE_NO_AUTOLOADER=true
+    volumes:
+      - ./callgrind-files:/var/www/callgrind-files
+      # - ../../:/dd-trace-php
+      # - ./Laravel57/public/inithook.php:/var/www/public/inithook.php
+
+  php-fpm-release:
+    image: overhead-php-fpm-release
+    environment:
+      - DD_TRACE_LIBRARY_VERSION=${DD_TRACE_LIBRARY_VERSION:-0.42.0}
+      - XDEBUG_ENABLE_PROFILER=${XDEBUG_ENABLE_PROFILER:-1}
+      - OPCACHE_ENABLE=${OPCACHE_ENABLE:-1}
+      - DD_TRACE_ENABLED=${DD_TRACE_ENABLED:-true}
+      - DD_TRACE_DEBUG=${DD_TRACE_DEBUG:-false}
+    depends_on:
+      - agent
+    volumes:
+      - ./callgrind-files:/var/www/callgrind-files
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      # - ./dockerfiles/php-fpm-agent-integration.yaml:/etc/datadog-agent/conf.d/php_fpm.d/conf.yaml
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_ENV=php-overhead
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_LOG_LEVEL=debug

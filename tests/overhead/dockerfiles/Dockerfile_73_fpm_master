@@ -1,0 +1,12 @@
+FROM overhead-php-fpm-base
+
+ENV TESTING_ENVIRONMENT=master
+
+RUN git clone https://github.com/DataDog/dd-trace-php.git \
+    --single-branch \
+    --branch master \
+    --depth 1 \
+    /dd-trace-php
+
+RUN composer --working-dir=/dd-trace-php install-ext
+RUN echo "ddtrace.request_init_hook=/dd-trace-php/bridge/dd_wrap_autoloader.php" >> /usr/local/etc/php/conf.d/ddtrace.ini
