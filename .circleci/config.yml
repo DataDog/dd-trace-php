@@ -836,12 +836,12 @@ workflows:
           name: "PHP 54 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.4.list
           docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
-#      - integration_tests:
-#          requires: [ 'Code Checkout' ]
-#          name: "PHP 54 Integration tests"
-#          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-#          integration_testsuite: "test-integrations-54"
-#          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 54 Integration tests"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
+          integration_testsuite: "test-integrations-54"
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 56 Integration tests"
