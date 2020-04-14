@@ -177,10 +177,10 @@ abstract class Integration
         if (!Configuration::get()->isIntegrationEnabled($name)) {
             return false;
         }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load integration.', E_USER_WARNING);
-            return false;
-        }
+        // if (!extension_loaded('ddtrace')) {
+        //     trigger_error('ddtrace extension required to load integration.', E_USER_WARNING);
+        //     return false;
+        // }
 
         return true;
     }

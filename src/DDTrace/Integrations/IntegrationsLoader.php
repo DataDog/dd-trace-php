@@ -149,13 +149,13 @@ class IntegrationsLoader
             return;
         }
 
-        if (!extension_loaded('ddtrace')) {
-            trigger_error(
-                'Missing ddtrace extension. To disable tracing set env variable DD_TRACE_ENABLED=false',
-                E_USER_WARNING
-            );
-            return;
-        }
+        // if (!extension_loaded('ddtrace')) {
+        //     trigger_error(
+        //         'Missing ddtrace extension. To disable tracing set env variable DD_TRACE_ENABLED=false',
+        //         E_USER_WARNING
+        //     );
+        //     return;
+        // }
 
         self::logDebug('Attempting integrations load');
 
