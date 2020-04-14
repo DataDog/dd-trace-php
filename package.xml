@@ -165,7 +165,13 @@
                         <file name="dd_trace_set_trace_id.phpt" role="test" />
                         <file name="drop_spans.phpt" role="test" />
                         <file name="errors_are_flagged_from_userland.phpt" role="test" />
+                        <file name="exception_does_not_close_span_that_catches.phpt" role="test" />
                         <file name="exception_error_log.phpt" role="test" />
+                        <file name="exception_from_user_error_handler_internal.phpt" role="test" />
+                        <file name="exception_handled_for_correct_catch_block.phpt" role="test" />
+                        <file name="exception_handled_in_correct_catch_frame.phpt" role="test" />
+                        <file name="exception_handled_in_multicatch.phpt" role="test" />
+                        <file name="exception_handled_with_finally.phpt" role="test" />
                         <file name="exception_handling_php5.phpt" role="test" />
                         <file name="exception_handling.phpt" role="test" />
                         <file name="exception_is_defined.phpt" role="test" />
@@ -179,6 +185,11 @@
                         <file name="fake_tracer.inc" role="test" />
                         <file name="fatal_errors_ignored_in_shutdown.phpt" role="test" />
                         <file name="fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
+                        <file name="generator.phpt" role="test" />
+                        <file name="generator_not_supported.phpt" role="test" />
+                        <file name="generator_with_exception.phpt" role="test" />
+                        <file name="generator_with_return.phpt" role="test" />
+                        <file name="generator_yield_from.phpt" role="test" />
                         <file name="get_last_error.phpt" role="test" />
                         <file name="keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
                         <file name="keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
@@ -186,6 +197,7 @@
                         <file name="keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
                         <file name="memory_limit_graceful_bailout.phpt" role="test" />
                         <file name="new_static.phpt" role="test" />
+                        <file name="return_by_ref.phpt" role="test" />
                         <file name="retval_is_null_with_exception.phpt" role="test" />
                         <file name="safe_to_string_metadata.phpt" role="test" />
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
@@ -193,6 +205,8 @@
                         <file name="sandbox_api_not_available_on_unsupported_versions.phpt" role="test" />
                         <file name="spans_out_of_sync.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
+                        <file name="variadic_args_internal.phpt" role="test" />
+                        <file name="vm_var_types_return.phpt" role="test" />
                     </dir>
                     <dir name="sandbox-prehook">
                         <file name="access_modifier_method_access_hook.phpt" role="test" />
@@ -217,6 +231,7 @@
                         <file name="php5_unsupported.phpt" role="test" />
                         <file name="trace_static_method.phpt" role="test" />
                         <file name="variable_length_parameter_list.phpt" role="test" />
+                        <file name="variadic_args_internal.phpt" role="test" />
                     </dir>
                     <dir name="sandbox-regression">
                         <file name="access_modifier_method_access_hook.phpt" role="test" />

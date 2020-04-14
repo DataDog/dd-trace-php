@@ -37,14 +37,14 @@ zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
     return fptr;
 }
 
-void ddtrace_dispatch_free_owned_data(ddtrace_dispatch_t *dispatch) {
+void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch) {
     zval_dtor(&dispatch->function_name);
     zval_dtor(&dispatch->callable);
 }
 
 void ddtrace_class_lookup_release_compat(void *zv) {
     ddtrace_dispatch_t *dispatch = *(ddtrace_dispatch_t **)zv;
-    ddtrace_class_lookup_release(dispatch);
+    ddtrace_dispatch_release(dispatch);
 }
 
 HashTable *ddtrace_new_class_lookup(zval *class_name TSRMLS_DC) {
@@ -62,7 +62,7 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
 
     memcpy(dispatch, dispatch_orig, sizeof(ddtrace_dispatch_t));
 
-    ddtrace_class_lookup_acquire(dispatch);
+    ddtrace_dispatch_copy(dispatch);
     return zend_hash_update(lookup, Z_STRVAL(dispatch->function_name), Z_STRLEN(dispatch->function_name), &dispatch,
                             sizeof(ddtrace_dispatch_t *), NULL) == SUCCESS;
 }
