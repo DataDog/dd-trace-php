@@ -124,7 +124,7 @@ void ddtrace_close_span(TSRMLS_D) {
     DDTRACE_G(closed_spans_top) = span;
 
     if (DDTRACE_G(open_spans_top) == NULL && get_dd_trace_auto_flush_enabled()) {
-        if (!ddtrace_flush_tracer()) {
+        if (ddtrace_flush_tracer() == FAILURE) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }
     }
