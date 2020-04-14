@@ -5,7 +5,7 @@
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
-#include <Zend/zend_vm.h>
+#include <Zend/zend_extensions.h>
 #include <inttypes.h>
 #include <php.h>
 #include <php_ini.h>
@@ -26,6 +26,7 @@
 #include "dispatch.h"
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
+#include "handlers_curl.h"
 #include "logging.h"
 #include "memory_limit.h"
 #include "random.h"
@@ -46,6 +47,41 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
 STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
                     ddtrace_globals)
 PHP_INI_END()
+
+static int ddtrace_startup(struct _zend_extension *extension) {
+    PHP5_UNUSED(extension);
+    PHP7_UNUSED(extension);
+
+    ddtrace_curl_handlers_startup();
+    return SUCCESS;
+}
+
+static void ddtrace_shutdown(struct _zend_extension *extension) {
+    PHP5_UNUSED(extension);
+    PHP7_UNUSED(extension);
+}
+
+static void ddtrace_activate(void) {}
+static void ddtrace_deactivate(void) {}
+
+static zend_extension _dd_zend_extension_entry = {"ddtrace",
+                                                  PHP_DDTRACE_VERSION,
+                                                  "Datadog",
+                                                  "https://github.com/DataDog/dd-trace-php",
+                                                  "Copyright Datadog",
+                                                  ddtrace_startup,
+                                                  ddtrace_shutdown,
+                                                  ddtrace_activate,
+                                                  ddtrace_deactivate,
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+
+                                                  STANDARD_ZEND_EXTENSION_PROPERTIES};
 
 #if PHP_VERSION_ID >= 50600
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 3)
@@ -94,6 +130,16 @@ ZEND_END_ARG_INFO()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
+static PHP_GINIT_FUNCTION(ddtrace) {
+#ifdef ZTS
+    PHP5_UNUSED(TSRMLS_C);
+#endif
+#if PHP_VERSION_ID >= 70000 && defined(COMPILE_DL_DDTRACE) && defined(ZTS)
+    ZEND_TSRMLS_CACHE_UPDATE();
+#endif
+    php_ddtrace_init_globals(ddtrace_globals);
+}
+
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
 
@@ -124,12 +170,21 @@ static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
-    ZEND_INIT_MODULE_GLOBALS(ddtrace, php_ddtrace_init_globals, NULL);
     REGISTER_INI_ENTRIES();
 
     // config initialization needs to be at the top
     ddtrace_initialize_config(TSRMLS_C);
     _dd_disable_if_incompatible_sapi_detected(TSRMLS_C);
+
+    /* This allows an extension (e.g. extension=ddtrace.so) to have zend_engine
+     * hooks too, but not loadable as zend_extension=ddtrace.so.
+     * See http://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
+     * {{{ */
+    Dl_info infos;
+    zend_register_extension(&_dd_zend_extension_entry, ddtrace_module_entry.handle);
+    dladdr(ZEND_MODULE_STARTUP_N(ddtrace), &infos);
+    dlopen(infos.dli_fname, RTLD_LAZY);
+    /* }}} */
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
@@ -179,14 +234,11 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-#if defined(ZTS) && PHP_VERSION_ID >= 70000
-    ZEND_TSRMLS_CACHE_UPDATE();
-#endif
-
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
 
+    ddtrace_curl_handlers_rinit();
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
@@ -226,6 +278,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_curl_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
 
     ddtrace_dispatch_destroy(TSRMLS_C);
@@ -1005,10 +1058,20 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds),
     DDTRACE_FE_END};
 
-zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
-                                          PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
-                                          PHP_RSHUTDOWN(ddtrace),    PHP_MINFO(ddtrace),     PHP_DDTRACE_VERSION,
-                                          STANDARD_MODULE_PROPERTIES};
+zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,
+                                          PHP_DDTRACE_EXTNAME,
+                                          ddtrace_functions,
+                                          PHP_MINIT(ddtrace),
+                                          PHP_MSHUTDOWN(ddtrace),
+                                          PHP_RINIT(ddtrace),
+                                          PHP_RSHUTDOWN(ddtrace),
+                                          PHP_MINFO(ddtrace),
+                                          PHP_DDTRACE_VERSION,
+                                          PHP_MODULE_GLOBALS(ddtrace),
+                                          PHP_GINIT(ddtrace),
+                                          NULL,
+                                          NULL,
+                                          STANDARD_MODULE_PROPERTIES_EX};
 
 #ifdef COMPILE_DL_DDTRACE
 ZEND_GET_MODULE(ddtrace)

@@ -42,6 +42,7 @@
                     <file name="configuration_php_iface.c" role="src" />
                     <file name="coms.c" role="src" />
                     <file name="coms.h" role="src" />
+                    <file name="handlers_curl.h" role="src" />
                     <file name="macros.h" role="src" />
                     <file name="ddtrace.c" role="src" />
                     <file name="ddtrace.h" role="src" />
@@ -85,10 +86,14 @@
                     <dir name="php5">
                         <file name="dispatch.c" role="src" />
                         <file name="engine_hooks.c" role="src" />
+                        <file name="handlers_curl.c" role="src" />
                     </dir>
                     <dir name="php7">
                         <file name="dispatch.c" role="src" />
+                        <file name="engine_api.c" role="src" />
+                        <file name="engine_api.h" role="src" />
                         <file name="engine_hooks.c" role="src" />
+                        <file name="handlers_curl.c" role="src" />
                     </dir>
                     <dir name="third-party">
                         <file name="mt19937-64.c" role="src" />
