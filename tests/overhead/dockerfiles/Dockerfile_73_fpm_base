@@ -8,6 +8,7 @@ RUN apt update \
     less \
     libcurl4-gnutls-dev \
     libfcgi0ldbl \
+    multitime \
     procps \
     sudo \
     time \

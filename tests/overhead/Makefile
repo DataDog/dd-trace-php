@@ -50,6 +50,16 @@ request_synthetic_%:
 	@echo "\n------------"
 
 request_hook_%:
-	@echo "Reequest init hook: $*"
+	@echo "Request init hook: $*"
 	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true  php -dddtrace.request_init_hook="" /var/www/public/inithook.php'
+	@echo "\n------------"
+
+time_hook_notracer:
+	@echo "Benchmarking time for init hook only: notracer"
+	@docker-compose exec php-fpm-notracer sh -c 'multitime -n 30 -q -s 0 php /var/www/public/synthetic.php'
+	@echo "\n------------"
+
+time_hook_%:
+	@echo "Benchmarking time for init hook only: $*"
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true multitime -n 30 -q -s 0 php -dddtrace.request_init_hook="" /var/www/public/inithook.php'
 	@echo "\n------------"
