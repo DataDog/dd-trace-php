@@ -1,7 +1,6 @@
-version: '3.6'
+version: "3.6"
 
 services:
-
   # nginx:
   #   image: overhead-nginx
   #   ports:
@@ -55,7 +54,7 @@ services:
       - DD_TRACE_NO_AUTOLOADER=true
     volumes:
       - ./callgrind-files:/var/www/callgrind-files
-      # - ../../:/dd-trace-php
+      - ../../:/dd-trace-php
       # - ./Laravel57/public/inithook.php:/var/www/public/inithook.php
 
   php-fpm-release:
@@ -84,3 +83,13 @@ services:
       - DD_APM_ENABLED=true
       - DD_APM_NON_LOCAL_TRAFFIC=true
       - DD_LOG_LEVEL=debug
+
+  perf-trace-linuxkit: # to be run on OSX docker
+    build:
+      dockerfile: dockerfiles/Dockerfile_ubuntu_20_04_linuxkit
+      context: .
+    privileged: true
+    working_dir: /home/dd
+    volumes:
+      - /lib/modules:/lib/modules
+      - /sys/kernel/debug:/sys/kernel/debug

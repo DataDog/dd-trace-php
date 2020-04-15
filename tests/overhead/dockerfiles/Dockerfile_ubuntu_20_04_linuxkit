@@ -1,0 +1,15 @@
+FROM linuxkit/kernel:4.19.76 AS ksrc
+FROM linuxkit/kernel-perf:4.19.99 AS kperf
+
+FROM ubuntu:20.04
+
+RUN set -xe; \
+    apt-get update; \
+    apt-get install php-fpm -y; \
+    apt-get --yes install build-essential cmake bc curl diffutils git kmod libcurl4-openssl-dev wget; \
+    apt-get --yes install systemtap systemtap-sdt-dev; \
+    apt-get --yes install bpfcc-tools python3-bpfcc vim;
+
+COPY --from=kperf /usr/bin/perf /usr/bin/perf
+COPY --from=ksrc /kernel-dev.tar /
+RUN tar xf kernel-dev.tar && rm kernel-dev.tar
