@@ -15,6 +15,7 @@
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
+#include "auto_flush.h"
 #include "circuit_breaker.h"
 #include "comms_php.h"
 #include "compat_string.h"
@@ -980,7 +981,15 @@ static PHP_FUNCTION(dd_trace_push_span_id) {
 static PHP_FUNCTION(dd_trace_pop_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    return_span_id(return_value, ddtrace_pop_span_id(TSRMLS_C));
+    uint64_t id = ddtrace_pop_span_id(TSRMLS_C);
+
+    if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
+        if (ddtrace_flush_tracer() == FAILURE) {
+            ddtrace_log_debug("Unable to auto flush the tracer");
+        }
+    }
+
+    return_span_id(return_value, id);
 }
 
 /* {{{ proto string dd_trace_peek_span_id() */
