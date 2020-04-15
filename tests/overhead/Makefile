@@ -1,3 +1,5 @@
+EXEC_REPETITIONS := 30
+
 build: 73_notracer 73_master 73_head 73_release
 	@echo "Build completed!"
 
@@ -55,11 +57,11 @@ request_hook_%:
 	@echo "\n------------"
 
 time_hook_notracer:
-	@echo "Benchmarking time for init hook only: notracer"
-	@docker-compose exec php-fpm-notracer sh -c 'multitime -n 30 -q -s 0 php /var/www/public/synthetic.php'
+	@echo "Benchmarking time for script only: notracer"
+	@docker-compose exec php-fpm-notracer sh -c 'multitime -n ${EXEC_REPETITIONS} -s 0 php /var/www/public/synthetic.php'
 	@echo "\n------------"
 
 time_hook_%:
 	@echo "Benchmarking time for init hook only: $*"
-	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true multitime -n 30 -q -s 0 php -dddtrace.request_init_hook="" /var/www/public/inithook.php'
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true multitime -n ${EXEC_REPETITIONS} -s 0 php -dddtrace.request_init_hook="" /var/www/public/inithook.php'
 	@echo "\n------------"

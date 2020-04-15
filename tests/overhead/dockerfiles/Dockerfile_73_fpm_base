@@ -42,3 +42,6 @@ ENV DD_AGENT_HOST=agent
 
 ADD ./tests/overhead/dockerfiles/start_app.sh /start_app.sh
 CMD [ "/start_app.sh" ]
+
+RUN mkdir -p /tmp/php-cache
+RUN chmod -R 777 /tmp/php-cache
