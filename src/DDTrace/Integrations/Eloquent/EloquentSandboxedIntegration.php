@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Eloquent;
 
-use DDTrace\Configuration;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;

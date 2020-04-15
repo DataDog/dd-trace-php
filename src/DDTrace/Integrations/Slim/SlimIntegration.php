@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Slim;
 
-use DDTrace\Configuration;
 use DDTrace\Integrations\Integration;
 
 class SlimIntegration extends Integration

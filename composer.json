@@ -38,7 +38,10 @@
     "autoload": {
         "psr-4": {
             "DDTrace\\": "./src/DDTrace/"
-        }
+        },
+        "files": [
+            "./lib/index.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

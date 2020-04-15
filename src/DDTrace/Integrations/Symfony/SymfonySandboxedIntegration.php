@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Symfony;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;

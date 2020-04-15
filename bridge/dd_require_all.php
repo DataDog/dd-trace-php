@@ -1,7 +1,9 @@
 <?php
 
+// lib imports
+require_once __DIR__ . '/../lib/index.php';
+
 require __DIR__ . '/../src/DDTrace/Log/LoggingTrait.php';
-require __DIR__ . '/../src/DDTrace/Configuration/Registry.php';
 require __DIR__ . '/../src/DDTrace/Contracts/Tracer.php';
 require __DIR__ . '/../src/DDTrace/Contracts/Span.php';
 require __DIR__ . '/../src/DDTrace/Contracts/Scope.php';
@@ -14,8 +16,6 @@ require __DIR__ . '/../src/DDTrace/Transport.php';
 require __DIR__ . '/../src/DDTrace/SpanContext.php';
 require __DIR__ . '/../src/DDTrace/Span.php';
 require __DIR__ . '/../src/DDTrace/Tracer.php';
-require __DIR__ . '/../src/DDTrace/Configuration/AbstractConfiguration.php';
-require __DIR__ . '/../src/DDTrace/Configuration/EnvVariableRegistry.php';
 require __DIR__ . '/../src/DDTrace/Obfuscation/WildcardToRegex.php';
 require __DIR__ . '/../src/DDTrace/StartSpanOptionsFactory.php';
 require __DIR__ . '/../src/DDTrace/Time.php';
@@ -38,7 +38,6 @@ require __DIR__ . '/../src/DDTrace/Sampling/AlwaysKeepSampler.php';
 require __DIR__ . '/../src/DDTrace/Sampling/PrioritySampling.php';
 require __DIR__ . '/../src/DDTrace/Sampling/ConfigurableSampler.php';
 require __DIR__ . '/../src/DDTrace/Propagator.php';
-require __DIR__ . '/../src/DDTrace/Configuration.php';
 require __DIR__ . '/../src/DDTrace/Bootstrap.php';
 require __DIR__ . '/../src/DDTrace/Encoders/SpanEncoder.php';
 require __DIR__ . '/../src/DDTrace/Encoders/MessagePack.php';

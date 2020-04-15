@@ -2,7 +2,6 @@
 
 namespace DDTrace\Sampling;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 
 /**
@@ -16,7 +15,7 @@ final class ConfigurableSampler implements Sampler
      */
     public function getPrioritySampling(Span $span)
     {
-        $samplingRules = Configuration::get()->getSamplingRules();
+        $samplingRules = \ddtrace_config_sampling_rules();
         foreach ($samplingRules as $rule) {
             if ($this->ruleMatches($span, $rule)) {
                 $rate = $rule['sample_rate'];
@@ -35,7 +34,7 @@ final class ConfigurableSampler implements Sampler
      */
     public function fallbackToPrioritySampling(Span $span)
     {
-        return $this->computePrioritySampling(Configuration::get()->getSamplingRate());
+        return $this->computePrioritySampling(\ddtrace_config_sampling_rate());
     }
 
     /**

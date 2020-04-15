@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Curl;
 
-use DDTrace\Configuration;
 use DDTrace\Format;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
@@ -53,11 +52,10 @@ class CurlIntegration extends Integration
 
         // Waiting for refactoring from static to singleton.
         $integration = new self();
-        $globalConfig = Configuration::get();
 
         dd_trace('curl_exec', [
             'instrument_when_limited' => 1,
-            'innerhook' => function ($ch) use ($integration, $globalConfig) {
+            'innerhook' => function ($ch) use ($integration) {
                 $tracer = GlobalTracer::get();
 
                 if ($tracer->limited()) {
@@ -80,7 +78,7 @@ class CurlIntegration extends Integration
                 $sanitizedUrl = Urls::sanitize($info['url']);
                 unset($info['url']);
 
-                if ($globalConfig->isHttpClientSplitByDomain()) {
+                if (\ddtrace_config_http_client_split_by_domain_is_enabled()) {
                     $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($sanitizedUrl));
                 } else {
                     $span->setTag(Tag::SERVICE_NAME, 'curl');
@@ -128,12 +126,12 @@ class CurlIntegration extends Integration
 
         dd_trace('curl_setopt', [
             'instrument_when_limited' => 1,
-            'innerhook' => function ($ch, $option, $value) use ($globalConfig) {
+            'innerhook' => function ($ch, $option, $value) {
                 // Note that curl_setopt with option CURLOPT_HTTPHEADER overwrite data instead of appending it if called
                 // multiple times on the same resource.
                 if (
                     $option === CURLOPT_HTTPHEADER
-                    && $globalConfig->isDistributedTracingEnabled()
+                    && \ddtrace_config_distributed_tracing_is_enabled()
                     && is_array($value)
                 ) {
                     // Storing data to be used during exec as it cannot be retrieved at then.
@@ -146,11 +144,11 @@ class CurlIntegration extends Integration
 
         dd_trace('curl_setopt_array', [
             'instrument_when_limited' => 1,
-            'innerhook' => function ($ch, $options) use ($globalConfig) {
+            'innerhook' => function ($ch, $options) {
                 // Note that curl_setopt with option CURLOPT_HTTPHEADER overwrite data instead of appending it if called
                 // multiple times on the same resource.
                 if (
-                    $globalConfig->isDistributedTracingEnabled()
+                    \ddtrace_config_distributed_tracing_is_enabled()
                     && array_key_exists(CURLOPT_HTTPHEADER, $options)
                 ) {
                     // Storing data to be used during exec as it cannot be retrieved at then.
@@ -163,11 +161,11 @@ class CurlIntegration extends Integration
 
         dd_trace('curl_copy_handle', [
             'instrument_when_limited' => 1,
-            'innerhook' => function ($ch1) use ($globalConfig) {
+            'innerhook' => function ($ch1) {
                 $ch2 = dd_trace_forward_call();
                 /* The store needs to copy the CURLOPT_HTTPHEADER value to the new handle;
                  * see https://github.com/DataDog/dd-trace-php/issues/502 */
-                if (\is_resource($ch2) && $globalConfig->isDistributedTracingEnabled()) {
+                if (\is_resource($ch2) && \ddtrace_config_distributed_tracing_is_enabled()) {
                     $httpHeaders = ArrayKVStore::getForResource($ch1, Format::CURL_HTTP_HEADERS, []);
                     if (\is_array($httpHeaders)) {
                         ArrayKVStore::putForResource($ch2, Format::CURL_HTTP_HEADERS, $httpHeaders);
@@ -193,7 +191,7 @@ class CurlIntegration extends Integration
      */
     public static function injectDistributedTracingHeaders($ch)
     {
-        if (!Configuration::get()->isDistributedTracingEnabled()) {
+        if (!\ddtrace_config_distributed_tracing_is_enabled()) {
             return;
         }
 

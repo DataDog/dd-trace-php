@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Yii\V2;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Scope;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Yii\YiiSandboxedIntegration;

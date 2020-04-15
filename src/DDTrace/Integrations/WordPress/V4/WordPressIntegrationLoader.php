@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\WordPress\V4;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Scope;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
