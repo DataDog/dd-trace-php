@@ -54,22 +54,17 @@ static bool _dd_should_trace_call(zend_execute_data *call, zend_function *fbc, d
         return false;
     }
 
-    zval fname;
-    if (fbc->common.function_name) {
-        ZVAL_STR_COPY(&fname, fbc->common.function_name);
-    } else {
+    // Don't trace closures or functions without names
+    if ((fbc->common.fn_flags & ZEND_ACC_CLOSURE) || !fbc->common.function_name) {
         return false;
     }
 
-    // Don't trace closures
-    if (fbc->common.fn_flags & ZEND_ACC_CLOSURE) {
-        zval_ptr_dtor(&fname);
-        return false;
-    }
+    zval fname;
+    ZVAL_STR(&fname, fbc->common.function_name);
 
     zval *this = _dd_this(call);
-    *dispatch = ddtrace_find_dispatch(this, fbc, &fname);
-    zval_ptr_dtor(&fname);
+    *dispatch = ddtrace_find_dispatch(this ? Z_OBJCE_P(this) : fbc->common.scope, &fname);
+
     if (!*dispatch || (*dispatch)->busy) {
         return false;
     }
