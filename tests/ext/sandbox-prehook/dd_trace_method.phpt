@@ -113,7 +113,7 @@ array(3) {
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
     ["metrics"]=>
     array(2) {
@@ -158,7 +158,7 @@ array(3) {
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
   }
 }

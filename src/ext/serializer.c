@@ -365,7 +365,9 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
         add_assoc_long(el, "error", 1);
     }
     if (span->parent_id == 0) {
-        add_assoc_long(meta, "system.pid", (uint)span->pid);
+        char pid[MAX_LENGTH_OF_LONG + 1];
+        snprintf(pid, sizeof(pid), "%ld", (long)span->pid);
+        add_assoc_string(meta, "system.pid", pid, 1);
     }
 
     // Add meta only if it has elements
@@ -542,7 +544,9 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span) {
         }
     }
     if (span->parent_id == 0) {
-        add_assoc_long(meta, "system.pid", (zend_long)span->pid);
+        char pid[MAX_LENGTH_OF_LONG + 1];
+        snprintf(pid, sizeof(pid), "%ld", (long)span->pid);
+        add_assoc_string(meta, "system.pid", pid);
     }
 
     if (zend_array_count(Z_ARRVAL_P(meta))) {
