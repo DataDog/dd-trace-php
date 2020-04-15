@@ -4,7 +4,11 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "auto_flush.h"
+#include "configuration.h"
 #include "ddtrace.h"
+#include "dispatch.h"
+#include "logging.h"
 #include "random.h"
 #include "serializer.h"
 
@@ -48,11 +52,21 @@ static void _free_span(ddtrace_span_t *span) {
     efree(span);
 }
 
+static void ddtrace_drop_span(ddtrace_span_t *span) {
+    if (span->dispatch) {
+        span->dispatch->busy = 0;
+        ddtrace_dispatch_release(span->dispatch);
+        span->dispatch = NULL;
+    }
+
+    _free_span(span);
+}
+
 static void _free_span_stack(ddtrace_span_t *span) {
     while (span != NULL) {
         ddtrace_span_t *tmp = span;
         span = tmp->next;
-        _free_span(tmp);
+        ddtrace_drop_span(tmp);
     }
 }
 
@@ -119,9 +133,21 @@ void ddtrace_close_span(TSRMLS_D) {
     // ddtrace_coms_buffer_data() and free the span
     span->next = DDTRACE_G(closed_spans_top);
     DDTRACE_G(closed_spans_top) = span;
+
+    if (span->dispatch) {
+        span->dispatch->busy = 0;
+        ddtrace_dispatch_release(span->dispatch);
+        span->dispatch = NULL;
+    }
+
+    if (DDTRACE_G(open_spans_top) == NULL && get_dd_trace_auto_flush_enabled()) {
+        if (ddtrace_flush_tracer() == FAILURE) {
+            ddtrace_log_debug("Unable to auto flush the tracer");
+        }
+    }
 }
 
-void ddtrace_drop_span(TSRMLS_D) {
+void ddtrace_drop_top_open_span(TSRMLS_D) {
     ddtrace_span_t *span = DDTRACE_G(open_spans_top);
     if (span == NULL) {
         return;
@@ -129,8 +155,7 @@ void ddtrace_drop_span(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = span->next;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
-
-    _free_span(span);
+    ddtrace_drop_span(span);
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {

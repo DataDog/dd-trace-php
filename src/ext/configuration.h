@@ -48,6 +48,7 @@ void ddtrace_config_shutdown(void);
     CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost")                                                            \
     CHAR(get_dd_dogstatsd_port, "DD_DOGSTATSD_PORT", "8125")                                                         \
     INT(get_dd_trace_agent_port, "DD_TRACE_AGENT_PORT", 8126)                                                        \
+    BOOL(get_dd_trace_auto_flush_enabled, "DD_TRACE_AUTO_FLUSH_ENABLED", false)                                      \
     BOOL(get_dd_trace_measure_compile_time, "DD_TRACE_MEASURE_COMPILE_TIME", true)                                   \
     BOOL(get_dd_trace_debug, "DD_TRACE_DEBUG", false)                                                                \
     BOOL(get_dd_trace_heath_metrics_enabled, "DD_TRACE_HEALTH_METRICS_ENABLED", false)                               \
