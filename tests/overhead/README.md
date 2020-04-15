@@ -28,6 +28,9 @@ From this directory :
     # Execute ONLY dd request init hook with profiling (if enabled in .env)
     make request_hook_(notracer|master|release|head)
 
+    # Execute our init hook in multitime and outputs results
+    make time_hook_(notracer|master|release|head)
+
     # Open a shell into the container
     make ssh_(notracer|master|release|head)
 

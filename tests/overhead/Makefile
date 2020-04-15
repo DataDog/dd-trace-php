@@ -53,7 +53,7 @@ request_synthetic_%:
 
 request_hook_%:
 	@echo "Request init hook: $*"
-	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true  php -dddtrace.request_init_hook="" /var/www/public/inithook.php'
+	@docker-compose exec php-fpm-$* sh -c 'DD_TRACE_CLI_ENABLED=true DD_TRACE_NO_AUTOLOADER=true php -dddtrace.request_init_hook="" /var/www/public/inithook.php'
 	@echo "\n------------"
 
 time_hook_notracer:
