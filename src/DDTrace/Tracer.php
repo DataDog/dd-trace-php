@@ -296,7 +296,6 @@ final class Tracer implements TracerInterface
      */
     public function flush()
     {
-        error_log('Flushing.');
         if (!$this->config['enabled']) {
             return;
         }
@@ -419,8 +418,6 @@ final class Tracer implements TracerInterface
                 }
             }
         }
-
-        error_log('Traces to be sent: ' . print_r($tracesToBeSent, 1));
 
         return $tracesToBeSent;
     }

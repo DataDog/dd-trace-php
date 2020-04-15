@@ -27,7 +27,6 @@ final class Bootstrap
 
         self::$bootstrapped = true;
 
-        $config = Configuration::get();
         $tracer = self::resetTracer();
         self::registerOpenTracing();
 
@@ -44,7 +43,8 @@ final class Bootstrap
 
         // Sandbox API is not supported on PHP 5.4
         if (PHP_VERSION_ID < 50500) {
-            if ($config->isGenerateRootSpan()) {
+            if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
+                self::initRootSpan($tracer);
                 register_shutdown_function($flushTracer);
             }
             return;
@@ -54,7 +54,7 @@ final class Bootstrap
             'posthook' => $flushTracer,
         ]);
 
-        if ($config->isGenerateRootSpan()) {
+        if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
             self::initRootSpan($tracer);
             register_shutdown_function(function () {
                 /*

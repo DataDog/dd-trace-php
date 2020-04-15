@@ -46,15 +46,6 @@ interface Registry
     public function associativeStringArrayValue($key);
 
     /**
-     * Given a string like 'value1,value2', it returns an indexed array
-     * ['value1', 'value2']
-     *
-     * @param string $key
-     * @return string[]
-     */
-    public function indexedStringArrayValue($key);
-
-    /**
      * Returns whether or not a given case-insensitive name is contained in a configuration property.
      *
      * @param string $key

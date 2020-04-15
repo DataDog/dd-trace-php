@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Curl;
 
 use DDTrace\Configuration;
-use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
@@ -42,12 +41,6 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
         }
 
         if (!Integration::shouldLoad(self::NAME)) {
-            return SandboxedIntegration::NOT_LOADED;
-        }
-
-        $tracer = GlobalTracer::get();
-        $rootScope = $tracer->getRootScope();
-        if (!$rootScope) {
             return SandboxedIntegration::NOT_LOADED;
         }
 
