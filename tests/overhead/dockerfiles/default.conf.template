@@ -1,0 +1,21 @@
+server {
+    listen ${NGINX_PORT};
+
+    access_log /dev/stdout;
+    error_log /dev/stdout;
+
+    server_name localhost;
+
+    root /var/www/public;
+    index index.php;
+
+    location / {
+         try_files $uri $uri/ /index.php?$query_string;
+         fastcgi_split_path_info ^(.+\.php)(/.+)$;
+         fastcgi_pass ${NGINX_FPM_PASS};
+         fastcgi_index index.php;
+         include fastcgi_params;
+         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+         fastcgi_param PATH_INFO $fastcgi_path_info;
+     }
+}

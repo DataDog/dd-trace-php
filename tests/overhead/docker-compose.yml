@@ -1,7 +1,6 @@
-version: '3.6'
+version: "3.6"
 
 services:
-
   # nginx:
   #   image: overhead-nginx
   #   ports:
@@ -19,6 +18,19 @@ services:
   #     - php-fpm-master
   #     - php-fpm-release
   #     - php-fpm-head
+
+  fpm-head:
+    image: nginx-fpm-head
+    build:
+      dockerfile: dockerfiles/Dockerfile_nginx
+      context: .
+    ports:
+      - 8086:8886
+    environment:
+      - NGINX_PORT=8086
+      - NGINX_FPM_PASS=php-fpm-head:9000
+    depends_on:
+      - php-fpm-head
 
   php-fpm-notracer:
     image: overhead-php-fpm-notracer
