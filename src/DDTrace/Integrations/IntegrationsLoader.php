@@ -144,11 +144,6 @@ class IntegrationsLoader
      */
     public function loadAll()
     {
-        $globalConfig = Configuration::get();
-        if (!$globalConfig->isEnabled()) {
-            return;
-        }
-
         if (!extension_loaded('ddtrace')) {
             trigger_error(
                 'Missing ddtrace extension. To disable tracing set env variable DD_TRACE_ENABLED=false',
@@ -157,8 +152,13 @@ class IntegrationsLoader
             return;
         }
 
+        if (!\ddtrace_config_trace_enabled()) {
+            return;
+        }
+
         self::logDebug('Attempting integrations load');
 
+        $globalConfig = Configuration::get();
         foreach ($this->integrations as $name => $class) {
             if (!$globalConfig->isIntegrationEnabled($name)) {
                 self::logDebug('Integration {name} is disabled', ['name' => $name]);

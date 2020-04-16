@@ -26,7 +26,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isEnabled()
     {
-        return $this->boolValue('trace.enabled', true);
+        return \ddtrace_config_trace_enabled();
     }
 
     /**
@@ -153,7 +153,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isIntegrationEnabled($name)
     {
-        return $this->isEnabled() && !$this->inArray('integrations.disabled', $name);
+        return \ddtrace_config_trace_enabled() && !$this->inArray('integrations.disabled', $name);
     }
 
     /**

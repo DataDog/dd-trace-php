@@ -135,6 +135,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, 0)
 ZEND_ARG_INFO(0, default_name)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_trace_enabled, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
 static PHP_GINIT_FUNCTION(ddtrace) {
@@ -856,6 +859,62 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
 #endif
 }
 
+static bool _dd_config_bool(zval *value, bool default_value) {
+    ddtrace_downcase_zval(value);
+
+    ddtrace_string subject = {
+        .ptr = Z_STRVAL_P(value),
+        .len = Z_STRLEN_P(value),
+    };
+
+    ddtrace_string str_1 = {
+        .ptr = "1",
+        .len = 1,
+    };
+    ddtrace_string str_true = {
+        .ptr = "true",
+        .len = sizeof("true") - 1,
+    };
+    if (ddtrace_string_equals(subject, str_1) || ddtrace_string_equals(subject, str_true)) {
+        return true;
+    }
+    ddtrace_string str_0 = {
+        .ptr = "0",
+        .len = 1,
+    };
+    ddtrace_string str_false = {
+        .ptr = "false",
+        .len = sizeof("false") - 1,
+    };
+    if (ddtrace_string_equals(subject, str_0) || ddtrace_string_equals(subject, str_false)) {
+        return false;
+    }
+    return default_value;
+}
+
+static bool _dd_config_trace_enabled() {
+    char *value = getenv("DD_TRACE_ENABLED");
+    ddtrace_zppstrlen_t value_len;
+    if (value && (value_len = strlen(value))) {
+        zval item;
+#if PHP_VERSION_ID < 70000
+        ZVAL_STRINGL(&item, value, value_len, 1);
+#else
+        ZVAL_STRINGL(&item, value, value_len);
+#endif
+        bool result = _dd_config_bool(&item, true);
+        ddtrace_zval_ptr_dtor(&item);
+        return result;
+    } else {
+        return true;
+    }
+}
+
+static PHP_FUNCTION(ddtrace_config_trace_enabled) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    RETURN_BOOL(_dd_config_trace_enabled());
+}
+
 static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     char *payload = NULL;
@@ -1120,6 +1179,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_untrace, NULL),
     DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds),
     DDTRACE_FE(ddtrace_config_app_name, arginfo_ddtrace_config_app_name),
+    DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled),
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,

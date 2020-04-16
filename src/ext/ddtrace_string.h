@@ -4,6 +4,7 @@
 #include <php_version.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 #if PHP_VERSION_ID < 70000
 typedef int ddtrace_zppstrlen_t;
@@ -47,6 +48,10 @@ inline ddtrace_string ddtrace_trim(ddtrace_string src) {
         .len = end - begin,
     };
     return result;
+}
+
+inline bool ddtrace_string_equals(ddtrace_string a, ddtrace_string b) {
+    return a.len == b.len && (a.ptr == b.ptr || !memcmp(a.ptr, b.ptr, a.len));
 }
 
 #endif  // DDTRACE_STRING_H
