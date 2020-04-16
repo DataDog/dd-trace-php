@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Curl;
 use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
+use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -40,7 +41,7 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
             return SandboxedIntegration::NOT_AVAILABLE;
         }
 
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+        if (!Integration::shouldLoad(self::NAME)) {
             return SandboxedIntegration::NOT_LOADED;
         }
 

@@ -6,40 +6,19 @@
 #include <string.h>
 
 #include "ddtrace.h"
+#include "ddtrace_string.h"
 #include "engine_hooks.h"
 #include "env_config.h"
 #include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-#define DELIMETER ','
-static int find_exact_match(const char *haystack, const char *needle) {
-    int found = 0;
-    const char *match, *haystack_ptr = haystack;
-    size_t needle_len = strlen(needle);
-
-    while ((match = strstr(haystack_ptr, needle)) != NULL) {
-        haystack_ptr = match + needle_len;
-        if (match > haystack && *(match - 1) != DELIMETER) {
-            continue;
-        }
-
-        if (*haystack_ptr == '\0' || *haystack_ptr == DELIMETER) {
-            found = 1;
-            break;
-        }
-    }
-
-    return found;
-}
-
 int dd_no_blacklisted_modules(TSRMLS_D) {
+    zend_module_entry *module;
     int no_blacklisted_modules = 1;
 
-    char *blacklist = DDTRACE_G(internal_blacklisted_modules_list);
-    zend_module_entry *module;
-
-    if (blacklist == NULL) {
+    ddtrace_string blacklist = ddtrace_string_cstring_ctor(DDTRACE_G(internal_blacklisted_modules_list));
+    if (!blacklist.len) {
         return no_blacklisted_modules;
     }
 
@@ -48,7 +27,11 @@ int dd_no_blacklisted_modules(TSRMLS_D) {
     zend_hash_internal_pointer_reset_ex(&module_registry, &pos);
 
     while (zend_hash_get_current_data_ex(&module_registry, (void *)&module, &pos) != FAILURE) {
-        if (module && module->name && find_exact_match(blacklist, module->name)) {
+        if (!module || !module->name) {
+            continue;
+        }
+        ddtrace_string module_name = ddtrace_string_cstring_ctor((char *)module->name);
+        if (module_name.len && ddtrace_string_contains_in_csv(blacklist, module_name)) {
             ddtrace_log_debugf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
             no_blacklisted_modules = 0;
             break;
@@ -57,7 +40,11 @@ int dd_no_blacklisted_modules(TSRMLS_D) {
     }
 #else
     ZEND_HASH_FOREACH_PTR(&module_registry, module) {
-        if (module && module->name && find_exact_match(blacklist, module->name)) {
+        if (!module) {
+            continue;
+        }
+        ddtrace_string module_name = ddtrace_string_cstring_ctor((char *)module->name);
+        if (module_name.len && ddtrace_string_contains_in_csv(blacklist, module_name)) {
             ddtrace_log_debugf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
             no_blacklisted_modules = 0;
             break;

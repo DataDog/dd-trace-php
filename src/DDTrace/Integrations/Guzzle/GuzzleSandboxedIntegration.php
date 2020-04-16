@@ -22,7 +22,7 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
 
     public function init()
     {
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+        if (!self::shouldLoad(self::NAME)) {
             return SandboxedIntegration::NOT_LOADED;
         }
 

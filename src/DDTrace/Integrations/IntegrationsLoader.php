@@ -158,9 +158,8 @@ class IntegrationsLoader
 
         self::logDebug('Attempting integrations load');
 
-        $globalConfig = Configuration::get();
         foreach ($this->integrations as $name => $class) {
-            if (!$globalConfig->isIntegrationEnabled($name)) {
+            if (!\ddtrace_config_integration_enabled($name)) {
                 self::logDebug('Integration {name} is disabled', ['name' => $name]);
                 continue;
             }

@@ -135,6 +135,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, 0)
 ZEND_ARG_INFO(0, default_name)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_integration_enabled, 0, 0, 1)
+ZEND_ARG_INFO(0, integration_name)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_trace_enabled, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -912,7 +916,29 @@ static bool _dd_config_trace_enabled() {
 
 static PHP_FUNCTION(ddtrace_config_trace_enabled) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     RETURN_BOOL(_dd_config_trace_enabled());
+}
+
+// note: only call this if _dd_config_trace_enabled() returns true
+static bool _dd_config_integration_enabled(ddtrace_string integration) {
+    ddtrace_string integrations_disabled = ddtrace_string_cstring_ctor(getenv("DD_INTEGRATIONS_DISABLED"));
+    if (integrations_disabled.len && integration.len) {
+        return !ddtrace_string_contains_in_csv(integrations_disabled, integration);
+    }
+    return true;
+}
+
+static PHP_FUNCTION(ddtrace_config_integration_enabled) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    if (!_dd_config_trace_enabled()) {
+        RETURN_FALSE
+    }
+    ddtrace_string integration;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
+        RETURN_NULL()
+    }
+    RETURN_BOOL(_dd_config_integration_enabled(integration))
 }
 
 static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
@@ -1179,6 +1205,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_untrace, NULL),
     DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds),
     DDTRACE_FE(ddtrace_config_app_name, arginfo_ddtrace_config_app_name),
+    DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
     DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled),
     DDTRACE_FE_END};
 

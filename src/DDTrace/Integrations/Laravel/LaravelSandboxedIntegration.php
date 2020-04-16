@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Laravel;
 
-use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\SpanData;
 use DDTrace\Integrations\SandboxedIntegration;
@@ -42,7 +41,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
      */
     public function init()
     {
-        if (!Configuration::get()->isIntegrationEnabled(LaravelSandboxedIntegration::NAME)) {
+        if (!self::shouldLoad(self::NAME)) {
             return SandboxedIntegration::NOT_LOADED;
         }
 

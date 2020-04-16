@@ -18,6 +18,14 @@ struct ddtrace_string {
 };
 typedef struct ddtrace_string ddtrace_string;
 
+inline ddtrace_string ddtrace_string_cstring_ctor(char *ptr) {
+    ddtrace_string string = {
+        .ptr = ptr,
+        .len = ptr ? strlen(ptr) : 0,
+    };
+    return string;
+}
+
 // this is the same set of character's that PHP's trim treats as whitespace
 inline bool ddtrace_isspace(unsigned char c) {
     return (c <= ' ' && (c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\v' || c == '\0'));
@@ -53,5 +61,10 @@ inline ddtrace_string ddtrace_trim(ddtrace_string src) {
 inline bool ddtrace_string_equals(ddtrace_string a, ddtrace_string b) {
     return a.len == b.len && (a.ptr == b.ptr || !memcmp(a.ptr, b.ptr, a.len));
 }
+
+/* This function is _case sensitive_.
+ * Only call if haystack and needle have len > 0.
+ */
+bool ddtrace_string_contains_in_csv(ddtrace_string haystack, ddtrace_string needle);
 
 #endif  // DDTRACE_STRING_H

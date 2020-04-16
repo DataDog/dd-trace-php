@@ -2,8 +2,8 @@
 
 require __DIR__ . '/../../../autoload.php';
 
-use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
+use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\ZendFramework\V1\TraceRequest;
 use DDTrace\Tag;
 use DDTrace\Tracer;
@@ -19,7 +19,7 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
 
     public function init()
     {
-        if (!$this->shouldLoad()) {
+        if (!Integration::shouldLoad(self::NAME)) {
             return false;
         }
         $front = Zend_Controller_Front::getInstance();
@@ -31,21 +31,6 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
         $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name(self::NAME));
 
         return $this->tracer;
-    }
-
-    /**
-     * @return bool
-     */
-    private function shouldLoad()
-    {
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
-            return false;
-        }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Zend Framework 1 integration.', E_USER_WARNING);
-            return false;
-        }
-        return true;
     }
 
     /**
