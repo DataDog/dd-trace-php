@@ -27,7 +27,7 @@
 
     <!-- PHP compatibility checks -->
     <config name="testVersion" value="5.4-7.3"/>
-    <exclude-pattern>lib/integrations/_compiled.php</exclude-pattern>
+    <exclude-pattern>lib/_compiled.php</exclude-pattern>
     <exclude-pattern>dockerfiles/*</exclude-pattern>
     <exclude-pattern>playground*.php</exclude-pattern>
     <exclude-pattern>run-tests.php</exclude-pattern>

@@ -1,5 +1,9 @@
 <?php
 
+require __DIR__ . '/../src/DDTrace/Tag.php';
+require __DIR__ . '/../src/DDTrace/Type.php';
+require_once __DIR__ . '/../lib/autoload.php';
+
 require __DIR__ . '/../src/DDTrace/Log/LoggingTrait.php';
 require __DIR__ . '/../src/DDTrace/Configuration/Registry.php';
 require __DIR__ . '/../src/DDTrace/Contracts/Tracer.php';
@@ -21,7 +25,6 @@ require __DIR__ . '/../src/DDTrace/StartSpanOptionsFactory.php';
 require __DIR__ . '/../src/DDTrace/Time.php';
 require __DIR__ . '/../src/DDTrace/Transport/Http.php';
 require __DIR__ . '/../src/DDTrace/Transport/Stream.php';
-require __DIR__ . '/../src/DDTrace/Type.php';
 require __DIR__ . '/../src/DDTrace/Encoder.php';
 require __DIR__ . '/../src/DDTrace/Util/Runtime.php';
 require __DIR__ . '/../src/DDTrace/Util/Versions.php';
@@ -31,7 +34,6 @@ require __DIR__ . '/../src/DDTrace/Util/TryCatchFinally.php';
 require __DIR__ . '/../src/DDTrace/Util/CodeTracer.php';
 require __DIR__ . '/../src/DDTrace/Util/ContainerInfo.php';
 require __DIR__ . '/../src/DDTrace/Processing/TraceAnalyticsProcessor.php';
-require __DIR__ . '/../src/DDTrace/Tag.php';
 require __DIR__ . '/../src/DDTrace/Scope.php';
 require __DIR__ . '/../src/DDTrace/Reference.php';
 require __DIR__ . '/../src/DDTrace/Sampling/AlwaysKeepSampler.php';
@@ -87,7 +89,6 @@ require __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonyIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonySandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchCommon.php';
 require __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchIntegration.php';
-require __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.php';

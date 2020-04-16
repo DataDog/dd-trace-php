@@ -12,7 +12,7 @@ use DDTrace\Type;
 
 const NAME = 'guzzle';
 
-// This will dsappear once we do this check at c-level
+// This will disappear once we do this check at c-level
 $DD_GUZZLE_GLOBAL = [
     'loaded' => false,
 ];

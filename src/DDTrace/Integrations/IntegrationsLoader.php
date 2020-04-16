@@ -8,7 +8,6 @@ use DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration;
 use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\Curl\CurlSandboxedIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
-use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration;
@@ -89,6 +88,7 @@ class IntegrationsLoader
         if (Configuration::get()->isSandboxEnabled()) {
             // Disabling integrations migrated to functional api
             $this->integrations[GuzzleIntegration::NAME] = null;
+            $this->integrations[ElasticSearchIntegration::NAME] = null;
 
             $this->integrations[CodeIgniterSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration';
@@ -96,8 +96,6 @@ class IntegrationsLoader
                 $this->integrations[CurlSandboxedIntegration::NAME] =
                     '\DDTrace\Integrations\Curl\CurlSandboxedIntegration';
             }
-            $this->integrations[ElasticSearchSandboxedIntegration::NAME] =
-                '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration';
             $this->integrations[EloquentSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration';
             $this->integrations[LaravelSandboxedIntegration::NAME] =
@@ -187,8 +185,8 @@ class IntegrationsLoader
         }
 
         if (Configuration::get()->isSandboxEnabled()) {
-            require_once __DIR__ . '/../../../lib/integrations/_compiled.php';
             \DDTrace\Integrations\Guzzle\dd_integration_guzzle_load();
+            \DDTrace\Integrations\ElasticSearch\dd_integration_elasticsearch_load();
         }
     }
 
