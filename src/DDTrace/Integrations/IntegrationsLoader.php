@@ -9,10 +9,9 @@ use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\Curl\CurlSandboxedIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration;
+use DDTrace\Integrations\Guzzle\GuzzleIntegration;
 use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration;
-use DDTrace\Integrations\Guzzle\GuzzleIntegration;
-use DDTrace\Integrations\Guzzle\GuzzleSandboxedIntegration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Integrations\Laravel\LaravelSandboxedIntegration;
 use DDTrace\Integrations\Lumen\LumenIntegration;
@@ -88,6 +87,9 @@ class IntegrationsLoader
         $this->integrations = $integrations;
         // Sandboxed integrations get loaded with a feature flag
         if (Configuration::get()->isSandboxEnabled()) {
+            // Disabling integrations migrated to functional api
+            $this->integrations[GuzzleIntegration::NAME] = null;
+
             $this->integrations[CodeIgniterSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration';
             if (\PHP_MAJOR_VERSION > 5) {
@@ -98,8 +100,6 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration';
             $this->integrations[EloquentSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration';
-            $this->integrations[GuzzleSandboxedIntegration::NAME] =
-                '\DDTrace\Integrations\Guzzle\GuzzleSandboxedIntegration';
             $this->integrations[LaravelSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Laravel\LaravelSandboxedIntegration';
             $this->integrations[MemcachedSandboxedIntegration::NAME] =
@@ -160,6 +160,10 @@ class IntegrationsLoader
         self::logDebug('Attempting integrations load');
 
         foreach ($this->integrations as $name => $class) {
+            if (null === $class) {
+                continue;
+            }
+
             if (!$globalConfig->isIntegrationEnabled($name)) {
                 self::logDebug('Integration {name} is disabled', ['name' => $name]);
                 continue;
@@ -180,6 +184,11 @@ class IntegrationsLoader
                 $this->loadings[$name] = $class::load();
             }
             $this->logResult($name, $this->loadings[$name]);
+        }
+
+        if (Configuration::get()->isSandboxEnabled()) {
+            require_once __DIR__ . '/../../../lib/integrations/_compiled.php';
+            \DDTrace\Integrations\Guzzle\dd_integration_guzzle_load();
         }
     }
 
