@@ -140,7 +140,8 @@ void ddtrace_close_span(TSRMLS_D) {
         span->dispatch = NULL;
     }
 
-    if (DDTRACE_G(open_spans_top) == NULL && get_dd_trace_auto_flush_enabled()) {
+    // A userland span might still be open so we check the span ID stack instead of the internal span stack
+    if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
         if (ddtrace_flush_tracer() == FAILURE) {
             ddtrace_log_debug("Unable to auto flush the tracer");
         }

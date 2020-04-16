@@ -27,6 +27,9 @@ class Tracer
             }
             echo PHP_EOL;
         }, dd_trace_serialize_closed_spans());
+
+        // To test curl_exec calls are not instrumented in a flush
+        fake_curl_exec();
     }
 
     public function reset()
@@ -51,4 +54,8 @@ class GlobalTracer
         }
         return self::$instance = new Tracer();
     }
+}
+
+function fake_curl_exec() {
+    return true;
 }

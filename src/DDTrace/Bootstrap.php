@@ -36,7 +36,9 @@ final class Bootstrap
             $tracer = GlobalTracer::get();
             $scopeManager = $tracer->getScopeManager();
             $scopeManager->close();
-            $tracer->flush();
+            if (!\dd_trace_env_config('DD_TRACE_AUTO_FLUSH_ENABLED')) {
+                $tracer->flush();
+            }
         };
         // Sandbox API is not supported on PHP 5.4
         if (PHP_VERSION_ID < 50500) {
