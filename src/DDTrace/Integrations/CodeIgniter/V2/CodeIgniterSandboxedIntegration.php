@@ -36,7 +36,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
         if (!$rootScope) {
             return SandboxedIntegration::NOT_LOADED;
         }
-        $service = Configuration::get()->appName(self::NAME);
+        $service = \ddtrace_config_app_name(self::NAME);
 
         \dd_trace_method(
             'CI_Router',

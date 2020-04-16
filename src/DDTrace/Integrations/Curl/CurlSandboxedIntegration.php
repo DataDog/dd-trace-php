@@ -50,7 +50,7 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
             return SandboxedIntegration::NOT_LOADED;
         }
 
-        $service = Configuration::get()->appName(self::NAME);
+        $service = \ddtrace_config_app_name(self::NAME);
 
         \dd_trace_function('curl_exec', [
             // the ddtrace extension will handle distributed headers

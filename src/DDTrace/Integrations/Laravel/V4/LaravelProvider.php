@@ -141,7 +141,7 @@ class LaravelProvider extends ServiceProvider
      */
     private static function getAppName()
     {
-        $name = Configuration::get()->appName();
+        $name = \ddtrace_config_app_name();
         if ($name) {
             return $name;
         }

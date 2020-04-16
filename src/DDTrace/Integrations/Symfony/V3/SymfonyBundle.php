@@ -43,7 +43,7 @@ class SymfonyBundle extends Bundle
 
         // Create a span that starts from when Symfony first boots
         $scope = $tracer->getRootScope();
-        $appName = $this->getAppName();
+        $appName = \ddtrace_config_app_name('symfony');
         $symfonyRequestSpan = $scope->getSpan();
         $symfonyRequestSpan->overwriteOperationName('symfony.request');
         // Overwriting the default web integration
@@ -218,10 +218,5 @@ class SymfonyBundle extends Bundle
             $rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
             $rootSpan->setResource($route);
         }
-    }
-
-    private function getAppName()
-    {
-        return Configuration::get()->appName('symfony');
     }
 }

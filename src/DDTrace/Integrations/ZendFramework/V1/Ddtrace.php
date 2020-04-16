@@ -28,7 +28,7 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
         $tracer = GlobalTracer::get();
         $span = $tracer->getRootScope()->getSpan();
         $span->overwriteOperationName(self::getOperationName());
-        $span->setTag(Tag::SERVICE_NAME, $this->getAppName());
+        $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name(self::NAME));
 
         return $this->tracer;
     }
@@ -55,13 +55,5 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
     {
         $contextName = 'cli' === PHP_SAPI ? 'command' : 'request';
         return self::NAME . '.' . $contextName;
-    }
-
-    /**
-     * @return string
-     */
-    private function getAppName()
-    {
-        return Configuration::get()->appName(self::NAME);
     }
 }

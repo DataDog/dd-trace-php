@@ -81,10 +81,6 @@ class SlimIntegration extends Integration
 
     public static function getAppName()
     {
-        $name = Configuration::get()->appName();
-        if ($name) {
-            return $name;
-        }
-        return self::NAME;
+        return \ddtrace_config_app_name(self::NAME);
     }
 }

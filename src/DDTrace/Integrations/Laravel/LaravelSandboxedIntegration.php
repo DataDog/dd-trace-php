@@ -198,7 +198,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
         if (!empty($this->serviceName)) {
             return $this->serviceName;
         }
-        $this->serviceName = Configuration::get()->appName();
+        $this->serviceName = \ddtrace_config_app_name();
         if (empty($this->serviceName) && is_callable('config')) {
             $this->serviceName = config('app.name');
         }

@@ -123,6 +123,6 @@ final class LumenIntegrationLoader
 
     private function getAppName()
     {
-        return Configuration::get()->appName() ?: LumenIntegration::NAME;
+        return \ddtrace_config_app_name(LumenIntegration::NAME);
     }
 }
