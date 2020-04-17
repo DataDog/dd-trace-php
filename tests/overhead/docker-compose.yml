@@ -1,33 +1,26 @@
 version: "3.6"
 
 services:
-  # nginx:
-  #   image: overhead-nginx
-  #   ports:
-  #     # no tracer
-  #     - 8886:8886
-  #     # current master on GitHub
-  #     - 8887:8887
-  #     # current local head
-  #     - 8888:8888
-  #     # a specific release, set DD_TRACER_LIBRARY_VERSION=X.Y.Z in service
-  #     # 'php-fpm-release'
-  #     - 8889:8889
-  #   depends_on:
-  #     - php-fpm-notracer
-  #     - php-fpm-master
-  #     - php-fpm-release
-  #     - php-fpm-head
+  loadtester-fpm-head:
+    image: loadtester-vegeta
+    build:
+      dockerfile: Dockerfile_loadtester
+      context: dockerfiles
+    environment:
+      - LOADTEST_URL=http://nginx-fpm-head/
+    depends_on:
+      - nginx-fpm-head
 
-  fpm-head:
+  nginx-fpm-head:
     image: nginx-fpm-head
     build:
       dockerfile: dockerfiles/Dockerfile_nginx
       context: .
     ports:
-      - 8086:8886
+      - 8081:80
+    expose:
+      - "8081"
     environment:
-      - NGINX_PORT=8086
       - NGINX_FPM_PASS=php-fpm-head:9000
     depends_on:
       - php-fpm-head
@@ -57,6 +50,9 @@ services:
 
   php-fpm-head:
     image: overhead-php-fpm-head
+    build:
+      dockerfile: tests/overhead/dockerfiles/Dockerfile_73_fpm_head
+      context: ../../
     depends_on:
       - agent
     environment:
@@ -66,7 +62,8 @@ services:
       - DD_TRACE_DEBUG=${DD_TRACE_DEBUG:-false}
       - DD_TRACE_NO_AUTOLOADER=true
     volumes:
-      - ./callgrind-files:/var/www/callgrind-files
+      []
+      # - ./callgrind-files:/var/www/callgrind-files
       # - ../../:/dd-trace-php
       # - ./Laravel57/public/inithook.php:/var/www/public/inithook.php
 

@@ -14,6 +14,7 @@ RUN apt update \
     time \
     unzip \
     vim \
+    wget \
     && pecl install xdebug \
     && docker-php-ext-install opcache \
     && rm -rf /var/lib/apt/lists/*
@@ -25,7 +26,7 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
     && composer self-update
 
 RUN mkdir -p /var/www/public
-ADD ./tests/overhead/Laravel57 /var/www
+COPY --chown=www-data:www-data ./tests/overhead/Laravel57 /var/www
 WORKDIR /var/www
 RUN composer update
 
@@ -45,3 +46,5 @@ CMD [ "/start_app.sh" ]
 
 RUN mkdir -p /tmp/php-cache
 RUN chmod -R 777 /tmp/php-cache
+
+EXPOSE 9000

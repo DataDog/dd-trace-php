@@ -1,0 +1,12 @@
+FROM ubuntu:18.04 as base
+
+RUN set -xe;
+RUN apt-get update;
+RUN apt-get install --yes curl
+RUN curl -L https://github.com/tsenart/vegeta/releases/download/v12.8.3/vegeta-12.8.3-linux-amd64.tar.gz | tar xvz
+RUN chmod +x vegeta
+
+FROM ubuntu:18.04 as target
+COPY --from=base vegeta /usr/bin/vegeta
+
+CMD ["bash", "-c", "sleep 4; echo \"GET $LOADTEST_URL\" | vegeta attack -rate=10 -duration=10s | vegeta report" ]
