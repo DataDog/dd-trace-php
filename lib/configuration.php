@@ -1,6 +1,6 @@
 <?php
 
-function _dd_config_string($value, $default)
+function _ddtrace_config_string($value, $default)
 {
     if (false === $value || null === $value) {
         return $default;
@@ -9,7 +9,7 @@ function _dd_config_string($value, $default)
     return trim($value);
 }
 
-function _dd_config_bool($value, $default)
+function _ddtrace_config_bool($value, $default)
 {
     if (false === $value || null === $value) {
         return $default;
@@ -25,7 +25,7 @@ function _dd_config_bool($value, $default)
     }
 }
 
-function _dd_config_float($value, $default, $min = null, $max = null)
+function _ddtrace_config_float($value, $default, $min = null, $max = null)
 {
     if (false === $value || null === $value) {
         return $default;
@@ -49,7 +49,7 @@ function _dd_config_float($value, $default, $min = null, $max = null)
     return $floatValue;
 }
 
-function _dd_config_json($value, $default)
+function _ddtrace_config_json($value, $default)
 {
     if (false === $value || null === $value) {
         return $default;
@@ -63,7 +63,7 @@ function _dd_config_json($value, $default)
     return $parsed;
 }
 
-function _dd_config_indexed_array($value, $default)
+function _ddtrace_config_indexed_array($value, $default)
 {
     if (false === $value || null === $value) {
         return $default;
@@ -77,7 +77,7 @@ function _dd_config_indexed_array($value, $default)
     );
 }
 
-function _dd_config_associative_array($value, $default)
+function _ddtrace_config_associative_array($value, $default)
 {
     if (false === $value || null === $value) {
         return $default;
@@ -104,59 +104,128 @@ function _dd_config_associative_array($value, $default)
     return $result;
 }
 
-function dd_config_debug_is_enabled()
+/**
+ * Whether or not debug mode is enabled.
+ *
+ * @return bool
+ */
+function ddtrace_config_debug_is_enabled()
 {
-    return \_dd_config_bool(\dd_trace_env_config('DD_TRACE_DEBUG'), false);
+    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_DEBUG'), false);
 }
 
-function dd_config_distributed_tracing_is_enabled()
+/**
+ * Whether or not distributed tracing is enabled globally.
+ *
+ * @return bool
+ */
+function ddtrace_config_distributed_tracing_is_enabled()
 {
-    return \_dd_config_bool(\dd_trace_env_config('DD_DISTRIBUTED_TRACING'), true);
+    return \_ddtrace_config_bool(\dd_trace_env_config('DD_DISTRIBUTED_TRACING'), true);
 }
 
-function dd_config_analytics_is_enabled()
+/**
+ * Whether or not automatic trace analytics configuration is enabled.
+ *
+ * @return bool
+ */
+function ddtrace_config_analytics_is_enabled()
 {
-    return \_dd_config_bool(\dd_trace_env_config('DD_TRACE_ANALYTICS_ENABLED'), true);
+    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_ANALYTICS_ENABLED'), true);
 }
 
-function dd_config_priority_sampling_is_enabled()
+/**
+ * Whether or not priority sampling is enabled globally.
+ *
+ * @return bool
+ */
+function ddtrace_config_priority_sampling_is_enabled()
 {
-    return \dd_config_analytics_is_enabled() && \_dd_config_bool(\dd_trace_env_config('DD_PRIORITY_SAMPLING'), true);
+    return \ddtrace_config_analytics_is_enabled() && \_ddtrace_config_bool(\dd_trace_env_config('DD_PRIORITY_SAMPLING'), true);
 }
 
-function dd_config_hostname_reporting_is_enabled()
+/**
+ * Append hostname as a root span tag
+ *
+ * @return bool
+ */
+function ddtrace_config_hostname_reporting_is_enabled()
 {
-    return \_dd_config_bool(\dd_trace_env_config('DD_TRACE_REPORT_HOSTNAME'), false);
+    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_REPORT_HOSTNAME'), false);
 }
 
-function dd_config_url_resource_name_is_enabled()
+/**
+ * Use normalized URL as resource name
+ *
+ * @return bool
+ */
+function ddtrace_config_url_resource_name_is_enabled()
 {
-    return \_dd_config_bool(\dd_trace_env_config('DD_TRACE_REPORT_HOSTNAME'), true);
+    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_REPORT_HOSTNAME'), true);
 }
 
-function dd_config_http_client_split_by_domain_is_enabled()
+/**
+ * Set URL hostname as service name
+ *
+ * @return bool
+ */
+function ddtrace_config_http_client_split_by_domain_is_enabled()
 {
-    return \_dd_config_bool(\dd_trace_env_config('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN'), false);
+    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN'), false);
 }
 
-function dd_config_sandbox_is_enabled()
+/**
+ * Whether or not sandboxed tracing closures are enabled.
+ *
+ * @return bool
+ */
+function ddtrace_config_sandbox_is_enabled()
 {
-    return \_dd_config_bool(\dd_trace_env_config('DD_TRACE_SANDBOX_ENABLED'), true);
+    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_SANDBOX_ENABLED'), true);
 }
 
-function dd_config_autofinish_span_is_enabled()
+/**
+ * Whether or not also unfinished spans should be finished (and thus sent) when tracer is flushed.
+ * Motivation: We had users reporting that in some cases they have manual end-points that `echo` some content and
+ * then just `exit(0)` at the end of action's method. While the shutdown hook that flushes traces would still be
+ * called, many spans would be unfinished and thus discarded. With this option enabled spans are automatically
+ * finished (if not finished yet) when the tracer is flushed.
+ *
+ * @return bool
+ */
+function ddtrace_config_autofinish_span_is_enabled()
 {
-    return \_dd_config_bool(\dd_trace_env_config('DD_AUTOFINISH_SPANS'), false);
+    return \_ddtrace_config_bool(\dd_trace_env_config('DD_AUTOFINISH_SPANS'), false);
 }
 
-function dd_config_sampling_rate()
+/**
+ * Returns the sampling rate provided by the user. Default: 1.0 (keep all).
+ *
+ * @return float
+ */
+function ddtrace_config_sampling_rate()
 {
-    return \_dd_config_float(\dd_trace_env_config('DD_TRACE_SAMPLE_RATE'), 1.0, 0.0, 1.0);
+    return \_ddtrace_config_float(\dd_trace_env_config('DD_TRACE_SAMPLE_RATE'), 1.0, 0.0, 1.0);
 }
 
-function dd_config_sampling_rules()
+/**
+ * Returns the sampling rules defined for the current service.
+ * Results are cached so it is perfectly fine to call this method multiple times.
+ * The expected format for sampling rule env variable is:
+ * - example: DD_TRACE_SAMPLING_RULES=[]
+ *        --> sample rate is 100%
+ * - example: DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.2}]
+ *        --> sample rate is 20%
+ * - example: DD_TRACE_SAMPLING_RULES=[{"service": "a.*", "name": "b", "sample_rate": 0.1}, {"sample_rate": 0.2}]
+ *        --> sample rate is 20% except for spans of service starting with 'a' and with name 'b' where rate is 10%
+ *
+ * Note that 'service' and 'name' is optional when when omitted the '*' pattern is assumed.
+ *
+ * @return array
+ */
+function ddtrace_config_sampling_rules()
 {
-    $json = \_dd_config_json(\dd_trace_env_config('DD_TRACE_SAMPLING_RULES'), []);
+    $json = \_ddtrace_config_json(\dd_trace_env_config('DD_TRACE_SAMPLING_RULES'), []);
     // We do a proper parsing here to make sure that once the sampling rules leave this method
     // they are always properly defined.
     foreach ($json as &$rule) {
@@ -175,29 +244,35 @@ function dd_config_sampling_rules()
     return $json;
 }
 
-function dd_config_integration_analytics_is_enabled($name)
+function ddtrace_config_integration_analytics_is_enabled($name)
 {
     $integrationNameForEnv = strtoupper(str_replace('-', '_', trim($name)));
-    return \_dd_config_bool(\dd_trace_env_config("DD_${integrationNameForEnv}_ANALYTICS_ENABLED"), false);
+    return \_ddtrace_config_bool(\dd_trace_env_config("DD_${integrationNameForEnv}_ANALYTICS_ENABLED"), false);
 }
 
-function dd_config_integration_analytics_sample_rate($name)
+function ddtrace_config_integration_analytics_sample_rate($name)
 {
     $integrationNameForEnv = strtoupper(str_replace('-', '_', trim($name)));
-    return \_dd_config_float(\dd_trace_env_config("DD_${integrationNameForEnv}_ANALYTICS_SAMPLE_RATE"), 1.0);
+    return \_ddtrace_config_float(\dd_trace_env_config("DD_${integrationNameForEnv}_ANALYTICS_SAMPLE_RATE"), 1.0);
 }
 
-function dd_config_disabled_integrations()
+function ddtrace_config_disabled_integrations()
 {
-    return \_dd_config_indexed_array(\dd_trace_env_config('DD_INTEGRATIONS_DISABLED'), []);
+    return \_ddtrace_config_indexed_array(\dd_trace_env_config('DD_INTEGRATIONS_DISABLED'), []);
 }
 
-function dd_config_global_tags()
+/**
+ * Returns the global tags to be set on all spans.
+ */
+function ddtrace_config_global_tags()
 {
-    return \_dd_config_associative_array(\dd_trace_env_config('DD_TRACE_GLOBAL_TAGS'), []);
+    return \_ddtrace_config_associative_array(\dd_trace_env_config('DD_TRACE_GLOBAL_TAGS'), []);
 }
 
-function dd_config_service_mapping()
+/**
+ * Returns the service mapping.
+ */
+function ddtrace_config_service_mapping()
 {
-    return \_dd_config_associative_array(\dd_trace_env_config('DD_SERVICE_MAPPING'), []);
+    return \_ddtrace_config_associative_array(\dd_trace_env_config('DD_SERVICE_MAPPING'), []);
 }
