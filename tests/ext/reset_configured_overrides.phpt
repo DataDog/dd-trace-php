@@ -26,8 +26,9 @@ echo test();
 
 echo (dd_trace_reset() ? "TRUE": "FALSE") . PHP_EOL;
 
-echo $object->m();
-echo test();
+// Cannot call a function while it is not traced and later expect it to trace
+//echo $object->m();
+//echo test();
 
 dd_trace("Test", "m", function(){
     return  $this->m() . "METHOD HOOK2" . PHP_EOL;
@@ -47,8 +48,6 @@ METHOD HOOK
 FUNCTION
 FUNCTION HOOK
 TRUE
-METHOD
-FUNCTION
 METHOD
 METHOD HOOK2
 FUNCTION
