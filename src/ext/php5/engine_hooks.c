@@ -16,6 +16,8 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
+int ddtrace_resource = -1;
+
 // True gloals; only modify in minit/mshutdown
 static user_opcode_handler_t _prev_fcall_handler;
 static user_opcode_handler_t _prev_fcall_by_name_handler;
@@ -145,6 +147,7 @@ static zend_function *_get_current_fbc(zend_execute_data *execute_data TSRMLS_DC
     }
 }
 
+// todo: use op_array.reserved slot to cache negative lookups (ones that do not trace)
 static BOOL_T _dd_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
                                     ddtrace_dispatch_t **dispatch TSRMLS_DC) {
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||

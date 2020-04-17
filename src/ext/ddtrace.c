@@ -15,6 +15,7 @@
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
+#include "arrays.h"
 #include "auto_flush.h"
 #include "circuit_breaker.h"
 #include "comms_php.h"
@@ -52,8 +53,11 @@ STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, st
 PHP_INI_END()
 
 static int ddtrace_startup(struct _zend_extension *extension) {
-    PHP5_UNUSED(extension);
-    PHP7_UNUSED(extension);
+    ddtrace_resource = zend_get_resource_handle(extension);
+
+#if PHP_VERSION_ID >= 70400
+    ddtrace_op_array_extension = zend_get_op_array_extension_handle();
+#endif
 
     ddtrace_curl_handlers_startup();
     return SUCCESS;
