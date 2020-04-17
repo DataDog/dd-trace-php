@@ -326,7 +326,7 @@ static ZEND_RESULT_CODE _dd_tracer_inject_helper(zval *headers, zval *format, dd
 ZEND_FUNCTION(ddtrace_curl_exec) {
     zval *ch;
 
-    if (_dd_load_curl_integration() && Z_TYPE(_dd_curl_httpheaders) == IS_LONG &&
+    if (le_curl && _dd_load_curl_integration() && Z_TYPE(_dd_curl_httpheaders) == IS_LONG &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "r", &ch) == SUCCESS) {
         ddtrace_error_handling eh;
         ddtrace_backup_error_handling(&eh, EH_THROW);
@@ -369,6 +369,27 @@ static void _dd_install_curl_exec(void) {
 }
 /* }}} */
 
+/* curl_init {{{ */
+static void (*_dd_curl_init_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+
+ZEND_FUNCTION(ddtrace_curl_init) {
+    _dd_curl_init_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
+    if (!le_curl && Z_TYPE_P(return_value) == IS_RESOURCE) {
+        le_curl = Z_RES_TYPE_P(return_value);
+    }
+}
+
+static void _dd_install_curl_init(void) {
+    zend_function *curl_init;
+    curl_init = zend_hash_str_find_ptr(CG(function_table), "curl_init", sizeof("curl_init") - 1);
+    if (curl_init != NULL) {
+        _dd_curl_init_handler = curl_init->internal_function.handler;
+        curl_init->internal_function.handler = ZEND_FN(ddtrace_curl_init);
+    }
+}
+/* }}} */
+
 /* curl_setopt_handler {{{ */
 static void (*_dd_curl_setopt_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 
@@ -376,7 +397,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
     zval *zid, *zvalue;
     zend_long option;
 
-    if (!_dd_load_curl_integration() ||
+    if (!le_curl || !_dd_load_curl_integration() ||
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "rlz", &zid, &option, &zvalue) == FAILURE) {
         _dd_curl_setopt_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
@@ -414,7 +435,7 @@ static void (*_dd_curl_setopt_array_handler)(INTERNAL_FUNCTION_PARAMETERS) = NUL
 ZEND_FUNCTION(ddtrace_curl_setopt_array) {
     zval *zid, *arr;
 
-    if (_dd_load_curl_integration() &&
+    if (le_curl && _dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &zid, &arr) == SUCCESS) {
         ddtrace_error_handling eh;
         ddtrace_backup_error_handling(&eh, EH_THROW);
@@ -459,34 +480,13 @@ void ddtrace_curl_handlers_startup(void) {
     _dd_install_curl_close();
     _dd_install_curl_copy_handle();
     _dd_install_curl_exec();
+    _dd_install_curl_init();
     _dd_install_curl_setopt();
     _dd_install_curl_setopt_array();
 }
 
-static void _dd_find_curl_resource_type(void) {
-    zval retval;
-
-    if (!_dd_ext_curl_loaded || !get_dd_trace_sandbox_enabled() || le_curl) {
-        return;
-    }
-
-    ddtrace_error_handling eh;
-    ddtrace_backup_error_handling(&eh, EH_THROW);
-
-    zval *curl_var = zend_call_method_with_0_params(NULL, NULL, NULL, "curl_init", &retval);
-    if (curl_var && Z_TYPE_P(curl_var) == IS_RESOURCE) {
-        le_curl = Z_RES_P(curl_var)->type;
-
-        zend_call_method_with_1_params(NULL, NULL, NULL, "curl_close", &retval, curl_var);
-    }
-
-    ddtrace_restore_error_handling(&eh);
-    // this doesn't throw (today anyway) but let's be safe
-    ddtrace_maybe_clear_exception();
-}
-
-void ddtrace_curl_handlers_rinit(void) { _dd_find_curl_resource_type(); }
 void ddtrace_curl_handlers_rshutdown(void) {
+    le_curl = 0;
     zval_dtor(&_dd_Configuration_obj);
     zval_dtor(&_dd_format_curl_http_headers);
     ZVAL_UNDEF(&_dd_Configuration_obj);
