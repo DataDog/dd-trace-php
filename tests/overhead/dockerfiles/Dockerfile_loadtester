@@ -8,5 +8,6 @@ RUN chmod +x vegeta
 
 FROM ubuntu:18.04 as target
 COPY --from=base vegeta /usr/bin/vegeta
+ENV LOADTESTER_DURATION=10s
 
-CMD ["bash", "-c", "sleep 4; echo \"GET $LOADTEST_URL\" | vegeta attack -rate=10 -duration=10s | vegeta report" ]
+CMD ["bash", "-c", "sleep 4; echo \"GET $LOADTEST_URL\" | vegeta attack -rate=10 -duration=$LOADTESTER_DURATION | vegeta report" ]

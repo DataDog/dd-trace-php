@@ -7,6 +7,15 @@ if [[ -n "${DD_TRACE_LIBRARY_VERSION}" ]]; then
 fi
 php-fpm -i | grep xdebug
 
+if [[ "$XDEBUG_ENABLE_PROFILER" != "1" ]]; then
+    rm /usr/local/etc/php/conf.d/xdebug.ini
+fi
+
+if [[ "$DD_TRACE_ENABLED" != "true" ]]; then
+    rm /usr/local/etc/php/conf.d/ddtrace.ini
+fi
+
+
 sudo chmod go+w /var/www/callgrind-files
 
 php-fpm
