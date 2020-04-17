@@ -15,7 +15,7 @@ if [[ "$DD_TRACE_ENABLED" != "true" ]]; then
     rm /usr/local/etc/php/conf.d/ddtrace.ini
 fi
 
-
+chown www-data:www-data -R /var/www
 sudo chmod go+w /var/www/callgrind-files
 
 php-fpm
