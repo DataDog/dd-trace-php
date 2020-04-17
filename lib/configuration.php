@@ -141,7 +141,8 @@ function ddtrace_config_analytics_is_enabled()
  */
 function ddtrace_config_priority_sampling_is_enabled()
 {
-    return \ddtrace_config_analytics_is_enabled() && \_ddtrace_config_bool(\dd_trace_env_config('DD_PRIORITY_SAMPLING'), true);
+    return \ddtrace_config_analytics_is_enabled()
+        && \_ddtrace_config_bool(\dd_trace_env_config('DD_PRIORITY_SAMPLING'), true);
 }
 
 /**
