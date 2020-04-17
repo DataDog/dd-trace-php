@@ -36,7 +36,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDebugModeEnabled()
     {
-        return $this->boolValue('trace.debug', false);
+        return \ddtrace_config_debug_is_enabled();
     }
 
     /**
@@ -46,7 +46,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDistributedTracingEnabled()
     {
-        return $this->boolValue('distributed.tracing', true);
+        return \ddtrace_config_distributed_tracing_is_enabled();
     }
 
     /**
@@ -56,7 +56,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isAnalyticsEnabled()
     {
-        return $this->boolValue('trace.analytics.enabled', false);
+        return \ddtrace_config_analytics_is_enabled();
     }
 
     /**
@@ -67,7 +67,7 @@ class Configuration extends AbstractConfiguration
     public function isPrioritySamplingEnabled()
     {
         return $this->isDistributedTracingEnabled()
-            && $this->boolValue('priority.sampling', true);
+            && \ddtrace_config_priority_sampling_is_enabled();
     }
 
     /**
@@ -81,7 +81,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isAutofinishSpansEnabled()
     {
-        return $this->boolValue('autofinish.spans', false);
+        return \ddtrace_config_autofinish_span_is_enabled();
     }
 
     /**
@@ -91,9 +91,7 @@ class Configuration extends AbstractConfiguration
      */
     public function getSamplingRate()
     {
-        // DD_SAMPLING_RATE is deprecated and will be removed in 0.40.0
-        $deprecatedValue = $this->floatValue('sampling.rate', 1.0, 0.0, 1.0);
-        return $this->floatValue('trace.sample.rate', $deprecatedValue, 0.0, 1.0);
+        return \ddtrace_config_sampling_rate();
     }
 
     /**
@@ -113,36 +111,7 @@ class Configuration extends AbstractConfiguration
      */
     public function getSamplingRules()
     {
-        if (null !== $this->samplingRulesCache) {
-            return $this->samplingRulesCache;
-        }
-
-        $this->samplingRulesCache = [];
-
-        $parsed = \json_decode($this->stringValue('trace.sampling.rules'), true);
-        if (false === $parsed) {
-            $parsed = [];
-        }
-
-        // We do a proper parsing here to make sure that once the sampling rules leave this method
-        // they are always properly defined.
-        if (is_array($parsed)) {
-            foreach ($parsed as $rule) {
-                if (!is_array($rule) || !isset($rule['sample_rate'])) {
-                    continue;
-                }
-                $service = isset($rule['service']) ? strval($rule['service']) : '.*';
-                $name = isset($rule['name']) ? strval($rule['name']) : '.*';
-                $rate = isset($rule['sample_rate']) ? floatval($rule['sample_rate']) : 1.0;
-                $this->samplingRulesCache[] = [
-                    'service' => $service,
-                    'name' => $name,
-                    'sample_rate' => $rate,
-                ];
-            }
-        }
-
-        return $this->samplingRulesCache;
+        return \ddtrace_config_sampling_rules();
     }
 
     /**
@@ -161,7 +130,7 @@ class Configuration extends AbstractConfiguration
      */
     public function getGlobalTags()
     {
-        return $this->associativeStringArrayValue('trace.global.tags');
+        return \ddtrace_config_global_tags();
     }
 
     /**
@@ -171,7 +140,7 @@ class Configuration extends AbstractConfiguration
     {
         // We use the format 'service.mapping' instead of 'trace.service.mapping' for consistency
         // with java naming pattern for this very same config: DD_SERVICE_MAPPING
-        return $this->associativeStringArrayValue('service.mapping');
+        return \ddtrace_config_service_mapping();
     }
 
     /**
@@ -181,7 +150,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isHostnameReportingEnabled()
     {
-        return $this->boolValue('trace.report.hostname', false);
+        return \ddtrace_config_hostname_reporting_is_enabled();
     }
 
     /**
@@ -191,7 +160,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isURLAsResourceNameEnabled()
     {
-        return $this->boolValue('trace.url.as.resource.names.enabled', true);
+        return \ddtrace_config_url_resource_name_is_enabled();
     }
 
     /**
@@ -201,7 +170,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isHttpClientSplitByDomain()
     {
-        return $this->boolValue('trace.http.client.split.by.domain', false);
+        return \ddtrace_config_http_client_split_by_domain_is_enabled();
     }
 
     /**
@@ -211,7 +180,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isSandboxEnabled()
     {
-        return (bool) \dd_trace_env_config("DD_TRACE_SANDBOX_ENABLED");
+        return \ddtrace_config_sandbox_is_enabled();
     }
 
     /**
