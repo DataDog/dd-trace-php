@@ -150,10 +150,7 @@ final class Bootstrap
         }
         $span->setIntegration(WebIntegration::getInstance());
         $span->setTraceAnalyticsCandidate();
-        $span->setTag(
-            Tag::SERVICE_NAME,
-            Configuration::get()->appName($operationName)
-        );
+        $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name($operationName));
 
         dd_trace('header', function () use ($span) {
             $args = func_get_args();

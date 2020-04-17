@@ -15,7 +15,7 @@ final class CommonScenariosTest extends CLITestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_APP_NAME' => 'console_test_app',
+            'DD_SERVICE_NAME' => 'console_test_app',
         ]);
     }
 

@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Lumen\V5;
 
-use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Lumen\LumenIntegration;
@@ -14,13 +13,13 @@ final class LumenIntegrationLoader
 {
     public function load()
     {
-        if (!$this->shouldLoad()) {
+        if (!Integration::shouldLoad(LumenIntegration::NAME)) {
             return Integration::NOT_AVAILABLE;
         }
 
         $span = GlobalTracer::get()->getRootScope()->getSpan();
         $span->overwriteOperationName('lumen.request');
-        $span->setTag(Tag::SERVICE_NAME, $this->getAppName());
+        $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name(LumenIntegration::NAME));
         $span->setIntegration(LumenIntegration::getInstance());
         $span->setTraceAnalyticsCandidate();
 
@@ -104,25 +103,5 @@ final class LumenIntegrationLoader
         dd_trace('Laravel\Lumen\Application', 'routeMiddleware', $traceMiddleware);
 
         return Integration::LOADED;
-    }
-
-    /**
-     * @return bool
-     */
-    private function shouldLoad()
-    {
-        if (!Configuration::get()->isIntegrationEnabled(LumenIntegration::NAME)) {
-            return false;
-        }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Lumen integration.', E_USER_WARNING);
-            return false;
-        }
-        return true;
-    }
-
-    private function getAppName()
-    {
-        return Configuration::get()->appName() ?: LumenIntegration::NAME;
     }
 }

@@ -119,7 +119,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             return $this->appName;
         }
 
-        $name = Configuration::get()->appName();
+        $name = \ddtrace_config_app_name();
         if (empty($name) && is_callable('config')) {
             $name = config('app.name');
         }

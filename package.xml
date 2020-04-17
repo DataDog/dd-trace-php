@@ -49,6 +49,8 @@
                     <file name="macros.h" role="src" />
                     <file name="ddtrace.c" role="src" />
                     <file name="ddtrace.h" role="src" />
+                    <file name="ddtrace_string.c" role="src" />
+                    <file name="ddtrace_string.h" role="src" />
                     <file name="debug.h" role="src" />
                     <file name="memory_limit.c" role="src" />
                     <file name="memory_limit.h" role="src" />

@@ -25,7 +25,7 @@ class YiiIntegrationLoader
         // Overwrite the default web integration
         $root->setIntegration($integration);
         $root->setTraceAnalyticsCandidate();
-        $service = Configuration::get()->appName(YiiSandboxedIntegration::NAME);
+        $service = \ddtrace_config_app_name(YiiSandboxedIntegration::NAME);
 
         \dd_trace_method(
             'yii\web\Application',
