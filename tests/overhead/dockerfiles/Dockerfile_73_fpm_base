@@ -28,9 +28,11 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
 RUN mkdir -p /var/www/public
 COPY --chown=www-data:www-data ./tests/overhead/Laravel57 /var/www
 WORKDIR /var/www
-RUN composer update
-
-RUN mkdir -p /dd-trace-php
+RUN set -xe ; \
+    composer update; \
+    mkdir callgrind-files; \
+    mkdir -p /dd-trace-php; \
+    chown www-data:www-data -R /var/www
 WORKDIR /dd-trace-php
 
 ADD ./tests/overhead/dockerfiles/www.conf /usr/local/etc/php-fpm.d/www.conf

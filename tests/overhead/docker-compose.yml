@@ -62,8 +62,7 @@ services:
       - DD_TRACE_DEBUG=${DD_TRACE_DEBUG:-false}
       - DD_TRACE_NO_AUTOLOADER=true
     volumes:
-      []
-      # - ./callgrind-files:/var/www/callgrind-files
+      - ./callgrind-files:/var/www/callgrind-files
       # - ../../:/dd-trace-php
       # - ./Laravel57/public/inithook.php:/var/www/public/inithook.php
 

@@ -6,6 +6,7 @@ WORKDIR /dd-trace-php
 
 COPY ./src/ ./src/
 COPY ./m4/ ./m4/
+COPY ./bridge/ ./bridge/
 COPY Makefile composer* config.m4 ./
 
 RUN set -xe; \
