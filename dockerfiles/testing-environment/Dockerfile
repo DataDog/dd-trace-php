@@ -41,6 +41,8 @@ RUN ./configure \
     --enable-opcache \
     --with-curl \
     --with-gettext \
+    --with-mysqli \
+    --with-pdo-mysql \
     --with-pear \
     --with-openssl \
     --without-pdo-sqlite \
@@ -69,7 +71,7 @@ RUN touch /var/log/php-fpm.log && chmod 777 /var/log/php-fpm.log
 COPY supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY php-fpm.conf /opt/php/etc/php-fpm.conf
-COPY local-run.sh local-run.sh
+COPY local-run.sh /local-run.sh
 COPY opcache.ini /opt/php/lib/conf.d/10-opcache.ini
 
 # Adding the latest version of dd-doctor.php

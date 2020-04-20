@@ -33,12 +33,17 @@ services:
     image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3"
     depends_on:
       - agent
+      - mysql
     ports:
       - 7779:80
     environment:
       - DD_SERVICE_NAME=7.3-none
       - DD_AGENT_HOST=agent
-    command: [ "./local-run.sh" ]
+      - DB_HOST=mysql
+      - LOG_CHANNEL=single
+    volumes:
+      - ./Laravel57:/var/www/html/
+    command: [ "/local-run.sh" ]
 
   agent:
     image: datadog/agent:latest
@@ -50,3 +55,10 @@ services:
       - DD_API_KEY=${DATADOG_API_KEY}
       - DD_APM_ENABLED=true
       - DD_APM_ENV=testenv
+
+  mysql:
+    image: "mysql:5.7"
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true
