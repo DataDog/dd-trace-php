@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * Reads and normalizes a string configuration param, applying default value if appropriate.
+ *
+ * @param string|null $value
+ * @param string $default
+ * @return string
+ */
 function _ddtrace_config_string($value, $default)
 {
     if (false === $value || null === $value) {
@@ -9,6 +16,13 @@ function _ddtrace_config_string($value, $default)
     return trim($value);
 }
 
+/**
+ * Reads and normalizes a boolean configuration param, applying default value if appropriate.
+ *
+ * @param string|null $value
+ * @param boolean $default
+ * @return boolean
+ */
 function _ddtrace_config_bool($value, $default)
 {
     if (false === $value || null === $value) {
@@ -25,6 +39,15 @@ function _ddtrace_config_bool($value, $default)
     }
 }
 
+/**
+ * Reads and normalizes a float configuration param, applying default value if appropriate.
+ *
+ * @param string|null $value
+ * @param float $default
+ * @param float $min if the final value is less then $min, then $min is returned.
+ * @param float $max if the final value is greater then $max, then $max is returned.
+ * @return float
+ */
 function _ddtrace_config_float($value, $default, $min = null, $max = null)
 {
     if (false === $value || null === $value) {
@@ -49,6 +72,13 @@ function _ddtrace_config_float($value, $default, $min = null, $max = null)
     return $floatValue;
 }
 
+/**
+ * Reads a string formatted as a json object from a configuration param, applying default value if appropriate.
+ *
+ * @param string|null $value
+ * @param array $default
+ * @return array
+ */
 function _ddtrace_config_json($value, $default)
 {
     if (false === $value || null === $value) {
@@ -63,6 +93,13 @@ function _ddtrace_config_json($value, $default)
     return $parsed;
 }
 
+/**
+ * Reads a string formatted as a csv list from a configuration param, applying default value if appropriate.
+ *
+ * @param string|null $value
+ * @param string[] $default
+ * @return string[]
+ */
 function _ddtrace_config_indexed_array($value, $default)
 {
     if (false === $value || null === $value) {
@@ -77,6 +114,15 @@ function _ddtrace_config_indexed_array($value, $default)
     );
 }
 
+/**
+ * Reads a string formatted as an associative array from a configuration param, applying default value if appropriate.
+ * Note that no normalization nor escaping is currently applied.
+ * Examples include: 'key1:value1,key2:value2'.
+ *
+ * @param string|null $value
+ * @param string[] $default
+ * @return string[]
+ */
 function _ddtrace_config_associative_array($value, $default)
 {
     if (false === $value || null === $value) {
