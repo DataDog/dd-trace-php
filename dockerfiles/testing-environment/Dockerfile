@@ -31,6 +31,7 @@ ADD https://www.php.net/distributions/php-${PHP_VERSION}.tar.gz php.tar.gz
 RUN tar -zxvf php.tar.gz --strip-components=1
 RUN rm php.tar.gz
 RUN ./configure \
+    CFLAGS="-fstack-protector-strong -fpic -fpie -O2 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64" \
     --prefix=/opt/php \
     --enable-fpm \
     --with-fpm-user=www-data \
@@ -43,7 +44,7 @@ RUN ./configure \
     --with-openssl \
     --without-pdo-sqlite \
     --without-sqlite3
-RUN make -j2
+RUN make -j$(nproc)
 RUN make install
 ENV PATH="/opt/php/bin:/opt/php/sbin:${PATH}"
 
