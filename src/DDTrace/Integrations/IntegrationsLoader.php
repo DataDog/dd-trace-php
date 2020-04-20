@@ -86,7 +86,7 @@ class IntegrationsLoader
     {
         $this->integrations = $integrations;
         // Sandboxed integrations get loaded with a feature flag
-        if (\ddtrace_config_sandbox_is_enabled()) {
+        if (\ddtrace_config_sandbox_enabled()) {
             $this->integrations[CodeIgniterSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration';
             if (\PHP_MAJOR_VERSION > 5) {

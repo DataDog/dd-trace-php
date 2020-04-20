@@ -295,10 +295,10 @@ final class Tracer implements TracerInterface
         }
 
         // We should refactor these blocks to use a pre-flush hook
-        if (\ddtrace_config_hostname_reporting_is_enabled()) {
+        if (\ddtrace_config_hostname_reporting_enabled()) {
             $this->addHostnameToRootSpan();
         }
-        if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_is_enabled()) {
+        if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled()) {
             $this->addUrlAsResourceNameToRootSpan();
         }
 
@@ -342,7 +342,7 @@ final class Tracer implements TracerInterface
     public function getTracesAsArray()
     {
         $tracesToBeSent = [];
-        $autoFinishSpans = \ddtrace_config_autofinish_span_is_enabled();
+        $autoFinishSpans = \ddtrace_config_autofinish_span_enabled();
         $serviceMappings = \ddtrace_config_service_mapping();
 
         foreach ($this->traces as $trace) {
@@ -452,7 +452,7 @@ final class Tracer implements TracerInterface
             $this->traces[$span->context->traceId] = [];
         }
         $this->traces[$span->context->traceId][$span->context->spanId] = $span;
-        if (\ddtrace_config_debug_is_enabled()) {
+        if (\ddtrace_config_debug_enabled()) {
             self::logDebug('New span {operation} {resource} recorded.', [
                 'operation' => $span->operationName,
                 'resource' => $span->resource,
@@ -467,7 +467,7 @@ final class Tracer implements TracerInterface
      */
     private function setPrioritySamplingFromSpan(Span $span)
     {
-        if (!\ddtrace_config_priority_sampling_is_enabled()) {
+        if (!\ddtrace_config_priority_sampling_enabled()) {
             return;
         }
 

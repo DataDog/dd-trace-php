@@ -78,7 +78,7 @@ class CurlIntegration extends Integration
                 $sanitizedUrl = Urls::sanitize($info['url']);
                 unset($info['url']);
 
-                if (\ddtrace_config_http_client_split_by_domain_is_enabled()) {
+                if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                     $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($sanitizedUrl));
                 } else {
                     $span->setTag(Tag::SERVICE_NAME, 'curl');
@@ -131,7 +131,7 @@ class CurlIntegration extends Integration
                 // multiple times on the same resource.
                 if (
                     $option === CURLOPT_HTTPHEADER
-                    && \ddtrace_config_distributed_tracing_is_enabled()
+                    && \ddtrace_config_distributed_tracing_enabled()
                     && is_array($value)
                 ) {
                     // Storing data to be used during exec as it cannot be retrieved at then.
@@ -148,7 +148,7 @@ class CurlIntegration extends Integration
                 // Note that curl_setopt with option CURLOPT_HTTPHEADER overwrite data instead of appending it if called
                 // multiple times on the same resource.
                 if (
-                    \ddtrace_config_distributed_tracing_is_enabled()
+                    \ddtrace_config_distributed_tracing_enabled()
                     && array_key_exists(CURLOPT_HTTPHEADER, $options)
                 ) {
                     // Storing data to be used during exec as it cannot be retrieved at then.
@@ -165,7 +165,7 @@ class CurlIntegration extends Integration
                 $ch2 = dd_trace_forward_call();
                 /* The store needs to copy the CURLOPT_HTTPHEADER value to the new handle;
                  * see https://github.com/DataDog/dd-trace-php/issues/502 */
-                if (\is_resource($ch2) && \ddtrace_config_distributed_tracing_is_enabled()) {
+                if (\is_resource($ch2) && \ddtrace_config_distributed_tracing_enabled()) {
                     $httpHeaders = ArrayKVStore::getForResource($ch1, Format::CURL_HTTP_HEADERS, []);
                     if (\is_array($httpHeaders)) {
                         ArrayKVStore::putForResource($ch2, Format::CURL_HTTP_HEADERS, $httpHeaders);
@@ -191,7 +191,7 @@ class CurlIntegration extends Integration
      */
     public static function injectDistributedTracingHeaders($ch)
     {
-        if (!\ddtrace_config_distributed_tracing_is_enabled()) {
+        if (!\ddtrace_config_distributed_tracing_enabled()) {
             return;
         }
 

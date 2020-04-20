@@ -99,7 +99,7 @@ final class TextMap implements Propagator
         if (dd_trace_set_trace_id($traceId)) {
             return true;
         }
-        if (\ddtrace_config_debug_is_enabled()) {
+        if (\ddtrace_config_debug_enabled()) {
             self::logDebug(
                 'Error parsing distributed trace trace ID: {id}; ignoring.',
                 [
@@ -126,7 +126,7 @@ final class TextMap implements Propagator
         if ($pushedSpanId === $spanId) {
             return $spanId;
         }
-        if (\ddtrace_config_debug_is_enabled()) {
+        if (\ddtrace_config_debug_enabled()) {
             self::logDebug(
                 'Error parsing distributed trace parent ID: {expected}; using {actual} instead.',
                 [

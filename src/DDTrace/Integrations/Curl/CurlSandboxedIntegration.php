@@ -74,7 +74,7 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
                 $sanitizedUrl = Urls::sanitize($info['url']);
                 unset($info['url']);
 
-                if (\ddtrace_config_http_client_split_by_domain_is_enabled()) {
+                if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                     $span->service = Urls::hostnameForTag($sanitizedUrl);
                 }
 

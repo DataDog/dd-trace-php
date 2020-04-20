@@ -85,9 +85,9 @@ function _ddtrace_config_json($value, $default)
         return $default;
     }
 
-    $parsed = \json_decode($this->stringValue('trace.sampling.rules'), true);
-    if (false === $parsed) {
-        $parsed = $default;
+    $parsed = \json_decode($value, true);
+    if (null === $parsed) {
+        return $default;
     }
 
     return $parsed;
@@ -155,9 +155,9 @@ function _ddtrace_config_associative_array($value, $default)
  *
  * @return bool
  */
-function ddtrace_config_debug_is_enabled()
+function ddtrace_config_debug_enabled()
 {
-    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_DEBUG'), false);
+    return \_ddtrace_config_bool(\getenv('DD_TRACE_DEBUG'), false);
 }
 
 /**
@@ -165,9 +165,9 @@ function ddtrace_config_debug_is_enabled()
  *
  * @return bool
  */
-function ddtrace_config_distributed_tracing_is_enabled()
+function ddtrace_config_distributed_tracing_enabled()
 {
-    return \_ddtrace_config_bool(\dd_trace_env_config('DD_DISTRIBUTED_TRACING'), true);
+    return \_ddtrace_config_bool(\getenv('DD_DISTRIBUTED_TRACING'), true);
 }
 
 /**
@@ -175,9 +175,9 @@ function ddtrace_config_distributed_tracing_is_enabled()
  *
  * @return bool
  */
-function ddtrace_config_analytics_is_enabled()
+function ddtrace_config_analytics_enabled()
 {
-    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_ANALYTICS_ENABLED'), true);
+    return \_ddtrace_config_bool(\getenv('DD_TRACE_ANALYTICS_ENABLED'), false);
 }
 
 /**
@@ -185,10 +185,10 @@ function ddtrace_config_analytics_is_enabled()
  *
  * @return bool
  */
-function ddtrace_config_priority_sampling_is_enabled()
+function ddtrace_config_priority_sampling_enabled()
 {
-    return \ddtrace_config_analytics_is_enabled()
-        && \_ddtrace_config_bool(\dd_trace_env_config('DD_PRIORITY_SAMPLING'), true);
+    return \ddtrace_config_distributed_tracing_enabled()
+        && \_ddtrace_config_bool(\getenv('DD_PRIORITY_SAMPLING'), true);
 }
 
 /**
@@ -196,9 +196,9 @@ function ddtrace_config_priority_sampling_is_enabled()
  *
  * @return bool
  */
-function ddtrace_config_hostname_reporting_is_enabled()
+function ddtrace_config_hostname_reporting_enabled()
 {
-    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_REPORT_HOSTNAME'), false);
+    return \_ddtrace_config_bool(\getenv('DD_TRACE_REPORT_HOSTNAME'), false);
 }
 
 /**
@@ -206,9 +206,9 @@ function ddtrace_config_hostname_reporting_is_enabled()
  *
  * @return bool
  */
-function ddtrace_config_url_resource_name_is_enabled()
+function ddtrace_config_url_resource_name_enabled()
 {
-    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_REPORT_HOSTNAME'), true);
+    return \_ddtrace_config_bool(\getenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED'), true);
 }
 
 /**
@@ -216,9 +216,9 @@ function ddtrace_config_url_resource_name_is_enabled()
  *
  * @return bool
  */
-function ddtrace_config_http_client_split_by_domain_is_enabled()
+function ddtrace_config_http_client_split_by_domain_enabled()
 {
-    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN'), false);
+    return \_ddtrace_config_bool(\getenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN'), false);
 }
 
 /**
@@ -226,9 +226,9 @@ function ddtrace_config_http_client_split_by_domain_is_enabled()
  *
  * @return bool
  */
-function ddtrace_config_sandbox_is_enabled()
+function ddtrace_config_sandbox_enabled()
 {
-    return \_ddtrace_config_bool(\dd_trace_env_config('DD_TRACE_SANDBOX_ENABLED'), true);
+    return \_ddtrace_config_bool(\getenv('DD_TRACE_SANDBOX_ENABLED'), true);
 }
 
 /**
@@ -240,9 +240,9 @@ function ddtrace_config_sandbox_is_enabled()
  *
  * @return bool
  */
-function ddtrace_config_autofinish_span_is_enabled()
+function ddtrace_config_autofinish_span_enabled()
 {
-    return \_ddtrace_config_bool(\dd_trace_env_config('DD_AUTOFINISH_SPANS'), false);
+    return \_ddtrace_config_bool(\getenv('DD_AUTOFINISH_SPANS'), false);
 }
 
 /**
@@ -252,7 +252,8 @@ function ddtrace_config_autofinish_span_is_enabled()
  */
 function ddtrace_config_sampling_rate()
 {
-    return \_ddtrace_config_float(\dd_trace_env_config('DD_TRACE_SAMPLE_RATE'), 1.0, 0.0, 1.0);
+    $deprecated = \_ddtrace_config_float(\getenv('DD_SAMPLING_RATE'), 1.0, 0.0, 1.0);
+    return \_ddtrace_config_float(\getenv('DD_TRACE_SAMPLE_RATE'), $deprecated, 0.0, 1.0);
 }
 
 /**
@@ -272,7 +273,8 @@ function ddtrace_config_sampling_rate()
  */
 function ddtrace_config_sampling_rules()
 {
-    $json = \_ddtrace_config_json(\dd_trace_env_config('DD_TRACE_SAMPLING_RULES'), []);
+    $json = \_ddtrace_config_json(\getenv('DD_TRACE_SAMPLING_RULES'), []);
+    $normalized = [];
     // We do a proper parsing here to make sure that once the sampling rules leave this method
     // they are always properly defined.
     foreach ($json as &$rule) {
@@ -282,30 +284,30 @@ function ddtrace_config_sampling_rules()
         $service = isset($rule['service']) ? strval($rule['service']) : '.*';
         $name = isset($rule['name']) ? strval($rule['name']) : '.*';
         $rate = isset($rule['sample_rate']) ? floatval($rule['sample_rate']) : 1.0;
-        $this->samplingRulesCache[] = [
+        $normalized[] = [
             'service' => $service,
             'name' => $name,
             'sample_rate' => $rate,
         ];
     }
-    return $json;
+    return $normalized;
 }
 
-function ddtrace_config_integration_analytics_is_enabled($name)
+function ddtrace_config_integration_analytics_enabled($name)
 {
     $integrationNameForEnv = strtoupper(str_replace('-', '_', trim($name)));
-    return \_ddtrace_config_bool(\dd_trace_env_config("DD_${integrationNameForEnv}_ANALYTICS_ENABLED"), false);
+    return \_ddtrace_config_bool(\getenv("DD_${integrationNameForEnv}_ANALYTICS_ENABLED"), false);
 }
 
 function ddtrace_config_integration_analytics_sample_rate($name)
 {
     $integrationNameForEnv = strtoupper(str_replace('-', '_', trim($name)));
-    return \_ddtrace_config_float(\dd_trace_env_config("DD_${integrationNameForEnv}_ANALYTICS_SAMPLE_RATE"), 1.0);
+    return \_ddtrace_config_float(\getenv("DD_${integrationNameForEnv}_ANALYTICS_SAMPLE_RATE"), 1.0);
 }
 
 function ddtrace_config_disabled_integrations()
 {
-    return \_ddtrace_config_indexed_array(\dd_trace_env_config('DD_INTEGRATIONS_DISABLED'), []);
+    return \_ddtrace_config_indexed_array(\getenv('DD_INTEGRATIONS_DISABLED'), []);
 }
 
 /**
@@ -313,7 +315,7 @@ function ddtrace_config_disabled_integrations()
  */
 function ddtrace_config_global_tags()
 {
-    return \_ddtrace_config_associative_array(\dd_trace_env_config('DD_TRACE_GLOBAL_TAGS'), []);
+    return \_ddtrace_config_associative_array(\getenv('DD_TRACE_GLOBAL_TAGS'), []);
 }
 
 /**
@@ -321,5 +323,5 @@ function ddtrace_config_global_tags()
  */
 function ddtrace_config_service_mapping()
 {
-    return \_ddtrace_config_associative_array(\dd_trace_env_config('DD_SERVICE_MAPPING'), []);
+    return \_ddtrace_config_associative_array(\getenv('DD_SERVICE_MAPPING'), []);
 }

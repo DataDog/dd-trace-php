@@ -111,7 +111,7 @@ final class GuzzleIntegration extends Integration
             if (null !== $url) {
                 $span->setTag(Tag::HTTP_URL, $url);
 
-                if (\ddtrace_config_http_client_split_by_domain_is_enabled()) {
+                if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                     $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($url));
                 }
             }
@@ -125,7 +125,7 @@ final class GuzzleIntegration extends Integration
     {
         $self = $this;
         return function (array $args) use ($self) {
-            if (!\ddtrace_config_distributed_tracing_is_enabled()) {
+            if (!\ddtrace_config_distributed_tracing_enabled()) {
                 return null;
             }
 
@@ -176,7 +176,7 @@ final class GuzzleIntegration extends Integration
      */
     public function applyDistributedTracingHeaders(Span $span, $request)
     {
-        if (!\ddtrace_config_distributed_tracing_is_enabled()) {
+        if (!\ddtrace_config_distributed_tracing_enabled()) {
             return;
         }
 

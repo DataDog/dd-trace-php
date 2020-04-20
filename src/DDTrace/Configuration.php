@@ -36,7 +36,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDebugModeEnabled()
     {
-        return \ddtrace_config_debug_is_enabled();
+        return \ddtrace_config_debug_enabled();
     }
 
     /**
@@ -46,7 +46,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDistributedTracingEnabled()
     {
-        return \ddtrace_config_distributed_tracing_is_enabled();
+        return \ddtrace_config_distributed_tracing_enabled();
     }
 
     /**
@@ -56,7 +56,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isAnalyticsEnabled()
     {
-        return \ddtrace_config_analytics_is_enabled();
+        return \ddtrace_config_analytics_enabled();
     }
 
     /**
@@ -67,7 +67,7 @@ class Configuration extends AbstractConfiguration
     public function isPrioritySamplingEnabled()
     {
         return $this->isDistributedTracingEnabled()
-            && \ddtrace_config_priority_sampling_is_enabled();
+            && \ddtrace_config_priority_sampling_enabled();
     }
 
     /**
@@ -81,7 +81,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isAutofinishSpansEnabled()
     {
-        return \ddtrace_config_autofinish_span_is_enabled();
+        return \ddtrace_config_autofinish_span_enabled();
     }
 
     /**
@@ -150,7 +150,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isHostnameReportingEnabled()
     {
-        return \ddtrace_config_hostname_reporting_is_enabled();
+        return \ddtrace_config_hostname_reporting_enabled();
     }
 
     /**
@@ -160,7 +160,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isURLAsResourceNameEnabled()
     {
-        return \ddtrace_config_url_resource_name_is_enabled();
+        return \ddtrace_config_url_resource_name_enabled();
     }
 
     /**
@@ -170,7 +170,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isHttpClientSplitByDomain()
     {
-        return \ddtrace_config_http_client_split_by_domain_is_enabled();
+        return \ddtrace_config_http_client_split_by_domain_enabled();
     }
 
     /**
@@ -180,7 +180,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isSandboxEnabled()
     {
-        return \ddtrace_config_sandbox_is_enabled();
+        return \ddtrace_config_sandbox_enabled();
     }
 
     /**

@@ -13,11 +13,11 @@ class DefaultIntegrationConfiguration extends AbstractIntegrationConfiguration
      */
     public function isTraceAnalyticsEnabled()
     {
-        if (\ddtrace_config_integration_analytics_is_enabled($this->integrationName)) {
+        if (\ddtrace_config_integration_analytics_enabled($this->integrationName)) {
             return true;
         }
 
-        return \ddtrace_config_analytics_is_enabled() && !$this->requiresExplicitTraceAnalyticsEnabling();
+        return \ddtrace_config_analytics_enabled() && !$this->requiresExplicitTraceAnalyticsEnabling();
     }
 
     /**

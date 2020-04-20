@@ -30,7 +30,7 @@ final class Logger
     public static function get()
     {
         if (self::$logger === null) {
-            self::$logger = \ddtrace_config_debug_is_enabled()
+            self::$logger = \ddtrace_config_debug_enabled()
                 ? new ErrorLogLogger(LogLevel::DEBUG)
                 : new NullLogger(LogLevel::EMERGENCY);
         }

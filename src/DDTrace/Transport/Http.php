@@ -186,7 +186,7 @@ final class Http implements Transport
         curl_setopt($handle, CURLOPT_TIMEOUT_MS, $this->config['timeout']);
         curl_setopt($handle, CURLOPT_CONNECTTIMEOUT_MS, $this->config['connect_timeout']);
 
-        $isDebugEnabled = \ddtrace_config_debug_is_enabled();
+        $isDebugEnabled = \ddtrace_config_debug_enabled();
         if ($isDebugEnabled) {
             $verbose = \fopen('php://temp', 'w+b');
             \curl_setopt($handle, \CURLOPT_VERBOSE, true);
@@ -261,7 +261,7 @@ final class Http implements Transport
     {
         /** @var Tracer $tracer */
         $tracer = GlobalTracer::get();
-        return \ddtrace_config_priority_sampling_is_enabled()
+        return \ddtrace_config_priority_sampling_enabled()
             && $tracer->getPrioritySampling() !== PrioritySampling::UNKNOWN;
     }
 }
