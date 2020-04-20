@@ -33,6 +33,7 @@ RUN rm php.tar.gz
 RUN ./configure \
     CFLAGS="-fstack-protector-strong -fpic -fpie -O2 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64" \
     --prefix=/opt/php \
+    --with-config-file-scan-dir=/opt/php/lib/conf.d \
     --enable-fpm \
     --with-fpm-user=www-data \
     --with-fpm-group=www-data \
@@ -69,6 +70,7 @@ COPY supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY php-fpm.conf /opt/php/etc/php-fpm.conf
 COPY local-run.sh local-run.sh
+COPY opcache.ini /opt/php/lib/conf.d/10-opcache.ini
 
 # Adding the latest version of dd-doctor.php
 ADD https://raw.githubusercontent.com/DataDog/dd-trace-php/master/src/dd-doctor.php /var/www/html/public/dd-doctor.php
