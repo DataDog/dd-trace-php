@@ -1,5 +1,10 @@
 <?php
 
+// THE FOLLOWING FUNCTIONS ARE IMPLEMENTED AT THE C-level
+// \ddtrace_config_app_name()
+// \ddtrace_config_integration_enabled()
+// \ddtrace_config_trace_enabled()
+
 /**
  * Reads and normalizes a string configuration param, applying default value if appropriate.
  *
