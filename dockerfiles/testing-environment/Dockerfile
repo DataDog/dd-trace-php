@@ -21,6 +21,7 @@ RUN apt-get update \
         supervisor \
         unzip \
         wget \
+        vim \
         zip \
     && rm -rf /var/lib/apt/lists/*
 
