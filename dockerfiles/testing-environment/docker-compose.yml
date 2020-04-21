@@ -1,33 +1,22 @@
 version: "3.7"
 
 services:
-  "7.3-0.41.1-bgs-on":
+  "7.3-build":
     image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3"
     depends_on:
       - agent
     ports:
       - 7777:80
     environment:
-      - DD_SERVICE_NAME=7.3-0.41.1-bgs-on
+      - DD_SERVICE_NAME=7.3-build
       - DD_AGENT_HOST=agent
-      - DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=true
       # - DD_TRACE_DEBUG=true
-      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.41.1/datadog-php-tracer_0.41.1_amd64.deb
-    command: [ "./local-run.sh" ]
-
-  "7.3-0.41.1-bgs-off":
-    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3"
-    depends_on:
-      - agent
-    ports:
-      - 7778:80
-    environment:
-      - DD_SERVICE_NAME=7.3-0.41.1-bgs-off
-      - DD_AGENT_HOST=agent
-      - DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=false
-      # - DD_TRACE_DEBUG=true
-      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.41.1/datadog-php-tracer_0.41.1_amd64.deb
-    command: [ "./local-run.sh" ]
+      - DB_HOST=mysql
+      - TRACER_DOWNLOAD_URL=https://138919-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
+      # - LOG_CHANNEL=single
+    # volumes:
+    #   - ./Laravel57:/var/www/html/
+    command: [ "/local-run.sh" ]
 
   "7.3-none":
     image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3"
@@ -35,14 +24,14 @@ services:
       - agent
       - mysql
     ports:
-      - 7779:80
+      - 7778:80
     environment:
       - DD_SERVICE_NAME=7.3-none
       - DD_AGENT_HOST=agent
       - DB_HOST=mysql
-      - LOG_CHANNEL=single
-    volumes:
-      - ./Laravel57:/var/www/html/
+      # - LOG_CHANNEL=single
+    # volumes:
+    #   - ./Laravel57:/var/www/html/
     command: [ "/local-run.sh" ]
 
   agent:

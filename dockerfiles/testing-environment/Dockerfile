@@ -73,6 +73,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY php-fpm.conf /opt/php/etc/php-fpm.conf
 COPY local-run.sh /local-run.sh
 COPY opcache.ini /opt/php/lib/conf.d/10-opcache.ini
+COPY logging.ini /opt/php/lib/conf.d/80-logging.ini
 
 # Adding the latest version of dd-doctor.php
 ADD https://raw.githubusercontent.com/DataDog/dd-trace-php/master/src/dd-doctor.php /var/www/html/public/dd-doctor.php

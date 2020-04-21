@@ -19,7 +19,7 @@ class ExampleController extends BaseController
     {
         $pdo = DB::connection()->getPdo();
         $stm = $pdo->query("select * from status_by_user");
-        $stm->fetchAll();
+        error_log('found ' . print_r($stm->fetchAll(), 1));
     }
 
     private function curlRequest()
