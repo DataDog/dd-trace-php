@@ -18,7 +18,7 @@ class ExampleController extends BaseController
     private function pdoQueries()
     {
         $pdo = DB::connection()->getPdo();
-        $stm = $pdo->query("select * from status_by_user");
+        $stm = $pdo->query("show tables");
         error_log('found ' . print_r($stm->fetchAll(), 1));
     }
 
