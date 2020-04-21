@@ -27,6 +27,8 @@ class ExampleController extends BaseController
         $url = (\getenv('DD_AGENT_HOST') ?: 'localhost' ) . ':8126/not-existing';
         $ch = \curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT_MS, 1);
         \curl_exec($ch);
     }
 }
