@@ -9,9 +9,8 @@ class ExampleController extends BaseController
 {
     public function example()
     {
-        error_log('This is the example action');
-        $this->pdoQueries();
-        $this->curlRequest();
+        // $this->pdoQueries();
+        // $this->curlRequest();
         return "Hi from Laravel 5.7 app!\n";
     }
 
@@ -19,7 +18,6 @@ class ExampleController extends BaseController
     {
         $pdo = DB::connection()->getPdo();
         $stm = $pdo->query("show tables");
-        error_log('found ' . print_r($stm->fetchAll(), 1));
     }
 
     private function curlRequest()
