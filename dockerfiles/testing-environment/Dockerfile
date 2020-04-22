@@ -59,14 +59,20 @@ RUN php composer-setup.php --quiet
 RUN rm composer-setup.php
 RUN mv composer.phar /usr/local/bin/composer
 
+EXPOSE 80
+
+RUN mkdir -p /opt/php/lib/conf.d/
+
+# Adding xdebug
+RUN pecl install xdebug
+# RUN echo "zend_extension=/opt/php/lib/php/extensions/no-debug-non-zts-20180731/xdebug.so" > /opt/php/lib/conf.d/20-xdebug.ini
+
+RUN touch /var/log/php-fpm.log && chmod 777 /var/log/php-fpm.log
+
 # Setup web app
 WORKDIR /var/www/html/
 COPY Laravel57 /var/www/html/
 RUN composer update --no-dev
-
-EXPOSE 80
-
-RUN touch /var/log/php-fpm.log && chmod 777 /var/log/php-fpm.log
 
 # Copying configuration files
 COPY supervisor.conf /etc/supervisor/conf.d/supervisor.conf

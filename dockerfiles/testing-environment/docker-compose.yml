@@ -12,7 +12,7 @@ services:
       - DD_AGENT_HOST=agent
       # - DD_TRACE_DEBUG=true
       - DB_HOST=mysql
-      - TRACER_DOWNLOAD_URL=https://138919-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
+      - TRACER_DOWNLOAD_URL=https://139868-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
       # - LOG_CHANNEL=single
     # volumes:
     #   - ./Laravel57:/var/www/html/
