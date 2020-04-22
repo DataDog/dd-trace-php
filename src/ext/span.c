@@ -1,15 +1,15 @@
 #include "span.h"
 
 #include <php.h>
-#include <time.h>
 #include <unistd.h>
 
+#include "auto_flush.h"
+#include "configuration.h"
 #include "ddtrace.h"
+#include "dispatch.h"
+#include "logging.h"
 #include "random.h"
 #include "serializer.h"
-
-#define USE_REALTIME_CLOCK 0
-#define USE_MONOTONIC_CLOCK 1
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -48,11 +48,21 @@ static void _free_span(ddtrace_span_t *span) {
     efree(span);
 }
 
+static void ddtrace_drop_span(ddtrace_span_t *span) {
+    if (span->dispatch) {
+        span->dispatch->busy = 0;
+        ddtrace_dispatch_release(span->dispatch);
+        span->dispatch = NULL;
+    }
+
+    _free_span(span);
+}
+
 static void _free_span_stack(ddtrace_span_t *span) {
     while (span != NULL) {
         ddtrace_span_t *tmp = span;
         span = tmp->next;
-        _free_span(tmp);
+        ddtrace_drop_span(tmp);
     }
 }
 
@@ -63,14 +73,6 @@ void ddtrace_free_span_stacks(TSRMLS_D) {
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
-}
-
-static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
-    struct timespec time;
-    if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
-        return time.tv_sec * 1000000000L + time.tv_nsec;
-    }
-    return 0;
 }
 
 ddtrace_span_t *ddtrace_open_span(zend_execute_data *call, struct ddtrace_dispatch_t *dispatch TSRMLS_DC) {
@@ -91,21 +93,19 @@ ddtrace_span_t *ddtrace_open_span(zend_execute_data *call, struct ddtrace_dispat
     span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);
     // Set the trace_id last so we have ID's on the stack
     span->trace_id = DDTRACE_G(trace_id);
-    span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
+    span->duration_start = ddtrace_monotonic_nsec();
     span->exception = NULL;
     span->pid = getpid();
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+    span->start = ddtrace_realtime_nsec();
 
     span->call = call;
     span->dispatch = dispatch;
     return span;
 }
 
-void dd_trace_stop_span_time(ddtrace_span_t *span) {
-    span->duration = _get_nanoseconds(USE_MONOTONIC_CLOCK) - span->duration_start;
-}
+void dd_trace_stop_span_time(ddtrace_span_t *span) { span->duration = ddtrace_monotonic_nsec() - span->duration_start; }
 
 void ddtrace_close_span(TSRMLS_D) {
     ddtrace_span_t *span = DDTRACE_G(open_spans_top);
@@ -119,9 +119,22 @@ void ddtrace_close_span(TSRMLS_D) {
     // ddtrace_coms_buffer_data() and free the span
     span->next = DDTRACE_G(closed_spans_top);
     DDTRACE_G(closed_spans_top) = span;
+
+    if (span->dispatch) {
+        span->dispatch->busy = 0;
+        ddtrace_dispatch_release(span->dispatch);
+        span->dispatch = NULL;
+    }
+
+    // A userland span might still be open so we check the span ID stack instead of the internal span stack
+    if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
+        if (ddtrace_flush_tracer() == FAILURE) {
+            ddtrace_log_debug("Unable to auto flush the tracer");
+        }
+    }
 }
 
-void ddtrace_drop_span(TSRMLS_D) {
+void ddtrace_drop_top_open_span(TSRMLS_D) {
     ddtrace_span_t *span = DDTRACE_G(open_spans_top);
     if (span == NULL) {
         return;
@@ -129,8 +142,7 @@ void ddtrace_drop_span(TSRMLS_D) {
     DDTRACE_G(open_spans_top) = span->next;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
-
-    _free_span(span);
+    ddtrace_drop_span(span);
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {

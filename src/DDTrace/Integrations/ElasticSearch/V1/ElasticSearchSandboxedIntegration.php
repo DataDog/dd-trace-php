@@ -157,24 +157,34 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
         $integration = $this;
         $class = 'Elasticsearch\Client';
 
+        /*
+         * The Client `$params` array is mutated by extractArgument().
+         * @see https://github.com/elastic/elasticsearch-php/blob/1.x/src/Elasticsearch/Client.php#L1710-L1723
+         * Since the arguments passed to the tracing closure on PHP 7 are mutable,
+         * the closure must be run _before_ the original call via 'prehook'.
+        */
+        $hookType = (PHP_MAJOR_VERSION >= 7) ? 'prehook' : 'posthook';
+
         dd_trace_method(
             $class,
             $name,
-            function (SpanData $span, $args) use ($name, $isTraceAnalyticsCandidate, $integration) {
-                if (dd_trace_tracer_is_limited()) {
-                    return false;
+            [
+                $hookType => function (SpanData $span, $args) use ($name, $isTraceAnalyticsCandidate, $integration) {
+                    if (dd_trace_tracer_is_limited()) {
+                        return false;
+                    }
+
+                    $span->name = "Elasticsearch.Client.$name";
+
+                    if ($isTraceAnalyticsCandidate) {
+                        $integration->addTraceAnalyticsIfEnabled($span);
+                    }
+
+                    $span->service = ElasticSearchSandboxedIntegration::NAME;
+                    $span->type = Type::ELASTICSEARCH;
+                    $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);
                 }
-
-                $span->name = "Elasticsearch.Client.$name";
-
-                if ($isTraceAnalyticsCandidate) {
-                    $integration->addTraceAnalyticsIfEnabled($span);
-                }
-
-                $span->service = ElasticSearchSandboxedIntegration::NAME;
-                $span->type = Type::ELASTICSEARCH;
-                $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);
-            }
+            ]
         );
     }
 

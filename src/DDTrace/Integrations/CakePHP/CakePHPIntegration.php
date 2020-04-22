@@ -78,13 +78,4 @@ class CakePHPIntegration extends Integration
 
         return self::LOADED;
     }
-
-    public static function getAppName()
-    {
-        $name = Configuration::get()->appName();
-        if ($name) {
-            return $name;
-        }
-        return self::NAME;
-    }
 }

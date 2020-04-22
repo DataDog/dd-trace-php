@@ -121,7 +121,7 @@ array(1) {
       string(48) "New fav num is 42 with 3 colors and pink on top
 "
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
   }
 }

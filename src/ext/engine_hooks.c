@@ -1,14 +1,17 @@
 #include "engine_hooks.h"
 
 #include <php.h>
-#include <time.h>
 
+#include "clocks.h"
 #include "configuration.h"
 #include "ddtrace.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static zend_op_array *(*_prev_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
+
+void ddtrace_execute_internal_minit(void);
+void ddtrace_execute_internal_mshutdown(void);
 
 static void _compile_minit(void);
 static void _compile_mshutdown(void);
@@ -17,27 +20,22 @@ void ddtrace_opcode_minit(void);
 void ddtrace_opcode_mshutdown(void);
 
 void ddtrace_engine_hooks_minit(void) {
+    ddtrace_execute_internal_minit();
     ddtrace_opcode_minit();
     _compile_minit();
 }
+
 void ddtrace_engine_hooks_mshutdown(void) {
     _compile_mshutdown();
     ddtrace_opcode_mshutdown();
-}
-
-static uint64_t _get_microseconds() {
-    struct timespec time;
-    if (clock_gettime(CLOCK_MONOTONIC, &time) == 0) {
-        return time.tv_sec * 1000000U + time.tv_nsec / 1000U;
-    }
-    return 0U;
+    ddtrace_execute_internal_mshutdown();
 }
 
 static zend_op_array *_dd_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC) {
     zend_op_array *res;
-    uint64_t start = _get_microseconds();
+    ddtrace_monotonic_usec_t start = ddtrace_monotonic_usec();
     res = _prev_compile_file(file_handle, type TSRMLS_CC);
-    DDTRACE_G(compile_time_microseconds) += (int64_t)(_get_microseconds() - start);
+    DDTRACE_G(compile_time_microseconds) += (int64_t)(ddtrace_monotonic_usec() - start);
     return res;
 }
 

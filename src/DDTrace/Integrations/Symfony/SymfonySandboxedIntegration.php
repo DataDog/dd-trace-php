@@ -73,7 +73,7 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
 
     public function loadSymfony($integration)
     {
-        $integration->appName = Configuration::get()->appName('symfony');
+        $integration->appName = \ddtrace_config_app_name('symfony');
         $integration->symfonyRequestSpan->overwriteOperationName('symfony.request');
         $integration->symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
         $integration->symfonyRequestSpan->setIntegration($integration);

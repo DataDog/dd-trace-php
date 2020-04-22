@@ -172,7 +172,7 @@ static BOOL_T _dd_should_trace_call(zend_execute_data *execute_data, zend_functi
     }
 
     zval *this = ddtrace_this(execute_data);
-    *dispatch = ddtrace_find_dispatch(this, *fbc, fname TSRMLS_CC);
+    *dispatch = ddtrace_find_dispatch(this ? Z_OBJCE_P(this) : (*fbc)->common.scope, fname TSRMLS_CC);
     if (!*dispatch || (*dispatch)->busy) {
         return FALSE;
     }
@@ -583,7 +583,7 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, const zend_op 
     if (keep_span == TRUE) {
         ddtrace_close_span(TSRMLS_C);
     } else {
-        ddtrace_drop_span(TSRMLS_C);
+        ddtrace_drop_top_open_span(TSRMLS_C);
     }
 
     if (exception) {
@@ -663,7 +663,7 @@ static int _dd_opcode_default_dispatch(zend_execute_data *execute_data TSRMLS_DC
     return ZEND_USER_OPCODE_DISPATCH;
 }
 
-int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
+static int _dd_begin_fcall_handler(zend_execute_data *execute_data TSRMLS_DC) {
     zend_function *current_fbc = NULL;
     ddtrace_dispatch_t *dispatch = NULL;
     if (!_dd_should_trace_call(execute_data, &current_fbc, &dispatch TSRMLS_CC)) {
@@ -678,8 +678,8 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
         }
         return vm_retval;
     }
-    ddtrace_class_lookup_acquire(dispatch);  // protecting against dispatch being freed during php code execution
-    dispatch->busy = 1;                      // guard against recursion, catching only topmost execution
+    ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
+    dispatch->busy = 1;               // guard against recursion, catching only topmost execution
 
     if (dispatch->options & DDTRACE_DISPATCH_POSTHOOK) {
         ddtrace_trace_dispatch(dispatch, current_fbc, execute_data TSRMLS_CC);
@@ -707,10 +707,10 @@ int ddtrace_wrap_fcall(zend_execute_data *execute_data TSRMLS_DC) {
         DDTRACE_G(original_context).fbc = previous_fbc;
 
         _dd_update_opcode_leave(execute_data TSRMLS_CC);
-    }
 
-    dispatch->busy = 0;
-    ddtrace_class_lookup_release(dispatch);
+        dispatch->busy = 0;
+        ddtrace_dispatch_release(dispatch);
+    }
 
     EX(opline)++;
 
@@ -724,13 +724,7 @@ static int _dd_exit_handler(zend_execute_data *execute_data TSRMLS_DC) {
             zval_ptr_dtor(&span->retval);
             span->retval = NULL;
         }
-        // Save pointer to dispatch since span can be dropped from _dd_end_span()
-        ddtrace_dispatch_t *dispatch = span->dispatch;
         _dd_end_span(span, &EG(uninitialized_zval), EX(opline) TSRMLS_CC);
-        if (dispatch) {
-            dispatch->busy = 0;
-            ddtrace_class_lookup_release(dispatch);
-        }
     }
 
     return _prev_exit_handler ? _prev_exit_handler(execute_data TSRMLS_CC) : ZEND_USER_OPCODE_DISPATCH;
@@ -739,8 +733,8 @@ static int _dd_exit_handler(zend_execute_data *execute_data TSRMLS_DC) {
 void ddtrace_opcode_minit(void) {
     _prev_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     _prev_fcall_by_name_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL_BY_NAME);
-    zend_set_user_opcode_handler(ZEND_DO_FCALL, ddtrace_wrap_fcall);
-    zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, ddtrace_wrap_fcall);
+    zend_set_user_opcode_handler(ZEND_DO_FCALL, _dd_begin_fcall_handler);
+    zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, _dd_begin_fcall_handler);
 
     _prev_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
     zend_set_user_opcode_handler(ZEND_EXIT, _dd_exit_handler);
@@ -751,4 +745,12 @@ void ddtrace_opcode_mshutdown(void) {
     zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, NULL);
 
     zend_set_user_opcode_handler(ZEND_EXIT, NULL);
+}
+
+void ddtrace_execute_internal_minit(void) {
+    // TODO
+}
+
+void ddtrace_execute_internal_mshutdown(void) {
+    // TODO
 }

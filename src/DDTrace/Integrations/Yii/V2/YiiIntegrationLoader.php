@@ -25,7 +25,7 @@ class YiiIntegrationLoader
         // Overwrite the default web integration
         $root->setIntegration($integration);
         $root->setTraceAnalyticsCandidate();
-        $service = Configuration::get()->appName(YiiSandboxedIntegration::NAME);
+        $service = \ddtrace_config_app_name(YiiSandboxedIntegration::NAME);
 
         \dd_trace_method(
             'yii\web\Application',
@@ -38,14 +38,14 @@ class YiiIntegrationLoader
         );
 
         // We assume the first controller is the one to assign to app.endpoint
-        $first_controller = null;
+        $firstController = null;
         \dd_trace_method(
             'yii\web\Application',
             'createController',
-            function (SpanData $span, $args, $retval, $ex) use (&$first_controller) {
+            function (SpanData $span, $args, $retval, $ex) use (&$firstController) {
                 if (!$ex && isset($args[0], $retval) && \is_array($retval) && !empty($retval)) {
-                    if ($this->requestedRoute === $args[0]) {
-                        $first_controller = $retval[0];
+                    if ($firstController === null) {
+                        $firstController = $retval[0];
                     }
                 }
                 return false;
@@ -70,14 +70,14 @@ class YiiIntegrationLoader
         \dd_trace_method(
             'yii\base\Controller',
             'runAction',
-            function (SpanData $span, $args) use (&$first_controller, $service, $root) {
+            function (SpanData $span, $args) use (&$firstController, $service, $root) {
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
                 $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
 
                 if (
-                    $first_controller === $this
+                    $firstController === $this
                     && $root->getTag('app.endpoint') === null
                     && isset($this->action->actionMethod)
                 ) {

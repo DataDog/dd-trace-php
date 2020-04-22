@@ -26,8 +26,8 @@ final class Bootstrap
         }
 
         self::$bootstrapped = true;
+
         $tracer = self::resetTracer();
-        self::initRootSpan($tracer);
         self::registerOpenTracing();
 
         $flushTracer = function () {
@@ -36,11 +36,17 @@ final class Bootstrap
             $tracer = GlobalTracer::get();
             $scopeManager = $tracer->getScopeManager();
             $scopeManager->close();
-            $tracer->flush();
+            if (!\dd_trace_env_config('DD_TRACE_AUTO_FLUSH_ENABLED')) {
+                $tracer->flush();
+            }
         };
+
         // Sandbox API is not supported on PHP 5.4
         if (PHP_VERSION_ID < 50500) {
-            register_shutdown_function($flushTracer);
+            if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
+                self::initRootSpan($tracer);
+                register_shutdown_function($flushTracer);
+            }
             return;
         }
         dd_trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', [
@@ -48,19 +54,22 @@ final class Bootstrap
             'posthook' => $flushTracer,
         ]);
 
-        register_shutdown_function(function () {
-            /*
-             * Register the shutdown handler during shutdown so that it is run after all the other shutdown handlers.
-             * Doing this ensures:
-             * 1) Calls in shutdown hooks will still be instrumented
-             * 2) Fatal errors (or any zend_bailout) during flush will happen after the user's shutdown handlers
-             * Note: Other code that implements this same technique will be run _after_ the tracer shutdown.
-             */
+        if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
+            self::initRootSpan($tracer);
             register_shutdown_function(function () {
-                // We wrap the call in a closure to prevent OPcache from skipping the call.
-                Bootstrap::flushTracerShutdown();
+                /*
+                * Register the shutdown handler during shutdown so that it is run after all the other shutdown handlers.
+                * Doing this ensures:
+                * 1) Calls in shutdown hooks will still be instrumented
+                * 2) Fatal errors (or any zend_bailout) during flush will happen after the user's shutdown handlers
+                * Note: Other code that implements this same technique will be run _after_ the tracer shutdown.
+                */
+                register_shutdown_function(function () {
+                    // We wrap the call in a closure to prevent OPcache from skipping the call.
+                    Bootstrap::flushTracerShutdown();
+                });
             });
-        });
+        }
     }
 
     public static function flushTracerShutdown()
@@ -148,10 +157,7 @@ final class Bootstrap
         }
         $span->setIntegration(WebIntegration::getInstance());
         $span->setTraceAnalyticsCandidate();
-        $span->setTag(
-            Tag::SERVICE_NAME,
-            Configuration::get()->appName($operationName)
-        );
+        $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name($operationName));
 
         dd_trace('header', function () use ($span) {
             $args = func_get_args();

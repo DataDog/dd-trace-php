@@ -22,7 +22,7 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
 
     public function init()
     {
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+        if (!self::shouldLoad(self::NAME)) {
             return SandboxedIntegration::NOT_LOADED;
         }
 
@@ -33,7 +33,7 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
         }
 
         $integration = $this;
-        $service = Configuration::get()->appName(self::NAME);
+        $service = \ddtrace_config_app_name(self::NAME);
 
         /* Until we support both pre- and post- hooks on the same function, do
          * not send distributed tracing headers; curl will almost guaranteed do

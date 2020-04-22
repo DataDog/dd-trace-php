@@ -6,6 +6,7 @@
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_extensions.h>
+#include <Zend/zend_vm.h>
 #include <inttypes.h>
 #include <php.h>
 #include <php_ini.h>
@@ -14,7 +15,9 @@
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
+#include "auto_flush.h"
 #include "circuit_breaker.h"
+#include "clocks.h"
 #include "comms_php.h"
 #include "compat_string.h"
 #include "compatibility.h"
@@ -22,6 +25,7 @@
 #include "configuration.h"
 #include "configuration_php_iface.h"
 #include "ddtrace.h"
+#include "ddtrace_string.h"
 #include "debug.h"
 #include "dispatch.h"
 #include "dogstatsd_client.h"
@@ -126,6 +130,17 @@ ZEND_ARG_INFO(0, body)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_compile_time_microseconds, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, 0)
+ZEND_ARG_INFO(0, default_name)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_integration_enabled, 0, 0, 1)
+ZEND_ARG_INFO(0, integration_name)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_trace_enabled, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
@@ -245,6 +260,10 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
         return SUCCESS;
     }
+
+    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
+    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
+    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
 
     ddtrace_dogstatsd_client_rinit(TSRMLS_C);
 
@@ -789,12 +808,138 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
 }
 
 #if PHP_VERSION_ID < 70000
-typedef int ddtrace_zppstrlen_t;
 typedef long ddtrace_zpplong_t;
 #else
-typedef size_t ddtrace_zppstrlen_t;
 typedef zend_long ddtrace_zpplong_t;
 #endif
+
+static PHP_FUNCTION(ddtrace_config_app_name) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    ddtrace_string default_str = {
+        .ptr = NULL,
+        .len = 0,
+    };
+#if PHP_VERSION_ID < 70000
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &default_str.ptr, &default_str.len) != SUCCESS) {
+        RETURN_NULL()
+    }
+#else
+    zend_string *default_zstr = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|S", &default_zstr) != SUCCESS) {
+        RETURN_NULL()
+    }
+    if (default_zstr) {
+        default_str.ptr = ZSTR_VAL(default_zstr);
+        default_str.len = ZSTR_LEN(default_zstr);
+    }
+#endif
+
+    ddtrace_string service_name = {
+        .ptr = "DD_SERVICE_NAME",
+        .len = sizeof("DD_SERVICE_NAME") - 1,
+    };
+    ddtrace_string app_name;
+    char *value = getenv(service_name.ptr);
+    ddtrace_zppstrlen_t value_len;
+    if (value && (value_len = strlen(value))) {
+        app_name.ptr = value;
+        app_name.len = value_len;
+    } else if (default_str.ptr) {
+        app_name = default_str;
+    } else {
+        RETURN_NULL()
+    }
+
+    ddtrace_string trimmed = ddtrace_trim(app_name);
+#if PHP_VERSION_ID < 70000
+    RETURN_STRINGL(trimmed.ptr, trimmed.len, 1)
+#else
+    // Re-use and addref the default_zstr iff they match and trim didn't occur; copy otherwise
+    if (default_zstr && trimmed.ptr == ZSTR_VAL(default_zstr) && trimmed.len == ZSTR_LEN(default_zstr)) {
+        RETURN_STR_COPY(default_zstr)
+    } else {
+        RETURN_STRINGL(trimmed.ptr, trimmed.len)
+    }
+#endif
+}
+
+static bool _dd_config_bool(zval *value, bool default_value) {
+    ddtrace_downcase_zval(value);
+
+    ddtrace_string subject = {
+        .ptr = Z_STRVAL_P(value),
+        .len = Z_STRLEN_P(value),
+    };
+
+    ddtrace_string str_1 = {
+        .ptr = "1",
+        .len = 1,
+    };
+    ddtrace_string str_true = {
+        .ptr = "true",
+        .len = sizeof("true") - 1,
+    };
+    if (ddtrace_string_equals(subject, str_1) || ddtrace_string_equals(subject, str_true)) {
+        return true;
+    }
+    ddtrace_string str_0 = {
+        .ptr = "0",
+        .len = 1,
+    };
+    ddtrace_string str_false = {
+        .ptr = "false",
+        .len = sizeof("false") - 1,
+    };
+    if (ddtrace_string_equals(subject, str_0) || ddtrace_string_equals(subject, str_false)) {
+        return false;
+    }
+    return default_value;
+}
+
+static bool _dd_config_trace_enabled() {
+    char *value = getenv("DD_TRACE_ENABLED");
+    ddtrace_zppstrlen_t value_len;
+    if (value && (value_len = strlen(value))) {
+        zval item;
+#if PHP_VERSION_ID < 70000
+        ZVAL_STRINGL(&item, value, value_len, 1);
+#else
+        ZVAL_STRINGL(&item, value, value_len);
+#endif
+        bool result = _dd_config_bool(&item, true);
+        ddtrace_zval_ptr_dtor(&item);
+        return result;
+    } else {
+        return true;
+    }
+}
+
+static PHP_FUNCTION(ddtrace_config_trace_enabled) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    RETURN_BOOL(_dd_config_trace_enabled());
+}
+
+// note: only call this if _dd_config_trace_enabled() returns true
+static bool _dd_config_integration_enabled(ddtrace_string integration) {
+    ddtrace_string integrations_disabled = ddtrace_string_cstring_ctor(getenv("DD_INTEGRATIONS_DISABLED"));
+    if (integrations_disabled.len && integration.len) {
+        return !ddtrace_string_contains_in_csv(integrations_disabled, integration);
+    }
+    return true;
+}
+
+static PHP_FUNCTION(ddtrace_config_integration_enabled) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    if (!_dd_config_trace_enabled()) {
+        RETURN_FALSE
+    }
+    ddtrace_string integration;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
+        RETURN_NULL()
+    }
+    RETURN_BOOL(_dd_config_integration_enabled(integration))
+}
 
 static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
@@ -974,7 +1119,15 @@ static PHP_FUNCTION(dd_trace_push_span_id) {
 static PHP_FUNCTION(dd_trace_pop_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    return_span_id(return_value, ddtrace_pop_span_id(TSRMLS_C));
+    uint64_t id = ddtrace_pop_span_id(TSRMLS_C);
+
+    if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
+        if (ddtrace_flush_tracer() == FAILURE) {
+            ddtrace_log_debug("Unable to auto flush the tracer");
+        }
+    }
+
+    return_span_id(return_value, id);
 }
 
 /* {{{ proto string dd_trace_peek_span_id() */
@@ -1051,6 +1204,9 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_tracer_circuit_breaker_register_success, NULL),
     DDTRACE_FE(dd_untrace, NULL),
     DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds),
+    DDTRACE_FE(ddtrace_config_app_name, arginfo_ddtrace_config_app_name),
+    DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
+    DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled),
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,

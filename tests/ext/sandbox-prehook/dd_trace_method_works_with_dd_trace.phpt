@@ -116,7 +116,7 @@ array(1) {
       ["args.1.0"]=>
       string(4) "pink"
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
   }
 }

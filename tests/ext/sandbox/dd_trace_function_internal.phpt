@@ -37,7 +37,7 @@ array(1) {
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
   }
 }

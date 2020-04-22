@@ -1,0 +1,47 @@
+FROM php:7.3-fpm
+
+RUN apt update \
+    && apt install -y \
+    libfcgi0ldbl \
+    gdb \
+    git \
+    less \
+    libcurl4-gnutls-dev \
+    libfcgi0ldbl \
+    multitime \
+    procps \
+    sudo \
+    time \
+    unzip \
+    vim \
+    && pecl install xdebug \
+    && docker-php-ext-install opcache \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install composer
+RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
+    && php composer-setup.php  --install-dir="/usr/bin" --filename=composer \
+    && php -r "unlink('composer-setup.php');" \
+    && composer self-update
+
+RUN mkdir -p /var/www/public
+ADD ./tests/overhead/Laravel57 /var/www
+WORKDIR /var/www
+RUN composer update
+
+RUN mkdir -p /dd-trace-php
+WORKDIR /dd-trace-php
+
+ADD ./tests/overhead/dockerfiles/www.conf /usr/local/etc/php-fpm.d/www.conf
+ADD ./tests/overhead/dockerfiles/php-fpm.conf /usr/local/etc/php-fpm.conf
+ADD ./tests/overhead/dockerfiles/99-ddtrace-custom.ini /usr/local/etc/php/conf.d/99-ddtrace-custom.ini
+ADD ./tests/overhead/dockerfiles/opcache.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+ADD ./tests/overhead/dockerfiles/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
+
+ENV DD_AGENT_HOST=agent
+
+ADD ./tests/overhead/dockerfiles/start_app.sh /start_app.sh
+CMD [ "/start_app.sh" ]
+
+RUN mkdir -p /tmp/php-cache
+RUN chmod -R 777 /tmp/php-cache

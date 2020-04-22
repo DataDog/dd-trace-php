@@ -3,8 +3,8 @@
 namespace DDTrace\Integrations\Curl;
 
 use DDTrace\Configuration;
-use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
+use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -40,17 +40,11 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
             return SandboxedIntegration::NOT_AVAILABLE;
         }
 
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
+        if (!Integration::shouldLoad(self::NAME)) {
             return SandboxedIntegration::NOT_LOADED;
         }
 
-        $tracer = GlobalTracer::get();
-        $rootScope = $tracer->getRootScope();
-        if (!$rootScope) {
-            return SandboxedIntegration::NOT_LOADED;
-        }
-
-        $service = Configuration::get()->appName(self::NAME);
+        $service = \ddtrace_config_app_name(self::NAME);
 
         \dd_trace_function('curl_exec', [
             // the ddtrace extension will handle distributed headers

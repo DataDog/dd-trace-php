@@ -29,11 +29,13 @@ if test "$PHP_DDTRACE" != "no"; then
     src/dogstatsd/client.c \
     src/ext/arrays.c \
     src/ext/circuit_breaker.c \
+    src/ext/clocks.c \
     src/ext/comms_php.c \
     src/ext/compat_string.c \
     src/ext/coms.c \
     src/ext/configuration.c \
     src/ext/configuration_php_iface.c \
+    src/ext/ddtrace_string.c \
     src/ext/dispatch.c \
     src/ext/dispatch_setup.c \
     src/ext/dogstatsd_client.c \
@@ -54,12 +56,14 @@ if test "$PHP_DDTRACE" != "no"; then
 
   if test $PHP_VERSION -lt 70000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
+      src/ext/php5/auto_flush.c \
       src/ext/php5/dispatch.c \
       src/ext/php5/engine_hooks.c \
       src/ext/php5/handlers_curl.c \
     "
   elif test $PHP_VERSION -lt 80000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
+      src/ext/php7/auto_flush.c \
       src/ext/php7/dispatch.c \
       src/ext/php7/engine_api.c \
       src/ext/php7/engine_hooks.c \

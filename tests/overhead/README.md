@@ -6,27 +6,35 @@ The objective of this tool is to generate a callgrind file for a simple Laravel 
 
 ### Usage
 
-From the project root directory :
+From this directory :
 
-    docker-compose up -d overhead-nginx
+    # Build all images
+    make build
 
-    # In order to rebuild all the images
+    # Edit the env appropriately in the .env file (you can use .env.example as a template)
+    XDEBUG_ENABLE_PROFILER=1
+    DD_TRACE_ENABLED=true
+    DD_TRACE_DEBUG=false
 
-    docker-compose build overhead-nginx overhead-php-fpm-notracer overhead-php-fpm-master overhead-php-fpm-head overhead-php-fpm-release
+    # Start the env
+    make start_env
 
-    # no tracer
-    curl localhost:8886
+    # Execute request to Laravel 5.7 app via php-fpm
+    make request_l57_(notracer|master|release|head)
 
-    # current master on GitHub
-    curl localhost:8887
+    # Execute request to synthetic script via php-fpm
+    make request_synthetic_(notracer|master|release|head)
 
-    # current local head
-    curl localhost:8888
+    # Execute ONLY dd request init hook with profiling (if enabled in .env)
+    make request_hook_(notracer|master|release|head)
 
-    # a specific release, set DD_TRACER_LIBRARY_VERSION=X.Y.Z in service 'overhead-php-fpm-release'
-    curl localhost:8889
+    # Execute our init hook in multitime and outputs results
+    make time_hook_(notracer|master|release|head)
 
-Profile output is dumped into `./tests/overhead/callgrind-files`.
+    # Open a shell into the container
+    make ssh_(notracer|master|release|head)
+
+Profile output is dumped into `./callgrind-files`.
 
 Generated files containing profiling info are named repectively:
     - `callgrind.<timestamp>.notracer`

@@ -2,9 +2,9 @@
 
 namespace DDTrace\Integrations\Symfony\V4;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
+use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration as DDSymfonyIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Tag;
@@ -30,17 +30,12 @@ class SymfonyBundle extends Bundle
     {
         parent::boot();
 
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
-            return;
-        }
-
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Symfony integration.', E_USER_WARNING);
+        if (!Integration::shouldLoad(self::NAME)) {
             return;
         }
 
         $tracer = GlobalTracer::get();
-        $appName = $this->getAppName();
+        $appName = \ddtrace_config_app_name('symfony');
 
         // Retrieve the web root span for the current host
         $symfonyRequestScope = $tracer->getRootScope();
@@ -205,10 +200,5 @@ class SymfonyBundle extends Bundle
         $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
         $requestSpan->setTag('symfony.route.action', $action);
         $requestSpan->setTag('symfony.route.name', $request->get('_route'));
-    }
-
-    private function getAppName()
-    {
-        return Configuration::get()->appName('symfony');
     }
 }
