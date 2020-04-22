@@ -374,3 +374,7 @@ Zend/tests/bug78999.phpt
 Zend/tests/overloaded_assign_prop_return_value.phpt
 ext/session/tests/bug79031.phpt
 ext/standard/tests/serialize/sleep_uninitialized_typed_prop.phpt
+Zend/tests/bug79155.phpt
+ext/simplexml/tests/bug51615.phpt
+ext/standard/tests/array/arsort_object1.phpt
+ext/standard/tests/array/arsort_object2.phpt
