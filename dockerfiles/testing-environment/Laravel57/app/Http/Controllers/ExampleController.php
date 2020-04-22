@@ -24,7 +24,7 @@ class ExampleController extends BaseController
 
     private function curlRequest()
     {
-        $url = (\getenv('DD_AGENT_HOST') ?: 'localhost' ) . ':8126/not-existing';
+        $url = (\getenv('DD_HTTPBIN_HOST') ?: 'localhost' ) . ':4000/status/200';
         $ch = \curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 1);

@@ -5,15 +5,17 @@ services:
     image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3"
     depends_on:
       - agent
+      - mysql
+      - httpbin
     ports:
       - 7777:80
     environment:
       - DD_SERVICE_NAME=7.3-build
       - DD_AGENT_HOST=agent
-      # - DD_TRACE_DEBUG=true
       - DB_HOST=mysql
+      - DD_HTTPBIN_HOST=httpbin
       - TRACER_DOWNLOAD_URL=https://139868-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
-      # - LOG_CHANNEL=single
+      # - DD_TRACE_DEBUG=true
     # volumes:
     #   - ./Laravel57:/var/www/html/
     command: [ "/local-run.sh" ]
@@ -23,13 +25,14 @@ services:
     depends_on:
       - agent
       - mysql
+      - httpbin
     ports:
       - 7778:80
     environment:
       - DD_SERVICE_NAME=7.3-none
       - DD_AGENT_HOST=agent
       - DB_HOST=mysql
-      # - LOG_CHANNEL=single
+      - DD_HTTPBIN_HOST=httpbin
     # volumes:
     #   - ./Laravel57:/var/www/html/
     command: [ "/local-run.sh" ]
@@ -51,3 +54,8 @@ services:
       - "3306:3306"
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
+
+  httpbin:
+    image: registry.ddbuild.io/apm-integrations-testing/handmade/go-httpbin:latest
+    ports:
+      - "4000:4000"
