@@ -10,17 +10,35 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2020-04-22</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.43.0</release>
+        <api>0.43.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        **Note: This release comes with minor behavior changes for tracing closures on PHP 7. Please see [the PR for details](https://github.com/DataDog/dd-trace-php/pull/762).**
+
+        ### Added
+
+        - Service mapping with `DD_SERVICE_MAPPING=pdo:payments-db,mysqli:orders-db` #801, #817
+        - Auto flushing with `DD_TRACE_AUTO_FLUSH_ENABLED=1` (PHP 7) #819, #826
+        - Disable automatic root-span creation with `DD_TRACE_GENERATE_ROOT_SPAN=0` #834
+
+        ### Changed
+
+        - Always return unaltered VM dispatch (PHP 7) #762
+        - Uri to resource name ON by default #798
+        - Sandbox Guzzle #809, #816
+        - Sandbox predis integration #813
+        - Sandbox curl (PHP 7) #814, #817, #831
+        - Convert pid from long to string for internal spans #825
+        - Move some Configuration methods to functions written at the C level #829
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
