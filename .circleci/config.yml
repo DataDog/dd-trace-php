@@ -87,15 +87,20 @@ aliases:
       name: Installing dependencies with composer
       command: composer install --no-interaction
 
-  - &STEP_COMPOSER_COMPILE
+  - &STEP_COMPOSER_LIB_INSTALL
+    run:
+      name: Installing dependencies with composer
+      command: composer --working-dir=lib install --no-interaction
+
+  - &STEP_COMPOSER_LIB_COMPILE
     run:
       name: Compiling dd-tace-php files into single file
-      command: composer compile
+      command: composer --working-dir=lib compile
 
-  - &STEP_COMPOSER_COMPILE_VERIFY
+  - &STEP_COMPOSER_LIB_COMPILE_VERIFY
     run:
       name: Verifying dd-tace-php files compiled into single file
-      command: composer compile-verify
+      command: composer --working-dir=lib compile-verify
 
   - &STEP_PREPARE_TEST_RESULTS_DIR
     run:
@@ -544,16 +549,6 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
-  "Compile dd-trace-php":
-    working_directory: ~/datadog
-    docker:
-      - image: 'circleci/php:7.2-cli'
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - persist_to_workspace:
-          root: '.'
-          paths: ['./lib']
-
   "Prepare Code":
     working_directory: ~/datadog
     docker: [ image: 'circleci/php:7.2-cli' ]
@@ -569,9 +564,9 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_COMPOSER_INSTALL
-      - <<: *STEP_COMPOSER_COMPILE
-      - <<: *STEP_COMPOSER_COMPILE_VERIFY
+      - <<: *STEP_COMPOSER_LIB_INSTALL
+      - <<: *STEP_COMPOSER_LIB_COMPILE
+      - <<: *STEP_COMPOSER_LIB_COMPILE_VERIFY
       - run:
           name: Showing folder containing generated files
           command: ls -al ~/datadog/lib
