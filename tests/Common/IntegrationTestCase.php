@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Util\Versions;
 use PHPUnit\Framework\TestCase;
 
@@ -25,7 +24,6 @@ abstract class IntegrationTestCase extends TestCase
             \putenv('DD_TRACE_SANDBOX_ENABLED=false');
             \dd_trace_internal_fn('ddtrace_reload_config');
         }
-        IntegrationsLoader::reload();
     }
 
     public static function tearDownAfterClass()

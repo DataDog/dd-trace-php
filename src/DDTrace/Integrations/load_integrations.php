@@ -223,7 +223,7 @@ if ($globalConfig->isSandboxEnabled()) {
         $debug
     );
 } else {
-        $loadingStatuses = [];
+    $loadingStatuses = [];
     $debug = $globalConfig->isDebugModeEnabled();
 
     _do_load_integration(
