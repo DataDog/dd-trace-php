@@ -58,17 +58,6 @@ void ddtrace_dispatch_reset(TSRMLS_D);
 #define OBJECT() (EX(call) ? EX(call)->object : NULL)
 #endif
 
-inline void *zend_hash_str_find_ptr(const HashTable *ht, const char *key, size_t length) {
-    void **rv = NULL;
-    zend_hash_find(ht, key, length, (void **)&rv);
-
-    if (rv) {
-        return *rv;
-    } else {
-        return NULL;
-    }
-}
-
 void ddtrace_class_lookup_release_compat(void *zv);
 
 #define ddtrace_zval_ptr_dtor(x) zval_dtor(x)

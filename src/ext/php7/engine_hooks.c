@@ -63,6 +63,19 @@ static bool _dd_should_trace_call(zend_execute_data *call, zend_function *fbc, d
     ZVAL_STR(&fname, fbc->common.function_name);
 
     zval *this = _dd_this(call);
+
+    /* TODO: we can possibly grab the lowercased variants off the opline.
+     * Levi: Do we store the function and method names lowered in the oplines
+     *       anywhere?
+     * Nikita: yes
+     * Nikita: Function call opcodes and similar usually have multiple
+     *         literals in a row
+     * Nikita: So the CONST operand points to the first literal, and then
+     *         there's a few more after it, with lowercased variants, or
+     *         variants without namespace etc
+     *
+     * It would avoid lowering the string and reduce memory churn; win-win.
+     */
     *dispatch = ddtrace_find_dispatch(this ? Z_OBJCE_P(this) : fbc->common.scope, &fname);
 
     if (!*dispatch || (*dispatch)->busy) {
