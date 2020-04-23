@@ -568,6 +568,9 @@ jobs:
       - <<: *STEP_COMPOSER_LIB_COMPILE
       - <<: *STEP_COMPOSER_LIB_COMPILE_VERIFY
       - run:
+          name: Removing files/folders to prevent them to endup into the final package
+          command: rm -rf ~/datadog/lib/vendor ~/datadog/lib/composer.lock
+      - run:
           name: Showing folder containing generated files
           command: ls -al ~/datadog/lib
       - persist_to_workspace:
