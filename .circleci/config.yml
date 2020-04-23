@@ -94,7 +94,7 @@ aliases:
 
   - &STEP_COMPOSER_COMPILE_VERIFY
     run:
-      name: Verifynig dd-tace-php files compiled into single file
+      name: Verifying dd-tace-php files compiled into single file
       command: composer compile-verify
 
   - &STEP_PREPARE_TEST_RESULTS_DIR
@@ -572,7 +572,9 @@ jobs:
       - <<: *STEP_COMPOSER_INSTALL
       - <<: *STEP_COMPOSER_COMPILE
       - <<: *STEP_COMPOSER_COMPILE_VERIFY
-      - run: ls -al ~/datadog/lib
+      - run:
+          name: Showing folder containing generated files
+          command: ls -al ~/datadog/lib
       - persist_to_workspace:
           root: '.'
           paths: ['./']
