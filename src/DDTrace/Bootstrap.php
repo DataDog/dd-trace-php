@@ -3,7 +3,6 @@
 namespace DDTrace;
 
 use DDTrace\Http\Request;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\Web\WebIntegration;
 
 /**
@@ -78,15 +77,6 @@ final class Bootstrap
         // Flushing happens in the sandboxed tracing closure after the call.
         // Return a value from runtime to prevent OPcache from skipping the call.
         return mt_rand();
-    }
-
-    /**
-     * Bootstrap the tracer and load all the integrations.
-     */
-    public static function tracerAndIntegrations()
-    {
-        self::tracerOnce();
-        IntegrationsLoader::load();
     }
 
     /**
