@@ -334,6 +334,7 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
+
   php_language_tests:
     parameters:
       docker_image:
@@ -358,14 +359,14 @@ jobs:
           command: |
             sudo rm -f /usr/local/etc/php/conf.d/docker-php-ext-memcached.ini
             if [[ ! "<<parameters.xfail_list>>" == "none" ]]; then
-              cp "<<parameters.xfail_list>>" /usr/src/php/xfail_tests.list
+              cp "<<parameters.xfail_list>>" /usr/local/src/php/xfail_tests.list
               (
-                cd /usr/src/php
+                cd /usr/local/src/php
                 cat xfail_tests.list | xargs -n 1 grep -L '\-\-SKIPIF\-\-' | xargs -n 1 -r sed -i -e $'s/\(--FILE.*--\)/--SKIPIF--\\\n\\1/g' || true
                 cat xfail_tests.list | xargs -n 1 sed -i -e $'s/\(--SKIPIF--\)/\\1\\\nskip Unreliable output or flaky test/g'
               )
             fi
-            cd /usr/src/php
+            cd /usr/local/src/php
             export DD_TRACE_CLI_ENABLED=true
             export REPORT_EXIT_STATUS=1
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
@@ -376,7 +377,7 @@ jobs:
               -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php
       - run:
           command: |
-            cd /usr/src/php
+            cd /usr/local/src/php
             mkdir -p /tmp/artifacts/core_dumps
             find ./ -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
             mkdir -p /tmp/artifacts/diffs
