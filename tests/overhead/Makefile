@@ -26,7 +26,7 @@ start_env:
 	docker-compose up -d
 	@echo "Environment started: might take a few seconds!"
 
-ssh_%:
+shell_%:
 	docker-compose exec php-fpm-$* bash
 
 clear:
@@ -40,6 +40,9 @@ request_synthetic: request_synthetic_notracer request_synthetic_master request_s
 
 request_hook: request_hook_notracer request_hook_master request_hook_head request_hook_release
 	@echo "Done Synthetic request!"
+
+clear_cache_%:
+	@docker-compose exec php-fpm-$* sh -c 'rm -rf /tmp/php-cache/*'
 
 request_l57_%:
 	@echo "Laravel 5.7 request: $*"
