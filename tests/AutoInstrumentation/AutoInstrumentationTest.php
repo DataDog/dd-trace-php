@@ -11,16 +11,16 @@ class AutoInstrumentationTest extends BaseTestCase
     /**
      * @dataProvider autoInstrumentationScenarios
      * @param string $scenario
-     * @param string $expectedVersion
+     * @param string $expectedOutput
      * @param bool $isComposer
      */
-    public function testAutoInstrumentationScenarios($scenario, $expectedVersion, $isComposer)
+    public function testAutoInstrumentationScenarios($scenario, $expectedOutput, $isComposer)
     {
         if ($isComposer) {
             $this->composerUpdateScenario($scenario);
         }
         $loadedVersion = $this->runAndReadVersion($scenario);
-        $this->assertSame($expectedVersion, $loadedVersion);
+        $this->assertSame($expectedOutput, $loadedVersion);
     }
 
     public function autoInstrumentationScenarios()
@@ -41,6 +41,11 @@ class AutoInstrumentationTest extends BaseTestCase
             // tracer in composer even if not required.
             'composer_with_local_code_dependency'
                 => ['composer_with_local_code_dependency', $currentTracerVersion, true],
+
+            // Even if versions do not match and we decide to disable our tracer, users should still be able to
+            // access a noop tracer not resulting in errors.
+            'composer_with_minor_out_sync_manual_instrumentation'
+                => ['composer_with_minor_out_sync_manual_instrumentation', '0.31.0 DDTrace\NoopTracer', true],
 
             // Symfony 3.3 has a loader Symfony\Component\Config\Resource\ClassExistenceResource which registers a
             // private method as the actual class loader. Because of https://github.com/DataDog/dd-trace-php/issues/224

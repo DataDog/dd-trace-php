@@ -1,0 +1,8 @@
+{
+    "require": {
+        "datadog/dd-trace": "0.31.0"
+    },
+    "config": {
+        "disable-tls": true
+    }
+}

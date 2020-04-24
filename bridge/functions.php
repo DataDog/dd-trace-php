@@ -159,3 +159,17 @@ function dd_wrap_autoloader()
         require __DIR__ . '/dd_init.php';
     });
 }
+
+/**
+ * Returns whether or not minor version matches.
+ *
+ * @param string $v1 a version starting with semver format
+ * @param string $v2 a version starting with semver format
+ * @return bool
+ */
+function dd_minor_semver_matches($v1, $v2)
+{
+    $v1Parts = \explode('.', $v1);
+    $v2Parts = \explode('.', $v2);
+    return ($v1Parts[0] === $v2Parts[0]) && ($v1Parts[1] === $v2Parts[1]);
+}
