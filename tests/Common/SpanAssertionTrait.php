@@ -49,4 +49,21 @@ trait SpanAssertionTrait
             $spanChecker->assertSpan($found[0], $expectedSpan);
         }
     }
+
+    /**
+     * Checks that the provide span doesn't exist in the provided traces.
+     *
+     * @param array[] $traces
+     * @param SpanAssertion $expectedSpan
+     */
+    public function assertSpanNotExist($traces, SpanAssertion $expectedSpan)
+    {
+        $spanChecker = new SpanChecker();
+
+        $found = array_values(array_filter($spanChecker->flattenTraces($traces), function ($span) use ($expectedSpan) {
+            return $span['name'] === $expectedSpan->getOperationName();
+        }));
+
+        TestCase::assertEmpty($found, 'Span should not exist: ' . $expectedSpan->getOperationName());
+    }
 }

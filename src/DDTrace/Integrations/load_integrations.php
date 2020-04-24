@@ -48,7 +48,6 @@ if (!$globalConfig->isEnabled()) {
 function _do_load_integration(
     $name,
     $class,
-    &$loadingStatuses,
     $sandboxed,
     $debug
 ) {
@@ -56,23 +55,15 @@ function _do_load_integration(
         return;
     }
 
-    // If the integration has already been loaded, we don't need to reload it. On the other hand, with
-    // auto-instrumentation this method may be called many times as the hook is the autoloader callback.
-    // So we want to make sure that we do not load the same integration twice if not required.
-    $integrationLoadingStatus = $loadingStatuses[$name];
-    if (in_array($integrationLoadingStatus, [Integration::LOADED, Integration::NOT_AVAILABLE])) {
-        return;
-    }
-
     if ($sandboxed) {
         $integration = new $class();
-        $loadingStatuses[$name] = $integration->init();
+        $status = $integration->init();
     } else {
-        $loadingStatuses[$name] = $class::load();
+        $status = $class::load();
     }
 
     if ($debug) {
-        _log_loading_result($name, $loadingStatuses[$name]);
+        _log_loading_result($name, $status);
     }
 }
 
@@ -97,13 +88,10 @@ function _log_loading_result($name, $result)
 }
 
 if ($globalConfig->isSandboxEnabled()) {
-    $loadingStatuses = [];
     $debug = $globalConfig->isDebugModeEnabled();
-
     _do_load_integration(
         CodeIgniterSandboxedIntegration::NAME,
         '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -112,7 +100,6 @@ if ($globalConfig->isSandboxEnabled()) {
         _do_load_integration(
             CurlSandboxedIntegration::NAME,
             '\DDTrace\Integrations\Curl\CurlSandboxedIntegration',
-            $loadingStatuses,
             true,
             $debug
         );
@@ -121,7 +108,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         ElasticSearchSandboxedIntegration::NAME,
         '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -129,7 +115,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         EloquentSandboxedIntegration::NAME,
         '\DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -137,7 +122,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         GuzzleSandboxedIntegration::NAME,
         '\DDTrace\Integrations\Guzzle\GuzzleSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -145,7 +129,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         LaravelSandboxedIntegration::NAME,
         '\DDTrace\Integrations\Laravel\LaravelSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -153,7 +136,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         MemcachedSandboxedIntegration::NAME,
         '\DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -161,7 +143,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         MongoSandboxedIntegration::NAME,
         '\DDTrace\Integrations\Mongo\MongoSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -169,7 +150,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         MysqliSandboxedIntegration::NAME,
         '\DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -177,7 +157,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         PDOSandboxedIntegration::NAME,
         '\DDTrace\Integrations\PDO\PDOSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -185,7 +164,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         PredisSandboxedIntegration::NAME,
         '\DDTrace\Integrations\Predis\PredisSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -194,7 +172,6 @@ if ($globalConfig->isSandboxEnabled()) {
         _do_load_integration(
             SymfonySandboxedIntegration::NAME,
             '\DDTrace\Integrations\Symfony\SymfonySandboxedIntegration',
-            $loadingStatuses,
             true,
             $debug
         );
@@ -203,14 +180,12 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         WordPressSandboxedIntegration::NAME,
         '\DDTrace\Integrations\WordPress\WordPressSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
     _do_load_integration(
         YiiSandboxedIntegration::NAME,
         '\DDTrace\Integrations\Yii\YiiSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -218,7 +193,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         ZendFrameworkSandboxedIntegration::NAME,
         '\DDTrace\Integrations\ZendFramework\ZendFrameworkSandboxedIntegration',
-        $loadingStatuses,
         true,
         $debug
     );
@@ -229,7 +203,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         CakePHPIntegration::NAME,
         '\DDTrace\Integrations\CakePHP\CakePHPIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -237,7 +210,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         CurlIntegration::NAME,
         '\DDTrace\Integrations\Curl\CurlIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -245,7 +217,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         ElasticSearchIntegration::NAME,
         '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -253,7 +224,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         EloquentIntegration::NAME,
         '\DDTrace\Integrations\Eloquent\EloquentIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -261,7 +231,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         GuzzleIntegration::NAME,
         '\DDTrace\Integrations\Guzzle\GuzzleIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -269,7 +238,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         LaravelIntegration::NAME,
         '\DDTrace\Integrations\Laravel\LaravelIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -277,21 +245,18 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         LumenIntegration::NAME,
         '\DDTrace\Integrations\Lumen\LumenIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
     _do_load_integration(
         MemcachedIntegration::NAME,
         '\DDTrace\Integrations\Memcached\MemcachedIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
     _do_load_integration(
         MongoIntegration::NAME,
         '\DDTrace\Integrations\Mongo\MongoIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -299,7 +264,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         MysqliIntegration::NAME,
         '\DDTrace\Integrations\Mysqli\MysqliIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -307,7 +271,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         PDOIntegration::NAME,
         '\DDTrace\Integrations\PDO\PDOIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -315,7 +278,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         PredisIntegration::NAME,
         '\DDTrace\Integrations\Predis\PredisIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -323,7 +285,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         SlimIntegration::NAME,
         '\DDTrace\Integrations\Slim\SlimIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -331,7 +292,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         SymfonyIntegration::NAME,
         '\DDTrace\Integrations\Symfony\SymfonyIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -339,7 +299,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         WebIntegration::NAME,
         '\DDTrace\Integrations\Web\WebIntegration',
-        $loadingStatuses,
         false,
         $debug
     );
@@ -347,7 +306,6 @@ if ($globalConfig->isSandboxEnabled()) {
     _do_load_integration(
         ZendFrameworkIntegration::NAME,
         '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration',
-        $loadingStatuses,
         false,
         $debug
     );

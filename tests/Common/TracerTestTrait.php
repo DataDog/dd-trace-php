@@ -12,9 +12,13 @@ use DDTrace\Transport\Http;
 use DDTrace\GlobalTracer;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
+use DDTrace\Tests\Integrations\CLI\EnvSerializer;
+use DDTrace\Tests\Integrations\CLI\IniSerializer;
 use DDTrace\Tests\WebServer;
 use Exception;
+use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\TestCase;
+use PHPUnit_Framework_AssertionFailedError;
 
 trait TracerTestTrait
 {
@@ -150,6 +154,40 @@ trait TracerTestTrait
             $webServer->stop();
             throw new Exception('Spec type not supported.');
         });
+
+        return $this->parseTracesFromDumpedData();
+    }
+
+    /**
+     * Execute an inline script like in php -r and return traces.
+     *
+     * @param string $script
+     * @param array $envs
+     * @param array $inis
+     * @return array
+     */
+    public function traceCliScriptInline($script, $envs = [], $inis = [])
+    {
+        $defaultEnvs = [
+            'DD_TRACE_NO_AUTOLOADER' => true,
+            'DD_TRACE_CLI_ENABLED' => true,
+            'DD_TRACE_AGENT_PORT' => 80,
+            'DD_AGENT_HOST' => 'request-replayer',
+            'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
+            // Short flush interval by default or our tests will take all day
+            'DD_TRACE_AGENT_FLUSH_INTERVAL' => 333,
+        ];
+        $defaultInis = [
+            'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+            // By default error.log goes to <dd-trace-php root>/error.log
+            'error_log' => 'error.log',
+            'log_errors' => 'on',
+        ];
+        $envs = (string)(new EnvSerializer(array_merge($defaultEnvs, $envs)));
+        $inis = (string)(new IniSerializer(\array_merge($defaultInis, $inis)));
+        $escaped = \escapeshellarg($script);
+        $cmd = "$envs php $inis -r $escaped";
+        exec($cmd);
 
         return $this->parseTracesFromDumpedData();
     }
