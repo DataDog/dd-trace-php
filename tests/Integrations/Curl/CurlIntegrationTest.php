@@ -4,7 +4,6 @@ namespace DDTrace\Tests\Integrations\Curl;
 
 use DDTrace\Configuration;
 use DDTrace\Format;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -38,8 +37,7 @@ class CurlIntegrationTest extends IntegrationTestCase
     public function setUp()
     {
         parent::setUp();
-        putenv('DD_CURL_ANALYTICS_ENABLED=true');
-        IntegrationsLoader::load();
+        self::loadIntegrations();
     }
 
     public function tearDown()

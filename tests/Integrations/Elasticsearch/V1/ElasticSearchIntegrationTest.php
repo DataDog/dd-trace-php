@@ -39,6 +39,12 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     const IS_SANDBOX = false;
     const HOST = 'elasticsearch2_integration';
 
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+        self::loadIntegrations();
+    }
+
     public function testNamespaceMethodNotExistsDoesNotCrashApps()
     {
         ElasticSearchIntegration::traceNamespaceMethod('\Wrong\Namespace', 'wrong_method');

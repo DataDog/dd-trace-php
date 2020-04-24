@@ -21,6 +21,12 @@ class PDOTest extends IntegrationTestCase
     const ERROR_STATEMENT = 'Sql error';
     // phpcs:enable
 
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+        self::loadIntegrations();
+    }
+
     protected function setUp()
     {
         parent::setUp();
@@ -38,7 +44,7 @@ class PDOTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () {
                 $this->pdoInstance();
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('PDO.__construct', 'PDO', 'sql', 'PDO.__construct')
                 ->withExactTags($this->baseTags()),
         ], static::IS_SANDBOX);
@@ -52,7 +58,7 @@ class PDOTest extends IntegrationTestCase
             } catch (\PDOException $ex) {
             }
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('PDO.__construct', 'PDO', 'sql', 'PDO.__construct')
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.user' => 'wrong_user',
@@ -71,7 +77,7 @@ class PDOTest extends IntegrationTestCase
             $pdo->commit();
             $pdo = null;
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
@@ -95,7 +101,7 @@ class PDOTest extends IntegrationTestCase
             } catch (\PDOException $ex) {
             }
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
@@ -120,7 +126,7 @@ class PDOTest extends IntegrationTestCase
             } catch (\PDOException $ex) {
             }
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
@@ -137,7 +143,7 @@ class PDOTest extends IntegrationTestCase
             $pdo->query($query);
             $pdo = null;
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
@@ -158,7 +164,7 @@ class PDOTest extends IntegrationTestCase
             } catch (\PDOException $ex) {
             }
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
@@ -179,7 +185,7 @@ class PDOTest extends IntegrationTestCase
             } catch (\PDOException $ex) {
             }
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
@@ -198,7 +204,7 @@ class PDOTest extends IntegrationTestCase
             $pdo->commit();
             $pdo = null;
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::exists('PDO.exec'),
             SpanAssertion::build('PDO.commit', 'PDO', 'sql', 'PDO.commit')
@@ -219,7 +225,7 @@ class PDOTest extends IntegrationTestCase
             $stmt = null;
             $pdo = null;
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build(
                 'PDO.prepare',
@@ -293,7 +299,7 @@ class PDOTest extends IntegrationTestCase
             } catch (\PDOException $ex) {
             }
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
                 ->withExactTags($this->baseTags()),
@@ -320,7 +326,7 @@ class PDOTest extends IntegrationTestCase
             } catch (\PDOException $ex) {
             }
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
                 ->withExactTags($this->baseTags()),

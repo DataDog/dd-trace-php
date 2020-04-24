@@ -53,6 +53,11 @@ abstract class IntegrationTestCase extends TestCase
         \PHPUnit_Framework_Error_Warning::$enabled = true;
     }
 
+    protected static function loadIntegrations()
+    {
+        require_once __DIR__ . '/../../src/DDTrace/Integrations/load_integrations.php';
+    }
+
     protected function disableTranslateWarningsIntoErrors()
     {
         \PHPUnit_Framework_Error_Warning::$enabled = false;

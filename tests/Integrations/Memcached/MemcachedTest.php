@@ -19,6 +19,12 @@ class MemcachedTest extends IntegrationTestCase
     private static $host = 'memcached_integration';
     private static $port = '11211';
 
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+        self::loadIntegrations();
+    }
+
     protected function setUp()
     {
         parent::setUp();
@@ -36,7 +42,7 @@ class MemcachedTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () {
             $this->client->add('key', 'value');
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.add', 'memcached', 'memcached', 'add')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -51,7 +57,7 @@ class MemcachedTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () {
             $this->client->addByKey('my_server', 'key', 'value');
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.addByKey', 'memcached', 'memcached', 'addByKey')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -72,7 +78,7 @@ class MemcachedTest extends IntegrationTestCase
             } catch (\Exception $ex) {
             }
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.append', 'memcached', 'memcached', 'append')
                 ->setError()
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -89,7 +95,7 @@ class MemcachedTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () {
             $this->client->append('key', 'value');
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.append', 'memcached', 'memcached', 'append')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'append ' . Obfuscation::toObfuscatedString('key'),
@@ -108,7 +114,7 @@ class MemcachedTest extends IntegrationTestCase
             } catch (\Exception $ex) {
             }
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.appendByKey', 'memcached', 'memcached', 'appendByKey')
                 ->setError()
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -127,7 +133,7 @@ class MemcachedTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () {
             $this->client->appendByKey('my_server', 'key', 'value');
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.appendByKey', 'memcached', 'memcached', 'appendByKey')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'appendByKey ' . Obfuscation::toObfuscatedString('key'),
@@ -148,7 +154,7 @@ class MemcachedTest extends IntegrationTestCase
 
             $this->assertFalse($this->client->get('key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.delete', 'memcached', 'memcached', 'delete')
@@ -172,7 +178,7 @@ class MemcachedTest extends IntegrationTestCase
 
             $this->assertFalse($this->client->getByKey('my_Server', 'key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::build('Memcached.deleteByKey', 'memcached', 'memcached', 'deleteByKey')
@@ -223,7 +229,7 @@ class MemcachedTest extends IntegrationTestCase
         //       setMulti and deleteMulti don't generate out.host and out.port because it
         //       might be different for each key. setMultiByKey does, since you're pinning a
         //       specific server.
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.get'),
@@ -252,7 +258,7 @@ class MemcachedTest extends IntegrationTestCase
             $this->assertFalse($this->client->getByKey('my_Server', 'key1'));
             $this->assertFalse($this->client->getByKey('my_Server', 'key2'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.getByKey'),
@@ -284,7 +290,7 @@ class MemcachedTest extends IntegrationTestCase
             // of our instrumentation as is present even when not loaded.
             $this->assertSame('98', trim($this->client->get('key')));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement ' . Obfuscation::toObfuscatedString('key'),
@@ -312,7 +318,7 @@ class MemcachedTest extends IntegrationTestCase
             // of our instrumentation, as it happens also not loading the integration.
             $this->assertSame(98, $this->client->get('key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -334,7 +340,7 @@ class MemcachedTest extends IntegrationTestCase
             // of our instrumentation, as it happens also not loading the integration.
             $this->assertSame(98, $this->client->getByKey('my_server', 'key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.decrementByKey', 'memcached', 'memcached', 'decrementByKey')
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -360,7 +366,7 @@ class MemcachedTest extends IntegrationTestCase
 
             $this->assertSame('102', $this->client->get('key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment ' . Obfuscation::toObfuscatedString('key'),
@@ -387,7 +393,7 @@ class MemcachedTest extends IntegrationTestCase
             // of our instrumentation, as it happens also not loading the integration.
             $this->assertSame(2, $this->client->get('key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -408,7 +414,7 @@ class MemcachedTest extends IntegrationTestCase
             // of our instrumentation, as it happens also not loading the integration.
             $this->assertSame(102, $this->client->getByKey('my_server', 'key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.incrementByKey', 'memcached', 'memcached', 'incrementByKey')
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -431,7 +437,7 @@ class MemcachedTest extends IntegrationTestCase
 
             $this->assertFalse($this->client->get('key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.flush', 'memcached', 'memcached', 'flush')
@@ -449,7 +455,7 @@ class MemcachedTest extends IntegrationTestCase
 
             $this->assertSame('value', $this->client->get('key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.get', 'memcached', 'memcached', 'get')
                 ->setTraceAnalyticsCandidate()
@@ -468,7 +474,7 @@ class MemcachedTest extends IntegrationTestCase
 
             $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], $this->client->getMulti(['key1', 'key2']));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
@@ -485,7 +491,7 @@ class MemcachedTest extends IntegrationTestCase
             $this->client->addByKey('my_server', 'key', 'value');
             $this->assertSame('value', $this->client->getByKey('my_server', 'key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.getByKey', 'memcached', 'memcached', 'getByKey')
                 ->setTraceAnalyticsCandidate()
@@ -508,7 +514,7 @@ class MemcachedTest extends IntegrationTestCase
                 $this->client->getMultiByKey('my_server', ['key1', 'key2'])
             );
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.getMultiByKey', 'memcached', 'memcached', 'getMultiByKey')
@@ -528,7 +534,7 @@ class MemcachedTest extends IntegrationTestCase
 
             $this->assertEquals('replaced', $this->client->get('key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.replace', 'memcached', 'memcached', 'replace')
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -547,7 +553,7 @@ class MemcachedTest extends IntegrationTestCase
 
             $this->assertEquals('replaced', $this->client->getByKey('my_server', 'key'));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.replaceByKey', 'memcached', 'memcached', 'replaceByKey')
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -564,7 +570,7 @@ class MemcachedTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () {
             $this->client->set('key', 'value');
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.set', 'memcached', 'memcached', 'set')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -579,7 +585,7 @@ class MemcachedTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () {
             $this->client->setByKey('my_server', 'key', 'value');
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.setByKey', 'memcached', 'memcached', 'setByKey')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -597,7 +603,7 @@ class MemcachedTest extends IntegrationTestCase
 
             $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], $this->client->getMulti(['key1', 'key2']));
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.setMulti', 'memcached', 'memcached', 'setMulti')
                 ->withExactTags([
                     'memcached.query' => 'setMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
@@ -617,7 +623,7 @@ class MemcachedTest extends IntegrationTestCase
                 $this->client->getMultiByKey('my_server', ['key1', 'key2'])
             );
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.setMultiByKey', 'memcached', 'memcached', 'setMultiByKey')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'setMultiByKey ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
@@ -633,7 +639,7 @@ class MemcachedTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () {
             $this->client->touch('key');
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.touch', 'memcached', 'memcached', 'touch')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'touch ' . Obfuscation::toObfuscatedString('key'),
@@ -647,7 +653,7 @@ class MemcachedTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () {
             $this->client->touchByKey('my_server', 'key');
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.touchByKey', 'memcached', 'memcached', 'touchByKey')
                 ->withExactTags(array_merge(self::baseTags(), [
                     'memcached.query' => 'touchByKey ' . Obfuscation::toObfuscatedString('key'),
@@ -670,7 +676,7 @@ class MemcachedTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($cas) {
             $this->client->cas($cas, 'key', 'value');
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.cas', 'memcached', 'memcached', 'cas')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [
@@ -694,7 +700,7 @@ class MemcachedTest extends IntegrationTestCase
         $traces = $this->isolateTracer(function () use ($cas) {
             $this->client->casByKey($cas, 'my_server', 'key', 'value');
         });
-        $this->assertSpans($traces, [
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build('Memcached.casByKey', 'memcached', 'memcached', 'casByKey')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge(self::baseTags(), [

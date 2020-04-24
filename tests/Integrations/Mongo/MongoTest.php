@@ -6,10 +6,8 @@ use MongoId;
 use MongoCode;
 use MongoClient;
 use MongoCollection;
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
-use DDTrace\Configuration;
 
 class MongoTest extends IntegrationTestCase
 {
@@ -24,7 +22,7 @@ class MongoTest extends IntegrationTestCase
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
-        IntegrationsLoader::load();
+        self::loadIntegrations();
     }
 
     protected function tearDown()
