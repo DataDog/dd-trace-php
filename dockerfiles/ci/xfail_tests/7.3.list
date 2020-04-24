@@ -301,3 +301,4 @@ Zend/tests/gc_041.phpt
 Zend/tests/gc_042.phpt
 ext/readline/tests/libedit_callback_handler_install_001.phpt
 ext/readline/tests/libedit_callback_handler_remove_001.phpt
+ext/simplexml/tests/bug51615.phpt
