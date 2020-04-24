@@ -9,6 +9,7 @@
 
 #include <ext/spl/spl_exceptions.h>
 
+#include "arrays.h"
 #include "compat_string.h"
 #include "ddtrace.h"
 #include "logging.h"
@@ -337,7 +338,7 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRM
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
-    zval *meta, *orig_meta = _read_span_property(span->span_data, "meta", sizeof("meta") - 1 TSRMLS_CC);
+    zval *meta, *orig_meta = _read_span_property(span->span_data, ZEND_STRL("meta") TSRMLS_CC);
     ALLOC_INIT_ZVAL(meta);
     array_init(meta);
     if (orig_meta && Z_TYPE_P(orig_meta) == IS_ARRAY) {
@@ -361,6 +362,7 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
     }
 
     _serialize_exception(el, meta, span TSRMLS_CC);
+    // zend_hash_exists on PHP 5 needs `sizeof(string)`, not `sizeof(string) - 1`
     if (!span->exception && zend_hash_exists(Z_ARRVAL_P(meta), "error.msg", sizeof("error.msg"))) {
         add_assoc_long(el, "error", 1);
     }
@@ -427,7 +429,7 @@ static void _trace_string(smart_str *str, HashTable *ht, uint32_t num) /* {{{ */
     smart_str_append_long(str, num);
     smart_str_appendc(str, ' ');
 
-    file = zend_hash_str_find(ht, "file", sizeof("file") - 1);
+    file = zend_hash_str_find(ht, ZEND_STRL("file"));
     if (file) {
         if (Z_TYPE_P(file) != IS_STRING) {
             ddtrace_log_debug("serializer stack trace: Function name is not a string");
@@ -538,7 +540,7 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span) {
 
     _serialize_exception(el, meta, span);
     if (!span->exception) {
-        zval *error = zend_hash_str_find_ptr(Z_ARR_P(meta), "error.msg", sizeof("error.msg") - 1);
+        zval *error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg"));
         if (error) {
             add_assoc_long(el, "error", 1);
         }
@@ -593,7 +595,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC
 
     _serialize_meta(el, span TSRMLS_CC);
 
-    zval *metrics = _read_span_property(span->span_data, "metrics", sizeof("metrics") - 1 TSRMLS_CC);
+    zval *metrics = _read_span_property(span->span_data, ZEND_STRL("metrics") TSRMLS_CC);
     if (Z_TYPE_P(metrics) == IS_ARRAY) {
         _add_assoc_zval_copy(el, "metrics", metrics);
     }

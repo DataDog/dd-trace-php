@@ -7,6 +7,7 @@
 
 #include <ext/spl/spl_exceptions.h>
 
+#include "arrays.h"
 #include "compat_string.h"
 #include "ddtrace.h"
 #include "dispatch.h"
@@ -68,10 +69,10 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
         // downcase the class name before lookup as class names are case insensitive.
         zval *class_name_prev = class_name;
         MAKE_STD_ZVAL(class_name);
-        ZVAL_STRING(class_name, Z_STRVAL_P(class_name_prev), 1);
+        ZVAL_STRINGL(class_name, Z_STRVAL_P(class_name_prev), Z_STRLEN_P(class_name_prev), 1);
         ddtrace_downcase_zval(class_name);
         overridable_lookup =
-            zend_hash_str_find_ptr(DDTRACE_G(class_lookup), Z_STRVAL_P(class_name), Z_STRLEN_P(class_name));
+            ddtrace_hash_find_ptr(DDTRACE_G(class_lookup), Z_STRVAL_P(class_name), Z_STRLEN_P(class_name));
         if (!overridable_lookup) {
             overridable_lookup = ddtrace_new_class_lookup(class_name TSRMLS_CC);
         }
