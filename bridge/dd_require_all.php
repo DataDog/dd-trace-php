@@ -64,6 +64,8 @@ require __DIR__ . '/../src/DDTrace/Integrations/CakePHP/CakePHPIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/CodeIgniter/V2/CodeIgniterSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Web/WebIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/IntegrationsLoader.php';
+require __DIR__ . '/../src/DDTrace/Integrations/APCu/APCuIntegration.php';
+require __DIR__ . '/../src/DDTrace/Integrations/APCu/APCuSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/PDO/PDOIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/PDO/PDOSandboxedIntegration.php';
 require __DIR__ . '/../src/DDTrace/Integrations/Predis/PredisIntegration.php';
