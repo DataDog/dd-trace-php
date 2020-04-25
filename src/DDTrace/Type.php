@@ -13,7 +13,7 @@ class Type
     const MESSAGE_CONSUMER = 'queue';
     const MESSAGE_PRODUCER = 'queue';
 
-    const APCu = 'apcu';
+    const APCU = 'apcu';
     const CASSANDRA = 'cassandra';
     const ELASTICSEARCH = 'elasticsearch';
     const MEMCACHED = 'memcached';

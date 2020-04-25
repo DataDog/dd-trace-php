@@ -179,7 +179,7 @@ class APCuIntegration extends Integration
             "APCu.$command"
         );
         $span = $scope->getSpan();
-        $span->setTag(Tag::SPAN_TYPE, Type::APCu);
+        $span->setTag(Tag::SPAN_TYPE, Type::APCU);
         $span->setTag(Tag::SERVICE_NAME, 'apcu');
         $span->setTag('apcu.command', $command);
         if (!empty($args)) {
