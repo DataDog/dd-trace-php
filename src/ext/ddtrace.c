@@ -46,7 +46,7 @@ STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disabl
                     ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.internal_blacklisted_modules_list", "ionCube Loader,newrelic,", PHP_INI_SYSTEM,
                   OnUpdateString, internal_blacklisted_modules_list, zend_ddtrace_globals, ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
+STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "@php_dir@/datadog_trace/bridge/dd_wrap_autoloader.php", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
                     ddtrace_globals)
@@ -272,7 +272,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_init_span_stacks(TSRMLS_C);
     ddtrace_coms_on_pid_change();
 
-    if (DDTRACE_G(request_init_hook)) {
+    if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0] != '@') {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));
         dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
     }
