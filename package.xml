@@ -49,6 +49,7 @@
                     <file name="macros.h" role="src" />
                     <file name="ddtrace.c" role="src">
                          <tasks:replace from="@php_dir@" to="php_dir" type="pear-config" />
+                         <tasks:replace from="_BUILD_FROM_PECL_" to="PHP_VERSION_ID" type="php-const" />
                     </file>
                     <file name="ddtrace.h" role="src" />
                     <file name="ddtrace_string.c" role="src" />
