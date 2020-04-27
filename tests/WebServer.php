@@ -4,6 +4,7 @@ namespace DDTrace\Tests;
 
 use DDTrace\Tests\Integrations\CLI\EnvSerializer;
 use DDTrace\Tests\Integrations\CLI\IniSerializer;
+use DDTrace\Tests\Nginx\NginxServer;
 use Symfony\Component\Process\Process;
 
 /**
@@ -11,12 +12,24 @@ use Symfony\Component\Process\Process;
  */
 final class WebServer
 {
+    const FCGI_HOST = '0.0.0.0';
+    const FCGI_PORT = 9797;
+
+    const ERROR_LOG_NAME = 'dd_php_error.log';
+
     /**
      * Symfony Process object managing the server
      *
      * @var Process
      */
     private $process;
+
+    /**
+     * Separate process for web server when running PHP as FastCGI
+     *
+     * @var NginxServer
+     */
+    private $server;
 
     /**
      * @var string
@@ -63,26 +76,44 @@ final class WebServer
      */
     public function __construct($indexFile, $host = '0.0.0.0', $port = 80)
     {
-        $this->indexFile = $indexFile;
-        $this->defaultInis['error_log'] = dirname($indexFile) .  '/error.log';
+        $this->indexFile = realpath($indexFile);
+        $this->defaultInis['error_log'] = dirname($this->indexFile) .  '/' . self::ERROR_LOG_NAME;
         // Enable auto-instrumentation
-        $this->defaultInis['ddtrace.request_init_hook'] = __DIR__ .  '/../bridge/dd_wrap_autoloader.php';
+        $this->defaultInis['ddtrace.request_init_hook'] = realpath(__DIR__ .  '/../bridge/dd_wrap_autoloader.php');
         $this->host = $host;
         $this->port = $port;
     }
 
-    /**
-     *
-     */
     public function start()
     {
-        $host = $this->host;
-        $port = $this->port;
-        $indexFile = $this->indexFile;
-        $indexDirectory = dirname($this->indexFile);
+        if (\getenv('DD_TRACE_TEST_SAPI') === 'cgi-fcgi') {
+            $this->server = new NginxServer(
+                $this->indexFile,
+                $this->host,
+                $this->port,
+                self::FCGI_HOST,
+                self::FCGI_PORT
+            );
+            $this->server->start();
+
+            $cmd = sprintf(
+                'php-cgi %s -b %s:%d',
+                $this->getSerializedIniForCli(),
+                self::FCGI_HOST,
+                self::FCGI_PORT
+            );
+        } else {
+            $cmd = sprintf(
+                'php %s -S %s:%d -t %s %s',
+                $this->getSerializedIniForCli(),
+                $this->host,
+                $this->port,
+                dirname($this->indexFile),
+                $this->indexFile
+            );
+        }
+
         $envs = $this->getSerializedEnvsForCli();
-        $inis = $this->getSerializedIniForCli();
-        $cmd = "php $inis -S $host:$port -t $indexDirectory $indexFile";
         $processCmd = "$envs exec $cmd";
         $this->process = new Process($processCmd);
         $this->process->start();
@@ -102,6 +133,9 @@ final class WebServer
                 \usleep($this->envs['DD_TRACE_AGENT_FLUSH_INTERVAL'] * 2 * 1000);
             }
             $this->process->stop(0);
+        }
+        if ($this->server) {
+            $this->server->stop();
         }
     }
 
