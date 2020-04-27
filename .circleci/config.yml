@@ -547,7 +547,7 @@ jobs:
 
   "Prepare Code":
     working_directory: ~/datadog
-    docker: [ image: 'circleci/php:7.2-cli' ]
+    docker: [ image: 'circleci/php:7.3-cli' ]
     steps:
       - restore_cache:
           keys:
@@ -560,6 +560,7 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_COMPOSER_INSTALL
       - <<: *STEP_COMPOSER_COMPILE
       - <<: *STEP_COMPOSER_COMPILE_VERIFY
       - run:
