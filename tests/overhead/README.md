@@ -22,6 +22,9 @@ From this directory :
     # Execute request to Laravel 5.7 app via php-fpm
     make request_l57_(notracer|master|release|head)
 
+    # Execute a request to the Laravel 5.7 app multiple times and outputs results
+    make time_l57_(notracer|master|release|head)
+
     # Execute request to synthetic script via php-fpm
     make request_synthetic_(notracer|master|release|head)
 
@@ -32,7 +35,7 @@ From this directory :
     make time_hook_(notracer|master|release|head)
 
     # Open a shell into the container
-    make ssh_(notracer|master|release|head)
+    make shell_(notracer|master|release|head)
 
 Profile output is dumped into `./callgrind-files`.
 

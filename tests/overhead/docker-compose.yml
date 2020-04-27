@@ -52,7 +52,6 @@ services:
       - OPCACHE_ENABLE=${OPCACHE_ENABLE:-1}
       - DD_TRACE_ENABLED=${DD_TRACE_ENABLED:-true}
       - DD_TRACE_DEBUG=${DD_TRACE_DEBUG:-false}
-      - DD_TRACE_NO_AUTOLOADER=true
     volumes:
       - ./callgrind-files:/var/www/callgrind-files
       # - ../../:/dd-trace-php
