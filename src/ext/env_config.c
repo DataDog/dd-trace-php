@@ -15,6 +15,15 @@
 #define EQUALS(stra, stra_len, literal_strb) \
     (stra_len == (sizeof(literal_strb) - 1) && memcmp(stra, literal_strb, sizeof(literal_strb) - 1) == 0)
 
+char *ddtrace_getenv(char *name, size_t name_len TSRMLS_DC) {
+    char *env = sapi_getenv(name, name_len TSRMLS_CC);
+    if (env) {
+        return env;
+    }
+    env = getenv(name);
+    return env ? estrdup(env) : NULL;
+}
+
 char *get_local_env_or_sapi_env(char *name TSRMLS_DC) {
     char *env = NULL, *tmp = getenv(name);
     if (tmp) {
