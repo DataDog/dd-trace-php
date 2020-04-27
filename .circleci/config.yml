@@ -87,20 +87,15 @@ aliases:
       name: Installing dependencies with composer
       command: composer install --no-interaction
 
-  - &STEP_COMPOSER_LIB_INSTALL
-    run:
-      name: Installing dependencies with composer
-      command: composer --working-dir=lib install --no-interaction
-
-  - &STEP_COMPOSER_LIB_COMPILE
+  - &STEP_COMPOSER_COMPILE
     run:
       name: Compiling dd-tace-php files into single file
-      command: composer --working-dir=lib compile
+      command: composer compile
 
-  - &STEP_COMPOSER_LIB_COMPILE_VERIFY
+  - &STEP_COMPOSER_COMPILE_VERIFY
     run:
       name: Verifying dd-tace-php files compiled into single file
-      command: composer --working-dir=lib compile-verify
+      command: composer compile-verify
 
   - &STEP_PREPARE_TEST_RESULTS_DIR
     run:
@@ -565,15 +560,11 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_COMPOSER_LIB_INSTALL
-      - <<: *STEP_COMPOSER_LIB_COMPILE
-      - <<: *STEP_COMPOSER_LIB_COMPILE_VERIFY
-      - run:
-          name: Removing files/folders to prevent them to endup into the final package
-          command: rm -rf ~/datadog/lib/vendor ~/datadog/lib/composer.lock
+      - <<: *STEP_COMPOSER_COMPILE
+      - <<: *STEP_COMPOSER_COMPILE_VERIFY
       - run:
           name: Showing folder containing generated files
-          command: ls -al ~/datadog/lib
+          command: ls -al ~/bridge
       - persist_to_workspace:
           root: '.'
           paths: ['./']
