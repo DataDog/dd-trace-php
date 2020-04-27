@@ -565,7 +565,7 @@ jobs:
       - <<: *STEP_COMPOSER_COMPILE_VERIFY
       - run:
           name: Showing folder containing generated files
-          command: ls -al ~/bridge
+          command: ls -al ~/datadog/bridge
       - persist_to_workspace:
           root: '.'
           paths: ['./']
