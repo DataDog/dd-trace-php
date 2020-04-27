@@ -29,7 +29,7 @@ final class Tracer implements TracerInterface
     /**
      * @deprecated Use Tracer::version() instead
      */
-    const VERSION = '0.43.0'; // Update ./version.php too
+    const VERSION = '0.43.1'; // Update ./version.php too
 
     /**
      * @var Span[][]
