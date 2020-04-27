@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Metrics\SigSegV;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tests\WebServer;
 
 class SigSegVTest extends WebFrameworkTestCase
 {
@@ -26,12 +27,12 @@ class SigSegVTest extends WebFrameworkTestCase
             );
         }
         parent::setUp();
-        @unlink(__DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/error.log');
+        @unlink(__DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/' . WebServer::ERROR_LOG_NAME);
     }
 
     public function testGet()
     {
-        $log = __DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/error.log';
+        $log = __DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/' . WebServer::ERROR_LOG_NAME;
         self::assertFileNotExists($log);
 
         $spec = GetSpec::create('sigsegv', '/');

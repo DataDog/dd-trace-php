@@ -19,8 +19,6 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
     } while (0)
 #endif
 
-extern inline void *zend_hash_str_find_ptr(const HashTable *ht, const char *key, size_t length);
-
 zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
     char *key = zend_str_tolower_dup(Z_STRVAL_P(name), Z_STRLEN_P(name));
 
