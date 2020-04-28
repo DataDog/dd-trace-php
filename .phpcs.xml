@@ -24,6 +24,7 @@
 
     <!-- PHP compatibility checks -->
     <config name="testVersion" value="5.4-7.3"/>
+    <exclude-pattern>bridge/_generated.php</exclude-pattern>
     <exclude-pattern>dockerfiles/*</exclude-pattern>
     <exclude-pattern>playground*.php</exclude-pattern>
     <exclude-pattern>run-tests.php</exclude-pattern>

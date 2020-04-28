@@ -32,7 +32,7 @@ From this directory :
     make time_hook_(notracer|master|release|head)
 
     # Open a shell into the container
-    make ssh_(notracer|master|release|head)
+    make shell_(notracer|master|release|head)
 
 Profile output is dumped into `./callgrind-files`.
 

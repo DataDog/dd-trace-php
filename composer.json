@@ -30,7 +30,8 @@
         "mockery/mockery": "*",
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
-        "symfony/process": "<5"
+        "symfony/process": "<5",
+        "classpreloader/classpreloader": "1.4.*"
     },
     "config": {
         "sort-packages": true
@@ -47,6 +48,8 @@
     },
     "prefer-stable": true,
     "scripts": {
+        "compile": "classpreloader.php compile --config=./bridge/_files.php --output=./bridge/_generated.php --strip_comments=1",
+        "compile-verify": "php ./bridge/autoload.php",
         "fix-lint": "phpcbf",
         "lint": "phpcs -s --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/",
         "lint-5.4": "phpcs -s --runtime-set testVersion 5.4-7.3 --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/",
@@ -55,12 +58,17 @@
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
         ],
-        "install-ext": "make sudo install_ini install $*",
+        "install-ext": [
+            "make sudo install_ini install $*",
+            "@composer compile",
+            "@composer compile-verify"
+        ],
         "test-cache": "./tooling/bin/composer-cache cache",
         "test-cache-link": "./tooling/bin/composer-cache link-cache",
         "test-cache-unlink": "./tooling/bin/composer-cache unlink-cache",
         "test-ext": "make test_c TESTS=tests/ext",
         "test": "phpunit --colors=always --configuration=phpunit.xml",
+        "test-no-compile": "DD_AUTOLOAD_NO_COMPILE=true phpunit --colors=always --configuration=phpunit.xml",
         "test-all-54": [
             "@test-unit",
             "@test-auto-instrumentation",

@@ -29,6 +29,6 @@ class RequiredDepsAutoloader
 
         self::$skipLoader = true; // avoid hard to debug errors if dd_require_all requires dependencies in wrong order
         // load every required depency in one go
-        require __DIR__ . '/dd_require_all.php';
+        require __DIR__ . '/autoload.php';
     }
 }
