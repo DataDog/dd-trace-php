@@ -10,17 +10,27 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2020-04-28</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.44.0</release>
+        <api>0.44.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Fixed
+
+        - Fix ddtrace_config_* functions to use sapi_getenv #848
+        - Fix curl integrations #851
+
+        ### Changed
+
+        - Whitelist the `cgi-fcgi` SAPI #835
+        - Add ddtrace_hash_find_ptr_lc which stack-allocates small strings #839
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
