@@ -798,21 +798,21 @@ workflows:
           docker_image: php:7.3
           package_type: deb
       - integration_tests:
-          requires: [ 'Code Checkout' ]
+          requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test-web-72"
           docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
       - integration_tests:
-          requires: [ 'Code Checkout' ]
+          requires: [ 'Prepare Code' ]
           name: "PHP 73 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test-web-73"
           docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
       - integration_tests:
-          requires: [ 'Code Checkout' ]
+          requires: [ 'Prepare Code' ]
           name: "PHP 74 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
@@ -915,31 +915,31 @@ workflows:
           xfail_list: dockerfiles/ci/xfail_tests/5.4.list
           docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
       - base_integration_tests:
-          requires: [ 'Code Checkout' ]
+          requires: [ 'Prepare Code' ]
           name: "PHP 54 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
       - base_integration_tests:
-          requires: [ 'Code Checkout' ]
+          requires: [ 'Prepare Code' ]
           name: "PHP 56 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
       - base_integration_tests:
-          requires: [ 'Code Checkout' ]
+          requires: [ 'Prepare Code' ]
           name: "PHP 70 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
       - base_integration_tests:
-          requires: [ 'Code Checkout' ]
+          requires: [ 'Prepare Code' ]
           name: "PHP 71 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
       - base_integration_tests:
-          requires: [ 'Code Checkout' ]
+          requires: [ 'Prepare Code' ]
           name: "PHP 72 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
       - base_integration_tests:
-          requires: [ 'Code Checkout' ]
+          requires: [ 'Prepare Code' ]
           name: "PHP 73 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
       - base_integration_tests:
-          requires: [ 'Code Checkout' ]
+          requires: [ 'Prepare Code' ]
           name: "PHP 74 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
       - integration_tests:
