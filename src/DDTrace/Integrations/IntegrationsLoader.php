@@ -3,6 +3,8 @@
 namespace DDTrace\Integrations;
 
 use DDTrace\Configuration;
+use DDTrace\Integrations\APCu\APCuIntegration;
+use DDTrace\Integrations\APCu\APCuSandboxedIntegration;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
 use DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration;
 use DDTrace\Integrations\Curl\CurlIntegration;
@@ -58,6 +60,7 @@ class IntegrationsLoader
      */
     public static $officiallySupportedIntegrations = [
         CakePHPIntegration::NAME => '\DDTrace\Integrations\CakePHP\CakePHPIntegration',
+        APCuIntegration::NAME => '\DDTrace\Integrations\APCu\APCuIntegration',
         CurlIntegration::NAME => '\DDTrace\Integrations\Curl\CurlIntegration',
         ElasticSearchIntegration::NAME => '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
         EloquentIntegration::NAME => '\DDTrace\Integrations\Eloquent\EloquentIntegration',

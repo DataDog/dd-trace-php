@@ -25,6 +25,7 @@ final class SpanIntegrationChecker
             // Prepend your operation names with custom for custom spans to have the span check disabled
             '/custom.*/' => null,
             // Officially supported integrations
+            '/APCu.*/' => 'DDTrace\Integrations\APCu\APCuIntegration',
             '/curl_.*/' => 'DDTrace\Integrations\Curl\CurlIntegration',
             '/Elasticsearch(.).*/' => 'DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
             '/GuzzleHttp.*/' => 'DDTrace\Integrations\Guzzle\GuzzleIntegration',
