@@ -814,6 +814,10 @@ typedef long ddtrace_zpplong_t;
 typedef zend_long ddtrace_zpplong_t;
 #endif
 
+static ddtrace_string ddtrace_string_getenv(char *str, size_t len TSRMLS_DC) {
+    return ddtrace_string_cstring_ctor(ddtrace_getenv(str, len TSRMLS_CC));
+}
+
 static PHP_FUNCTION(ddtrace_config_app_name) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     ddtrace_string default_str = {
@@ -835,43 +839,44 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
     }
 #endif
 
-    ddtrace_string service_name = {
-        .ptr = "DD_SERVICE_NAME",
-        .len = sizeof("DD_SERVICE_NAME") - 1,
-    };
-    ddtrace_string app_name;
-    char *value = getenv(service_name.ptr);
-    ddtrace_zppstrlen_t value_len;
-    if (value && (value_len = strlen(value))) {
-        app_name.ptr = value;
-        app_name.len = value_len;
-    } else if (default_str.ptr) {
+    ddtrace_string app_name = ddtrace_string_getenv(ZEND_STRL("DD_SERVICE_NAME") TSRMLS_CC);
+    bool should_free_app_name = app_name.ptr;
+    if (!app_name.len) {
+        if (should_free_app_name) {
+            efree(app_name.ptr);
+        }
+        if (!default_str.len) {
+            RETURN_NULL()
+        }
+        should_free_app_name = false;
         app_name = default_str;
-    } else {
-        RETURN_NULL()
     }
 
     ddtrace_string trimmed = ddtrace_trim(app_name);
 #if PHP_VERSION_ID < 70000
-    RETURN_STRINGL(trimmed.ptr, trimmed.len, 1)
+    RETVAL_STRINGL(trimmed.ptr, trimmed.len, 1);
 #else
     // Re-use and addref the default_zstr iff they match and trim didn't occur; copy otherwise
     if (default_zstr && trimmed.ptr == ZSTR_VAL(default_zstr) && trimmed.len == ZSTR_LEN(default_zstr)) {
-        RETURN_STR_COPY(default_zstr)
+        RETVAL_STR_COPY(default_zstr);
     } else {
-        RETURN_STRINGL(trimmed.ptr, trimmed.len)
+        RETVAL_STRINGL(trimmed.ptr, trimmed.len);
     }
 #endif
+    if (should_free_app_name) {
+        efree(app_name.ptr);
+    }
 }
 
-static bool _dd_config_bool(zval *value, bool default_value) {
-    ddtrace_downcase_zval(value);
-
-    ddtrace_string subject = {
-        .ptr = Z_STRVAL_P(value),
-        .len = Z_STRLEN_P(value),
-    };
-
+/**
+ * Returns true if `subject` matches "true" or "1".
+ * Returns false if `subject` matches "false" or "0".
+ * Returns `default_value` otherwise.
+ * @param subject An already lowercased string
+ * @param default_value
+ * @return
+ */
+static bool _dd_config_bool(ddtrace_string subject, bool default_value) {
     ddtrace_string str_1 = {
         .ptr = "1",
         .len = 1,
@@ -897,49 +902,54 @@ static bool _dd_config_bool(zval *value, bool default_value) {
     return default_value;
 }
 
-static bool _dd_config_trace_enabled() {
-    char *value = getenv("DD_TRACE_ENABLED");
-    ddtrace_zppstrlen_t value_len;
-    if (value && (value_len = strlen(value))) {
-        zval item;
-#if PHP_VERSION_ID < 70000
-        ZVAL_STRINGL(&item, value, value_len, 1);
-#else
-        ZVAL_STRINGL(&item, value, value_len);
-#endif
-        bool result = _dd_config_bool(&item, true);
-        ddtrace_zval_ptr_dtor(&item);
+static bool _dd_config_trace_enabled(TSRMLS_D) {
+    ddtrace_string env = ddtrace_string_getenv(ZEND_STRL("DD_TRACE_ENABLED") TSRMLS_CC);
+    if (env.len) {
+        /* We need to lowercase the str for _dd_config_bool.
+         * We know it's already been duplicated by ddtrace_getenv, so we can
+         * lower it in-place.
+         */
+        zend_str_tolower(env.ptr, env.len);
+        bool result = _dd_config_bool(env, true);
+        efree(env.ptr);
         return result;
-    } else {
-        return true;
     }
+    if (env.ptr) {
+        efree(env.ptr);
+    }
+    return true;
 }
 
 static PHP_FUNCTION(ddtrace_config_trace_enabled) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
-    PHP7_UNUSED(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-    RETURN_BOOL(_dd_config_trace_enabled());
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+    RETURN_BOOL(_dd_config_trace_enabled(TSRMLS_C));
 }
 
 // note: only call this if _dd_config_trace_enabled() returns true
-static bool _dd_config_integration_enabled(ddtrace_string integration) {
-    ddtrace_string integrations_disabled = ddtrace_string_cstring_ctor(getenv("DD_INTEGRATIONS_DISABLED"));
+static bool _dd_config_integration_enabled(ddtrace_string integration TSRMLS_DC) {
+    ddtrace_string integrations_disabled = ddtrace_string_getenv(ZEND_STRL("DD_INTEGRATIONS_DISABLED") TSRMLS_CC);
     if (integrations_disabled.len && integration.len) {
-        return !ddtrace_string_contains_in_csv(integrations_disabled, integration);
+        bool result = !ddtrace_string_contains_in_csv(integrations_disabled, integration);
+        efree(integrations_disabled.ptr);
+        return result;
+    }
+    if (integrations_disabled.ptr) {
+        efree(integrations_disabled.ptr);
     }
     return true;
 }
 
 static PHP_FUNCTION(ddtrace_config_integration_enabled) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    if (!_dd_config_trace_enabled()) {
+    if (!_dd_config_trace_enabled(TSRMLS_C)) {
         RETURN_FALSE
     }
     ddtrace_string integration;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
         RETURN_NULL()
     }
-    RETURN_BOOL(_dd_config_integration_enabled(integration))
+    RETVAL_BOOL(_dd_config_integration_enabled(integration TSRMLS_CC));
 }
 
 static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
