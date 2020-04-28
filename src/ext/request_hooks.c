@@ -6,54 +6,11 @@
 #include <string.h>
 
 #include "ddtrace.h"
-#include "ddtrace_string.h"
 #include "engine_hooks.h"
 #include "env_config.h"
 #include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
-
-int dd_no_blacklisted_modules(TSRMLS_D) {
-    zend_module_entry *module;
-    int no_blacklisted_modules = 1;
-
-    ddtrace_string blacklist = ddtrace_string_cstring_ctor(DDTRACE_G(internal_blacklisted_modules_list));
-    if (!blacklist.len) {
-        return no_blacklisted_modules;
-    }
-
-#if PHP_VERSION_ID < 70000
-    HashPosition pos;
-    zend_hash_internal_pointer_reset_ex(&module_registry, &pos);
-
-    while (zend_hash_get_current_data_ex(&module_registry, (void *)&module, &pos) != FAILURE) {
-        if (!module || !module->name) {
-            continue;
-        }
-        ddtrace_string module_name = ddtrace_string_cstring_ctor((char *)module->name);
-        if (module_name.len && ddtrace_string_contains_in_csv(blacklist, module_name)) {
-            ddtrace_log_debugf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
-            no_blacklisted_modules = 0;
-            break;
-        }
-        zend_hash_move_forward_ex(&module_registry, &pos);
-    }
-#else
-    ZEND_HASH_FOREACH_PTR(&module_registry, module) {
-        if (!module) {
-            continue;
-        }
-        ddtrace_string module_name = ddtrace_string_cstring_ctor((char *)module->name);
-        if (module_name.len && ddtrace_string_contains_in_csv(blacklist, module_name)) {
-            ddtrace_log_debugf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
-            no_blacklisted_modules = 0;
-            break;
-        }
-    }
-    ZEND_HASH_FOREACH_END();
-#endif
-    return no_blacklisted_modules;
-}
 
 #if PHP_VERSION_ID < 70000
 int dd_execute_php_file(const char *filename TSRMLS_DC) {
