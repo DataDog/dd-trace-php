@@ -25,6 +25,7 @@ services:
     environment:
       - XDEBUG_ENABLE_PROFILER=${XDEBUG_ENABLE_PROFILER:-1}
       - OPCACHE_ENABLE=${OPCACHE_ENABLE:-1}
+      - DD_SERVICE_NAME=php-fpm-notracer
     depends_on:
       - agent
     volumes:
@@ -38,6 +39,7 @@ services:
       - OPCACHE_ENABLE=${OPCACHE_ENABLE:-1}
       - DD_TRACE_ENABLED=${DD_TRACE_ENABLED:-true}
       - DD_TRACE_DEBUG=${DD_TRACE_DEBUG:-false}
+      - DD_SERVICE_NAME=php-fpm-master
     depends_on:
       - agent
     volumes:
@@ -52,7 +54,7 @@ services:
       - OPCACHE_ENABLE=${OPCACHE_ENABLE:-1}
       - DD_TRACE_ENABLED=${DD_TRACE_ENABLED:-true}
       - DD_TRACE_DEBUG=${DD_TRACE_DEBUG:-false}
-      - DD_TRACE_NO_AUTOLOADER=true
+      - DD_SERVICE_NAME=php-fpm-head
     volumes:
       - ./callgrind-files:/var/www/callgrind-files
       # - ../../:/dd-trace-php
@@ -66,6 +68,7 @@ services:
       - OPCACHE_ENABLE=${OPCACHE_ENABLE:-1}
       - DD_TRACE_ENABLED=${DD_TRACE_ENABLED:-true}
       - DD_TRACE_DEBUG=${DD_TRACE_DEBUG:-false}
+      - DD_SERVICE_NAME=php-fpm-release
     depends_on:
       - agent
     volumes:

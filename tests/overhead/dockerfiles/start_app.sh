@@ -8,4 +8,8 @@ if [[ -z "${DD_TRACE_LIBRARY_VERSION}" ]]; then
     dpkg -i /datadog-php-tracer.deb
 fi
 
+if [[ "${XDEBUG_ENABLE_PROFILER}" == "true" ]] || [[ "${XDEBUG_ENABLE_PROFILER}" == "1" ]] ; then
+    ln -s /usr/local/etc/php/conf.d-available/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
+fi
+
 php-fpm
