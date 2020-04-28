@@ -186,6 +186,53 @@ static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     DDTRACE_G(disable) = 1;
 }
 
+#if PHP_VERSION_ID >= 70000
+struct ddtrace_known_integration {
+    ddtrace_string class_name;  // nullptr if not a class
+    ddtrace_string fname;
+};
+typedef struct ddtrace_known_integration ddtrace_known_integration;
+
+#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str)       \
+    (ddtrace_known_integration) {                             \
+        .class_name =                                         \
+            {                                                 \
+                .ptr = class_str,                             \
+                .len = class_str ? sizeof(class_str) - 1 : 0, \
+            },                                                \
+        .fname = {                                            \
+            .ptr = fname_str,                                 \
+            .len = fname_str ? sizeof(fname_str) - 1 : 0,     \
+        },                                                    \
+    }
+
+static void ddtrace_register_known_calls(TSRMLS_D) {
+    static ddtrace_known_integration ddtrace_known_integrations[] = {
+        DDTRACE_KNOWN_INTEGRATION("wpdb", "query"),
+        DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire"),
+    };
+
+    size_t known_integrations_size = sizeof ddtrace_known_integrations / sizeof ddtrace_known_integrations[0];
+    for (size_t i = 0; i < known_integrations_size; ++i) {
+        ddtrace_known_integration integration = ddtrace_known_integrations[i];
+        zval class_name;
+        zval function_name;
+        zval callable;
+        ZVAL_NULL(&callable);
+        uint32_t options = DDTRACE_DISPATCH_POSTHOOK;
+        if (integration.class_name.ptr) {
+            ZVAL_STRINGL(&class_name, integration.class_name.ptr, integration.class_name.len);
+        } else {
+            ZVAL_NULL(&class_name);
+        }
+        ZVAL_STRINGL(&function_name, integration.fname.ptr, integration.fname.len);
+        ddtrace_trace(&class_name, &function_name, &callable, options TSRMLS_CC);
+        zval_dtor(&function_name);
+        zval_dtor(&class_name);
+    }
+}
+#endif
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
@@ -275,6 +322,17 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_init_span_id_stack(TSRMLS_C);
     ddtrace_init_span_stacks(TSRMLS_C);
     ddtrace_coms_on_pid_change();
+
+#if PHP_VERSION_ID >= 70000
+    /* Due to negative lookup caching, we need to have a list of all things we
+     * might instrument so that if a call is made to something we want to later
+     * instrument but is not currently instrumented, that we don't cache this.
+     *
+     * We should improve how this list is made in the future instead of hard-
+     * coding known integrations (and for now only the problematic ones).
+     */
+    ddtrace_register_known_calls(TSRMLS_C);
+#endif
 
     if (DDTRACE_G(request_init_hook)) {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));

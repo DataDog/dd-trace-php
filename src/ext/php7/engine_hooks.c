@@ -86,6 +86,11 @@ static bool ddtrace_should_trace_helper(zend_execute_data *call, zend_function *
 }
 
 static bool ddtrace_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
+    // the callable can be NULL for ddtrace_known_integrations
+    if (Z_TYPE(dispatch->callable) != IS_OBJECT) {
+        return false;
+    }
+
     if (dispatch->busy) {
         return false;
     }
@@ -943,6 +948,7 @@ static void _dd_execute_internal(zend_execute_data *execute_data, zval *return_v
         _prev_execute_internal(execute_data, return_value);
         return;
     }
+
     // Legacy API not supported from zend_execute_internal override
     if (dispatch->options & DDTRACE_DISPATCH_INNERHOOK) {
         ddtrace_log_debugf("Legacy API not supported for %s()", ZSTR_VAL(current_fbc->common.function_name));
