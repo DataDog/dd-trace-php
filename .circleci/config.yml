@@ -388,6 +388,45 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts/
 
+  base_integration_tests:
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+    resource_class: medium
+    executor:
+      name: with_integrations
+      docker_image: << parameters.docker_image >>
+    environment:
+      COMPOSER_PROCESS_TIMEOUT: 0
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - install_extension
+      - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
+          key: 'betav1-composer-base-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+      - run: composer install --no-interaction --prefer-dist
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - run:
+          name: Run auto-instrumentation tests
+          command: composer test-auto-instrumentation -- --log-junit test-results/php-auto-instrumentation/results.xml
+      - run:
+          name: Run distributed-tracing tests
+          command: DD_TRACE_AGENT_TIMEOUT=1000 composer test-distributed-tracing -- --log-junit test-results/php-distributed-tracing/results.xml
+      - run:
+          name: Run integration tests
+          command: composer test-integration -- --log-junit test-results/php-integration/results.xml
+      - save_cache:
+          <<: *INTEGRATION_COMPOSER_CACHE_KEY
+          paths:
+            - vendor/
+            - ~/.composer/cache
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+
   integration_tests:
     working_directory: ~/datadog
     parameters:
@@ -401,6 +440,9 @@ jobs:
       resource_class:
         type: string
         default: medium
+      sapi:
+        type: string
+        default: cli-server
     resource_class: << parameters.resource_class >>
     executor:
       name: with_integrations
@@ -414,31 +456,27 @@ jobs:
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
       - run: composer install --no-interaction --prefer-dist
-      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
-          name: Run auto-instrumentation tests
-          command: composer test-auto-instrumentation -- --log-junit test-results/php-auto-instrumentation/results.xml
-      - run:
-          name: Run distributed-tracing tests
-          command: DD_TRACE_AGENT_TIMEOUT=2000 composer test-distributed-tracing -- --log-junit test-results/php-distributed-tracing/results.xml
-      - run:
-          name: Run integration tests
-          command: composer test-integration -- --log-junit test-results/php-integration/results.xml
-      - run:
           name: Run << parameters.integration_testsuite >> integration test
-          command: DD_TRACE_AGENT_TIMEOUT=2000 composer << parameters.integration_testsuite >>
+          command: DD_TRACE_AGENT_TIMEOUT=1000 DD_TRACE_TEST_SAPI=<< parameters.sapi >> composer << parameters.integration_testsuite >>
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts
+            find ~/datadog/tests -type f -name 'nginx_*.log' -o -name 'dd_php_error.log' -exec cp --parents '{}' /tmp/artifacts \;
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts/
       - save_cache:
           <<: *INTEGRATION_COMPOSER_CACHE_KEY
           paths:
             - vendor/
             - ~/.composer/cache
       - <<: *STEP_PERSIST_TO_WORKSPACE
-      - <<: *STEP_STORE_TEST_RESULTS
 
   hyperfine_tests:
     working_directory: ~/datadog
@@ -741,6 +779,27 @@ workflows:
           name: "php:7.3"
           docker_image: php:7.3
           package_type: deb
+      - integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 72 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test-web-72"
+          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
+      - integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 73 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test-web-73"
+          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
+      - integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 74 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test-web-74"
+          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
   build:
     jobs:
       - "Code Checkout"
@@ -837,6 +896,34 @@ workflows:
           name: "PHP 54 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.4.list
           docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
+      - base_integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 54 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
+      - base_integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 56 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
+      - base_integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 70 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
+      - base_integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 71 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
+      - base_integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 72 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
+      - base_integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 73 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
+      - base_integration_tests:
+          requires: [ 'Code Checkout' ]
+          name: "PHP 74 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
       - integration_tests:
           requires: [ 'Code Checkout' ]
           name: "PHP 54 Integration tests"
