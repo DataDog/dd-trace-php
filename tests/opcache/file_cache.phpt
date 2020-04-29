@@ -1,16 +1,16 @@
 --TEST--
-test caching that calls are not traced works with opcache
+test caching that calls are not traced works with opcache's file cache script
 --INI--
+opcache.enable=1
 opcache.enable_cli=1
-opcache.preload={PWD}/call_lookup_negative_cache.inc
---SKIPIF--
-<?php
-if (!version_compare(PHP_VERSION, '7.4.0', '>='))
-    die('skip: test requires preloading, which requires PHP 7.4+');
-?>
+opcache.file_cache={PWD}/file_cache
+opcache.file_cache_only=1
 --FILE--
 <?php
+
 if (!extension_loaded('Zend OPcache')) die("opcache is required for this test\n");
+
+var_dump(opcache_compile_file(__DIR__ . '/include.php'));
 
 // call the functions without tracing them to prime the cache
 Datadog\NegativeClass::negativeMethod();
@@ -31,4 +31,5 @@ Datadog\negative_function();
 echo "Done.";
 ?>
 --EXPECT--
+bool(true)
 Done.
