@@ -10,7 +10,10 @@ opcache.file_cache_only=1
 
 if (!extension_loaded('Zend OPcache')) die("opcache is required for this test\n");
 
-var_dump(opcache_compile_file(__DIR__ . '/include.php'));
+require __DIR__ . '/include.php';
+
+// how do we test that this actually does what we want?
+// opcache_is_script_cached doesn't work with the file-cache
 
 // call the functions without tracing them to prime the cache
 Datadog\NegativeClass::negativeMethod();
@@ -31,5 +34,4 @@ Datadog\negative_function();
 echo "Done.";
 ?>
 --EXPECT--
-bool(true)
 Done.
