@@ -32,8 +32,6 @@
                     <file name="arrays.c" role="src" />
                     <file name="arrays.h" role="src" />
                     <file name="auto_flush.h" role="src" />
-                    <file name="clocks.c" role="src" />
-                    <file name="clocks.h" role="src" />
                     <file name="comms_php.c" role="src" />
                     <file name="comms_php.h" role="src" />
                     <file name="compat_string.c" role="src" />

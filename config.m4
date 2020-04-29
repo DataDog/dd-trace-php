@@ -29,7 +29,6 @@ if test "$PHP_DDTRACE" != "no"; then
     src/dogstatsd/client.c \
     src/ext/arrays.c \
     src/ext/circuit_breaker.c \
-    src/ext/clocks.c \
     src/ext/comms_php.c \
     src/ext/compat_string.c \
     src/ext/coms.c \
