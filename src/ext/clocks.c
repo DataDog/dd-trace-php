@@ -1,7 +1,8 @@
 #include "clocks.h"
 
-#include <php_config.h>   // for HAVE_CLOCK_GETTIME
 #include <php_version.h>  // for PHP_VERSION_ID
+
+#include "config.h"  // for DDTRACE_HAVE_CLOCK_GETTIME
 
 // UNEXPECTED is in different places in PHP 5 and 7
 #if PHP_VERSION_ID < 70000
@@ -10,7 +11,9 @@
 #include <Zend/zend_portability.h>
 #endif
 
-#if HAVE_CLOCK_GETTIME
+#if !defined(DDTRACE_HAVE_CLOCK_GETTIME)
+#error Unabled to find clock_gettime. Please open a bug report with the operating system information.
+#endif
 
 #include <time.h>  // for clock_gettime, CLOCK_MONOTONIC
 
@@ -37,8 +40,3 @@ ddtrace_realtime_nsec_t ddtrace_realtime_nsec(void) {
     }
     return ((uint64_t)timespec.tv_sec) * UINT64_C(1000000000) + ((uint64_t)timespec.tv_nsec);
 }
-#else
-ddtrace_monotonic_nsec_t ddtrace_monotonic_nsec(void) { return 0; }
-ddtrace_monotonic_usec_t ddtrace_monotonic_usec(void) { return 0; }
-ddtrace_realtime_nsec_t ddtrace_realtime_nsec(void) { return 0; }
-#endif

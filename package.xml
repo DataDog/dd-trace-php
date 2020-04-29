@@ -331,6 +331,7 @@
             <file name="config.m4" role="src" />
             <dir name="m4">
                 <file name="ax_execinfo.m4" role="src" />
+                <file name="ddtrace_clock_gettime.m4" role="src" />
                 <file name="polyfill.m4" role="src" />
             </dir>
             <file name="LICENSE" role="doc" />

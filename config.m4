@@ -7,6 +7,7 @@ PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
 if test "$PHP_DDTRACE" != "no"; then
   m4_include([m4/polyfill.m4])
   m4_include([m4/ax_execinfo.m4])
+  m4_include([m4/ddtrace_clock_gettime.m4])
 
   AX_EXECINFO
 
@@ -17,6 +18,13 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_CHECK_LIBRARY(execinfo, backtrace,
       [PHP_ADD_LIBRARY(execinfo, , EXTRA_LDFLAGS)])
   )
+
+  DDTRACE_CLOCK_GETTIME
+
+  if test "$DDTRACE_HAVE_CLOCK_GETTIME" != "no"; then
+    PHP_CHECK_LIBRARY(rt, clock_gettime,
+      [PHP_ADD_LIBRARY(rt, , EXTRA_LDFLAGS)])
+  fi
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
     PHP_ADD_LIBRARY(asan, , EXTRA_LDFLAGS)
