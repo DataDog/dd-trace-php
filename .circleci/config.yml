@@ -311,11 +311,13 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - run:
           name: Run opcache tests
           command: |
+            export REPORT_EXIT_STATUS=1
             cd tmp/build_extension
-            TEST_PHP_EXECUTABLE=$(which php) php run-tests.php -d zend_extension=opcache.so ../../tests/opcache
+            php run-tests.php -p $(which php) --show-all -d zend_extension=opcache.so ../../tests/opcache
   unit_tests:
     parameters:
       docker_image:
