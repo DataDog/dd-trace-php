@@ -17,7 +17,6 @@
 
 #include "auto_flush.h"
 #include "circuit_breaker.h"
-#include "clocks.h"
 #include "comms_php.h"
 #include "compat_string.h"
 #include "compatibility.h"
