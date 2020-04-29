@@ -10,8 +10,6 @@ opcache.file_cache_only=1
 
 if (!extension_loaded('Zend OPcache')) die("opcache is required for this test\n");
 
-echo "Purposely failing to test CI failures.\n";
-
 var_dump(opcache_compile_file(__DIR__ . '/include.php'));
 
 // call the functions without tracing them to prime the cache
