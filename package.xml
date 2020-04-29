@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2020-04-28</date>
+    <date>2020-04-29</date>
     <version>
-        <release>0.44.0</release>
-        <api>0.44.0</api>
+        <release>0.44.1</release>
+        <api>0.44.1</api>
     </version>
     <stability>
         <release>stable</release>
@@ -23,13 +23,8 @@
     <notes>
         ### Fixed
 
-        - Fix ddtrace_config_* functions to use sapi_getenv #848
-        - Fix curl integrations #851
-
-        ### Changed
-
-        - Whitelist the `cgi-fcgi` SAPI #835
-        - Add ddtrace_hash_find_ptr_lc which stack-allocates small strings #839
+        - Revert "Merge pull request #815 from DataDog/levi/ddtrace_moment" #859
+        This fixes issue #855.
     </notes>
     <contents>
         <dir name="/">
