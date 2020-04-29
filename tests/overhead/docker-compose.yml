@@ -68,7 +68,7 @@ services:
       - OPCACHE_ENABLE=${OPCACHE_ENABLE:-1}
       - DD_TRACE_ENABLED=${DD_TRACE_ENABLED:-true}
       - DD_TRACE_DEBUG=${DD_TRACE_DEBUG:-false}
-      - DD_SERVICE_NAME=php-fpm-release
+      - DD_SERVICE_NAME=php-fpm-release-${DD_TRACE_LIBRARY_VERSION}
     depends_on:
       - agent
     volumes:
