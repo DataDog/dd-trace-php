@@ -13,6 +13,7 @@ RUN apt update \
     sudo \
     time \
     unzip \
+    wget \
     vim \
     && pecl install xdebug \
     && docker-php-ext-install opcache \
