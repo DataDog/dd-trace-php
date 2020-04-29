@@ -1,6 +1,7 @@
 #include "span.h"
 
 #include <php.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "auto_flush.h"
@@ -10,6 +11,9 @@
 #include "logging.h"
 #include "random.h"
 #include "serializer.h"
+
+#define USE_REALTIME_CLOCK 0
+#define USE_MONOTONIC_CLOCK 1
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -75,6 +79,14 @@ void ddtrace_free_span_stacks(TSRMLS_D) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
+static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
+    struct timespec time;
+    if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
+        return time.tv_sec * 1000000000L + time.tv_nsec;
+    }
+    return 0;
+}
+
 ddtrace_span_t *ddtrace_open_span(zend_execute_data *call, struct ddtrace_dispatch_t *dispatch TSRMLS_DC) {
     ddtrace_span_t *span = ecalloc(1, sizeof(ddtrace_span_t));
     span->next = DDTRACE_G(open_spans_top);
@@ -93,19 +105,21 @@ ddtrace_span_t *ddtrace_open_span(zend_execute_data *call, struct ddtrace_dispat
     span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);
     // Set the trace_id last so we have ID's on the stack
     span->trace_id = DDTRACE_G(trace_id);
-    span->duration_start = ddtrace_monotonic_nsec();
+    span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
     span->exception = NULL;
     span->pid = getpid();
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    span->start = ddtrace_realtime_nsec();
+    span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
 
     span->call = call;
     span->dispatch = dispatch;
     return span;
 }
 
-void dd_trace_stop_span_time(ddtrace_span_t *span) { span->duration = ddtrace_monotonic_nsec() - span->duration_start; }
+void dd_trace_stop_span_time(ddtrace_span_t *span) {
+    span->duration = _get_nanoseconds(USE_MONOTONIC_CLOCK) - span->duration_start;
+}
 
 void ddtrace_close_span(TSRMLS_D) {
     ddtrace_span_t *span = DDTRACE_G(open_spans_top);
