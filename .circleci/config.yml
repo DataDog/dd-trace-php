@@ -313,7 +313,9 @@ jobs:
       - <<: *STEP_EXPORT_CI_ENV
       - run:
           name: Run opcache tests
-          command: cd tmp/build_extension && php run-tests.php -d zend_extension=opcache.so ../../tests/opcache
+          command: |
+            cd tmp/build_extension
+            TEST_PHP_EXECUTABLE=$(which php) php run-tests.php -d zend_extension=opcache.so ../../tests/opcache
   unit_tests:
     parameters:
       docker_image:
@@ -861,11 +863,19 @@ workflows:
           name: "PHP 70 Unit tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - opcache_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 70 opcache tests"
+          docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 71 Unit tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - opcache_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 71 opcache tests"
+          docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 Unit tests"
@@ -875,12 +885,20 @@ workflows:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 70 Unit tests-zts"
       #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-zts-debug"
+      - opcache_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 72 opcache tests"
+          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 Unit tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           valgrind_config: 7_3_musl
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - opcache_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 73 opcache tests"
+          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 Unit tests"
