@@ -54,7 +54,7 @@ class ZendFrameworkSandboxedIntegration extends SandboxedIntegration
         $integration = $this;
         // For backward compatibility with the legacy API we are not using the integration
         // name 'zendframework', we are instead using the 'zf1' prefix.
-        $appName = Configuration::get()->appName('zf1');
+        $appName = \ddtrace_config_app_name('zf1');
 
         dd_trace_method(
             'Zend_Controller_Plugin_Broker',

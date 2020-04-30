@@ -172,7 +172,7 @@ static BOOL_T _dd_should_trace_call(zend_execute_data *execute_data, zend_functi
     }
 
     zval *this = ddtrace_this(execute_data);
-    *dispatch = ddtrace_find_dispatch(this, *fbc, fname TSRMLS_CC);
+    *dispatch = ddtrace_find_dispatch(this ? Z_OBJCE_P(this) : (*fbc)->common.scope, fname TSRMLS_CC);
     if (!*dispatch || (*dispatch)->busy) {
         return FALSE;
     }

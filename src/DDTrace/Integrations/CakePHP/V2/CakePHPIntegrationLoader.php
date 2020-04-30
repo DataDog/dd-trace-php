@@ -32,7 +32,7 @@ class CakePHPIntegrationLoader
         $this->rootSpan->setIntegration($integration);
         $this->rootSpan->setTraceAnalyticsCandidate();
         $this->rootSpan->overwriteOperationName('cakephp.request');
-        $this->rootSpan->setTag(Tag::SERVICE_NAME, CakePHPIntegration::getAppName());
+        $this->rootSpan->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name(CakePHPIntegration::NAME));
 
         $loader = $this;
 

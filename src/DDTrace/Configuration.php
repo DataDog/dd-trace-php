@@ -26,7 +26,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isEnabled()
     {
-        return $this->boolValue('trace.enabled', true);
+        return \ddtrace_config_trace_enabled();
     }
 
     /**
@@ -153,7 +153,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isIntegrationEnabled($name)
     {
-        return $this->isEnabled() && !$this->inArray('integrations.disabled', $name);
+        return \ddtrace_config_integration_enabled($name);
     }
 
     /**
@@ -222,30 +222,6 @@ class Configuration extends AbstractConfiguration
      */
     public function appName($default = '')
     {
-        // Using the env `DD_SERVICE_NAME` for consistency with other tracers.
-        $appName = $this->stringValue('service.name');
-        if ($appName) {
-            return $appName;
-        }
-
-        // This is deprecated and will be removed in a future release
-        $appName = $this->stringValue('trace.app.name');
-        if ($appName) {
-            self::logDebug(
-                'Env variable \'DD_TRACE_APP_NAME\' is deprecated and will be removed soon. ' .
-                'Use \'DD_SERVICE_NAME\' instead'
-            );
-            return $appName;
-        }
-
-        $appName = getenv('ddtrace_app_name');
-        if (false !== $appName) {
-            self::logDebug(
-                'Env variable \'ddtrace_app_name\' is deprecated and will be removed soon. ' .
-                'Use \'DD_SERVICE_NAME\' instead'
-            );
-            return trim($appName);
-        }
-        return $default;
+        return \ddtrace_config_app_name($default);
     }
 }

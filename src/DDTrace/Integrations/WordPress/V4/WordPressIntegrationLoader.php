@@ -31,7 +31,7 @@ class WordPressIntegrationLoader
         $this->rootSpan->setIntegration($integration);
         $this->rootSpan->setTraceAnalyticsCandidate();
         $this->rootSpan->overwriteOperationName('wordpress.request');
-        $service = Configuration::get()->appName(WordPressSandboxedIntegration::NAME);
+        $service = \ddtrace_config_app_name(WordPressSandboxedIntegration::NAME);
         $this->rootSpan->setTag(Tag::SERVICE_NAME, $service);
         if ('cli' !== PHP_SAPI) {
             $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));

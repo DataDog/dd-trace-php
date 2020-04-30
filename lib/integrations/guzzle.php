@@ -40,15 +40,17 @@ function _dd_intgs_guzzle_request_info(SpanData $span, $request)
 
 function dd_integration_guzzle_load()
 {
+    if (!\DDTrace\Integrations\Integration::shouldLoad(NAME)) {
+        return SandboxedIntegration::NOT_LOADED;
+    }
     $tracer = GlobalTracer::get();
     $rootScope = $tracer->getRootScope();
     if (!$rootScope) {
         return SandboxedIntegration::NOT_LOADED;
     }
 
-    $service = Configuration::get()->appName(NAME);
 
-    \dd_trace_method('GuzzleHttp\Client', '__construct', function () use ($service) {
+    \dd_trace_method('GuzzleHttp\Client', '__construct', function () {
         global $DD_GUZZLE_GLOBAL;
 
         if ($DD_GUZZLE_GLOBAL['loaded']) {
@@ -63,10 +65,10 @@ function dd_integration_guzzle_load()
         \dd_trace_method(
             'GuzzleHttp\Client',
             'send',
-            function (SpanData $span, $args, $retval) use ($service) {
+            function (SpanData $span, $args, $retval) {
                 $span->resource = 'send';
                 $span->name = 'GuzzleHttp\Client.send';
-                $span->service = $service;
+                $span->service = \ddtrace_config_app_name(NAME);
                 $span->type = Type::HTTP_CLIENT;
 
                 if (isset($args[0])) {
@@ -94,10 +96,10 @@ function dd_integration_guzzle_load()
         \dd_trace_method(
             'GuzzleHttp\Client',
             'transfer',
-            function (SpanData $span, $args, $retval) use ($service) {
+            function (SpanData $span, $args, $retval) {
                 $span->resource = 'transfer';
                 $span->name = 'GuzzleHttp\Client.transfer';
-                $span->service = $service;
+                $span->service = \ddtrace_config_app_name(NAME);;
                 $span->type = Type::HTTP_CLIENT;
 
                 if (isset($args[0])) {

@@ -167,22 +167,19 @@ abstract class Integration
     }
 
     /**
-     * Tells whether or not the provided application should be loaded.
+     * Tells whether or not the provided integration should be loaded.
      *
      * @param string $name
      * @return bool
      */
-    protected static function shouldLoad($name)
+    public static function shouldLoad($name)
     {
-        if (!Configuration::get()->isIntegrationEnabled($name)) {
-            return false;
-        }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load integration.', E_USER_WARNING);
+        if (!\extension_loaded('ddtrace')) {
+            \trigger_error('ddtrace extension required to load integration.', \E_USER_WARNING);
             return false;
         }
 
-        return true;
+        return \ddtrace_config_integration_enabled($name);
     }
 
     /**

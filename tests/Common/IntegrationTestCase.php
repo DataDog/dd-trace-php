@@ -32,6 +32,7 @@ abstract class IntegrationTestCase extends TestCase
     {
         parent::tearDownAfterClass();
         putenv('DD_TRACE_SANDBOX_ENABLED');
+        \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
     protected static function isSandboxed()
@@ -53,6 +54,7 @@ abstract class IntegrationTestCase extends TestCase
         parent::tearDown();
         error_reporting($this->errorReportingBefore);
         \PHPUnit_Framework_Error_Warning::$enabled = true;
+        \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
     protected function disableTranslateWarningsIntoErrors()

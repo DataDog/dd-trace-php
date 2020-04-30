@@ -120,7 +120,7 @@ array(5) {
       ["retval.rand"]=>
       string(%d) "%d"
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
     ["metrics"]=>
     array(2) {
@@ -175,7 +175,7 @@ array(5) {
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
   }
   [4]=>
@@ -193,7 +193,7 @@ array(5) {
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
   }
 }

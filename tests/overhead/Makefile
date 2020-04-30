@@ -26,8 +26,11 @@ start_env:
 	docker-compose up -d
 	@echo "Environment started: might take a few seconds!"
 
-ssh_%:
+shell_%:
 	docker-compose exec php-fpm-$* bash
+
+down:
+	docker-compose down -v
 
 clear:
 	@rm -f ./callgrind-files/callgrind.*
@@ -41,9 +44,17 @@ request_synthetic: request_synthetic_notracer request_synthetic_master request_s
 request_hook: request_hook_notracer request_hook_master request_hook_head request_hook_release
 	@echo "Done Synthetic request!"
 
+clear_cache_%:
+	@docker-compose exec php-fpm-$* sh -c 'rm -rf /tmp/php-cache/*'
+
 request_l57_%:
 	@echo "Laravel 5.7 request: $*"
 	@docker-compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/index.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000'
+	@echo "\n------------"
+
+time_l57_%:
+	@echo "Benchmarking time for Laravel 5.7 app: $*"
+	@docker-compose exec php-fpm-$* sh -c 'SCRIPT_FILENAME=/var/www/public/index.php REQUEST_METHOD=GET multitime -n ${EXEC_REPETITIONS} -s 0 cgi-fcgi -bind -connect 127.0.0.1:9000'
 	@echo "\n------------"
 
 request_synthetic_%:

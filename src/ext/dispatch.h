@@ -19,7 +19,7 @@ typedef struct ddtrace_dispatch_t {
     uint32_t acquired;
 } ddtrace_dispatch_t;
 
-ddtrace_dispatch_t *ddtrace_find_dispatch(zval *this, zend_function *fbc, zval *fname TSRMLS_DC);
+ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname TSRMLS_DC);
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC);
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch);
@@ -57,17 +57,6 @@ void ddtrace_dispatch_reset(TSRMLS_D);
 #define NUM_ADDITIONAL_ARGS() EX(call)->num_additional_args
 #define OBJECT() (EX(call) ? EX(call)->object : NULL)
 #endif
-
-inline void *zend_hash_str_find_ptr(const HashTable *ht, const char *key, size_t length) {
-    void **rv = NULL;
-    zend_hash_find(ht, key, length, (void **)&rv);
-
-    if (rv) {
-        return *rv;
-    } else {
-        return NULL;
-    }
-}
 
 void ddtrace_class_lookup_release_compat(void *zv);
 
