@@ -87,7 +87,6 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonySandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchCommon.php',
     __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchIntegration.php',
-    __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.php',
@@ -112,4 +111,8 @@ return [
     __DIR__ . '/../src/DDTrace/Obfuscation.php',
     __DIR__ . '/../src/DDTrace/Format.php',
     __DIR__ . '/../src/DDTrace/StartSpanOptions.php',
+
+    __DIR__ . '/../src/DDTrace/Configuration/configuration.php',
+    __DIR__ . '/../src/DDTrace/Integrations/Guzzle/guzzle.php',
+    __DIR__ . '/../src/DDTrace/Integrations/Elasticsearch/elasticsearch.php',
 ];

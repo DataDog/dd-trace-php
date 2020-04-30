@@ -185,7 +185,7 @@ class IntegrationsLoader
 
         if (Configuration::get()->isSandboxEnabled()) {
             \DDTrace\Integrations\Guzzle\dd_integration_guzzle_load();
-            \DDTrace\Integrations\ElasticSearch\dd_integration_elasticsearch_load();
+            \DDTrace\Integrations\ElasticSearch\V1\dd_integration_elasticsearch_load();
         }
     }
 

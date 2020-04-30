@@ -1,21 +1,18 @@
 <?php
 
-namespace DDTrace\Integrations\ElasticSearch;
+namespace DDTrace\Integrations\ElasticSearch\V1;
 
-use DDTrace\Configuration;
-use DDTrace\GlobalTracer;
-use DDTrace\Http\Urls;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Configuration;
+
 
 const NAME = 'elasticsearch';
 
 // This will disappear once we do this check at c-level
-$DD_ES_GLOBAL = [
-    'loaded' => false,
-];
+$DD_ES_GLOBAL = [];
 
 function _dd_build_resource_name($methodName, $params)
 {
@@ -36,6 +33,31 @@ function _dd_build_resource_name($methodName, $params)
     return implode(' ', $resourceFragments);
 }
 
+function _dd_trace_es_client_method($name, $analitycsEnabled, $analyticsSampleRate, $isTraceAnalyticsCandidate = false)
+{
+    $analytics = ($isTraceAnalyticsCandidate && $analitycsEnabled) ? $analyticsSampleRate : null;
+    $hookType = (PHP_MAJOR_VERSION >= 7) ? 'prehook' : 'posthook';
+
+    \dd_trace_method(
+        'Elasticsearch\Client',
+        $name,
+        [$hookType => function (SpanData $span, $methodArgs) use ($name, $analytics) {
+            $span->name = "Elasticsearch.Client.$name";
+
+            if (null !== $analytics) {
+                $span->meta[Tag::ANALYTICS_KEY] = $analytics;
+            }
+
+            $span->service = NAME;
+            $span->type = Type::ELASTICSEARCH;
+            $span->resource = _dd_build_resource_name(
+                $name,
+                isset($methodArgs[0]) ? $methodArgs[0] : []
+            );
+        },]
+    );
+};
+
 function _dd_integration_elasticsearch_client($analitycsEnabled, $analyticsSampleRate)
 {
     /*
@@ -44,12 +66,16 @@ function _dd_integration_elasticsearch_client($analitycsEnabled, $analyticsSampl
     * Since the arguments passed to the tracing closure on PHP 7 are mutable,
     * the closure must be run _before_ the original call via 'prehook'.
     */
+
+    global $DD_ES_GLOBAL;
+    $DD_ES_GLOBAL['client_loaded'] = false;
+
     $hookType = (PHP_MAJOR_VERSION >= 7) ? 'prehook' : 'posthook';
     \dd_trace_method(
         'Elasticsearch\Client',
         '__construct',
         [
-            $hookType => function (SpanData $span, $args) use ($hookType, $analitycsEnabled, $analyticsSampleRate) {
+            $hookType => function (SpanData $span, $args) use ($analitycsEnabled, $analyticsSampleRate) {
                 $span->name = 'Elasticsearch.Client.__construct';
                 $span->service = NAME;
                 $span->type = Type::ELASTICSEARCH;
@@ -57,49 +83,20 @@ function _dd_integration_elasticsearch_client($analitycsEnabled, $analyticsSampl
 
                 // Loading client methods
                 global $DD_ES_GLOBAL;
-                if ($DD_ES_GLOBAL['loaded']) {
+                if ($DD_ES_GLOBAL['client_loaded']) {
                     return;
                 }
-                $DD_ES_GLOBAL['loaded'] = true;
+                $DD_ES_GLOBAL['client_loaded'] = true;
 
-                $trace = function (
-                    $name,
-                    $isTraceAnalyticsCandidate = false
-                ) use (
-                    $hookType,
-                    $analitycsEnabled,
-                    $analyticsSampleRate
-                ) {
-                    $analytics = ($isTraceAnalyticsCandidate && $analitycsEnabled) ? $analyticsSampleRate : null;
-                    \dd_trace_method(
-                        'Elasticsearch\Client',
-                        $name,
-                        [$hookType => function (SpanData $span, $methodArgs) use ($name, $analytics) {
-                            $span->name = "Elasticsearch.Client.$name";
-
-                            if (null !== $analytics) {
-                                $span->meta[Tag::ANALYTICS_KEY] = $analytics;
-                            }
-
-                            $span->service = NAME;
-                            $span->type = Type::ELASTICSEARCH;
-                            $span->resource = _dd_build_resource_name(
-                                $name,
-                                isset($methodArgs[0]) ? $methodArgs[0] : []
-                            );
-                        },]
-                    );
-                };
-
-                $trace('count');
-                $trace('delete');
-                $trace('exists');
-                $trace('explain');
-                $trace('get', true);
-                $trace('index');
-                $trace('scroll');
-                $trace('search', true);
-                $trace('update');
+                _dd_trace_es_client_method('count', $analitycsEnabled, $analyticsSampleRate);
+                _dd_trace_es_client_method('delete', $analitycsEnabled, $analyticsSampleRate);
+                _dd_trace_es_client_method('exists', $analitycsEnabled, $analyticsSampleRate);
+                _dd_trace_es_client_method('explain', $analitycsEnabled, $analyticsSampleRate);
+                _dd_trace_es_client_method('get', $analitycsEnabled, $analyticsSampleRate, true);
+                _dd_trace_es_client_method('index', $analitycsEnabled, $analyticsSampleRate);
+                _dd_trace_es_client_method('scroll', $analitycsEnabled, $analyticsSampleRate);
+                _dd_trace_es_client_method('search', $analitycsEnabled, $analyticsSampleRate, true);
+                _dd_trace_es_client_method('update', $analitycsEnabled, $analyticsSampleRate);
             },
         ]
     );
@@ -218,10 +215,17 @@ function _dd_integration_elasticsearch_namespace()
         if (isset($DD_ES_GLOBAL[$namespace]) && $DD_ES_GLOBAL[$namespace] === true) {
             continue;
         }
-        $DD_ES_GLOBAL[$namespace] = true;
+        $DD_ES_GLOBAL[$namespace] = false;
 
         $class = 'Elasticsearch\Namespaces\\' . $namespace;
         \dd_trace_method($class, '__construct', function () use ($class, $namespace, $methods) {
+            global $DD_ES_GLOBAL;
+
+            if ($DD_ES_GLOBAL[$namespace]) {
+                return;
+            }
+            $DD_ES_GLOBAL[$namespace] = true;
+
             foreach ($methods as $name) {
                 \dd_trace_method($class, $name, function (SpanData $span, $args) use ($namespace, $name) {
                     $params = [];
@@ -263,8 +267,8 @@ function _dd_integration_elasticsearch_endpoints()
 function dd_integration_elasticsearch_load()
 {
     _dd_integration_elasticsearch_client(
-        \dd_config_analytics_is_enabled() && \dd_config_integration_analytics_is_enabled(NAME),
-        \dd_config_integration_analytics_sample_rate(NAME)
+        Configuration\dd_config_analytics_is_enabled() && Configuration\dd_config_integration_analytics_is_enabled(NAME),
+        Configuration\dd_config_integration_analytics_sample_rate(NAME)
     );
 
     _dd_integration_elasticsearch_simple();
