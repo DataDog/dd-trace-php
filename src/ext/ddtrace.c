@@ -193,25 +193,25 @@ struct ddtrace_known_integration {
 };
 typedef struct ddtrace_known_integration ddtrace_known_integration;
 
-#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str)       \
-    (ddtrace_known_integration) {                             \
-        .class_name =                                         \
-            {                                                 \
-                .ptr = class_str,                             \
-                .len = class_str ? sizeof(class_str) - 1 : 0, \
-            },                                                \
-        .fname = {                                            \
-            .ptr = fname_str,                                 \
-            .len = fname_str ? sizeof(fname_str) - 1 : 0,     \
-        },                                                    \
+#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str) \
+    {                                                   \
+        .class_name =                                   \
+            {                                           \
+                .ptr = class_str,                       \
+                .len = sizeof(class_str) - 1,           \
+            },                                          \
+        .fname = {                                      \
+            .ptr = fname_str,                           \
+            .len = sizeof(fname_str) - 1,               \
+        },                                              \
     }
 
-static void _dd_register_known_calls(void) {
-    static ddtrace_known_integration ddtrace_known_integrations[] = {
-        DDTRACE_KNOWN_INTEGRATION("wpdb", "query"),
-        DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire"),
-    };
+static ddtrace_known_integration ddtrace_known_integrations[] = {
+    DDTRACE_KNOWN_INTEGRATION("wpdb", "query"),
+    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire"),
+};
 
+static void _dd_register_known_calls(void) {
     size_t known_integrations_size = sizeof ddtrace_known_integrations / sizeof ddtrace_known_integrations[0];
     for (size_t i = 0; i < known_integrations_size; ++i) {
         ddtrace_known_integration integration = ddtrace_known_integrations[i];
