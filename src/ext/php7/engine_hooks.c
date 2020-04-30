@@ -20,7 +20,10 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 int ddtrace_resource = -1;
+
+#if PHP_VERSION_ID >= 70400
 int ddtrace_op_array_extension = 0;
+#endif
 
 static void (*_prev_execute_internal)(zend_execute_data *execute_data, zval *return_value);
 static void _dd_execute_internal(zend_execute_data *execute_data, zval *return_value);
@@ -54,7 +57,7 @@ static zval *_dd_this(zend_execute_data *call) {
 
 #define DDTRACE_NOT_TRACED ((void *)1)
 
-static bool ddtrace_should_trace_helper(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch) {
+static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch) {
     if (DDTRACE_G(class_lookup) == NULL || DDTRACE_G(function_lookup) == NULL) {
         return false;
     }
@@ -85,7 +88,7 @@ static bool ddtrace_should_trace_helper(zend_execute_data *call, zend_function *
     return *dispatch;
 }
 
-static bool ddtrace_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
+static bool _dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
     // the callable can be NULL for ddtrace_known_integrations
     if (Z_TYPE(dispatch->callable) != IS_OBJECT) {
         return false;
@@ -130,7 +133,7 @@ static bool _dd_should_trace_call(zend_execute_data *call, zend_function *fbc, d
         }
 #endif
 
-        if (!ddtrace_should_trace_helper(call, fbc, dispatch)) {
+        if (!_dd_should_trace_helper(call, fbc, dispatch)) {
 #if PHP_VERSION_ID < 70400
             fbc->op_array.reserved[ddtrace_resource] = DDTRACE_NOT_TRACED;
 #else
@@ -138,21 +141,21 @@ static bool _dd_should_trace_call(zend_execute_data *call, zend_function *fbc, d
 #endif
             return false;
         }
-        return ddtrace_should_trace_runtime(*dispatch);
+        return _dd_should_trace_runtime(*dispatch);
     }
 #else
     if (fbc->common.type == ZEND_USER_FUNCTION && ddtrace_resource != -1) {
         if (fbc->op_array.reserved[ddtrace_resource] == DDTRACE_NOT_TRACED) {
             return false;
         }
-        if (!ddtrace_should_trace_helper(call, fbc, dispatch)) {
+        if (!_dd_should_trace_helper(call, fbc, dispatch)) {
             fbc->op_array.reserved[ddtrace_resource] = DDTRACE_NOT_TRACED;
             return false;
         }
-        return ddtrace_should_trace_runtime(*dispatch);
+        return _dd_should_trace_runtime(*dispatch);
     }
 #endif
-    return ddtrace_should_trace_helper(call, fbc, dispatch) && ddtrace_should_trace_runtime(*dispatch);
+    return _dd_should_trace_helper(call, fbc, dispatch) && _dd_should_trace_runtime(*dispatch);
 }
 
 #define _DD_TRACE_COPY_NULLABLE_ARG(q)      \

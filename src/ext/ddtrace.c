@@ -206,7 +206,7 @@ typedef struct ddtrace_known_integration ddtrace_known_integration;
         },                                                    \
     }
 
-static void ddtrace_register_known_calls(TSRMLS_D) {
+static void _dd_register_known_calls(void) {
     static ddtrace_known_integration ddtrace_known_integrations[] = {
         DDTRACE_KNOWN_INTEGRATION("wpdb", "query"),
         DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire"),
@@ -226,7 +226,7 @@ static void ddtrace_register_known_calls(TSRMLS_D) {
             ZVAL_NULL(&class_name);
         }
         ZVAL_STRINGL(&function_name, integration.fname.ptr, integration.fname.len);
-        ddtrace_trace(&class_name, &function_name, &callable, options TSRMLS_CC);
+        ddtrace_trace(&class_name, &function_name, &callable, options);
         zval_dtor(&function_name);
         zval_dtor(&class_name);
     }
@@ -331,7 +331,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
      * We should improve how this list is made in the future instead of hard-
      * coding known integrations (and for now only the problematic ones).
      */
-    ddtrace_register_known_calls(TSRMLS_C);
+    _dd_register_known_calls();
 #endif
 
     if (DDTRACE_G(request_init_hook)) {
