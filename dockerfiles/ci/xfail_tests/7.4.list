@@ -291,6 +291,8 @@ ext/standard/tests/serialize/bug72785.phpt
 ext/standard/tests/serialize/serialize_globals_var_refs.phpt
 ext/standard/tests/strings/implode1.phpt
 sapi/cli/tests/upload_2G.phpt
+sapi/phpdbg/tests/exceptions_003.phpt
+sapi/phpdbg/tests/stepping_001.phpt
 tests/classes/tostring_001.phpt
 Zend/tests/arrow_functions/005.phpt
 Zend/tests/assign_coalesce_001.phpt

@@ -5,6 +5,7 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_generators.h>
 #include <Zend/zend_interfaces.h>
+#include <src/ext/ddtrace.h>
 #include <stdbool.h>
 
 #include <ext/spl/spl_exceptions.h>
@@ -17,6 +18,12 @@
 #include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
+
+int ddtrace_resource = -1;
+
+#if PHP_VERSION_ID >= 70400
+int ddtrace_op_array_extension = 0;
+#endif
 
 static void (*_prev_execute_internal)(zend_execute_data *execute_data, zval *return_value);
 static void _dd_execute_internal(zend_execute_data *execute_data, zval *return_value);
@@ -48,9 +55,10 @@ static zval *_dd_this(zend_execute_data *call) {
     return NULL;
 }
 
-static bool _dd_should_trace_call(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch) {
-    if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
-        DDTRACE_G(function_lookup) == NULL) {
+#define DDTRACE_NOT_TRACED ((void *)1)
+
+static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch) {
+    if (DDTRACE_G(class_lookup) == NULL || DDTRACE_G(function_lookup) == NULL) {
         return false;
     }
 
@@ -77,15 +85,77 @@ static bool _dd_should_trace_call(zend_execute_data *call, zend_function *fbc, d
      * It would avoid lowering the string and reduce memory churn; win-win.
      */
     *dispatch = ddtrace_find_dispatch(this ? Z_OBJCE_P(this) : fbc->common.scope, &fname);
+    return *dispatch;
+}
 
-    if (!*dispatch || (*dispatch)->busy) {
+static bool _dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
+    // the callable can be NULL for ddtrace_known_integrations
+    if (Z_TYPE(dispatch->callable) != IS_OBJECT) {
         return false;
     }
-    if (ddtrace_tracer_is_limited() && ((*dispatch)->options & DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED) == 0) {
+
+    if (dispatch->busy) {
         return false;
     }
-
+    if ((ddtrace_tracer_is_limited() && (dispatch->options & DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED) == 0)) {
+        return false;
+    }
     return true;
+}
+
+static bool _dd_should_trace_call(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch) {
+    if (DDTRACE_G(disable_in_current_request)) {
+        return false;
+    }
+
+#if PHP_VERSION_ID >= 70300
+    /* From PHP 7.3's UPGRADING.INTERNALS:
+     * Special purpose zend_functions marked by ZEND_ACC_CALL_VIA_TRAMPOLINE or
+     * ZEND_ACC_FAKE_CLOSURE flags use reserved[0] for internal purpose.
+     * Third party extensions must not modify reserved[] fields of these functions.
+     *
+     * On PHP 7.4, it seems to get used as well.
+     */
+    if (fbc->common.type == ZEND_USER_FUNCTION && ddtrace_resource != -1 &&
+        !(fbc->common.fn_flags & (ZEND_ACC_CALL_VIA_TRAMPOLINE | ZEND_ACC_FAKE_CLOSURE))) {
+        /* On PHP 7.4 the op_array reserved flag can only be set on compilation.
+         * After that, you must use ZEND_OP_ARRAY_EXTENSION.
+         * We don't use it at compile-time yet, so only check this on < 7.4.
+         */
+#if PHP_VERSION_ID < 70400
+        if (fbc->op_array.reserved[ddtrace_resource] == DDTRACE_NOT_TRACED) {
+            return false;
+        }
+#else
+        ddtrace_dispatch_t *cached_dispatch = DDTRACE_OP_ARRAY_EXTENSION(&fbc->op_array);
+        if (cached_dispatch == DDTRACE_NOT_TRACED) {
+            return false;
+        }
+#endif
+
+        if (!_dd_should_trace_helper(call, fbc, dispatch)) {
+#if PHP_VERSION_ID < 70400
+            fbc->op_array.reserved[ddtrace_resource] = DDTRACE_NOT_TRACED;
+#else
+            DDTRACE_OP_ARRAY_EXTENSION(&fbc->op_array) = DDTRACE_NOT_TRACED;
+#endif
+            return false;
+        }
+        return _dd_should_trace_runtime(*dispatch);
+    }
+#else
+    if (fbc->common.type == ZEND_USER_FUNCTION && ddtrace_resource != -1) {
+        if (fbc->op_array.reserved[ddtrace_resource] == DDTRACE_NOT_TRACED) {
+            return false;
+        }
+        if (!_dd_should_trace_helper(call, fbc, dispatch)) {
+            fbc->op_array.reserved[ddtrace_resource] = DDTRACE_NOT_TRACED;
+            return false;
+        }
+        return _dd_should_trace_runtime(*dispatch);
+    }
+#endif
+    return _dd_should_trace_helper(call, fbc, dispatch) && _dd_should_trace_runtime(*dispatch);
 }
 
 #define _DD_TRACE_COPY_NULLABLE_ARG(q)      \
@@ -881,6 +951,7 @@ static void _dd_execute_internal(zend_execute_data *execute_data, zval *return_v
         _prev_execute_internal(execute_data, return_value);
         return;
     }
+
     // Legacy API not supported from zend_execute_internal override
     if (dispatch->options & DDTRACE_DISPATCH_INNERHOOK) {
         ddtrace_log_debugf("Legacy API not supported for %s()", ZSTR_VAL(current_fbc->common.function_name));

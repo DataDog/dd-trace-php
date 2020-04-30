@@ -135,6 +135,7 @@
                     <file name="circuit_breaker_retry_time.phpt" role="test" />
                     <file name="circuit_breaker_max_failures.phpt" role="test" />
                     <file name="dd_trace_api_error.phpt" role="test" />
+                    <file name="dd_trace_can_skip_original_call.phpt" role="test" />
                     <file name="dd_trace_send_traces_via_thread_001.phpt" role="test" />
                     <file name="dd_trace_send_traces_via_thread_002.phpt" role="test" />
                     <file name="dd_trace_serialize_msgpack.phpt" role="test" />
