@@ -93,7 +93,6 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/Lumen/LumenIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Lumen/V5/LumenIntegrationLoader.php',
     __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleIntegration.php',
-    __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Yii/V2/YiiIntegrationLoader.php',
     __DIR__ . '/../src/DDTrace/Integrations/Yii/YiiSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/WordPress/WordPressSandboxedIntegration.php',
@@ -114,5 +113,5 @@ return [
 
     __DIR__ . '/../src/DDTrace/Configuration/configuration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Guzzle/guzzle.php',
-    __DIR__ . '/../src/DDTrace/Integrations/Elasticsearch/elasticsearch.php',
+    __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/elasticsearch.php',
 ];

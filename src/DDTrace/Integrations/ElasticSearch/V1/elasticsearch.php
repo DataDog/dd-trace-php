@@ -7,6 +7,7 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Configuration;
+use DDTrace\Integrations\Integration;
 
 
 const NAME = 'elasticsearch';
@@ -264,8 +265,11 @@ function _dd_integration_elasticsearch_endpoints()
 }
 
 
-function dd_integration_elasticsearch_load()
+function load()
 {
+    if (!Integration::shouldLoad(NAME)) {
+        return SandboxedIntegration::NOT_LOADED;
+    }
     _dd_integration_elasticsearch_client(
         Configuration\dd_config_analytics_is_enabled() && Configuration\dd_config_integration_analytics_is_enabled(NAME),
         Configuration\dd_config_integration_analytics_sample_rate(NAME)

@@ -9,6 +9,7 @@ use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Integrations\Integration;
 
 const NAME = 'guzzle';
 
@@ -38,9 +39,9 @@ function _dd_intgs_guzzle_request_info(SpanData $span, $request)
     }
 }
 
-function dd_integration_guzzle_load()
+function load()
 {
-    if (!\DDTrace\Integrations\Integration::shouldLoad(NAME)) {
+    if (!Integration::shouldLoad(NAME)) {
         return SandboxedIntegration::NOT_LOADED;
     }
     $tracer = GlobalTracer::get();
