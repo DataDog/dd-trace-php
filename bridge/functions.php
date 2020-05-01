@@ -2,6 +2,8 @@
 
 namespace DDTrace\Bridge;
 
+use DDTrace\GlobalTracer;
+
 /**
  * Tells whether or not tracing is enabled without having to fire the auto-loading mechanism.
  *
@@ -93,7 +95,48 @@ function dd_wrap_autoloader()
         return;
     }
 
-    dd_trace('spl_autoload_register', function () {
+    if (dd_env_as_boolean('DD_TRACE_SANDBOX_ENABLED', \PHP_VERSION_ID >= 50500)) {
+        \dd_trace_function('spl_autoload_register', function (\DDTrace\SpanData $span, $args) {
+            if (sizeof($args) == 0) {
+                return false;
+            }
+
+            list($loader) = $args;
+            $syntax_only = true;
+            $callable_name = '';
+            // callable_name is passed by-reference
+            if (!\is_callable($loader, $syntax_only, $callable_name)) {
+                return false;
+            }
+
+            /* Composer auto-generates a class loader with a name like:
+             * ComposerAutoloaderInitaa9e6eaaeccc2dd24059c64bd3ff094c
+             */
+            if (\strpos($callable_name, "ComposerAutoloaderInit") === 0) {
+                return false;
+            }
+
+            \dd_untrace('spl_autoload_register');
+
+            /* Since we don't have a non-instrumentation API yet, the currently
+             * executing closure has made a new span, which we will drop when
+             * we return false.
+             * However, this is a problem because dd_init will make a new root
+             * span.
+             * The bandaid is to close all open spans (which yes,
+             * dd_trace_serialize_closed_spans will do that) before we require
+             * dd_init.
+             * I pray this hack is short-lived 🙏
+             */
+            \dd_trace_serialize_closed_spans();
+            require __DIR__ . '/dd_init.php';
+
+            return false;
+        });
+        return;
+    }
+
+    \dd_trace('spl_autoload_register', function () {
         $originalAutoloaderRegistered = dd_trace_forward_call();
         $args = func_get_args();
         if (sizeof($args) == 0) {
