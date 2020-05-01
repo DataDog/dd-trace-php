@@ -159,7 +159,32 @@ final class Bootstrap
         $span->setTraceAnalyticsCandidate();
         $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name($operationName));
 
-        dd_trace('header', function () use ($span) {
+        if (\function_exists('dd_trace_function')) {
+            $rootSpan = $span;
+            \dd_trace_function('header', function (SpanData $span, $args) use ($rootSpan) {
+                if (isset($args[2])) {
+                    $parsedHttpStatusCode = $args[2];
+                } elseif (isset($args[0])) {
+                    $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
+                }
+
+                if (isset($parsedHttpStatusCode)) {
+                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
+                }
+                return false;
+            });
+
+            \dd_trace_function('http_response_code', function (SpanData $span, $args) use ($rootSpan) {
+                if (isset($args[0]) && \is_numeric($args[0])) {
+                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
+                }
+
+                return false;
+            });
+            return;
+        }
+
+        \dd_trace('header', function () use ($span) {
             $args = func_get_args();
 
             // header ( string $header [, bool $replace = TRUE [, int $http_response_code ]] ) : void
@@ -185,12 +210,12 @@ final class Bootstrap
             return $result;
         });
 
-        dd_trace('http_response_code', function () use ($span) {
+        \dd_trace('http_response_code', function () use ($span) {
             $args = func_get_args();
             if (isset($args[0])) {
                 $httpStatusCode = $args[0];
 
-                if (is_numeric($httpStatusCode)) {
+                if (\is_numeric($httpStatusCode)) {
                     $span->setTag(Tag::HTTP_STATUS_CODE, $httpStatusCode);
                 }
             }
