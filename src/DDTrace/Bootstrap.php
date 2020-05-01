@@ -159,6 +159,31 @@ final class Bootstrap
         $span->setTraceAnalyticsCandidate();
         $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name($operationName));
 
+        if (\dd_trace_env_config("DD_TRACE_SANDBOX_ENABLED")) {
+            $rootSpan = $span;
+            \dd_trace_function('header', function (SpanData $span, $args) use ($rootSpan) {
+                if (isset($args[2])) {
+                    $parsedHttpStatusCode = $args[2];
+                } elseif (isset($args[0])) {
+                    $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
+                }
+
+                if (isset($parsedHttpStatusCode)) {
+                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
+                }
+                return false;
+            });
+
+            \dd_trace_function('http_response_code', function (SpanData $span, $args) use ($rootSpan) {
+                if (isset($args[0]) && \is_numeric($args[0])) {
+                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
+                }
+
+                return false;
+            });
+            return;
+        }
+
         dd_trace('header', function () use ($span) {
             $args = func_get_args();
 
