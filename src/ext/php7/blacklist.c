@@ -14,6 +14,14 @@ static bool _dd_is_blacklisted_module(zend_module_entry *module) {
     }
     if (strcmp("xdebug", module->name) == 0) {
         /*
+        PHP 7.0 was only supported from Xdebug 2.4 through 2.7
+        @see: https://xdebug.org/docs/compat
+        */
+#if PHP_VERSION_ID < 70100
+        ddtrace_log_errf("Found incompatible Xdebug version %s; disabling conflicting functionality", module->version);
+        return true;
+#endif
+        /*
         Xdebug versions < 2.9.3 did not call neighboring extension's opcode handlers.
         @see: https://github.com/xdebug/xdebug/commit/87c61401e27df786a06cc881bd2011ce985b08dd
         @see: https://xdebug.org/announcements/2020-03-13
@@ -31,19 +39,10 @@ static bool _dd_is_blacklisted_module(zend_module_entry *module) {
         */
         int compare = php_version_compare(module->version, "2.9.5");
         if (compare == -1) {
-            /*
-            PHP 7.0 was only supported from Xdebug 2.4 through 2.7
-            @see: https://xdebug.org/docs/compat
-            */
-#if PHP_VERSION_ID < 70100
-            ddtrace_log_errf("Found incompatible Xdebug version %s; disabling conflicting functionality",
-                             module->version);
-#else
             ddtrace_log_errf(
                 "Found incompatible Xdebug version %s; ddtrace requires Xdebug 2.9.5 or greater; disabling conflicting "
                 "functionality",
                 module->version);
-#endif
             return true;
         }
     }
