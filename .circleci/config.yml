@@ -318,6 +318,35 @@ jobs:
             export REPORT_EXIT_STATUS=1
             cd tmp/build_extension
             php run-tests.php -p $(which php) --show-all -d zend_extension=opcache.so ../../tests/opcache
+
+  xdebug_tests:
+    parameters:
+      docker_image:
+        type: string
+      xdebug_version_one:
+        type: string
+      xdebug_version_two:
+        type: string
+        default: none
+    working_directory: ~/datadog
+    executor:
+      name: with_agent
+      docker_image: << parameters.docker_image >>
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXT_INSTALL
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - run:
+          name: Run xdebug tests
+          command: |
+            export REPORT_EXIT_STATUS=1
+            cd tmp/build_extension
+            php run-tests.php -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_one >>.so ../../tests/xdebug/<< parameters.xdebug_version_one >>
+            if [[ ! "<<parameters.xdebug_version_two>>" == "none" ]]; then
+              php run-tests.php -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so ../../tests/xdebug/<< parameters.xdebug_version_two >>
+            fi;
+
   unit_tests:
     parameters:
       docker_image:
@@ -869,6 +898,11 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 70 opcache tests"
           docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
+      - xdebug_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 70 Xdebug tests"
+          docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
+          xdebug_version_one: "2.7.2"
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 71 Unit tests"
@@ -878,6 +912,12 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 71 opcache tests"
           docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
+      - xdebug_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 71 Xdebug tests"
+          docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
+          xdebug_version_one: "2.9.2"
+          xdebug_version_two: "2.9.5"
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 Unit tests"
@@ -891,6 +931,12 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 opcache tests"
           docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
+      - xdebug_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 72 Xdebug tests"
+          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
+          xdebug_version_one: "2.9.2"
+          xdebug_version_two: "2.9.5"
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 Unit tests"
@@ -901,6 +947,12 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 opcache tests"
           docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
+      - xdebug_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 73 Xdebug tests"
+          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
+          xdebug_version_one: "2.9.2"
+          xdebug_version_two: "2.9.5"
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 Unit tests"
@@ -915,6 +967,12 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 opcache tests"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+      - xdebug_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 74 Xdebug tests"
+          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+          xdebug_version_one: "2.9.2"
+          xdebug_version_two: "2.9.5"
       - placeholder:
           requires: [ 'Prepare Code' ]
           name: Language tests
