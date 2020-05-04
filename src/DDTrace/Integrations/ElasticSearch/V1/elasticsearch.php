@@ -264,7 +264,6 @@ function _dd_integration_elasticsearch_endpoints()
     });
 }
 
-
 function load()
 {
     if (!Integration::shouldLoad(NAME)) {
