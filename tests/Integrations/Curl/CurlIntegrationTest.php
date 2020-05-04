@@ -38,15 +38,22 @@ class CurlIntegrationTest extends IntegrationTestCase
     public function setUp()
     {
         parent::setUp();
-        putenv('DD_CURL_ANALYTICS_ENABLED=true');
         IntegrationsLoader::load();
     }
 
     public function tearDown()
     {
         parent::tearDown();
+        $this->cleanUp();
+    }
+
+    private function cleanUp()
+    {
         putenv('DD_CURL_ANALYTICS_ENABLED');
+        putenv('DD_DISTRIBUTED_TRACING');
         putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
+        putenv('DD_TRACE_MEMORY_LIMIT');
+        putenv('DD_TRACE_SPANS_LIMIT');
     }
 
     private static function commonCurlInfoTags()
@@ -89,8 +96,6 @@ class CurlIntegrationTest extends IntegrationTestCase
 
     public function testSampleExternalAgent()
     {
-        putenv('DD_CURL_ANALYTICS_ENABLED');
-        Configuration::clear();
         $traces = $this->simulateAgent(function () {
             $ch = curl_init(self::URL . '/status/200');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -336,16 +341,8 @@ class CurlIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
+        putenv('DD_DISTRIBUTED_TRACING=false');
         $found = [];
-
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'isAutofinishSpansEnabled' => false,
-            'isAnalyticsEnabled' => false,
-            'isDistributedTracingEnabled' => false,
-            'isPrioritySamplingEnabled' => false,
-            'getGlobalTags' => [],
-            'isDebugModeEnabled' => false,
-        ]));
 
         $this->isolateTracer(function () use (&$found) {
             /** @var Tracer $tracer */

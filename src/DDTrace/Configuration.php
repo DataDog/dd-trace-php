@@ -46,7 +46,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDistributedTracingEnabled()
     {
-        return $this->boolValue('distributed.tracing', true);
+        return \ddtrace_config_distributed_tracing_enabled();
     }
 
     /**
