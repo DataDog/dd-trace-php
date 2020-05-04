@@ -24,12 +24,12 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_INTEGRATIONS_DISABLED');
         putenv('DD_PRIORITY_SAMPLING');
         putenv('DD_SAMPLING_RATE');
+        putenv('DD_SERVICE_MAPPING');
         putenv('DD_TRACE_ANALYTICS_ENABLED');
         putenv('DD_TRACE_DEBUG');
         putenv('DD_TRACE_ENABLED');
         putenv('DD_TRACE_SAMPLE_RATE');
         putenv('DD_TRACE_SAMPLING_RULES');
-        putenv('DD_SERVICE_MAPPING');
     }
 
     public function testTracerEnabledByDefault()
@@ -57,12 +57,14 @@ final class ConfigurationTest extends BaseTestCase
     public function testDistributedTracingEnabledByDefault()
     {
         $this->assertTrue(Configuration::get()->isDistributedTracingEnabled());
+        $this->assertTrue(\ddtrace_config_distributed_tracing_enabled());
     }
 
     public function testDistributedTracingDisabled()
     {
         putenv('DD_DISTRIBUTED_TRACING=false');
         $this->assertFalse(Configuration::get()->isDistributedTracingEnabled());
+        $this->assertFalse(\ddtrace_config_distributed_tracing_enabled());
     }
 
     public function testPrioritySamplingEnabledByDefault()

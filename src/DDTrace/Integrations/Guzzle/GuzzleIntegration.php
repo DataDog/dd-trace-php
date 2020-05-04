@@ -126,7 +126,7 @@ final class GuzzleIntegration extends Integration
     {
         $self = $this;
         return function (array $args) use ($self) {
-            if (!Configuration::get()->isDistributedTracingEnabled()) {
+            if (!\ddtrace_config_distributed_tracing_enabled()) {
                 return null;
             }
 
@@ -177,7 +177,7 @@ final class GuzzleIntegration extends Integration
      */
     public function applyDistributedTracingHeaders(Span $span, $request)
     {
-        if (!Configuration::get()->isDistributedTracingEnabled()) {
+        if (!\ddtrace_config_distributed_tracing_enabled()) {
             return;
         }
 

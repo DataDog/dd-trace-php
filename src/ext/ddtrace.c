@@ -139,6 +139,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, 0)
 ZEND_ARG_INFO(0, default_name)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_distributed_tracing_enabled, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_integration_enabled, 0, 0, 1)
 ZEND_ARG_INFO(0, integration_name)
 ZEND_END_ARG_INFO()
@@ -875,10 +878,6 @@ typedef long ddtrace_zpplong_t;
 typedef zend_long ddtrace_zpplong_t;
 #endif
 
-static ddtrace_string ddtrace_string_getenv(char *str, size_t len TSRMLS_DC) {
-    return ddtrace_string_cstring_ctor(ddtrace_getenv(str, len TSRMLS_CC));
-}
-
 static PHP_FUNCTION(ddtrace_config_app_name) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     ddtrace_string default_str = {
@@ -929,88 +928,28 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
     }
 }
 
-/**
- * Returns true if `subject` matches "true" or "1".
- * Returns false if `subject` matches "false" or "0".
- * Returns `default_value` otherwise.
- * @param subject An already lowercased string
- * @param default_value
- * @return
- */
-static bool _dd_config_bool(ddtrace_string subject, bool default_value) {
-    ddtrace_string str_1 = {
-        .ptr = "1",
-        .len = 1,
-    };
-    ddtrace_string str_true = {
-        .ptr = "true",
-        .len = sizeof("true") - 1,
-    };
-    if (ddtrace_string_equals(subject, str_1) || ddtrace_string_equals(subject, str_true)) {
-        return true;
-    }
-    ddtrace_string str_0 = {
-        .ptr = "0",
-        .len = 1,
-    };
-    ddtrace_string str_false = {
-        .ptr = "false",
-        .len = sizeof("false") - 1,
-    };
-    if (ddtrace_string_equals(subject, str_0) || ddtrace_string_equals(subject, str_false)) {
-        return false;
-    }
-    return default_value;
-}
-
-static bool _dd_config_trace_enabled(TSRMLS_D) {
-    ddtrace_string env = ddtrace_string_getenv(ZEND_STRL("DD_TRACE_ENABLED") TSRMLS_CC);
-    if (env.len) {
-        /* We need to lowercase the str for _dd_config_bool.
-         * We know it's already been duplicated by ddtrace_getenv, so we can
-         * lower it in-place.
-         */
-        zend_str_tolower(env.ptr, env.len);
-        bool result = _dd_config_bool(env, true);
-        efree(env.ptr);
-        return result;
-    }
-    if (env.ptr) {
-        efree(env.ptr);
-    }
-    return true;
+static PHP_FUNCTION(ddtrace_config_distributed_tracing_enabled) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+    RETURN_BOOL(ddtrace_config_distributed_tracing_enabled(TSRMLS_C))
 }
 
 static PHP_FUNCTION(ddtrace_config_trace_enabled) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
-    RETURN_BOOL(_dd_config_trace_enabled(TSRMLS_C));
-}
-
-// note: only call this if _dd_config_trace_enabled() returns true
-static bool _dd_config_integration_enabled(ddtrace_string integration TSRMLS_DC) {
-    ddtrace_string integrations_disabled = ddtrace_string_getenv(ZEND_STRL("DD_INTEGRATIONS_DISABLED") TSRMLS_CC);
-    if (integrations_disabled.len && integration.len) {
-        bool result = !ddtrace_string_contains_in_csv(integrations_disabled, integration);
-        efree(integrations_disabled.ptr);
-        return result;
-    }
-    if (integrations_disabled.ptr) {
-        efree(integrations_disabled.ptr);
-    }
-    return true;
+    RETURN_BOOL(ddtrace_config_trace_enabled(TSRMLS_C));
 }
 
 static PHP_FUNCTION(ddtrace_config_integration_enabled) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    if (!_dd_config_trace_enabled(TSRMLS_C)) {
+    if (!ddtrace_config_trace_enabled(TSRMLS_C)) {
         RETURN_FALSE
     }
     ddtrace_string integration;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
         RETURN_NULL()
     }
-    RETVAL_BOOL(_dd_config_integration_enabled(integration TSRMLS_CC));
+    RETVAL_BOOL(ddtrace_config_integration_enabled(integration TSRMLS_CC));
 }
 
 static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
@@ -1277,6 +1216,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_untrace, NULL),
     DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds),
     DDTRACE_FE(ddtrace_config_app_name, arginfo_ddtrace_config_app_name),
+    DDTRACE_FE(ddtrace_config_distributed_tracing_enabled, arginfo_ddtrace_config_distributed_tracing_enabled),
     DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
     DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled),
     DDTRACE_FE_END};

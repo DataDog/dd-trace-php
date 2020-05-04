@@ -667,9 +667,10 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     /**
      * @param $fn
      * @param null $tracer
+     * @param array $config
      * @return array[]
      */
-    public function isolateTracer($fn, $tracer = null)
+    public function isolateTracer($fn, $tracer = null, $config = [])
     {
         $traces = parent::isolateTracer($fn, $tracer);
         return array_filter_recursive(__NAMESPACE__ . '\\keep_non_symfony_spans', $traces);
