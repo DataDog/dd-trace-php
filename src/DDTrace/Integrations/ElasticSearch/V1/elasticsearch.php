@@ -9,7 +9,6 @@ use DDTrace\Type;
 use DDTrace\Configuration;
 use DDTrace\Integrations\Integration;
 
-
 const NAME = 'elasticsearch';
 
 // This will disappear once we do this check at c-level
@@ -57,7 +56,7 @@ function _dd_trace_es_client_method($name, $analitycsEnabled, $analyticsSampleRa
             );
         },]
     );
-};
+}
 
 function _dd_integration_elasticsearch_client($analitycsEnabled, $analyticsSampleRate)
 {
@@ -85,7 +84,7 @@ function _dd_integration_elasticsearch_client($analitycsEnabled, $analyticsSampl
                 // Loading client methods
                 global $DD_ES_GLOBAL;
                 if ($DD_ES_GLOBAL['client_loaded']) {
-                    return;
+                    return true;
                 }
                 $DD_ES_GLOBAL['client_loaded'] = true;
 
@@ -98,6 +97,8 @@ function _dd_integration_elasticsearch_client($analitycsEnabled, $analyticsSampl
                 _dd_trace_es_client_method('scroll', $analitycsEnabled, $analyticsSampleRate);
                 _dd_trace_es_client_method('search', $analitycsEnabled, $analyticsSampleRate, true);
                 _dd_trace_es_client_method('update', $analitycsEnabled, $analyticsSampleRate);
+
+                return true;
             },
         ]
     );
@@ -223,7 +224,7 @@ function _dd_integration_elasticsearch_namespace()
             global $DD_ES_GLOBAL;
 
             if ($DD_ES_GLOBAL[$namespace]) {
-                return;
+                return false;
             }
             $DD_ES_GLOBAL[$namespace] = true;
 
