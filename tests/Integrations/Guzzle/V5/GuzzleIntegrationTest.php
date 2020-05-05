@@ -50,6 +50,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     protected function tearDown()
     {
         parent::tearDown();
+        putenv('DD_DISTRIBUTED_TRACING');
         putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
     }
 
@@ -165,11 +166,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
+        putenv('DD_DISTRIBUTED_TRACING=false');
         $client = new Client();
         $found = [];
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'isDistributedTracingEnabled' => false,
-        ]));
 
         $this->isolateTracer(function () use (&$found, $client) {
             /** @var Tracer $tracer */

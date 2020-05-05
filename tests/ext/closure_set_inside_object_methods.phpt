@@ -28,8 +28,8 @@ final class TestSetup {
     }
 }
 
-
-(new Test())->m(0);
+// Cannot call a function while it is not traced and later expect it to trace
+//(new Test())->m(0);
 
 // use convoluted way to execute to test if it also works
 $o = new TestSetup();
@@ -45,7 +45,6 @@ $o->setup_ext(100);
 
 ?>
 --EXPECT--
-METHOD 0
 METHOD 11
 HOOK 11
 METHOD 1101

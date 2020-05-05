@@ -7,10 +7,10 @@
 
 #include "compatibility.h"
 
-#define DDTRACE_DISPATCH_INNERHOOK (1 << 0)
-#define DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED (1 << 1)
-#define DDTRACE_DISPATCH_POSTHOOK (1 << 2)
-#define DDTRACE_DISPATCH_PREHOOK (1 << 3)
+#define DDTRACE_DISPATCH_INNERHOOK (1u << 0u)
+#define DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED (1u << 1u)
+#define DDTRACE_DISPATCH_POSTHOOK (1u << 2u)
+#define DDTRACE_DISPATCH_PREHOOK (1u << 3u)
 
 typedef struct ddtrace_dispatch_t {
     uint32_t options;

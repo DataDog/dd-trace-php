@@ -8,6 +8,13 @@
 
 #include "ddtrace.h"
 
+extern int ddtrace_resource;
+
+#if PHP_VERSION_ID >= 70400
+extern int ddtrace_op_array_extension;
+#define DDTRACE_OP_ARRAY_EXTENSION(op_array) ZEND_OP_ARRAY_EXTENSION(op_array, ddtrace_op_array_extension)
+#endif
+
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 void ddtrace_engine_hooks_minit(void);

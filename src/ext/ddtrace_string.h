@@ -18,6 +18,9 @@ struct ddtrace_string {
 };
 typedef struct ddtrace_string ddtrace_string;
 
+#define DDTRACE_STRING_LITERAL(str) \
+    { .ptr = str, .len = sizeof(str) - 1 }
+
 inline ddtrace_string ddtrace_string_cstring_ctor(char *ptr) {
     ddtrace_string string = {
         .ptr = ptr,

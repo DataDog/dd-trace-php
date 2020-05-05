@@ -15,7 +15,9 @@
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
+#include "arrays.h"
 #include "auto_flush.h"
+#include "blacklist.h"
 #include "circuit_breaker.h"
 #include "comms_php.h"
 #include "compat_string.h"
@@ -38,13 +40,13 @@
 #include "signals.h"
 #include "span.h"
 
+bool ddtrace_has_blacklisted_module;
+
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals,
                     ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.internal_blacklisted_modules_list", "ionCube Loader,newrelic,", PHP_INI_SYSTEM,
-                  OnUpdateString, internal_blacklisted_modules_list, zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
@@ -52,9 +54,13 @@ STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, st
 PHP_INI_END()
 
 static int ddtrace_startup(struct _zend_extension *extension) {
-    PHP5_UNUSED(extension);
-    PHP7_UNUSED(extension);
+    ddtrace_resource = zend_get_resource_handle(extension);
 
+#if PHP_VERSION_ID >= 70400
+    ddtrace_op_array_extension = zend_get_op_array_extension_handle();
+#endif
+
+    ddtrace_blacklist_startup();
     ddtrace_curl_handlers_startup();
     return SUCCESS;
 }
@@ -135,6 +141,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, 0)
 ZEND_ARG_INFO(0, default_name)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_distributed_tracing_enabled, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_integration_enabled, 0, 0, 1)
 ZEND_ARG_INFO(0, integration_name)
 ZEND_END_ARG_INFO()
@@ -181,6 +190,53 @@ static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     ddtrace_log_debugf("Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
     DDTRACE_G(disable) = 1;
 }
+
+#if PHP_VERSION_ID >= 70000
+struct ddtrace_known_integration {
+    ddtrace_string class_name;  // nullptr if not a class
+    ddtrace_string fname;
+};
+typedef struct ddtrace_known_integration ddtrace_known_integration;
+
+#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str) \
+    {                                                   \
+        .class_name =                                   \
+            {                                           \
+                .ptr = class_str,                       \
+                .len = sizeof(class_str) - 1,           \
+            },                                          \
+        .fname = {                                      \
+            .ptr = fname_str,                           \
+            .len = sizeof(fname_str) - 1,               \
+        },                                              \
+    }
+
+static ddtrace_known_integration ddtrace_known_integrations[] = {
+    DDTRACE_KNOWN_INTEGRATION("wpdb", "query"),
+    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire"),
+};
+
+static void _dd_register_known_calls(void) {
+    size_t known_integrations_size = sizeof ddtrace_known_integrations / sizeof ddtrace_known_integrations[0];
+    for (size_t i = 0; i < known_integrations_size; ++i) {
+        ddtrace_known_integration integration = ddtrace_known_integrations[i];
+        zval class_name;
+        zval function_name;
+        zval callable;
+        ZVAL_NULL(&callable);
+        uint32_t options = DDTRACE_DISPATCH_POSTHOOK;
+        if (integration.class_name.ptr) {
+            ZVAL_STRINGL(&class_name, integration.class_name.ptr, integration.class_name.len);
+        } else {
+            ZVAL_NULL(&class_name);
+        }
+        ZVAL_STRINGL(&function_name, integration.fname.ptr, integration.fname.len);
+        ddtrace_trace(&class_name, &function_name, &callable, options);
+        zval_dtor(&function_name);
+        zval_dtor(&class_name);
+    }
+}
+#endif
 
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
@@ -249,6 +305,10 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
+    if (ddtrace_has_blacklisted_module == true) {
+        DDTRACE_G(disable) = 1;
+    }
+
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
@@ -256,10 +316,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
-
-    if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
-        return SUCCESS;
-    }
 
     // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
     ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
@@ -271,6 +327,17 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_init_span_id_stack(TSRMLS_C);
     ddtrace_init_span_stacks(TSRMLS_C);
     ddtrace_coms_on_pid_change();
+
+#if PHP_VERSION_ID >= 70000
+    /* Due to negative lookup caching, we need to have a list of all things we
+     * might instrument so that if a call is made to something we want to later
+     * instrument but is not currently instrumented, that we don't cache this.
+     *
+     * We should improve how this list is made in the future instead of hard-
+     * coding known integrations (and for now only the problematic ones).
+     */
+    _dd_register_known_calls();
+#endif
 
     if (DDTRACE_G(request_init_hook)) {
         DD_PRINTF("%s", DDTRACE_G(request_init_hook));
@@ -813,10 +880,6 @@ typedef long ddtrace_zpplong_t;
 typedef zend_long ddtrace_zpplong_t;
 #endif
 
-static ddtrace_string ddtrace_string_getenv(char *str, size_t len TSRMLS_DC) {
-    return ddtrace_string_cstring_ctor(ddtrace_getenv(str, len TSRMLS_CC));
-}
-
 static PHP_FUNCTION(ddtrace_config_app_name) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     ddtrace_string default_str = {
@@ -867,88 +930,28 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
     }
 }
 
-/**
- * Returns true if `subject` matches "true" or "1".
- * Returns false if `subject` matches "false" or "0".
- * Returns `default_value` otherwise.
- * @param subject An already lowercased string
- * @param default_value
- * @return
- */
-static bool _dd_config_bool(ddtrace_string subject, bool default_value) {
-    ddtrace_string str_1 = {
-        .ptr = "1",
-        .len = 1,
-    };
-    ddtrace_string str_true = {
-        .ptr = "true",
-        .len = sizeof("true") - 1,
-    };
-    if (ddtrace_string_equals(subject, str_1) || ddtrace_string_equals(subject, str_true)) {
-        return true;
-    }
-    ddtrace_string str_0 = {
-        .ptr = "0",
-        .len = 1,
-    };
-    ddtrace_string str_false = {
-        .ptr = "false",
-        .len = sizeof("false") - 1,
-    };
-    if (ddtrace_string_equals(subject, str_0) || ddtrace_string_equals(subject, str_false)) {
-        return false;
-    }
-    return default_value;
-}
-
-static bool _dd_config_trace_enabled(TSRMLS_D) {
-    ddtrace_string env = ddtrace_string_getenv(ZEND_STRL("DD_TRACE_ENABLED") TSRMLS_CC);
-    if (env.len) {
-        /* We need to lowercase the str for _dd_config_bool.
-         * We know it's already been duplicated by ddtrace_getenv, so we can
-         * lower it in-place.
-         */
-        zend_str_tolower(env.ptr, env.len);
-        bool result = _dd_config_bool(env, true);
-        efree(env.ptr);
-        return result;
-    }
-    if (env.ptr) {
-        efree(env.ptr);
-    }
-    return true;
+static PHP_FUNCTION(ddtrace_config_distributed_tracing_enabled) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+    RETURN_BOOL(ddtrace_config_distributed_tracing_enabled(TSRMLS_C))
 }
 
 static PHP_FUNCTION(ddtrace_config_trace_enabled) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
-    RETURN_BOOL(_dd_config_trace_enabled(TSRMLS_C));
-}
-
-// note: only call this if _dd_config_trace_enabled() returns true
-static bool _dd_config_integration_enabled(ddtrace_string integration TSRMLS_DC) {
-    ddtrace_string integrations_disabled = ddtrace_string_getenv(ZEND_STRL("DD_INTEGRATIONS_DISABLED") TSRMLS_CC);
-    if (integrations_disabled.len && integration.len) {
-        bool result = !ddtrace_string_contains_in_csv(integrations_disabled, integration);
-        efree(integrations_disabled.ptr);
-        return result;
-    }
-    if (integrations_disabled.ptr) {
-        efree(integrations_disabled.ptr);
-    }
-    return true;
+    RETURN_BOOL(ddtrace_config_trace_enabled(TSRMLS_C));
 }
 
 static PHP_FUNCTION(ddtrace_config_integration_enabled) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    if (!_dd_config_trace_enabled(TSRMLS_C)) {
+    if (!ddtrace_config_trace_enabled(TSRMLS_C)) {
         RETURN_FALSE
     }
     ddtrace_string integration;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
         RETURN_NULL()
     }
-    RETVAL_BOOL(_dd_config_integration_enabled(integration TSRMLS_CC));
+    RETVAL_BOOL(ddtrace_config_integration_enabled(integration TSRMLS_CC));
 }
 
 static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
@@ -1215,6 +1218,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_untrace, NULL),
     DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds),
     DDTRACE_FE(ddtrace_config_app_name, arginfo_ddtrace_config_app_name),
+    DDTRACE_FE(ddtrace_config_distributed_tracing_enabled, arginfo_ddtrace_config_distributed_tracing_enabled),
     DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
     DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled),
     DDTRACE_FE_END};

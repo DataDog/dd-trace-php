@@ -667,6 +667,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     /**
      * @param $fn
      * @param null $tracer
+     * @param array $config
      * @return array[]
      */
     public function isolateTracer($fn, $tracer = null, $config = [])
