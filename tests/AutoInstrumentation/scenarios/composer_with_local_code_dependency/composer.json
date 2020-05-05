@@ -1,12 +1,7 @@
 {
     "autoload": {
-        "psr-4": {
-            "DDTrace\\": "../../../../src/DDTrace"
-        },
         "files": [
-            "../../../../src/DDTrace/Configuration/configuration.php",
-            "../../../../src/DDTrace/Integrations/ElasticSearch/V1/elasticsearch.php",
-            "../../../../src/DDTrace/Integrations/Guzzle/guzzle.php"
+            "../../../../bridge/_generated.php"
         ]
     }
 }
