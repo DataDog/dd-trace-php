@@ -44,6 +44,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         parent::tearDown();
         putenv('DD_DISTRIBUTED_TRACING');
         putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
+        putenv('DD_DISTRIBUTED_TRACING');
     }
 
     /**

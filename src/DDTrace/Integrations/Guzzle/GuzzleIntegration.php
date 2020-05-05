@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Guzzle;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
@@ -112,7 +111,7 @@ final class GuzzleIntegration extends Integration
             if (null !== $url) {
                 $span->setTag(Tag::HTTP_URL, $url);
 
-                if (Configuration::get()->isHttpClientSplitByDomain()) {
+                if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                     $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($url));
                 }
             }

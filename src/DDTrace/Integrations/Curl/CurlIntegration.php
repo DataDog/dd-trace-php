@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Curl;
 
-use DDTrace\Configuration;
 use DDTrace\Format;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
@@ -79,7 +78,7 @@ class CurlIntegration extends Integration
                 $sanitizedUrl = Urls::sanitize($info['url']);
                 unset($info['url']);
 
-                if (Configuration::get()->isHttpClientSplitByDomain()) {
+                if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                     $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($sanitizedUrl));
                 } else {
                     $span->setTag(Tag::SERVICE_NAME, 'curl');

@@ -1,6 +1,7 @@
 <?php
 
 return [
+    __DIR__ . '/configuration.php',
     __DIR__ . '/../src/DDTrace/Log/LoggingTrait.php',
     __DIR__ . '/../src/DDTrace/Configuration/Registry.php',
     __DIR__ . '/../src/DDTrace/Contracts/Tracer.php',

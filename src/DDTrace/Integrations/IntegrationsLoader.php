@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Configuration;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
 use DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration;
 use DDTrace\Integrations\Curl\CurlIntegration;
@@ -87,7 +86,7 @@ class IntegrationsLoader
     {
         $this->integrations = $integrations;
         // Sandboxed integrations get loaded with a feature flag
-        if (Configuration::get()->isSandboxEnabled()) {
+        if (\ddtrace_config_sandbox_enabled()) {
             $this->integrations[CodeIgniterSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration';
             if (\PHP_MAJOR_VERSION > 5) {
