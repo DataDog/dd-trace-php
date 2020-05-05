@@ -35,23 +35,27 @@ final class ConfigurationTest extends BaseTestCase
     public function testTracerEnabledByDefault()
     {
         $this->assertTrue(Configuration::get()->isEnabled());
+        $this->assertTrue(\ddtrace_config_trace_enabled());
     }
 
     public function testTracerDisabled()
     {
         putenv('DD_TRACE_ENABLED=false');
         $this->assertFalse(Configuration::get()->isEnabled());
+        $this->assertFalse(\ddtrace_config_trace_enabled());
     }
 
     public function testDebugModeDisabledByDefault()
     {
         $this->assertFalse(Configuration::get()->isDebugModeEnabled());
+        $this->assertFalse(\ddtrace_config_debug_enabled());
     }
 
     public function testDebugModeCanBeEnabled()
     {
         putenv('DD_TRACE_DEBUG=true');
         $this->assertTrue(Configuration::get()->isDebugModeEnabled());
+        $this->assertTrue(\ddtrace_config_debug_enabled());
     }
 
     public function testDistributedTracingEnabledByDefault()
@@ -70,17 +74,20 @@ final class ConfigurationTest extends BaseTestCase
     public function testPrioritySamplingEnabledByDefault()
     {
         $this->assertTrue(Configuration::get()->isPrioritySamplingEnabled());
+        $this->assertTrue(\ddtrace_config_priority_sampling_enabled());
     }
 
     public function testPrioritySamplingDisabled()
     {
         putenv('DD_PRIORITY_SAMPLING=false');
         $this->assertFalse(Configuration::get()->isPrioritySamplingEnabled());
+        $this->assertFalse(\ddtrace_config_priority_sampling_enabled());
     }
 
     public function testAllIntegrationsEnabledByDefault()
     {
         $this->assertTrue(Configuration::get()->isIntegrationEnabled('any_one'));
+        $this->assertTrue(\ddtrace_config_integration_enabled('any_one'));
     }
 
     public function testIntegrationsDisabled()
@@ -89,6 +96,9 @@ final class ConfigurationTest extends BaseTestCase
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('one'));
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('two'));
         $this->assertTrue(Configuration::get()->isIntegrationEnabled('three'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('one'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('two'));
+        $this->assertTrue(\ddtrace_config_integration_enabled('three'));
     }
 
     public function testIntegrationsDisabledIfGlobalDisabled()
@@ -97,6 +107,8 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_TRACE_ENABLED=false');
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('one'));
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('two'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('one'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('two'));
     }
 
     public function testAppNameFallbackPriorities()
@@ -108,14 +120,20 @@ final class ConfigurationTest extends BaseTestCase
             'fallback_name',
             Configuration::get()->appName('fallback_name')
         );
+        $this->assertSame(
+            'fallback_name',
+            \ddtrace_config_app_name('fallback_name')
+        );
 
         putenv('ddtrace_app_name=foo_app');
         $this->assertSame('fallback_name', Configuration::get()->appName('fallback_name'));
+        $this->assertSame('fallback_name', \ddtrace_config_app_name('fallback_name'));
 
         Configuration::clear();
         putenv('ddtrace_app_name=foo_app');
         putenv('DD_TRACE_APP_NAME=bar_app');
         $this->assertSame('fallback_name', Configuration::get()->appName('fallback_name'));
+        $this->assertSame('fallback_name', \ddtrace_config_app_name('fallback_name'));
     }
 
     public function testServiceName()
@@ -126,9 +144,11 @@ final class ConfigurationTest extends BaseTestCase
         Configuration::clear();
 
         $this->assertSame('__default__', Configuration::get()->appName('__default__'));
+        $this->assertSame('__default__', \ddtrace_config_app_name('__default__'));
 
         putenv('DD_SERVICE_NAME=my_app');
         $this->assertSame('my_app', Configuration::get()->appName('my_app'));
+        $this->assertSame('my_app', \ddtrace_config_app_name('my_app'));
     }
 
     public function testServiceNameHasPrecedenceOverDeprecatedMethods()
@@ -139,17 +159,20 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_TRACE_APP_NAME=wrong_app');
         putenv('ddtrace_app_name=wrong_app');
         $this->assertSame('my_app', Configuration::get()->appName('my_app'));
+        $this->assertSame('my_app', \ddtrace_config_app_name('my_app'));
     }
 
     public function testAnalyticsDisabledByDefault()
     {
         $this->assertFalse(Configuration::get()->isAnalyticsEnabled());
+        $this->assertFalse(\ddtrace_config_analytics_enabled());
     }
 
     public function testAnalyticsCanBeGloballyEnabled()
     {
         putenv('DD_TRACE_ANALYTICS_ENABLED=true');
         $this->assertTrue(Configuration::get()->isAnalyticsEnabled());
+        $this->assertTrue(\ddtrace_config_analytics_enabled());
     }
 
     /**
@@ -164,6 +187,7 @@ final class ConfigurationTest extends BaseTestCase
         }
 
         $this->assertSame($expected, Configuration::get()->getSamplingRules());
+        $this->assertSame($expected, \ddtrace_config_sampling_rules());
     }
 
     public function dataProviderTestTraceSamplingRules()
@@ -269,6 +293,7 @@ final class ConfigurationTest extends BaseTestCase
         }
 
         $this->assertSame($expected, Configuration::get()->getSamplingRate());
+        $this->assertSame($expected, \ddtrace_config_sampling_rate());
     }
 
     public function dataProviderTestTraceSampleRate()
@@ -324,6 +349,7 @@ final class ConfigurationTest extends BaseTestCase
         }
 
         $this->assertSame($expected, Configuration::get()->getServiceMapping());
+        $this->assertSame($expected, \ddtrace_config_service_mapping());
     }
 
     public function dataProviderTestServiceMapping()
@@ -355,11 +381,13 @@ final class ConfigurationTest extends BaseTestCase
     public function testUriAsResourceNameEnabledDefault()
     {
         $this->assertTrue(Configuration::get()->isURLAsResourceNameEnabled());
+        $this->assertTrue(\ddtrace_config_url_resource_name_enabled());
     }
 
     public function testUriAsResourceNameCanBeDisabled()
     {
         putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=false');
         $this->assertFalse(Configuration::get()->isURLAsResourceNameEnabled());
+        $this->assertFalse(\ddtrace_config_url_resource_name_enabled());
     }
 }

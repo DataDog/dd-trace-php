@@ -37,6 +37,7 @@ class CurlIntegrationTest extends IntegrationTestCase
 
     public function setUp()
     {
+        $this->cleanUp();
         parent::setUp();
         IntegrationsLoader::load();
     }

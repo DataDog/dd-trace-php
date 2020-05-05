@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\CodeIgniter\V2;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;

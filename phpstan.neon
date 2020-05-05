@@ -1,4 +1,6 @@
 parameters:
+	autoload_files:
+		- bridge/configuration.php
 	excludes_analyse:
 		- src/DDTrace/Bootstrap.php
 		- src/DDTrace/Util/CodeTracer.php

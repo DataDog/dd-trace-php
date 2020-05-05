@@ -83,11 +83,6 @@ final class Tracer implements TracerInterface
     private $rootScope;
 
     /**
-     * @var Configuration
-     */
-    private $globalConfig;
-
-    /**
      * @var string
      */
     private $prioritySampling = Sampling\PrioritySampling::UNKNOWN;
@@ -119,7 +114,7 @@ final class Tracer implements TracerInterface
         ];
         $this->config = array_merge($this->config, $config);
         $this->reset();
-        $this->config['global_tags'] = array_merge($this->config['global_tags'], $this->globalConfig->getGlobalTags());
+        $this->config['global_tags'] = array_merge($this->config['global_tags'], \ddtrace_config_global_tags());
         $this->traceAnalyticsProcessor = new TraceAnalyticsProcessor();
     }
 
@@ -134,7 +129,6 @@ final class Tracer implements TracerInterface
     public function reset()
     {
         $this->scopeManager = new ScopeManager();
-        $this->globalConfig = Configuration::get();
         $this->sampler = new ConfigurableSampler();
         $this->traces = [];
     }
@@ -301,10 +295,10 @@ final class Tracer implements TracerInterface
         }
 
         // We should refactor these blocks to use a pre-flush hook
-        if ($this->globalConfig->isHostnameReportingEnabled()) {
+        if (\ddtrace_config_hostname_reporting_enabled()) {
             $this->addHostnameToRootSpan();
         }
-        if ('cli' !== PHP_SAPI && $this->globalConfig->isURLAsResourceNameEnabled()) {
+        if ('cli' !== PHP_SAPI && \ddtrace_config_url_resource_name_enabled()) {
             $this->addUrlAsResourceNameToRootSpan();
         }
 
@@ -348,8 +342,8 @@ final class Tracer implements TracerInterface
     public function getTracesAsArray()
     {
         $tracesToBeSent = [];
-        $autoFinishSpans = $this->globalConfig->isAutofinishSpansEnabled();
-        $serviceMappings = $this->globalConfig->getServiceMapping();
+        $autoFinishSpans = \ddtrace_config_autofinish_span_enabled();
+        $serviceMappings = \ddtrace_config_service_mapping();
 
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
@@ -388,7 +382,7 @@ final class Tracer implements TracerInterface
         $internalSpans = dd_trace_serialize_closed_spans();
 
         // Setting global tags on internal spans, if any
-        $globalTags = $this->globalConfig->getGlobalTags();
+        $globalTags = \ddtrace_config_global_tags();
         if ($globalTags) {
             foreach ($internalSpans as &$internalSpan) {
                 // If resource is empty, we normalize it the the operation name.
@@ -458,7 +452,7 @@ final class Tracer implements TracerInterface
             $this->traces[$span->context->traceId] = [];
         }
         $this->traces[$span->context->traceId][$span->context->spanId] = $span;
-        if (Configuration::get()->isDebugModeEnabled()) {
+        if (\ddtrace_config_debug_enabled()) {
             self::logDebug('New span {operation} {resource} recorded.', [
                 'operation' => $span->operationName,
                 'resource' => $span->resource,
@@ -473,7 +467,7 @@ final class Tracer implements TracerInterface
      */
     private function setPrioritySamplingFromSpan(Span $span)
     {
-        if (!$this->globalConfig->isPrioritySamplingEnabled()) {
+        if (!\ddtrace_config_priority_sampling_enabled()) {
             return;
         }
 

@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Guzzle;
 
-use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\SandboxedIntegration;
@@ -102,7 +101,7 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
         if (\is_a($request, 'Psr\Http\Message\RequestInterface')) {
             /** @var \Psr\Http\Message\RequestInterface $request */
             $url = $request->getUri();
-            if (Configuration::get()->isHttpClientSplitByDomain()) {
+            if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                 $span->service = Urls::hostnameForTag($url);
             }
             $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
@@ -110,7 +109,7 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
         } elseif (\is_a($request, 'GuzzleHttp\Message\RequestInterface')) {
             /** @var \GuzzleHttp\Message\RequestInterface $request */
             $url = $request->getUrl();
-            if (Configuration::get()->isHttpClientSplitByDomain()) {
+            if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                 $span->service = Urls::hostnameForTag($url);
             }
             $span->meta[Tag::HTTP_METHOD] = $request->getMethod();

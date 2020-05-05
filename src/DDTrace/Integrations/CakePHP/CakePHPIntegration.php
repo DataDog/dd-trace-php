@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\CakePHP;
 
-use DDTrace\Configuration;
 use DDTrace\Integrations\CakePHP\V2\CakePHPIntegrationLoader;
 use DDTrace\Integrations\Integration;
 

@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Curl;
 
-use DDTrace\Configuration;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
@@ -64,13 +63,11 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
                     $span->meta[Tag::ERROR_TYPE] = 'curl error';
                 }
 
-                $globalConfig = Configuration::get();
-
                 $info = \curl_getinfo($ch);
                 $sanitizedUrl = Urls::sanitize($info['url']);
                 unset($info['url']);
 
-                if ($globalConfig->isHttpClientSplitByDomain()) {
+                if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                     $span->service = Urls::hostnameForTag($sanitizedUrl);
                 }
 

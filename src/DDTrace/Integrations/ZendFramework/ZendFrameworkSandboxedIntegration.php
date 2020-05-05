@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\ZendFramework;
 
-use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
