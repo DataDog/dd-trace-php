@@ -100,7 +100,7 @@ function load()
             function (SpanData $span, $args, $retval) {
                 $span->resource = 'transfer';
                 $span->name = 'GuzzleHttp\Client.transfer';
-                $span->service = \ddtrace_config_app_name(NAME);;
+                $span->service = \ddtrace_config_app_name(NAME);
                 $span->type = Type::HTTP_CLIENT;
 
                 if (isset($args[0])) {

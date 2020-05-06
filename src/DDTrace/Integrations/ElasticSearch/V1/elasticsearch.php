@@ -271,7 +271,8 @@ function load()
         return SandboxedIntegration::NOT_LOADED;
     }
     _dd_integration_elasticsearch_client(
-        Configuration\dd_config_analytics_is_enabled() && Configuration\dd_config_integration_analytics_is_enabled(NAME),
+        Configuration\dd_config_analytics_is_enabled()
+            && Configuration\dd_config_integration_analytics_is_enabled(NAME),
         Configuration\dd_config_integration_analytics_sample_rate(NAME)
     );
 
