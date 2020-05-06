@@ -180,7 +180,7 @@ static void _dd_copy_function_args(zend_execute_data *call, zval *user_args, boo
     array_init_size(user_args, arg_count);
     if (arg_count && call->func) {
         first_extra_arg = call->func->op_array.num_args;
-        bool has_extra_args = first_extra_arg > 0 && arg_count > first_extra_arg;
+        bool has_extra_args = arg_count > first_extra_arg;
 
         zend_hash_real_init(Z_ARRVAL_P(user_args), 1);
         ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(user_args)) {
