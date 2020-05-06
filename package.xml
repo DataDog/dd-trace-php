@@ -213,6 +213,7 @@
                         <file name="spans_out_of_sync.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                         <file name="variadic_args_internal.phpt" role="test" />
+                        <file name="variadic_no_args.phpt" role="test" />
                         <file name="vm_var_types_return.phpt" role="test" />
                     </dir>
                     <dir name="sandbox-prehook">
