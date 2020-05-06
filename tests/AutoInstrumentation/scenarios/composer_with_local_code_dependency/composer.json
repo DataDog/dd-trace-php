@@ -1,7 +1,7 @@
 {
     "autoload": {
-        "files": [
-            "../../../../bridge/_generated.php"
-        ]
-    }
+        "psr-4": {
+            "DDTrace\\": "../../../../src/DDTrace"
+        }
+    },
 }
