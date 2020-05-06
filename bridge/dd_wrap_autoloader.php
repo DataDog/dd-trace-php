@@ -28,4 +28,5 @@ if (!dd_tracing_enabled()) {
     return;
 }
 
-dd_wrap_autoloader();
+dd_register_autoloader();
+require __DIR__ . '/dd_init.php';

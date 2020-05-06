@@ -33,7 +33,7 @@ class AutoInstrumentationTest extends BaseTestCase
 
             // We want to make sure that the version declared in composer.json is picked up instead of the installed
             // version.
-            ['composer_with_ddtrace_dependency', '0.31.0', true],
+            ['composer_with_ddtrace_dependency', $currentTracerVersion, true],
 
             // We want to make sure that users can safely declare a dependency in the latest version of our
             // tracer in composer even if not required.
