@@ -84,7 +84,7 @@ class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
@@ -106,7 +106,7 @@ class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
@@ -128,7 +128,7 @@ class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
@@ -148,7 +148,7 @@ class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/200')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/200',
@@ -170,7 +170,7 @@ class CurlIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/404')
+            SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
                     'http.url' => self::URL . '/status/404',
@@ -437,7 +437,7 @@ class CurlIntegrationTest extends IntegrationTestCase
                 'curl_exec',
                 'host-httpbin_integration',
                 'http',
-                'http://httpbin_integration/status/200'
+                'http://httpbin_integration/status/?'
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags([
