@@ -2,13 +2,13 @@
 
 return [
     __DIR__ . '/configuration.php',
+    __DIR__ . '/../src/api/Contracts/Tracer.php',
+    __DIR__ . '/../src/api/Contracts/Span.php',
+    __DIR__ . '/../src/api/Contracts/Scope.php',
+    __DIR__ . '/../src/api/Contracts/ScopeManager.php',
+    __DIR__ . '/../src/api/Contracts/SpanContext.php',
     __DIR__ . '/../src/DDTrace/Log/LoggingTrait.php',
     __DIR__ . '/../src/DDTrace/Configuration/Registry.php',
-    __DIR__ . '/../src/DDTrace/Contracts/Tracer.php',
-    __DIR__ . '/../src/DDTrace/Contracts/Span.php',
-    __DIR__ . '/../src/DDTrace/Contracts/Scope.php',
-    __DIR__ . '/../src/DDTrace/Contracts/ScopeManager.php',
-    __DIR__ . '/../src/DDTrace/Contracts/SpanContext.php',
     __DIR__ . '/../src/DDTrace/Data/SpanContext.php',
     __DIR__ . '/../src/DDTrace/Data/Span.php',
     __DIR__ . '/../src/DDTrace/Sampling/Sampler.php',
