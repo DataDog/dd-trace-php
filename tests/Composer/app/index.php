@@ -32,9 +32,13 @@ $scope->close();
 Configuration::get()->appName('default');
 
 /*
- * Using Logger class which is defined in both 'src' AND 'api';
+ * Using Logger class which is defined in both 'src' AND 'api'
  */
 Logger::set(new ErrorLogLogger('debug'));
 Logger::get()->debug('some-debug-message');
+
+/*
+ * TODO: a custom integration using the Integration class
+ */
 
 echo "OK\n";
