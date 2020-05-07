@@ -31,4 +31,17 @@ abstract class BaseTestCase extends Framework\TestCase
         Logger::set($logger);
         return $logger;
     }
+
+
+    public function composerUpdateScenario($workingDir)
+    {
+        exec(
+            "composer --working-dir='$workingDir' update -q",
+            $output,
+            $return
+        );
+        if (0 !== $return) {
+            $this->fail('Error while preparing the env: ' . implode("\n", $output));
+        }
+    }
 }
