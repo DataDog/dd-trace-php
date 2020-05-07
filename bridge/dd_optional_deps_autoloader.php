@@ -27,15 +27,15 @@ class OptionalDepsAutoloader
         "DDTrace\\Integrations\\Laravel\\V5\\LaravelIntegrationLoader" => 'DDTrace/Integrations/Laravel/V5/LaravelIntegrationLoader.php',
         "DDTrace\\Integrations\\Laravel\\V4\\LaravelProvider" => 'DDTrace/Integrations/Laravel/V4/LaravelProvider.php',
         "DDTrace\\Log\\NullLogger" => 'DDTrace/Log/NullLogger.php',
-        "DDTrace\\NoopTracer" => 'DDTrace/NoopTracer.php',
-        "DDTrace\\NoopSpan" => 'DDTrace/NoopSpan.php',
-        "DDTrace\\NoopScope" => 'DDTrace/NoopScope.php',
+        "DDTrace\\NoopTracer" => 'api/NoopTracer.php',
+        "DDTrace\\NoopSpan" => 'api/NoopSpan.php',
+        "DDTrace\\NoopScope" => 'api/NoopScope.php',
         "DDTrace\\Encoders\\Json" => 'DDTrace/Encoders/Json.php',
         "DDTrace\\Encoders\\Noop" => 'DDTrace/Encoders/Noop.php',
         "DDTrace\\Propagators\\Noop" => 'DDTrace/Propagators/Noop.php',
         "DDTrace\\Transport\\Noop" => 'DDTrace/Transport/Noop.php',
-        "DDTrace\\NoopScopeManager" => 'DDTrace/NoopScopeManager.php',
-        "DDTrace\\NoopSpanContext" => 'DDTrace/NoopSpanContext.php',
+        "DDTrace\\NoopScopeManager" => 'api/NoopScopeManager.php',
+        "DDTrace\\NoopSpanContext" => 'api/NoopSpanContext.php',
     ];
 
     /**
