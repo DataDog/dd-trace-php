@@ -50,7 +50,7 @@ return [
     __DIR__ . '/../src/DDTrace/Exceptions/InvalidReferencesSet.php',
     __DIR__ . '/../src/DDTrace/Exceptions/InvalidSpanOption.php',
 
-    __DIR__ . '/../src/DDTrace/GlobalTracer.php',
+    __DIR__ . '/../src/api/GlobalTracer.php',
     __DIR__ . '/../src/DDTrace/Propagators/TextMap.php',
     __DIR__ . '/../src/DDTrace/Propagators/CurlHeadersMap.php',
     __DIR__ . '/../src/DDTrace/Http/Urls.php',
