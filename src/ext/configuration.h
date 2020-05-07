@@ -83,6 +83,7 @@ void ddtrace_config_shutdown(void);
     BOOL(get_dd_trace_auto_flush_enabled, "DD_TRACE_AUTO_FLUSH_ENABLED", false)                                      \
     BOOL(get_dd_trace_measure_compile_time, "DD_TRACE_MEASURE_COMPILE_TIME", true)                                   \
     BOOL(get_dd_trace_debug, "DD_TRACE_DEBUG", false)                                                                \
+    BOOL(get_dd_trace_verbose_errors_request_init_hook, "DD_TRACE_VERBOSE_ERRORS_REQUEST_INIT_HOOK", false)          \
     BOOL(get_dd_trace_heath_metrics_enabled, "DD_TRACE_HEALTH_METRICS_ENABLED", false)                               \
     DOUBLE(get_dd_trace_heath_metrics_heartbeat_sample_rate, "DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE", 0.001) \
     CHAR(get_dd_trace_memory_limit, "DD_TRACE_MEMORY_LIMIT", NULL)                                                   \
