@@ -99,7 +99,7 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/ZendFrameworkIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/ZendFramework/ZendFrameworkSandboxedIntegration.php',
 
-    __DIR__ . '/../src/src/Log/Logger.php',
+    __DIR__ . '/../src/DDTrace/Log/Logger.php',
     __DIR__ . '/../src/api/Log/LoggerInterface.php',
     __DIR__ . '/../src/api/Log/InterpolateTrait.php',
     __DIR__ . '/../src/api/Log/LogLevel.php',

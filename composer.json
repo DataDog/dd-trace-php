@@ -72,6 +72,7 @@
         "test-all-54": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-54",
@@ -81,6 +82,7 @@
             "@test-unit",
             "@test-auto-instrumentation",
             "@test-distributed-tracing",
+            "@test-composer",
             "@test-integration",
             "@test-integrations-56",
             "@test-web-56"
@@ -88,6 +90,7 @@
         "test-all-70": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-70",
@@ -96,6 +99,7 @@
         "test-all-71": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-71",
@@ -104,6 +108,7 @@
         "test-all-72": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-72",
@@ -112,6 +117,7 @@
         "test-all-73": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-73",
@@ -120,6 +126,7 @@
         "test-all-74": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-74",
@@ -422,6 +429,8 @@
         "test-metrics": "@composer test -- --testsuite=metrics",
 
         "test-auto-instrumentation": "phpunit --colors=always --configuration=phpunit.xml --testsuite=auto-instrumentation",
+
+        "test-composer": "phpunit --colors=always --configuration=phpunit.xml --testsuite=composer-tests",
 
         "test-distributed-tracing": "phpunit --colors=always --configuration=phpunit.xml --testsuite=distributed-tracing",
 
