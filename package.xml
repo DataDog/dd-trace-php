@@ -118,6 +118,8 @@
                     <dir name="request-init-hook">
                         <file name="error_get_last_is_unaffected.phpt" role="test" />
                         <file name="raises_e_notice.php" role="test" />
+                        <file name="contains_binary_character.php" role="test" />
+                        <file name="request_init_hook_contains_non_printable_character.phpt" role="test" />
                         <file name="raises_fatal_error.php" role="test" />
                         <file name="request_init_hook_confined_to_open_basedir.phpt" role="test" />
                         <file name="request_init_hook_file_not_found.phpt" role="test" />

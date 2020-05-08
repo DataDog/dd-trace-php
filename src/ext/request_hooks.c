@@ -28,6 +28,8 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
 
     ddtrace_error_handling eh_stream;
     ddtrace_backup_error_handling(&eh_stream, EH_SUPPRESS TSRMLS_CC);
+    zend_bool _original_cg_multibyte = CG(multibyte);
+    CG(multibyte) = FALSE;
 
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE TSRMLS_CC);
 
@@ -83,7 +85,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     } else {
         ddtrace_log_debugf("Error opening request init hook: %s", filename);
     }
-
+    CG(multibyte) = _original_cg_multibyte;
     return rv;
 }
 #else
@@ -102,6 +104,8 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     ddtrace_error_handling eh_stream;
     // Using an EH_THROW here causes a non-recoverable zend_bailout()
     ddtrace_backup_error_handling(&eh_stream, EH_NORMAL);
+    zend_bool _original_cg_multibyte = CG(multibyte);
+    CG(multibyte) = FALSE;
 
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
 
@@ -119,6 +123,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
         }
         opened_path = zend_string_copy(file_handle.opened_path);
         ZVAL_NULL(&dummy);
+
         if (zend_hash_add(&EG(included_files), opened_path, &dummy)) {
             new_op_array = zend_compile_file(&file_handle, ZEND_REQUIRE);
             zend_destroy_file_handle(&file_handle);
@@ -126,6 +131,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
             new_op_array = NULL;
             zend_file_handle_dtor(&file_handle);
         }
+
         zend_string_release(opened_path);
         if (new_op_array) {
             ZVAL_UNDEF(&result);
@@ -154,6 +160,7 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
         ddtrace_maybe_clear_exception();
         ddtrace_log_debugf("Error opening request init hook: %s", filename);
     }
+    CG(multibyte) = _original_cg_multibyte;
 
     return rv;
 }
