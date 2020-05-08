@@ -55,7 +55,7 @@ final class NoopTracer implements TracerInterface
     /**
      * {@inheritdoc}
      */
-    public function startActiveSpan($operationName, $finishSpanOnClose = true, $options = [])
+    public function startActiveSpan($operationName, $options = [])
     {
         return NoopScope::create();
     }
