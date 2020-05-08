@@ -17,7 +17,7 @@ abstract class AbstractConfiguration implements Registry
      */
     protected $registry;
 
-    protected function __construct()
+    final protected function __construct()
     {
         $this->registry = new EnvVariableRegistry();
     }
