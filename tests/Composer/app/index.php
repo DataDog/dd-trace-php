@@ -37,8 +37,4 @@ Configuration::get()->appName('default');
 Logger::set(new ErrorLogLogger('debug'));
 Logger::get()->debug('some-debug-message');
 
-/*
- * TODO: a custom integration using the Integration class
- */
-
 echo "OK\n";
