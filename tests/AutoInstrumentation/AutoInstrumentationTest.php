@@ -17,7 +17,7 @@ class AutoInstrumentationTest extends BaseTestCase
     public function testAutoInstrumentationScenarios($scenario, $expectedVersion, $isComposer)
     {
         if ($isComposer) {
-            $this->composerUpdateScenario($scenario);
+            $this->composerPrepareScenario($scenario);
         }
         $loadedVersion = $this->runAndReadVersion($scenario);
         $this->assertSame($expectedVersion, $loadedVersion);
@@ -58,7 +58,7 @@ class AutoInstrumentationTest extends BaseTestCase
         ];
     }
 
-    private function composerUpdateScenario($scenario)
+    private function composerPrepareScenario($scenario)
     {
         $here = __DIR__;
         $scenarioFolder = $this->buildScenarioAbsPath($scenario);
