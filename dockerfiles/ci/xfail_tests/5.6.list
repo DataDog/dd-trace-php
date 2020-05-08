@@ -275,3 +275,9 @@ ext/standard/tests/serialize/serialization_objects_007.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/substr_compare.phpt
 ext/pdo/tests/pdo_014.phpt
+ext/curl/tests/bug68089.phpt
+ext/curl/tests/bug45161.phpt
+Zend/tests/bug43450.phpt
+Zend/tests/traits/get_declared_traits_001.phpt
+Zend/tests/traits/get_declared_traits_002.phpt
+ext/curl/tests/bug68089.phpt

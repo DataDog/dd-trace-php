@@ -380,3 +380,13 @@ Zend/tests/bug79155.phpt
 ext/simplexml/tests/bug51615.phpt
 ext/standard/tests/array/arsort_object1.phpt
 ext/standard/tests/array/arsort_object2.phpt
+tests/lang/bug45392.phpt
+Zend/tests/bug70258.phpt
+Zend/tests/bug70805.phpt
+Zend/tests/bug70805_1.phpt
+Zend/tests/bug70805_2.phpt
+Zend/tests/gc_031.phpt
+Zend/tests/gc_037.phpt
+ext/curl/tests/bug45161.phpt
+ext/curl/tests/bug79033.phpt
+ext/standard/tests/streams/bug78902.phpt
