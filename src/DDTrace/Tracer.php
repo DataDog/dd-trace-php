@@ -438,12 +438,12 @@ final class Tracer implements TracerInterface
             return;
         }
         // Normalized URL as the resource name
-        $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
-        $span->setTag(
-            Tag::RESOURCE_NAME,
-            $_SERVER['REQUEST_METHOD'] . ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']),
-            true
-        );
+        $resourceName = $_SERVER['REQUEST_METHOD'];
+        if (isset($_SERVER['REQUEST_URI'])) {
+            $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
+            $resourceName .= ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']);
+        }
+        $span->setTag(Tag::RESOURCE_NAME, $resourceName, true);
     }
 
     private function record(Span $span)
