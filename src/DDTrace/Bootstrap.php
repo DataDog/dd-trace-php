@@ -155,8 +155,9 @@ final class Bootstrap
             // Status code defaults to 200, will be later on changed when http_response_code will be called
             $span->setTag(Tag::HTTP_STATUS_CODE, 200);
         }
-        $span->setIntegration(WebIntegration::getInstance());
-        $span->setTraceAnalyticsCandidate();
+        $integration = WebIntegration::getInstance();
+        $span->setIntegration($integration);
+        $integration->addTraceAnalyticsIfEnabledLegacy($span);
         $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name($operationName));
 
         if (\dd_trace_env_config("DD_TRACE_SANDBOX_ENABLED")) {

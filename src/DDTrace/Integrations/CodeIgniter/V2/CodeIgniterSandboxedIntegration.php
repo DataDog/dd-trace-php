@@ -63,7 +63,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
     public function registerIntegration(\CI_Router $router, Span $root, $service)
     {
         $root->setIntegration($this);
-        $root->setTraceAnalyticsCandidate();
+        $this->addTraceAnalyticsIfEnabledLegacy($root);
 
         $root->overwriteOperationName('codeigniter.request');
         $root->setTag(Tag::SERVICE_NAME, $service);

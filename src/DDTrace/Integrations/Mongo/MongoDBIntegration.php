@@ -28,11 +28,11 @@ final class MongoDBIntegration extends Integration
         $mongoIntegration = MongoIntegration::getInstance();
 
         // array MongoDB::command ( array $command [, array $options = array() [, string &$hash ]] )
-        self::traceMethod('command', function (Span $span, array $args) {
+        self::traceMethod('command', function (Span $span, array $args) use ($mongoIntegration) {
             $span->setIntegration(MongoIntegration::getInstance());
             if (isset($args[0]['query'])) {
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]['query']));
-                $span->setTraceAnalyticsCandidate();
+                $mongoIntegration->addTraceAnalyticsIfEnabledLegacy($span);
             }
             if (isset($args[1]['socketTimeoutMS'])) {
                 $span->setTag(Tag::MONGODB_TIMEOUT, $args[1]['socketTimeoutMS']);

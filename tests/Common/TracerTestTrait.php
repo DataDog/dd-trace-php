@@ -35,9 +35,6 @@ trait TracerTestTrait
 
         $fn($tracer);
 
-        // Checking spans belong to the proper integration
-        $this->assertSpansBelongsToProperIntegration($this->readTraces($tracer));
-
         return $this->flushAndGetTraces($transport);
     }
 
@@ -120,9 +117,6 @@ trait TracerTestTrait
         $tracer = GlobalTracer::get();
         /** @var DebugTransport $transport */
         $tracer->flush();
-
-        // Checking that spans belong to the correct integrations.
-        $this->assertSpansBelongsToProperIntegration($this->readTraces($tracer));
 
         return $this->parseTracesFromDumpedData();
     }
@@ -361,18 +355,18 @@ trait TracerTestTrait
         return $tracesProperty->getValue($tracer);
     }
 
-    /**
-     * Asserting that a Span belongs to the expected integration.
-     *
-     * @param array $traces
-     */
-    private function assertSpansBelongsToProperIntegration(array $traces)
-    {
-        $spanIntegrationChecker = new SpanIntegrationChecker();
-        foreach ($traces as $trace) {
-            foreach ($trace as $span) {
-                $spanIntegrationChecker->checkIntegration($this, $span);
-            }
-        }
-    }
+    // /**
+    //  * Asserting that a Span belongs to the expected integration.
+    //  *
+    //  * @param array $traces
+    //  */
+    // private function assertSpansBelongsToProperIntegration(array $traces)
+    // {
+    //     $spanIntegrationChecker = new SpanIntegrationChecker();
+    //     foreach ($traces as $trace) {
+    //         foreach ($trace as $span) {
+    //             $spanIntegrationChecker->checkIntegration($this, $span);
+    //         }
+    //     }
+    // }
 }

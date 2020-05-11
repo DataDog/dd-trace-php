@@ -21,7 +21,7 @@ final class LumenIntegrationLoader
         $span->overwriteOperationName('lumen.request');
         $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name(LumenIntegration::NAME));
         $span->setIntegration(LumenIntegration::getInstance());
-        $span->setTraceAnalyticsCandidate();
+        LumenIntegration::getInstance()->addTraceAnalyticsIfEnabledLegacy($span);
 
         // prepareRequest() was added in Lumen 5.2
         // https://github.com/laravel/lumen-framework/blob/5.2/src/Application.php#L440

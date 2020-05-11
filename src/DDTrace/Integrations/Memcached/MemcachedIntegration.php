@@ -498,7 +498,7 @@ class MemcachedIntegration extends Integration
         ];
 
         if (in_array($command, $commandsForAnalytics)) {
-            $span->setTraceAnalyticsCandidate();
+            MemcachedIntegration::getInstance()->addTraceAnalyticsIfEnabledLegacy($span);
         }
     }
 }

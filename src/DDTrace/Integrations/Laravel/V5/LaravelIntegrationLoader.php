@@ -33,9 +33,10 @@ class LaravelIntegrationLoader
             list($route, $request) = func_get_args();
             if ($self->rootScope) {
                 $span = $self->rootScope->getSpan();
+                $integration = LaravelIntegration::getInstance();
                 // Overwriting the default web integration
-                $span->setIntegration(LaravelIntegration::getInstance());
-                $span->setTraceAnalyticsCandidate();
+                $span->setIntegration($integration);
+                $integration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(
                     Tag::RESOURCE_NAME,
                     $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')

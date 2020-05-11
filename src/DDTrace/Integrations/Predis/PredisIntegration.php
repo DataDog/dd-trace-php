@@ -53,6 +53,8 @@ class PredisIntegration extends Integration
      */
     public static function load()
     {
+        $integration = PredisIntegration::getInstance();
+
         // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
         dd_trace('Predis\Client', '__construct', function () {
             $tracer = GlobalTracer::get();
@@ -109,7 +111,7 @@ class PredisIntegration extends Integration
         });
 
         // public mixed Predis\Client::executeCommand(CommandInterface $command)
-        dd_trace('Predis\Client', 'executeCommand', function ($command) {
+        dd_trace('Predis\Client', 'executeCommand', function ($command) use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -129,14 +131,14 @@ class PredisIntegration extends Integration
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
             $span->setTag(Tag::RESOURCE_NAME, $query);
-            $span->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($span);
             PredisIntegration::setConnectionTags($this, $span);
 
             return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         // public mixed Predis\Client::executeRaw(array $arguments, bool &$error)
-        dd_trace('Predis\Client', 'executeRaw', function ($arguments, &$error = null) {
+        dd_trace('Predis\Client', 'executeRaw', function ($arguments, &$error = null) use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -154,7 +156,7 @@ class PredisIntegration extends Integration
             $span->setTag('redis.raw_command', $query);
             $span->setTag('redis.args_length', count($arguments));
             $span->setTag(Tag::RESOURCE_NAME, $query);
-            $span->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($span);
             PredisIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally block.

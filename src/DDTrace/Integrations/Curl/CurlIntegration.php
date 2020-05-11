@@ -65,7 +65,7 @@ class CurlIntegration extends Integration
 
                 $scope = $tracer->startIntegrationScopeAndSpan($integration, 'curl_exec');
                 $span = $scope->getSpan();
-                $span->setTraceAnalyticsCandidate();
+                $integration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
                 CurlIntegration::injectDistributedTracingHeaders($ch);
 

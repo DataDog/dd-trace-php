@@ -51,7 +51,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'cakephp',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -66,7 +65,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'cakephp',
                     ]),
                     SpanAssertion::build(
                         'cakephp.view',
@@ -75,7 +73,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'SimpleView/index.ctp'
                     )->withExactTags([
                         'cakephp.view' => 'SimpleView/index.ctp',
-                        'integration.name' => 'cakephp',
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -91,7 +88,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error',
                         // CakePHP doesn't appear to set the proper error code
                         'http.status_code' => '200',
-                        'integration.name' => 'cakephp',
                     ])->withExistingTagsNames([
                         'error.stack'
                     ])->setError(null, 'Foo error'),
@@ -102,7 +98,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'Errors/index.ctp'
                     )->withExactTags([
                         'cakephp.view' => 'Errors/index.ctp',
-                        'integration.name' => 'cakephp',
                     ]),
                 ],
             ]

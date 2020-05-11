@@ -30,7 +30,6 @@ final class CommonScenariosTest extends CLITestCase
                 'cli',
                 'run'
             )->withExactTags([
-                'integration.name' => 'web',
             ])
         ]);
     }

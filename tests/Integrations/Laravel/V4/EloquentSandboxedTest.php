@@ -22,7 +22,6 @@ class EloquentSandboxedTest extends EloquentTest
             'sql',
             'User'
         )->withExactTags([
-            'integration.name' => 'eloquent',
         ]));
     }
 }

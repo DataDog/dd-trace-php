@@ -33,6 +33,14 @@ abstract class Integration
         $this->configuration = $this->buildConfiguration();
     }
 
+    public function addTraceAnalyticsIfEnabledLegacy(Span $span)
+    {
+        if (!$this->configuration->isTraceAnalyticsEnabled()) {
+            return;
+        }
+        $span->setMetric(Tag::ANALYTICS_KEY, $this->configuration->getTraceAnalyticsSampleRate());
+    }
+
     /**
      * @return bool
      */

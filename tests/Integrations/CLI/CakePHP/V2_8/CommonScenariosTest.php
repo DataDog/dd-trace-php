@@ -29,9 +29,7 @@ final class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console'
-            )->withExactTags([
-                'integration.name' => 'cakephp',
-            ])
+            )
         ]);
     }
 
@@ -45,9 +43,7 @@ final class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console command_list'
-            )->withExactTags([
-                'integration.name' => 'cakephp',
-            ])
+            )
         ]);
     }
 
@@ -66,9 +62,7 @@ final class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console foo_error'
-            )->withExactTags([
-                'integration.name' => 'cakephp',
-            ])->withExistingTagsNames([
+            )->withExistingTagsNames([
                 'error.msg',
                 'error.stack'
             ])->setError()

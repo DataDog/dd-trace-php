@@ -198,6 +198,7 @@ class ElasticSearchIntegration extends Integration
         $class = 'Elasticsearch\Client';
 
         dd_trace($class, $name, function () use ($name, $isTraceAnalyticsCandidate) {
+            $integration = ElasticSearchIntegration::getInstance();
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -210,12 +211,12 @@ class ElasticSearchIntegration extends Integration
             }
 
             $scope = $tracer->startIntegrationScopeAndSpan(
-                ElasticSearchIntegration::getInstance(),
+                $integration,
                 "Elasticsearch.Client.$name"
             );
             $span = $scope->getSpan();
             if ($isTraceAnalyticsCandidate) {
-                $span->setTraceAnalyticsCandidate();
+                $integration->addTraceAnalyticsIfEnabledLegacy($span);
             }
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);

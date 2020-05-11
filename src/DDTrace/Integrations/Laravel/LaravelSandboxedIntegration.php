@@ -61,7 +61,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
                 // Overwriting the default web integration
                 $rootSpan->overwriteOperationName('laravel.request');
                 $rootSpan->setIntegration($integration);
-                $rootSpan->setTraceAnalyticsCandidate();
+                $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
                 if (\method_exists($response, 'getStatusCode')) {
                     $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
                 }
@@ -86,7 +86,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
 
                 // Overwriting the default web integration
                 $rootSpan->setIntegration($integration);
-                $rootSpan->setTraceAnalyticsCandidate();
+                $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
                 $rootSpan->setTag(
                     Tag::RESOURCE_NAME,
                     $route->getActionName() . ' ' . ($route->getName() ?: 'unnamed_route')
