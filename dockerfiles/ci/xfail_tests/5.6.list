@@ -280,4 +280,9 @@ ext/curl/tests/bug45161.phpt
 Zend/tests/bug43450.phpt
 Zend/tests/traits/get_declared_traits_001.phpt
 Zend/tests/traits/get_declared_traits_002.phpt
+Zend/tests/traits/get_declared_traits_003.phpt
 ext/curl/tests/bug68089.phpt
+ext/curl/tests/bug48203.phpt
+ext/curl/tests/curl_setopt_error.phpt
+ext/pdo_sqlite/tests/bug66033.phpt
+ext/pdo_sqlite/tests/bug50728.phpt
