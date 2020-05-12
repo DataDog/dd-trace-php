@@ -354,19 +354,4 @@ trait TracerTestTrait
         $tracesProperty->setAccessible(true);
         return $tracesProperty->getValue($tracer);
     }
-
-    // /**
-    //  * Asserting that a Span belongs to the expected integration.
-    //  *
-    //  * @param array $traces
-    //  */
-    // private function assertSpansBelongsToProperIntegration(array $traces)
-    // {
-    //     $spanIntegrationChecker = new SpanIntegrationChecker();
-    //     foreach ($traces as $trace) {
-    //         foreach ($trace as $span) {
-    //             $spanIntegrationChecker->checkIntegration($this, $span);
-    //         }
-    //     }
-    // }
 }
