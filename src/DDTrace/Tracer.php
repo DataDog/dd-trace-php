@@ -5,7 +5,6 @@ namespace DDTrace;
 use DDTrace\Encoders\Json;
 use DDTrace\Encoders\SpanEncoder;
 use DDTrace\Http\Urls;
-use DDTrace\Integrations\Integration;
 use DDTrace\Encoders\MessagePack;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Processing\TraceAnalyticsProcessor;
@@ -233,16 +232,6 @@ final class Tracer implements TracerInterface
         }
 
         return $this->scopeManager->activate($span, $options->shouldFinishSpanOnClose());
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function startIntegrationScopeAndSpan(Integration $integration, $operationName, $options = [])
-    {
-        $scope = $this->startActiveSpan($operationName, $options);
-        $scope->getSpan()->setIntegration($integration);
-        return $scope;
     }
 
     /**
