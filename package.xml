@@ -22,7 +22,7 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
 ## Important behavior changes in this release
-As of this release you can no longer trace a function or method if it has already been called. All instrumentation should happen before the target calls are run (and ideally before it is even defined, which can enable more aggressive optimizations in the future).
+If you are using `dd_trace`, `dd_trace_function`, or `dd_trace_method` then you need to call these functions before the first invocation of the target e.g. `dd_trace('foo', ...)` should be done before `foo` is called for the first time.
 
 ### Changed
 
