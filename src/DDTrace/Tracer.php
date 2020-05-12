@@ -87,11 +87,6 @@ final class Tracer implements TracerInterface
     private $prioritySampling = Sampling\PrioritySampling::UNKNOWN;
 
     /**
-     * @var TraceAnalyticsProcessor
-     */
-    private $traceAnalyticsProcessor;
-
-    /**
      * @var string|null
      */
     private static $version;
@@ -114,7 +109,6 @@ final class Tracer implements TracerInterface
         $this->config = array_merge($this->config, $config);
         $this->reset();
         $this->config['global_tags'] = array_merge($this->config['global_tags'], \ddtrace_config_global_tags());
-        $this->traceAnalyticsProcessor = new TraceAnalyticsProcessor();
     }
 
     public function limited()
@@ -349,11 +343,6 @@ final class Tracer implements TracerInterface
                     }
                     $span->duration = (Time::now()) - $span->startTime; // finish span
                 }
-                // Basic processing. We will do it in a more structured way in the future, but for now we just invoke
-                // the internal (hard-coded) processors programmatically.
-
-                $this->traceAnalyticsProcessor->process($span);
-
                 $encodedSpan = SpanEncoder::encode($span);
                 $traceToBeSent[] = $encodedSpan;
             }

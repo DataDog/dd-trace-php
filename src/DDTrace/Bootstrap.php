@@ -156,7 +156,6 @@ final class Bootstrap
             $span->setTag(Tag::HTTP_STATUS_CODE, 200);
         }
         $integration = WebIntegration::getInstance();
-        $span->setIntegration($integration);
         $integration->addTraceAnalyticsIfEnabledLegacy($span);
         $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name($operationName));
 
