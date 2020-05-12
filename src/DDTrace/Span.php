@@ -400,7 +400,7 @@ final class Span extends DataSpan
      */
     public function setIntegration(Integration $integration)
     {
-        $this->integration = $integration;
+        // $this->integration = $integration;
         return $this;
     }
 
