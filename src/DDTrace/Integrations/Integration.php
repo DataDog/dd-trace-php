@@ -136,10 +136,6 @@ abstract class Integration
             $scope = $tracer->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
 
-            if (null !== $integration) {
-                $span->setIntegration($integration);
-            }
-
             $integrationClass::setDefaultTags($span, $method);
             if (null !== $preCallHook) {
                 $preCallHook($span, func_get_args());

@@ -42,7 +42,6 @@ class SymfonyBundle extends Bundle
         $symfonyRequestSpan = $scope->getSpan();
         $symfonyRequestSpan->overwriteOperationName('symfony.request');
         // Overwriting the default web integration
-        $symfonyRequestSpan->setIntegration(SymfonyIntegration::getInstance());
         SymfonyIntegration::getInstance()->addTraceAnalyticsIfEnabledLegacy($symfonyRequestSpan);
         $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $appName);
         $request = null;

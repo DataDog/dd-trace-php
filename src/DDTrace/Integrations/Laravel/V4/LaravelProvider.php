@@ -43,7 +43,6 @@ class LaravelProvider extends ServiceProvider
             $requestSpan->overwriteOperationName('laravel.request');
             $integration = \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance();
             // Overwriting the default web integration
-            $requestSpan->setIntegration($integration);
             $integration->addTraceAnalyticsIfEnabledLegacy($requestSpan);
             $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
 

@@ -35,7 +35,6 @@ class LaravelIntegrationLoader
                 $span = $self->rootScope->getSpan();
                 $integration = LaravelIntegration::getInstance();
                 // Overwriting the default web integration
-                $span->setIntegration($integration);
                 $integration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(
                     Tag::RESOURCE_NAME,
@@ -75,7 +74,6 @@ class LaravelIntegrationLoader
         dd_trace('Illuminate\Console\Application', '__construct', function () {
             $span = GlobalTracer::get()->getRootScope()->getSpan();
             // Overwrite the default web integration
-            $span->setIntegration(LaravelIntegration::getInstance());
             $span->overwriteOperationName('laravel.artisan');
             $span->setTag(
                 Tag::RESOURCE_NAME,

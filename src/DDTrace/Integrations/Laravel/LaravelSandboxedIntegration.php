@@ -60,7 +60,6 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             function (SpanData $span, $args, $response) use ($rootSpan, $integration) {
                 // Overwriting the default web integration
                 $rootSpan->overwriteOperationName('laravel.request');
-                $rootSpan->setIntegration($integration);
                 $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
                 if (\method_exists($response, 'getStatusCode')) {
                     $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode());
@@ -85,7 +84,6 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
                 list($request) = $args;
 
                 // Overwriting the default web integration
-                $rootSpan->setIntegration($integration);
                 $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
                 $rootSpan->setTag(
                     Tag::RESOURCE_NAME,
@@ -156,7 +154,6 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $serviceName;
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
-                $rootSpan->setIntegration($integration);
                 $rootSpan->overwriteOperationName('laravel.request');
                 $rootSpan->setTag(Tag::SERVICE_NAME, $serviceName);
             }
@@ -166,7 +163,6 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             'Illuminate\Console\Application',
             '__construct',
             function () use ($rootSpan, $integration) {
-                $rootSpan->setIntegration($integration);
                 $rootSpan->overwriteOperationName('laravel.artisan');
                 $rootSpan->setTag(
                     Tag::RESOURCE_NAME,

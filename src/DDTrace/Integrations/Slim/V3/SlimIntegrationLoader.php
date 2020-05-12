@@ -22,7 +22,6 @@ class SlimIntegrationLoader
     {
         $this->rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
         // Overwrite the default web integration
-        $this->rootSpan->setIntegration($integration);
         $integration->addTraceAnalyticsIfEnabledLegacy($this->rootSpan);
         $this->rootSpan->overwriteOperationName('slim.request');
         $this->rootSpan->setTag(Tag::SERVICE_NAME, SlimIntegration::getAppName());

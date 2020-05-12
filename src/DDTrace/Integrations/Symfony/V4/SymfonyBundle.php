@@ -44,7 +44,6 @@ class SymfonyBundle extends Bundle
         $symfonyRequestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
         $symfonyRequestSpan->overwriteOperationName('symfony.request');
         // Overwriting the default web integration
-        $symfonyRequestSpan->setIntegration(SymfonyIntegration::getInstance());
         SymfonyIntegration::getInstance()->addTraceAnalyticsIfEnabledLegacy($symfonyRequestSpan);
         $request = null;
 

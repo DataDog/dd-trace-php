@@ -75,7 +75,6 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         $integration->appName = \ddtrace_config_app_name('symfony');
         $integration->symfonyRequestSpan->overwriteOperationName('symfony.request');
         $integration->symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
-        $integration->symfonyRequestSpan->setIntegration($integration);
         $integration->addTraceAnalyticsIfEnabledLegacy($integration->symfonyRequestSpan);
 
         dd_trace_method(
@@ -198,7 +197,6 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
                 }
 
                 if ($integration->symfonyRequestSpan) {
-                    $integration->symfonyRequestSpan->setIntegration($integration);
                     if (count($resourceParts) > 0) {
                         $integration->symfonyRequestSpan->setResource(\implode(' ', $resourceParts));
                     }
