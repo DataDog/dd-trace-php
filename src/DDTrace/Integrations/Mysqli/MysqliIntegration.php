@@ -411,7 +411,7 @@ class MysqliIntegration extends Integration
      */
     public static function initScope($operationName, $resource)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(MysqliIntegration::getInstance(), $operationName);
+        $scope = GlobalTracer::get()->startActiveSpan($operationName);
         /** @var \DDTrace\Span $span */
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::SQL);

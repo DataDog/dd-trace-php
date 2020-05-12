@@ -254,7 +254,7 @@ class ElasticSearchIntegration extends Integration
             }
 
             $operationName = str_replace('\\', '.', "$class.$name");
-            $scope = $tracer->startIntegrationScopeAndSpan(ElasticSearchIntegration::getInstance(), $operationName);
+            $scope = $tracer->startActiveSpan($operationName);
             $span = $scope->getSpan();
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);

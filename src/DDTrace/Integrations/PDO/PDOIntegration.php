@@ -111,7 +111,7 @@ class PDOIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.exec');
+            $scope = $tracer->startActiveSpan('PDO.exec');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -152,7 +152,7 @@ class PDOIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.query');
+            $scope = $tracer->startActiveSpan('PDO.query');
             $args = func_get_args();
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
@@ -194,7 +194,7 @@ class PDOIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.commit');
+            $scope = $tracer->startActiveSpan('PDO.commit');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
@@ -227,7 +227,7 @@ class PDOIntegration extends Integration
             }
 
             $args = func_get_args();
-            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.prepare');
+            $scope = $tracer->startActiveSpan('PDO.prepare');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'PDO');
