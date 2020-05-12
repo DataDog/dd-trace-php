@@ -63,7 +63,7 @@ class CurlIntegration extends Integration
                     return dd_trace_forward_call();
                 }
 
-                $scope = $tracer->startIntegrationScopeAndSpan($integration, 'curl_exec');
+                $scope = $tracer->startActiveSpan('curl_exec');
                 $span = $scope->getSpan();
                 $integration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);

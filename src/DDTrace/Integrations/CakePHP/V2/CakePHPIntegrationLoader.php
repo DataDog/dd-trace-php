@@ -68,7 +68,7 @@ class CakePHPIntegrationLoader
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
             }
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'cakephp.view');
+            $scope = $tracer->startActiveSpan('cakephp.view');
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
             $file = $this->viewPath . '/' . $this->view . $this->ext;
             $scope->getSpan()->setTag(Tag::RESOURCE_NAME, $file);

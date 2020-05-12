@@ -162,7 +162,6 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
 
             $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);
             $span->resource = $resourceName;
-            $span->meta[Tag::INTEGRATION_NAME] = $integration->getName();
         };
         dd_trace_method('Symfony\Bridge\Twig\TwigEngine', 'render', $renderTraceCallback);
         dd_trace_method('Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $renderTraceCallback);

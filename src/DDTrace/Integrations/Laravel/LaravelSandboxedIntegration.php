@@ -108,7 +108,6 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
                 $span->resource = $this->uri;
-                $integration->addIntegrationInfo($span);
             }
         );
 
@@ -126,7 +125,6 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             $span->type = Type::WEB_SERVLET;
             $span->service = $integration->getServiceName();
             $span->resource = $args[0];
-            $integration->addIntegrationInfo($span);
         });
 
         \dd_trace_method('Illuminate\View\View', 'render', function (SpanData $span) use ($integration) {
@@ -134,7 +132,6 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             $span->type = Type::WEB_SERVLET;
             $span->service = $integration->getServiceName();
             $span->resource = $this->view;
-            $integration->addIntegrationInfo($span);
         });
 
         \dd_trace_method(
@@ -147,7 +144,6 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
                 if (isset($args[0]) && \is_string($args[0])) {
                     $span->resource = $args[0];
                 }
-                $span->meta['integration.name'] = LaravelSandboxedIntegration::NAME;
             }
         );
 

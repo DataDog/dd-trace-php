@@ -62,8 +62,7 @@ class PredisIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                PredisIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'Predis.Client.__construct'
             );
             $span = $scope->getSpan();
@@ -97,8 +96,7 @@ class PredisIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                PredisIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'Predis.Client.connect'
             );
             $span = $scope->getSpan();
@@ -121,8 +119,7 @@ class PredisIntegration extends Integration
             array_unshift($arguments, $command->getId());
             $query = PredisIntegration::formatArguments($arguments);
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                PredisIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'Predis.Client.executeCommand'
             );
             $span = $scope->getSpan();
@@ -146,8 +143,7 @@ class PredisIntegration extends Integration
 
             $query = PredisIntegration::formatArguments($arguments);
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                PredisIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'Predis.Client.executeRaw'
             );
             $span = $scope->getSpan();
@@ -186,8 +182,7 @@ class PredisIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                PredisIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'Predis.Pipeline.executePipeline'
             );
             $span = $scope->getSpan();

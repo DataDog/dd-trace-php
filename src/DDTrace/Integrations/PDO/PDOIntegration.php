@@ -73,8 +73,7 @@ class PDOIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                PDOIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'PDO.__construct'
             );
             $span = $scope->getSpan();
@@ -261,8 +260,7 @@ class PDOIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                PDOIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'PDOStatement.execute'
             );
             $span = $scope->getSpan();

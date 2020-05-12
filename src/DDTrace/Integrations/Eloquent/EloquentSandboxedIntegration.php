@@ -106,7 +106,6 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
     {
         $span->type = Type::SQL;
         $span->service = $this->getAppName();
-        $span->meta[Tag::INTEGRATION_NAME] = $this->getName();
     }
 
     /**

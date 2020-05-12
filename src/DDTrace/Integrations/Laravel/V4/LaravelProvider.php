@@ -107,8 +107,7 @@ class LaravelProvider extends ServiceProvider
      */
     public static function buildBaseScope($operation, $resource)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-            \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
+        $scope = GlobalTracer::get()->startActiveSpan(
             $operation
         );
         $span = $scope->getSpan();

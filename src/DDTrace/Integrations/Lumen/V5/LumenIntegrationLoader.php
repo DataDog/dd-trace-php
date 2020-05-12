@@ -55,8 +55,7 @@ final class LumenIntegrationLoader
 
         // Trace views
         dd_trace('Illuminate\View\Engines\CompilerEngine', 'get', function () {
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-                LumenIntegration::getInstance(),
+            $scope = GlobalTracer::get()->startActiveSpan(
                 'lumen.view'
             );
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
@@ -86,8 +85,7 @@ final class LumenIntegrationLoader
                     if ($tracer->limited()) {
                         return dd_trace_forward_call();
                     }
-                    $scope = $tracer->startIntegrationScopeAndSpan(
-                        LumenIntegration::getInstance(),
+                    $scope = $tracer->startActiveSpan(
                         'lumen.pipeline.pipe'
                     );
                     $span = $scope->getSpan();

@@ -132,8 +132,7 @@ class LaravelIntegrationLoader
 
                     $handlerMethod = $this->method;
                     dd_trace($class, $handlerMethod, function () use ($tracer, $handlerMethod) {
-                        $scope = $tracer->startIntegrationScopeAndSpan(
-                            \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
+                        $scope = $tracer->startActiveSpan(
                             'laravel.pipeline.pipe'
                         );
                         $span = $scope->getSpan();
@@ -155,8 +154,7 @@ class LaravelIntegrationLoader
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                LaravelIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'laravel.view'
             );
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);

@@ -147,8 +147,7 @@ class ElasticSearchIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                ElasticSearchIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 "Elasticsearch.Endpoint.performRequest"
             );
             $span = $scope->getSpan();
@@ -210,8 +209,7 @@ class ElasticSearchIntegration extends Integration
                 list($params) = $args;
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                $integration,
+            $scope = $tracer->startActiveSpan(
                 "Elasticsearch.Client.$name"
             );
             $span = $scope->getSpan();
@@ -302,8 +300,7 @@ class ElasticSearchIntegration extends Integration
             if (isset($args[0])) {
                 list($params) = $args;
             }
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                ElasticSearchIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 "Elasticsearch.$namespace.$name"
             );
             $span = $scope->getSpan();
