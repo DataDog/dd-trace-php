@@ -10,17 +10,35 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2020-05-12</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.45.0</release>
+        <api>0.45.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+## Important behavior changes in this release
+If you are using `dd_trace`, `dd_trace_function`, or `dd_trace_method` then you need to call these functions before the first invocation of the target e.g. `dd_trace('foo', ...)` should be done before `foo` is called for the first time.
+
+### Changed
+
+- Compile to one single file #840, #874
+- Simplify configuration #833, #870
+- Refactor module blacklist #852
+- Cache that a function is not traced #854, #863
+- Simplify spl_autoload_register instrumentation #867
+- Use normalized URL as the resource name for curl #869 (thanks, @akdh!)
+- Sandbox header and http_response_code #875
+
+### Fixed
+
+- Fix variadic args with empty function signature #872
+- Bump phpstan to 0.12 and fix issues #841
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
