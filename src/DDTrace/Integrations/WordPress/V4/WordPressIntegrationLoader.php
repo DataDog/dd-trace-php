@@ -28,7 +28,7 @@ class WordPressIntegrationLoader
         $this->rootSpan = $scope->getSpan();
         // Overwrite the default web integration
         $this->rootSpan->setIntegration($integration);
-        $this->rootSpan->setTraceAnalyticsCandidate();
+        $integration->addTraceAnalyticsIfEnabledLegacy($this->rootSpan);
         $this->rootSpan->overwriteOperationName('wordpress.request');
         $service = \ddtrace_config_app_name(WordPressSandboxedIntegration::NAME);
         $this->rootSpan->setTag(Tag::SERVICE_NAME, $service);

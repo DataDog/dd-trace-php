@@ -379,19 +379,20 @@ class MysqliIntegration extends Integration
 
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt.execute', $resource);
-            $integration->addTraceAnalyticsIfEnabledLegacy($span);
+            $integration->addTraceAnalyticsIfEnabledLegacy($scope->getSpan());
             return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         // bool mysqli_stmt::execute ( void )
-        dd_trace('mysqli_stmt', 'get_result', function () {
+        dd_trace('mysqli_stmt', 'get_result', function () use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
             }
 
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.get_result');
-            $scope = MysqliIntegration::initScope('mysqli_stmt.get_result', $resource);
+            $span = MysqliIntegration::initScope('mysqli_stmt.get_result', $resource)->getSpan();
+            $integration->addTraceAnalyticsIfEnabledLegacy($span);
             $afterResult = function ($result) use ($resource) {
                 ObjectKVStore::propagate($this, $result, 'host_info');
                 ObjectKVStore::put($result, 'query', $resource);

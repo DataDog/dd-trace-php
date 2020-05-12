@@ -76,7 +76,7 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         $integration->symfonyRequestSpan->overwriteOperationName('symfony.request');
         $integration->symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
         $integration->symfonyRequestSpan->setIntegration($integration);
-        $integration->symfonyRequestSpan->setTraceAnalyticsCandidate();
+        $integration->addTraceAnalyticsIfEnabledLegacy($integration->symfonyRequestSpan);
 
         dd_trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
