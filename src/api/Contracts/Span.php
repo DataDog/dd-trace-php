@@ -7,8 +7,6 @@
 
 namespace DDTrace\Contracts;
 
-use DDTrace\Integrations\Integration;
-
 interface Span
 {
     /**
@@ -210,17 +208,6 @@ interface Span
      * @return array All the currently set metrics.
      */
     public function getMetrics();
-
-    /**
-     * @param Integration $integration
-     * @return self
-     */
-    public function setIntegration(Integration $integration);
-
-    /**
-     * @return null|Integration
-     */
-    public function getIntegration();
 
     /**
      * @param bool $value
