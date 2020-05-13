@@ -57,8 +57,7 @@ if (!dd_tracing_enabled()) {
 // Required classes and functions
 require __DIR__ . '/autoload.php';
 // Optional classes and functions
-require __DIR__ . '/dd_optional_deps_autoloader.php';
-spl_autoload_register(['\DDTrace\Bridge\OptionalDepsAutoloader', 'load'], true, true);
+require __DIR__ . '/dd_register_optional_deps_autoloader.php';
 
 Bootstrap::tracerOnce();
 IntegrationsLoader::load();
