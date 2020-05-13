@@ -33,7 +33,7 @@ function missing_ddtrace_class_fatal_autoloader($class)
     }
 
     // Classes not loaded by any other autoloader or non test specific should raise exceptions in tests
-    throw new \Exception("add " . $class . " to bridge/_files.php or bridge/dd_optional_deps_autoloader.php");
+    throw new \Exception("add " . $class . " to bridge/_files.php or bridge/dd_register_optional_deps_autoloader.php");
 }
 
 function prepend_test_autoloaders()
