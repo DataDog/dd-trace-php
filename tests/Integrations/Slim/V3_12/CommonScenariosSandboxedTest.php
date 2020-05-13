@@ -3,24 +3,11 @@
 namespace DDTrace\Tests\Integrations\Slim\V3_12;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-class CommonScenariosTest extends WebFrameworkTestCase
+final class CommonScenariosSandboxedTest extends CommonScenariosTest
 {
-    const IS_SANDBOX = false;
-
-    protected static function getAppIndexScript()
-    {
-        return __DIR__ . '/../../../Frameworks/Slim/Version_3_12/public/index.php';
-    }
-
-    protected static function getEnvs()
-    {
-        return array_merge(parent::getEnvs(), [
-            'DD_SERVICE_NAME' => 'slim_test_app',
-        ]);
-    }
+    const IS_SANDBOX = true;
 
     /**
      * @dataProvider provideSpecs
@@ -53,6 +40,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
                         'integration.name' => 'slim',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'slim.route.controller',
+                            'slim_test_app',
+                            'web',
+                            'Closure::__invoke'
+                        )
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -69,13 +63,20 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'integration.name' => 'slim',
                     ])->withChildren([
                         SpanAssertion::build(
-                            'slim.view',
+                            'slim.route.controller',
                             'slim_test_app',
                             'web',
-                            'simple_view.phtml'
-                        )->withExactTags([
-                            'slim.view' => 'simple_view.phtml',
-                            'integration.name' => 'slim',
+                            'App\SimpleViewController::index'
+                        )->withChildren([
+                            SpanAssertion::build(
+                                'slim.view',
+                                'slim_test_app',
+                                'web',
+                                'simple_view.phtml'
+                            )->withExactTags([
+                                'slim.view' => 'simple_view.phtml',
+                                'integration.name' => 'slim',
+                            ])
                         ])
                     ]),
                 ],
@@ -91,9 +92,17 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
                         'integration.name' => 'slim',
-                    ])->withExistingTagsNames([
-                        'error.stack'
-                    ])->setError(null, 'Foo error'),
+                    ])->setError(null, null)
+                        ->withChildren([
+                            SpanAssertion::build(
+                                'slim.route.controller',
+                                'slim_test_app',
+                                'web',
+                                'Closure::__invoke'
+                            )->withExistingTagsNames([
+                                'error.stack'
+                            ])->setError(null, 'Foo error')
+                        ]),
                 ],
             ]
         );
