@@ -22,8 +22,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => 'do_not_exists'
-            ],
+                'ddtrace.request_init_hook' => 'do_not_exists',
+            ]
         );
 
         $this->assertEmpty($traces);
@@ -41,7 +41,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             [],
             [
                 'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_init.php',
-            ],
+            ]
         );
 
         $this->assertNotEmpty($traces);
