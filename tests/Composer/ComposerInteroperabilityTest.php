@@ -22,9 +22,10 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook=dont_exist'
+                'ddtrace.request_init_hook' => 'do_not_exists'
             ],
         );
+
         $this->assertEmpty($traces);
     }
 
@@ -42,7 +43,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
                 'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_init.php',
             ],
         );
-        error_log('Traces' . print_r($traces, 1));
+
         $this->assertNotEmpty($traces);
     }
 }
