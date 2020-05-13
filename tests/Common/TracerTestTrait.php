@@ -127,6 +127,7 @@ trait TracerTestTrait
      */
     public function inWebServer($fn, $rootPath, $envs = [], $inis = [])
     {
+        $this->resetRequestDumper();
         $webServer = new WebServer($rootPath, '0.0.0.0', 6666);
         $webServer->mergeEnvs($envs);
         $webServer->mergeInis($inis);
