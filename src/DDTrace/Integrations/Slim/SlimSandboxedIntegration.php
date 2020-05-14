@@ -36,14 +36,14 @@ class SlimSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
 
-             // Overwrite root span info
-             $rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
-             $rootSpan->setIntegration($integration);
-             $rootSpan->setTraceAnalyticsCandidate();
-             $rootSpan->overwriteOperationName('slim.request');
-             $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
+            // Overwrite root span info
+            $rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
+            $rootSpan->setIntegration($integration);
+            $rootSpan->setTraceAnalyticsCandidate();
+            $rootSpan->overwriteOperationName('slim.request');
+            $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
 
-             // Hook into the router to extract the proper route name
+            // Hook into the router to extract the proper route name
             \dd_trace_method('Slim\Router', 'lookupRoute', function (SpanData $span, $args, $return) use ($rootSpan) {
                 /** @var \Slim\Interfaces\RouteInterface $route */
                 $route = $return;
