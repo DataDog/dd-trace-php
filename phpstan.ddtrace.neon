@@ -1,10 +1,8 @@
 parameters:
-	ignoreErrors:
-		-
-			message: '#Call to an undefined method object::isHostRoot\(\)#'
-			path: src/DDTrace/Encoders/SpanEncoder.php
+	autoload_directories:
+		- src/DDTrace
 	autoload_files:
-		- bridge/_generated.php
+		- bridge/configuration.php
 		- bridge/dd_register_optional_deps_autoloader.php
 	excludes_analyse:
 		- src/DDTrace/Bootstrap.php
