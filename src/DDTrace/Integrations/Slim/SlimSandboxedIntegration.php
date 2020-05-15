@@ -22,7 +22,7 @@ class SlimSandboxedIntegration extends SandboxedIntegration
     }
 
     /**
-     * Add instrumentation to PDO requests
+     * Add instrumentation to Slim requests
      */
     public function init()
     {
