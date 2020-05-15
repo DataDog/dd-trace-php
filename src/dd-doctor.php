@@ -117,6 +117,18 @@ function env($key)
         : getenv($key);
 }
 
+function check_opcache()
+{
+    if (!function_exists('opcache_get_configuration')) {
+        render('Opcache enabled:', 'NO');
+    }
+    render('Opcache enabled:', 'YES');
+    $configs = opcache_get_configuration();
+    foreach ($configs['directives'] as $name => $value) {
+        sub_paragraph("$name = $value");
+    }
+}
+
 function check_agent_connectivity()
 {
     $host = env('DD_AGENT_HOST') ?: 'localhost';
@@ -244,6 +256,8 @@ render("Background sender is enabled?", $isBackgroundSenderEnabled ? 'YES' : 'NO
 if (!$isBackgroundSenderEnabled) {
     sub_paragraph('You can enable the background sender via DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=true');
 }
+
+check_opcache();
 
 check_agent_connectivity();
 
