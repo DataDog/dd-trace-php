@@ -421,6 +421,11 @@
             "@composer test -- tests/Integrations/PDO --filter='/Sandbox/'",
             "@composer test -- tests/Integrations/PDO --filter='/^((?!Sandbox).)+$/'"
         ],
+        "test-elasticsearch1": [
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch --filter='/Sandbox/'",
+            "@composer test -- tests/Integrations/Elasticsearch --filter='/^((?!Sandbox).)+$/'"
+        ],
         "test-guzzle5": [
             "@composer scenario guzzle5",
             "@composer test -- tests/Integrations/Guzzle/V5 --filter='/Sandbox/'",
