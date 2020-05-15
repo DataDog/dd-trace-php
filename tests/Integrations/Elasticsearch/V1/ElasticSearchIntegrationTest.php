@@ -335,7 +335,6 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
     public function testScroll()
     {
         $client = $this->client();
-        $client->indices()->delete(['index' => 'my_index']);
         $client->index([
             'id' => 1,
             'index' => 'my_index',
