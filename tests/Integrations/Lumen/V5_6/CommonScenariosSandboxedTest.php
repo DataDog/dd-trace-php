@@ -1,18 +1,16 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Lumen\V5_2;
+namespace DDTrace\Tests\Integrations\Lumen\V5_6;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
+use DDTrace\Tests\Integrations\Lumen\V5_2\CommonScenariosSandboxedTest as V5_2_CommonScenariosSandboxedTest;
 
-final class CommonScenariosTest extends WebFrameworkTestCase
+class CommonScenariosSandboxedTest extends V5_2_CommonScenariosSandboxedTest
 {
-    const IS_SANDBOX = false;
-
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Lumen/Version_5_2/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Lumen/Version_5_6/public/index.php';
     }
 
     protected static function getEnvs()
@@ -68,14 +66,24 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
                         'integration.name' => 'lumen',
-                    ]),
-                    SpanAssertion::build(
-                        'lumen.view',
-                        'lumen_test_app',
-                        'web',
-                        'lumen.view'
-                    )->withExactTags([
-                        'integration.name' => 'lumen',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'laravel.view.render',
+                            'lumen_test_app',
+                            'web',
+                            'simple_view'
+                        )->withExactTags([
+                            'integration.name' => 'laravel',
+                        ])->withChildren([
+                            SpanAssertion::build(
+                                'lumen.view',
+                                'lumen_test_app',
+                                'web',
+                                '*/resources/views/simple_view.blade.php'
+                            )->withExactTags([
+                                'integration.name' => 'laravel',
+                            ]),
+                        ]),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -90,7 +98,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
                         'integration.name' => 'lumen',
-                    ])->setError(),
+                    ])->withExistingTagsNames([
+                        'error.stack',
+                    ])->setError('Exception', 'Controller error'),
                 ],
             ]
         );

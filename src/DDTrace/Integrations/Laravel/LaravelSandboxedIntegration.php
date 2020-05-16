@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Laravel;
 
+use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
 use DDTrace\SpanData;
 use DDTrace\Integrations\SandboxedIntegration;
@@ -140,8 +141,10 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
         \dd_trace_method(
             'Illuminate\View\Engines\CompilerEngine',
             'get',
-            function (SpanData $span, $args) use ($integration) {
-                $span->name = 'laravel.view';
+            function (SpanData $span, $args) use ($integration, $rootSpan) {
+                // This is used by both laravel and lumen. For consistency we rename it for lumen traces as otherwise
+                // users would see a span changing name as they upgrade to the new version.
+                $span->name = $integration->isLumen($rootSpan) ? 'lumen.view' : 'laravel.view';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $integration->getServiceName();
                 if (isset($args[0]) && \is_string($args[0])) {
@@ -185,6 +188,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             'renderException',
             function (SpanData $span, $args) use ($rootSpan) {
                 $rootSpan->setError($args[0]);
+                error_log('Exc: ' . print_r($args[0], 1));
                 return false;
             }
         );
@@ -202,5 +206,10 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             $this->serviceName = config('app.name');
         }
         return $this->serviceName ?: 'laravel';
+    }
+
+    public function isLumen(Span $rootSpan)
+    {
+        return $rootSpan->getOperationName() === 'lumen.request';
     }
 }
