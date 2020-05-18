@@ -11,6 +11,15 @@ ZEND_RESULT_CODE ddtrace_flush_tracer() {
     zend_class_entry *GlobalTracer_ce = ddtrace_lookup_ce(ZEND_STRL("DDTrace\\GlobalTracer"));
     bool success = true;
 
+    zend_object *exception = NULL, *prev_exception = NULL;
+    if (EG(exception)) {
+        exception = EG(exception);
+        EG(exception) = NULL;
+        prev_exception = EG(prev_exception);
+        EG(prev_exception) = NULL;
+        zend_clear_exception();
+    }
+
     ddtrace_error_handling eh;
     ddtrace_backup_error_handling(&eh, EH_THROW);
 
@@ -24,6 +33,11 @@ ZEND_RESULT_CODE ddtrace_flush_tracer() {
 
         ddtrace_restore_error_handling(&eh);
         ddtrace_maybe_clear_exception();
+        if (exception) {
+            EG(exception) = exception;
+            EG(prev_exception) = prev_exception;
+            zend_throw_exception_internal(NULL);
+        }
         return FAILURE;
     }
 
@@ -38,6 +52,11 @@ ZEND_RESULT_CODE ddtrace_flush_tracer() {
 
     ddtrace_restore_error_handling(&eh);
     ddtrace_maybe_clear_exception();
+    if (exception) {
+        EG(exception) = exception;
+        EG(prev_exception) = prev_exception;
+        zend_throw_exception_internal(NULL);
+    }
 
     zval_dtor(&tracer);
     zval_dtor(&retval);

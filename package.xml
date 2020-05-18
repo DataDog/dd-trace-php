@@ -158,7 +158,9 @@
                     <file name="dd_trace_tracer_is_limited_memory.phpt" role="test" />
                     <dir name="sandbox">
                         <file name="auto_flush.phpt" role="test" />
+                        <file name="auto_flush_attach_exception.phpt" role="test" />
                         <file name="auto_flush_disables_tracing.phpt" role="test" />
+                        <file name="auto_flush_sandbox_exception.phpt" role="test" />
                         <file name="auto_flush_userland_root_span.phpt" role="test" />
                         <file name="close-on-exit.phpt" role="test" />
                         <file name="close-on-exit-retval.phpt" role="test" />
@@ -191,7 +193,9 @@
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
                         <file name="exit_and_drop_span.phpt" role="test" />
+                        <file name="fake_global_tracer.inc" role="test" />
                         <file name="fake_tracer.inc" role="test" />
+                        <file name="fake_tracer_exception.inc" role="test" />
                         <file name="fatal_errors_ignored_in_shutdown.phpt" role="test" />
                         <file name="fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
                         <file name="generator.phpt" role="test" />

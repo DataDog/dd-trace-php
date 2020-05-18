@@ -10,6 +10,7 @@ DD_TRACE_AUTO_FLUSH_ENABLED=1
 use DDTrace\SpanData;
 
 require 'fake_tracer.inc';
+require 'fake_global_tracer.inc';
 
 // This is called from the flush() method of the fake tracer
 dd_trace_function('DDTrace\\fake_curl_exec', function (SpanData $span) {
