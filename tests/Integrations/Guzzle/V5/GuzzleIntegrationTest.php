@@ -12,6 +12,7 @@ use GuzzleHttp\Ring\Client\MockHandler;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\GlobalTracer;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Util\Versions;
 
 class GuzzleIntegrationTest extends IntegrationTestCase
@@ -246,6 +247,38 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testDoesNotInheritTopLevelAppName()
+    {
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $execute(GetSpec::create('GET', '/'));
+            },
+            __DIR__ . '/guzzle_in_web_request.php',
+            [
+                'DD_SERVICE_NAME' => 'top_level_app',
+                'DD_TRACE_SANDBOX_ENABLED' => static::IS_SANDBOX,
+                'DD_TRACE_NO_AUTOLOADER' => true,
+            ]
+        );
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /')
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withChildren([
+                    SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+                        ->setTraceAnalyticsCandidate()
+                        ->withExactTags([
+                            'http.method' => 'GET',
+                            'http.url' => self::URL . '/status/200',
+                            'http.status_code' => '200',
+                        ])
+                        ->withChildren([
+                            SpanAssertion::exists('curl_exec'),
+                        ]),
                 ]),
         ]);
     }
