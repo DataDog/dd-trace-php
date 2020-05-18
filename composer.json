@@ -456,11 +456,11 @@
         "laravel-58-test": "@composer test -- --testsuite=laravel-58-test",
 
         "lumen-52-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_2 update",
-        "lumen-52-test": "@composer test -- tests/Integrations/Lumen/V5_2/CommonScenariosTest.php",
+        "lumen-52-test": "@composer test -- tests/Integrations/Lumen/V5_2/",
         "lumen-56-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_6 update",
-        "lumen-56-test": "@composer test -- tests/Integrations/Lumen/V5_6/CommonScenariosTest.php",
+        "lumen-56-test": "@composer test -- tests/Integrations/Lumen/V5_6/",
         "lumen-58-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_8 update",
-        "lumen-58-test": "@composer test -- tests/Integrations/Lumen/V5_8/CommonScenariosTest.php",
+        "lumen-58-test": "@composer test -- tests/Integrations/Lumen/V5_8/",
 
         "slim-312-update": "@composer --working-dir=tests/Frameworks/Slim/Version_3_12 update",
         "slim-312-test": "@composer test -- --testsuite=slim-312-test",

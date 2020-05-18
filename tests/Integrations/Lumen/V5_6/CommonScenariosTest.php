@@ -68,14 +68,15 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
                         'integration.name' => 'lumen',
-                    ]),
-                    SpanAssertion::build(
-                        'lumen.view',
-                        'lumen_test_app',
-                        'web',
-                        'lumen.view'
-                    )->withExactTags([
-                        'integration.name' => 'lumen',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'lumen.view',
+                            'lumen_test_app',
+                            'web',
+                            'lumen.view'
+                        )->withExactTags([
+                            'integration.name' => 'lumen',
+                        ]),
                     ]),
                 ],
                 'A GET request with an exception' => [

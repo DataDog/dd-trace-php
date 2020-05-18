@@ -31,7 +31,6 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
         $traces = $this->tracesFromWebRequest(function () {
             $this->call(GetSpec::create('Testing trace analytics config metric', '/simple'));
         });
-        error_log('Traces' . print_r($traces, 1));
 
         $this->assertFlameGraph(
             $traces,
@@ -40,7 +39,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'lumen.request',
                     'lumen',
                     'web',
-                    'App\Http\Controllers\ExampleController@simple simple_route'
+                    'GET simple_route'
                 )
                     ->withExactTags([
                         'lumen.route.name' => 'simple_route',
