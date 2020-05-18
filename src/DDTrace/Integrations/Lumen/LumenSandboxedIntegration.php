@@ -50,16 +50,15 @@ class LumenSandboxedIntegration extends SandboxedIntegration
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
 
-        $rootSpan->overwriteOperationName('lumen.request');
-        $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
-        $rootSpan->setIntegration($integration);
-        $rootSpan->setTraceAnalyticsCandidate();
-
         \dd_trace_method(
             'Laravel\Lumen\Application',
             'prepareRequest',
-            function (SpanData $span, $args) use ($rootSpan) {
+            function (SpanData $span, $args) use ($rootSpan, $integration, $appName) {
                 $request = $args[0];
+                $rootSpan->overwriteOperationName('lumen.request');
+                $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
+                $rootSpan->setIntegration($integration);
+                $rootSpan->setTraceAnalyticsCandidate();
                 $rootSpan->setTag(Tag::HTTP_URL, $request->getUri());
                 $rootSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
                 return false;
