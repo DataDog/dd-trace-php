@@ -47,7 +47,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $span->name = $span->resource = 'PDO.__construct';
-            $span->service = 'PDO';
+            $span->service = 'pdo';
             $span->type = Type::SQL;
             $span->meta = PDOSandboxedIntegration::storeConnectionParams($this, $args);
         });
@@ -58,7 +58,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $span->name = 'PDO.exec';
-            $span->service = 'PDO';
+            $span->service = 'pdo';
             $span->type = Type::SQL;
             $span->resource = $args[0];
             if (is_numeric($retval)) {
@@ -81,7 +81,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $span->name = 'PDO.query';
-            $span->service = 'PDO';
+            $span->service = 'pdo';
             $span->type = Type::SQL;
             $span->resource = $args[0];
             if ($retval instanceof \PDOStatement) {
@@ -101,7 +101,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $span->name = $span->resource = 'PDO.commit';
-            $span->service = 'PDO';
+            $span->service = 'pdo';
             $span->type = Type::SQL;
             PDOSandboxedIntegration::setConnectionTags($this, $span);
         });
@@ -112,7 +112,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $span->name = 'PDO.prepare';
-            $span->service = 'PDO';
+            $span->service = 'pdo';
             $span->type = Type::SQL;
             $span->resource = $args[0];
             PDOSandboxedIntegration::setConnectionTags($this, $span);
@@ -125,7 +125,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 return false;
             }
             $span->name = 'PDOStatement.execute';
-            $span->service = 'PDO';
+            $span->service = 'pdo';
             $span->type = Type::SQL;
             $span->resource = $this->queryString;
             if ($retval === true) {
