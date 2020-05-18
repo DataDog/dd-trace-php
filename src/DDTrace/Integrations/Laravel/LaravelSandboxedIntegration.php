@@ -188,7 +188,6 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             'renderException',
             function (SpanData $span, $args) use ($rootSpan) {
                 $rootSpan->setError($args[0]);
-                error_log('Exc: ' . print_r($args[0], 1));
                 return false;
             }
         );
@@ -208,6 +207,12 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
         return $this->serviceName ?: 'laravel';
     }
 
+    /**
+     * Tells whether a span is a lumen request.
+     *
+     * @param Span $rootSpan
+     * @return bool
+     */
     public function isLumen(Span $rootSpan)
     {
         return $rootSpan->getOperationName() === 'lumen.request';

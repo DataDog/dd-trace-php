@@ -9,7 +9,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 
 /**
- * The base Laravel integration which delegates loading to the appropriate integration version.
+ * Lumen Sandboxed integration
  */
 class LumenSandboxedIntegration extends SandboxedIntegration
 {
@@ -85,7 +85,7 @@ class LumenSandboxedIntegration extends SandboxedIntegration
                         $rootSpan->setTag('lumen.route.name', $routeInfo[1]['as']);
                         $resourceName = $routeInfo[1]['as'];
                     }
-                    error_log('old: ' . print_r($rootSpan->getTag(Tag::RESOURCE_NAME), 1));
+
                     if (null !== $resourceName) {
                         $rootSpan->setTag(
                             Tag::RESOURCE_NAME,
@@ -110,7 +110,7 @@ class LumenSandboxedIntegration extends SandboxedIntegration
         \dd_trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [ 'prehook' => $exceptionRenderer]);
         \dd_trace_method('Laravel\Lumen\Application', 'sendExceptionToHandler', [ 'prehook' => $exceptionRenderer]);
 
-        // View is rendered in laravel
+        // View is rendered in laravel as the method name overlaps
 
         return SandboxedIntegration::LOADED;
     }

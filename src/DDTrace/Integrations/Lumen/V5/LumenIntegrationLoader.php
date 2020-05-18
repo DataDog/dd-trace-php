@@ -42,8 +42,6 @@ final class LumenIntegrationLoader
                 $span->setTag('lumen.route.name', $this->currentRoute[1]['as']);
                 $resourceName = $this->currentRoute[1]['as'];
             }
-            error_log('old: ' . print_r($span->getTag(Tag::RESOURCE_NAME), 1));
-            error_log('Resource anme: ' . print_r($resourceName, 1));
             if (null !== $resourceName) {
                 $span->setTag(Tag::RESOURCE_NAME, $span->getTag(Tag::HTTP_METHOD) . ' ' . $resourceName);
             }
