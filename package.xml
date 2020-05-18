@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2020-05-12</date>
+    <date>2020-05-18</date>
     <version>
-        <release>0.45.0</release>
-        <api>0.45.0</api>
+        <release>0.45.1</release>
+        <api>0.45.1</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,23 +21,11 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-## Important behavior changes in this release
-If you are using `dd_trace`, `dd_trace_function`, or `dd_trace_method` then you need to call these functions before the first invocation of the target e.g. `dd_trace('foo', ...)` should be done before `foo` is called for the first time.
+        ### Fixed
 
-### Changed
-
-- Compile to one single file #840, #874
-- Simplify configuration #833, #870
-- Refactor module blacklist #852
-- Cache that a function is not traced #854, #863
-- Simplify spl_autoload_register instrumentation #867
-- Use normalized URL as the resource name for curl #869 (thanks, @akdh!)
-- Sandbox header and http_response_code #875
-
-### Fixed
-
-- Fix variadic args with empty function signature #872
-- Bump phpstan to 0.12 and fix issues #841
+        - Fix uncaught exceptions with auto flushing enabled #882
+        - Prevent curl and guzzle from inheriting top level app name #885
+        - Change PDO service name to lowercase #886
     </notes>
     <contents>
         <dir name="/">
@@ -176,7 +164,9 @@ If you are using `dd_trace`, `dd_trace_function`, or `dd_trace_method` then you 
                     <file name="dd_trace_tracer_is_limited_memory.phpt" role="test" />
                     <dir name="sandbox">
                         <file name="auto_flush.phpt" role="test" />
+                        <file name="auto_flush_attach_exception.phpt" role="test" />
                         <file name="auto_flush_disables_tracing.phpt" role="test" />
+                        <file name="auto_flush_sandbox_exception.phpt" role="test" />
                         <file name="auto_flush_userland_root_span.phpt" role="test" />
                         <file name="close-on-exit.phpt" role="test" />
                         <file name="close-on-exit-retval.phpt" role="test" />
@@ -209,7 +199,9 @@ If you are using `dd_trace`, `dd_trace_function`, or `dd_trace_method` then you 
                         <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
                         <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
                         <file name="exit_and_drop_span.phpt" role="test" />
+                        <file name="fake_global_tracer.inc" role="test" />
                         <file name="fake_tracer.inc" role="test" />
+                        <file name="fake_tracer_exception.inc" role="test" />
                         <file name="fatal_errors_ignored_in_shutdown.phpt" role="test" />
                         <file name="fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
                         <file name="generator.phpt" role="test" />

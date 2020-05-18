@@ -39,7 +39,7 @@ class PDOTest extends IntegrationTestCase
                 $this->pdoInstance();
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('PDO.__construct', 'PDO', 'sql', 'PDO.__construct')
+            SpanAssertion::build('PDO.__construct', 'pdo', 'sql', 'PDO.__construct')
                 ->withExactTags($this->baseTags()),
         ], static::IS_SANDBOX);
     }
@@ -53,7 +53,7 @@ class PDOTest extends IntegrationTestCase
             }
         });
         $this->assertSpans($traces, [
-            SpanAssertion::build('PDO.__construct', 'PDO', 'sql', 'PDO.__construct')
+            SpanAssertion::build('PDO.__construct', 'pdo', 'sql', 'PDO.__construct')
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.user' => 'wrong_user',
                 ]))
@@ -73,7 +73,7 @@ class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
+            SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '1',
@@ -97,7 +97,7 @@ class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
+            SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
                 ->withExactTags($this->baseTags()),
@@ -122,7 +122,7 @@ class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build('PDO.exec', 'PDO', 'sql', $query)
+            SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_EXEC, true)
                 ->withExactTags($this->baseTags()),
@@ -139,7 +139,7 @@ class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
+            SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '1',
@@ -160,7 +160,7 @@ class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
+            SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064')
                 ->withExactTags($this->baseTags()),
@@ -181,7 +181,7 @@ class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build('PDO.query', 'PDO', 'sql', $query)
+            SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_QUERY, true)
                 ->withExactTags($this->baseTags()),
@@ -201,7 +201,7 @@ class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::exists('PDO.exec'),
-            SpanAssertion::build('PDO.commit', 'PDO', 'sql', 'PDO.commit')
+            SpanAssertion::build('PDO.commit', 'pdo', 'sql', 'PDO.commit')
                 ->withExactTags($this->baseTags()),
         ]);
     }
@@ -223,13 +223,13 @@ class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build(
                 'PDO.prepare',
-                'PDO',
+                'pdo',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
             )->withExactTags($this->baseTags()),
             SpanAssertion::build(
                 'PDOStatement.execute',
-                'PDO',
+                'pdo',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
             )
@@ -295,9 +295,9 @@ class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
+            SpanAssertion::build('PDO.prepare', 'pdo', 'sql', "WRONG QUERY")
                 ->withExactTags($this->baseTags()),
-            SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', "WRONG QUERY")
+            SpanAssertion::build('PDOStatement.execute', 'pdo', 'sql', "WRONG QUERY")
                 ->settraceanalyticscandidate()
                 ->seterror('PDOStatement error', 'SQL error: 42000. Driver error: 1064')
                     ->withExactTags($this->baseTags()),
@@ -322,9 +322,9 @@ class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
-            SpanAssertion::build('PDO.prepare', 'PDO', 'sql', "WRONG QUERY")
+            SpanAssertion::build('PDO.prepare', 'pdo', 'sql', "WRONG QUERY")
                 ->withExactTags($this->baseTags()),
-            SpanAssertion::build('PDOStatement.execute', 'PDO', 'sql', "WRONG QUERY")
+            SpanAssertion::build('PDOStatement.execute', 'pdo', 'sql', "WRONG QUERY")
                 ->setTraceAnalyticsCandidate()
                 ->setError('PDOException', static::ERROR_STATEMENT, true)
                 ->withExactTags($this->baseTags()),

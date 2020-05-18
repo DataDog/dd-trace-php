@@ -32,7 +32,6 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
         }
 
         $integration = $this;
-        $service = \ddtrace_config_app_name(self::NAME);
 
         /* Until we support both pre- and post- hooks on the same function, do
          * not send distributed tracing headers; curl will almost guaranteed do
@@ -41,10 +40,10 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
         \dd_trace_method(
             'GuzzleHttp\Client',
             'send',
-            function (SpanData $span, $args, $retval) use ($integration, $service) {
+            function (SpanData $span, $args, $retval) use ($integration) {
                 $span->resource = 'send';
                 $span->name = 'GuzzleHttp\Client.send';
-                $span->service = $service;
+                $span->service = 'guzzle';
                 $span->type = Type::HTTP_CLIENT;
 
                 if (isset($args[0])) {
@@ -72,10 +71,10 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
         \dd_trace_method(
             'GuzzleHttp\Client',
             'transfer',
-            function (SpanData $span, $args, $retval) use ($integration, $service) {
+            function (SpanData $span, $args, $retval) use ($integration) {
                 $span->resource = 'transfer';
                 $span->name = 'GuzzleHttp\Client.transfer';
-                $span->service = $service;
+                $span->service = 'guzzle';
                 $span->type = Type::HTTP_CLIENT;
 
                 if (isset($args[0])) {
