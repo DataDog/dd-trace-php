@@ -49,7 +49,7 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
             'posthook' => function (SpanData $span, $args, $retval) {
                 $span->name = $span->resource = 'curl_exec';
                 $span->type = Type::HTTP_CLIENT;
-                $span->service = $service;
+                $span->service = 'curl';
 
                 if (!isset($args[0])) {
                     return;
@@ -69,8 +69,6 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
 
                 if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                     $span->service = Urls::hostnameForTag($sanitizedUrl);
-                } else {
-                    $span->service = 'curl';
                 }
 
                 $span->resource = $normalizedUrl;
