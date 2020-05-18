@@ -25,6 +25,9 @@ class Tracer
             if (!empty($values)) {
                 echo ' (' . implode(', ', $values) . ')';
             }
+            if (isset($span['meta']['error.msg'])) {
+                echo ' (error: ' . $span['meta']['error.msg'] . ')';
+            }
             echo PHP_EOL;
         }, dd_trace_serialize_closed_spans());
 
@@ -35,24 +38,6 @@ class Tracer
     public function reset()
     {
         echo 'Tracer reset' . PHP_EOL;
-    }
-}
-
-class GlobalTracer
-{
-    private static $instance;
-
-    public static function set(Tracer $tracer)
-    {
-        self::$instance = $tracer;
-    }
-
-    public static function get()
-    {
-        if (null !== self::$instance) {
-            return self::$instance;
-        }
-        return self::$instance = new Tracer();
     }
 }
 
