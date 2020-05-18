@@ -195,10 +195,17 @@ final class SpanChecker
         foreach ($flatSpans as $span) {
             $byId[$span['span_id']] = ['span' => $span, 'children' => []];
         }
+        // PHP 5.6 and 7.* handle differently the way a foreach is done while removing in the loop items
+        // from the array itself. As a quick fix, we iterate over keys instead of elements themselves.
+        $spanIds = \array_keys($byId);
 
         do {
             $lastCount = count($byId);
-            foreach ($byId as $id => $data) {
+            foreach ($spanIds as $id) {
+                if (!\array_key_exists($id, $byId)) {
+                    continue;
+                }
+                $data = $byId[$id];
                 $span = $data['span'];
                 $hasPendingChildren = false;
                 foreach ($byId as $candidateId => $candidateData) {
