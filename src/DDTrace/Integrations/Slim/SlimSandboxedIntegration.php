@@ -38,8 +38,7 @@ class SlimSandboxedIntegration extends SandboxedIntegration
 
             // Overwrite root span info
             $rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
-            $rootSpan->setIntegration($integration);
-            $rootSpan->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
             $rootSpan->overwriteOperationName('slim.request');
             $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
 
@@ -87,7 +86,6 @@ class SlimSandboxedIntegration extends SandboxedIntegration
                 $template = $args[1];
                 $span->resource = $template;
                 $span->meta['slim.view'] = $template;
-                $span->meta['integration.name'] = SlimSandboxedIntegration::NAME;
             });
 
             return false;
