@@ -9,6 +9,8 @@ use DDTrace\Log\Logger;
 use DDTrace\Tag;
 use DDTrace\Type;
 
+date_default_timezone_set("UTC");
+
 $scenario = getenv('DD_COMPOSER_TEST_CONTEXT');
 
 require __DIR__ . "/vendor/autoload.php";
