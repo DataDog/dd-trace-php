@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2020-05-18</date>
+    <date>2020-05-19</date>
     <version>
-        <release>0.45.1</release>
-        <api>0.45.1</api>
+        <release>0.45.2</release>
+        <api>0.45.2</api>
     </version>
     <stability>
         <release>stable</release>
@@ -23,9 +23,7 @@
     <notes>
         ### Fixed
 
-        - Fix uncaught exceptions with auto flushing enabled #882
-        - Prevent curl and guzzle from inheriting top level app name #885
-        - Change PDO service name to lowercase #886
+        - Be compatible with psr4 composer autoloading now that we have non-psr4 config functions #889
     </notes>
     <contents>
         <dir name="/">
