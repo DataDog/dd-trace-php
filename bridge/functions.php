@@ -116,6 +116,13 @@ function dd_wrap_autoloader()
         }
 
         dd_untrace('spl_autoload_register');
+
+        // In case of composer, we need to be in front of it so our generated classes are loaded,
+        // including non-psr4 classes and files.
+        // This will not be required anymore once we move in the next release to a non wrapped autoloader.
+        dd_unregister_autoloader();
+        dd_register_autoloader();
+
         require __DIR__ . '/dd_init.php';
     });
 }
