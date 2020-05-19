@@ -43,15 +43,13 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
             return SandboxedIntegration::NOT_LOADED;
         }
 
-        $service = \ddtrace_config_app_name(self::NAME);
-
         \dd_trace_function('curl_exec', [
             // the ddtrace extension will handle distributed headers
             'instrument_when_limited' => 0,
-            'posthook' => function (SpanData $span, $args, $retval) use ($service) {
+            'posthook' => function (SpanData $span, $args, $retval) {
                 $span->name = $span->resource = 'curl_exec';
                 $span->type = Type::HTTP_CLIENT;
-                $span->service = $service;
+                $span->service = 'curl';
 
                 if (!isset($args[0])) {
                     return;

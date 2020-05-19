@@ -10,6 +10,7 @@ DD_TRACE_AUTO_FLUSH_ENABLED=1
 use DDTrace\SpanData;
 
 require 'fake_tracer.inc';
+require 'fake_global_tracer.inc';
 
 dd_trace_function('array_sum', function (SpanData $span, $args, $retval) {
     $span->name = 'array_sum';

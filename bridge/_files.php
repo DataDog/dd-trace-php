@@ -80,6 +80,7 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Mongo/MongoSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Slim/SlimIntegration.php',
+    __DIR__ . '/../src/DDTrace/Integrations/Slim/SlimSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonyIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Symfony/SymfonySandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchCommon.php',

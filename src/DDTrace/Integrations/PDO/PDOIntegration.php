@@ -78,7 +78,7 @@ class PDOIntegration extends Integration
             );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             $span->setTag(Tag::RESOURCE_NAME, 'PDO.__construct');
 
             // PHP 5.4 compatible try-catch-finally
@@ -114,7 +114,7 @@ class PDOIntegration extends Integration
             $scope = $tracer->startActiveSpan('PDO.exec');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             $span->setTag(Tag::RESOURCE_NAME, $statement);
             $integration->addTraceAnalyticsIfEnabledLegacy($span);
             PDOIntegration::setConnectionTags($this, $span);
@@ -156,7 +156,7 @@ class PDOIntegration extends Integration
             $args = func_get_args();
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             $span->setTag(Tag::RESOURCE_NAME, $args[0]);
             $integration->addTraceAnalyticsIfEnabledLegacy($span);
             PDOIntegration::setConnectionTags($this, $span);
@@ -197,7 +197,7 @@ class PDOIntegration extends Integration
             $scope = $tracer->startActiveSpan('PDO.commit');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -230,7 +230,7 @@ class PDOIntegration extends Integration
             $scope = $tracer->startActiveSpan('PDO.prepare');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             $span->setTag(Tag::RESOURCE_NAME, $args[0]);
             PDOIntegration::setConnectionTags($this, $span);
 
@@ -265,7 +265,7 @@ class PDOIntegration extends Integration
             );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             $span->setTag(Tag::RESOURCE_NAME, $this->queryString);
             $integration->addTraceAnalyticsIfEnabledLegacy($span);
             PDOIntegration::setStatementTags($this, $span);

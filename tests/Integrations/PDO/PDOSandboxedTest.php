@@ -51,13 +51,13 @@ final class PDOSandboxedTest extends PDOTest
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build(
                 'PDO.prepare',
-                'PDO',
+                'pdo',
                 'sql',
                 $query
             )->withExactTags($this->baseTags()),
             SpanAssertion::build(
                 'PDOStatement.execute',
-                'PDO',
+                'pdo',
                 'sql',
                 $query
             )
@@ -90,13 +90,13 @@ final class PDOSandboxedTest extends PDOTest
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build(
                 'PDO.prepare',
-                'PDO',
+                'pdo',
                 'sql',
                 'object(DDTrace\Tests\Integrations\PDO\BrokenPDOStatement)#' . $objId
             )->withExactTags(SpanAssertion::NOT_TESTED),
             SpanAssertion::build(
                 'PDOStatement.execute',
-                'PDO',
+                'pdo',
                 'sql',
                 $query
             )
