@@ -33,7 +33,9 @@ class AutoInstrumentationTest extends BaseTestCase
 
             // We want to make sure that the version declared in composer.json is picked up instead of the installed
             // version.
-            ['composer_with_ddtrace_dependency', '0.31.0', true],
+            // NOTE: starting from 0.45.2 our autoloader is placed BEFORE composer. This means that classes from
+            // the extension win over classes from composer. An anticipation of what will happen on 0.46+.
+            ['composer_with_ddtrace_dependency', $currentTracerVersion, true],
 
             // We want to make sure that users can safely declare a dependency in the latest version of our
             // tracer in composer even if not required.
