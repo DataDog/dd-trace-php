@@ -6,7 +6,6 @@ use DDTrace\GlobalTracer;
 use DDTrace\SpanData;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\Tag;
-use DDTrace\Type;
 
 /**
  * Lumen Sandboxed integration

@@ -3,24 +3,11 @@
 namespace DDTrace\Tests\Integrations\Lumen\V5_2;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-class CommonScenariosSandboxedTest extends WebFrameworkTestCase
+class CommonScenariosSandboxedTest extends CommonScenariosTest
 {
     const IS_SANDBOX = true;
-
-    protected static function getAppIndexScript()
-    {
-        return __DIR__ . '/../../../Frameworks/Lumen/Version_5_2/public/index.php';
-    }
-
-    protected static function getEnvs()
-    {
-        return array_merge(parent::getEnvs(), [
-            'DD_SERVICE_NAME' => 'lumen_test_app',
-        ]);
-    }
 
     /**
      * @dataProvider provideSpecs
@@ -39,6 +26,11 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
 
     public function provideSpecs()
     {
+        if (\PHP_MAJOR_VERSION < 7) {
+            // For 5.6 we have the legacy integration still serving Lumen as we do not support prehook yet.
+            return parent::provideSpecs();
+        }
+
         return $this->buildDataProvider(
             [
                 'A simple GET request returning a string' => [

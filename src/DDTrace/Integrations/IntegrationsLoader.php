@@ -103,8 +103,10 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Guzzle\GuzzleSandboxedIntegration';
             $this->integrations[LaravelSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Laravel\LaravelSandboxedIntegration';
-            $this->integrations[LumenSandboxedIntegration::NAME] =
-                '\DDTrace\Integrations\Lumen\LumenSandboxedIntegration';
+            if (\PHP_MAJOR_VERSION > 5) {
+                $this->integrations[LumenSandboxedIntegration::NAME] =
+                    '\DDTrace\Integrations\Lumen\LumenSandboxedIntegration';
+            }
             $this->integrations[MemcachedSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration';
             $this->integrations[MongoSandboxedIntegration::NAME] =
