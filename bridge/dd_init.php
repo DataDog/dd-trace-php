@@ -5,6 +5,10 @@ namespace DDTrace\Bridge;
 use DDTrace\Bootstrap;
 use DDTrace\Integrations\IntegrationsLoader;
 
+if (PHP_VERSION_ID < 70000) {
+    date_default_timezone_set(@date_default_timezone_get());
+}
+
 /**
  * Tells whether or not tracing is enabled without having to fire the auto-loading mechanism.
  *
