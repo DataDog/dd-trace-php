@@ -5,8 +5,8 @@ namespace DDTrace\Bridge;
 use DDTrace\Bootstrap;
 use DDTrace\Integrations\IntegrationsLoader;
 
-if (PHP_VERSION_ID < 70000) {
-    date_default_timezone_set(@date_default_timezone_get());
+if (\PHP_VERSION_ID < 70000) {
+    \date_default_timezone_set(@\date_default_timezone_get());
 }
 
 /**
