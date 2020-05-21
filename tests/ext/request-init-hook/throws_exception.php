@@ -1,5 +1,5 @@
 <?php
 
-echo "Throwing an exception...\n";
+error_log('Throwing an exception...');
 throw new Exception('Oops!');
-echo "You should not see this line.\n";
+error_log('You should not see this line.');

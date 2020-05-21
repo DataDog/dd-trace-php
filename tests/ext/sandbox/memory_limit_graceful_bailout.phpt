@@ -11,6 +11,7 @@ DD_TRACE_MEMORY_LIMIT=0
 --INI--
 memory_limit=2M
 max_execution_time=5
+ddtrace.request_init_hook=
 --FILE--
 <?php
 register_shutdown_function(function () {
