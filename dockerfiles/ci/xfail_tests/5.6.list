@@ -287,3 +287,6 @@ ext/pdo_sqlite/tests/bug66033.phpt
 ext/pdo_sqlite/tests/bug50728.phpt
 ext/phar/tests/phar_buildfromiterator10.phpt
 ext/phar/tests/phar_buildfromiterator8.phpt
+ext/pdo_sqlite/tests/bug_52098.phpt
+ext/pdo_sqlite/tests/pdo_013.phpt
+ext/pdo_sqlite/tests/pdo_023.phpt
