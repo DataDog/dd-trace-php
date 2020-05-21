@@ -121,7 +121,6 @@ ext/openssl/tests/stream_verify_peer_name_003.phpt
 ext/openssl/tests/tlsv1.0_wrapper.phpt
 ext/openssl/tests/tlsv1.1_wrapper.phpt
 ext/openssl/tests/tlsv1.2_wrapper.phpt
-ext/pdo_sqlite/tests/common.phpt
 ext/pdo_sqlite/tests/pdo_sqlite_lastinsertid.phpt
 ext/phar/tests/031.phpt
 ext/phar/tests/032.phpt
