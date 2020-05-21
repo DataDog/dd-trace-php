@@ -254,3 +254,5 @@ ext/curl/tests/bug52202.phpt
 ext/curl/tests/bug68089.phpt
 ext/curl/tests/curl_setopt_error.phpt
 ext/pdo_sqlite/tests/bug50728.phpt
+ext/pdo/tests/pdo_023.phpt
+ext/pdo_sqlite/tests/pdo_013.phpt

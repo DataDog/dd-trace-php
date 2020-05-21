@@ -285,3 +285,5 @@ ext/curl/tests/bug48203.phpt
 ext/curl/tests/curl_setopt_error.phpt
 ext/pdo_sqlite/tests/bug66033.phpt
 ext/pdo_sqlite/tests/bug50728.phpt
+ext/phar/tests/phar_buildfromiterator10.phpt
+ext/phar/tests/phar_buildfromiterator8.phpt
