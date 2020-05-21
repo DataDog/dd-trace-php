@@ -157,7 +157,11 @@ class PDOIntegration extends Integration
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::SERVICE_NAME, 'pdo');
-            $span->setTag(Tag::RESOURCE_NAME, $args[0]);
+            if (isset($args[0])) {
+                $span->setTag(Tag::RESOURCE_NAME, $args[0]);
+            } else {
+                $span->setTag(Tag::RESOURCE_NAME, "unknown");
+            }
             $integration->addTraceAnalyticsIfEnabledLegacy($span);
             PDOIntegration::setConnectionTags($this, $span);
 
