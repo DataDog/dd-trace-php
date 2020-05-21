@@ -120,8 +120,8 @@ function env($key)
 function check_opcache()
 {
     if (!function_exists('opcache_get_configuration')) {
-       render('Opcache enabled:', 'NO');
-       return;
+        render('Opcache enabled:', 'NO');
+        return;
     }
     render('Opcache enabled:', 'YES');
     $configs = opcache_get_configuration();
