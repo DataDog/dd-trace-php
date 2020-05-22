@@ -120,9 +120,10 @@ function env($key)
 function check_opcache()
 {
     if (!function_exists('opcache_get_configuration')) {
-        render('Opcache enabled:', 'NO');
+        render('Opcache installed:', 'NO');
+        return;
     }
-    render('Opcache enabled:', 'YES');
+    render('Opcache installed:', 'YES');
     $configs = opcache_get_configuration();
     foreach ($configs['directives'] as $name => $value) {
         sub_paragraph("$name = $value");

@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Integrations\CLI\CakePHP\V2_8;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Integrations\CLI\CLITestCase;
 
-final class CommonScenariosTest extends CLITestCase
+class CommonScenariosTest extends CLITestCase
 {
     protected function getScriptLocation()
     {

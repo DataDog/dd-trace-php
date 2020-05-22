@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\CakePHP\V2;
 
-use CakeEvent;
 use CakeRequest;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
@@ -59,6 +58,13 @@ class CakePHPIntegrationLoader
         dd_trace('ExceptionRenderer', '__construct', function ($exception) use ($loader) {
             $loader->rootSpan->setError($exception);
             return dd_trace_forward_call();
+        });
+
+        // Set the HTTP status code
+        dd_trace('CakeResponse', 'statusCode', function () use ($loader) {
+            $code = dd_trace_forward_call();
+            $loader->rootSpan->setTag(Tag::HTTP_STATUS_CODE, $code);
+            return $code;
         });
 
         // Create a trace span for every template rendered
