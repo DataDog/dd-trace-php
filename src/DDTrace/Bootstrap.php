@@ -28,7 +28,6 @@ final class Bootstrap
         self::$bootstrapped = true;
 
         $tracer = self::resetTracer();
-        self::registerOpenTracing();
 
         $flushTracer = function () {
             dd_trace_disable_in_request(); //disable function tracing to speedup shutdown
@@ -98,25 +97,6 @@ final class Bootstrap
         $tracer = new Tracer();
         GlobalTracer::set($tracer);
         return $tracer;
-    }
-
-    /**
-     * Replace the OT tracer with a wrapper containing the datadog tracer.
-     */
-    private static function registerOpenTracing()
-    {
-        dd_trace('OpenTracing\GlobalTracer', 'get', function () {
-            $original = \OpenTracing\GlobalTracer::get();
-
-            if (is_a($original, 'DDTrace\OpenTracer')) {
-                return $original;
-            }
-
-            $otWrapper = new \DDTrace\OpenTracer\Tracer(GlobalTracer::get());
-            \OpenTracing\GlobalTracer::set($otWrapper);
-
-            return $otWrapper;
-        });
     }
 
     /**
