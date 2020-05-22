@@ -249,6 +249,8 @@
         "test-web-70": [
             "@test-cache-link",
             "@test-metrics",
+            "@cakephp-28-update",
+            "@cakephp-28-test",
             "@codeigniter-22-test",
             "@laravel-42-update",
             "@laravel-42-test",
@@ -267,6 +269,8 @@
         "test-web-71": [
             "@test-cache-link",
             "@test-metrics",
+            "@cakephp-28-update",
+            "@cakephp-28-test",
             "@codeigniter-22-test",
             "@laravel-42-update",
             "@laravel-42-test",
