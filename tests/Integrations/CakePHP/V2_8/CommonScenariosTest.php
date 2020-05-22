@@ -72,14 +72,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                    ]),
-                    SpanAssertion::build(
-                        'cakephp.view',
-                        'cakephp_test_app',
-                        'web',
-                        'SimpleView/index.ctp'
-                    )->withExactTags([
-                        'cakephp.view' => 'SimpleView/index.ctp',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',

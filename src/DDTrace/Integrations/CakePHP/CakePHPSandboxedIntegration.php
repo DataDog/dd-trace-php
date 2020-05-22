@@ -46,8 +46,7 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
             }
             $integration->appName = \ddtrace_config_app_name(CakePHPSandboxedIntegration::NAME);
             $integration->rootSpan = $scope->getSpan();
-            $integration->rootSpan->setIntegration($integration);
-            $integration->rootSpan->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($integration->rootSpan);
             $integration->rootSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
             if ('cli' === PHP_SAPI) {
                 $integration->rootSpan->overwriteOperationName('cakephp.console');
