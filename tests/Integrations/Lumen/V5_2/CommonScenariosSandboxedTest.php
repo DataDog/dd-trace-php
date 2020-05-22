@@ -26,28 +26,72 @@ class CommonScenariosSandboxedTest extends CommonScenariosTest
 
     public function provideSpecs()
     {
-        if (\PHP_MAJOR_VERSION < 7) {
-            // For 5.6 we have the legacy integration still serving Lumen as we do not support prehook yet.
-            return parent::provideSpecs();
-        }
+        return \PHP_MAJOR_VERSION < 7 ?  $this->build5xDataProvider() :  $this->build7xDataProvider();
+    }
 
+    private function build5xDataProvider()
+    {
         return $this->buildDataProvider(
             [
-                'A simple GET request returning a string' => [
+                'A simple GET request returning a string' => $this->getSimpleTrace(),
+                'A simple GET request with a view' => [
                     SpanAssertion::build(
                         'lumen.request',
                         'lumen_test_app',
                         'web',
-                        'GET simple_route'
+                        'GET App\Http\Controllers\ExampleController@simpleView'
                     )->withExactTags([
-                        'lumen.route.name' => 'simple_route',
-                        'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
+                        'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
                         'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
+                        'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
                         'integration.name' => 'lumen',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'laravel.view.render',
+                            'lumen_test_app',
+                            'web',
+                            'simple_view'
+                        )->withExactTags([
+                            'integration.name' => 'laravel',
+                        ])->withChildren([
+                            SpanAssertion::build(
+                                'lumen.view',
+                                'lumen_test_app',
+                                'web',
+                                'lumen.view'
+                            )->withExactTags([
+                                'integration.name' => 'lumen',
+                            ]),
+                            SpanAssertion::build(
+                                'laravel.event.handle',
+                                'lumen_test_app',
+                                'web',
+                                'composing: simple_view'
+                            )->withExactTags([
+                                'integration.name' => 'laravel',
+                            ]),
+                        ]),
+                        SpanAssertion::build(
+                            'laravel.event.handle',
+                            'lumen_test_app',
+                            'web',
+                            'creating: simple_view'
+                        )->withExactTags([
+                            'integration.name' => 'laravel',
+                        ])
                     ]),
                 ],
+                'A GET request with an exception' => $this->getErrorTrace(),
+            ]
+        );
+    }
+
+    private function build7xDataProvider()
+    {
+        return $this->buildDataProvider(
+            [
+                'A simple GET request returning a string' => $this->getSimpleTrace(),
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
                         'lumen.request',

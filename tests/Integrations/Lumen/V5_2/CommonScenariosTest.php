@@ -41,21 +41,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
     {
         return $this->buildDataProvider(
             [
-                'A simple GET request returning a string' => [
-                    SpanAssertion::build(
-                        'lumen.request',
-                        'lumen_test_app',
-                        'web',
-                        'GET simple_route'
-                    )->withExactTags([
-                        'lumen.route.name' => 'simple_route',
-                        'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
-                        'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
-                        'http.status_code' => '200',
-                        'integration.name' => 'lumen',
-                    ]),
-                ],
+                'A simple GET request returning a string' => $this->getSimpleTrace(),
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
                         'lumen.request',
@@ -79,21 +65,45 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         ]),
                     ]),
                 ],
-                'A GET request with an exception' => [
-                    SpanAssertion::build(
-                        'lumen.request',
-                        'lumen_test_app',
-                        'web',
-                        'GET App\Http\Controllers\ExampleController@error'
-                    )->withExactTags([
-                        'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
-                        'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/error',
-                        'http.status_code' => '500',
-                        'integration.name' => 'lumen',
-                    ])->setError(),
-                ],
+                'A GET request with an exception' => $this->getErrorTrace(),
             ]
         );
+    }
+
+    protected function getSimpleTrace()
+    {
+        return [
+            SpanAssertion::build(
+                'lumen.request',
+                'lumen_test_app',
+                'web',
+                'GET simple_route'
+            )->withExactTags([
+                'lumen.route.name' => 'simple_route',
+                'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
+                'http.method' => 'GET',
+                'http.url' => 'http://localhost:9999/simple',
+                'http.status_code' => '200',
+                'integration.name' => 'lumen',
+            ]),
+        ];
+    }
+
+    protected function getErrorTrace()
+    {
+        return [
+            SpanAssertion::build(
+                'lumen.request',
+                'lumen_test_app',
+                'web',
+                'GET App\Http\Controllers\ExampleController@error'
+            )->withExactTags([
+                'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
+                'http.method' => 'GET',
+                'http.url' => 'http://localhost:9999/error',
+                'http.status_code' => '500',
+                'integration.name' => 'lumen',
+            ])->setError(),
+        ];
     }
 }
