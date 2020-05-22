@@ -50,7 +50,7 @@ class CommonScenariosSandboxedTest extends CommonScenariosTest
                             'laravel.view.render',
                             'lumen_test_app',
                             'web',
-                            'simple_view',
+                            'simple_view'
                         )->withChildren([
                             SpanAssertion::build(
                                 'lumen.view',

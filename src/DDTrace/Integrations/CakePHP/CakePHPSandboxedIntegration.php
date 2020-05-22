@@ -95,6 +95,14 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
                 },
             ]);
 
+            \dd_trace_method('CakeResponse', 'statusCode', [
+                'instrument_when_limited' => 1,
+                'posthook' => function (SpanData $span, $args, $return) use ($integration) {
+                    $integration->rootSpan->setTag(Tag::HTTP_STATUS_CODE, $return);
+                    return false;
+                },
+            ]);
+
             // Create a trace span for every template rendered
             \dd_trace_method('View', 'render', function (SpanData $span) use ($integration) {
                 $span->name = 'cakephp.view';
@@ -103,7 +111,6 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
                 $span->resource = $file;
                 $span->meta = ['cakephp.view' => $file];
                 $span->service = $integration->appName;
-                $integration->addIntegrationInfo($span);
             });
 
             return false;
