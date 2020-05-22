@@ -3,13 +3,11 @@
 namespace DDTrace\Tests\Integrations\Lumen\V5_6;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
+use DDTrace\Tests\Integrations\Lumen\V5_2\CommonScenariosSandboxedTest as V5_2_CommonScenariosSandboxedTest;
 
-final class CommonScenariosTest extends WebFrameworkTestCase
+class CommonScenariosSandboxedTest extends V5_2_CommonScenariosSandboxedTest
 {
-    const IS_SANDBOX = false;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_6/public/index.php';
@@ -68,11 +66,18 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::build(
-                            'lumen.view',
+                            'laravel.view.render',
                             'lumen_test_app',
                             'web',
-                            'lumen.view'
-                        )->withExactTags([]),
+                            'simple_view'
+                        )->withExactTags([])->withChildren([
+                            SpanAssertion::build(
+                                'lumen.view',
+                                'lumen_test_app',
+                                'web',
+                                '*/resources/views/simple_view.blade.php'
+                            )->withExactTags([]),
+                        ]),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -86,7 +91,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                    ])->setError(),
+                    ])->withExistingTagsNames([
+                        'error.stack',
+                    ])->setError('Exception', 'Controller error'),
                 ],
             ]
         );

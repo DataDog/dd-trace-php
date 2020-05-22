@@ -51,6 +51,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     protected static function getEnvs()
     {
         $envs = [
+            'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
             'DD_TEST_INTEGRATION' => 'true',
             'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
             // Short flush interval by default or our tests will take all day
