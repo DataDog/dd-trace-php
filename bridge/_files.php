@@ -95,6 +95,7 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Lumen/LumenIntegration.php',
+    __DIR__ . '/../src/DDTrace/Integrations/Lumen/LumenSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Lumen/V5/LumenIntegrationLoader.php',
     __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleSandboxedIntegration.php',
