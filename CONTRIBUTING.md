@@ -123,8 +123,8 @@ In order to run all the tracer tests:
     # Run only library integrations tests for php 7.3
     $ composer test-integrations-73
 
-    # Run only library integrations tests for php 7.3
-    $ composer test-integrations-73
+    # Run only library integrations tests for php 7.4
+    $ composer test-integrations-74
 
 Testing individual integrations with libraries requires an additional step, as there are different scenarios where you want to test
 a specific integration. You can find available scenarios in `composer.json` at key `extras.scenarios`.
