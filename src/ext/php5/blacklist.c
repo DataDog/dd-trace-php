@@ -1,8 +1,5 @@
 #include "blacklist.h"
 
-#include <php.h>
-#include <stdbool.h>
-
 #include "logging.h"
 
 static bool _dd_is_blacklisted_module(zend_module_entry *module) {
