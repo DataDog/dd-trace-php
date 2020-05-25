@@ -415,6 +415,11 @@ final class Tracer implements TracerInterface
         if (null !== $span->getResource()) {
             return;
         }
+
+        if (!isset($_SERVER['REQUEST_METHOD'])) {
+            return;
+        }
+
         // Normalized URL as the resource name
         $resourceName = $_SERVER['REQUEST_METHOD'];
         if (isset($_SERVER['REQUEST_URI'])) {
