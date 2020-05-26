@@ -241,6 +241,7 @@ ext/standard/tests/serialize/serialization_objects_007.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/substr_compare.phpt
 ext/standard/tests/time/strptime_basic.phpt
+ext/pdo/tests/pdo_013.phpt
 ext/pdo/tests/pdo_014.phpt
 ext/mbstring/tests/zend_multibyte-08.phpt
 ext/standard/tests/file/bug52820.phpt
