@@ -14,6 +14,7 @@ void ddtrace_blacklist_startup() {
     zend_module_entry *module;
     HashPosition pos;
 
+    ddtrace_blacklisted_disable_legacy = false;
     ddtrace_has_blacklisted_module = false;
 
     zend_hash_internal_pointer_reset_ex(&module_registry, &pos);

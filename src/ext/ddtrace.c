@@ -40,6 +40,7 @@
 #include "signals.h"
 #include "span.h"
 
+bool ddtrace_blacklisted_disable_legacy;
 bool ddtrace_has_blacklisted_module;
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
@@ -47,6 +48,8 @@ ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 PHP_INI_BEGIN()
 STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals,
                     ddtrace_globals)
+STD_PHP_INI_BOOLEAN("ddtrace.ignore_legacy_blacklist", "0", PHP_INI_SYSTEM, OnUpdateBool, ignore_legacy_blacklist,
+                    zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
@@ -545,6 +548,13 @@ static PHP_FUNCTION(dd_trace) {
         DD_PRINTF("Class name: %s", Z_STRVAL_P(class_name));
     }
     DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
+    if (ddtrace_blacklisted_disable_legacy && !DDTRACE_G(ignore_legacy_blacklist)) {
+        ddtrace_log_debugf(
+            "Cannot instrument '%s()' with dd_trace(). This functionality is disabled due to a potentially conflicting "
+            "module. To re-enable dd_trace(), please set the INI setting: ddtrace.ignore_legacy_blacklist=1",
+            Z_STRVAL_P(function));
+        RETURN_BOOL(0);
+    }
 
     if (!function || Z_TYPE_P(function) != IS_STRING) {
         if (class_name) {

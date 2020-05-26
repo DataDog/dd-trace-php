@@ -8,7 +8,7 @@
 #include "logging.h"
 
 static bool _dd_is_blacklisted_module(zend_module_entry *module) {
-    if (strcmp("ionCube Loader", module->name) == 0 || strcmp("newrelic", module->name) == 0) {
+    if (strcmp("ionCube Loader", module->name) == 0) {
         ddtrace_log_debugf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
         return true;
     }
@@ -46,12 +46,16 @@ static bool _dd_is_blacklisted_module(zend_module_entry *module) {
             return true;
         }
     }
+    if (strcmp("newrelic", module->name) == 0) {
+        ddtrace_blacklisted_disable_legacy = true;
+    }
     return false;
 }
 
 void ddtrace_blacklist_startup() {
     zend_module_entry *module;
 
+    ddtrace_blacklisted_disable_legacy = false;
     ddtrace_has_blacklisted_module = false;
 
     ZEND_HASH_FOREACH_PTR(&module_registry, module) {

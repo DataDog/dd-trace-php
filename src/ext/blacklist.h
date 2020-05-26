@@ -4,6 +4,7 @@
 #include <php.h>
 #include <stdbool.h>
 
+extern bool ddtrace_blacklisted_disable_legacy;
 extern bool ddtrace_has_blacklisted_module;
 
 void ddtrace_blacklist_startup();
