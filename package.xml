@@ -87,6 +87,13 @@
                         <file name="mpack.c" role="src" />
                         <file name="mpack.h" role="src" />
                     </dir>
+                    <dir name="php5_4">
+                        <file name="auto_flush.c" role="src" />
+                        <file name="blacklist.c" role="src" />
+                        <file name="dispatch.c" role="src" />
+                        <file name="engine_hooks.c" role="src" />
+                        <file name="handlers_curl.c" role="src" />
+                    </dir>
                     <dir name="php5">
                         <file name="auto_flush.c" role="src" />
                         <file name="blacklist.c" role="src" />

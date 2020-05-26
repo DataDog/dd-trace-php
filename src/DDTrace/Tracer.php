@@ -5,7 +5,6 @@ namespace DDTrace;
 use DDTrace\Encoders\Json;
 use DDTrace\Encoders\SpanEncoder;
 use DDTrace\Http\Urls;
-use DDTrace\Integrations\Integration;
 use DDTrace\Encoders\MessagePack;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Processing\TraceAnalyticsProcessor;
@@ -88,11 +87,6 @@ final class Tracer implements TracerInterface
     private $prioritySampling = Sampling\PrioritySampling::UNKNOWN;
 
     /**
-     * @var TraceAnalyticsProcessor
-     */
-    private $traceAnalyticsProcessor;
-
-    /**
      * @var string|null
      */
     private static $version;
@@ -115,7 +109,6 @@ final class Tracer implements TracerInterface
         $this->config = array_merge($this->config, $config);
         $this->reset();
         $this->config['global_tags'] = array_merge($this->config['global_tags'], \ddtrace_config_global_tags());
-        $this->traceAnalyticsProcessor = new TraceAnalyticsProcessor();
     }
 
     public function limited()
@@ -236,16 +229,6 @@ final class Tracer implements TracerInterface
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function startIntegrationScopeAndSpan(Integration $integration, $operationName, $options = [])
-    {
-        $scope = $this->startActiveSpan($operationName, $options);
-        $scope->getSpan()->setIntegration($integration);
-        return $scope;
-    }
-
-    /**
      * @param array|Reference[] $references
      * @return null|Reference
      */
@@ -360,11 +343,6 @@ final class Tracer implements TracerInterface
                     }
                     $span->duration = (Time::now()) - $span->startTime; // finish span
                 }
-                // Basic processing. We will do it in a more structured way in the future, but for now we just invoke
-                // the internal (hard-coded) processors programmatically.
-
-                $this->traceAnalyticsProcessor->process($span);
-
                 $encodedSpan = SpanEncoder::encode($span);
                 $traceToBeSent[] = $encodedSpan;
             }
@@ -437,13 +415,18 @@ final class Tracer implements TracerInterface
         if (null !== $span->getResource()) {
             return;
         }
+
+        if (!isset($_SERVER['REQUEST_METHOD'])) {
+            return;
+        }
+
         // Normalized URL as the resource name
-        $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
-        $span->setTag(
-            Tag::RESOURCE_NAME,
-            $_SERVER['REQUEST_METHOD'] . ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']),
-            true
-        );
+        $resourceName = $_SERVER['REQUEST_METHOD'];
+        if (isset($_SERVER['REQUEST_URI'])) {
+            $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
+            $resourceName .= ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']);
+        }
+        $span->setTag(Tag::RESOURCE_NAME, $resourceName, true);
     }
 
     private function record(Span $span)

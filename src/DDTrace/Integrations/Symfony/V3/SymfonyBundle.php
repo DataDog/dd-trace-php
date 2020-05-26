@@ -42,8 +42,7 @@ class SymfonyBundle extends Bundle
         $symfonyRequestSpan = $scope->getSpan();
         $symfonyRequestSpan->overwriteOperationName('symfony.request');
         // Overwriting the default web integration
-        $symfonyRequestSpan->setIntegration(SymfonyIntegration::getInstance());
-        $symfonyRequestSpan->setTraceAnalyticsCandidate();
+        SymfonyIntegration::getInstance()->addTraceAnalyticsIfEnabledLegacy($symfonyRequestSpan);
         $symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $appName);
         $request = null;
 
@@ -55,8 +54,7 @@ class SymfonyBundle extends Bundle
                 /** @var Request $request */
                 list($request) = func_get_args();
 
-                $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-                    SymfonyIntegration::getInstance(),
+                $scope = GlobalTracer::get()->startActiveSpan(
                     'symfony.kernel.handle'
                 );
                 $symfonyRequestSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
@@ -94,8 +92,7 @@ class SymfonyBundle extends Bundle
             'Symfony\Component\HttpKernel\HttpKernel',
             'handleException',
             function (\Exception $e, Request $request, $type) use ($symfonyRequestSpan) {
-                $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-                    SymfonyIntegration::getInstance(),
+                $scope = GlobalTracer::get()->startActiveSpan(
                     'symfony.kernel.handleException'
                 );
                 $symfonyRequestSpan->setError($e);
@@ -134,8 +131,7 @@ class SymfonyBundle extends Bundle
 
                         dd_trace($dispatcherClass, 'dispatch', function () use (&$request, &$symfonyRequestSpan) {
                             $args = func_get_args();
-                            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-                                SymfonyIntegration::getInstance(),
+                            $scope = GlobalTracer::get()->startActiveSpan(
                                 'symfony.' . $args[0]
                             );
                             SymfonyBundle::injectRouteInfo($args, $request, $symfonyRequestSpan);
@@ -152,8 +148,7 @@ class SymfonyBundle extends Bundle
         $renderTraceCallback = function () use ($appName) {
             $args = func_get_args();
 
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-                SymfonyIntegration::getInstance(),
+            $scope = GlobalTracer::get()->startActiveSpan(
                 'symfony.templating.render'
             );
             $span = $scope->getSpan();

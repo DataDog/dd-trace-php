@@ -53,11 +53,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'laravel',
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple')
                             ->withExactTags([
-                                'integration.name' => 'laravel',
                             ])
                             ->onlyIf(static::IS_SANDBOX),
                         SpanAssertion::exists(
@@ -77,13 +75,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'laravel',
                     ])->withExistingTagsNames([
                         'laravel.route.name',
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
                             ->withExactTags([
-                                'integration.name' => 'laravel',
                             ])
                             ->onlyIf(static::IS_SANDBOX),
                         SpanAssertion::exists(
@@ -96,7 +92,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'laravel.view'
                         )->withExactTags([
-                            'integration.name' => 'laravel',
                         ])->skipIf(static::IS_SANDBOX),
                         SpanAssertion::build(
                             'laravel.view.render',
@@ -104,7 +99,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'simple_view'
                         )->withExactTags([
-                            'integration.name' => 'laravel',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'laravel.view',
@@ -112,7 +106,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'web',
                                 '*/resources/views/simple_view.blade.php'
                             )->withExactTags([
-                                'integration.name' => 'laravel',
                             ]),
                         ])->onlyIf(static::IS_SANDBOX),
                     ]),
@@ -129,7 +122,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                        'integration.name' => 'laravel',
                     ])->setError()->withChildren([
                         SpanAssertion::exists('laravel.action')
                             ->onlyIf(static::IS_SANDBOX),

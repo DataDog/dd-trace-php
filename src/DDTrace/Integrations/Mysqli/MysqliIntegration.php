@@ -42,6 +42,8 @@ class MysqliIntegration extends Integration
             return Integration::NOT_AVAILABLE;
         }
 
+        $integration = self::getInstance();
+
         // mysqli mysqli_connect ([ string $host = ini_get("mysqli.default_host")
         //      [, string $username = ini_get("mysqli.default_user")
         //      [, string $passwd = ini_get("mysqli.default_pw")
@@ -200,7 +202,7 @@ class MysqliIntegration extends Integration
 
 
         // mixed mysqli_query ( mysqli $link , string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
-        dd_trace('mysqli_query', function () {
+        dd_trace('mysqli_query', function () use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -211,7 +213,7 @@ class MysqliIntegration extends Integration
             $scope = MysqliIntegration::initScope('mysqli_query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            $span->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($span);
             MysqliIntegration::setConnectionInfo($span, $mysqli);
             MysqliCommon::storeQuery($mysqli, $query);
 
@@ -306,7 +308,7 @@ class MysqliIntegration extends Integration
         });
 
         // mixed mysqli::query ( string $query [, int $resultmode = MYSQLI_STORE_RESULT ] )
-        dd_trace('mysqli', 'query', function () {
+        dd_trace('mysqli', 'query', function () use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -316,7 +318,7 @@ class MysqliIntegration extends Integration
             $scope = MysqliIntegration::initScope('mysqli.query', $query);
             /** @var \DDTrace\Span $span */
             $span = $scope->getSpan();
-            $span->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($span);
             MysqliIntegration::setConnectionInfo($span, $this);
             MysqliCommon::storeQuery($this, $query);
 
@@ -369,7 +371,7 @@ class MysqliIntegration extends Integration
         });
 
         // bool mysqli_stmt::execute ( void )
-        dd_trace('mysqli_stmt', 'execute', function () {
+        dd_trace('mysqli_stmt', 'execute', function () use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -377,19 +379,20 @@ class MysqliIntegration extends Integration
 
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.execute');
             $scope = MysqliIntegration::initScope('mysqli_stmt.execute', $resource);
-            $scope->getSpan()->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($scope->getSpan());
             return include __DIR__ . '/../../try_catch_finally.php';
         });
 
         // bool mysqli_stmt::execute ( void )
-        dd_trace('mysqli_stmt', 'get_result', function () {
+        dd_trace('mysqli_stmt', 'get_result', function () use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
             }
 
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.get_result');
-            $scope = MysqliIntegration::initScope('mysqli_stmt.get_result', $resource);
+            $span = MysqliIntegration::initScope('mysqli_stmt.get_result', $resource)->getSpan();
+            $integration->addTraceAnalyticsIfEnabledLegacy($span);
             $afterResult = function ($result) use ($resource) {
                 ObjectKVStore::propagate($this, $result, 'host_info');
                 ObjectKVStore::put($result, 'query', $resource);
@@ -408,7 +411,7 @@ class MysqliIntegration extends Integration
      */
     public static function initScope($operationName, $resource)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(MysqliIntegration::getInstance(), $operationName);
+        $scope = GlobalTracer::get()->startActiveSpan($operationName);
         /** @var \DDTrace\Span $span */
         $span = $scope->getSpan();
         $span->setTag(Tag::SPAN_TYPE, Type::SQL);

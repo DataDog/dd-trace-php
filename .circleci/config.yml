@@ -239,7 +239,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!tests/ext/sandbox/*' '!tests/ext/sandbox-prehook/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!dockerfiles/**/*.patch' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!src/ext/mpack/**' '!src/ext/third-party/**' '!LICENSE.*' || touch .failure
+          command: node_modules/.bin/eclint check '**/*' '!tests/ext/sandbox/*' '!tests/ext/sandbox-prehook/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.*.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!dockerfiles/**/*.patch' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!src/ext/mpack/**' '!src/ext/third-party/**' '!LICENSE.*' || touch .failure
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
@@ -423,8 +423,7 @@ jobs:
               cp "<<parameters.xfail_list>>" /usr/local/src/php/xfail_tests.list
               (
                 cd /usr/local/src/php
-                cat xfail_tests.list | xargs -n 1 grep -L '\-\-SKIPIF\-\-' | xargs -n 1 -r sed -i -e $'s/\(--FILE.*--\)/--SKIPIF--\\\n\\1/g' || true
-                cat xfail_tests.list | xargs -n 1 sed -i -e $'s/\(--SKIPIF--\)/\\1\\\nskip Unreliable output or flaky test/g'
+                cat xfail_tests.list | xargs -n 1 rm -f || true
               )
             fi
             cd /usr/local/src/php
@@ -435,7 +434,7 @@ jobs:
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php
+              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_init.php
       - run:
           command: |
             cd /usr/local/src/php
@@ -474,6 +473,9 @@ jobs:
       - run:
           name: Run auto-instrumentation tests
           command: composer test-auto-instrumentation -- --log-junit test-results/php-auto-instrumentation/results.xml
+      - run:
+          name: Run composer interoperability tests
+          command: composer test-composer -- --log-junit test-results/php-composer/results.xml
       - run:
           name: Run distributed-tracing tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 composer test-distributed-tracing -- --log-junit test-results/php-distributed-tracing/results.xml

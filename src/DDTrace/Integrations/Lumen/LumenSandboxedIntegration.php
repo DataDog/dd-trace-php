@@ -56,8 +56,7 @@ class LumenSandboxedIntegration extends SandboxedIntegration
                 $request = $args[0];
                 $rootSpan->overwriteOperationName('lumen.request');
                 $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
-                $rootSpan->setIntegration($integration);
-                $rootSpan->setTraceAnalyticsCandidate();
+                $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
                 $rootSpan->setTag(Tag::HTTP_URL, $request->getUri());
                 $rootSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
                 return false;

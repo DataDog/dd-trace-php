@@ -35,7 +35,6 @@ class RouteNameTest extends WebFrameworkTestCase
                 'http.method' => 'GET',
                 'http.url' => '/',
                 'http.status_code' => '200',
-                'integration.name' => 'symfony',
             ]),
         ]);
     }

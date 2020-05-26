@@ -49,7 +49,7 @@ abstract class CLITestCase extends IntegrationTestCase
     protected static function getInis()
     {
         return [
-            'ddtrace.request_init_hook' => __DIR__ . '/../../../bridge/dd_wrap_autoloader.php',
+            'ddtrace.request_init_hook' => __DIR__ . '/../../../bridge/dd_init.php',
             // Enabling `strict_mode` disables debug mode
             //'ddtrace.strict_mode' => '1',
         ];

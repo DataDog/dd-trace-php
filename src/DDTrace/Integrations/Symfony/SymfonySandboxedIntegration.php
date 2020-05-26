@@ -75,8 +75,7 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         $integration->appName = \ddtrace_config_app_name('symfony');
         $integration->symfonyRequestSpan->overwriteOperationName('symfony.request');
         $integration->symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
-        $integration->symfonyRequestSpan->setIntegration($integration);
-        $integration->symfonyRequestSpan->setTraceAnalyticsCandidate();
+        $integration->addTraceAnalyticsIfEnabledLegacy($integration->symfonyRequestSpan);
 
         dd_trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
@@ -162,7 +161,6 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
 
             $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);
             $span->resource = $resourceName;
-            $span->meta[Tag::INTEGRATION_NAME] = $integration->getName();
         };
         dd_trace_method('Symfony\Bridge\Twig\TwigEngine', 'render', $renderTraceCallback);
         dd_trace_method('Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $renderTraceCallback);
@@ -199,7 +197,6 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
                 }
 
                 if ($integration->symfonyRequestSpan) {
-                    $integration->symfonyRequestSpan->setIntegration($integration);
                     if (count($resourceParts) > 0) {
                         $integration->symfonyRequestSpan->setResource(\implode(' ', $resourceParts));
                     }

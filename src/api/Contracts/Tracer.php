@@ -10,7 +10,6 @@ namespace DDTrace\Contracts;
 use DDTrace\Exceptions\InvalidReferencesSet;
 use DDTrace\Exceptions\InvalidSpanOption;
 use DDTrace\Exceptions\UnsupportedFormat;
-use DDTrace\Integrations\Integration;
 use DDTrace\StartSpanOptions;
 
 interface Tracer
@@ -69,17 +68,6 @@ interface Tracer
      *               a ScopeManager.
      */
     public function startActiveSpan($operationName, $options = []);
-
-    /**
-     * Starts an active span for a supported integration and store the integration that originated the span in the
-     * span itself.
-     *
-     * @param Integration $integration
-     * @param string $operationName
-     * @param array $options
-     * @return Scope
-     */
-    public function startIntegrationScopeAndSpan(Integration $integration, $operationName, $options = []);
 
     /**
      * Starts and returns a new span representing a unit of work.

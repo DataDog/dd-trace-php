@@ -74,8 +74,7 @@ class ZendFrameworkSandboxedIntegration extends SandboxedIntegration
                 try {
                     /** @var Zend_Controller_Request_Abstract $request */
                     list($request) = $args;
-                    $rootSpan->setIntegration($integration);
-                    $rootSpan->setTraceAnalyticsCandidate();
+                    $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
                     $rootSpan->overwriteOperationName($integration->getOperationName());
                     $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
                     $controller = $request->getControllerName();

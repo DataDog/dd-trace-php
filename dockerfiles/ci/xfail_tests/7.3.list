@@ -1,4 +1,3 @@
-ext/pdo_sqlite/tests/common.phpt
 tests/classes/__call_004.phpt
 tests/classes/__call_005.phpt
 tests/classes/__call_007.phpt
@@ -302,3 +301,16 @@ Zend/tests/gc_042.phpt
 ext/readline/tests/libedit_callback_handler_install_001.phpt
 ext/readline/tests/libedit_callback_handler_remove_001.phpt
 ext/simplexml/tests/bug51615.phpt
+tests/lang/bug45392.phpt
+Zend/tests/bug68412.phpt
+Zend/tests/bug70805.phpt
+Zend/tests/bug70805_1.phpt
+Zend/tests/bug70805_2.phpt
+Zend/tests/gc_037.phpt
+ext/curl/tests/bug45161.phpt
+ext/curl/tests/bug79033.phpt
+ext/standard/tests/streams/bug78902.phpt
+Zend/tests/bug70253.phpt
+Zend/tests/bug70258.phpt
+ext/phar/tests/phar_buildfromiterator10.phpt
+ext/phar/tests/phar_buildfromiterator8.phpt

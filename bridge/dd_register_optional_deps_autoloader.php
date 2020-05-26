@@ -14,7 +14,7 @@ class OptionalDepsAutoloader
      */
     private static $autoloaderMapping = [
         "DDTrace\\Integrations\\ZendFramework\\V1\\TraceRequest" => 'DDTrace/Integrations/ZendFramework/V1/TraceRequest.php',
-        "DDTrace\\Log\\PsrLogger" => 'DDTrace/Log/PsrLogger.php',
+        "DDTrace\\Log\\PsrLogger" => 'api/Log/PsrLogger.php',
         "DDTrace\\OpenTracer\\Tracer" => 'DDTrace/OpenTracer/Tracer.php',
         "DDTrace\\OpenTracer\\Span" => 'DDTrace/OpenTracer/Span.php',
         "DDTrace\\OpenTracer\\Scope" => 'DDTrace/OpenTracer/Scope.php',
@@ -26,16 +26,16 @@ class OptionalDepsAutoloader
         "DDTrace\\Integrations\\Symfony\\V3\\SymfonyBundle" => 'DDTrace/Integrations/Symfony/V3/SymfonyBundle.php',
         "DDTrace\\Integrations\\Laravel\\V5\\LaravelIntegrationLoader" => 'DDTrace/Integrations/Laravel/V5/LaravelIntegrationLoader.php',
         "DDTrace\\Integrations\\Laravel\\V4\\LaravelProvider" => 'DDTrace/Integrations/Laravel/V4/LaravelProvider.php',
-        "DDTrace\\Log\\NullLogger" => 'DDTrace/Log/NullLogger.php',
-        "DDTrace\\NoopTracer" => 'DDTrace/NoopTracer.php',
-        "DDTrace\\NoopSpan" => 'DDTrace/NoopSpan.php',
-        "DDTrace\\NoopScope" => 'DDTrace/NoopScope.php',
+        "DDTrace\\Log\\NullLogger" => 'api/Log/NullLogger.php',
+        "DDTrace\\NoopTracer" => 'api/NoopTracer.php',
+        "DDTrace\\NoopSpan" => 'api/NoopSpan.php',
+        "DDTrace\\NoopScope" => 'api/NoopScope.php',
         "DDTrace\\Encoders\\Json" => 'DDTrace/Encoders/Json.php',
         "DDTrace\\Encoders\\Noop" => 'DDTrace/Encoders/Noop.php',
         "DDTrace\\Propagators\\Noop" => 'DDTrace/Propagators/Noop.php',
         "DDTrace\\Transport\\Noop" => 'DDTrace/Transport/Noop.php',
-        "DDTrace\\NoopScopeManager" => 'DDTrace/NoopScopeManager.php',
-        "DDTrace\\NoopSpanContext" => 'DDTrace/NoopSpanContext.php',
+        "DDTrace\\NoopScopeManager" => 'api/NoopScopeManager.php',
+        "DDTrace\\NoopSpanContext" => 'api/NoopSpanContext.php',
     ];
 
     /**
@@ -48,3 +48,6 @@ class OptionalDepsAutoloader
         }
     }
 }
+
+// Registering it
+spl_autoload_register(['\DDTrace\Bridge\OptionalDepsAutoloader', 'load'], true, true);

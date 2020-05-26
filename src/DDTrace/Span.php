@@ -2,7 +2,6 @@
 
 namespace DDTrace;
 
-use DDTrace\Integrations\Integration;
 use DDTrace\Data\Span as DataSpan;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use DDTrace\SpanContext as SpanContext;
@@ -390,26 +389,6 @@ final class Span extends DataSpan
     public function getAllBaggageItems()
     {
         return $this->context->baggageItems;
-    }
-
-    /**
-     * {@inheritdoc}
-     *
-     * @param Integration $integration
-     * @return self
-     */
-    public function setIntegration(Integration $integration)
-    {
-        $this->integration = $integration;
-        return $this;
-    }
-
-    /**
-     * @return null|Integration
-     */
-    public function getIntegration()
-    {
-        return $this->integration;
     }
 
     /**

@@ -45,41 +45,32 @@ class CommonScenariosSandboxedTest extends CommonScenariosTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'lumen',
                     ])->withChildren([
                         SpanAssertion::build(
                             'laravel.view.render',
                             'lumen_test_app',
                             'web',
                             'simple_view'
-                        )->withExactTags([
-                            'integration.name' => 'laravel',
-                        ])->withChildren([
+                        )->withChildren([
                             SpanAssertion::build(
                                 'lumen.view',
                                 'lumen_test_app',
                                 'web',
                                 'lumen.view'
-                            )->withExactTags([
-                                'integration.name' => 'lumen',
-                            ]),
+                            )->withExactTags([]),
                             SpanAssertion::build(
                                 'laravel.event.handle',
                                 'lumen_test_app',
                                 'web',
                                 'composing: simple_view'
-                            )->withExactTags([
-                                'integration.name' => 'laravel',
-                            ]),
+                            )->withExactTags([]),
                         ]),
                         SpanAssertion::build(
                             'laravel.event.handle',
                             'lumen_test_app',
                             'web',
                             'creating: simple_view'
-                        )->withExactTags([
-                            'integration.name' => 'laravel',
-                        ])
+                        )->withExactTags([])
                     ]),
                 ],
                 'A GET request with an exception' => $this->getErrorTrace(),
@@ -103,41 +94,32 @@ class CommonScenariosSandboxedTest extends CommonScenariosTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'lumen',
                     ])->withChildren([
                         SpanAssertion::build(
                             'laravel.view.render',
                             'lumen_test_app',
                             'web',
                             'simple_view'
-                        )->withExactTags([
-                            'integration.name' => 'laravel',
-                        ])->withChildren([
+                        )->withExactTags([])->withChildren([
                             SpanAssertion::build(
                                 'lumen.view',
                                 'lumen_test_app',
                                 'web',
                                 '*/resources/views/simple_view.blade.php'
-                            )->withExactTags([
-                                'integration.name' => 'laravel',
-                            ]),
+                            )->withExactTags([]),
                             SpanAssertion::build(
                                 'laravel.event.handle',
                                 'lumen_test_app',
                                 'web',
                                 'composing: simple_view'
-                            )->withExactTags([
-                                'integration.name' => 'laravel',
-                            ]),
+                            )->withExactTags([]),
                         ]),
                         SpanAssertion::build(
                             'laravel.event.handle',
                             'lumen_test_app',
                             'web',
                             'creating: simple_view'
-                        )->withExactTags([
-                            'integration.name' => 'laravel',
-                        ])
+                        )->withExactTags([])
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -151,7 +133,6 @@ class CommonScenariosSandboxedTest extends CommonScenariosTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                        'integration.name' => 'lumen',
                     ])->withExistingTagsNames([
                         'error.stack',
                     ])->setError('Exception', 'Controller error'),

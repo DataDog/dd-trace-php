@@ -55,7 +55,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple',
                             'http.status_code' => '200',
-                            'integration.name' => 'symfony',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('symfony.kernel.handle')
@@ -83,7 +82,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple_view',
                             'http.status_code' => '200',
-                            'integration.name' => 'symfony',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('symfony.kernel.handle')
@@ -98,7 +96,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                         'Twig\Environment twig_template.html.twig'
                                     )
                                         ->withExactTags([
-                                            'integration.name' => 'symfony',
                                         ]),
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
@@ -120,7 +117,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error',
                             'http.status_code' => '500',
-                            'integration.name' => 'symfony',
                         ])
                         ->setError('Exception', 'An exception occurred')
                         ->withExistingTagsNames(['error.stack'])

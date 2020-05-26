@@ -68,6 +68,12 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             SpanAssertion::exists('wp_maybe_load_widgets'),
             SpanAssertion::exists('create_initial_post_types'),
             SpanAssertion::exists('create_initial_taxonomies'),
+
+            SpanAssertion::exists('mysqli_query'),
+            SpanAssertion::exists('mysqli_query'),
+            SpanAssertion::exists('mysqli_query'),
+            SpanAssertion::exists('mysqli_query'),
+            SpanAssertion::exists('mysqli_real_connect'),
         ];
 
         $exit_children = [
@@ -102,7 +108,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'wordpress',
                     ])->withChildren($children),
                 ],
                 'A simple GET request with a view' => [
@@ -115,7 +120,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'wordpress',
                     ])->withChildren([
                         SpanAssertion::exists('WP.init'),
                         SpanAssertion::exists('WP.main')
@@ -161,6 +165,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                     ]),
                             ]),
                         SpanAssertion::exists('load_template'),
+                        SpanAssertion::exists('mysqli_query'),
+                        SpanAssertion::exists('mysqli_query'),
+                        SpanAssertion::exists('mysqli_query'),
+                        SpanAssertion::exists('mysqli_query'),
+                        SpanAssertion::exists('mysqli_real_connect'),
                         SpanAssertion::exists('get_header')
                             ->withChildren([
                                 SpanAssertion::exists('load_template')
@@ -216,7 +225,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error',
                         // WordPress doesn't appear to automatically set the proper error code
                         'http.status_code' => '200',
-                        'integration.name' => 'wordpress',
                     ])->withChildren([
                         SpanAssertion::exists('WP.main')
                             // There's no way to propagate this to the root span in userland yet
@@ -248,6 +256,11 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         SpanAssertion::exists('wp_maybe_load_widgets'),
                         SpanAssertion::exists('create_initial_post_types'),
                         SpanAssertion::exists('create_initial_taxonomies'),
+                        SpanAssertion::exists('mysqli_query'),
+                        SpanAssertion::exists('mysqli_query'),
+                        SpanAssertion::exists('mysqli_query'),
+                        SpanAssertion::exists('mysqli_query'),
+                        SpanAssertion::exists('mysqli_real_connect'),
                     ]),
                 ],
             ]

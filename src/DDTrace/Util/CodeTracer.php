@@ -66,12 +66,8 @@ final class CodeTracer
 
                 $span = $scope->getSpan();
 
-                if ($integration) {
-                    $span->setIntegration($integration);
-                }
-
-                if ($isTraceAnalyticsCandidate) {
-                    $span->setTraceAnalyticsCandidate();
+                if ($integration && $isTraceAnalyticsCandidate) {
+                    $integration->addTraceAnalyticsIfEnabledLegacy($span);
                 }
 
                 if (null !== $preCallHook) {

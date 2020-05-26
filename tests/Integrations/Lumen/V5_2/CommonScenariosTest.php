@@ -53,16 +53,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'lumen',
                     ])->withChildren([
                         SpanAssertion::build(
                             'lumen.view',
                             'lumen_test_app',
                             'web',
                             'lumen.view'
-                        )->withExactTags([
-                            'integration.name' => 'lumen',
-                        ]),
+                        )->withExactTags([]),
                     ]),
                 ],
                 'A GET request with an exception' => $this->getErrorTrace(),
@@ -84,7 +81,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost:9999/simple',
                 'http.status_code' => '200',
-                'integration.name' => 'lumen',
             ]),
         ];
     }
@@ -102,7 +98,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost:9999/error',
                 'http.status_code' => '500',
-                'integration.name' => 'lumen',
             ])->setError(),
         ];
     }

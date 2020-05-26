@@ -51,7 +51,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'cakephp',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',
@@ -73,7 +72,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'cakephp',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',
@@ -88,7 +86,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'SimpleView/index.ctp'
                         )->withExactTags([
                             'cakephp.view' => 'SimpleView/index.ctp',
-                            'integration.name' => 'cakephp',
                         ]),
                     ]),
                 ],
@@ -104,7 +101,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                        'integration.name' => 'cakephp',
                     ])->withExistingTagsNames([
                         'error.stack'
                     ])->setError(
@@ -126,7 +122,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'Errors/index.ctp'
                         )->withExactTags([
                             'cakephp.view' => 'Errors/index.ctp',
-                            'integration.name' => 'cakephp',
                         ]),
                     ]),
                 ],

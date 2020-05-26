@@ -198,7 +198,7 @@ $initHookReachable = quiet_file_exists($initHook);
 renderSuccessOrFailure('ddtrace.request_init_hook reachable', $initHookReachable);
 $openBaseDirs = ini_get('open_basedir') ? explode(':', ini_get('open_basedir')) : [];
 if ($initHookReachable) {
-    $initHookHasRun = function_exists('DDTrace\\Bridge\\dd_wrap_autoloader');
+    $initHookHasRun = function_exists('DDTrace\\Bridge\\dd_tracing_enabled');
     renderSuccessOrFailure('ddtrace.request_init_hook has run', $initHookHasRun);
 } elseif($initHook && $openBaseDirs) {
     $initHookDir = dirname($initHook);

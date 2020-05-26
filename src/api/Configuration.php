@@ -26,7 +26,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isEnabled()
     {
-        return \ddtrace_config_trace_enabled();
+        return $this->boolValue('trace.enabled', true);
     }
 
     /**
@@ -36,7 +36,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDebugModeEnabled()
     {
-        return \ddtrace_config_debug_enabled();
+        return $this->boolValue('trace.debug', false);
     }
 
     /**
@@ -46,7 +46,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isDistributedTracingEnabled()
     {
-        return \ddtrace_config_distributed_tracing_enabled();
+        return $this->boolValue('distributed.tracing', true);
     }
 
     /**
@@ -56,7 +56,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isAnalyticsEnabled()
     {
-        return \ddtrace_config_analytics_enabled();
+        return $this->boolValue('trace.analytics.enabled', false);
     }
 
     /**
@@ -66,7 +66,8 @@ class Configuration extends AbstractConfiguration
      */
     public function isPrioritySamplingEnabled()
     {
-        return \ddtrace_config_priority_sampling_enabled();
+        return $this->isDistributedTracingEnabled()
+            && $this->boolValue('priority.sampling', true);
     }
 
     /**
@@ -80,7 +81,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isAutofinishSpansEnabled()
     {
-        return \ddtrace_config_autofinish_span_enabled();
+        return $this->boolValue('autofinish.spans', false);
     }
 
     /**
@@ -90,7 +91,9 @@ class Configuration extends AbstractConfiguration
      */
     public function getSamplingRate()
     {
-        return \ddtrace_config_sampling_rate();
+        // DD_SAMPLING_RATE is deprecated and will be removed in 0.40.0
+        $deprecatedValue = $this->floatValue('sampling.rate', 1.0, 0.0, 1.0);
+        return $this->floatValue('trace.sample.rate', $deprecatedValue, 0.0, 1.0);
     }
 
     /**
@@ -110,7 +113,36 @@ class Configuration extends AbstractConfiguration
      */
     public function getSamplingRules()
     {
-        return \ddtrace_config_sampling_rules();
+        if (null !== $this->samplingRulesCache) {
+            return $this->samplingRulesCache;
+        }
+
+        $this->samplingRulesCache = [];
+
+        $parsed = \json_decode($this->stringValue('trace.sampling.rules'), true);
+        if (false === $parsed) {
+            $parsed = [];
+        }
+
+        // We do a proper parsing here to make sure that once the sampling rules leave this method
+        // they are always properly defined.
+        if (is_array($parsed)) {
+            foreach ($parsed as $rule) {
+                if (!is_array($rule) || !isset($rule['sample_rate'])) {
+                    continue;
+                }
+                $service = isset($rule['service']) ? strval($rule['service']) : '.*';
+                $name = isset($rule['name']) ? strval($rule['name']) : '.*';
+                $rate = isset($rule['sample_rate']) ? floatval($rule['sample_rate']) : 1.0;
+                $this->samplingRulesCache[] = [
+                    'service' => $service,
+                    'name' => $name,
+                    'sample_rate' => $rate,
+                ];
+            }
+        }
+
+        return $this->samplingRulesCache;
     }
 
     /**
@@ -121,7 +153,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isIntegrationEnabled($name)
     {
-        return \ddtrace_config_integration_enabled($name);
+        return $this->isEnabled() && !$this->inArray('integrations.disabled', $name);
     }
 
     /**
@@ -129,7 +161,7 @@ class Configuration extends AbstractConfiguration
      */
     public function getGlobalTags()
     {
-        return \ddtrace_config_global_tags();
+        return $this->associativeStringArrayValue('trace.global.tags');
     }
 
     /**
@@ -139,7 +171,7 @@ class Configuration extends AbstractConfiguration
     {
         // We use the format 'service.mapping' instead of 'trace.service.mapping' for consistency
         // with java naming pattern for this very same config: DD_SERVICE_MAPPING
-        return \ddtrace_config_service_mapping();
+        return $this->associativeStringArrayValue('service.mapping');
     }
 
     /**
@@ -149,7 +181,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isHostnameReportingEnabled()
     {
-        return \ddtrace_config_hostname_reporting_enabled();
+        return $this->boolValue('trace.report.hostname', false);
     }
 
     /**
@@ -159,7 +191,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isURLAsResourceNameEnabled()
     {
-        return \ddtrace_config_url_resource_name_enabled();
+        return $this->boolValue('trace.url.as.resource.names.enabled', true);
     }
 
     /**
@@ -169,7 +201,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isHttpClientSplitByDomain()
     {
-        return \ddtrace_config_http_client_split_by_domain_enabled();
+        return $this->boolValue('trace.http.client.split.by.domain', false);
     }
 
     /**
@@ -179,7 +211,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isSandboxEnabled()
     {
-        return \ddtrace_config_sandbox_enabled();
+        return $this->boolValue('trace.sandbox.enabled', true);
     }
 
     /**
@@ -190,6 +222,9 @@ class Configuration extends AbstractConfiguration
      */
     public function appName($default = '')
     {
-        return \ddtrace_config_app_name($default);
+        $service = $this->stringValue('service', null);
+        $service = $service ?: $this->stringValue('service.name', null);
+        $service = $service ?: $default;
+        return $service;
     }
 }

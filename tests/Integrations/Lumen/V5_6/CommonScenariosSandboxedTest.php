@@ -51,7 +51,6 @@ class CommonScenariosSandboxedTest extends V5_2_CommonScenariosSandboxedTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'lumen',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -65,24 +64,19 @@ class CommonScenariosSandboxedTest extends V5_2_CommonScenariosSandboxedTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'lumen',
                     ])->withChildren([
                         SpanAssertion::build(
                             'laravel.view.render',
                             'lumen_test_app',
                             'web',
                             'simple_view'
-                        )->withExactTags([
-                            'integration.name' => 'laravel',
-                        ])->withChildren([
+                        )->withExactTags([])->withChildren([
                             SpanAssertion::build(
                                 'lumen.view',
                                 'lumen_test_app',
                                 'web',
                                 '*/resources/views/simple_view.blade.php'
-                            )->withExactTags([
-                                'integration.name' => 'laravel',
-                            ]),
+                            )->withExactTags([]),
                         ]),
                     ]),
                 ],
@@ -97,7 +91,6 @@ class CommonScenariosSandboxedTest extends V5_2_CommonScenariosSandboxedTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                        'integration.name' => 'lumen',
                     ])->withExistingTagsNames([
                         'error.stack',
                     ])->setError('Exception', 'Controller error'),

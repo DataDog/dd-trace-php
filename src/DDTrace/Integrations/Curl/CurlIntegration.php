@@ -63,9 +63,9 @@ class CurlIntegration extends Integration
                     return dd_trace_forward_call();
                 }
 
-                $scope = $tracer->startIntegrationScopeAndSpan($integration, 'curl_exec');
+                $scope = $tracer->startActiveSpan('curl_exec');
                 $span = $scope->getSpan();
-                $span->setTraceAnalyticsCandidate();
+                $integration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
                 CurlIntegration::injectDistributedTracingHeaders($ch);
 
@@ -128,11 +128,12 @@ class CurlIntegration extends Integration
 
         dd_trace('curl_setopt', [
             'instrument_when_limited' => 1,
-            'innerhook' => function ($ch, $option, $value) {
+            'innerhook' => function ($ch = null, $option = null, $value = null) {
                 // Note that curl_setopt with option CURLOPT_HTTPHEADER overwrite data instead of appending it if called
                 // multiple times on the same resource.
                 if (
-                    $option === \CURLOPT_HTTPHEADER
+                    null !== $ch
+                    && $option === \CURLOPT_HTTPHEADER
                     && \is_array($value)
                     && \ddtrace_config_distributed_tracing_enabled()
                 ) {

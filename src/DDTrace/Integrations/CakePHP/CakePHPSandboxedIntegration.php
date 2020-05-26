@@ -46,8 +46,7 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
             }
             $integration->appName = \ddtrace_config_app_name(CakePHPSandboxedIntegration::NAME);
             $integration->rootSpan = $scope->getSpan();
-            $integration->rootSpan->setIntegration($integration);
-            $integration->rootSpan->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($integration->rootSpan);
             $integration->rootSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
             if ('cli' === PHP_SAPI) {
                 $integration->rootSpan->overwriteOperationName('cakephp.console');
@@ -96,6 +95,14 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
                 },
             ]);
 
+            \dd_trace_method('CakeResponse', 'statusCode', [
+                'instrument_when_limited' => 1,
+                'posthook' => function (SpanData $span, $args, $return) use ($integration) {
+                    $integration->rootSpan->setTag(Tag::HTTP_STATUS_CODE, $return);
+                    return false;
+                },
+            ]);
+
             // Create a trace span for every template rendered
             \dd_trace_method('View', 'render', function (SpanData $span) use ($integration) {
                 $span->name = 'cakephp.view';
@@ -104,7 +111,6 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
                 $span->resource = $file;
                 $span->meta = ['cakephp.view' => $file];
                 $span->service = $integration->appName;
-                $integration->addIntegrationInfo($span);
             });
 
             return false;

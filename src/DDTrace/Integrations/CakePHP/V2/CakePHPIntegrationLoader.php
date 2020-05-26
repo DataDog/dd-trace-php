@@ -28,8 +28,7 @@ class CakePHPIntegrationLoader
         }
         $this->rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
         // Overwrite the default web integration
-        $this->rootSpan->setIntegration($integration);
-        $this->rootSpan->setTraceAnalyticsCandidate();
+        $integration->addTraceAnalyticsIfEnabledLegacy($this->rootSpan);
         $this->rootSpan->overwriteOperationName('cakephp.request');
         $this->rootSpan->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name(CakePHPIntegration::NAME));
 
@@ -74,7 +73,7 @@ class CakePHPIntegrationLoader
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
             }
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'cakephp.view');
+            $scope = $tracer->startActiveSpan('cakephp.view');
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
             $file = $this->viewPath . '/' . $this->view . $this->ext;
             $scope->getSpan()->setTag(Tag::RESOURCE_NAME, $file);

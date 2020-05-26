@@ -52,7 +52,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'slim',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -66,7 +65,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'slim',
                     ])->withChildren([
                         SpanAssertion::build(
                             'slim.view',
@@ -75,7 +73,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'simple_view.phtml'
                         )->withExactTags([
                             'slim.view' => 'simple_view.phtml',
-                            'integration.name' => 'slim',
                         ])
                     ]),
                 ],
@@ -90,7 +87,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                        'integration.name' => 'slim',
                     ])->withExistingTagsNames([
                         'error.stack'
                     ])->setError(null, 'Foo error'),

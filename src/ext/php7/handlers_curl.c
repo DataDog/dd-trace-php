@@ -55,7 +55,7 @@ static void (*_dd_curl_setopt_array_handler)(INTERNAL_FUNCTION_PARAMETERS) = NUL
 
 // Should be run after request_init_hook is run *and* all the classes are loaded
 static bool _dd_load_curl_integration(void) {
-    if (!get_dd_trace_sandbox_enabled()) {
+    if (!get_dd_trace_sandbox_enabled() || DDTRACE_G(disable_in_current_request)) {
         return false;
     }
 
@@ -93,6 +93,12 @@ static bool _dd_load_curl_integration(void) {
     return true;
 }
 
+static void _dd_ArrayKVStore_deleteResource(zval *ch) {
+    zval retval;
+    zend_call_method_with_1_params(NULL, _dd_ArrayKVStore_ce, &_dd_ArrayKVStore_deleteResource_fe, "deleteresource",
+                                   &retval, ch);
+}
+
 static zval *_dd_ArrayKVStore_getForResource(zval *ch, zval *format, zval *value, zval *retval) {
     zval args[3] = {*ch, *format, *value};
 
@@ -121,9 +127,7 @@ ZEND_FUNCTION(ddtrace_curl_close) {
 
     if (_dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "r", &ch) == SUCCESS) {
-        zval retval;
-        zend_call_method_with_1_params(NULL, _dd_ArrayKVStore_ce, &_dd_ArrayKVStore_deleteResource_fe, "deleteresource",
-                                       &retval, ch);
+        _dd_ArrayKVStore_deleteResource(ch);
     }
 
     ddtrace_restore_error_handling(&eh);
@@ -323,8 +327,13 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
 ZEND_FUNCTION(ddtrace_curl_init) {
     _dd_curl_init_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (!le_curl && Z_TYPE_P(return_value) == IS_RESOURCE) {
-        le_curl = Z_RES_TYPE_P(return_value);
+    if (Z_TYPE_P(return_value) == IS_RESOURCE) {
+        if (!le_curl) {
+            le_curl = Z_RES_TYPE_P(return_value);
+        }
+        if (_dd_load_curl_integration()) {
+            _dd_ArrayKVStore_deleteResource(return_value);
+        }
     }
 }
 
@@ -400,7 +409,7 @@ void ddtrace_curl_handlers_startup(void) {
     zend_string *curl = zend_string_init(ZEND_STRL("curl"), 0);
     _dd_ext_curl_loaded = zend_hash_exists(&module_registry, curl);
     zend_string_release(curl);
-    if (!_dd_ext_curl_loaded || !get_dd_trace_sandbox_enabled()) {
+    if (!_dd_ext_curl_loaded) {
         return;
     }
 

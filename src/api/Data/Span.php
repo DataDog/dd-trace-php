@@ -5,7 +5,6 @@ namespace DDTrace\Data;
 use DDTrace\Time;
 use DDTrace\Data\SpanContext as SpanContextData;
 use DDTrace\Contracts\Span as SpanInterface;
-use DDTrace\Integrations\Integration;
 
 abstract class Span implements SpanInterface
 {
@@ -74,10 +73,6 @@ abstract class Span implements SpanInterface
      */
     public $hasError = false;
 
-    /**
-     *  @var Integration
-     */
-    public $integration;
     /**
      * @var array
      */

@@ -31,7 +31,6 @@ final class MongoClientIntegration extends Integration
         // MongoClient::__construct ([ string $server = "mongodb://localhost:27017"
         // [, array $options = array("connect" => TRUE) [, array $driver_options ]]] )
         self::traceMethod('__construct', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
             if (isset($args[0])) {
                 $span->setTag(Tag::MONGODB_SERVER, Obfuscation::dsn($args[0]));
                 $dbName = MongoSandboxedIntegration::extractDatabaseNameFromDsn($args[0]);
@@ -45,18 +44,15 @@ final class MongoClientIntegration extends Integration
         }, null, $mongoIntegration);
         // MongoCollection MongoClient::selectCollection ( string $db , string $collection )
         self::traceMethod('selectCollection', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_DATABASE, $args[0]);
             $span->setTag(Tag::MONGODB_COLLECTION, $args[1]);
         }, null, $mongoIntegration);
         // MongoDB MongoClient::selectDB ( string $name )
         self::traceMethod('selectDB', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_DATABASE, $args[0]);
         }, null, $mongoIntegration);
         // bool MongoClient::setReadPreference ( string $read_preference [, array $tags ] )
         self::traceMethod('setReadPreference', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_READ_PREFERENCE, $args[0]);
         }, null, $mongoIntegration);
 

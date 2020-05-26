@@ -29,7 +29,6 @@ class TraceSearchConfigSandboxedTest extends TraceSearchConfigTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'laravel',
                     ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
@@ -40,7 +39,6 @@ class TraceSearchConfigSandboxedTest extends TraceSearchConfigTest
                             ->withChildren([
                                 SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple')
                                     ->withExactTags([
-                                        'integration.name' => 'laravel',
                                     ]),
                                 SpanAssertion::exists('laravel.event.handle'),
                                 SpanAssertion::exists('laravel.event.handle'),
