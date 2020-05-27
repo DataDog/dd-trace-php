@@ -89,6 +89,7 @@ void ddtrace_config_shutdown(void);
     INT(get_dd_trace_agent_timeout, "DD_TRACE_AGENT_TIMEOUT", DD_TRACE_AGENT_TIMEOUT)                                \
     INT(get_dd_trace_agent_connect_timeout, "DD_TRACE_AGENT_CONNECT_TIMEOUT", DD_TRACE_AGENT_CONNECT_TIMEOUT)        \
     INT(get_dd_trace_debug_prng_seed, "DD_TRACE_DEBUG_PRNG_SEED", -1)                                                \
+    BOOL(get_dd_trace_ignore_legacy_blacklist, "DD_TRACE_IGNORE_LEGACY_BLACKLIST", false)                            \
     BOOL(get_dd_log_backtrace, "DD_LOG_BACKTRACE", false)                                                            \
     BOOL(get_dd_trace_generate_root_span, "DD_TRACE_GENERATE_ROOT_SPAN", true)                                       \
     BOOL(get_dd_trace_sandbox_enabled, "DD_TRACE_SANDBOX_ENABLED", DD_TRACE_SANDBOX_ENABLED)                         \
