@@ -159,6 +159,10 @@ if [[ -n $PHP_THREAD_SAFETY ]]; then
     VERSION_SUFFIX="-zts"
 fi
 
+if [ "$(invoke_php -i | awk '/^Debug Build/ { print $4 }')" = "yes" ] ; then
+    VERSION_SUFFIX="${VERSION_SUFFIX?}-debug"
+fi
+
 EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}.so"
 EXTENSION_FILE_PATH="${EXTENSION_DIR}/${EXTENSION_NAME}"
 INI_FILE_CONTENTS=$(cat <<EOF
