@@ -202,12 +202,15 @@ if ($initHookReachable) {
     renderSuccessOrFailure('ddtrace.request_init_hook has run', $initHookHasRun);
 } elseif($initHook && $openBaseDirs) {
     $initHookDir = dirname($initHook);
-    if (!in_array($initHookDir, $openBaseDirs)) {
+    $rootDir = dirname($initHookDir);
+    if (!in_array($rootDir, $openBaseDirs)) {
         $hint = <<<EOT
 Ini directive 'open_basedir' has been set but it does not include the directory where
 the extension is installed. This prevents our extension PHP code to be executed.
 After consulting with your system admin, you might
-want to add the path to the folder where the extension is installed to the ini directive 'open_basedir'.
+want to add the path to the folder where the extension is installed ('/opt/datadog-php/dd-trace-sources' by default)
+to the ini directive 'open_basedir'.
+More info here: https://www.php.net/manual/en/ini.core.php#ini.open-basedir
 EOT;
         sub_paragraph($hint);
     }
