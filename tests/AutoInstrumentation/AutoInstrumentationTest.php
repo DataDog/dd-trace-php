@@ -86,7 +86,7 @@ class AutoInstrumentationTest extends BaseTestCase
         $webServer = new WebServer($indexFile, $host = '0.0.0.0', $port = 9876);
         $webServer->mergeInis([
             'error_log' => __DIR__ . '/error.log',
-            'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_init.php',
+            'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
         ]);
         $webServer->mergeEnvs([
             'DD_TRACE_DEBUG' => 'true',

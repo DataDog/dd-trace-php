@@ -1,3 +1,3 @@
 <?php
 
-echo $this_does_not_exist; // E_NOTICE
+ddtrace_init(__DIR__ . '/raises-e-notice');

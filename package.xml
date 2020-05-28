@@ -119,10 +119,32 @@
             <dir name="tests">
                 <dir name="ext">
                     <dir name="includes">
+                        <file name="dd_init.php" role="test" />
+                        <file name="request_init_hook.inc" role="test" />
                         <file name="sanity_check.php" role="test" />
                         <file name="try_catch_finally.php" role="test" />
                     </dir>
                     <dir name="request-init-hook">
+                        <dir name="contains-binary-character">
+                            <file name="dd_init.php" role="test" />
+                        </dir>
+                        <dir name="raises-e-notice">
+                            <file name="dd_init.php" role="test" />
+                        </dir>
+                        <dir name="raises-fatal-error">
+                            <file name="dd_init.php" role="test" />
+                        </dir>
+                        <dir name="throws-exception">
+                            <file name="dd_init.php" role="test" />
+                        </dir>
+                        <file name="auto_prepend_file.inc" role="test" />
+                        <file name="auto_prepend_file_none.phpt" role="test" />
+                        <file name="auto_prepend_file_once.phpt" role="test" />
+                        <file name="auto_prepend_file_original.phpt" role="test" />
+                        <file name="auto_prepend_file_original_disabled.phpt" role="test" />
+                        <file name="auto_prepend_file_original_disabled_ini.phpt" role="test" />
+                        <file name="dd_init_open_basedir.inc" role="test" />
+                        <file name="dd_init_open_basedir.phpt" role="test" />
                         <file name="error_get_last_is_unaffected.phpt" role="test" />
                         <file name="raises_e_notice.php" role="test" />
                         <file name="contains_binary_character.php" role="test" />
@@ -132,7 +154,9 @@
                         <file name="request_init_hook_file_not_found.phpt" role="test" />
                         <file name="request_init_hook_ignores_exceptions.phpt" role="test" />
                         <file name="request_init_hook_ignores_fatal_errors.phpt" role="test" />
+                        <file name="request_init_hook_ignores_fatal_errors_php_54.phpt" role="test" />
                         <file name="run_file_before_request_handling.phpt" role="test" />
+                        <file name="shebang.phpt" role="test" />
                         <file name="throws_exception.php" role="test" />
                     </dir>
                     <file name="access_modifier_method_access_hook.phpt" role="test" />

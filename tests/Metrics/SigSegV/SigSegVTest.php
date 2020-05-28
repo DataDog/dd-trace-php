@@ -35,7 +35,7 @@ class SigSegVTest extends WebFrameworkTestCase
         $log = __DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/' . WebServer::ERROR_LOG_NAME;
         self::assertFileNotExists($log);
 
-        $spec = GetSpec::create('sigsegv', '/');
+        $spec = GetSpec::create('sigsegv', '/sigsegv.php');
         $this->call($spec);
 
         self::assertFileExists($log);

@@ -152,6 +152,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_trace_enabled, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_init, 0, 0, 1)
+ZEND_ARG_INFO(0, dir)
+ZEND_END_ARG_INFO()
+
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
 
 static PHP_GINIT_FUNCTION(ddtrace) {
@@ -314,6 +318,11 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    DDTRACE_G(request_init_hook_loaded) = 0;
+    if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
+        dd_request_init_hook_rinit(TSRMLS_C);
+    }
+
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
@@ -340,11 +349,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     _dd_register_known_calls();
 #endif
 
-    if (DDTRACE_G(request_init_hook)) {
-        DD_PRINTF("%s", DDTRACE_G(request_init_hook));
-        dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
-    }
-
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset(TSRMLS_C);
 
@@ -367,6 +371,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_free_span_id_stack(TSRMLS_C);
     ddtrace_free_span_stacks(TSRMLS_C);
     ddtrace_coms_rshutdown();
+
+    if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
+        dd_request_init_hook_rshutdown(TSRMLS_C);
+    }
 
     return SUCCESS;
 }
@@ -962,6 +970,29 @@ static PHP_FUNCTION(ddtrace_config_integration_enabled) {
     RETVAL_BOOL(ddtrace_config_integration_enabled(integration TSRMLS_CC));
 }
 
+static PHP_FUNCTION(ddtrace_init) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    if (DDTRACE_G(request_init_hook_loaded) == 1) {
+        RETURN_FALSE
+    }
+
+    ddtrace_string dir;
+    int ret = 0;
+    DDTRACE_G(request_init_hook_loaded) = 1;
+    if (ddtrace_config_trace_enabled(TSRMLS_C) &&
+        zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &dir.ptr, &dir.len) == SUCCESS) {
+        char *init_file = emalloc(dir.len + sizeof("/dd_init.php"));
+        sprintf(init_file, "%s/dd_init.php", dir.ptr);
+        ret = dd_execute_php_file(init_file TSRMLS_CC);
+        efree(init_file);
+    }
+
+    if (DDTRACE_G(auto_prepend_file) && DDTRACE_G(auto_prepend_file)[0]) {
+        dd_execute_auto_prepend_file(DDTRACE_G(auto_prepend_file) TSRMLS_CC);
+    }
+    RETVAL_BOOL(ret);
+}
+
 static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     char *payload = NULL;
@@ -1229,6 +1260,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(ddtrace_config_distributed_tracing_enabled, arginfo_ddtrace_config_distributed_tracing_enabled),
     DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
     DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled),
+    DDTRACE_FE(ddtrace_init, arginfo_ddtrace_init),
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,

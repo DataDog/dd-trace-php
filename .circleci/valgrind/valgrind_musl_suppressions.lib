@@ -104,3 +104,18 @@
     fun:do_cli
     fun:main
 }
+{
+    <fatal error leak on lt 70>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:ZEND_SEND_VAL_SPEC_TMP_HANDLER
+    fun:execute_ex
+    fun:zend_execute
+    fun:zend_execute_scripts
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}

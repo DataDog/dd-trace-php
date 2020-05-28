@@ -9,6 +9,6 @@ ddtrace.request_init_hook=tests/ext/request-init-hook/this_file_doesnt_exist.php
 echo "Request start" . PHP_EOL;
 
 ?>
---EXPECTF--
-Error opening request init hook: %s/this_file_doesnt_exist.php
+--EXPECT--
+Cannot open request init hook; file does not exist: 'tests/ext/request-init-hook/this_file_doesnt_exist.php'
 Request start

@@ -40,7 +40,7 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [],
             [
-                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_init.php',
+                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
             ]
         );
 

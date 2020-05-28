@@ -50,11 +50,11 @@ install_all: install install_ini
 
 test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE)
-	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -d ddtrace.request_init_hook=$(ROOT_DIR)/bridge/dd_init.php $(TESTS)"
+	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -d ddtrace.request_init_hook=$(ROOT_DIR)/bridge/dd_wrap_autoloader.php $(TESTS)"
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE)
-	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -d ddtrace.request_init_hook=$(ROOT_DIR)/bridge/dd_init.php -m $(TESTS)"
+	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -d ddtrace.request_init_hook=$(ROOT_DIR)/bridge/dd_wrap_autoloader.php -m $(TESTS)"
 
 test_c_asan: export DD_TRACE_CLI_ENABLED=1
 test_c_asan: $(SO_FILE)

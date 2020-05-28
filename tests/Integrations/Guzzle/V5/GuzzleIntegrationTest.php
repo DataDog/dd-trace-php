@@ -255,7 +255,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     {
         $traces = $this->inWebServer(
             function ($execute) {
-                $execute(GetSpec::create('GET', '/'));
+                $execute(GetSpec::create('GET', '/guzzle_in_web_request.php'));
             },
             __DIR__ . '/guzzle_in_web_request.php',
             [
@@ -266,7 +266,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         );
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /')
+            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /guzzle_in_web_request.php')
                 ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')

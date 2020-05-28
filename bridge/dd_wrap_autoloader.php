@@ -1,3 +1,3 @@
 <?php
 
-include __DIR__ . '/dd_init.php';
+function_exists('ddtrace_init') && ddtrace_init(__DIR__);

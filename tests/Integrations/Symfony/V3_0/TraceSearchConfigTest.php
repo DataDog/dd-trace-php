@@ -12,7 +12,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
 
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_0/web/app.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_0/web/index.php';
     }
 
     protected static function getEnvs()

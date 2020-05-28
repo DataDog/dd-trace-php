@@ -143,7 +143,7 @@ class CurlIntegrationTest extends IntegrationTestCase
     {
         $traces = $this->inWebServer(
             function ($execute) {
-                $execute(GetSpec::create('GET', '/'));
+                $execute(GetSpec::create('GET', '/curl_in_web_request.php'));
             },
             __DIR__ . '/curl_in_web_request.php',
             [
@@ -154,7 +154,7 @@ class CurlIntegrationTest extends IntegrationTestCase
         );
 
         $this->assertFlameGraph($traces, [
-            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /')
+            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
                 ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')

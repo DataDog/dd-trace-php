@@ -27,9 +27,11 @@ typedef struct _ddtrace_original_context {
 } ddtrace_original_context;
 
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
+char *auto_prepend_file;
 zend_bool disable;
 zend_bool disable_in_current_request;
 char *request_init_hook;
+zend_bool request_init_hook_loaded;
 zend_bool strict_mode;
 
 uint32_t traces_group_id;
