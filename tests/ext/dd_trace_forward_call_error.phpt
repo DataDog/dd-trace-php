@@ -1,5 +1,7 @@
 --TEST--
 Error conditions for dd_trace_forward_call()
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 // Out of closure context

@@ -1,7 +1,5 @@
 --TEST--
 Exceptions get attached to spans
---SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: PHP 5 has its own test'); ?>
 --FILE--
 <?php
 

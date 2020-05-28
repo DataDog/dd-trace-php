@@ -1,5 +1,7 @@
 --TEST--
 Check user defined function can safely catch and rethrow exception
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 function test($param = 2){

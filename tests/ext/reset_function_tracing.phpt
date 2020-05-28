@@ -1,34 +1,35 @@
 --TEST--
 Check a function can be untraced.
 --SKIPIF--
-<?php if (PHP_MAJOR_VERSION > 5) die('skip: test requires legacy API'); ?>
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 
-dd_trace("spl_autoload_register", function() {
+dd_trace("register", function() {
     echo "HOOK" . PHP_EOL;
-    return call_user_func_array('spl_autoload_register', func_get_args());
+    return dd_trace_forward_call();
 });
 
-spl_autoload_register(function($class) {
-    return false;
-});
+function register() {}
 
-spl_autoload_register(function($class) {
-    return false;
-});
+register();
+register();
 
-dd_untrace("spl_autoload_register");
+echo "unregister\n";
+dd_untrace("register");
 
-spl_autoload_register(function($class) {
-    return false;
-});
+register();
 
 // Also testing that if a function does not exists dd_untrace does not throw
 // an exception
 dd_untrace("this_function_does_not_exist");
 
+echo "Done.\n";
+
 ?>
 --EXPECT--
 HOOK
 HOOK
+unregister
+Done.
+

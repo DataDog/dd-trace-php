@@ -1,5 +1,7 @@
 --TEST--
 Check if we can override method from a parent class using case insensitive matching
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 class Ancestor {

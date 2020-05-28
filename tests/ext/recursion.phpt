@@ -1,5 +1,7 @@
 --TEST--
 Verify recursive execution works by only overriding outermost invocation.
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 function test($c, $end){

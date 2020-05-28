@@ -1,12 +1,17 @@
 --TEST--
 dd_trace_tracer_is_limited() limits the tracer with a hard span limit
 --SKIPIF--
-<?php if (PHP_MAJOR_VERSION > 5) die('skip: test requires legacy API'); ?>
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=1000
 --FILE--
 <?php
-dd_trace('array_sum', function () {
+
+function my_array_sum(... $args) {
+    return \array_sum(... $args);
+}
+
+dd_trace('my_array_sum', function () {
     dd_trace_push_span_id();
     dd_trace_pop_span_id();
     return dd_trace_forward_call();
@@ -14,10 +19,10 @@ dd_trace('array_sum', function () {
 
 var_dump(dd_trace_tracer_is_limited());
 for ($i = 0; $i < 999; $i++) {
-    array_sum([]);
+    my_array_sum([]);
 }
 var_dump(dd_trace_tracer_is_limited());
-array_sum([]);
+my_array_sum([]);
 var_dump(dd_trace_tracer_is_limited());
 /*
  * Ensure lots more calls do not cause a VM stack overflow.
@@ -26,7 +31,7 @@ var_dump(dd_trace_tracer_is_limited());
  * custom opcode handler.
  */
 for ($i = 0; $i < 500000; $i++) {
-    array_sum([]);
+    my_array_sum([]);
 }
 var_dump(dd_trace_tracer_is_limited());
 ?>

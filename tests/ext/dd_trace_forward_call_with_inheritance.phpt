@@ -1,5 +1,7 @@
 --TEST--
 The original method call is invoked from a sub class
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 

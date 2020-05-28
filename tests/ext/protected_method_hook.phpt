@@ -1,5 +1,7 @@
 --TEST--
 Check protected method can be overwritten and we are able to call original.
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 

@@ -1,5 +1,7 @@
 --TEST--
 Check function with params can be overwritten and we're able to call original function with modified params
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 function test($a, $b, $c){

@@ -1,5 +1,7 @@
 --TEST--
 Test if desctructor is called when variable goes out of scope
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 

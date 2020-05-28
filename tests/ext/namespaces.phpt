@@ -1,5 +1,7 @@
 --TEST--
 Verify functions and methods can be overriden even when in namespaces.
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 namespace Func {

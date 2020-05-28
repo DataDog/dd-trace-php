@@ -3,7 +3,7 @@
 --DESCRIPTION--
 This differs from the original dd_trace() test in that the original return value is not modified
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+<?php if (PHP_VERSION_ID < 70000) die("skip: zend_execute_ex in use"); ?>
 --FILE--
 <?php
 function test($a){

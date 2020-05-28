@@ -1,5 +1,7 @@
 --TEST--
 Check object's private and protected methods can be invoked from a callback.
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 class Foo

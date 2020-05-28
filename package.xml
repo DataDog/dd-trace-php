@@ -183,10 +183,13 @@
                     <file name="dd_trace_forward_call_for_functions.phpt" role="test" />
                     <file name="dd_trace_forward_call_from_include.phpt" role="test" />
                     <file name="dd_trace_forward_call_with_inheritance.phpt" role="test" />
-                    <file name="dd_trace_forward_call_with_private_callback.phpt" role="test" />
                     <file name="dd_trace_push_span_id_from_userland.phpt" role="test" />
                     <file name="dd_trace_tracer_is_limited_hard.phpt" role="test" />
                     <file name="dd_trace_tracer_is_limited_memory.phpt" role="test" />
+                    <dir name="call_user_func">
+                        <file name="namespaced.phpt" role="test" />
+                        <file name="not-namespaced.phpt" role="test" />
+                    </dir>
                     <dir name="sandbox">
                         <file name="auto_flush.phpt" role="test" />
                         <file name="auto_flush_attach_exception.phpt" role="test" />
@@ -222,7 +225,6 @@
                         <file name="exception_handled_in_correct_catch_frame.phpt" role="test" />
                         <file name="exception_handled_in_multicatch.phpt" role="test" />
                         <file name="exception_handled_with_finally.phpt" role="test" />
-                        <file name="exception_handling_php5.phpt" role="test" />
                         <file name="exception_handling.phpt" role="test" />
                         <file name="exception_is_defined.phpt" role="test" />
                         <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
@@ -358,8 +360,6 @@
                     <file name="check_memory_under_limit_low_limit.phpt" role="test" />
                     <file name="extension_disabled.phpt" role="test" />
                     <file name="get_memory_limit_0_percent.phpt" role="test" />
-                    <file name="keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
-                    <file name="keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
                     <file name="keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
                     <file name="keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
                     <file name="simple_function_hook.phpt" role="test" />

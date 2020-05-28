@@ -1,5 +1,7 @@
 --TEST--
-Returs value from both original and overriding methods
+Returns value from both original and overriding methods
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 class Test {

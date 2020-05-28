@@ -1,5 +1,7 @@
 --TEST--
 Override function/method before its defined
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 dd_trace("Test", "m", function() {

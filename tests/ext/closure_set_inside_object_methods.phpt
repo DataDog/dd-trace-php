@@ -1,5 +1,7 @@
 --TEST--
 Check if closure can safely use variable names also present in outside scope
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 class Test {

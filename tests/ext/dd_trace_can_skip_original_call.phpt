@@ -1,5 +1,7 @@
 --TEST--
 dd_trace can skip over the call it instruments (LEGACY BEHAVIOR -- DO NOT RELY ON)
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 

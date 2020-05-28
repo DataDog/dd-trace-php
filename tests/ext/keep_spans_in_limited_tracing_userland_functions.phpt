@@ -1,5 +1,7 @@
 --TEST--
 [Legacy] Keep spans in limited mode (userland functions)
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
 --FILE--
