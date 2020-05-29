@@ -12,7 +12,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
 
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/index.php';
     }
 
     public function testAlternateTemplatingEngine()

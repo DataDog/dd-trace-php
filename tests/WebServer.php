@@ -79,7 +79,7 @@ final class WebServer
         $this->indexFile = realpath($indexFile);
         $this->defaultInis['error_log'] = dirname($this->indexFile) .  '/' . self::ERROR_LOG_NAME;
         // Enable auto-instrumentation
-        $this->defaultInis['ddtrace.request_init_hook'] = realpath(__DIR__ .  '/../bridge/dd_init.php');
+        $this->defaultInis['ddtrace.request_init_hook'] = realpath(__DIR__ .  '/../bridge/dd_wrap_autoloader.php');
         $this->host = $host;
         $this->port = $port;
     }
@@ -103,13 +103,23 @@ final class WebServer
                 self::FCGI_PORT
             );
         } else {
+            /**
+             * If a router is provided to the built-in web server (the index file),
+             * the request init hook (which hooks auto_prepend_file) will not run.
+             * If there is no router, the script is run with php_execute_script():
+             * @see https://heap.space/xref/PHP-7.4/sapi/cli/php_cli_server.c?r=58b17906#2077
+             * This runs the auto_prepend_file as expected. However, if a router is present,
+             * zend_execute_scripts() will be used instead:
+             * @see https://heap.space/xref/PHP-7.4/sapi/cli/php_cli_server.c?r=58b17906#2202
+             * As a result auto_prepend_file (and the request init hook) is not executed.
+             */
             $cmd = sprintf(
-                'php %s -S %s:%d -t %s %s',
+                'php %s -S %s:%d -t %s', // . ' %s'
                 $this->getSerializedIniForCli(),
                 $this->host,
                 $this->port,
-                dirname($this->indexFile),
-                $this->indexFile
+                dirname($this->indexFile)
+                //$this->indexFile
             );
         }
 
