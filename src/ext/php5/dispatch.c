@@ -120,13 +120,9 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
     fcc.function_handler = DDTRACE_G(original_context).fbc;
     fcc.object_ptr = DDTRACE_G(original_context).this;
     fcc.calling_scope = DDTRACE_G(original_context).calling_ce;
-#if PHP_VERSION_ID < 50500
-    fcc.called_scope = DDTRACE_G(original_context).execute_data->called_scope;
-#else
     fcc.called_scope = DDTRACE_G(original_context).execute_data->call
                            ? DDTRACE_G(original_context).execute_data->call->called_scope
                            : NULL;
-#endif
 
     fci.size = sizeof(fci);
     fci.function_table = EG(function_table);

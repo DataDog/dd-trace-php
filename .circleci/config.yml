@@ -719,13 +719,6 @@ workflows:
               # Always build on master and on release branches
               only: /^.*(master|build|[0-9]+.[0-9]+.[0-9]+|ddtrace-[0-9]+.[0-9]+).*$/
       - compile_extension:
-          name: "Compile PHP 54"
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
-          catch_warnings: false
-          lib_curl_command: yum -y install libcurl-devel
-          so_suffix: "20100412"
-          requires: [ 'Prepare Code' ]
-      - compile_extension:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 56"
           lib_curl_command: yum -y install libcurl-devel
@@ -798,7 +791,6 @@ workflows:
           so_suffix: "20190902-zts"
       - "package extension":
           requires:
-            - "Compile PHP 54"
             - "Compile PHP 56"
             - "Compile PHP 70"
             - "Compile PHP 71"
@@ -894,11 +886,6 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 56-zts Compilation test"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-zts"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 54 Unit tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - unit_tests:
           requires: [ 'Prepare Code' ]
@@ -1022,15 +1009,6 @@ workflows:
           name: "PHP 56 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.6.list
           docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
-      - php_language_tests:
-          requires: [ 'Language tests' ]
-          name: "PHP 54 language tests"
-          xfail_list: dockerfiles/ci/xfail_tests/5.4.list
-          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 54 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
       - base_integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 56 base integration tests"
@@ -1055,12 +1033,6 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 54 Integration tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          integration_testsuite: "test-integrations-54"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 56 Integration tests"
@@ -1098,12 +1070,6 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
       - integration_tests:
           requires: [ 'Prepare Code' ]
-          name: "PHP 54 Web integration tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          integration_testsuite: "test-web-54"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
           name: "PHP 56 Web integration tests"
           resource_class: medium+
           integration_testsuite: "test-web-56"
@@ -1139,11 +1105,6 @@ workflows:
           resource_class: medium+
           integration_testsuite: "test-web-74"
           docker_image: "datadog/dd-trace-ci:php-dev-7.4"
-      - hyperfine_tests:
-          requires: [ 'Prepare Code' ]
-          name: "Hyperfine 54 benchmarks"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - hyperfine_tests:
           requires: [ 'Prepare Code' ]
           name: "Hyperfine 56 benchmarks"

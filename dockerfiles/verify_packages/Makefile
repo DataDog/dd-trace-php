@@ -1,7 +1,7 @@
 JESSIE_PHP_VERSIONS:=5.6.jessie 7.0.jessie 7.1.jessie 7.2.jessie
 STRETCH_PHP_VERSIONS:=5.6.stretch 7.0.stretch 7.1.stretch 7.2.stretch
-CENTOS6_PHP_VERSIONS:=5.4.centos6 5.6.centos6 7.0.centos6 7.1.centos6 7.2.centos6
-CENTOS7_PHP_VERSIONS:=5.4.centos7 5.6.centos7 7.0.centos7 7.1.centos7 7.2.centos7 #7.3.centos7
+CENTOS6_PHP_VERSIONS:=5.6.centos6 7.0.centos6 7.1.centos6 7.2.centos6
+CENTOS7_PHP_VERSIONS:=5.6.centos7 7.0.centos7 7.1.centos7 7.2.centos7 #7.3.centos7
 CENTOS7_MANUAL_PHP_VERSIONS:=71.centos7-compiled
 ALPINE_PHP_VERSIONS:=5.6.alpine 7.0.alpine 7.1.alpine 7.2.alpine  #7.3.alpine # No ZTS tests - it fails on alpine due to relying on pthread and libc 5.6-zts.alpine 7.0-zts.alpine 7.1-zts.alpine 7.2-zts.alpine 7.3-zts.alpine
 

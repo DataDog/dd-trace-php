@@ -53,16 +53,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_VERSION=$($PHP_CONFIG --vernum)
 
-  if test $PHP_VERSION -lt 50500; then
-    DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
-      src/ext/php5_4/auto_flush.c \
-      src/ext/php5_4/blacklist.c \
-      src/ext/php5_4/dispatch.c \
-      src/ext/php5_4/distributed_tracing.c \
-      src/ext/php5_4/engine_hooks.c \
-      src/ext/php5_4/handlers_internal.c \
-    "
-  elif test $PHP_VERSION -lt 70000; then
+  if test $PHP_VERSION -lt 70000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
       src/ext/php5/auto_flush.c \
       src/ext/php5/blacklist.c \
@@ -113,9 +104,7 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
 
-  if test $PHP_VERSION -lt 50500; then
-    PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5_4])
-  elif test $PHP_VERSION -lt 70000; then
+  if test $PHP_VERSION -lt 70000; then
     PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5])
   elif test $PHP_VERSION -lt 80000; then
     PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php7])

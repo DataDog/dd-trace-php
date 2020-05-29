@@ -44,11 +44,7 @@ void ddtrace_dispatch_reset(TSRMLS_D);
 #undef EX
 #define EX(element) ((execute_data)->element)
 
-#if PHP_VERSION_ID < 50500
-#define FBC() EX(fbc)
-#define NUM_ADDITIONAL_ARGS() (0)
-#define OBJECT() EX(object)
-#elif PHP_VERSION_ID < 50600
+#if PHP_VERSION_ID < 50600
 #define FBC() (EX(call)->fbc)
 #define NUM_ADDITIONAL_ARGS() (0)
 #define OBJECT() (EX(call) ? EX(call)->object : NULL)

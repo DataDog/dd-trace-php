@@ -20,7 +20,7 @@
         }
     ],
     "require": {
-        "php": "~5.4.0 || ~5.6.0 || ^7.0",
+        "php": "~5.6.0 || ^7.0",
         "ext-curl": "*",
         "ext-json": "*"
     },
@@ -79,15 +79,6 @@
         "test-ext": "make test_c TESTS=tests/ext",
         "test": "phpunit --colors=always --configuration=phpunit.xml",
         "test-no-compile": "DD_AUTOLOAD_NO_COMPILE=true phpunit --colors=always --configuration=phpunit.xml",
-        "test-all-54": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-composer",
-            "@test-distributed-tracing",
-            "@test-integration",
-            "@test-integrations-54",
-            "@test-web-54"
-        ],
         "test-all-56": [
             "@test-unit",
             "@test-auto-instrumentation",
@@ -145,19 +136,6 @@
         "test-integration": [
             "echo \"Integration tests require the agent up and running. Use composer run-agent.\"",
             "@composer test -- --testsuite=integration"
-        ],
-        "test-integrations-54": [
-            "sh clean-composer-scenario-locks.sh",
-            "@composer scenario:update",
-            "@composer test-curl",
-            "@composer test-memcached",
-            "@composer test-mysqli",
-            "@composer test-pdo",
-            "@composer test-elasticsearch1",
-            "@composer test-guzzle5",
-            "@composer test-guzzle6",
-            "@composer test-predis1",
-            "@composer scenario default"
         ],
         "test-integrations-56": [
             "sh clean-composer-scenario-locks.sh",
@@ -235,16 +213,6 @@
             "@composer test-guzzle6",
             "@composer test-predis1",
             "@composer scenario default"
-        ],
-        "test-web-54": [
-            "@test-metrics",
-            "@cakephp-28-update",
-            "@cakephp-28-test",
-            "@laravel-42-update",
-            "@laravel-42-test",
-            "@yii-2-suite",
-            "@zend-framework-1-test",
-            "@custom-framework-autoloaded-suite"
         ],
         "test-web-56": [
             "@test-metrics",

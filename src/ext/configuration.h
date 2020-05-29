@@ -62,20 +62,6 @@ void ddtrace_config_shutdown(void);
 /* This should be at least an order of magnitude higher than the userland HTTP Transport default. */
 #define DD_TRACE_BGS_TIMEOUT 5000L
 
-/* There is an issue on PHP 5.4 that has been around for a while that was
- * exposed by the background sender getting enabled. We need to fix that, but
- * until then let's not enable BGS by default on < 5.6.
- *
- * We also don't enable the sandbox on PHP 5.4 yet.
- */
-#if PHP_VERSION_ID < 50600
-#define DD_TRACE_BGS_ENABLED false
-#define DD_TRACE_SANDBOX_ENABLED false
-#else
-#define DD_TRACE_BGS_ENABLED true
-#define DD_TRACE_SANDBOX_ENABLED true
-#endif
-
 #define DD_CONFIGURATION                                                                                             \
     CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost")                                                            \
     CHAR(get_dd_dogstatsd_port, "DD_DOGSTATSD_PORT", "8125")                                                         \
@@ -92,11 +78,11 @@ void ddtrace_config_shutdown(void);
     BOOL(get_dd_trace_ignore_legacy_blacklist, "DD_TRACE_IGNORE_LEGACY_BLACKLIST", false)                            \
     BOOL(get_dd_log_backtrace, "DD_LOG_BACKTRACE", false)                                                            \
     BOOL(get_dd_trace_generate_root_span, "DD_TRACE_GENERATE_ROOT_SPAN", true)                                       \
-    BOOL(get_dd_trace_sandbox_enabled, "DD_TRACE_SANDBOX_ENABLED", DD_TRACE_SANDBOX_ENABLED)                         \
+    BOOL(get_dd_trace_sandbox_enabled, "DD_TRACE_SANDBOX_ENABLED", true)                                             \
     INT(get_dd_trace_spans_limit, "DD_TRACE_SPANS_LIMIT", 1000)                                                      \
-    BOOL(get_dd_trace_send_traces_via_thread, "DD_TRACE_BETA_SEND_TRACES_VIA_THREAD", DD_TRACE_BGS_ENABLED,          \
+    BOOL(get_dd_trace_send_traces_via_thread, "DD_TRACE_BETA_SEND_TRACES_VIA_THREAD", true,                          \
          "use background thread to send traces to the agent")                                                        \
-    BOOL(get_dd_trace_bgs_enabled, "DD_TRACE_BGS_ENABLED", DD_TRACE_BGS_ENABLED,                                     \
+    BOOL(get_dd_trace_bgs_enabled, "DD_TRACE_BGS_ENABLED", true,                                                     \
          "use background sender (BGS) to send traces to the agent")                                                  \
     INT(get_dd_trace_bgs_connect_timeout, "DD_TRACE_BGS_CONNECT_TIMEOUT", DD_TRACE_BGS_CONNECT_TIMEOUT)              \
     INT(get_dd_trace_bgs_timeout, "DD_TRACE_BGS_TIMEOUT", DD_TRACE_BGS_TIMEOUT)                                      \
