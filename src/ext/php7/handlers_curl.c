@@ -431,8 +431,10 @@ void ddtrace_curl_handlers_startup(void) {
         _dd_install_handler(handlers[i]);
     }
 
-    ddtrace_string curl_exec = DDTRACE_STRING_LITERAL("curl_exec");
-    ddtrace_replace_internal_function(CG(function_table), curl_exec);
+    if (ddtrace_resource != -1) {
+        ddtrace_string curl_exec = DDTRACE_STRING_LITERAL("curl_exec");
+        ddtrace_replace_internal_function(CG(function_table), curl_exec);
+    }
 }
 
 void ddtrace_curl_handlers_rshutdown(void) {

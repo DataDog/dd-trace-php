@@ -4,6 +4,7 @@
 #include "configuration.h"
 #include "ddtrace.h"
 #include "engine_hooks.h"
+#include "logging.h"
 
 typedef void (*ddtrace_zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
 
@@ -91,8 +92,17 @@ void ddtrace_pdo_handlers_shutdown(void);
 
 void ddtrace_curl_handlers_rshutdown(void);
 
+// Internal handlers use ddtrace_resource and only implement the sandbox API.
 void ddtrace_internal_handlers_startup(void) {
+    // curl is different; it has pieces that always run.
     ddtrace_curl_handlers_startup();
+
+    // but the rest should be guarded
+    if (ddtrace_resource == -1) {
+        ddtrace_log_debug(
+            "Unable to get a zend_get_resource_handle(); tracing of most internal functions is disabled.");
+        return;
+    }
 
     if (!get_dd_trace_sandbox_enabled()) {
         return;
