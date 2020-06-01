@@ -208,23 +208,6 @@ int dd_execute_auto_prepend_file(char *auto_prepend_file TSRMLS_DC) {
 
 void dd_request_init_hook_rinit(TSRMLS_D) {
     DDTRACE_G(auto_prepend_file) = PG(auto_prepend_file);
-    if (php_check_open_basedir_ex(DDTRACE_G(request_init_hook), 0 TSRMLS_CC) == -1) {
-        ddtrace_log_debugf("open_basedir restriction in effect; cannot open request init hook: '%s'",
-                           DDTRACE_G(request_init_hook));
-        return;
-    }
-
-    zval exists_flag;
-    php_stat(DDTRACE_G(request_init_hook), strlen(DDTRACE_G(request_init_hook)), FS_EXISTS, &exists_flag TSRMLS_CC);
-#if PHP_VERSION_ID < 70000
-    if (!Z_BVAL(exists_flag)) {
-#else
-    if (Z_TYPE(exists_flag) == IS_FALSE) {
-#endif
-        ddtrace_log_debugf("Cannot open request init hook; file does not exist: '%s'", DDTRACE_G(request_init_hook));
-        return;
-    }
-
     PG(auto_prepend_file) = DDTRACE_G(request_init_hook);
     if (DDTRACE_G(auto_prepend_file) && DDTRACE_G(auto_prepend_file)[0]) {
         ddtrace_log_debugf("Backing up auto_prepend_file '%s'", DDTRACE_G(auto_prepend_file));
