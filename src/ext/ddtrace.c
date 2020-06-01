@@ -310,6 +310,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
+    DDTRACE_G(disable_tracing) = 0;
+
     if (ddtrace_has_blacklisted_module == true) {
         DDTRACE_G(disable) = 1;
     }
@@ -981,10 +983,12 @@ static PHP_FUNCTION(ddtrace_init) {
     DDTRACE_G(request_init_hook_loaded) = 1;
     if (ddtrace_config_trace_enabled(TSRMLS_C) &&
         zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &dir.ptr, &dir.len) == SUCCESS) {
+        DDTRACE_G(disable_tracing) = 1;
         char *init_file = emalloc(dir.len + sizeof("/dd_init.php"));
         sprintf(init_file, "%s/dd_init.php", dir.ptr);
         ret = dd_execute_php_file(init_file TSRMLS_CC);
         efree(init_file);
+        DDTRACE_G(disable_tracing) = 0;
     }
 
     if (DDTRACE_G(auto_prepend_file) && DDTRACE_G(auto_prepend_file)[0]) {

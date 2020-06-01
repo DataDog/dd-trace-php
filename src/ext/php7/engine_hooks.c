@@ -104,7 +104,7 @@ static bool _dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
 }
 
 static bool _dd_should_trace_call(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch) {
-    if (DDTRACE_G(disable_in_current_request)) {
+    if (DDTRACE_G(disable_in_current_request) || DDTRACE_G(disable_tracing)) {
         return false;
     }
 

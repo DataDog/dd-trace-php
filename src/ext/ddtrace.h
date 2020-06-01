@@ -30,6 +30,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 char *auto_prepend_file;
 zend_bool disable;
 zend_bool disable_in_current_request;
+zend_bool disable_tracing;
 char *request_init_hook;
 zend_bool request_init_hook_loaded;
 zend_bool strict_mode;
