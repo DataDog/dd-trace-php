@@ -2,6 +2,8 @@
 [Prehook Regression] dd_trace_method() can trace with internal spans
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
+--INI--
+ddtrace.traced_internal_functions=mt_rand
 --FILE--
 <?php
 use DDTrace\SpanData;

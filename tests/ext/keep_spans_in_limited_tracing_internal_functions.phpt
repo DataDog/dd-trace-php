@@ -1,5 +1,7 @@
 --TEST--
 [Legacy] Keep spans in limited mode (internal functions)
+--SKIPIF--
+<?php if (PHP_MAJOR_VERSION > 5) die('skip: test requires legacy API'); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
 --FILE--

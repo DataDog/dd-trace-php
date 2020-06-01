@@ -12,6 +12,7 @@ DD_TRACE_MEMORY_LIMIT=0
 memory_limit=2M
 max_execution_time=5
 ddtrace.request_init_hook=
+ddtrace.traced_internal_functions=array_sum
 --FILE--
 <?php
 register_shutdown_function(function () {

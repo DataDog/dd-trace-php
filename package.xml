@@ -44,7 +44,7 @@
                     <file name="configuration_php_iface.c" role="src" />
                     <file name="coms.c" role="src" />
                     <file name="coms.h" role="src" />
-                    <file name="handlers_curl.h" role="src" />
+                    <file name="handlers_internal.h" role="src" />
                     <file name="macros.h" role="src" />
                     <file name="ddtrace.c" role="src" />
                     <file name="ddtrace.h" role="src" />
@@ -99,7 +99,7 @@
                         <file name="blacklist.c" role="src" />
                         <file name="dispatch.c" role="src" />
                         <file name="engine_hooks.c" role="src" />
-                        <file name="handlers_curl.c" role="src" />
+                        <file name="handlers_internal.c" role="src" />
                     </dir>
                     <dir name="php7">
                         <file name="auto_flush.c" role="src" />
@@ -109,6 +109,10 @@
                         <file name="engine_api.h" role="src" />
                         <file name="engine_hooks.c" role="src" />
                         <file name="handlers_curl.c" role="src" />
+                        <file name="handlers_internal.c" role="src" />
+                        <file name="handlers_memcached.c" role="src" />
+                        <file name="handlers_mysqli.c" role="src" />
+                        <file name="handlers_pdo.c" role="src" />
                     </dir>
                     <dir name="third-party">
                         <file name="mt19937-64.c" role="src" />

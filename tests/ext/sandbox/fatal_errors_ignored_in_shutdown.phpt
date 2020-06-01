@@ -7,6 +7,7 @@ This is how the tracer sandboxes the flushing functionality in userland
 <?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
 --INI--
 memory_limit=2M
+ddtrace.traced_internal_functions=array_sum
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--

@@ -4,6 +4,8 @@ Keep spans in limited mode (internal functions)
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
+--INI--
+ddtrace.traced_internal_functions=array_sum,mt_rand
 --FILE--
 <?php
 dd_trace_function('array_sum', function (\DDTrace\SpanData $span) {

@@ -22,7 +22,7 @@ void ddtrace_array_walk(HashTable *input, ddtrace_walk_fn callback, void *contex
 }
 #endif
 
-void *ddtrace_hash_find_ptr(HashTable *ht, const char *str, size_t len) {
+void *ddtrace_hash_find_ptr(const HashTable *ht, const char *str, size_t len) {
     void *result;
 #if PHP_VERSION_ID < 70000
     void **rv = NULL;
@@ -33,7 +33,7 @@ void *ddtrace_hash_find_ptr(HashTable *ht, const char *str, size_t len) {
     return result;
 }
 
-void *ddtrace_hash_find_ptr_lc(HashTable *ht, const char *str, size_t len) {
+void *ddtrace_hash_find_ptr_lc(const HashTable *ht, const char *str, size_t len) {
     void *result;
 #if PHP_VERSION_ID < 70000
     /* The code for the PHP 7 branch will also work on PHP 5, but if we do not

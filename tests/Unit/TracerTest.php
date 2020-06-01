@@ -12,6 +12,10 @@ use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
 
+function baz()
+{
+}
+
 final class TracerTest extends BaseTestCase
 {
     const OPERATION_NAME = 'test_span';
@@ -280,12 +284,12 @@ final class TracerTest extends BaseTestCase
         // Clear existing internal spans
         dd_trace_serialize_closed_spans();
 
-        dd_trace_function('array_sum', function () {
+        \dd_trace_function(__NAMESPACE__ . '\\baz', function () {
             // Do nothing
         });
         $tracer = new Tracer(new DebugTransport());
         $span = $tracer->startSpan('foo');
-        array_sum([1, 2]);
+        baz();
         $span->finish();
 
         $this->assertSame(2, dd_trace_closed_spans_count());

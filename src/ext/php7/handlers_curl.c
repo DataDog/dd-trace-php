@@ -1,5 +1,3 @@
-#include "handlers_curl.h"
-
 #include <Zend/zend_interfaces.h>
 #include <php.h>
 
@@ -7,6 +5,7 @@
 #include "configuration.h"
 #include "engine_api.h"
 #include "engine_hooks.h"  // for ddtrace_backup_error_handling
+#include "handlers_internal.h"
 
 #ifndef ZVAL_COPY_DEREF
 #define ZVAL_COPY_DEREF(z, v)                     \
@@ -413,6 +412,12 @@ void ddtrace_curl_handlers_startup(void) {
         return;
     }
 
+    /* We hook into curl_exec twice:
+     *   - One that handles general dispatch so it will call the associated closure with curl_exec
+     *   - One that handles the distributed tracing headers
+     * The latter expects the former is already done because it needs a span id for the distributed tracing headers;
+     * register them inside-out.
+     */
     _dd_curl_handler handlers[] = {
         {ZEND_STRL("curl_close"), &_dd_curl_close_handler, ZEND_FN(ddtrace_curl_close)},
         {ZEND_STRL("curl_copy_handle"), &_dd_curl_copy_handle_handler, ZEND_FN(ddtrace_curl_copy_handle)},
@@ -425,6 +430,9 @@ void ddtrace_curl_handlers_startup(void) {
     for (size_t i = 0; i < handlers_len; ++i) {
         _dd_install_handler(handlers[i]);
     }
+
+    ddtrace_string curl_exec = DDTRACE_STRING_LITERAL("curl_exec");
+    ddtrace_replace_internal_function(CG(function_table), curl_exec);
 }
 
 void ddtrace_curl_handlers_rshutdown(void) {

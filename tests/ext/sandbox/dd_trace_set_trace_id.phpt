@@ -4,6 +4,8 @@ Set the trace ID from userland
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_DEBUG_PRNG_SEED=42
+--INI--
+ddtrace.traced_internal_functions=array_sum
 --FILE--
 <?php
 use DDTrace\SpanData;

@@ -4,6 +4,8 @@
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
+--INI--
+ddtrace.traced_internal_functions=array_sum
 --FILE--
 <?php
 dd_trace_function('array_sum', ['prehook' => function () {

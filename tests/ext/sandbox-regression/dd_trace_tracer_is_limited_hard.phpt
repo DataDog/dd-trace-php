@@ -4,6 +4,8 @@
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=1000
+--INI--
+ddtrace.traced_internal_functions=array_sum
 --FILE--
 <?php
 dd_trace_function('array_sum', function () {});

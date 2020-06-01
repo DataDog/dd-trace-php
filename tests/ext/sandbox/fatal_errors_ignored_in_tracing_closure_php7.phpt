@@ -4,6 +4,8 @@ Fatal errors are ignored inside a tracing closure (PHP 7)
 <?php if (PHP_VERSION_ID < 70000) die('skip Fatal errors cannot be ignored in PHP 5'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
+--INI--
+ddtrace.traced_internal_functions=array_sum
 --FILE--
 <?php
 dd_trace_function('array_sum', function (DDTrace\SpanData $span) {

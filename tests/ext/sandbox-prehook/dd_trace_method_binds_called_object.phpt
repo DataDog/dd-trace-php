@@ -2,6 +2,8 @@
 [Prehook Regression] dd_trace_method() binds the called object to the tracing closure
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
+--INI--
+ddtrace.traced_internal_functions=DatePeriod::getStartDate
 --FILE--
 <?php
 date_default_timezone_set('UTC');

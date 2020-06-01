@@ -5,6 +5,7 @@ The request init hook can run with Xdebug installed and xdebug.remote_enable=1
 --INI--
 xdebug.remote_enable=1
 ddtrace.request_init_hook={PWD}/../fake_request_init_hook.inc
+ddtrace.traced_internal_functions=array_sum
 --FILE--
 <?php
 if (!extension_loaded('Xdebug') || version_compare(phpversion('Xdebug'), '2.9.5') < 0) die('Xdebug 2.9.5+ required');

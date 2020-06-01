@@ -6,6 +6,7 @@
 DD_TRACE_DEBUG=1
 --INI--
 error_reporting=E_ALL
+ddtrace.traced_internal_functions=mt_rand,mt_srand
 --FILE--
 <?php
 use DDTrace\SpanData;
