@@ -25,6 +25,10 @@ class StartSpanOptionsFactory
             && $spanContext = $tracer->extract(Format::HTTP_HEADERS, $headers)
         ) {
             $options[Reference::CHILD_OF] = $spanContext;
+            // Make headers available to custom curl handlers
+            $headers = [];
+            $tracer->inject($spanContext, Format::CURL_HTTP_HEADERS, $headers);
+            \dd_trace_distributed_tracing_headers($headers);
         }
 
         return StartSpanOptions::create($options);
