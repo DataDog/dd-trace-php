@@ -25,8 +25,8 @@ static ddtrace_string ddtrace_mysqli_stmt_methods[] = {
 };
 // clang-format on
 
+// Do not call this function if ddtrace_resource == -1
 void ddtrace_mysqli_handlers_startup(void) {
-    // todo: how to handle ddtrace_resource = -1?
     ddtrace_string mysqli = DDTRACE_STRING_LITERAL("mysqli");
     if (!zend_hash_str_exists(&module_registry, mysqli.ptr, mysqli.len)) {
         return;
