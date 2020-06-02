@@ -10,17 +10,37 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2020-06-02</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.46.0</release>
+        <api>0.46.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+## Important behavior changes in this release
+If you use the OpenTracing API, the OpenTracing compatible tracer will no longer be returned from `OpenTracing\GlobalTracer::get` automatically. See #899 or [the documentation](https://docs-staging.datadoghq.com/sammyk/php/open-tracing/tracing/opentracing/php/) for more details.
+
+On PHP 7, `dd_trace` will no longer work on internal functions e.g. `curl_exec`; use `dd_trace_method` or `dd_trace_function` instead. Additionally, when targeting internal functions they also need to be added to the environment variable `DD_TRACE_TRACED_INTERNAL_FUNCTIONS` which is a comma separated list e.g. `DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,mt_rand,DateTime::add`. These two changes enable a significant performance optimization.
+
+### Changed
+- Avoid usage of spl_autoload_register while still allowing noop manual instrumentation without ext installed #877
+- Sandbox Slim integration #878
+- Sandbox Lumen integration #884
+- Sandbox CakePHP integration #898
+- Remove legacy hook for OpenTracing #899
+- Noop the legacy API when a potentially conflicting module detected #900, #905
+- Move the request init hook to `auto_prepend_file` #907
+- Optimize internal functions handlers at startup (PHP 7) #895
+
+### Fixed
+- Fix early return in dd-doctor #894 (thank @tatsuo48!)
+- Fix opcache check in dd-doctor #896 - thanks @tatsuo48
+- Update CONTRIBUTING.md #897 - thanks @askkaz
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
