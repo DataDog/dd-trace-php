@@ -52,8 +52,6 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
                     ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.traced_internal_functions", "", PHP_INI_SYSTEM, OnUpdateString, traced_internal_functions,
-                  zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 
 static int ddtrace_startup(struct _zend_extension *extension) {

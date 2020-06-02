@@ -5,8 +5,7 @@ Userland root spans are automatically flushed when auto-flushing enabled
 <?php if (PHP_VERSION_ID < 70000) die('skip: Auto flushing not supported on PHP 5'); ?>
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=1
---INI--
-ddtrace.traced_internal_functions=array_sum
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--
 <?php
 use DDTrace\SpanData;

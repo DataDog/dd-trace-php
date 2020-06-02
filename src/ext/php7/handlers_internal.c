@@ -113,16 +113,13 @@ void ddtrace_internal_handlers_startup(void) {
     ddtrace_pdo_handlers_startup();
 
     // set up handlers for user-specified internal functions
-    ddtrace_string traced_internal_functions = ddtrace_string_cstring_ctor(DDTRACE_G(traced_internal_functions));
+    ddtrace_string traced_internal_functions = ddtrace_string_getenv(ZEND_STRL("DD_TRACE_TRACED_INTERNAL_FUNCTIONS"));
     if (traced_internal_functions.len) {
-        ALLOCA_FLAG(use_heap)
-        ddtrace_string copy = {
-            .ptr = do_alloca(traced_internal_functions.len + 1, use_heap),
-            .len = traced_internal_functions.len,
-        };
-        zend_str_tolower_copy(copy.ptr, traced_internal_functions.ptr, traced_internal_functions.len);
-        ddtrace_internal_handlers_install(copy);
-        free_alloca(copy.ptr, use_heap);
+        zend_str_tolower(traced_internal_functions.ptr, traced_internal_functions.len);
+        ddtrace_internal_handlers_install(traced_internal_functions);
+    }
+    if (traced_internal_functions.ptr) {
+        efree(traced_internal_functions.ptr);
     }
 
     // These don't have a better place to go (yet, anyway)
