@@ -363,6 +363,8 @@
                     <file name="throw_exception.phpt" role="test" />
                     <file name="trace_method_or_function_that_will_exist_later.phpt" role="test" />
                     <file name="trace_static_method.phpt" role="test" />
+                    <file name="traced_internal_functions_override_01.phpt" role="test" />
+                    <file name="traced_internal_functions_override_02.phpt" role="test" />
                     <file name="used_dispatch_shouldn_t_be_freed.phpt" role="test" />
                     <file name="variable_length_parameter_list.phpt" role="test" />
                     <file name="very_nested_functions.phpt" role="test" />

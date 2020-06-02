@@ -11,10 +11,10 @@ typedef void (*ddtrace_zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
 void ddtrace_replace_internal_function(const HashTable *ht, ddtrace_string fname) {
     zend_internal_function *function;
     function = zend_hash_str_find_ptr(ht, fname.ptr, fname.len);
-    if (function) {
-        ddtrace_zif_handler oldHandler = function->handler;
+    if (function && !function->reserved[ddtrace_resource]) {
+        ddtrace_zif_handler old_handler = function->handler;
         function->handler = PHP_FN(ddtrace_internal_function_handler);
-        function->reserved[ddtrace_resource] = oldHandler;
+        function->reserved[ddtrace_resource] = old_handler;
     }
 }
 
