@@ -3,6 +3,8 @@ Exceptions from user error handler are tracked for instrumented internal functio
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not supported'); ?>
 <?php if (PHP_VERSION_ID < 70000) die('skip: Unaltered VM dispatch required for handling return value on PHP 5'); ?>
+--ENV--
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=scandir
 --FILE--
 <?php
 class FooErrorHandler

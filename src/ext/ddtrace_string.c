@@ -23,6 +23,21 @@ static const char *_dd_memnstr(const char *haystack, const char *needle, int nee
 #endif
 }
 
+/**
+ * @param str The string to search in.
+ * @param c The character to look for.
+ * @return Returns the position of `c` in `str.ptr` if found; `str.len` otherwise.
+ */
+size_t ddtrace_string_find_char(ddtrace_string str, char c) {
+    ddtrace_zppstrlen_t i;
+    for (i = 0; i < str.len; ++i) {
+        if (str.ptr[i] == c) {
+            break;
+        }
+    }
+    return i;
+}
+
 bool ddtrace_string_contains_in_csv(ddtrace_string haystack, ddtrace_string needle) {
     const char *match, *begin, *end;
     begin = haystack.ptr;

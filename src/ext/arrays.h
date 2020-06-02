@@ -12,7 +12,7 @@ void ddtrace_array_walk(HashTable *input, ddtrace_walk_fn, void *context);
  * ht.
  * If you already have a lowered string, use ddtrace_hash_find_ptr.
  */
-void *ddtrace_hash_find_ptr_lc(HashTable *ht, const char *str, size_t len);
-void *ddtrace_hash_find_ptr(HashTable *ht, const char *str, size_t len);
+void *ddtrace_hash_find_ptr_lc(const HashTable *ht, const char *str, size_t len);
+void *ddtrace_hash_find_ptr(const HashTable *ht, const char *str, size_t len);
 
 #endif  // DDTRACE_ARRAYS_H
