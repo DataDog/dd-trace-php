@@ -22,7 +22,7 @@
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
 ## Important behavior changes in this release
-If you use the OpenTracing API, the OpenTracing compatible tracer will no longer be returned from `OpenTracing\GlobalTracer::get` automatically. See #899 or [the documentation](https://docs-staging.datadoghq.com/sammyk/php/open-tracing/tracing/opentracing/php/) for more details.
+If you use the OpenTracing API, the OpenTracing compatible tracer will no longer be returned from `OpenTracing\GlobalTracer::get` automatically. See #899 or [the documentation](https://docs.datadoghq.com/tracing/opentracing/php/) for more details.
 
 On PHP 7, `dd_trace` will no longer work on internal functions e.g. `curl_exec`; use `dd_trace_method` or `dd_trace_function` instead. Additionally, when targeting internal functions they also need to be added to the environment variable `DD_TRACE_TRACED_INTERNAL_FUNCTIONS` which is a comma separated list e.g. `DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,mt_rand,DateTime::add`. These two changes enable a significant performance optimization.
 
