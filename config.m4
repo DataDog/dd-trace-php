@@ -59,7 +59,7 @@ if test "$PHP_DDTRACE" != "no"; then
       src/ext/php5_4/blacklist.c \
       src/ext/php5_4/dispatch.c \
       src/ext/php5_4/engine_hooks.c \
-      src/ext/php5_4/handlers_curl.c \
+      src/ext/php5_4/handlers_internal.c \
     "
   elif test $PHP_VERSION -lt 70000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
@@ -67,7 +67,7 @@ if test "$PHP_DDTRACE" != "no"; then
       src/ext/php5/blacklist.c \
       src/ext/php5/dispatch.c \
       src/ext/php5/engine_hooks.c \
-      src/ext/php5/handlers_curl.c \
+      src/ext/php5/handlers_internal.c \
     "
   elif test $PHP_VERSION -lt 80000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
@@ -77,6 +77,10 @@ if test "$PHP_DDTRACE" != "no"; then
       src/ext/php7/engine_api.c \
       src/ext/php7/engine_hooks.c \
       src/ext/php7/handlers_curl.c \
+      src/ext/php7/handlers_internal.c \
+      src/ext/php7/handlers_memcached.c \
+      src/ext/php7/handlers_mysqli.c \
+      src/ext/php7/handlers_pdo.c \
     "
   else
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES=""

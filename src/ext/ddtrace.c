@@ -31,7 +31,7 @@
 #include "dispatch.h"
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
-#include "handlers_curl.h"
+#include "handlers_internal.h"
 #include "logging.h"
 #include "memory_limit.h"
 #include "random.h"
@@ -62,13 +62,15 @@ static int ddtrace_startup(struct _zend_extension *extension) {
 #endif
 
     ddtrace_blacklist_startup();
-    ddtrace_curl_handlers_startup();
+    ddtrace_internal_handlers_startup();
     return SUCCESS;
 }
 
 static void ddtrace_shutdown(struct _zend_extension *extension) {
     PHP5_UNUSED(extension);
     PHP7_UNUSED(extension);
+
+    ddtrace_internal_handlers_shutdown();
 }
 
 static void ddtrace_activate(void) {}
@@ -364,7 +366,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
-    ddtrace_curl_handlers_rshutdown();
+    ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
 
     ddtrace_dispatch_destroy(TSRMLS_C);
@@ -554,6 +556,7 @@ static PHP_FUNCTION(dd_trace) {
         DD_PRINTF("Class name: %s", Z_STRVAL_P(class_name));
     }
     DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
+
     if (ddtrace_blacklisted_disable_legacy && !get_dd_trace_ignore_legacy_blacklist()) {
         ddtrace_log_debugf(
             "Cannot instrument '%s()' with dd_trace(). This functionality is disabled due to a potentially conflicting "

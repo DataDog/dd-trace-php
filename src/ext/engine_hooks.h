@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include "ddtrace.h"
+#include "ddtrace_string.h"
 
 extern int ddtrace_resource;
 
@@ -86,6 +87,10 @@ inline void ddtrace_maybe_clear_exception(void) {
         zend_clear_exception();
     }
 }
+#endif
+
+#if PHP_VERSION_ID >= 70000
+PHP_FUNCTION(ddtrace_internal_function_handler);
 #endif
 
 #endif  // DD_ENGINE_HOOKS_H

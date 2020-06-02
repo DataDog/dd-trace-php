@@ -1,5 +1,7 @@
 --TEST--
 The original function call is invoked from the closure
+--SKIPIF--
+<?php if (PHP_MAJOR_VERSION > 5) die('skip: test requires legacy API'); ?>
 --FILE--
 <?php
 function doStuff($foo, array $bar = [])

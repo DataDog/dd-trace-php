@@ -9,6 +9,7 @@ This is how the tracer sandboxes the flushing functionality in userland
 memory_limit=2M
 --ENV--
 DD_TRACE_DEBUG=1
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--
 <?php
 function flushTracer() {

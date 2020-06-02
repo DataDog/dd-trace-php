@@ -4,6 +4,7 @@
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand,mt_srand
 --INI--
 error_reporting=E_ALL
 --FILE--

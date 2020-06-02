@@ -65,6 +65,13 @@ inline bool ddtrace_string_equals(ddtrace_string a, ddtrace_string b) {
     return a.len == b.len && (a.ptr == b.ptr || !memcmp(a.ptr, b.ptr, a.len));
 }
 
+/**
+ * @param str The string to search in.
+ * @param c The character to look for.
+ * @return Returns the position of `c` in `str.ptr` if found; `str.len` otherwise.
+ */
+size_t ddtrace_string_find_char(ddtrace_string str, char c);
+
 /* This function is _case sensitive_.
  * Only call if haystack and needle have len > 0.
  */
