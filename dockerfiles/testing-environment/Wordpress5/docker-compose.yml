@@ -1,0 +1,39 @@
+version: "3.7"
+
+services:
+  "7.3":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3"
+    depends_on:
+      - agent
+      - mysql
+    ports:
+      - 6666:80
+    environment:
+      - DD_SERVICE_NAME=7.3-build
+      - DD_AGENT_HOST=agent
+      - DB_HOST=mysql
+      - DD_HTTPBIN_HOST=httpbin
+      - TRACER_DOWNLOAD_URL=https://139868-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
+      # - DD_TRACE_DEBUG=true
+    # volumes:
+    #   - ./Laravel57:/var/www/html/
+    command: [ "/local-run.sh" ]
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true
+      - DD_APM_ENV=testenv
+
+  mysql:
+    image: "mysql:5.7"
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true
+
