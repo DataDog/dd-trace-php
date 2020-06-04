@@ -222,11 +222,6 @@
             "@laravel-42-test",
             "@slim-312-update",
             "@slim-312-test",
-            "@symfony-23-suite",
-            "@symfony-28-suite",
-            "@symfony-30-suite",
-            "@symfony-33-suite",
-            "@symfony-34-suite",
             "@yii-2-suite",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
