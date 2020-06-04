@@ -2,7 +2,7 @@
 
 set -e
 
-echo "Starting up local testing supervisord."
+echo "Starting up local testing suervisor."
 echo "Tracer to be installed: ${TRACER_DOWNLOAD_URL}"
 
 if [ ! -z ${TRACER_DOWNLOAD_URL} ]; then

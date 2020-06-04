@@ -2,22 +2,22 @@ version: "3.7"
 
 services:
   "7.3":
-    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:7.3"
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-wp5:7.3"
     depends_on:
       - agent
       - mysql
     ports:
-      - 6666:80
+      - 9999:80
     environment:
-      - DD_SERVICE_NAME=7.3-build
+      - DD_SERVICE_NAME=7.3-wp5
       - DD_AGENT_HOST=agent
       - DB_HOST=mysql
       - DD_HTTPBIN_HOST=httpbin
-      - TRACER_DOWNLOAD_URL=https://139868-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
-      # - DD_TRACE_DEBUG=true
-    # volumes:
-    #   - ./Laravel57:/var/www/html/
-    command: [ "/local-run.sh" ]
+      # - TRACER_DOWNLOAD_URL=https://139868-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
+      - DD_TRACE_DEBUG=true
+    volumes:
+      - ./app:/var/www/html/public
+    command: [ "/scripts/local-run.sh" ]
 
   agent:
     image: datadog/agent:latest
@@ -36,4 +36,3 @@ services:
       - "3306:3306"
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
-
