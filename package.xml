@@ -188,7 +188,9 @@
                     <file name="dd_trace_tracer_is_limited_memory.phpt" role="test" />
                     <dir name="call_user_func">
                         <file name="namespaced.phpt" role="test" />
+                        <file name="namespaced-array.phpt" role="test" />
                         <file name="not-namespaced.phpt" role="test" />
+                        <file name="not-namespaced-array.phpt" role="test" />
                     </dir>
                     <dir name="sandbox">
                         <file name="auto_flush.phpt" role="test" />
