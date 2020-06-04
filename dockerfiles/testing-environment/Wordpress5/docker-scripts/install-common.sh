@@ -6,6 +6,7 @@ apt update
 
 apt install -y \
     curl \
+    mysql-client \
     nginx \
     supervisor \
     unzip \

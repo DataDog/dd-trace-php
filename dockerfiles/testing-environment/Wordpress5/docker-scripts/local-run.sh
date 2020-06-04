@@ -11,4 +11,6 @@ if [ ! -z ${TRACER_DOWNLOAD_URL} ]; then
     dpkg -i dd-trace-php.deb
 fi
 
+/scripts/init-db.sh
+
 supervisord

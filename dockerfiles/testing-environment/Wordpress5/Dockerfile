@@ -19,6 +19,8 @@ ADD docker-scripts/php-relenv.ini /etc/php/7.3/fpm/conf.d/php-relenv.ini
 
 ADD docker-scripts/nginx.conf /etc/nginx/nginx.conf
 ADD docker-scripts/supervisord.conf /etc/supervisor/supervisord.conf
+ADD docker-scripts/init-db.sh /scripts/init-db.sh
+ADD docker-scripts/db-data.sql /scripts/db-data.sql
 ADD docker-scripts/local-run.sh /scripts/local-run.sh
 
 EXPOSE 80
