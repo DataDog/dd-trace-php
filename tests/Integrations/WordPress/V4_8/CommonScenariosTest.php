@@ -74,9 +74,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             SpanAssertion::exists('mysqli_query'),
             SpanAssertion::exists('mysqli_query'),
             SpanAssertion::exists('mysqli_real_connect'),
-        ];
-
-        $exit_children = [
             SpanAssertion::exists('WP.main')->withChildren([
                 SpanAssertion::exists('WP.init'),
                 SpanAssertion::exists('WP.parse_request')->withChildren([
@@ -92,9 +89,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                 ]),
             ]),
         ];
-
-        // In PHP 5, we don't yet support auto-closing sandbox spans with exit()
-        $children = \array_merge($children, \PHP_MAJOR_VERSION > 5 ? $exit_children : []);
 
         return $this->buildDataProvider(
             [

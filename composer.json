@@ -223,6 +223,7 @@
             "@slim-312-update",
             "@slim-312-test",
             "@yii-2-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
