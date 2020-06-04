@@ -220,8 +220,6 @@
             "@cakephp-28-test",
             "@laravel-42-update",
             "@laravel-42-test",
-            "@lumen-52-update",
-            "@lumen-52-test",
             "@slim-312-update",
             "@slim-312-test",
             "@symfony-23-suite",
@@ -451,7 +449,10 @@
         "laravel-58-test": "@composer test -- --testsuite=laravel-58-test",
 
         "lumen-52-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_2 update",
-        "lumen-52-test": "@composer test -- tests/Integrations/Lumen/V5_2/",
+        "lumen-52-test": [
+            "@composer test -- tests/Integrations/Lumen/V5_2/ --filter='/Sandbox/'",
+            "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Lumen/V5_2/ --filter='/^((?!Sandbox).)+$/'"
+        ],
         "lumen-56-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_6 update",
         "lumen-56-test": "@composer test -- tests/Integrations/Lumen/V5_6/",
         "lumen-58-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_8 update",
