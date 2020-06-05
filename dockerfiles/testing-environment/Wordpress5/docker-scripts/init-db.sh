@@ -2,10 +2,12 @@
 
 set -e
 
+DB_HOST=${DB_HOST:-localhost}
+
 # Wait until MySQL is really available
 MAXCOUNTER=30
 COUNTER=1
-while ! mysql -u root -h mysql -e "show databases;" > /dev/null 2>&1; do
+while ! mysql -u root -h ${DB_HOST} -e "show databases;" > /dev/null 2>&1; do
     sleep 1
     counter=`expr $counter + 1`
     if [ $COUNTER -gt $MAXCOUNTER ]; then
@@ -15,9 +17,9 @@ while ! mysql -u root -h mysql -e "show databases;" > /dev/null 2>&1; do
 done
 
 # Init DB if not exists
-EXISTS=$(mysql -h mysql -u root -e "SHOW DATABASES LIKE 'wordpress'")
+EXISTS=$(mysql -h ${DB_HOST} -u root -e "SHOW DATABASES LIKE 'wordpress'")
 if [[ -z "$EXISTS" ]]; then
     echo "Initializing DB"
-    mysql -h mysql -u root -e "CREATE DATABASE wordpress"
-    mysql -h mysql -u root wordpress < /scripts/db-data.sql
+    mysql -h ${DB_HOST} -u root -e "CREATE DATABASE wordpress"
+    mysql -h ${DB_HOST} -u root wordpress < /scripts/db-data.sql
 fi
