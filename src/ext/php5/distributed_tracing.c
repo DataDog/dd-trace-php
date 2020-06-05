@@ -26,10 +26,11 @@ void ddtrace_distributed_tracing_rshutdown(TSRMLS_D) {
     }
 }
 
-#define _DD_PARENT_ID_HEADER_LEN sizeof(DDTRACE_HTTP_HEADER_PARENT_ID ":") - 1
+#define _DD_PARENT_ID_HEADER_LEN (sizeof(DDTRACE_HTTP_HEADER_PARENT_ID ":") - 1)
 
 bool _dd_is_parent_id_header(zval **header) {
-    if (Z_STRLEN_PP(header) >= _DD_PARENT_ID_HEADER_LEN &&
+    size_t header_len = Z_STRLEN_PP(header);
+    if (header_len >= _DD_PARENT_ID_HEADER_LEN &&
         strncmp(DDTRACE_HTTP_HEADER_PARENT_ID ":", Z_STRVAL_PP(header), _DD_PARENT_ID_HEADER_LEN) == 0) {
         return true;
     }
