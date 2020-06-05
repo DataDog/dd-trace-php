@@ -51,6 +51,7 @@
                     <file name="ddtrace_string.c" role="src" />
                     <file name="ddtrace_string.h" role="src" />
                     <file name="debug.h" role="src" />
+                    <file name="distributed_tracing.h" role="src" />
                     <file name="memory_limit.c" role="src" />
                     <file name="memory_limit.h" role="src" />
                     <file name="circuit_breaker.c" role="src" />
@@ -91,6 +92,7 @@
                         <file name="auto_flush.c" role="src" />
                         <file name="blacklist.c" role="src" />
                         <file name="dispatch.c" role="src" />
+                        <file name="distributed_tracing.c" role="src" />
                         <file name="engine_hooks.c" role="src" />
                         <file name="handlers_curl.c" role="src" />
                     </dir>
@@ -98,6 +100,7 @@
                         <file name="auto_flush.c" role="src" />
                         <file name="blacklist.c" role="src" />
                         <file name="dispatch.c" role="src" />
+                        <file name="distributed_tracing.c" role="src" />
                         <file name="engine_hooks.c" role="src" />
                         <file name="handlers_internal.c" role="src" />
                     </dir>
@@ -105,6 +108,7 @@
                         <file name="auto_flush.c" role="src" />
                         <file name="blacklist.c" role="src" />
                         <file name="dispatch.c" role="src" />
+                        <file name="distributed_tracing.c" role="src" />
                         <file name="engine_api.c" role="src" />
                         <file name="engine_api.h" role="src" />
                         <file name="engine_hooks.c" role="src" />
@@ -320,6 +324,12 @@
                         <file name="with_params_method_hook.phpt" role="test" />
                     </dir>
                     <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
+                    <file name="distributed_tracing.inc" role="test" />
+                    <file name="distributed_tracing_curl.phpt" role="test" />
+                    <file name="distributed_tracing_curl_copy_handle.phpt" role="test" />
+                    <file name="distributed_tracing_curl_existing_headers_001.phpt" role="test" />
+                    <file name="distributed_tracing_curl_existing_headers_002.phpt" role="test" />
+                    <file name="distributed_tracing_headers.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
                     <file name="from_php_7_3_bug61728.phpt" role="test" />
