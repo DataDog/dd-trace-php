@@ -12,9 +12,8 @@ services:
       - DD_SERVICE_NAME=7.3-wp5
       - DD_AGENT_HOST=agent
       - DB_HOST=mysql
-      - DD_HTTPBIN_HOST=httpbin
-      # - TRACER_DOWNLOAD_URL=https://139868-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
-      - DD_TRACE_DEBUG=true
+      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.46.0/datadog-php-tracer_0.46.0_amd64.deb
+      - DD_TRACE_DEBUG=false
     volumes:
       - ./app:/var/www/html/public
     command: [ "/scripts/local-run.sh" ]
