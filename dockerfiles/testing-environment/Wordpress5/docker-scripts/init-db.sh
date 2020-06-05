@@ -2,7 +2,7 @@
 
 set -e
 
-DB_HOST=${DB_HOST:-localhost}
+DB_HOST=${DB_HOST:-127.0.0.1}
 
 # Wait until MySQL is really available
 MAXCOUNTER=30
