@@ -13,10 +13,6 @@ void ddtrace_replace_internal_methods(ddtrace_string Class, size_t methods_len, 
 void ddtrace_curl_handlers_startup(void);
 void ddtrace_curl_handlers_rshutdown(void);
 
-void ddtrace_internal_handlers_startup(void) {
-    ddtrace_curl_handlers_startup();
-}
+void ddtrace_internal_handlers_startup(void) { ddtrace_curl_handlers_startup(); }
 void ddtrace_internal_handlers_shutdown(void) {}
-void ddtrace_internal_handlers_rshutdown(void) {
-    ddtrace_curl_handlers_rshutdown();
-}
+void ddtrace_internal_handlers_rshutdown(void) { ddtrace_curl_handlers_rshutdown(); }
