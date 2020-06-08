@@ -14,8 +14,8 @@ services:
       - DB_HOST=mysql
       - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.46.0/datadog-php-tracer_0.46.0_amd64.deb
       - DD_TRACE_DEBUG=false
-    volumes:
-      - ./app:/var/www/html/public
+    # volumes:
+    #   - ./app:/var/www/html/public
     command: [ "/scripts/local-run.sh" ]
 
   agent:
