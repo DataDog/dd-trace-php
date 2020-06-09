@@ -11,7 +11,8 @@
 #include "handlers_internal.h"
 #include "random.h"
 
-long _dd_const_curlopt_httpheader = 0;  // True global
+// True global - only modify during MINIT/MSHUTDOWN
+long _dd_const_curlopt_httpheader = 0;
 
 static void (*_dd_curl_close_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*_dd_curl_copy_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
@@ -98,78 +99,60 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
     }
 }
 
+// Returns the user's headers for this resource
 // Caller must free the HashTable
-static HashTable *_dd_get_dt_http_headers(zval *resource TSRMLS_DC) {
-    // Distributed tracing headers
-    HashTable *dt_headers = DDTRACE_G(dt_http_headers);
-    int headers_count = zend_hash_num_elements(dt_headers);
+static HashTable *_dd_get_existing_headers(zval *resource TSRMLS_DC) {
+    HashTable *retval;
+    ALLOC_HASHTABLE(retval);
 
-    // The user's headers for this resource
     HashTable *headers_store = DDTRACE_G(dt_http_saved_curl_headers);
     HashTable **users_headers = NULL;
     if (headers_store &&
         zend_hash_index_find(headers_store, Z_RESVAL_P(resource), (void **)&users_headers) == SUCCESS) {
-        headers_count += zend_hash_num_elements(*users_headers);
+        size_t headers_count = zend_hash_num_elements(*users_headers);
+        zend_hash_init(retval, headers_count, NULL, ZVAL_PTR_DTOR, 0);
+        zend_hash_copy(retval, *users_headers, (copy_ctor_func_t)zval_add_ref, NULL, sizeof(zval *));
+    } else {
+        zend_hash_init(retval, 0, NULL, ZVAL_PTR_DTOR, 0);
     }
-
-    // Active span ID header
-    size_t len = sizeof(DDTRACE_HTTP_HEADER_PARENT_ID ": ") + DD_TRACE_MAX_ID_LEN + 1;
-    char *parent_id_header = emalloc(len);
-    snprintf(parent_id_header, len, DDTRACE_HTTP_HEADER_PARENT_ID ": %" PRIu64, ddtrace_peek_span_id(TSRMLS_C));
-    zval *parent_id_header_zv;
-    MAKE_STD_ZVAL(parent_id_header_zv);
-    ZVAL_STRING(parent_id_header_zv, parent_id_header, 0);
-
-    HashTable *retval;
-    ALLOC_HASHTABLE(retval);
-    zend_hash_init(retval, headers_count + 1, NULL, ZVAL_PTR_DTOR, 0);
-    zend_hash_copy(retval, dt_headers, (copy_ctor_func_t)zval_add_ref, NULL, sizeof(zval *));
-    if (users_headers && *users_headers) {
-        php_array_merge(retval, *users_headers, 0 TSRMLS_CC);
-    }
-    zend_hash_next_index_insert(retval, &parent_id_header_zv, sizeof(zval *), NULL);
-
     return retval;
 }
 
 ZEND_FUNCTION(ddtrace_curl_exec) {
     zval *ch;
 
-    if (_dd_load_curl_integration(TSRMLS_C) && DDTRACE_G(dt_http_headers) &&
+    if (_dd_load_curl_integration(TSRMLS_C) && ddtrace_peek_span_id(TSRMLS_C) != 0 &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "r", &ch) == SUCCESS) {
-        if (_dd_is_valid_curl_resource(ch TSRMLS_CC)) {
-            // Call curl_setopt() to inject distributed tracing headers before the curl_exec() call
-            zval **setopt_args[3];
+        if (_dd_is_valid_curl_resource(ch TSRMLS_CC) &&
+            zend_hash_exists(EG(function_table), "ddtrace\\bridge\\curl_inject_distributed_headers",
+                             sizeof("ddtrace\\bridge\\curl_inject_distributed_headers") /* no - 1 */)) {
+            // Inject distributed tracing headers before the curl_exec() call
+            zval **setopt_args[2];
 
             // Arg 0: resource $ch
             setopt_args[0] = &ch;
 
-            // Arg 1: int $option (CURLOPT_HTTPHEADER)
-            zval *curlopt_httpheader_zv;
-            MAKE_STD_ZVAL(curlopt_httpheader_zv);
-            ZVAL_LONG(curlopt_httpheader_zv, _dd_const_curlopt_httpheader);
-            setopt_args[1] = &curlopt_httpheader_zv;
-
-            // Arg 2: mixed $value (array of headers)
-            HashTable *dt_headers = _dd_get_dt_http_headers(ch TSRMLS_CC);
-            zval *dt_headers_zv;
-            MAKE_STD_ZVAL(dt_headers_zv);
-            dt_headers_zv->type = IS_ARRAY;
-            dt_headers_zv->value.ht = dt_headers;
-            zval_copy_ctor(dt_headers_zv);
-            setopt_args[2] = &dt_headers_zv;
+            // Arg 1: mixed $value (array of headers)
+            HashTable *headers = _dd_get_existing_headers(ch TSRMLS_CC);
+            zval *headers_zv;
+            MAKE_STD_ZVAL(headers_zv);
+            headers_zv->type = IS_ARRAY;
+            headers_zv->value.ht = headers;
+            zval_copy_ctor(headers_zv);
+            setopt_args[1] = &headers_zv;
 
             zval *retval = NULL;
             DDTRACE_G(back_up_http_headers) = 0;  // Don't save our own HTTP headers
-            if (ddtrace_call_function(ZEND_STRL("curl_setopt"), &retval, 3, setopt_args TSRMLS_CC) == SUCCESS) {
+            if (ddtrace_call_sandboxed_function(ZEND_STRL("ddtrace\\bridge\\curl_inject_distributed_headers"), &retval,
+                                                2, setopt_args TSRMLS_CC) == SUCCESS &&
+                retval) {
                 zval_ptr_dtor(&retval);
             }
             DDTRACE_G(back_up_http_headers) = 1;
 
-            zval_ptr_dtor(&dt_headers_zv);
-            zend_hash_destroy(dt_headers);
-            FREE_HASHTABLE(dt_headers);
-            zval_ptr_dtor(&curlopt_httpheader_zv);
+            zval_ptr_dtor(&headers_zv);
+            zend_hash_destroy(headers);
+            FREE_HASHTABLE(headers);
         }
     }
 
@@ -246,7 +229,7 @@ static void _dd_install_handler(_dd_curl_handler handler TSRMLS_DC) {
 
 void ddtrace_curl_handlers_startup(void) {
     TSRMLS_FETCH();
-    // if we cannot find ext/curl then do not hook the functions
+    // If we cannot find ext/curl then do not hook the functions
     if (!zend_hash_exists(&module_registry, "curl", sizeof("curl") /* no - 1 */)) {
         return;
     }

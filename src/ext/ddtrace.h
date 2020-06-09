@@ -48,12 +48,9 @@ ddtrace_original_context original_context;
 // PHP 7 uses ZEND_TLS for these
 #if PHP_VERSION_ID < 70000
 // Distributed tracing & curl
-HashTable *dt_http_headers;
 HashTable *dt_http_saved_curl_headers;
 zend_bool back_up_http_headers;
-/* "le_curl" is ext/curl's resource type.
- * "le_curl" is what php_curl.h names this variable
- */
+// ext/curl's list entry resource type
 int le_curl;
 #endif
 

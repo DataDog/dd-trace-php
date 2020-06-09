@@ -213,6 +213,14 @@
                         <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
                         <file name="dd_trace_push_span_id.phpt" role="test" />
                         <file name="dd_trace_set_trace_id.phpt" role="test" />
+                        <file name="distributed_tracing.inc" role="test" />
+                        <file name="distributed_tracing_curl.phpt" role="test" />
+                        <file name="distributed_tracing_curl_copy_handle.phpt" role="test" />
+                        <file name="distributed_tracing_curl_existing_headers_001.phpt" role="test" />
+                        <file name="distributed_tracing_curl_existing_headers_002.phpt" role="test" />
+                        <file name="distributed_tracing_curl_inject.inc" role="test" />
+                        <file name="distributed_tracing_curl_inject_exception.inc" role="test" />
+                        <file name="distributed_tracing_curl_sandboxed.phpt" role="test" />
                         <file name="drop_spans.phpt" role="test" />
                         <file name="errors_are_flagged_from_userland.phpt" role="test" />
                         <file name="exception_does_not_close_span_that_catches.phpt" role="test" />
@@ -324,12 +332,6 @@
                         <file name="with_params_method_hook.phpt" role="test" />
                     </dir>
                     <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
-                    <file name="distributed_tracing.inc" role="test" />
-                    <file name="distributed_tracing_curl.phpt" role="test" />
-                    <file name="distributed_tracing_curl_copy_handle.phpt" role="test" />
-                    <file name="distributed_tracing_curl_existing_headers_001.phpt" role="test" />
-                    <file name="distributed_tracing_curl_existing_headers_002.phpt" role="test" />
-                    <file name="distributed_tracing_headers.phpt" role="test" />
                     <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
                     <file name="from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
                     <file name="from_php_7_3_bug61728.phpt" role="test" />

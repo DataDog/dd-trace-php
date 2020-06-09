@@ -1,16 +1,23 @@
 <?php
 
-function dt_dump_headers_from_httpbin($response, array $whitelist)
+function dt_decode_headers_from_httpbin($response)
 {
     $data = json_decode($response, true);
     if (!$data || !isset($data['headers'])) {
         echo 'Invalid response:' . PHP_EOL;
         var_dump($response);
-        return;
+        return [];
     }
-
+    $headers = [];
     foreach ($data['headers'] as $key => $value) {
-        $key = strtolower($key);
+        $headers[strtolower($key)] = $value;
+    }
+    return $headers;
+}
+
+function dt_dump_headers_from_httpbin(array $headers, array $whitelist)
+{
+    foreach ($headers as $key => $value) {
         if (!in_array($key, $whitelist, true)) {
             continue;
         }

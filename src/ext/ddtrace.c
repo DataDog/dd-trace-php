@@ -120,10 +120,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_buffer_span, 0, 0, 1)
 ZEND_ARG_INFO(0, trace_array)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_distributed_tracing_headers, 0, 0, 1)
-ZEND_ARG_INFO(0, headers)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_env_config, 0, 0, 1)
 ZEND_ARG_INFO(0, env_name)
 ZEND_END_ARG_INFO()
@@ -735,18 +731,6 @@ static PHP_FUNCTION(dd_trace_forward_call) {
 #endif
 }
 
-static PHP_FUNCTION(dd_trace_distributed_tracing_headers) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    PHP7_UNUSED(execute_data);
-
-    zval *headers;
-    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "a", &headers) != SUCCESS) {
-        ddtrace_log_debug("Distributed tracing headers must be an array");
-        RETURN_FALSE
-    }
-    RETURN_BOOL(ddtrace_distributed_tracing_set_headers(headers TSRMLS_CC));
-}
-
 static PHP_FUNCTION(dd_trace_env_config) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
@@ -1252,7 +1236,6 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_coms_trigger_writer_flush, NULL),
     DDTRACE_FE(dd_trace_dd_get_memory_limit, NULL),
     DDTRACE_FE(dd_trace_disable_in_request, NULL),
-    DDTRACE_FE(dd_trace_distributed_tracing_headers, arginfo_dd_trace_distributed_tracing_headers),
     DDTRACE_FE(dd_trace_env_config, arginfo_dd_trace_env_config),
     DDTRACE_FE(dd_trace_forward_call, NULL),
 #if PHP_VERSION_ID >= 50600

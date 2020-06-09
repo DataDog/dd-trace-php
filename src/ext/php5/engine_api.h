@@ -11,6 +11,7 @@
 
 #include <php.h>
 
-int ddtrace_call_function(const char *name, size_t name_len, zval **retval, int argc, zval **argv[] TSRMLS_DC);
+int ddtrace_call_sandboxed_function(const char *name, size_t name_len, zval **retval, int argc,
+                                    zval **argv[] TSRMLS_DC);
 
 #endif  // DDTRACE_PHP_5_ENGINE_API_H

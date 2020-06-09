@@ -35,7 +35,6 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
     {
         $spanContext = new SpanContext('trace_id', 'span_id');
         $this->tracer->shouldReceive('extract')->andReturn($spanContext);
-        $this->tracer->shouldReceive('inject');
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest($this->tracer);
         /** @var Reference[] $references */
         $references = $startSpanOptions->getReferences();
