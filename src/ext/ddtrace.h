@@ -45,6 +45,15 @@ char *dogstatsd_port;
 char *dogstatsd_buffer;
 ddtrace_original_context original_context;
 
+// PHP 7 uses ZEND_TLS for these
+#if PHP_VERSION_ID < 70000
+// Distributed tracing & curl
+HashTable *dt_http_saved_curl_headers;
+zend_bool back_up_http_headers;
+// ext/curl's list entry resource type
+int le_curl;
+#endif
+
 uint64_t trace_id;
 ddtrace_span_ids_t *span_ids_top;
 ddtrace_span_t *open_spans_top;

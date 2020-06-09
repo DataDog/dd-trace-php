@@ -197,6 +197,16 @@ executors:
     docker:
       - image: << parameters.docker_image >>
       - <<: *IMAGE_DOCKER_DD_AGENT
+  with_httpbin:
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+    parameters:
+      docker_image:
+        type: string
+    docker:
+      - image: << parameters.docker_image >>
+      - <<: *IMAGE_DOCKER_DD_AGENT
+      - <<: *IMAGE_DOCKER_HTTPBIN
   with_integrations:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -367,8 +377,9 @@ jobs:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
+      HTTPBIN_HOSTNAME: httpbin_integration
     executor:
-      name: with_agent
+      name: with_httpbin
       docker_image: << parameters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE

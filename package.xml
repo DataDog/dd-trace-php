@@ -51,6 +51,7 @@
                     <file name="ddtrace_string.c" role="src" />
                     <file name="ddtrace_string.h" role="src" />
                     <file name="debug.h" role="src" />
+                    <file name="distributed_tracing.h" role="src" />
                     <file name="memory_limit.c" role="src" />
                     <file name="memory_limit.h" role="src" />
                     <file name="circuit_breaker.c" role="src" />
@@ -91,6 +92,7 @@
                         <file name="auto_flush.c" role="src" />
                         <file name="blacklist.c" role="src" />
                         <file name="dispatch.c" role="src" />
+                        <file name="distributed_tracing.c" role="src" />
                         <file name="engine_hooks.c" role="src" />
                         <file name="handlers_internal.c" role="src" />
                     </dir>
@@ -98,6 +100,7 @@
                         <file name="auto_flush.c" role="src" />
                         <file name="blacklist.c" role="src" />
                         <file name="dispatch.c" role="src" />
+                        <file name="distributed_tracing.c" role="src" />
                         <file name="engine_hooks.c" role="src" />
                         <file name="handlers_internal.c" role="src" />
                     </dir>
@@ -105,6 +108,7 @@
                         <file name="auto_flush.c" role="src" />
                         <file name="blacklist.c" role="src" />
                         <file name="dispatch.c" role="src" />
+                        <file name="distributed_tracing.c" role="src" />
                         <file name="engine_api.c" role="src" />
                         <file name="engine_api.h" role="src" />
                         <file name="engine_hooks.c" role="src" />
@@ -209,6 +213,14 @@
                         <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
                         <file name="dd_trace_push_span_id.phpt" role="test" />
                         <file name="dd_trace_set_trace_id.phpt" role="test" />
+                        <file name="distributed_tracing.inc" role="test" />
+                        <file name="distributed_tracing_curl.phpt" role="test" />
+                        <file name="distributed_tracing_curl_copy_handle.phpt" role="test" />
+                        <file name="distributed_tracing_curl_existing_headers_001.phpt" role="test" />
+                        <file name="distributed_tracing_curl_existing_headers_002.phpt" role="test" />
+                        <file name="distributed_tracing_curl_inject.inc" role="test" />
+                        <file name="distributed_tracing_curl_inject_exception.inc" role="test" />
+                        <file name="distributed_tracing_curl_sandboxed.phpt" role="test" />
                         <file name="drop_spans.phpt" role="test" />
                         <file name="errors_are_flagged_from_userland.phpt" role="test" />
                         <file name="exception_does_not_close_span_that_catches.phpt" role="test" />

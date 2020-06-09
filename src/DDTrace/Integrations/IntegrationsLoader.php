@@ -94,10 +94,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\CakePHP\CakePHPSandboxedIntegration';
             $this->integrations[CodeIgniterSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration';
-            if (\PHP_MAJOR_VERSION > 5) {
-                $this->integrations[CurlSandboxedIntegration::NAME] =
-                    '\DDTrace\Integrations\Curl\CurlSandboxedIntegration';
-            }
+            $this->integrations[CurlSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\Curl\CurlSandboxedIntegration';
             $this->integrations[ElasticSearchSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration';
             $this->integrations[EloquentSandboxedIntegration::NAME] =
