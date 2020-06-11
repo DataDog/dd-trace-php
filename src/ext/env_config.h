@@ -14,6 +14,15 @@
  */
 char *ddtrace_getenv(char *name, size_t name_len TSRMLS_DC);
 
+/* ddtrace_getenv_multi duplicates; efree it when done.
+ * Do not call ddtrace_getenv_multi from the background thread.
+ * Returns the sapi_getenv or getenv.
+ * If a value for name1 exists then it uses it, otherwise the fallback name name2 is used.
+ * This can be used in the common case when for BC compatibility we need to support multiple names for the same
+ * environment variable.
+ */
+char *ddtrace_getenv_multi(char *name1, size_t name1_len, char *name2, size_t name2_len TSRMLS_DC);
+
 BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def TSRMLS_DC);
 char *ddtrace_get_c_string_config(char *name TSRMLS_DC);
 int64_t ddtrace_get_int_config(char *name, int64_t def TSRMLS_DC);
