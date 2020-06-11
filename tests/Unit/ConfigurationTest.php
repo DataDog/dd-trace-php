@@ -146,13 +146,6 @@ final class ConfigurationTest extends BaseTestCase
         $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
     }
 
-    public function testServiceNameViaDDService()
-    {
-        $this->putEnvAndReloadConfig(['DD_SERVICE=my_app']);
-        $this->assertSame('my_app', Configuration::get()->appName('__default__'));
-        $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
-    }
-
     public function testServiceNameViaDDServiceWinsOverDDServiceName()
     {
         $this->putEnvAndReloadConfig(['DD_SERVICE=my_app', 'DD_SERVICE_NAME=legacy']);
