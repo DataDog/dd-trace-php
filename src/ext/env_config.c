@@ -24,14 +24,14 @@ char *ddtrace_getenv(char *name, size_t name_len TSRMLS_DC) {
     return env ? estrdup(env) : NULL;
 }
 
-char *ddtrace_getenv_multi(char *str1, size_t str1_len, char *str2, size_t str2_len TSRMLS_DC) {
+char *ddtrace_getenv_multi(char *primary, size_t primary_len, char *secondary, size_t secondary_len TSRMLS_DC) {
     // Primary env name, if exists
-    char *env = ddtrace_getenv(str1, str1_len TSRMLS_CC);
+    char *env = ddtrace_getenv(primary, primary_len TSRMLS_CC);
     if (env) {
         return env;
     }
-    // Otherwise we use the fallback env  name
-    return ddtrace_getenv(str2, str2_len TSRMLS_CC);
+    // Otherwise we use the secondary env name
+    return ddtrace_getenv(secondary, secondary_len TSRMLS_CC);
 }
 
 char *get_local_env_or_sapi_env(char *name TSRMLS_DC) {
