@@ -256,6 +256,17 @@ final class TracerTest extends BaseTestCase
         $this->assertTrue(empty($traces[0][0]['meta']['env']));
     }
 
+    public function testDDEnvHasPrecendenceOverGlobalTags()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertSame('from-env', $traces[0][0]['meta']['env']);
+    }
+
     public function testServiceVersionIsAddedToASpan()
     {
         $this->putEnvAndReloadConfig(['DD_VERSION=1.2.3']);
@@ -276,6 +287,17 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertTrue(empty($traces[0][0]['meta']['version']));
+    }
+
+    public function testDDVersionHasPrecendenceOverGlobalTags()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertSame('from-env', $traces[0][0]['meta']['version']);
     }
 
     public function testServiceMappingNoEnvMapping()
