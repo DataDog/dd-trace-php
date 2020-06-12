@@ -38,7 +38,6 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'select * from `users`'
         )->withExactTags([
-            'integration.name' => 'eloquent',
             'sql.query' => 'select * from `users`',
         ]));
     }
@@ -55,7 +54,6 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'User'
         )->withExactTags([
-            'integration.name' => 'eloquent',
         ]));
     }
 
@@ -72,7 +70,6 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'User'
         )->withExactTags([
-            'integration.name' => 'eloquent',
         ]));
     }
 
@@ -89,7 +86,6 @@ class EloquentTest extends WebFrameworkTestCase
             'sql',
             'User'
         )->withExactTags([
-            'integration.name' => 'eloquent',
         ]));
     }
 

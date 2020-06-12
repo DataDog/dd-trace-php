@@ -30,14 +30,15 @@
         "mockery/mockery": "*",
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
-        "symfony/process": "<5"
+        "symfony/process": "<5",
+        "classpreloader/classpreloader": "1.4.*"
     },
     "config": {
         "sort-packages": true
     },
     "autoload": {
         "psr-4": {
-            "DDTrace\\": "./src/DDTrace/"
+            "DDTrace\\": "./src/api/"
         }
     },
     "autoload-dev": {
@@ -47,23 +48,41 @@
     },
     "prefer-stable": true,
     "scripts": {
+        "compile": "classpreloader.php compile --config=./bridge/_files.php --output=./bridge/_generated.php --strip_comments=1",
+        "compile-verify": "php ./bridge/autoload.php",
         "fix-lint": "phpcbf",
-        "lint": "phpcs -s --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/",
+        "lint": "phpcs -s --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/,tests/xdebug/",
         "lint-5.4": "phpcs -s --runtime-set testVersion 5.4-7.3 --ignore=src/DDTrace/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/",
-        "static-analyze": "phpstan analyse --level=2 src",
+        "static-analyze": [
+            "@static-analyze-clear-cache",
+            "@static-analyze-api",
+            "@static-analyze-ddtrace"
+        ],
+        "static-analyze-api": "phpstan analyse --configuration=./phpstan.api.neon --level=2 src/api",
+        "static-analyze-api-clear-cache": [
+            "phpstan clear-result-cache --configuration=./phpstan.api.neon",
+            "phpstan clear-result-cache --configuration=./phpstan.ddtrace.neon"
+        ],
+        "static-analyze-ddtrace": "phpstan analyse --configuration=./phpstan.ddtrace.neon --level=2 src/DDTrace",
         "run-agent": [
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
         ],
-        "install-ext": "make sudo install_ini install $*",
+        "install-ext": [
+            "make sudo install_ini install $*",
+            "@composer compile",
+            "@composer compile-verify"
+        ],
         "test-cache": "./tooling/bin/composer-cache cache",
         "test-cache-link": "./tooling/bin/composer-cache link-cache",
         "test-cache-unlink": "./tooling/bin/composer-cache unlink-cache",
         "test-ext": "make test_c TESTS=tests/ext",
         "test": "phpunit --colors=always --configuration=phpunit.xml",
+        "test-no-compile": "DD_AUTOLOAD_NO_COMPILE=true phpunit --colors=always --configuration=phpunit.xml",
         "test-all-54": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-54",
@@ -73,6 +92,7 @@
             "@test-unit",
             "@test-auto-instrumentation",
             "@test-distributed-tracing",
+            "@test-composer",
             "@test-integration",
             "@test-integrations-56",
             "@test-web-56"
@@ -80,6 +100,7 @@
         "test-all-70": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-70",
@@ -88,6 +109,7 @@
         "test-all-71": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-71",
@@ -96,6 +118,7 @@
         "test-all-72": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-72",
@@ -104,6 +127,7 @@
         "test-all-73": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-73",
@@ -112,6 +136,7 @@
         "test-all-74": [
             "@test-unit",
             "@test-auto-instrumentation",
+            "@test-composer",
             "@test-distributed-tracing",
             "@test-integration",
             "@test-integrations-74",
@@ -124,122 +149,91 @@
         "test-integrations-54": [
             "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch1",
-            "@composer test -- tests/Integrations/Elasticsearch",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
+            "@composer test-curl",
+            "@composer test-memcached",
+            "@composer test-mysqli",
+            "@composer test-pdo",
+            "@composer test-elasticsearch1",
+            "@composer test-guzzle5",
+            "@composer test-guzzle6",
+            "@composer test-predis1",
             "@composer scenario default"
         ],
         "test-integrations-56": [
             "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mongo",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch1",
-            "@composer test -- tests/Integrations/Elasticsearch",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
+            "@composer test-curl",
+            "@composer test-memcached",
+            "@composer test-mysqli",
+            "@composer test-mongo",
+            "@composer test-pdo",
+            "@composer test-elasticsearch1",
+            "@composer test-guzzle5",
+            "@composer test-guzzle6",
+            "@composer test-predis1",
             "@composer scenario default"
         ],
         "test-integrations-70": [
             "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch1",
-            "@composer test -- tests/Integrations/Elasticsearch",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
+            "@composer test-curl",
+            "@composer test-memcached",
+            "@composer test-mysqli",
+            "@composer test-pdo",
+            "@composer test-elasticsearch1",
+            "@composer test-guzzle5",
+            "@composer test-guzzle6",
+            "@composer test-predis1",
             "@composer scenario default"
         ],
         "test-integrations-71": [
             "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch1",
-            "@composer test -- tests/Integrations/Elasticsearch",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
+            "@composer test-curl",
+            "@composer test-memcached",
+            "@composer test-mysqli",
+            "@composer test-pdo",
+            "@composer test-elasticsearch1",
+            "@composer test-guzzle5",
+            "@composer test-guzzle6",
+            "@composer test-predis1",
             "@composer scenario default"
         ],
         "test-integrations-72": [
             "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario elasticsearch1",
-            "@composer test -- tests/Integrations/Elasticsearch",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
+            "@composer test-curl",
+            "@composer test-memcached",
+            "@composer test-mysqli",
+            "@composer test-pdo",
+            "@composer test-elasticsearch1",
+            "@composer test-guzzle5",
+            "@composer test-guzzle6",
+            "@composer test-predis1",
             "@composer scenario default"
         ],
         "test-integrations-73": [
             "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
+            "@composer test-curl",
+            "@composer test-memcached",
+            "@composer test-mysqli",
+            "@composer test-pdo",
+            "@composer test-guzzle5",
+            "@composer test-guzzle6",
+            "@composer test-predis1",
             "@composer scenario default"
         ],
         "test-integrations-74": [
             "sh clean-composer-scenario-locks.sh",
             "@composer scenario:update",
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl",
-            "@composer test -- tests/Integrations/Memcached",
-            "@composer test -- tests/Integrations/Mysqli",
-            "@composer test -- tests/Integrations/PDO",
-            "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5",
-            "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6",
-            "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis",
+            "@composer test-curl",
+            "@composer test-memcached",
+            "@composer test-mysqli",
+            "@composer test-pdo",
+            "@composer test-guzzle5",
+            "@composer test-guzzle6",
+            "@composer test-predis1",
             "@composer scenario default"
         ],
         "test-web-54": [
@@ -258,6 +252,8 @@
             "@cakephp-28-test",
             "@laravel-42-update",
             "@laravel-42-test",
+            "@lumen-52-update",
+            "@lumen-52-test",
             "@slim-312-update",
             "@slim-312-test",
             "@symfony-23-suite",
@@ -272,9 +268,13 @@
         "test-web-70": [
             "@test-cache-link",
             "@test-metrics",
+            "@cakephp-28-update",
+            "@cakephp-28-test",
             "@codeigniter-22-test",
             "@laravel-42-update",
             "@laravel-42-test",
+            "@lumen-52-update",
+            "@lumen-52-test",
             "@slim-312-update",
             "@slim-312-test",
             "@symfony-23-suite",
@@ -290,6 +290,8 @@
         "test-web-71": [
             "@test-cache-link",
             "@test-metrics",
+            "@cakephp-28-update",
+            "@cakephp-28-test",
             "@codeigniter-22-test",
             "@laravel-42-update",
             "@laravel-42-test",
@@ -415,7 +417,55 @@
 
         "test-auto-instrumentation": "phpunit --colors=always --configuration=phpunit.xml --testsuite=auto-instrumentation",
 
+        "test-composer": "phpunit --colors=always --configuration=phpunit.xml --testsuite=composer-tests",
+
         "test-distributed-tracing": "phpunit --colors=always --configuration=phpunit.xml --testsuite=distributed-tracing",
+
+        "test-curl": [
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Curl --filter='/Sandbox/'",
+            "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Curl --filter='/^((?!Sandbox).)+$/'"
+        ],
+        "test-memcached": [
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Memcached --filter='/Sandbox/'",
+            "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Memcached --filter='/^((?!Sandbox).)+$/'"
+        ],
+        "test-mysqli": [
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Mysqli --filter='/Sandbox/'",
+            "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Mysqli --filter='/^((?!Sandbox).)+$/'"
+        ],
+        "test-mongo": [
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Mongo --filter='/Sandbox/'",
+            "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Mongo --filter='/^((?!Sandbox).)+$/'"
+        ],
+        "test-pdo": [
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/PDO --filter='/Sandbox/'",
+            "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/PDO --filter='/^((?!Sandbox).)+$/'"
+        ],
+        "test-elasticsearch1": [
+            "@composer scenario elasticsearch1",
+            "@composer test -- tests/Integrations/Elasticsearch --filter='/Sandbox/'",
+            "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Elasticsearch --filter='/^((?!Sandbox).)+$/'"
+        ],
+        "test-guzzle5": [
+            "@composer scenario guzzle5",
+            "@composer test -- tests/Integrations/Guzzle/V5 --filter='/Sandbox/'",
+            "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Guzzle/V5 --filter='/^((?!Sandbox).)+$/'"
+        ],
+        "test-guzzle6": [
+            "@composer scenario guzzle6",
+            "@composer test -- tests/Integrations/Guzzle/V6 --filter='/Sandbox/'",
+            "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Guzzle/V6 --filter='/^((?!Sandbox).)+$/'"
+        ],
+        "test-predis1": [
+            "@composer scenario predis1",
+            "@composer test -- tests/Integrations/Predis --filter='/Sandbox/'",
+            "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Predis --filter='/^((?!Sandbox).)+$/'"
+        ],
 
         "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",
         "cakephp-28-test": "@composer test -- --testsuite=cakephp-28-test",
@@ -433,11 +483,11 @@
         "laravel-58-test": "@composer test -- --testsuite=laravel-58-test",
 
         "lumen-52-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_2 update",
-        "lumen-52-test": "@composer test -- tests/Integrations/Lumen/V5_2/CommonScenariosTest.php",
+        "lumen-52-test": "@composer test -- tests/Integrations/Lumen/V5_2/",
         "lumen-56-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_6 update",
-        "lumen-56-test": "@composer test -- tests/Integrations/Lumen/V5_6/CommonScenariosTest.php",
+        "lumen-56-test": "@composer test -- tests/Integrations/Lumen/V5_6/",
         "lumen-58-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_8 update",
-        "lumen-58-test": "@composer test -- tests/Integrations/Lumen/V5_8/CommonScenariosTest.php",
+        "lumen-58-test": "@composer test -- tests/Integrations/Lumen/V5_8/",
 
         "slim-312-update": "@composer --working-dir=tests/Frameworks/Slim/Version_3_12 update",
         "slim-312-test": "@composer test -- --testsuite=slim-312-test",

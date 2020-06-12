@@ -43,7 +43,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple',
                             'http.status_code' => '200',
-                            'integration.name' => 'zendframework',
                         ]),
                 ],
                 'A simple GET request with a view' => [
@@ -55,7 +54,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/simple_view',
                             'http.status_code' => '200',
-                            'integration.name' => 'zendframework',
                         ]),
                 ],
                 'A GET request with an exception' => [
@@ -67,7 +65,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'http.method' => 'GET',
                             'http.url' => 'http://localhost:9999/error',
                             'http.status_code' => '500',
-                            'integration.name' => 'zendframework',
                         ])->setError(),
                 ],
             ]

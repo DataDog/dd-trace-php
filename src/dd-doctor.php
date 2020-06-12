@@ -117,6 +117,19 @@ function env($key)
         : getenv($key);
 }
 
+function check_opcache()
+{
+    if (!function_exists('opcache_get_configuration')) {
+        render('Opcache installed:', 'NO');
+        return;
+    }
+    render('Opcache installed:', 'YES');
+    $configs = opcache_get_configuration();
+    foreach ($configs['directives'] as $name => $value) {
+        sub_paragraph("$name = $value");
+    }
+}
+
 function check_agent_connectivity()
 {
     $host = env('DD_AGENT_HOST') ?: 'localhost';
@@ -185,7 +198,7 @@ $initHookReachable = quiet_file_exists($initHook);
 renderSuccessOrFailure('ddtrace.request_init_hook reachable', $initHookReachable);
 $openBaseDirs = ini_get('open_basedir') ? explode(':', ini_get('open_basedir')) : [];
 if ($initHookReachable) {
-    $initHookHasRun = function_exists('DDTrace\\Bridge\\dd_wrap_autoloader');
+    $initHookHasRun = function_exists('DDTrace\\Bridge\\dd_tracing_enabled');
     renderSuccessOrFailure('ddtrace.request_init_hook has run', $initHookHasRun);
 } elseif($initHook && $openBaseDirs) {
     $initHookDir = dirname($initHook);
@@ -244,6 +257,8 @@ render("Background sender is enabled?", $isBackgroundSenderEnabled ? 'YES' : 'NO
 if (!$isBackgroundSenderEnabled) {
     sub_paragraph('You can enable the background sender via DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=true');
 }
+
+check_opcache();
 
 check_agent_connectivity();
 

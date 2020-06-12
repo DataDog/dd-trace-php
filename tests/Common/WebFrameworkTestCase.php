@@ -51,11 +51,12 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     protected static function getEnvs()
     {
         $envs = [
+            'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
             'DD_TEST_INTEGRATION' => 'true',
-            'DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED' => 'true',
             'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
             // Short flush interval by default or our tests will take all day
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
+            'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
         ];
 
         if (!self::isSandboxed()) {
@@ -72,7 +73,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     protected static function getInis()
     {
         return [
-            'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+            'ddtrace.request_init_hook' => realpath(__DIR__ . '/../../bridge/dd_wrap_autoloader.php'),
             // The following values should be made configurable from the outside. I could not get env XDEBUG_CONFIG
             // to work setting it both in docker-compose.yml and in `getEnvs()` above, but that should be the best
             // option.
@@ -90,8 +91,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
         $rootPath = static::getAppIndexScript();
         if ($rootPath) {
             self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT);
-            self::$appServer->setEnvs(static::getEnvs());
-            self::$appServer->setInis(static::getInis());
+            self::$appServer->mergeEnvs(static::getEnvs());
+            self::$appServer->mergeInis(static::getInis());
             self::$appServer->start();
         }
     }

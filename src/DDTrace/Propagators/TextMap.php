@@ -2,7 +2,6 @@
 
 namespace DDTrace\Propagators;
 
-use DDTrace\Configuration;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\Propagator;
 use DDTrace\Sampling\PrioritySampling;
@@ -100,7 +99,7 @@ final class TextMap implements Propagator
         if (dd_trace_set_trace_id($traceId)) {
             return true;
         }
-        if (Configuration::get()->isDebugModeEnabled()) {
+        if (\ddtrace_config_debug_enabled()) {
             self::logDebug(
                 'Error parsing distributed trace trace ID: {id}; ignoring.',
                 [
@@ -127,7 +126,7 @@ final class TextMap implements Propagator
         if ($pushedSpanId === $spanId) {
             return $spanId;
         }
-        if (Configuration::get()->isDebugModeEnabled()) {
+        if (\ddtrace_config_debug_enabled()) {
             self::logDebug(
                 'Error parsing distributed trace parent ID: {expected}; using {actual} instead.',
                 [

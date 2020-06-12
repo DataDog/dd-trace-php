@@ -4,6 +4,7 @@ Keep spans in limited mode (internal methods)
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=DateTime::format,DateTime::setTime
 --FILE--
 <?php
 date_default_timezone_set('UTC');

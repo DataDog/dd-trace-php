@@ -7,6 +7,14 @@
 #include <stdint.h>
 
 #include "ddtrace.h"
+#include "ddtrace_string.h"
+
+extern int ddtrace_resource;
+
+#if PHP_VERSION_ID >= 70400
+extern int ddtrace_op_array_extension;
+#define DDTRACE_OP_ARRAY_EXTENSION(op_array) ZEND_OP_ARRAY_EXTENSION(op_array, ddtrace_op_array_extension)
+#endif
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
@@ -79,6 +87,10 @@ inline void ddtrace_maybe_clear_exception(void) {
         zend_clear_exception();
     }
 }
+#endif
+
+#if PHP_VERSION_ID >= 70000
+PHP_FUNCTION(ddtrace_internal_function_handler);
 #endif
 
 #endif  // DD_ENGINE_HOOKS_H

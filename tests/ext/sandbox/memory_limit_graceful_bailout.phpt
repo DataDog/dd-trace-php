@@ -8,9 +8,11 @@ This test ensures that when the span stack is left in a "dirty" state from a zen
 --ENV--
 DD_TRACE_SPANS_LIMIT=-1
 DD_TRACE_MEMORY_LIMIT=0
+DD_TRACE_TRACE_INTERNAL_FUNCTIONS=array_sum
 --INI--
 memory_limit=2M
 max_execution_time=5
+ddtrace.request_init_hook=
 --FILE--
 <?php
 register_shutdown_function(function () {

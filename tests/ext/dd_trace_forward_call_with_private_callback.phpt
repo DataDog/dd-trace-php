@@ -1,5 +1,7 @@
 --TEST--
 A private method can be used as callback with dd_trace_forward_call()
+--SKIPIF--
+<?php if (PHP_MAJOR_VERSION > 5) die('skip: test requires legacy API'); ?>
 --FILE--
 <?php
 

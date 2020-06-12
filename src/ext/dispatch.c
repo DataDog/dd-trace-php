@@ -3,6 +3,7 @@
 #include <Zend/zend.h>
 #include <php.h>
 
+#include "arrays.h"
 #include "ddtrace.h"
 #include "debug.h"
 
@@ -19,77 +20,41 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static ddtrace_dispatch_t *find_function_dispatch(const HashTable *lookup, zval *fname) {
-    char *key = zend_str_tolower_dup(Z_STRVAL_P(fname), Z_STRLEN_P(fname));
-    ddtrace_dispatch_t *dispatch = NULL;
-    dispatch = zend_hash_str_find_ptr(lookup, key, Z_STRLEN_P(fname));
+extern inline void ddtrace_dispatch_copy(ddtrace_dispatch_t *dispatch);
+extern inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch);
 
-    efree(key);
-    return dispatch;
+static ddtrace_dispatch_t *_dd_find_function_dispatch(HashTable *ht, zval *fname) {
+    return ddtrace_hash_find_ptr_lc(ht, Z_STRVAL_P(fname), Z_STRLEN_P(fname));
 }
 
-static ddtrace_dispatch_t *find_method_dispatch(const zend_class_entry *class, zval *fname TSRMLS_DC) {
+static ddtrace_dispatch_t *_dd_find_method_dispatch(zend_class_entry *class, zval *fname TSRMLS_DC) {
     if (!fname || !Z_STRVAL_P(fname)) {
         return NULL;
     }
     HashTable *class_lookup = NULL;
 
-    // downcase the class name as they are case insensitive
 #if PHP_VERSION_ID < 70000
+    const char *class_name = class->name;
     size_t class_name_length = class->name_length;
-    char *class_name = zend_str_tolower_dup(class->name, class_name_length);
-    class_lookup = zend_hash_str_find_ptr(DDTRACE_G(class_lookup), class_name, class_name_length);
-    efree(class_name);
 #else
-    zend_string *class_name = zend_string_tolower(class->name);
-    class_lookup = zend_hash_find_ptr(DDTRACE_G(class_lookup), class_name);
-    zend_string_release(class_name);
+    const char *class_name = ZSTR_VAL(class->name);
+    size_t class_name_length = ZSTR_LEN(class->name);
 #endif
 
-    ddtrace_dispatch_t *dispatch = NULL;
+    class_lookup = ddtrace_hash_find_ptr_lc(DDTRACE_G(class_lookup), class_name, class_name_length);
     if (class_lookup) {
-        dispatch = find_function_dispatch(class_lookup, fname);
+        ddtrace_dispatch_t *dispatch = _dd_find_function_dispatch(class_lookup, fname);
+        if (dispatch) {
+            return dispatch;
+        }
     }
 
-    if (dispatch) {
-        return dispatch;
-    }
-
-    if (class->parent) {
-        return find_method_dispatch(class->parent, fname TSRMLS_CC);
-    } else {
-        return NULL;
-    }
+    return class->parent ? _dd_find_method_dispatch(class->parent, fname TSRMLS_CC) : NULL;
 }
 
-ddtrace_dispatch_t *ddtrace_find_dispatch(zval *this, zend_function *fbc, zval *fname TSRMLS_DC) {
-    zend_class_entry *class = NULL;
-
-    if (this) {
-        class = Z_OBJCE_P(this);
-    } else if ((fbc->common.fn_flags & ZEND_ACC_STATIC) != 0) {
-        // Check for class on static method static
-        class = fbc->common.scope;
-    }
-
-    if (class) {
-        return find_method_dispatch(class, fname TSRMLS_CC);
-    }
-    return find_function_dispatch(DDTRACE_G(function_lookup), fname);
-}
-
-void ddtrace_class_lookup_acquire(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }
-
-void ddtrace_class_lookup_release(ddtrace_dispatch_t *dispatch) {
-    if (dispatch->acquired > 0) {
-        dispatch->acquired--;
-    }
-
-    // free when no one has acquired this resource
-    if (dispatch->acquired == 0) {
-        ddtrace_dispatch_free_owned_data(dispatch);
-        efree(dispatch);
-    }
+ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname TSRMLS_DC) {
+    return scope ? _dd_find_method_dispatch(scope, fname TSRMLS_CC)
+                 : _dd_find_function_dispatch(DDTRACE_G(function_lookup), fname);
 }
 
 static int _find_method(zend_class_entry *ce, zval *name, zend_function **function) {

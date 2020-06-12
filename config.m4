@@ -34,6 +34,7 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/coms.c \
     src/ext/configuration.c \
     src/ext/configuration_php_iface.c \
+    src/ext/ddtrace_string.c \
     src/ext/dispatch.c \
     src/ext/dispatch_setup.c \
     src/ext/dogstatsd_client.c \
@@ -52,15 +53,39 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_VERSION=$($PHP_CONFIG --vernum)
 
-  if test $PHP_VERSION -lt 70000; then
+  if test $PHP_VERSION -lt 50500; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
+      src/ext/php5_4/auto_flush.c \
+      src/ext/php5_4/blacklist.c \
+      src/ext/php5_4/dispatch.c \
+      src/ext/php5_4/distributed_tracing.c \
+      src/ext/php5_4/engine_hooks.c \
+      src/ext/php5_4/handlers_internal.c \
+    "
+  elif test $PHP_VERSION -lt 70000; then
+    DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
+      src/ext/php5/auto_flush.c \
+      src/ext/php5/blacklist.c \
       src/ext/php5/dispatch.c \
+      src/ext/php5/distributed_tracing.c \
+      src/ext/php5/engine_api.c \
       src/ext/php5/engine_hooks.c \
+      src/ext/php5/handlers_curl.c \
+      src/ext/php5/handlers_internal.c \
     "
   elif test $PHP_VERSION -lt 80000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
+      src/ext/php7/auto_flush.c \
+      src/ext/php7/blacklist.c \
       src/ext/php7/dispatch.c \
+      src/ext/php7/distributed_tracing.c \
+      src/ext/php7/engine_api.c \
       src/ext/php7/engine_hooks.c \
+      src/ext/php7/handlers_curl.c \
+      src/ext/php7/handlers_internal.c \
+      src/ext/php7/handlers_memcached.c \
+      src/ext/php7/handlers_mysqli.c \
+      src/ext/php7/handlers_pdo.c \
     "
   else
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES=""
@@ -88,7 +113,12 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
 
-  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5])
-  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php7])
+  if test $PHP_VERSION -lt 50500; then
+    PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5_4])
+  elif test $PHP_VERSION -lt 70000; then
+    PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5])
+  elif test $PHP_VERSION -lt 80000; then
+    PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php7])
+  fi
   PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/third-party])
 fi

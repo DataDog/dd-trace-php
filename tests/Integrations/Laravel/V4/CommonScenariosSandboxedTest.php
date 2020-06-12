@@ -52,7 +52,6 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                             'http.status_code' => '200',
                             'some.key1' => 'value',
                             'some.key2' => 'value2',
-                            'integration.name' => 'laravel',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('laravel.application.handle')
@@ -61,7 +60,6 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                                         ->withExactTags([
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
-                                            'integration.name' => 'laravel',
                                         ]),
                                     SpanAssertion::exists('laravel.event.handle'),
                                     SpanAssertion::exists('laravel.event.handle'),
@@ -103,7 +101,6 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                                         ->withExactTags([
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
-                                            'integration.name' => 'laravel',
                                         ])
                                         ->withChildren([
                                             SpanAssertion::exists('laravel.event.handle'),
@@ -137,7 +134,6 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                             'http.status_code' => '500',
                             'some.key1' => 'value',
                             'some.key2' => 'value2',
-                            'integration.name' => 'laravel',
                         ])->setError()->withChildren([
                             SpanAssertion::exists('laravel.application.handle')
                                 ->withChildren([
@@ -145,7 +141,6 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                                         ->withExactTags([
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
-                                            'integration.name' => 'laravel',
                                         ])
                                         ->withExistingTagsNames(['error.stack'])
                                         ->setError('Exception', 'Controller error'),

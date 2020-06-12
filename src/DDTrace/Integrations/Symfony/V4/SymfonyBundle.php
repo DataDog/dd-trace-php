@@ -2,9 +2,9 @@
 
 namespace DDTrace\Integrations\Symfony\V4;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
+use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration as DDSymfonyIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Tag;
@@ -30,17 +30,12 @@ class SymfonyBundle extends Bundle
     {
         parent::boot();
 
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
-            return;
-        }
-
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Symfony integration.', E_USER_WARNING);
+        if (!Integration::shouldLoad(self::NAME)) {
             return;
         }
 
         $tracer = GlobalTracer::get();
-        $appName = $this->getAppName();
+        $appName = \ddtrace_config_app_name('symfony');
 
         // Retrieve the web root span for the current host
         $symfonyRequestScope = $tracer->getRootScope();
@@ -49,8 +44,7 @@ class SymfonyBundle extends Bundle
         $symfonyRequestSpan->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
         $symfonyRequestSpan->overwriteOperationName('symfony.request');
         // Overwriting the default web integration
-        $symfonyRequestSpan->setIntegration(SymfonyIntegration::getInstance());
-        $symfonyRequestSpan->setTraceAnalyticsCandidate();
+        SymfonyIntegration::getInstance()->addTraceAnalyticsIfEnabledLegacy($symfonyRequestSpan);
         $request = null;
 
         // public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
@@ -59,8 +53,7 @@ class SymfonyBundle extends Bundle
             'handle',
             function () use ($symfonyRequestScope, &$request) {
                 list($request) = func_get_args();
-                $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-                    SymfonyIntegration::getInstance(),
+                $scope = GlobalTracer::get()->startActiveSpan(
                     'symfony.kernel.handle'
                 );
                 $symfonyRequestSpan = $symfonyRequestScope->getSpan();
@@ -102,8 +95,7 @@ class SymfonyBundle extends Bundle
             'Symfony\Component\HttpKernel\HttpKernel',
             'handleException',
             function (\Exception $e, Request $request, $type) use ($symfonyRequestSpan) {
-                $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-                    SymfonyIntegration::getInstance(),
+                $scope = GlobalTracer::get()->startActiveSpan(
                     'symfony.kernel.handleException'
                 );
                 $symfonyRequestSpan->setError($e);
@@ -140,8 +132,7 @@ class SymfonyBundle extends Bundle
                 } else {
                     $eventName = is_object($args[0]) ? get_class($args[0]) : $args[0];
                 }
-                $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-                    SymfonyIntegration::getInstance(),
+                $scope = GlobalTracer::get()->startActiveSpan(
                     'symfony.' . $eventName
                 );
                 SymfonyBundle::injectRouteInfo($args, $request, $symfonyRequestSpan);
@@ -152,8 +143,7 @@ class SymfonyBundle extends Bundle
         // Tracing templating engines
         $renderTraceCallback = function () use ($appName) {
             $args = func_get_args();
-            $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-                SymfonyIntegration::getInstance(),
+            $scope = GlobalTracer::get()->startActiveSpan(
                 'symfony.templating.render'
             );
             $span = $scope->getSpan();
@@ -205,10 +195,5 @@ class SymfonyBundle extends Bundle
         $action = get_class($controllerAndAction[0]) . '@' . $controllerAndAction[1];
         $requestSpan->setTag('symfony.route.action', $action);
         $requestSpan->setTag('symfony.route.name', $request->get('_route'));
-    }
-
-    private function getAppName()
-    {
-        return Configuration::get()->appName('symfony');
     }
 }

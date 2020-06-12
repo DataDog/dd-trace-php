@@ -323,3 +323,12 @@ ext/standard/tests/serialize/serialization_objects_007.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/streams/proc_open_bug69900.phpt
 sapi/cli/tests/upload_2G.phpt
+Zend/tests/bug70805.phpt
+Zend/tests/bug70805_1.phpt
+Zend/tests/bug70805_2.phpt
+Zend/tests/gc_031.phpt
+ext/curl/tests/bug45161.phpt
+Zend/tests/bug70253.phpt
+Zend/tests/bug70258.phpt
+ext/phar/tests/phar_buildfromiterator10.phpt
+ext/phar/tests/phar_buildfromiterator8.phpt

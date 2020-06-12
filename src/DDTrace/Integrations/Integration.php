@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\Tag;
 use DDTrace\GlobalTracer;
@@ -32,6 +31,14 @@ abstract class Integration
     public function __construct()
     {
         $this->configuration = $this->buildConfiguration();
+    }
+
+    public function addTraceAnalyticsIfEnabledLegacy(Span $span)
+    {
+        if (!$this->configuration->isTraceAnalyticsEnabled()) {
+            return;
+        }
+        $span->setMetric(Tag::ANALYTICS_KEY, $this->configuration->getTraceAnalyticsSampleRate());
     }
 
     /**
@@ -129,10 +136,6 @@ abstract class Integration
             $scope = $tracer->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
 
-            if (null !== $integration) {
-                $span->setIntegration($integration);
-            }
-
             $integrationClass::setDefaultTags($span, $method);
             if (null !== $preCallHook) {
                 $preCallHook($span, func_get_args());
@@ -167,22 +170,19 @@ abstract class Integration
     }
 
     /**
-     * Tells whether or not the provided application should be loaded.
+     * Tells whether or not the provided integration should be loaded.
      *
      * @param string $name
      * @return bool
      */
-    protected static function shouldLoad($name)
+    public static function shouldLoad($name)
     {
-        if (!Configuration::get()->isIntegrationEnabled($name)) {
-            return false;
-        }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load integration.', E_USER_WARNING);
+        if (!\extension_loaded('ddtrace')) {
+            \trigger_error('ddtrace extension required to load integration.', \E_USER_WARNING);
             return false;
         }
 
-        return true;
+        return \ddtrace_config_integration_enabled($name);
     }
 
     /**

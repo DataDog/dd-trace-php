@@ -2,7 +2,6 @@
 
 namespace DDTrace\Transport;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Tracer;
 use DDTrace\Encoder;
 use DDTrace\GlobalTracer;
@@ -187,7 +186,7 @@ final class Http implements Transport
         curl_setopt($handle, CURLOPT_TIMEOUT_MS, $this->config['timeout']);
         curl_setopt($handle, CURLOPT_CONNECTTIMEOUT_MS, $this->config['connect_timeout']);
 
-        $isDebugEnabled = Configuration::get()->isDebugModeEnabled();
+        $isDebugEnabled = \ddtrace_config_debug_enabled();
         if ($isDebugEnabled) {
             $verbose = \fopen('php://temp', 'w+b');
             \curl_setopt($handle, \CURLOPT_VERBOSE, true);
@@ -262,7 +261,7 @@ final class Http implements Transport
     {
         /** @var Tracer $tracer */
         $tracer = GlobalTracer::get();
-        return Configuration::get()->isPrioritySamplingEnabled()
+        return \ddtrace_config_priority_sampling_enabled()
             && $tracer->getPrioritySampling() !== PrioritySampling::UNKNOWN;
     }
 }

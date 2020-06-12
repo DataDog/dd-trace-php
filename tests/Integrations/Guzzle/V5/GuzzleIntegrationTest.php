@@ -12,10 +12,13 @@ use GuzzleHttp\Ring\Client\MockHandler;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\GlobalTracer;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Util\Versions;
 
-final class GuzzleIntegrationTest extends IntegrationTestCase
+class GuzzleIntegrationTest extends IntegrationTestCase
 {
+    const IS_SANDBOX = false;
+
     const URL = 'http://httpbin_integration';
 
     /** @var Client */
@@ -43,6 +46,14 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
     protected function getRealClient()
     {
         return new Client();
+    }
+
+    protected function tearDown()
+    {
+        parent::tearDown();
+        putenv('DD_DISTRIBUTED_TRACING');
+        putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
+        putenv('DD_DISTRIBUTED_TRACING');
     }
 
     /**
@@ -133,13 +144,21 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 
         // trace is: custom
         $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
-        // parent is: curl_exec, used under the hood
 
         if (Versions::phpVersionMatches('5.4')) {
             // in 5.4 curl_exec is not included in the trace due to being run through `call_func_array`
             $this->assertSame($traces[0][1]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
         } else {
-            $this->assertSame($traces[0][2]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+            // parent is: curl_exec, used under the hood
+            $curl_exec = null;
+            foreach ($traces[0] as $span) {
+                if ($span['name'] === 'curl_exec') {
+                    $curl_exec = $span;
+                    break;
+                }
+            }
+            self::assertNotNull($curl_exec, 'Unable to find curl_exec in spans!');
+            self::assertSame($curl_exec['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
         }
 
         $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
@@ -149,11 +168,9 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
+        putenv('DD_DISTRIBUTED_TRACING=false');
         $client = new Client();
         $found = [];
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'isDistributedTracingEnabled' => false,
-        ]));
 
         $this->isolateTracer(function () use (&$found, $client) {
             /** @var Tracer $tracer */
@@ -230,6 +247,38 @@ final class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testDoesNotInheritTopLevelAppName()
+    {
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $execute(GetSpec::create('GET', '/guzzle_in_web_request.php'));
+            },
+            __DIR__ . '/guzzle_in_web_request.php',
+            [
+                'DD_SERVICE_NAME' => 'top_level_app',
+                'DD_TRACE_SANDBOX_ENABLED' => static::IS_SANDBOX,
+                'DD_TRACE_NO_AUTOLOADER' => true,
+            ]
+        );
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /guzzle_in_web_request.php')
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withChildren([
+                    SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+                        ->setTraceAnalyticsCandidate()
+                        ->withExactTags([
+                            'http.method' => 'GET',
+                            'http.url' => self::URL . '/status/200',
+                            'http.status_code' => '200',
+                        ])
+                        ->withChildren([
+                            SpanAssertion::exists('curl_exec'),
+                        ]),
                 ]),
         ]);
     }

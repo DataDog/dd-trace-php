@@ -64,6 +64,8 @@ class PDOIntegration extends Integration
             return Integration::NOT_AVAILABLE;
         }
 
+        $integration = PDOIntegration::getInstance();
+
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         dd_trace('PDO', '__construct', function () {
             $tracer = GlobalTracer::get();
@@ -71,13 +73,12 @@ class PDOIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                PDOIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'PDO.__construct'
             );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             $span->setTag(Tag::RESOURCE_NAME, 'PDO.__construct');
 
             // PHP 5.4 compatible try-catch-finally
@@ -104,18 +105,18 @@ class PDOIntegration extends Integration
         });
 
         // public int PDO::exec(string $query)
-        dd_trace('PDO', 'exec', function ($statement) {
+        dd_trace('PDO', 'exec', function ($statement) use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.exec');
+            $scope = $tracer->startActiveSpan('PDO.exec');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             $span->setTag(Tag::RESOURCE_NAME, $statement);
-            $span->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($span);
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -145,19 +146,23 @@ class PDOIntegration extends Integration
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_CLASS, string $classname, array $ctorargs)
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_INFO, object $object)
         // public int PDO::exec(string $query)
-        dd_trace('PDO', 'query', function () {
+        dd_trace('PDO', 'query', function () use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.query');
+            $scope = $tracer->startActiveSpan('PDO.query');
             $args = func_get_args();
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
-            $span->setTag(Tag::RESOURCE_NAME, $args[0]);
-            $span->setTraceAnalyticsCandidate();
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
+            if (isset($args[0])) {
+                $span->setTag(Tag::RESOURCE_NAME, $args[0]);
+            } else {
+                $span->setTag(Tag::RESOURCE_NAME, "unknown");
+            }
+            $integration->addTraceAnalyticsIfEnabledLegacy($span);
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -193,10 +198,10 @@ class PDOIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.commit');
+            $scope = $tracer->startActiveSpan('PDO.commit');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             PDOIntegration::setConnectionTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally
@@ -226,10 +231,10 @@ class PDOIntegration extends Integration
             }
 
             $args = func_get_args();
-            $scope = $tracer->startIntegrationScopeAndSpan(PDOIntegration::getInstance(), 'PDO.prepare');
+            $scope = $tracer->startActiveSpan('PDO.prepare');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             $span->setTag(Tag::RESOURCE_NAME, $args[0]);
             PDOIntegration::setConnectionTags($this, $span);
 
@@ -253,21 +258,20 @@ class PDOIntegration extends Integration
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
-        dd_trace('PDOStatement', 'execute', function () {
+        dd_trace('PDOStatement', 'execute', function () use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                PDOIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'PDOStatement.execute'
             );
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
-            $span->setTag(Tag::SERVICE_NAME, 'PDO');
+            $span->setTag(Tag::SERVICE_NAME, 'pdo');
             $span->setTag(Tag::RESOURCE_NAME, $this->queryString);
-            $span->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($span);
             PDOIntegration::setStatementTags($this, $span);
 
             // PHP 5.4 compatible try-catch-finally

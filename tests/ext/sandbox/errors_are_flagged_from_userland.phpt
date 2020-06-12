@@ -42,7 +42,7 @@ array(1) {
       ["error.msg"]=>
       string(9) "Foo error"
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
   }
 }

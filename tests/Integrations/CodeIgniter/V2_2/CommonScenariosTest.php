@@ -53,7 +53,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost:9999/simple',
                         Tag::HTTP_STATUS_CODE => '200',
-                        'integration.name' => 'codeigniter',
                         'app.endpoint' => 'Simple::index',
                     ]),
                     SpanAssertion::build(
@@ -73,7 +72,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_METHOD => 'GET',
                         Tag::HTTP_URL => 'http://localhost:9999/simple_view',
                         Tag::HTTP_STATUS_CODE => '200',
-                        'integration.name' => 'codeigniter',
                         'app.endpoint' => 'Simple_View::index',
                     ]),
                     SpanAssertion::build(
@@ -100,7 +98,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_URL => 'http://localhost:9999/error',
                         // CodeIgniter's error handler does not adjust the status code
                         Tag::HTTP_STATUS_CODE => '200',
-                        'integration.name' => 'codeigniter',
                         'app.endpoint' => 'Error_::index',
                     ]),
                     SpanAssertion::build(

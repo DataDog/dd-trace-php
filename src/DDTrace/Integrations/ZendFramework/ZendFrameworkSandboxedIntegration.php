@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\ZendFramework;
 
-use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
@@ -54,7 +53,7 @@ class ZendFrameworkSandboxedIntegration extends SandboxedIntegration
         $integration = $this;
         // For backward compatibility with the legacy API we are not using the integration
         // name 'zendframework', we are instead using the 'zf1' prefix.
-        $appName = Configuration::get()->appName('zf1');
+        $appName = \ddtrace_config_app_name('zf1');
 
         dd_trace_method(
             'Zend_Controller_Plugin_Broker',
@@ -75,8 +74,7 @@ class ZendFrameworkSandboxedIntegration extends SandboxedIntegration
                 try {
                     /** @var Zend_Controller_Request_Abstract $request */
                     list($request) = $args;
-                    $rootSpan->setIntegration($integration);
-                    $rootSpan->setTraceAnalyticsCandidate();
+                    $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
                     $rootSpan->overwriteOperationName($integration->getOperationName());
                     $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
                     $controller = $request->getControllerName();

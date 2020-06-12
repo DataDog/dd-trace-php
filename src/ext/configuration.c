@@ -2,7 +2,10 @@
 
 #include <stdlib.h>
 
+#include "ddtrace_string.h"
 #include "env_config.h"
+
+extern inline ddtrace_string ddtrace_string_getenv(char* str, size_t len TSRMLS_DC);
 
 struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration = {
 #define CHAR(...) NULL, FALSE,
@@ -131,3 +134,68 @@ DD_CONFIGURATION
 #undef BOOL
 #undef INT
 #undef DOUBLE
+
+bool ddtrace_config_bool(ddtrace_string subject, bool default_value) {
+    ddtrace_string str_1 = {
+        .ptr = "1",
+        .len = 1,
+    };
+    ddtrace_string str_true = {
+        .ptr = "true",
+        .len = sizeof("true") - 1,
+    };
+    if (ddtrace_string_equals(subject, str_1) || ddtrace_string_equals(subject, str_true)) {
+        return true;
+    }
+    ddtrace_string str_0 = {
+        .ptr = "0",
+        .len = 1,
+    };
+    ddtrace_string str_false = {
+        .ptr = "false",
+        .len = sizeof("false") - 1,
+    };
+    if (ddtrace_string_equals(subject, str_0) || ddtrace_string_equals(subject, str_false)) {
+        return false;
+    }
+    return default_value;
+}
+
+bool ddtrace_config_env_bool(ddtrace_string env_name, bool default_value TSRMLS_DC) {
+    ddtrace_string env_val = ddtrace_string_getenv(env_name.ptr, env_name.len TSRMLS_CC);
+    bool result = default_value;
+    if (env_val.len) {
+        /* We need to lowercase the str for ddtrace_config_bool.
+         * It's been duplicated by ddtrace_getenv, so we can lower it in-place.
+         */
+        zend_str_tolower(env_val.ptr, env_val.len);
+        result = ddtrace_config_bool(env_val, true);
+    }
+    if (env_val.ptr) {
+        efree(env_val.ptr);
+    }
+    return result;
+}
+
+bool ddtrace_config_distributed_tracing_enabled(TSRMLS_D) {
+    ddtrace_string env_name = DDTRACE_STRING_LITERAL("DD_DISTRIBUTED_TRACING");
+    return ddtrace_config_env_bool(env_name, true TSRMLS_CC);
+}
+
+// note: only call this if ddtrace_config_trace_enabled() returns true
+bool ddtrace_config_integration_enabled(ddtrace_string integration TSRMLS_DC) {
+    ddtrace_string integrations_disabled = ddtrace_string_getenv(ZEND_STRL("DD_INTEGRATIONS_DISABLED") TSRMLS_CC);
+    bool result = true;
+    if (integrations_disabled.len && integration.len) {
+        result = !ddtrace_string_contains_in_csv(integrations_disabled, integration);
+    }
+    if (integrations_disabled.ptr) {
+        efree(integrations_disabled.ptr);
+    }
+    return result;
+}
+
+bool ddtrace_config_trace_enabled(TSRMLS_D) {
+    ddtrace_string env_name = DDTRACE_STRING_LITERAL("DD_TRACE_ENABLED");
+    return ddtrace_config_env_bool(env_name, true TSRMLS_CC);
+}

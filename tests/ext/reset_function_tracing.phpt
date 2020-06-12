@@ -1,5 +1,7 @@
 --TEST--
 Check a function can be untraced.
+--SKIPIF--
+<?php if (PHP_MAJOR_VERSION > 5) die('skip: test requires legacy API'); ?>
 --FILE--
 <?php
 

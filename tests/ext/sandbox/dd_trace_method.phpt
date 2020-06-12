@@ -2,6 +2,8 @@
 dd_trace_method() can trace with internal spans
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+--ENV--
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -128,7 +130,7 @@ array(3) {
       ["retval.rand"]=>
       string(%d) "%d"
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
     ["metrics"]=>
     array(2) {
@@ -175,7 +177,7 @@ array(3) {
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
-      int(%d)
+      string(%d) "%d"
     }
   }
 }

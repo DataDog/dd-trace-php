@@ -175,8 +175,7 @@ class MemcachedIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                MemcachedIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'Memcached.flush'
             );
             $span = $scope->getSpan();
@@ -340,8 +339,7 @@ class MemcachedIntegration extends Integration
     public static function traceCommand($memcached, $command, $args)
     {
         $tracer = GlobalTracer::get();
-        $scope = $tracer->startIntegrationScopeAndSpan(
-            MemcachedIntegration::getInstance(),
+        $scope = $tracer->startActiveSpan(
             "Memcached.$command"
         );
         $span = $scope->getSpan();
@@ -363,8 +361,7 @@ class MemcachedIntegration extends Integration
     public static function traceCommandByKey($memcached, $command, $args)
     {
         $tracer = GlobalTracer::get();
-        $scope = $tracer->startIntegrationScopeAndSpan(
-            MemcachedIntegration::getInstance(),
+        $scope = $tracer->startActiveSpan(
             "Memcached.$command"
         );
         $span = $scope->getSpan();
@@ -385,8 +382,7 @@ class MemcachedIntegration extends Integration
     public static function traceCas($memcached, $args)
     {
         $tracer = GlobalTracer::get();
-        $scope = $tracer->startIntegrationScopeAndSpan(
-            MemcachedIntegration::getInstance(),
+        $scope = $tracer->startActiveSpan(
             'Memcached.cas'
         );
         $span = $scope->getSpan();
@@ -405,8 +401,7 @@ class MemcachedIntegration extends Integration
     public static function traceCasByKey($memcached, $args)
     {
         $tracer = GlobalTracer::get();
-        $scope = $tracer->startIntegrationScopeAndSpan(
-            MemcachedIntegration::getInstance(),
+        $scope = $tracer->startActiveSpan(
             'Memcached.casByKey'
         );
         $span = $scope->getSpan();
@@ -427,8 +422,7 @@ class MemcachedIntegration extends Integration
     public static function traceMulti($memcached, $command, $args)
     {
         $tracer = GlobalTracer::get();
-        $scope = $tracer->startIntegrationScopeAndSpan(
-            MemcachedIntegration::getInstance(),
+        $scope = $tracer->startActiveSpan(
             "Memcached.$command"
         );
         $span = $scope->getSpan();
@@ -446,8 +440,7 @@ class MemcachedIntegration extends Integration
     public static function traceMultiByKey($memcached, $command, $args)
     {
         $tracer = GlobalTracer::get();
-        $scope = $tracer->startIntegrationScopeAndSpan(
-            MemcachedIntegration::getInstance(),
+        $scope = $tracer->startActiveSpan(
             "Memcached.$command"
         );
         $span = $scope->getSpan();
@@ -498,7 +491,7 @@ class MemcachedIntegration extends Integration
         ];
 
         if (in_array($command, $commandsForAnalytics)) {
-            $span->setTraceAnalyticsCandidate();
+            MemcachedIntegration::getInstance()->addTraceAnalyticsIfEnabledLegacy($span);
         }
     }
 }

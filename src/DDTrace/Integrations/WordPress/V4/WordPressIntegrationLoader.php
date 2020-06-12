@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\WordPress\V4;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Scope;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
@@ -28,10 +27,9 @@ class WordPressIntegrationLoader
         }
         $this->rootSpan = $scope->getSpan();
         // Overwrite the default web integration
-        $this->rootSpan->setIntegration($integration);
-        $this->rootSpan->setTraceAnalyticsCandidate();
+        $integration->addTraceAnalyticsIfEnabledLegacy($this->rootSpan);
         $this->rootSpan->overwriteOperationName('wordpress.request');
-        $service = Configuration::get()->appName(WordPressSandboxedIntegration::NAME);
+        $service = \ddtrace_config_app_name(WordPressSandboxedIntegration::NAME);
         $this->rootSpan->setTag(Tag::SERVICE_NAME, $service);
         if ('cli' !== PHP_SAPI) {
             $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));

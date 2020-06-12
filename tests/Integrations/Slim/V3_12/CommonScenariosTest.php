@@ -6,8 +6,10 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-final class CommonScenariosTest extends WebFrameworkTestCase
+class CommonScenariosTest extends WebFrameworkTestCase
 {
+    const IS_SANDBOX = false;
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Slim/Version_3_12/public/index.php';
@@ -32,7 +34,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertExpectedSpans($traces, $spanExpectations);
+        $this->assertFlameGraph($traces, $spanExpectations);
     }
 
     public function provideSpecs()
@@ -50,7 +52,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'slim',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -64,16 +65,15 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                        'integration.name' => 'slim',
-                    ]),
-                    SpanAssertion::build(
-                        'slim.view',
-                        'slim_test_app',
-                        'web',
-                        'simple_view.phtml'
-                    )->withExactTags([
-                        'slim.view' => 'simple_view.phtml',
-                        'integration.name' => 'slim',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'slim.view',
+                            'slim_test_app',
+                            'web',
+                            'simple_view.phtml'
+                        )->withExactTags([
+                            'slim.view' => 'simple_view.phtml',
+                        ])
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -87,7 +87,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                        'integration.name' => 'slim',
                     ])->withExistingTagsNames([
                         'error.stack'
                     ])->setError(null, 'Foo error'),

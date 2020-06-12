@@ -27,10 +27,11 @@ typedef struct _ddtrace_original_context {
 } ddtrace_original_context;
 
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
+char *auto_prepend_file;
 zend_bool disable;
 zend_bool disable_in_current_request;
 char *request_init_hook;
-char *internal_blacklisted_modules_list;
+zend_bool request_init_hook_loaded;
 zend_bool strict_mode;
 
 uint32_t traces_group_id;
@@ -43,6 +44,15 @@ char *dogstatsd_host;
 char *dogstatsd_port;
 char *dogstatsd_buffer;
 ddtrace_original_context original_context;
+
+// PHP 7 uses ZEND_TLS for these
+#if PHP_VERSION_ID < 70000
+// Distributed tracing & curl
+HashTable *dt_http_saved_curl_headers;
+zend_bool back_up_http_headers;
+// ext/curl's list entry resource type
+int le_curl;
+#endif
 
 uint64_t trace_id;
 ddtrace_span_ids_t *span_ids_top;

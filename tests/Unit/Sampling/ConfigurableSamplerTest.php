@@ -2,8 +2,6 @@
 
 namespace DDTrace\Tests\Unit\Sampling;
 
-use DDTrace\Configuration;
-use DDTrace\ID;
 use DDTrace\Sampling\ConfigurableSampler;
 use DDTrace\Span;
 use DDTrace\SpanContext;
@@ -13,6 +11,20 @@ final class ConfigurableSamplerTest extends BaseTestCase
 {
     const REPETITIONS = 5000;
 
+    protected function setUp()
+    {
+        parent::setUp();
+        \putenv('DD_TRACE_SAMPLING_RULES');
+        \putenv('DD_TRACE_SAMPLE_RATE');
+    }
+
+    protected function tearDown()
+    {
+        \putenv('DD_TRACE_SAMPLING_RULES');
+        \putenv('DD_TRACE_SAMPLE_RATE');
+        parent::tearDown();
+    }
+
     /**
      * @dataProvider samplingRatesScenarios
      * @param float $samplingRate
@@ -21,9 +33,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
      */
     public function testSampleNoSamplingRules($samplingRate, $lower, $upper)
     {
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'getSamplingRate' => $samplingRate,
-        ]));
+        putenv("DD_TRACE_SAMPLE_RATE=$samplingRate");
         $sampler = new ConfigurableSampler();
 
         $output = 0;
@@ -63,10 +73,9 @@ final class ConfigurableSamplerTest extends BaseTestCase
     public function testSampleWithSamplingRules($samplingRules, $expected)
     {
         $delta = 0.05;
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'getSamplingRate' => 0.30, // This should only used as a fallback
-            'getSamplingRules' => $samplingRules,
-        ]));
+        putenv("DD_TRACE_SAMPLE_RATE=0.3");
+        putenv("DD_TRACE_SAMPLING_RULES=$samplingRules");
+
         $sampler = new ConfigurableSampler();
 
         $output = 0;
@@ -85,82 +94,35 @@ final class ConfigurableSamplerTest extends BaseTestCase
     {
         return [
             'fallback to priority sampling when no rules' => [
-                [],
+                '',
                 0.3,
             ],
             'fallback to priority sampling when rule does not match' => [
-                [
-                    [
-                        'service' => 'something_else',
-                        'name' => '.*',
-                        'sample_rate' => 0.7,
-                    ],
-                ],
+                '[{"service":"something_else","sample_rate":0.7}]',
                 0.3,
             ],
             'set for match all' => [
-                [
-                    [
-                        'service' => '.*',
-                        'name' => '.*',
-                        'sample_rate' => 0.7,
-                    ],
-                ],
+                '[{"sample_rate":0.7}]',
                 0.7,
             ],
             'set for match service' => [
-                [
-                    [
-                        'service' => 'my_.*',
-                        'name' => '.*',
-                        'sample_rate' => 0.7,
-                    ],
-                ],
+                '[{"service":"my_.*","sample_rate":0.7}]',
                 0.7,
             ],
             'set for match name' => [
-                [
-                    [
-                        'service' => 'my_.*',
-                        'name' => '.*',
-                        'sample_rate' => 0.7,
-                    ],
-                ],
+                '[{"service":"my_.*","sample_rate":0.7}]',
                 0.7,
             ],
             'not set for match name but not service' => [
-                [
-                    [
-                        'service' => 'wrong.*',
-                        'name' => '.*',
-                        'sample_rate' => 0.7,
-                    ],
-                ],
+                '[{"service":"wrong.*","sample_rate":0.7}]',
                 0.3,
             ],
             'not set for match service but not name' => [
-                [
-                    [
-                        'service' => '.*',
-                        'name' => 'wrong.*',
-                        'sample_rate' => 0.7,
-                    ],
-                ],
+                '[{"name":"wrong.*","sample_rate":0.7}]',
                 0.3,
             ],
             'first that match is used' => [
-                [
-                    [
-                        'service' => 'my_.*',
-                        'name' => 'my_.*',
-                        'sample_rate' => 0.7,
-                    ],
-                    [
-                        'service' => '.*',
-                        'name' => '.*',
-                        'sample_rate' => 0.5,
-                    ],
-                ],
+                '[{"service":"my_.*","name":"my_.*","sample_rate":0.7},{"sample_rate":0.5}]',
                 0.7,
             ],
         ];
@@ -168,15 +130,7 @@ final class ConfigurableSamplerTest extends BaseTestCase
 
     public function testMetricIsAddedToCommunicateSampleRateUsed()
     {
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'getSamplingRules' => [
-                [
-                    'service' => '.*',
-                    'name' => '.*',
-                    'sample_rate' => 0.7,
-                ],
-            ],
-        ]));
+        putenv('DD_TRACE_SAMPLING_RULES=[{"sample_rate":0.7}]');
         $sampler = new ConfigurableSampler();
 
         $context = new SpanContext('', dd_trace_generate_id());

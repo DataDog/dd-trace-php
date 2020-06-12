@@ -46,7 +46,7 @@ class EloquentIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.get');
+            $scope = $tracer->startActiveSpan('eloquent.get');
             $span = $scope->getSpan();
             $sql = $this->getQuery()->toSql();
             $span->setTag(Tag::RESOURCE_NAME, $sql);
@@ -63,7 +63,7 @@ class EloquentIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.insert');
+            $scope = $tracer->startActiveSpan('eloquent.insert');
             $span = $scope->getSpan();
             $span->setTag(Tag::RESOURCE_NAME, get_class($this));
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
@@ -79,7 +79,7 @@ class EloquentIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.update');
+            $scope = $tracer->startActiveSpan('eloquent.update');
             $span = $scope->getSpan();
             $span->setTag(Tag::RESOURCE_NAME, get_class($this));
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
@@ -94,7 +94,7 @@ class EloquentIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'eloquent.delete');
+            $scope = $tracer->startActiveSpan('eloquent.delete');
             $span = $scope->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::SQL);
             $span->setTag(Tag::RESOURCE_NAME, get_class($this));

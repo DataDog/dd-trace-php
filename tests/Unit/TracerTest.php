@@ -12,6 +12,10 @@ use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
 
+function baz()
+{
+}
+
 final class TracerTest extends BaseTestCase
 {
     const OPERATION_NAME = 'test_span';
@@ -19,6 +23,22 @@ final class TracerTest extends BaseTestCase
     const TAG_KEY = 'test_key';
     const TAG_VALUE = 'test_value';
     const FORMAT = 'test_format';
+
+    protected function setUp()
+    {
+        \putenv('DD_AUTOFINISH_SPANS');
+        \putenv('DD_TRACE_REPORT_HOSTNAME');
+        \putenv('DD_TRACE_GLOBAL_TAGS');
+        parent::setUp();
+    }
+
+    protected function tearDown()
+    {
+        parent::tearDown();
+        \putenv('DD_TRACE_REPORT_HOSTNAME');
+        \putenv('DD_AUTOFINISH_SPANS');
+        \putenv('DD_TRACE_GLOBAL_TAGS');
+    }
 
     public function testStartSpanAsNoop()
     {
@@ -193,12 +213,7 @@ final class TracerTest extends BaseTestCase
 
     public function testUnfinishedSpansCanBeFinishedOnFlush()
     {
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'isAutofinishSpansEnabled' => true,
-            'isPrioritySamplingEnabled' => false,
-            'isDebugModeEnabled' => false,
-            'getGlobalTags' => [],
-        ]));
+        \putenv('DD_AUTOFINISH_SPANS=true');
 
         $transport = new DebugTransport();
         $tracer = new Tracer($transport);
@@ -231,9 +246,7 @@ final class TracerTest extends BaseTestCase
 
     public function testFlushAddsHostnameToRootSpanWhenEnabled()
     {
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'isHostnameReportingEnabled' => true
-        ]));
+        \putenv('DD_TRACE_REPORT_HOSTNAME=true');
 
         $tracer = new Tracer(new NoopTransport());
         $scope = $tracer->startRootSpan(self::OPERATION_NAME);
@@ -252,15 +265,7 @@ final class TracerTest extends BaseTestCase
 
     public function testHonorGlobalTags()
     {
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'isAutofinishSpansEnabled' => true,
-            'isPrioritySamplingEnabled' => false,
-            'isDebugModeEnabled' => false,
-            'getGlobalTags' => [
-                'key1' => 'value1',
-                'key2' => 'value2',
-            ],
-        ]));
+        \putenv('DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2');
 
         $transport = new DebugTransport();
         $tracer = new Tracer($transport);
@@ -279,12 +284,12 @@ final class TracerTest extends BaseTestCase
         // Clear existing internal spans
         dd_trace_serialize_closed_spans();
 
-        dd_trace_function('array_sum', function () {
+        \dd_trace_function(__NAMESPACE__ . '\\baz', function () {
             // Do nothing
         });
         $tracer = new Tracer(new DebugTransport());
         $span = $tracer->startSpan('foo');
-        array_sum([1, 2]);
+        baz();
         $span->finish();
 
         $this->assertSame(2, dd_trace_closed_spans_count());

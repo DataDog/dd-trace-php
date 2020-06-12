@@ -12,7 +12,7 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
 
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/app.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_4/web/index.php';
     }
 
     protected static function getEnvs()
@@ -41,7 +41,6 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost:9999/terminated_by_exit',
                     'http.status_code' => '200',
-                    'integration.name' => 'symfony',
                 ])
                 ->withChildren([
                     SpanAssertion::exists('symfony.kernel.handle')

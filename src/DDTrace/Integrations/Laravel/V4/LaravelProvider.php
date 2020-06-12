@@ -2,8 +2,8 @@
 
 namespace DDTrace\Integrations\Laravel\V4;
 
-use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
+use DDTrace\Integrations\Integration;
 use DDTrace\Span;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -26,7 +26,7 @@ class LaravelProvider extends ServiceProvider
     /** @inheritdoc */
     public function register()
     {
-        if (!$this->shouldLoad()) {
+        if (!Integration::shouldLoad(self::NAME)) {
             return;
         }
 
@@ -41,9 +41,9 @@ class LaravelProvider extends ServiceProvider
 
             $requestSpan = $self->rootScope->getSpan();
             $requestSpan->overwriteOperationName('laravel.request');
+            $integration = \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance();
             // Overwriting the default web integration
-            $requestSpan->setIntegration(\DDTrace\Integrations\Laravel\LaravelIntegration::getInstance());
-            $requestSpan->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($requestSpan);
             $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
 
             $response = dd_trace_forward_call();
@@ -56,7 +56,7 @@ class LaravelProvider extends ServiceProvider
     /** @inheritdoc */
     public function boot()
     {
-        if (!$this->shouldLoad()) {
+        if (!Integration::shouldLoad(self::NAME)) {
             return;
         }
 
@@ -106,8 +106,7 @@ class LaravelProvider extends ServiceProvider
      */
     public static function buildBaseScope($operation, $resource)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-            \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
+        $scope = GlobalTracer::get()->startActiveSpan(
             $operation
         );
         $span = $scope->getSpan();
@@ -119,29 +118,13 @@ class LaravelProvider extends ServiceProvider
     }
 
     /**
-     * @return bool
-     */
-    private function shouldLoad()
-    {
-        if (!Configuration::get()->isIntegrationEnabled(self::NAME)) {
-            return false;
-        }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
      * Returns the configurable app name.
      *
      * @return array|false|\Illuminate\Config\Repository|mixed|null|string
      */
     private static function getAppName()
     {
-        $name = Configuration::get()->appName();
+        $name = \ddtrace_config_app_name();
         if ($name) {
             return $name;
         }

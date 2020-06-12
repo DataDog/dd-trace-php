@@ -22,8 +22,7 @@ class SlimIntegrationLoader
     {
         $this->rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
         // Overwrite the default web integration
-        $this->rootSpan->setIntegration($integration);
-        $this->rootSpan->setTraceAnalyticsCandidate();
+        $integration->addTraceAnalyticsIfEnabledLegacy($this->rootSpan);
         $this->rootSpan->overwriteOperationName('slim.request');
         $this->rootSpan->setTag(Tag::SERVICE_NAME, SlimIntegration::getAppName());
 
@@ -78,7 +77,7 @@ class SlimIntegrationLoader
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
             }
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'slim.view');
+            $scope = $tracer->startActiveSpan('slim.view');
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
             $scope->getSpan()->setTag(Tag::RESOURCE_NAME, $template);
             $scope->getSpan()->setTag('slim.view', $template);

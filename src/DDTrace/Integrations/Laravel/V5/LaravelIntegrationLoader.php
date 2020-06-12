@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Laravel\V5;
 
-use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Laravel\LaravelIntegration;
@@ -23,7 +22,7 @@ class LaravelIntegrationLoader
 
     public function load()
     {
-        if (!$this->shouldLoad()) {
+        if (!Integration::shouldLoad(LaravelIntegration::NAME)) {
             return Integration::NOT_AVAILABLE;
         }
 
@@ -34,9 +33,9 @@ class LaravelIntegrationLoader
             list($route, $request) = func_get_args();
             if ($self->rootScope) {
                 $span = $self->rootScope->getSpan();
+                $integration = LaravelIntegration::getInstance();
                 // Overwriting the default web integration
-                $span->setIntegration(LaravelIntegration::getInstance());
-                $span->setTraceAnalyticsCandidate();
+                $integration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(
                     Tag::RESOURCE_NAME,
                     $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
@@ -75,7 +74,6 @@ class LaravelIntegrationLoader
         dd_trace('Illuminate\Console\Application', '__construct', function () {
             $span = GlobalTracer::get()->getRootScope()->getSpan();
             // Overwrite the default web integration
-            $span->setIntegration(LaravelIntegration::getInstance());
             $span->overwriteOperationName('laravel.artisan');
             $span->setTag(
                 Tag::RESOURCE_NAME,
@@ -132,8 +130,7 @@ class LaravelIntegrationLoader
 
                     $handlerMethod = $this->method;
                     dd_trace($class, $handlerMethod, function () use ($tracer, $handlerMethod) {
-                        $scope = $tracer->startIntegrationScopeAndSpan(
-                            \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
+                        $scope = $tracer->startActiveSpan(
                             'laravel.pipeline.pipe'
                         );
                         $span = $scope->getSpan();
@@ -155,8 +152,7 @@ class LaravelIntegrationLoader
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                LaravelIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'laravel.view'
             );
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
@@ -170,25 +166,9 @@ class LaravelIntegrationLoader
         });
     }
 
-    /**
-     * @return bool
-     */
-    private function shouldLoad()
-    {
-        if (!Configuration::get()->isIntegrationEnabled(LaravelIntegration::NAME)) {
-            return false;
-        }
-        if (!extension_loaded('ddtrace')) {
-            trigger_error('ddtrace extension required to load Laravel integration.', E_USER_WARNING);
-            return false;
-        }
-
-        return true;
-    }
-
     private function getAppName()
     {
-        $name = Configuration::get()->appName();
+        $name = \ddtrace_config_app_name();
         if ($name) {
             return $name;
         }

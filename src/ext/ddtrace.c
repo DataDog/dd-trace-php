@@ -5,6 +5,8 @@
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_extensions.h>
+#include <Zend/zend_vm.h>
 #include <inttypes.h>
 #include <php.h>
 #include <php_ini.h>
@@ -13,6 +15,9 @@
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
 
+#include "arrays.h"
+#include "auto_flush.h"
+#include "blacklist.h"
 #include "circuit_breaker.h"
 #include "comms_php.h"
 #include "compat_string.h"
@@ -21,10 +26,13 @@
 #include "configuration.h"
 #include "configuration_php_iface.h"
 #include "ddtrace.h"
+#include "ddtrace_string.h"
 #include "debug.h"
 #include "dispatch.h"
+#include "distributed_tracing.h"
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
+#include "handlers_internal.h"
 #include "logging.h"
 #include "memory_limit.h"
 #include "random.h"
@@ -33,18 +41,60 @@
 #include "signals.h"
 #include "span.h"
 
+bool ddtrace_blacklisted_disable_legacy;
+bool ddtrace_has_blacklisted_module;
+
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
 STD_PHP_INI_BOOLEAN("ddtrace.disable", "0", PHP_INI_SYSTEM, OnUpdateBool, disable, zend_ddtrace_globals,
                     ddtrace_globals)
-STD_PHP_INI_ENTRY("ddtrace.internal_blacklisted_modules_list", "ionCube Loader,newrelic,", PHP_INI_SYSTEM,
-                  OnUpdateString, internal_blacklisted_modules_list, zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
 STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
                     ddtrace_globals)
 PHP_INI_END()
+
+static int ddtrace_startup(struct _zend_extension *extension) {
+    ddtrace_resource = zend_get_resource_handle(extension);
+
+#if PHP_VERSION_ID >= 70400
+    ddtrace_op_array_extension = zend_get_op_array_extension_handle();
+#endif
+
+    ddtrace_blacklist_startup();
+    ddtrace_internal_handlers_startup();
+    return SUCCESS;
+}
+
+static void ddtrace_shutdown(struct _zend_extension *extension) {
+    PHP5_UNUSED(extension);
+    PHP7_UNUSED(extension);
+
+    ddtrace_internal_handlers_shutdown();
+}
+
+static void ddtrace_activate(void) {}
+static void ddtrace_deactivate(void) {}
+
+static zend_extension _dd_zend_extension_entry = {"ddtrace",
+                                                  PHP_DDTRACE_VERSION,
+                                                  "Datadog",
+                                                  "https://github.com/DataDog/dd-trace-php",
+                                                  "Copyright Datadog",
+                                                  ddtrace_startup,
+                                                  ddtrace_shutdown,
+                                                  ddtrace_activate,
+                                                  ddtrace_deactivate,
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+                                                  NULL,
+
+                                                  STANDARD_ZEND_EXTENSION_PROPERTIES};
 
 #if PHP_VERSION_ID >= 50600
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 3)
@@ -91,7 +141,35 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_compile_time_microseconds, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, 0)
+ZEND_ARG_INFO(0, default_name)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_distributed_tracing_enabled, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_integration_enabled, 0, 0, 1)
+ZEND_ARG_INFO(0, integration_name)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_trace_enabled, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_init, 0, 0, 1)
+ZEND_ARG_INFO(0, dir)
+ZEND_END_ARG_INFO()
+
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
+
+static PHP_GINIT_FUNCTION(ddtrace) {
+#ifdef ZTS
+    PHP5_UNUSED(TSRMLS_C);
+#endif
+#if PHP_VERSION_ID >= 70000 && defined(COMPILE_DL_DDTRACE) && defined(ZTS)
+    ZEND_TSRMLS_CACHE_UPDATE();
+#endif
+    php_ddtrace_init_globals(ddtrace_globals);
+}
 
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
@@ -113,22 +191,79 @@ static void register_span_data_ce(TSRMLS_D) {
 
 static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     if (strcmp("fpm-fcgi", sapi_module.name) == 0 || strcmp("apache2handler", sapi_module.name) == 0 ||
-        strcmp("cli", sapi_module.name) == 0 || strcmp("cli-server", sapi_module.name) == 0) {
+        strcmp("cli", sapi_module.name) == 0 || strcmp("cli-server", sapi_module.name) == 0 ||
+        strcmp("cgi-fcgi", sapi_module.name) == 0) {
         return;
     }
     ddtrace_log_debugf("Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
     DDTRACE_G(disable) = 1;
 }
 
+#if PHP_VERSION_ID >= 70000
+struct ddtrace_known_integration {
+    ddtrace_string class_name;  // nullptr if not a class
+    ddtrace_string fname;
+};
+typedef struct ddtrace_known_integration ddtrace_known_integration;
+
+#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str) \
+    {                                                   \
+        .class_name =                                   \
+            {                                           \
+                .ptr = class_str,                       \
+                .len = sizeof(class_str) - 1,           \
+            },                                          \
+        .fname = {                                      \
+            .ptr = fname_str,                           \
+            .len = sizeof(fname_str) - 1,               \
+        },                                              \
+    }
+
+static ddtrace_known_integration ddtrace_known_integrations[] = {
+    DDTRACE_KNOWN_INTEGRATION("wpdb", "query"),
+    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire"),
+};
+
+static void _dd_register_known_calls(void) {
+    size_t known_integrations_size = sizeof ddtrace_known_integrations / sizeof ddtrace_known_integrations[0];
+    for (size_t i = 0; i < known_integrations_size; ++i) {
+        ddtrace_known_integration integration = ddtrace_known_integrations[i];
+        zval class_name;
+        zval function_name;
+        zval callable;
+        ZVAL_NULL(&callable);
+        uint32_t options = DDTRACE_DISPATCH_POSTHOOK;
+        if (integration.class_name.ptr) {
+            ZVAL_STRINGL(&class_name, integration.class_name.ptr, integration.class_name.len);
+        } else {
+            ZVAL_NULL(&class_name);
+        }
+        ZVAL_STRINGL(&function_name, integration.fname.ptr, integration.fname.len);
+        ddtrace_trace(&class_name, &function_name, &callable, options);
+        zval_dtor(&function_name);
+        zval_dtor(&class_name);
+    }
+}
+#endif
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
-    ZEND_INIT_MODULE_GLOBALS(ddtrace, php_ddtrace_init_globals, NULL);
     REGISTER_INI_ENTRIES();
 
     // config initialization needs to be at the top
     ddtrace_initialize_config(TSRMLS_C);
     _dd_disable_if_incompatible_sapi_detected(TSRMLS_C);
+
+    /* This allows an extension (e.g. extension=ddtrace.so) to have zend_engine
+     * hooks too, but not loadable as zend_extension=ddtrace.so.
+     * See http://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
+     * {{{ */
+    Dl_info infos;
+    zend_register_extension(&_dd_zend_extension_entry, ddtrace_module_entry.handle);
+    dladdr(ZEND_MODULE_STARTUP_N(ddtrace), &infos);
+    dlopen(infos.dli_fname, RTLD_LAZY);
+    /* }}} */
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
@@ -178,21 +313,27 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-#if defined(ZTS) && PHP_VERSION_ID >= 70000
-    ZEND_TSRMLS_CACHE_UPDATE();
-#endif
+    if (ddtrace_has_blacklisted_module == true) {
+        DDTRACE_G(disable) = 1;
+    }
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
 
+    DDTRACE_G(request_init_hook_loaded) = 0;
+    if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
+        dd_request_init_hook_rinit(TSRMLS_C);
+    }
+
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
+    ddtrace_distributed_tracing_rinit(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
 
-    if (DDTRACE_G(internal_blacklisted_modules_list) && !dd_no_blacklisted_modules(TSRMLS_C)) {
-        return SUCCESS;
-    }
+    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
+    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
+    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
 
     ddtrace_dogstatsd_client_rinit(TSRMLS_C);
 
@@ -201,10 +342,16 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_init_span_stacks(TSRMLS_C);
     ddtrace_coms_on_pid_change();
 
-    if (DDTRACE_G(request_init_hook)) {
-        DD_PRINTF("%s", DDTRACE_G(request_init_hook));
-        dd_execute_php_file(DDTRACE_G(request_init_hook) TSRMLS_CC);
-    }
+#if PHP_VERSION_ID >= 70000
+    /* Due to negative lookup caching, we need to have a list of all things we
+     * might instrument so that if a call is made to something we want to later
+     * instrument but is not currently instrumented, that we don't cache this.
+     *
+     * We should improve how this list is made in the future instead of hard-
+     * coding known integrations (and for now only the problematic ones).
+     */
+    _dd_register_known_calls();
+#endif
 
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset(TSRMLS_C);
@@ -221,12 +368,18 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
 
+    ddtrace_distributed_tracing_rshutdown(TSRMLS_C);
     ddtrace_dispatch_destroy(TSRMLS_C);
     ddtrace_free_span_id_stack(TSRMLS_C);
     ddtrace_free_span_stacks(TSRMLS_C);
     ddtrace_coms_rshutdown();
+
+    if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
+        dd_request_init_hook_rshutdown(TSRMLS_C);
+    }
 
     return SUCCESS;
 }
@@ -406,6 +559,14 @@ static PHP_FUNCTION(dd_trace) {
         DD_PRINTF("Class name: %s", Z_STRVAL_P(class_name));
     }
     DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
+
+    if (ddtrace_blacklisted_disable_legacy && !get_dd_trace_ignore_legacy_blacklist()) {
+        ddtrace_log_debugf(
+            "Cannot instrument '%s()' with dd_trace(). This functionality is disabled due to a potentially conflicting "
+            "module. To re-enable dd_trace(), please set the environment variable: DD_TRACE_IGNORE_LEGACY_BLACKLIST=1",
+            Z_STRVAL_P(function));
+        RETURN_BOOL(0);
+    }
 
     if (!function || Z_TYPE_P(function) != IS_STRING) {
         if (class_name) {
@@ -736,12 +897,107 @@ static PHP_FUNCTION(dd_tracer_circuit_breaker_info) {
 }
 
 #if PHP_VERSION_ID < 70000
-typedef int ddtrace_zppstrlen_t;
 typedef long ddtrace_zpplong_t;
 #else
-typedef size_t ddtrace_zppstrlen_t;
 typedef zend_long ddtrace_zpplong_t;
 #endif
+
+static PHP_FUNCTION(ddtrace_config_app_name) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    ddtrace_string default_str = {
+        .ptr = NULL,
+        .len = 0,
+    };
+#if PHP_VERSION_ID < 70000
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &default_str.ptr, &default_str.len) != SUCCESS) {
+        RETURN_NULL()
+    }
+#else
+    zend_string *default_zstr = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|S", &default_zstr) != SUCCESS) {
+        RETURN_NULL()
+    }
+    if (default_zstr) {
+        default_str.ptr = ZSTR_VAL(default_zstr);
+        default_str.len = ZSTR_LEN(default_zstr);
+    }
+#endif
+
+    ddtrace_string app_name = ddtrace_string_getenv(ZEND_STRL("DD_SERVICE_NAME") TSRMLS_CC);
+    bool should_free_app_name = app_name.ptr;
+    if (!app_name.len) {
+        if (should_free_app_name) {
+            efree(app_name.ptr);
+        }
+        if (!default_str.len) {
+            RETURN_NULL()
+        }
+        should_free_app_name = false;
+        app_name = default_str;
+    }
+
+    ddtrace_string trimmed = ddtrace_trim(app_name);
+#if PHP_VERSION_ID < 70000
+    RETVAL_STRINGL(trimmed.ptr, trimmed.len, 1);
+#else
+    // Re-use and addref the default_zstr iff they match and trim didn't occur; copy otherwise
+    if (default_zstr && trimmed.ptr == ZSTR_VAL(default_zstr) && trimmed.len == ZSTR_LEN(default_zstr)) {
+        RETVAL_STR_COPY(default_zstr);
+    } else {
+        RETVAL_STRINGL(trimmed.ptr, trimmed.len);
+    }
+#endif
+    if (should_free_app_name) {
+        efree(app_name.ptr);
+    }
+}
+
+static PHP_FUNCTION(ddtrace_config_distributed_tracing_enabled) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+    RETURN_BOOL(ddtrace_config_distributed_tracing_enabled(TSRMLS_C))
+}
+
+static PHP_FUNCTION(ddtrace_config_trace_enabled) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    PHP7_UNUSED(execute_data);
+    RETURN_BOOL(ddtrace_config_trace_enabled(TSRMLS_C));
+}
+
+static PHP_FUNCTION(ddtrace_config_integration_enabled) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    if (!ddtrace_config_trace_enabled(TSRMLS_C)) {
+        RETURN_FALSE
+    }
+    ddtrace_string integration;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
+        RETURN_NULL()
+    }
+    RETVAL_BOOL(ddtrace_config_integration_enabled(integration TSRMLS_CC));
+}
+
+static PHP_FUNCTION(ddtrace_init) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    if (DDTRACE_G(request_init_hook_loaded) == 1) {
+        RETURN_FALSE
+    }
+
+    ddtrace_string dir;
+    int ret = 0;
+    DDTRACE_G(request_init_hook_loaded) = 1;
+    if (ddtrace_config_trace_enabled(TSRMLS_C) &&
+        zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &dir.ptr, &dir.len) == SUCCESS) {
+        char *init_file = emalloc(dir.len + sizeof("/dd_init.php"));
+        sprintf(init_file, "%s/dd_init.php", dir.ptr);
+        ret = dd_execute_php_file(init_file TSRMLS_CC);
+        efree(init_file);
+    }
+
+    if (DDTRACE_G(auto_prepend_file) && DDTRACE_G(auto_prepend_file)[0]) {
+        dd_execute_auto_prepend_file(DDTRACE_G(auto_prepend_file) TSRMLS_CC);
+    }
+    RETVAL_BOOL(ret);
+}
 
 static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
@@ -921,7 +1177,15 @@ static PHP_FUNCTION(dd_trace_push_span_id) {
 static PHP_FUNCTION(dd_trace_pop_span_id) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    return_span_id(return_value, ddtrace_pop_span_id(TSRMLS_C));
+    uint64_t id = ddtrace_pop_span_id(TSRMLS_C);
+
+    if (DDTRACE_G(span_ids_top) == NULL && get_dd_trace_auto_flush_enabled()) {
+        if (ddtrace_flush_tracer() == FAILURE) {
+            ddtrace_log_debug("Unable to auto flush the tracer");
+        }
+    }
+
+    return_span_id(return_value, id);
 }
 
 /* {{{ proto string dd_trace_peek_span_id() */
@@ -998,12 +1262,27 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_tracer_circuit_breaker_register_success, NULL),
     DDTRACE_FE(dd_untrace, NULL),
     DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds),
+    DDTRACE_FE(ddtrace_config_app_name, arginfo_ddtrace_config_app_name),
+    DDTRACE_FE(ddtrace_config_distributed_tracing_enabled, arginfo_ddtrace_config_distributed_tracing_enabled),
+    DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
+    DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled),
+    DDTRACE_FE(ddtrace_init, arginfo_ddtrace_init),
     DDTRACE_FE_END};
 
-zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,    PHP_DDTRACE_EXTNAME,    ddtrace_functions,
-                                          PHP_MINIT(ddtrace),        PHP_MSHUTDOWN(ddtrace), PHP_RINIT(ddtrace),
-                                          PHP_RSHUTDOWN(ddtrace),    PHP_MINFO(ddtrace),     PHP_DDTRACE_VERSION,
-                                          STANDARD_MODULE_PROPERTIES};
+zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,
+                                          PHP_DDTRACE_EXTNAME,
+                                          ddtrace_functions,
+                                          PHP_MINIT(ddtrace),
+                                          PHP_MSHUTDOWN(ddtrace),
+                                          PHP_RINIT(ddtrace),
+                                          PHP_RSHUTDOWN(ddtrace),
+                                          PHP_MINFO(ddtrace),
+                                          PHP_DDTRACE_VERSION,
+                                          PHP_MODULE_GLOBALS(ddtrace),
+                                          PHP_GINIT(ddtrace),
+                                          NULL,
+                                          NULL,
+                                          STANDARD_MODULE_PROPERTIES_EX};
 
 #ifdef COMPILE_DL_DDTRACE
 ZEND_GET_MODULE(ddtrace)
