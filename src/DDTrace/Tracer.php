@@ -7,7 +7,6 @@ use DDTrace\Encoders\SpanEncoder;
 use DDTrace\Http\Urls;
 use DDTrace\Encoders\MessagePack;
 use DDTrace\Log\LoggingTrait;
-use DDTrace\Processing\TraceAnalyticsProcessor;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
@@ -92,6 +91,16 @@ final class Tracer implements TracerInterface
     private static $version;
 
     /**
+     * @var string|null The user's service version, e.g. '1.2.3'
+     */
+    private $serviceVersion;
+
+    /**
+     * @var string|null The environment assigned to the current service.
+     */
+    private $environment;
+
+    /**
      * @param Transport $transport
      * @param Propagator[] $propagators
      * @param array $config
@@ -109,6 +118,8 @@ final class Tracer implements TracerInterface
         $this->config = array_merge($this->config, $config);
         $this->reset();
         $this->config['global_tags'] = array_merge($this->config['global_tags'], \ddtrace_config_global_tags());
+        $this->serviceVersion = \ddtrace_config_service_version();
+        $this->environment = \ddtrace_config_env();
     }
 
     public function limited()
@@ -185,15 +196,13 @@ final class Tracer implements TracerInterface
         // configuring them individually
 
         // Application version
-        $version = $this->globalConfig->version();
-        if (null !== $version) {
-            $span->setTag(Tag::VERSION, $version);
+        if (null !== $this->serviceVersion) {
+            $span->setTag(Tag::VERSION, $this->serviceVersion);
         }
 
         // Application environment
-        $env = $this->globalConfig->env();
-        if (null !== $env) {
-            $span->setTag(Tag::ENV, $env);
+        if (null !== $this->environment) {
+            $span->setTag(Tag::ENV, $this->environment);
         }
 
         $this->record($span);

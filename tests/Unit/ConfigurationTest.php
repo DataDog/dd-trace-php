@@ -21,6 +21,7 @@ final class ConfigurationTest extends BaseTestCase
     private function cleanUpEnvs()
     {
         putenv('DD_DISTRIBUTED_TRACING');
+        putenv('DD_ENV');
         putenv('DD_INTEGRATIONS_DISABLED');
         putenv('DD_PRIORITY_SAMPLING');
         putenv('DD_SAMPLING_RATE');
@@ -30,6 +31,7 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_TRACE_ENABLED');
         putenv('DD_TRACE_SAMPLE_RATE');
         putenv('DD_TRACE_SAMPLING_RULES');
+        putenv('DD_VERSION');
     }
 
     public function testTracerEnabledByDefault()
@@ -369,6 +371,34 @@ final class ConfigurationTest extends BaseTestCase
                 [ 'service1' => 'service2', 'service3' => 'service4' ],
             ],
         ];
+    }
+
+    public function testEnv()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV=my-env']);
+        $this->assertSame('my-env', Configuration::get()->getEnv());
+        $this->assertSame('my-env', \ddtrace_config_env());
+    }
+
+    public function testEnvNotSet()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV']);
+        $this->assertNull(Configuration::get()->getEnv());
+        $this->assertNull(\ddtrace_config_env());
+    }
+
+    public function testVersion()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION=1.2.3']);
+        $this->assertSame('1.2.3', Configuration::get()->getServiceVersion());
+        $this->assertSame('1.2.3', \ddtrace_config_service_version());
+    }
+
+    public function testVersionNotSet()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION']);
+        $this->assertNull(Configuration::get()->getServiceVersion());
+        $this->assertNull(\ddtrace_config_service_version());
     }
 
     public function testUriAsResourceNameEnabledDefault()

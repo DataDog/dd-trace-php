@@ -157,6 +157,26 @@ function _ddtrace_config_associative_array($value, $default)
 }
 
 /**
+ * Returns the configured environment or null if none is configured.
+ *
+ * @return string
+ */
+function ddtrace_config_env()
+{
+    return \_ddtrace_config_string(\getenv('DD_ENV'), null);
+}
+
+/**
+ * Returns the configured service version or null if none is configured.
+ *
+ * @return string
+ */
+function ddtrace_config_service_version()
+{
+    return \_ddtrace_config_string(\getenv('DD_VERSION'), null);
+}
+
+/**
  * Whether or not debug mode is enabled.
  *
  * @return bool

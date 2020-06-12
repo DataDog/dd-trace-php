@@ -234,7 +234,7 @@ class Configuration extends AbstractConfiguration
      *
      * @return string|null
      */
-    public function version()
+    public function getServiceVersion()
     {
         // Using the env `DD_VERSION` for consistency with other tracers.
         return $this->stringValue('version', null);
@@ -246,7 +246,7 @@ class Configuration extends AbstractConfiguration
      *
      * @return string|null
      */
-    public function env()
+    public function getEnv()
     {
         // Using the env `DD_ENV` for consistency with other tracers.
         return $this->stringValue('env', null);

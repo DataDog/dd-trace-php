@@ -181,9 +181,9 @@ final class Span extends DataSpan
                 }
             }
 
-            if ($key == Tag::SERVICE_VERSION) {
+            if ($key === Tag::SERVICE_VERSION) {
                 // Also set `version` tag (we want both)
-                $this->tags[Tag::VERSION] = (string)$value;
+                $this->setTag(Tag::VERSION, $value);
             }
 
             if (array_key_exists($key, self::$metricNames)) {
