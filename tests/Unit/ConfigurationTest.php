@@ -388,16 +388,16 @@ final class ConfigurationTest extends BaseTestCase
 
     public function testGlobalTags()
     {
-        $this->putEnvAndReloadConfig(['DD_TAGS=k1:v1,k2:v2']);
-        $this->assertEquals(['k1' => 'v1', 'k2' => 'v2'], Configuration::get()->getGlobalTags());
-        $this->assertEquals(['k1' => 'v1', 'k2' => 'v2'], \ddtrace_config_global_tags());
+        $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1,key2:value2']);
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
     }
 
     public function testGlobalTagsLegacyEnv()
     {
-        $this->putEnvAndReloadConfig(['DD_TRACE_GLOBAL_TAGS=k1:v1,k2:v2']);
-        $this->assertEquals(['k1' => 'v1', 'k2' => 'v2'], Configuration::get()->getGlobalTags());
-        $this->assertEquals(['k1' => 'v1', 'k2' => 'v2'], \ddtrace_config_global_tags());
+        $this->putEnvAndReloadConfig(['DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2']);
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
     }
 
     public function testGlobalTagsNewEnvWinsOverLegacyEnv()
