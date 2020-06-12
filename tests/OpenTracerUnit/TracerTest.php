@@ -9,13 +9,13 @@ use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext as DDSpanContext;
 use DDTrace\Tag;
 use DDTrace\Tests\DebugTransport;
+use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Time;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\GlobalTracer;
 use OpenTracing\Formats;
-use PHPUnit\Framework\TestCase;
 
-final class TracerTest extends TestCase
+final class TracerTest extends BaseTestCase
 {
     const OPERATION_NAME = 'test_span';
     const ANOTHER_OPERATION_NAME = 'test_span2';
@@ -36,12 +36,8 @@ final class TracerTest extends TestCase
 
     public function testCreateSpanWithEnvAndVersionConfigured()
     {
+        $this->putEnvAndReloadConfig(['DD_ENV=' . self::ENVIRONMENT, 'DD_VERSION=' . self::VERSION]);
         $tracer = Tracer::make(new NoopTransport());
-
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'env' => self::ENVIRONMENT,
-            'version' => self::VERSION,
-        ]));
 
         $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
         $this->assertSame(self::ENVIRONMENT, $span->getTag(Tag::ENV));
@@ -50,16 +46,12 @@ final class TracerTest extends TestCase
 
     public function testCreateSpanWithEnvAndVersionPrecedence()
     {
+        $this->putEnvAndReloadConfig([
+            'DD_ENV=' . self::ENVIRONMENT,
+            'DD_VERSION=' . self::VERSION,
+            'DD_TAGS=env:global-tag-env,version:4.5.6',
+        ]);
         $tracer = Tracer::make(new NoopTransport());
-
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'getGlobalTags' => [
-                'env' => 'global-tag-env',
-                'version' => '4.5.6',
-            ],
-            'env' => self::ENVIRONMENT,
-            'version' => self::VERSION,
-        ]));
 
         $span = $tracer->startSpan(self::OPERATION_NAME)->unwrapped();
         $this->assertSame(self::ENVIRONMENT, $span->getTag(Tag::ENV));
