@@ -40,6 +40,6 @@ try {
 ?>
 --EXPECT--
 Flushing tracer...
-Foo.bar (error: Oops!)
+Foo.bar (Foo.bar) (error: Oops!)
 Tracer reset
 Caught exception: Oops!

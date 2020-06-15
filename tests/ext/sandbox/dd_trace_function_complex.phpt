@@ -133,7 +133,7 @@ array(5) {
     }
   }
   [1]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -146,9 +146,11 @@ array(5) {
     int(%d)
     ["name"]=>
     string(8) "ArraySum"
+    ["resource"]=>
+    string(8) "ArraySum"
   }
   [2]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -161,9 +163,11 @@ array(5) {
     int(%d)
     ["name"]=>
     string(6) "AddOne"
+    ["resource"]=>
+    string(6) "AddOne"
   }
   [3]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -174,6 +178,8 @@ array(5) {
     int(%d)
     ["name"]=>
     string(6) "AddOne"
+    ["resource"]=>
+    string(6) "AddOne"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
@@ -181,7 +187,7 @@ array(5) {
     }
   }
   [4]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -191,6 +197,8 @@ array(5) {
     ["duration"]=>
     int(%d)
     ["name"]=>
+    string(7) "TestFoo"
+    ["resource"]=>
     string(7) "TestFoo"
     ["meta"]=>
     array(1) {

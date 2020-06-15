@@ -73,6 +73,6 @@ array_map(function($span) {
 BarException caught
 BarException caught
 embeddedCatch, BarException caught
-throwException, Oops!
+throwException, throwException, Oops!
 multiCatch, BarException caught
-throwException, Oops!
+throwException, throwException, Oops!

@@ -45,4 +45,4 @@ array_map(function($span) {
 --EXPECT--
 FooException caught
 multiCatch, FooException caught
-throwException, Oops!
+throwException, throwException, Oops!

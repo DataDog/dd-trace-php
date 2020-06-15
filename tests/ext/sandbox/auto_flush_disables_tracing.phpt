@@ -43,7 +43,7 @@ echo PHP_EOL;
 3
 6
 Flushing tracer...
-main
+main (main)
 array_sum (6)
 array_sum (3)
 Tracer reset
@@ -51,7 +51,7 @@ Tracer reset
 10
 15
 Flushing tracer...
-main
+main (main)
 array_sum (15)
 array_sum (10)
 Tracer reset
@@ -59,7 +59,7 @@ Tracer reset
 21
 28
 Flushing tracer...
-main
+main (main)
 array_sum (28)
 array_sum (21)
 Tracer reset

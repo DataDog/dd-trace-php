@@ -11,6 +11,15 @@
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
 
+#if PHP_VERSION_ID >= 70000
+zval *ddtrace_spandata_property_name(zval *spandata);
+zval *ddtrace_spandata_property_resource(zval *spandata);
+zval *ddtrace_spandata_property_service(zval *spandata);
+zval *ddtrace_spandata_property_type(zval *spandata);
+zval *ddtrace_spandata_property_meta(zval *spandata);
+zval *ddtrace_spandata_property_metrics(zval *spandata);
+#endif
+
 BOOL_T ddtrace_tracer_is_limited(TSRMLS_D);
 
 typedef struct _ddtrace_original_context {
