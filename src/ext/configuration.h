@@ -37,6 +37,13 @@ inline ddtrace_string ddtrace_string_getenv(char *str, size_t len TSRMLS_DC) {
     return ddtrace_string_cstring_ctor(ddtrace_getenv(str, len TSRMLS_CC));
 }
 
+// Returns an env var value as string. If the env is not defined it uses a fallback env variable name.
+// Used when for backward compatibility we need to support a primary and secondary env variable name.
+inline ddtrace_string ddtrace_string_getenv_multi(char *primary, size_t primary_len, char *secondary,
+                                                  size_t secondary_len TSRMLS_DC) {
+    return ddtrace_string_cstring_ctor(ddtrace_getenv_multi(primary, primary_len, secondary, secondary_len TSRMLS_CC));
+}
+
 struct ddtrace_memoized_configuration_t;
 extern struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration;
 

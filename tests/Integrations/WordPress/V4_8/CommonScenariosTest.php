@@ -25,7 +25,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_SERVICE_NAME' => 'wordpress_test_app',
+            'DD_SERVICE' => 'wordpress_test_app',
         ]);
     }
 

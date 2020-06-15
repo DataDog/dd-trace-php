@@ -406,9 +406,8 @@
         "memory_test": "echo $COMPOSER_MEMORY_LIMIT",
 
         "opentracing-10-test": [
-            "@composer scenario:update",
             "@composer scenario opentracing1",
-            "@composer test -- tests/OpenTracerUnit/TracerTest.php"
+            "@composer test -- tests/OpenTracerUnit"
         ],
 
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
