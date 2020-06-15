@@ -25,6 +25,8 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_PRIORITY_SAMPLING');
         putenv('DD_SAMPLING_RATE');
         putenv('DD_SERVICE_MAPPING');
+        putenv('DD_SERVICE_NAME');
+        putenv('DD_SERVICE');
         putenv('DD_TRACE_ANALYTICS_ENABLED');
         putenv('DD_TRACE_DEBUG');
         putenv('DD_TRACE_ENABLED');
@@ -134,20 +136,34 @@ final class ConfigurationTest extends BaseTestCase
 
     public function testServiceName()
     {
-        $this->putEnvAndReloadConfig(['DD_SERVICE_NAME', 'DD_TRACE_APP_NAME', 'ddtrace_app_name']);
+        $this->putEnvAndReloadConfig(['DD_SERVICE', 'DD_TRACE_APP_NAME', 'ddtrace_app_name']);
 
         $this->assertSame('__default__', Configuration::get()->appName('__default__'));
         $this->assertSame('__default__', \ddtrace_config_app_name('__default__'));
 
+        $this->putEnvAndReloadConfig(['DD_SERVICE=my_app']);
+        $this->assertSame('my_app', Configuration::get()->appName('__default__'));
+        $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
+    }
+
+    public function testServiceNameViaDDServiceWinsOverDDServiceName()
+    {
+        $this->putEnvAndReloadConfig(['DD_SERVICE=my_app', 'DD_SERVICE_NAME=legacy']);
+        $this->assertSame('my_app', Configuration::get()->appName('__default__'));
+        $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
+    }
+
+    public function testServiceNameViaDDServiceNameForBackwardCompatibility()
+    {
         $this->putEnvAndReloadConfig(['DD_SERVICE_NAME=my_app']);
-        $this->assertSame('my_app', Configuration::get()->appName('my_app'));
-        $this->assertSame('my_app', \ddtrace_config_app_name('my_app'));
+        $this->assertSame('my_app', Configuration::get()->appName('__default__'));
+        $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
     }
 
     public function testServiceNameHasPrecedenceOverDeprecatedMethods()
     {
         $this->putEnvAndReloadConfig([
-            'DD_SERVICE_NAME=my_app',
+            'DD_SERVICE=my_app',
             'DD_TRACE_APP_NAME=wrong_app',
             'ddtrace_app_name=wrong_app',
         ]);

@@ -923,7 +923,8 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
     }
 #endif
 
-    ddtrace_string app_name = ddtrace_string_getenv(ZEND_STRL("DD_SERVICE_NAME") TSRMLS_CC);
+    ddtrace_string app_name =
+        ddtrace_string_getenv_multi(ZEND_STRL("DD_SERVICE"), ZEND_STRL("DD_SERVICE_NAME") TSRMLS_CC);
     bool should_free_app_name = app_name.ptr;
     if (!app_name.len) {
         if (should_free_app_name) {

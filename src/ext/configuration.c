@@ -6,6 +6,8 @@
 #include "env_config.h"
 
 extern inline ddtrace_string ddtrace_string_getenv(char* str, size_t len TSRMLS_DC);
+extern inline ddtrace_string ddtrace_string_getenv_multi(char* primary, size_t primary_len, char* secondary,
+                                                         size_t secondary_len TSRMLS_DC);
 
 struct ddtrace_memoized_configuration_t ddtrace_memoized_configuration = {
 #define CHAR(...) NULL, FALSE,
