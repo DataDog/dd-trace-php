@@ -26,6 +26,7 @@
         "symfony/yaml": "4.2.*"
     },
     "require-dev": {
+        "doctrine/migrations": "^2.0",
         "symfony/debug-pack": "*",
         "symfony/maker-bundle": "^1.0",
         "symfony/profiler-pack": "*",
