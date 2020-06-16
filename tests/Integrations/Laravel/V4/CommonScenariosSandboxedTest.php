@@ -19,7 +19,7 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_DEBUG' => 'true',
-            'DD_TRACE_GLOBAL_TAGS' => 'some.key1:value,some.key2:value2',
+            'DD_TAGS' => 'some.key1:value,some.key2:value2',
         ]);
     }
 

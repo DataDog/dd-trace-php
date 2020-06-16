@@ -17,12 +17,12 @@ final class TracerTest extends BaseTestCase
     protected function setUp()
     {
         parent::setUp();
-        \putenv('DD_TRACE_GLOBAL_TAGS=global_tag:global,also_in_span:should_not_ovverride');
+        \putenv('DD_TAGS=global_tag:global,also_in_span:should_not_ovverride');
     }
 
     protected function tearDown()
     {
-        \putenv('DD_TRACE_GLOBAL_TAGS');
+        \putenv('DD_TAGS');
         \putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
         \putenv('DD_SERVICE_MAPPING');
         parent::tearDown();

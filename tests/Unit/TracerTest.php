@@ -28,7 +28,7 @@ final class TracerTest extends BaseTestCase
     {
         \putenv('DD_AUTOFINISH_SPANS');
         \putenv('DD_TRACE_REPORT_HOSTNAME');
-        \putenv('DD_TRACE_GLOBAL_TAGS');
+        \putenv('DD_TAGS');
         parent::setUp();
     }
 
@@ -37,7 +37,7 @@ final class TracerTest extends BaseTestCase
         parent::tearDown();
         \putenv('DD_TRACE_REPORT_HOSTNAME');
         \putenv('DD_AUTOFINISH_SPANS');
-        \putenv('DD_TRACE_GLOBAL_TAGS');
+        \putenv('DD_TAGS');
     }
 
     public function testStartSpanAsNoop()
@@ -265,7 +265,7 @@ final class TracerTest extends BaseTestCase
 
     public function testHonorGlobalTags()
     {
-        \putenv('DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2');
+        \putenv('DD_TAGS=key1:value1,key2:value2');
 
         $transport = new DebugTransport();
         $tracer = new Tracer($transport);

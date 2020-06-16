@@ -27,9 +27,11 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_SERVICE_MAPPING');
         putenv('DD_SERVICE_NAME');
         putenv('DD_SERVICE');
+        putenv('DD_TAGS');
         putenv('DD_TRACE_ANALYTICS_ENABLED');
         putenv('DD_TRACE_DEBUG');
         putenv('DD_TRACE_ENABLED');
+        putenv('DD_TRACE_GLOBAL_TAGS');
         putenv('DD_TRACE_SAMPLE_RATE');
         putenv('DD_TRACE_SAMPLING_RULES');
     }
@@ -398,5 +400,36 @@ final class ConfigurationTest extends BaseTestCase
         $this->putEnvAndReloadConfig(['DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=false']);
         $this->assertFalse(Configuration::get()->isURLAsResourceNameEnabled());
         $this->assertFalse(\ddtrace_config_url_resource_name_enabled());
+    }
+
+    public function testGlobalTags()
+    {
+        $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1,key2:value2']);
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
+    }
+
+    public function testGlobalTagsLegacyEnv()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2']);
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
+    }
+
+    public function testGlobalTagsNewEnvWinsOverLegacyEnv()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_GLOBAL_TAGS=key10:value10,key20:value20',
+            'DD_TAGS=key1:value1,key2:value2',
+        ]);
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
+        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
+    }
+
+    public function testGlobalTagsWrongValueJustResultsInNoTags()
+    {
+        $this->putEnvAndReloadConfig(['DD_TAGS=wrong_key_value']);
+        $this->assertEquals([], Configuration::get()->getGlobalTags());
+        $this->assertEquals([], \ddtrace_config_global_tags());
     }
 }

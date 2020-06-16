@@ -306,7 +306,12 @@ function ddtrace_config_integration_analytics_sample_rate($name)
  */
 function ddtrace_config_global_tags()
 {
-    return \_ddtrace_config_associative_array(\getenv('DD_TRACE_GLOBAL_TAGS'), []);
+    $rawValue = \getenv('DD_TAGS');
+    if (false === $rawValue) {
+        // Fallback to legacy env variable name
+        $rawValue = \getenv('DD_TRACE_GLOBAL_TAGS');
+    }
+    return \_ddtrace_config_associative_array($rawValue, []);
 }
 
 /**

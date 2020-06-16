@@ -161,7 +161,7 @@ class Configuration extends AbstractConfiguration
      */
     public function getGlobalTags()
     {
-        return $this->associativeStringArrayValue('trace.global.tags');
+        return $this->associativeStringArrayValue('tags') ?: $this->associativeStringArrayValue('trace.global.tags');
     }
 
     /**
