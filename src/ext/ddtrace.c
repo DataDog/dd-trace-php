@@ -29,6 +29,7 @@
 #include "ddtrace_string.h"
 #include "debug.h"
 #include "dispatch.h"
+#include "distributed_tracing.h"
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
 #include "handlers_internal.h"
@@ -327,6 +328,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
+    ddtrace_distributed_tracing_rinit(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
 
     // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
@@ -369,6 +371,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
 
+    ddtrace_distributed_tracing_rshutdown(TSRMLS_C);
     ddtrace_dispatch_destroy(TSRMLS_C);
     ddtrace_free_span_id_stack(TSRMLS_C);
     ddtrace_free_span_stacks(TSRMLS_C);
@@ -920,7 +923,8 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
     }
 #endif
 
-    ddtrace_string app_name = ddtrace_string_getenv(ZEND_STRL("DD_SERVICE_NAME") TSRMLS_CC);
+    ddtrace_string app_name =
+        ddtrace_string_getenv_multi(ZEND_STRL("DD_SERVICE"), ZEND_STRL("DD_SERVICE_NAME") TSRMLS_CC);
     bool should_free_app_name = app_name.ptr;
     if (!app_name.len) {
         if (should_free_app_name) {

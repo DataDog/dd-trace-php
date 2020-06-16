@@ -1,7 +1,7 @@
 parameters:
-	autoload_directories:
+	scanDirectories:
 		- src/DDTrace
-	autoload_files:
+	scanFiles:
 		- bridge/configuration.php
 		- bridge/dd_register_optional_deps_autoloader.php
 	excludes_analyse:

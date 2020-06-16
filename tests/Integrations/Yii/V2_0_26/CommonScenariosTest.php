@@ -20,7 +20,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_SERVICE_NAME' => 'yii2_test_app',
+            'DD_SERVICE' => 'yii2_test_app',
         ]);
     }
 
