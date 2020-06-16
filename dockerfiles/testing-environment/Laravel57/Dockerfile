@@ -71,7 +71,7 @@ RUN touch /var/log/php-fpm.log && chmod 777 /var/log/php-fpm.log
 
 # Setup web app
 WORKDIR /var/www/html/
-COPY Laravel57 /var/www/html/
+COPY ./app /var/www/html/
 RUN composer update --no-dev
 
 # Copying configuration files
