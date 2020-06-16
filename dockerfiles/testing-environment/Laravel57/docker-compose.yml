@@ -17,7 +17,7 @@ services:
       - TRACER_DOWNLOAD_URL=https://139868-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
       # - DD_TRACE_DEBUG=true
     # volumes:
-    #   - ./Laravel57:/var/www/html/
+    #   - ./app:/var/www/html/
     command: [ "/local-run.sh" ]
 
   "7.3-none":
@@ -34,7 +34,7 @@ services:
       - DB_HOST=mysql
       - DD_HTTPBIN_HOST=httpbin
     # volumes:
-    #   - ./Laravel57:/var/www/html/
+    #   - ./app:/var/www/html/
     command: [ "/local-run.sh" ]
 
   agent:
