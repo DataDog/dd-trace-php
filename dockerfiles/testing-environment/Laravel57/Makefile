@@ -1,9 +1,8 @@
 7.3_VERSION = 7.3.15
 
-ALL_VERSIONS = 7.3
+build: 7.3.build
 
-all: $(addsuffix .build,ALL_VERSIONS)
-	@:
+publish: 7.3.publish
 
 %.build:
 	@docker build --build-arg PHP_VERSION="${${*}_VERSION}" -t registry.ddbuild.io/apm-integrations-testing/handmade/php-laravel:$* .
