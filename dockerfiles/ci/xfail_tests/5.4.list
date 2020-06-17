@@ -259,3 +259,4 @@ ext/pdo/tests/pdo_023.phpt
 ext/pdo_sqlite/tests/pdo_013.phpt
 tests/lang/bug23584.phpt
 Zend/tests/bug48930.phpt
+ext/standard/tests/file/lstat_stat_variation10.phpt

@@ -290,3 +290,4 @@ ext/phar/tests/phar_buildfromiterator8.phpt
 ext/pdo_sqlite/tests/bug_52098.phpt
 ext/pdo_sqlite/tests/pdo_013.phpt
 ext/pdo_sqlite/tests/pdo_023.phpt
+ext/standard/tests/file/lstat_stat_variation10.phpt
