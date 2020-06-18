@@ -432,4 +432,30 @@ final class ConfigurationTest extends BaseTestCase
         $this->assertEquals([], Configuration::get()->getGlobalTags());
         $this->assertEquals([], \ddtrace_config_global_tags());
     }
+
+    public function testUriNormalizationSettingWhenNotSet()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
+        ]);
+
+        $this->assertSame([], \ddtrace_config_path_fragment_regex());
+        $this->assertSame([], \ddtrace_config_path_mapping_incoming());
+        $this->assertSame([], \ddtrace_config_path_mapping_outgoing());
+    }
+
+    public function testUriNormalizationSettingWheSet()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/a/',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=path/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=path/*',
+        ]);
+
+        $this->assertSame(['/a/'], \ddtrace_config_path_fragment_regex());
+        $this->assertSame(['path/*'], \ddtrace_config_path_mapping_incoming());
+        $this->assertSame(['path/*'], \ddtrace_config_path_mapping_outgoing());
+    }
 }

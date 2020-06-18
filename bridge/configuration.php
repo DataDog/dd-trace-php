@@ -208,6 +208,30 @@ function ddtrace_config_url_resource_name_enabled()
 }
 
 /**
+ * @return string[]
+ */
+function ddtrace_config_path_fragment_regex()
+{
+    return \_ddtrace_config_indexed_array(\getenv('DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX'), []);
+}
+
+/**
+ * @return string[]
+ */
+function ddtrace_config_path_mapping_incoming()
+{
+    return \_ddtrace_config_indexed_array(\getenv('DD_TRACE_RESOURCE_URI_MAPPING_INCOMING'), []);
+}
+
+/**
+ * @return string[]
+ */
+function ddtrace_config_path_mapping_outgoing()
+{
+    return \_ddtrace_config_indexed_array(\getenv('DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING'), []);
+}
+
+/**
  * Set URL hostname as service name
  *
  * @return bool
