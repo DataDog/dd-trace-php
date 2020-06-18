@@ -3,6 +3,7 @@
 
 #include <Zend/zend_types.h>
 #include <php.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "compatibility.h"
@@ -13,10 +14,11 @@
 #define DDTRACE_DISPATCH_PREHOOK (1u << 3u)
 
 typedef struct ddtrace_dispatch_t {
-    uint32_t options;
-    zval callable, function_name;
-    zend_bool busy;
+    uint16_t options;
+    bool busy;
     uint32_t acquired;
+    zval callable;
+    zval function_name;
 } ddtrace_dispatch_t;
 
 ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname TSRMLS_DC);
