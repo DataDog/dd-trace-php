@@ -40,7 +40,7 @@ array (
 ---
 array(1) {
   [0]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -50,6 +50,8 @@ array(1) {
     ["duration"]=>
     int(%d)
     ["name"]=>
+    string(15) "filter_to_array"
+    ["resource"]=>
     string(15) "filter_to_array"
     ["meta"]=>
     array(1) {

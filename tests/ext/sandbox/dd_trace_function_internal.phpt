@@ -25,7 +25,7 @@ int(9)
 ---
 array(1) {
   [0]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -35,6 +35,8 @@ array(1) {
     ["duration"]=>
     int(%d)
     ["name"]=>
+    string(8) "ArraySum"
+    ["resource"]=>
     string(8) "ArraySum"
     ["meta"]=>
     array(1) {

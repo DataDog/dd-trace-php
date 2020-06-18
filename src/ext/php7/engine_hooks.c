@@ -389,6 +389,40 @@ static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_t *span, zval *user_
     return keep_span;
 }
 
+void _dd_set_fqn(zval *zv, zend_execute_data *ex) {
+    if (!ex->func || !ex->func->common.function_name) {
+        return;
+    }
+    zend_class_entry *called_scope = zend_get_called_scope(ex);
+    if (called_scope) {
+        // This cannot be cached on the dispatch since sub classes can share the same parent dispatch
+        zend_string *fqn =
+            strpprintf(0, "%s.%s", ZSTR_VAL(called_scope->name), ZSTR_VAL(ex->func->common.function_name));
+        ZVAL_STR_COPY(zv, fqn);
+        zend_string_release(fqn);
+    } else {
+        ZVAL_STR_COPY(zv, ex->func->common.function_name);
+    }
+}
+
+void _dd_set_default_properties(void) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    if (span == NULL || span->span_data == NULL || span->call == NULL) {
+        return;
+    }
+    // SpanData::$name defaults to fully qualified called name
+    // The other span property defaults are set at serialization time
+    zval *prop_name = ddtrace_spandata_property_name(span->span_data);
+    if (prop_name && Z_TYPE_P(prop_name) == IS_NULL) {
+        zval prop_name_default;
+        ZVAL_NULL(&prop_name_default);
+        _dd_set_fqn(&prop_name_default, span->call);
+        ZVAL_COPY_VALUE(prop_name, &prop_name_default);
+        zval_copy_ctor(prop_name);
+        zval_dtor(&prop_name_default);
+    }
+}
+
 static void _dd_end_span(ddtrace_span_t *span, zval *user_retval) {
     ddtrace_dispatch_t *dispatch = span->dispatch;
     dd_trace_stop_span_time(span);
@@ -399,6 +433,7 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval) {
     }
 
     if (keep_span) {
+        _dd_set_default_properties();
         ddtrace_close_span();
     } else {
         ddtrace_drop_top_open_span();

@@ -391,3 +391,4 @@ ext/curl/tests/bug79033.phpt
 ext/standard/tests/streams/bug78902.phpt
 ext/phar/tests/phar_buildfromiterator10.phpt
 ext/phar/tests/phar_buildfromiterator8.phpt
+ext/standard/tests/file/lstat_stat_variation10.phpt

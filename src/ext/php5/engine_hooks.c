@@ -536,6 +536,48 @@ static zval *ddtrace_exception_get_entry(zval *object, char *name, int name_len 
     return zend_read_property(exception_ce, object, name, name_len, 1 TSRMLS_CC);
 }
 
+void _dd_set_fqn(zval *zv, zend_execute_data *ex) {
+    if (!ex->call || !ex->call->fbc) {
+        return;
+    }
+    zend_function *fbc = ex->call->fbc;
+    const char *fname;
+    if (fbc->common.function_name) {
+        fname = fbc->common.function_name;
+    } else if (ex->opline && ex->opline->op1.zv) {
+        fname = Z_STRVAL_P(ex->opline->op1.zv);
+    } else {
+        return;
+    }
+    zend_class_entry *called_scope = ex->call->called_scope;
+    if (called_scope) {
+        size_t len = called_scope->name_length + (sizeof(".") - 1) + strlen(fname) + 1;
+        char *fqn = emalloc(len);
+        snprintf(fqn, len, "%s.%s", called_scope->name, fname);
+        ZVAL_STRINGL(zv, fqn, len - 1, 0);
+    } else {
+        ZVAL_STRING(zv, fname, 1);
+    }
+}
+
+void _dd_set_default_properties(TSRMLS_D) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    if (span == NULL || span->span_data == NULL || span->call == NULL) {
+        return;
+    }
+    // SpanData::$name defaults to fully qualified called name
+    // The other span property defaults are set at serialization time
+    zval *prop_name = zend_read_property(ddtrace_ce_span_data, span->span_data, ZEND_STRL("name"), 1 TSRMLS_CC);
+    if (prop_name && Z_TYPE_P(prop_name) == IS_NULL) {
+        zval *prop_name_default;
+        MAKE_STD_ZVAL(prop_name_default);
+        ZVAL_NULL(prop_name_default);
+        _dd_set_fqn(prop_name_default, span->call);
+        zend_update_property(ddtrace_ce_span_data, span->span_data, ZEND_STRL("name"), prop_name_default TSRMLS_CC);
+        zval_ptr_dtor(&prop_name_default);
+    }
+}
+
 static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, const zend_op *opline_before_exception TSRMLS_DC) {
     zend_execute_data *call = span->call;
     ddtrace_dispatch_t *dispatch = span->dispatch;
@@ -584,6 +626,7 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, const zend_op 
     }
 
     if (keep_span == TRUE) {
+        _dd_set_default_properties(TSRMLS_C);
         ddtrace_close_span(TSRMLS_C);
     } else {
         ddtrace_drop_top_open_span(TSRMLS_C);
@@ -831,6 +874,7 @@ static void _dd_execute_end_span(zend_execute_data *call, ddtrace_span_t *span, 
     }
 
     if (keep_span == TRUE) {
+        _dd_set_default_properties(TSRMLS_C);
         ddtrace_close_span(TSRMLS_C);
     } else {
         ddtrace_drop_top_open_span(TSRMLS_C);

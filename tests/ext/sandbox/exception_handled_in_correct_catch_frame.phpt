@@ -81,5 +81,5 @@ Exception was handled by level1(): Oops!
 HANDLED
 Span: level0-HANDLED
 Span: level1-HANDLED
-Span: level2 (Oops!)
-Span: level3 (Oops!)
+Span: level2-level2 (Oops!)
+Span: level3-level3 (Oops!)

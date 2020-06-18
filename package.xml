@@ -205,6 +205,7 @@
                         <file name="auto_flush_userland_root_span.phpt" role="test" />
                         <file name="close-on-exit.phpt" role="test" />
                         <file name="close-on-exit-retval.phpt" role="test" />
+                        <file name="dd_dumper.inc" role="test" />
                         <file name="dd_trace_closed_spans_count.phpt" role="test" />
                         <file name="dd_trace_api_error.phpt" role="test" />
                         <file name="dd_trace_function_complex.phpt" role="test" />
@@ -215,6 +216,8 @@
                         <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
                         <file name="dd_trace_push_span_id.phpt" role="test" />
                         <file name="dd_trace_set_trace_id.phpt" role="test" />
+                        <file name="default_span_properties.phpt" role="test" />
+                        <file name="default_span_properties_method.phpt" role="test" />
                         <file name="distributed_tracing.inc" role="test" />
                         <file name="distributed_tracing_curl.phpt" role="test" />
                         <file name="distributed_tracing_curl_copy_handle.phpt" role="test" />

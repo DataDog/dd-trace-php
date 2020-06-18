@@ -141,7 +141,7 @@ array(3) {
     }
   }
   [1]=>
-  array(7) {
+  array(8) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -154,6 +154,8 @@ array(3) {
     int(%d)
     ["name"]=>
     string(2) "MT"
+    ["resource"]=>
+    string(2) "MT"
     ["meta"]=>
     array(2) {
       ["rand.range"]=>
@@ -163,7 +165,7 @@ array(3) {
     }
   }
   [2]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -173,6 +175,8 @@ array(3) {
     ["duration"]=>
     int(%d)
     ["name"]=>
+    string(7) "TestFoo"
+    ["resource"]=>
     string(7) "TestFoo"
     ["meta"]=>
     array(1) {

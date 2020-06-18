@@ -107,8 +107,8 @@ string(%d) "object(Closure)#%d"
 string(%d) "object(Closure)#%d"
 
 NULL
-'name' dropped
-'resource' dropped
+string(14) "prop_to_string"
+string(14) "prop_to_string"
 'service' dropped
 'type' dropped
 
