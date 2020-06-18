@@ -12,6 +12,8 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
+use function DDTrace\_util_normalize_incoming_path;
+
 class WordPressIntegrationLoader
 {
     /**
@@ -32,10 +34,10 @@ class WordPressIntegrationLoader
         $service = \ddtrace_config_app_name(WordPressSandboxedIntegration::NAME);
         $this->rootSpan->setTag(Tag::SERVICE_NAME, $service);
         if ('cli' !== PHP_SAPI) {
-            $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
+            $normalizedUri = _util_normalize_incoming_path($_SERVER['REQUEST_URI']);
             $this->rootSpan->setTag(
                 Tag::RESOURCE_NAME,
-                $_SERVER['REQUEST_METHOD'] . ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']),
+                $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedUri,
                 true
             );
             $this->rootSpan->setTag(Tag::HTTP_URL, home_url(add_query_arg($_GET)));

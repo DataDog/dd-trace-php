@@ -21,6 +21,8 @@ use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Contracts\SpanContext as SpanContextInterface;
 use DDTrace\Contracts\Tracer as TracerInterface;
 
+use function DDTrace\_util_normalize_incoming_path;
+
 final class Tracer implements TracerInterface
 {
     use LoggingTrait;
@@ -423,8 +425,7 @@ final class Tracer implements TracerInterface
         // Normalized URL as the resource name
         $resourceName = $_SERVER['REQUEST_METHOD'];
         if (isset($_SERVER['REQUEST_URI'])) {
-            $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
-            $resourceName .= ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']);
+            $resourceName = ' ' . _util_normalize_incoming_path($_SERVER['REQUEST_URI']);
         }
         $span->setTag(Tag::RESOURCE_NAME, $resourceName, true);
     }
