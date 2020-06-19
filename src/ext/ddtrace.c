@@ -97,13 +97,13 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   STANDARD_ZEND_EXTENSION_PROPERTIES};
 
 #if PHP_VERSION_ID >= 50600
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_method, 0, 0, 3)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_trace_method, 0, 0, 3)
 ZEND_ARG_INFO(0, class_name)
 ZEND_ARG_INFO(0, method_name)
 ZEND_ARG_INFO(0, tracing_closure)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_function, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_trace_function, 0, 0, 2)
 ZEND_ARG_INFO(0, function_name)
 ZEND_ARG_INFO(0, tracing_closure)
 ZEND_END_ARG_INFO()
@@ -635,7 +635,7 @@ static PHP_FUNCTION(dd_trace) {
 }
 
 #if PHP_VERSION_ID >= 50600
-static PHP_FUNCTION(dd_trace_method) {
+static PHP_FUNCTION(trace_method) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *class_name = NULL;
     zval *function = NULL;
@@ -683,7 +683,7 @@ static PHP_FUNCTION(dd_trace_method) {
     RETURN_BOOL(rv);
 }
 
-static PHP_FUNCTION(dd_trace_function) {
+static PHP_FUNCTION(trace_function) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *function = NULL;
     zval *tracing_closure = NULL;
@@ -1258,14 +1258,8 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_disable_in_request, NULL),
     DDTRACE_FE(dd_trace_env_config, arginfo_dd_trace_env_config),
     DDTRACE_FE(dd_trace_forward_call, NULL),
-#if PHP_VERSION_ID >= 50600
-    DDTRACE_FE(dd_trace_function, arginfo_dd_trace_function),
-#endif
     DDTRACE_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL),
     DDTRACE_FE(dd_trace_internal_fn, NULL),
-#if PHP_VERSION_ID >= 50600
-    DDTRACE_FE(dd_trace_method, arginfo_dd_trace_method),
-#endif
     DDTRACE_FE(dd_trace_noop, NULL),
     DDTRACE_FE(dd_trace_peek_span_id, NULL),
     DDTRACE_FE(dd_trace_pop_span_id, NULL),
@@ -1287,6 +1281,12 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
     DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled),
     DDTRACE_FE(ddtrace_init, arginfo_ddtrace_init),
+#if PHP_VERSION_ID >= 50600
+    DDTRACE_NS_FE(trace_function, arginfo_ddtrace_trace_function),
+    DDTRACE_FALIAS(dd_trace_function, trace_function, arginfo_ddtrace_trace_function),
+    DDTRACE_NS_FE(trace_method, arginfo_ddtrace_trace_method),
+    DDTRACE_FALIAS(dd_trace_method, trace_method, arginfo_ddtrace_trace_method),
+#endif
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,

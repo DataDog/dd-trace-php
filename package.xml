@@ -208,10 +208,12 @@
                         <file name="dd_dumper.inc" role="test" />
                         <file name="dd_trace_closed_spans_count.phpt" role="test" />
                         <file name="dd_trace_api_error.phpt" role="test" />
+                        <file name="dd_trace_function_alias.phpt" role="test" />
                         <file name="dd_trace_function_complex.phpt" role="test" />
                         <file name="dd_trace_function_internal.phpt" role="test" />
                         <file name="dd_trace_function_userland.phpt" role="test" />
                         <file name="dd_trace_method.phpt" role="test" />
+                        <file name="dd_trace_method_alias.phpt" role="test" />
                         <file name="dd_trace_method_binds_called_object.phpt" role="test" />
                         <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
                         <file name="dd_trace_push_span_id.phpt" role="test" />

@@ -100,8 +100,11 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 
 #define DDTRACE_FENTRY(zend_name, name, arg_info, flags) \
     { #zend_name, name, arg_info, DDTRACE_ARG_INFO_SIZE(arg_info), flags }
+#define DDTRACE_RAW_FENTRY(zend_name, name, arg_info, flags) \
+    { zend_name, name, arg_info, DDTRACE_ARG_INFO_SIZE(arg_info), flags }
 
 #define DDTRACE_FE(name, arg_info) DDTRACE_FENTRY(name, ZEND_FN(name), arg_info, 0)
+#define DDTRACE_NS_FE(name, arg_info) DDTRACE_RAW_FENTRY("DDTrace\\" #name, ZEND_FN(name), arg_info, 0)
 #define DDTRACE_FALIAS(name, alias, arg_info) DDTRACE_FENTRY(name, ZEND_FN(alias), arg_info, 0)
 #define DDTRACE_FE_END ZEND_FE_END
 
