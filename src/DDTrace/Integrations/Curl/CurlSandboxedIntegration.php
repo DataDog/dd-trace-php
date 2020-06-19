@@ -63,14 +63,14 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
 
                 $info = \curl_getinfo($ch);
                 $sanitizedUrl = Urls::sanitize($info['url']);
-                $normalizedUri = \DDtrace\Private_\util_uri_normalize_outgoing_path($info['url']);
+                $normalizedPath = \DDtrace\Private_\util_uri_normalize_outgoing_path($info['url']);
                 unset($info['url']);
 
                 if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                     $span->service = Urls::hostnameForTag($sanitizedUrl);
                 }
 
-                $span->resource = $normalizedUri;
+                $span->resource = $normalizedPath;
 
                 /* Special case the Datadog Standard Attributes
                  * See https://docs.datadoghq.com/logs/processing/attributes_naming_convention/

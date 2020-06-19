@@ -76,7 +76,7 @@ class CurlIntegration extends Integration
 
                 $info = curl_getinfo($ch);
                 $sanitizedUrl = Urls::sanitize($info['url']);
-                $normalizedUrl = \DDtrace\Private_\util_uri_normalize_outgoing_path($_SERVER['REQUEST_URI']);
+                $normalizedPath = \DDtrace\Private_\util_uri_normalize_outgoing_path($_SERVER['REQUEST_URI']);
                 unset($info['url']);
 
                 if (\ddtrace_config_http_client_split_by_domain_enabled()) {
@@ -84,7 +84,7 @@ class CurlIntegration extends Integration
                 } else {
                     $span->setTag(Tag::SERVICE_NAME, 'curl');
                 }
-                $span->setTag(Tag::RESOURCE_NAME, $normalizedUrl);
+                $span->setTag(Tag::RESOURCE_NAME, $normalizedPath);
 
 
                 // Special case the Datadog Standard Attributes

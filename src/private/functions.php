@@ -10,14 +10,28 @@ const DEFAULT_URI_PART_NORMALIZE_REGEXES = [
     '/^[0-9a-f]{8,128}$/',
 ];
 
+/**
+ * Given a uri path in the form '/user/123/path/Name' it returns a normalized path applying the correct outgoing rules:
+ * e.g. '/user/?/path/?'
+ *
+ * @param string $uriPath
+ * @return string
+ */
 function util_uri_normalize_outgoing_path($uriPath)
 {
-    return util_uri_apply_rules($uriPath, /* incoming */ false);
+    return _util_uri_apply_rules($uriPath, /* incoming */ false);
 }
 
+/**
+ * Given a uri path in the form '/user/123/path/Name' it returns a normalized path applying the correct incoming rules:
+ * e.g. '/user/?/path/?'
+ *
+ * @param string $uriPath
+ * @return string
+ */
 function util_uri_normalize_incoming_path($uriPath)
 {
-    return util_uri_apply_rules($uriPath, /* incoming */ true);
+    return _util_uri_apply_rules($uriPath, /* incoming */ true);
 }
 
 /**
@@ -25,9 +39,9 @@ function util_uri_normalize_incoming_path($uriPath)
  * @param boolean $incoming
  * @return string
  */
-function util_uri_apply_rules($uriPath, $incoming)
+function _util_uri_apply_rules($uriPath, $incoming)
 {
-    if ($uriPath === '/' || $uriPath === '' || null === $uriPath) {
+    if ('/' === $uriPath || '' === $uriPath || null === $uriPath) {
         return '/';
     }
 

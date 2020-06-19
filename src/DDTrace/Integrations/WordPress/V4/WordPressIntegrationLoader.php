@@ -32,10 +32,10 @@ class WordPressIntegrationLoader
         $service = \ddtrace_config_app_name(WordPressSandboxedIntegration::NAME);
         $this->rootSpan->setTag(Tag::SERVICE_NAME, $service);
         if ('cli' !== PHP_SAPI) {
-            $normalizedUri = \DDtrace\Private_\util_uri_normalize_incoming_path($_SERVER['REQUEST_URI']);
+            $normalizedPath = \DDtrace\Private_\util_uri_normalize_incoming_path($_SERVER['REQUEST_URI']);
             $this->rootSpan->setTag(
                 Tag::RESOURCE_NAME,
-                $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedUri,
+                $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath,
                 true
             );
             $this->rootSpan->setTag(Tag::HTTP_URL, home_url(add_query_arg($_GET)));
