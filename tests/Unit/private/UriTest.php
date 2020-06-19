@@ -251,6 +251,22 @@ class UriTest extends BaseTestCase
         );
     }
 
+    public function testProvidedFragmentRegexCanHaveLeadingAndTrailingSpaces()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=^some_name$    ,       ^other$     ',
+        ]);
+
+        $this->assertSame(
+            '/name/?/age/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/name/some_name/age/other')
+        );
+        $this->assertSame(
+            '/name/?/age/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/name/some_name/age/other')
+        );
+    }
+
     public function testWrongFragmentNormalizationRegexDoesNotCauseError()
     {
         $this->putEnvAndReloadConfig([
