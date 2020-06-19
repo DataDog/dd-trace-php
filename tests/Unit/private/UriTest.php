@@ -396,4 +396,21 @@ class UriTest extends BaseTestCase
             \DDtrace\Private_\util_uri_normalize_outgoing_path('http://example.com:8888/int/123/path/abc/nested/some')
         );
     }
+
+    public function testCaseSensitivity()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=nEsTeD/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=nEsTeD/*',
+        ]);
+
+        $this->assertSame(
+            '/int/?/nested/some',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123/nested/some')
+        );
+        $this->assertSame(
+            '/int/?/nested/some',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/nested/some')
+        );
+    }
 }

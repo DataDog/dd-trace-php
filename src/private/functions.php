@@ -77,13 +77,13 @@ function _util_uri_apply_rules($uriPath, $incoming)
     //    '/some//path/123/and/something-else/' =====> ['some', '', 'path', '123', 'and', 'something-else']
     //          ^^......note that empty fragments are kept......^^
     $fragments = array_map(function ($raw) {
-        return strtolower(trim($raw));
+        return trim($raw);
     }, explode('/', $uriPath));
 
     $result = $uriPath;
 
     foreach (($incoming ? $incomingMappings : $outgoingMappings) as $rawMapping) {
-        $normalizedMapping = strtolower(trim($rawMapping));
+        $normalizedMapping = trim($rawMapping);
         if ('' === $normalizedMapping) {
             continue;
         }

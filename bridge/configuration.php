@@ -114,7 +114,7 @@ function _ddtrace_config_indexed_array($value, $default)
 
     return array_map(
         function ($entry) {
-            return strtolower(trim($entry));
+            return trim($entry);
         },
         explode(',', $value)
     );
