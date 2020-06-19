@@ -72,15 +72,6 @@ function _util_uri_apply_rules($uriPath, $incoming)
         return $normalizer->normalize($uriPath);
     }
 
-    // It's easier to work on a fragment basis. So we take a $uriPath and we normalize it to a meanigful
-    // array of fragments.
-    // E.g. $fragments will contain:
-    //    '/some//path/123/and/something-else/' =====> ['some', '', 'path', '123', 'and', 'something-else']
-    //          ^^......note that empty fragments are kept......^^
-    $fragments = array_map(function ($raw) {
-        return trim($raw);
-    }, explode('/', $uriPath));
-
     $result = $uriPath;
 
     foreach (($incoming ? $incomingMappings : $outgoingMappings) as $rawMapping) {
