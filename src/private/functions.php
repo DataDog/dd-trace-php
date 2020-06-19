@@ -97,8 +97,11 @@ function _util_uri_apply_rules($uriPath, $incoming)
     $defaultPlusConfiguredfragmentRegexes = array_merge(DEFAULT_URI_PART_NORMALIZE_REGEXES, $fragmentRegexes);
     // Now applying fragment regex normalization
     foreach ($defaultPlusConfiguredfragmentRegexes as $fragmentRegex) {
+        // Leading and trailing slashes in regex patterns from envs are optional and we suggest not to use them
+        // in docs as it might be source of confusion given the context where `/` has a precise meaning.
+        $regexWithSlash = '/' . trim($fragmentRegex, '/') . '/';
         foreach ($fragments as &$fragment) {
-            $matchResult = @preg_match($fragmentRegex, $fragment);
+            $matchResult = @preg_match($regexWithSlash, $fragment);
             if (1 === $matchResult) {
                 $fragment = '?';
             }

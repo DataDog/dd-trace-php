@@ -82,7 +82,7 @@ class UriTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING=/user/*',
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
-            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^path$/',
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=^path$',
         ]);
         $this->assertSame(
             '/user/?/nested/?',
@@ -206,7 +206,7 @@ class UriTest extends BaseTestCase
     public function testProvidedFragmentRegexAreAdditiveToDefaultFragmentRegexes()
     {
         $this->putEnvAndReloadConfig([
-            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^some_name$/',
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=^some_name$',
         ]);
 
         $this->assertSame(
@@ -216,6 +216,38 @@ class UriTest extends BaseTestCase
         $this->assertSame(
             '/int/?/name/?',
             \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/name/some_name')
+        );
+    }
+
+    public function testProvidedFragmentRegexCanHasOptionalLeadingAndTrailingSlash()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=^some_name$',
+        ]);
+
+        $this->assertSame(
+            '/name/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/name/some_name')
+        );
+        $this->assertSame(
+            '/name/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/name/some_name')
+        );
+    }
+
+    public function testProvidedFragmentRegexCanHaveLeadingAndTrailingSlash()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^some_name$/',
+        ]);
+
+        $this->assertSame(
+            '/name/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/name/some_name')
+        );
+        $this->assertSame(
+            '/name/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/name/some_name')
         );
     }
 
@@ -238,7 +270,7 @@ class UriTest extends BaseTestCase
     public function testWrongFragmentNormalizationRegexDoesNotImpactOtherRegexes()
     {
         $this->putEnvAndReloadConfig([
-            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/(((((]]]]]]wrong_regex$/,/valid/',
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=(((((]]]]]]wrong_regex$,valid',
         ]);
 
         $this->assertSame(
@@ -346,7 +378,7 @@ class UriTest extends BaseTestCase
     public function testItWorksWithHttpFulllUrls()
     {
         $this->putEnvAndReloadConfig([
-            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^abc$/',
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=^abc$',
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=nested/*',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=nested/*',
         ]);
@@ -364,7 +396,7 @@ class UriTest extends BaseTestCase
     public function testItWorksWithHttpsFulllUrls()
     {
         $this->putEnvAndReloadConfig([
-            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^abc$/',
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=^abc$',
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=nested/*',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=nested/*',
         ]);
@@ -382,7 +414,7 @@ class UriTest extends BaseTestCase
     public function testItWorksWithHttpFulllUrlsIncludingPort()
     {
         $this->putEnvAndReloadConfig([
-            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^abc$/',
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=^abc$',
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=nested/*',
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=nested/*',
         ]);
