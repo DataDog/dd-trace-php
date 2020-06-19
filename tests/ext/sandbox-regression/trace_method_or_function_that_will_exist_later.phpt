@@ -5,11 +5,11 @@
 --FILE--
 <?php
 
-dd_trace_method("Test", "some_method", function($s, $a, $retval){
+DDTrace\trace_method("Test", "some_method", function($s, $a, $retval){
     echo "HOOK " . $retval;
 });
 
-dd_trace_function("some_function", function($s, $a, $retval){
+DDTrace\trace_function("some_function", function($s, $a, $retval){
     echo 'HOOK2 ' . $retval;
 });
 

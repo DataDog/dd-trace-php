@@ -7,19 +7,19 @@ DD_TRACE_DEBUG=1
 --FILE--
 <?php
 # Functions
-var_dump(dd_trace_function('foo', [
+var_dump(DDTrace\trace_function('foo', [
     'prehook' => 'foo',
 ]));
-var_dump(dd_trace_function('foo', [
+var_dump(DDTrace\trace_function('foo', [
     'prehook' => new stdClass(),
 ]));
 
 # Methods
 echo PHP_EOL;
-var_dump(dd_trace_method('foo', 'foo', [
+var_dump(DDTrace\trace_method('foo', 'foo', [
     'prehook' => 'foo',
 ]));
-var_dump(dd_trace_method('foo', 'foo', [
+var_dump(DDTrace\trace_method('foo', 'foo', [
     'prehook' => new stdClass(),
 ]));
 ?>

@@ -12,7 +12,7 @@ DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=curl_exec
 --FILE--
 <?php
-dd_trace_function('curl_exec', function (\DDTrace\SpanData $span) {
+DDTrace\trace_function('curl_exec', function (\DDTrace\SpanData $span) {
     $span->name = 'curl_exec';
 });
 

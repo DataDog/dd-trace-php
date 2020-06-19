@@ -17,7 +17,7 @@ class FooErrorHandler
 
 set_error_handler('FooErrorHandler::handleError');
 
-dd_trace_function('scandir', function() {});
+DDTrace\trace_function('scandir', function() {});
 
 try {
     var_dump(scandir(''));

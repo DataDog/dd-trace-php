@@ -14,11 +14,11 @@ function myFunc2($bar) {
     return $bar;
 }
 
-dd_trace_function('myFunc1', ['prehook' => function (\DDTrace\SpanData $span) {
+DDTrace\trace_function('myFunc1', ['prehook' => function (\DDTrace\SpanData $span) {
     $span->name = 'myFunc1';
 }]);
 
-dd_trace_function('myFunc2', [
+DDTrace\trace_function('myFunc2', [
     'instrument_when_limited' => 1,
     'prehook' => function (\DDTrace\SpanData $span) {
         $span->name = 'myFunc2';

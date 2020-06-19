@@ -24,11 +24,11 @@ function multiCatch() {
     }
 }
 
-dd_trace_function('throwException', function(SpanData $s) {
+DDTrace\trace_function('throwException', function(SpanData $s) {
     $s->name = 'throwException';
 });
 
-dd_trace_function('multiCatch', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('multiCatch', function(SpanData $s, $a, $retval) {
     $s->name = 'multiCatch';
     $s->resource = $retval;
 });

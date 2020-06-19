@@ -49,7 +49,7 @@ class LumenSandboxedIntegration extends SandboxedIntegration
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Laravel\Lumen\Application',
             'prepareRequest',
             function (SpanData $span, $args) use ($rootSpan, $integration, $appName) {
@@ -64,7 +64,7 @@ class LumenSandboxedIntegration extends SandboxedIntegration
         );
 
         // Extracting resource name as in legacy integration
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Laravel\Lumen\Application',
             'handleFoundRoute',
             [
@@ -104,8 +104,8 @@ class LumenSandboxedIntegration extends SandboxedIntegration
             return false;
         };
 
-        \dd_trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [ 'prehook' => $exceptionRenderer]);
-        \dd_trace_method('Laravel\Lumen\Application', 'sendExceptionToHandler', [ 'prehook' => $exceptionRenderer]);
+        \DDTrace\trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [ 'prehook' => $exceptionRenderer]);
+        \DDTrace\trace_method('Laravel\Lumen\Application', 'sendExceptionToHandler', [ 'prehook' => $exceptionRenderer]);
 
         // View is rendered in laravel as the method name overlaps
 

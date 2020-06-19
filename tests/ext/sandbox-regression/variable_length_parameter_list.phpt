@@ -16,11 +16,11 @@ class Test {
     }
 }
 
-dd_trace_function("test", function($s, array $args){
+DDTrace\trace_function("test", function($s, array $args){
     echo "HOOK " . implode(" ", $args) . PHP_EOL;
 });
 
-dd_trace_method("Test", "m", function($s, array $args){
+DDTrace\trace_method("Test", "m", function($s, array $args){
     echo "HOOK " . implode(" ", $args) . PHP_EOL;
 });
 

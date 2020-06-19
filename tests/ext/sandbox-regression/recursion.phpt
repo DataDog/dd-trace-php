@@ -32,15 +32,15 @@ class Test {
     }
 }
 
-dd_trace_function("test", function($s, array $args){
+DDTrace\trace_function("test", function($s, array $args){
     echo "F HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
 });
 
-dd_trace_function("test_va", function($s, array $args){
+DDTrace\trace_function("test_va", function($s, array $args){
     echo "FVA HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
 });
 
-dd_trace_method('Test', "m", function($s, array $args){
+DDTrace\trace_method('Test', "m", function($s, array $args){
     echo "M HOOK START " . $args[0] . " END " . $args[1] . PHP_EOL;
 });
 

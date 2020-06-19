@@ -9,7 +9,7 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=dd_trace_serialize_closed_spans
 <?php
 // Since dd_trace_serialize_closed_spans() destroys the open span stack,
 // when this closure runs, DDTrace\SpanData will have been freed already.
-dd_trace_function('dd_trace_serialize_closed_spans', function (DDTrace\SpanData $span) {
+DDTrace\trace_function('dd_trace_serialize_closed_spans', function (DDTrace\SpanData $span) {
     echo 'You should not see this.' . PHP_EOL;
     $span->name = 'dd_trace_serialize_closed_spans';
 });

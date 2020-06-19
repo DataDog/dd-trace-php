@@ -17,7 +17,7 @@ class Test
     }
 }
 
-dd_trace_method('Test', "private_method", function() {
+DDTrace\trace_method('Test', "private_method", function() {
     echo "PRIVATE HOOK" . PHP_EOL;
 });
 

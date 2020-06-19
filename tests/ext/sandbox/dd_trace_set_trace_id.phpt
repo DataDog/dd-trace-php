@@ -9,7 +9,7 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 <?php
 use DDTrace\SpanData;
 
-dd_trace_function('array_sum', function (SpanData $span) {
+DDTrace\trace_function('array_sum', function (SpanData $span) {
     $span->name = 'array_sum';
 });
 

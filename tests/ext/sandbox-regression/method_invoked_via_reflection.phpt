@@ -19,7 +19,7 @@ class Test {
     }
 }
 
-dd_trace_method("Test", "__construct", function () {
+DDTrace\trace_method("Test", "__construct", function () {
     echo "HOOK CONSTRUCT" . $this->append . PHP_EOL;
 });
 

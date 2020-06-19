@@ -8,7 +8,7 @@ use DDTrace\SpanData;
 
 function meta_to_string() {}
 
-dd_trace_function('meta_to_string', function (SpanData $span) {
+DDTrace\trace_function('meta_to_string', function (SpanData $span) {
     $span->name = 'MetaToString';
     $span->meta = [
         'answer_to_universe' => 42,

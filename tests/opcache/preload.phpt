@@ -17,10 +17,10 @@ Datadog\NegativeClass::negativeMethod();
 Datadog\negative_function();
 
 // Add instrumentation calls (that will not work)
-dd_trace_method('datadog\\negativeclass', 'negativemethod', function () {
+\DDTrace\trace_method('datadog\\negativeclass', 'negativemethod', function () {
     echo "NegativeClass::negative_method\n";
 });
-dd_trace_function('datadog\\negative_function', function () {
+\DDTrace\trace_function('datadog\\negative_function', function () {
     echo "negative_function\n";
 });
 

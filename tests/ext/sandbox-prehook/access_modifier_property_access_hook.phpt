@@ -15,7 +15,7 @@ class Test
     }
 }
 
-dd_trace_method("Test", "m", ['prehook' => function() {
+DDTrace\trace_method("Test", "m", ['prehook' => function() {
     echo "PRIVATE PROPERTY IN HOOK " . $this->value_private . PHP_EOL;
     echo "PROTECTED PROPERTY IN HOOK " . $this->value_protected . PHP_EOL;
 }]);

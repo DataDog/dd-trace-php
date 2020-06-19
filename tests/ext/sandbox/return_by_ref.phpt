@@ -7,7 +7,7 @@ Functions that return by reference are instrumented
 <?php
 use DDTrace\SpanData;
 
-dd_trace_function('foo', function (SpanData $span, array $args, $retval) {
+DDTrace\trace_function('foo', function (SpanData $span, array $args, $retval) {
     $span->name = 'foo';
     var_dump($retval);
 });

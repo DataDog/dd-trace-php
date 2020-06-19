@@ -7,10 +7,10 @@ DD_TRACE_SPANS_LIMIT=5
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,mt_rand
 --FILE--
 <?php
-dd_trace_function('array_sum', function (\DDTrace\SpanData $span) {
+DDTrace\trace_function('array_sum', function (\DDTrace\SpanData $span) {
     $span->name = 'array_sum';
 });
-dd_trace_function('mt_rand', [
+DDTrace\trace_function('mt_rand', [
     'instrument_when_limited' => 1,
     'posthook' => function (\DDTrace\SpanData $span) {
         $span->name = 'mt_rand';

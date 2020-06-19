@@ -43,7 +43,7 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
             return SandboxedIntegration::NOT_LOADED;
         }
 
-        \dd_trace_function('curl_exec', [
+        \DDTrace\trace_function('curl_exec', [
             // the ddtrace extension will handle distributed headers
             'instrument_when_limited' => 0,
             'posthook' => function (SpanData $span, $args, $retval) {

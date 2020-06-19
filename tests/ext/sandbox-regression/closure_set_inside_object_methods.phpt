@@ -16,13 +16,13 @@ $variable = 1000;
 
 final class TestSetup {
     public function setup(){
-        dd_trace_method("Test", "m", function($span, array $args) {
+        DDTrace\trace_method("Test", "m", function($span, array $args) {
             $variable = $args[0] + 10;
             echo "HOOK " . $variable . PHP_EOL;
         });
     }
     public function setup_ext($j){
-        dd_trace_method("Test", "m", function($span, array $args) use ($j){
+        DDTrace\trace_method("Test", "m", function($span, array $args) use ($j){
             global $variable;
             $variable += $args[0] + $j;
             echo "HOOK " . $variable . PHP_EOL;

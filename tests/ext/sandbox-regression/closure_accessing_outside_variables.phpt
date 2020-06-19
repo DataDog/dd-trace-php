@@ -14,7 +14,7 @@ class Test {
 }
 
 function setup($variable){
-    dd_trace_method("Test", "m", function() use ($variable){
+    DDTrace\trace_method("Test", "m", function() use ($variable){
         echo "HOOK " . $variable . PHP_EOL;
     });
 }

@@ -124,7 +124,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
         $this->traceNamespaceMethod('NodesNamespace', 'stats');
 
         // Endpoints
-        dd_trace_method('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function (SpanData $span) {
+        \DDTrace\trace_method('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function (SpanData $span) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -165,7 +165,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
         */
         $hookType = (PHP_MAJOR_VERSION >= 7) ? 'prehook' : 'posthook';
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             $class,
             $name,
             [
@@ -194,7 +194,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
      */
     public function traceSimpleMethod($class, $name)
     {
-        dd_trace_method($class, $name, function (SpanData $span) use ($class, $name) {
+        \DDTrace\trace_method($class, $name, function (SpanData $span) use ($class, $name) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -214,7 +214,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
     {
         $class = 'Elasticsearch\Namespaces\\' . $namespace;
 
-        dd_trace_method($class, $name, function (SpanData $span, $args) use ($namespace, $name) {
+        \DDTrace\trace_method($class, $name, function (SpanData $span, $args) use ($namespace, $name) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }

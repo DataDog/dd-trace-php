@@ -21,7 +21,7 @@ class MyDt extends DateTime {
 
 function meta_to_string() {}
 
-dd_trace_function('meta_to_string', function (SpanData $span, array $args) {
+DDTrace\trace_function('meta_to_string', function (SpanData $span, array $args) {
     $span->name = 'MetaToString';
     $span->meta = [];
     foreach ($args as $key => $arg) {

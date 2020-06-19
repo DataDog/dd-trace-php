@@ -14,7 +14,7 @@ function foo() {
     return $retval;
 }
 
-dd_trace_function('foo', function ($span, array $args) {
+DDTrace\trace_function('foo', function ($span, array $args) {
     var_dump($args);
 });
 

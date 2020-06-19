@@ -8,7 +8,7 @@ $val = 0;
 
 
 if ($argc > 1 && $argv[1] == "trace_function") {
-    \dd_trace_function('sample_test', function (SpanData $span, $args, $result) use ($val) {
+    \\DDTrace\trace_function('sample_test', function (SpanData $span, $args, $result) use ($val) {
         $span->name  = "sample_test";
         $span->type = "webb";
         $span->service = "svc";

@@ -37,7 +37,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
         }
         $service = \ddtrace_config_app_name(self::NAME);
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'CI_Router',
             '_set_routing',
             function () use ($integration, $rootScope, $service) {
@@ -79,7 +79,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
         $controller = $router->fetch_class();
         $method = $router->fetch_method();
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             $controller,
             $method,
             function (SpanData $span) use ($root, $method, $service) {
@@ -101,7 +101,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
          * function is called, allowing you to define your own function
          * routing rules.
          */
-        \dd_trace_method(
+        \DDTrace\trace_method(
             $controller,
             '_remap',
             function (SpanData $span, $args, $retval, $ex) use ($root, $service) {
@@ -118,7 +118,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'CI_Loader',
             'view',
             function (SpanData $span, $args, $retval, $ex) use ($service) {
@@ -133,7 +133,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
          * from all drivers. All drivers extend CI_DB and I *think* that CI_DB
          * extends either CI_DB_driver or CI_DB_active_rec which in turn
          * extends CI_DB_driver. */
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'CI_DB_driver',
             'query',
             function (SpanData $span, $args, $retval, $ex) use ($service) {
@@ -156,7 +156,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
          * requires a driver, so we can intercept the driver at __get.
          */
         $registered_cache_adapters = array();
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'CI_Cache',
             '__get',
             function (SpanData $span, $args, $retval, $ex) use ($service, &$registered_cache_adapters) {
@@ -178,7 +178,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
      */
     public static function registerCacheAdapter($adapter, $service)
     {
-        \dd_trace_method(
+        \DDTrace\trace_method(
             $adapter,
             'get',
             function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
@@ -190,7 +190,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             $adapter,
             'save',
             function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
@@ -202,7 +202,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             $adapter,
             'delete',
             function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {
@@ -214,7 +214,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             $adapter,
             'clean',
             function (SpanData $span, $args, $retval, $ex) use ($adapter, $service) {

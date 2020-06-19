@@ -16,7 +16,7 @@ function sample_test($val, $add)
 $val = 0;
 
 if ($argc > 1 && $argv[1] == "trace_method") {
-    \dd_trace_method('Sample', "test", function (SpanData $span, $args, $result) use ($val) {
+    \DDTrace\trace_method('Sample', "test", function (SpanData $span, $args, $result) use ($val) {
         $span->name  = "sample_test";
         $span->type = "webb";
         $span->service = "svc";
