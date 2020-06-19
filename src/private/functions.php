@@ -13,6 +13,7 @@ const DEFAULT_URI_PART_NORMALIZE_REGEXES = [
 /**
  * Given a uri path in the form '/user/123/path/Name' it returns a normalized path applying the correct outgoing rules:
  * e.g. '/user/?/path/?'
+ * Note: it also accepts full urls which are preserved: http://example.com/int/123 ---> http://example.com/int/?
  *
  * @param string $uriPath
  * @return string
