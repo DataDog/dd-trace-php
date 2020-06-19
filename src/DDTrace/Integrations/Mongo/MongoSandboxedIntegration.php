@@ -106,21 +106,25 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        \DDTrace\trace_method('MongoCollection', 'createDBRef', function (SpanData $span, $args, $return) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
+        \DDTrace\trace_method(
+            'MongoCollection',
+            'createDBRef',
+            function (SpanData $span, $args, $return) use ($integration) {
+                if (dd_trace_tracer_is_limited()) {
+                    return false;
+                }
+                $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'createDBRef');
+                if (!is_array($return)) {
+                    return;
+                }
+                if (isset($return['$id'])) {
+                    $span->meta[Tag::MONGODB_BSON_ID] = $return['$id'];
+                }
+                if (isset($return['$ref'])) {
+                    $span->meta[Tag::MONGODB_COLLECTION] = $return['$ref'];
+                }
             }
-            $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'createDBRef');
-            if (!is_array($return)) {
-                return;
-            }
-            if (isset($return['$id'])) {
-                $span->meta[Tag::MONGODB_BSON_ID] = $return['$id'];
-            }
-            if (isset($return['$ref'])) {
-                $span->meta[Tag::MONGODB_COLLECTION] = $return['$ref'];
-            }
-        });
+        );
 
         \DDTrace\trace_method('MongoCollection', 'getDBRef', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
@@ -147,15 +151,19 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        \DDTrace\trace_method('MongoCollection', 'setReadPreference', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
+        \DDTrace\trace_method(
+            'MongoCollection',
+            'setReadPreference',
+            function (SpanData $span, $args) use ($integration) {
+                if (dd_trace_tracer_is_limited()) {
+                    return false;
+                }
+                $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'setReadPreference');
+                if (isset($args[0])) {
+                    $span->meta[Tag::MONGODB_READ_PREFERENCE] = $args[0];
+                }
             }
-            $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'setReadPreference');
-            if (isset($args[0])) {
-                $span->meta[Tag::MONGODB_READ_PREFERENCE] = $args[0];
-            }
-        });
+        );
 
         $this->traceMongoQuery('MongoCollection', 'count', false);
         $this->traceMongoQuery('MongoCollection', 'find');

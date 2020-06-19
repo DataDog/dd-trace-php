@@ -112,7 +112,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             ObjectKVStore::put($result, 'host_info', MysqliCommon::extractHostInfo($mysqli));
         });
 
-        \DDTrace\trace_function('mysqli_prepare', function (SpanData $span, $args, $returnedStatement) use ($integration) {
+        \DDTrace\trace_function('mysqli_prepare', function (SpanData $span, $args, $retval) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -122,8 +122,8 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             $integration->setConnectionInfo($span, $mysqli);
 
             $host_info = MysqliCommon::extractHostInfo($mysqli);
-            MysqliCommon::storeQuery($returnedStatement, $query);
-            ObjectKVStore::put($returnedStatement, 'host_info', $host_info);
+            MysqliCommon::storeQuery($retval, $query);
+            ObjectKVStore::put($retval, 'host_info', $host_info);
         });
 
         \DDTrace\trace_function('mysqli_commit', function (SpanData $span, $args) use ($integration) {
@@ -176,7 +176,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             ObjectKVStore::put($result, 'query', $query);
         });
 
-        \DDTrace\trace_method('mysqli', 'prepare', function (SpanData $span, $args, $returnedStatement) use ($integration) {
+        \DDTrace\trace_method('mysqli', 'prepare', function (SpanData $span, $args, $retval) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -185,8 +185,8 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             $integration->setDefaultAttributes($span, 'mysqli.prepare', $query);
             $integration->setConnectionInfo($span, $this);
             $host_info = MysqliCommon::extractHostInfo($this);
-            ObjectKVStore::put($returnedStatement, 'host_info', $host_info);
-            MysqliCommon::storeQuery($returnedStatement, $query);
+            ObjectKVStore::put($retval, 'host_info', $host_info);
+            MysqliCommon::storeQuery($retval, $query);
         });
 
         \DDTrace\trace_method('mysqli', 'commit', function (SpanData $span, $args) use ($integration) {
@@ -213,7 +213,7 @@ class MysqliSandboxedIntegration extends SandboxedIntegration
             $integration->addTraceAnalyticsIfEnabled($span);
         });
 
-        \DDTrace\trace_method('mysqli_stmt', 'get_result', function (SpanData $span, $args, $result) use ($integration) {
+        \DDTrace\trace_method('mysqli_stmt', 'get_result', function (SpanData $span, $a, $result) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }

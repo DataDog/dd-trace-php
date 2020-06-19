@@ -43,7 +43,7 @@ class SlimSandboxedIntegration extends SandboxedIntegration
             $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
 
             // Hook into the router to extract the proper route name
-            \DDTrace\trace_method('Slim\Router', 'lookupRoute', function (SpanData $span, $args, $return) use ($rootSpan) {
+            \DDTrace\trace_method('Slim\Router', 'lookupRoute', function (SpanData $s, $a, $return) use ($rootSpan) {
                 /** @var \Slim\Interfaces\RouteInterface $route */
                 $route = $return;
                 $rootSpan->setTag(

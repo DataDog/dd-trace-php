@@ -154,7 +154,7 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         );
 
         // Tracing templating engines
-        $renderTraceCallback = function (SpanData $span, $args) use ($integration) {
+        $traceRender = function (SpanData $span, $args) use ($integration) {
             $span->name = 'symfony.templating.render';
             $span->service = $integration->appName;
             $span->type = Type::WEB_SERVLET;
@@ -162,13 +162,13 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
             $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);
             $span->resource = $resourceName;
         };
-        \DDTrace\trace_method('Symfony\Bridge\Twig\TwigEngine', 'render', $renderTraceCallback);
-        \DDTrace\trace_method('Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $renderTraceCallback);
-        \DDTrace\trace_method('Symfony\Bundle\TwigBundle\TwigEngine', 'render', $renderTraceCallback);
-        \DDTrace\trace_method('Symfony\Component\Templating\DelegatingEngine', 'render', $renderTraceCallback);
-        \DDTrace\trace_method('Symfony\Component\Templating\PhpEngine', 'render', $renderTraceCallback);
-        \DDTrace\trace_method('Twig\Environment', 'render', $renderTraceCallback);
-        \DDTrace\trace_method('Twig_Environment', 'render', $renderTraceCallback);
+        \DDTrace\trace_method('Symfony\Bridge\Twig\TwigEngine', 'render', $traceRender);
+        \DDTrace\trace_method('Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $traceRender);
+        \DDTrace\trace_method('Symfony\Bundle\TwigBundle\TwigEngine', 'render', $traceRender);
+        \DDTrace\trace_method('Symfony\Component\Templating\DelegatingEngine', 'render', $traceRender);
+        \DDTrace\trace_method('Symfony\Component\Templating\PhpEngine', 'render', $traceRender);
+        \DDTrace\trace_method('Twig\Environment', 'render', $traceRender);
+        \DDTrace\trace_method('Twig_Environment', 'render', $traceRender);
     }
 
     public function loadSymfony2($integration)

@@ -95,7 +95,7 @@ class LumenSandboxedIntegration extends SandboxedIntegration
             ]
         );
 
-        $exceptionRenderer = function (SpanData $span, $args) use ($rootSpan) {
+        $exceptionRender = function (SpanData $span, $args) use ($rootSpan) {
             if (count($args) < 1 || !\is_a($args[0], 'Throwable')) {
                 return false;
             }
@@ -104,8 +104,8 @@ class LumenSandboxedIntegration extends SandboxedIntegration
             return false;
         };
 
-        \DDTrace\trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [ 'prehook' => $exceptionRenderer]);
-        \DDTrace\trace_method('Laravel\Lumen\Application', 'sendExceptionToHandler', [ 'prehook' => $exceptionRenderer]);
+        \DDTrace\trace_method('Laravel\Lumen\Application', 'handleUncaughtException', ['prehook' => $exceptionRender]);
+        \DDTrace\trace_method('Laravel\Lumen\Application', 'sendExceptionToHandler', ['prehook' => $exceptionRender]);
 
         // View is rendered in laravel as the method name overlaps
 

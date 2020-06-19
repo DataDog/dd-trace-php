@@ -120,23 +120,27 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
-        \DDTrace\trace_method('PDOStatement', 'execute', function (SpanData $span, array $args, $retval) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
+        \DDTrace\trace_method(
+            'PDOStatement',
+            'execute',
+            function (SpanData $span, array $args, $retval) use ($integration) {
+                if (dd_trace_tracer_is_limited()) {
+                    return false;
+                }
+                $span->name = 'PDOStatement.execute';
+                $span->service = 'pdo';
+                $span->type = Type::SQL;
+                $span->resource = $this->queryString;
+                if ($retval === true) {
+                    $span->meta = [
+                        'db.rowcount' => $this->rowCount(),
+                    ];
+                }
+                PDOSandboxedIntegration::setStatementTags($this, $span);
+                $integration->addTraceAnalyticsIfEnabled($span);
+                PDOSandboxedIntegration::detectError($this, $span);
             }
-            $span->name = 'PDOStatement.execute';
-            $span->service = 'pdo';
-            $span->type = Type::SQL;
-            $span->resource = $this->queryString;
-            if ($retval === true) {
-                $span->meta = [
-                    'db.rowcount' => $this->rowCount(),
-                ];
-            }
-            PDOSandboxedIntegration::setStatementTags($this, $span);
-            $integration->addTraceAnalyticsIfEnabled($span);
-            PDOSandboxedIntegration::detectError($this, $span);
-        });
+        );
 
         return SandboxedIntegration::LOADED;
     }

@@ -58,27 +58,31 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
                 $integration->rootSpan->overwriteOperationName('cakephp.request');
             }
 
-            \DDTrace\trace_method('Controller', 'invokeAction', function (SpanData $span, array $args) use ($integration) {
-                $span->name = $span->resource = 'Controller.invokeAction';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->appName;
+            \DDTrace\trace_method(
+                'Controller',
+                'invokeAction',
+                function (SpanData $span, array $args) use ($integration) {
+                    $span->name = $span->resource = 'Controller.invokeAction';
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = $integration->appName;
 
-                $request = $args[0];
-                if (!$request instanceof CakeRequest) {
-                    return;
-                }
+                    $request = $args[0];
+                    if (!$request instanceof CakeRequest) {
+                        return;
+                    }
 
-                $integration->rootSpan->setTag(
-                    Tag::RESOURCE_NAME,
-                    $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action']
-                );
-                $integration->rootSpan->setTag(Tag::HTTP_URL, Router::url($request->here, true));
-                $integration->rootSpan->setTag('cakephp.route.controller', $request->params['controller']);
-                $integration->rootSpan->setTag('cakephp.route.action', $request->params['action']);
-                if (isset($request->params['plugin'])) {
-                    $integration->rootSpan->setTag('cakephp.plugin', $request->params['plugin']);
+                    $integration->rootSpan->setTag(
+                        Tag::RESOURCE_NAME,
+                        $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action']
+                    );
+                    $integration->rootSpan->setTag(Tag::HTTP_URL, Router::url($request->here, true));
+                    $integration->rootSpan->setTag('cakephp.route.controller', $request->params['controller']);
+                    $integration->rootSpan->setTag('cakephp.route.action', $request->params['action']);
+                    if (isset($request->params['plugin'])) {
+                        $integration->rootSpan->setTag('cakephp.plugin', $request->params['plugin']);
+                    }
                 }
-            });
+            );
 
             // This only traces the default exception renderer
             // Remove this when error tracking is added

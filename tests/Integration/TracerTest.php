@@ -51,14 +51,18 @@ final class TracerTest extends BaseTestCase
         if (Versions::phpVersionMatches('5.4')) {
             $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
         }
-        \DDTrace\trace_method('DDTrace\Tests\Integration\TracerTest', 'dummyMethodGlobalTags', function (SpanData $span) {
-            $span->service = 'custom.service';
-            $span->name = 'custom.name';
-            $span->resource = 'custom.resource';
-            $span->type = 'custom';
-            $span->meta['local_tag'] = 'local';
-            $span->meta['also_in_span'] = 'span_wins';
-        });
+        \DDTrace\trace_method(
+            'DDTrace\Tests\Integration\TracerTest',
+            'dummyMethodGlobalTags',
+            function (SpanData $span) {
+                $span->service = 'custom.service';
+                $span->name = 'custom.name';
+                $span->resource = 'custom.resource';
+                $span->type = 'custom';
+                $span->meta['local_tag'] = 'local';
+                $span->meta['also_in_span'] = 'span_wins';
+            }
+        );
 
         $test = $this;
         $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
