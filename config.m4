@@ -5,6 +5,15 @@ PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
   [  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
 if test "$PHP_DDTRACE" != "no"; then
+  AC_CHECK_SIZEOF([long])
+  AC_MSG_CHECKING([for 64-bit platform])
+  AS_IF([test "$ac_cv_sizeof_long" -eq 4],[
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([ddtrace only supports 64-bit platforms])
+  ],[
+    AC_MSG_RESULT([yes])
+  ])
+
   m4_include([m4/polyfill.m4])
   m4_include([m4/ax_execinfo.m4])
 
