@@ -85,13 +85,19 @@ function _util_uri_apply_rules($uriPath, $incoming)
         $result = preg_replace($regex, $replacement, $result);
     }
 
+    // It's easier to work on a fragment basis. So we take a $uriPath and we normalize it to a meanigful
+    // array of fragments.
+    // E.g. $fragments will contain:
+    //    '/some//path/123/and/something-else/' =====> ['some', '', 'path', '123', 'and', 'something-else']
+    //          ^^...note that empty fragments are preserved....^^
     $fragments = explode('/', $result);
+
     $defaultPlusConfiguredfragmentRegexes = array_merge(DEFAULT_URI_PART_NORMALIZE_REGEXES, $fragmentRegexes);
     // Now applying fragment regex normalization
     foreach ($defaultPlusConfiguredfragmentRegexes as $fragmentRegex) {
         // Leading and trailing slashes in regex patterns from envs are optional and we suggest not to use them
-        // in docs as it might be source of confusion given the context where `/` has a precise meaning.
-        $regexWithSlash = '/' . trim($fragmentRegex, '/') . '/';
+        // in docs as it might be source of confusion given the context where `/` is also the path separator.
+        $regexWithSlash = '/' . trim($fragmentRegex, '/ ') . '/';
         foreach ($fragments as &$fragment) {
             $matchResult = @preg_match($regexWithSlash, $fragment);
             if (1 === $matchResult) {
