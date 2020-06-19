@@ -4,11 +4,18 @@ namespace DDTrace\Private_;
 
 use DDTrace\Http\Urls;
 
-const DEFAULT_URI_PART_NORMALIZE_REGEXES = [
-    '/^\d+$/',
-    '/^[0-9a-f]{8}-?[0-9a-f]{4}-?[1-5][0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$/',
-    '/^[0-9a-f]{8,128}$/',
-];
+// Constants definition with [] content is not allowed in 5.4, so we need a class for 5.4 compatibility.
+class Constants
+{
+    public static function getDefaultUriPathNormalizeRegexes()
+    {
+        return [
+            '/^\d+$/',
+            '/^[0-9a-f]{8}-?[0-9a-f]{4}-?[1-5][0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$/',
+            '/^[0-9a-f]{8,128}$/',
+        ];
+    }
+}
 
 /**
  * Given a uri path in the form '/user/123/path/Name' it returns a normalized path applying the correct outgoing rules:
@@ -62,11 +69,12 @@ function _util_uri_apply_rules($uriPath, $incoming)
     //   3) Nothing is defined, then apply *new normalization*.
 
     // DEPRECATED: Applying legacy normalization for backward compatibility if preconditions are matched.
+    $legacyMappings = getenv('DD_TRACE_RESOURCE_URI_MAPPING');
     if (
         empty($fragmentRegexes)
             && empty($incomingMappings)
             && empty($outgoingMappings)
-            && !empty($legacyMappings = getenv('DD_TRACE_RESOURCE_URI_MAPPING'))
+            && !empty($legacyMappings)
     ) {
         $normalizer = new Urls(explode(',', $legacyMappings));
         return $normalizer->normalize($uriPath);
@@ -92,7 +100,10 @@ function _util_uri_apply_rules($uriPath, $incoming)
     //          ^^...note that empty fragments are preserved....^^
     $fragments = explode('/', $result);
 
-    $defaultPlusConfiguredfragmentRegexes = array_merge(DEFAULT_URI_PART_NORMALIZE_REGEXES, $fragmentRegexes);
+    $defaultPlusConfiguredfragmentRegexes = array_merge(
+        Constants::getDefaultUriPathNormalizeRegexes(),
+        $fragmentRegexes
+    );
     // Now applying fragment regex normalization
     foreach ($defaultPlusConfiguredfragmentRegexes as $fragmentRegex) {
         // Leading and trailing slashes in regex patterns from envs are optional and we suggest not to use them
