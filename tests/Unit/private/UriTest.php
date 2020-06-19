@@ -342,4 +342,58 @@ class UriTest extends BaseTestCase
             \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/path/one-something/else')
         );
     }
+
+    public function testItWorksWithHttpFulllUrls()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^abc$/',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=nested/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=nested/*',
+        ]);
+
+        $this->assertSame(
+            'http://example.com/int/?/path/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('http://example.com/int/123/path/abc/nested/some')
+        );
+        $this->assertSame(
+            'http://example.com/int/?/path/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('http://example.com/int/123/path/abc/nested/some')
+        );
+    }
+
+    public function testItWorksWithHttpsFulllUrls()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^abc$/',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=nested/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=nested/*',
+        ]);
+
+        $this->assertSame(
+            'https://example.com/int/?/path/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('https://example.com/int/123/path/abc/nested/some')
+        );
+        $this->assertSame(
+            'https://example.com/int/?/path/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('https://example.com/int/123/path/abc/nested/some')
+        );
+    }
+
+    public function testItWorksWithHttpFulllUrlsIncludingPort()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^abc$/',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=nested/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=nested/*',
+        ]);
+
+        $this->assertSame(
+            'http://example.com:8888/int/?/path/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('http://example.com:8888/int/123/path/abc/nested/some')
+        );
+        $this->assertSame(
+            'http://example.com:8888/int/?/path/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('http://example.com:8888/int/123/path/abc/nested/some')
+        );
+    }
 }
