@@ -1,13 +1,10 @@
 <?php
 
-namespace DDTrace\Tests\Unit\lib\util;
+namespace DDTrace\Tests\Unit\Private_;
 
 use DDTrace\Tests\Unit\BaseTestCase;
 
-use function DDTrace\_util_normalize_incoming_path;
-use function DDTrace\_util_normalize_outgoing_path;
-
-class UrlsTest extends BaseTestCase
+class UriTest extends BaseTestCase
 {
     protected function setUp()
     {
@@ -36,8 +33,14 @@ class UrlsTest extends BaseTestCase
         $this->putEnvAndReloadConfig([
             'DD_TRACE_RESOURCE_URI_MAPPING=/user/*',
         ]);
-        $this->assertSame('/user/?', _util_normalize_incoming_path('/user/123/nested/path'));
-        $this->assertSame('/user/?', _util_normalize_outgoing_path('/user/123/nested/path'));
+        $this->assertSame(
+            '/user/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/user/123/nested/path')
+        );
+        $this->assertSame(
+            '/user/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/user/123/nested/path')
+        );
     }
 
     public function testLegacyIsIgnoredIfAtLeastOneNewSettingIsDefined()
@@ -49,8 +52,14 @@ class UrlsTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
         ]);
-        $this->assertSame('/user/?/nested/?', _util_normalize_incoming_path('/user/123/nested/path'));
-        $this->assertSame('/user/?/nested/path', _util_normalize_outgoing_path('/user/123/nested/path'));
+        $this->assertSame(
+            '/user/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/user/123/nested/path')
+        );
+        $this->assertSame(
+            '/user/?/nested/path',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/user/123/nested/path')
+        );
 
         // When DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING is also set
         $this->putEnvAndReloadConfig([
@@ -59,8 +68,14 @@ class UrlsTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=nested/*',
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
         ]);
-        $this->assertSame('/user/?/nested/path', _util_normalize_incoming_path('/user/123/nested/path'));
-        $this->assertSame('/user/?/nested/?', _util_normalize_outgoing_path('/user/123/nested/path'));
+        $this->assertSame(
+            '/user/?/nested/path',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/user/123/nested/path')
+        );
+        $this->assertSame(
+            '/user/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/user/123/nested/path')
+        );
 
         // When DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX is also set
         $this->putEnvAndReloadConfig([
@@ -69,46 +84,76 @@ class UrlsTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^path$/',
         ]);
-        $this->assertSame('/user/?/nested/?', _util_normalize_incoming_path('/user/123/nested/path'));
-        $this->assertSame('/user/?/nested/?', _util_normalize_outgoing_path('/user/123/nested/path'));
+        $this->assertSame(
+            '/user/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/user/123/nested/path')
+        );
+        $this->assertSame(
+            '/user/?/nested/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/user/123/nested/path')
+        );
     }
 
     public function testIncomingConfigurationDoesNotImpactOutgoing()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=before/*']);
-        $this->assertSame('/before/something/after', _util_normalize_outgoing_path('/before/something/after'));
-        $this->assertSame('/before/?/after', _util_normalize_incoming_path('/before/something/after'));
+        $this->assertSame(
+            '/before/something/after',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/before/something/after')
+        );
+        $this->assertSame(
+            '/before/?/after',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/before/something/after')
+        );
     }
 
     public function testOutgoingConfigurationDoesNotImpactIncoming()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=before/*']);
-        $this->assertSame('/before/something/after', _util_normalize_incoming_path('/before/something/after'));
-        $this->assertSame('/before/?/after', _util_normalize_outgoing_path('/before/something/after'));
+        $this->assertSame(
+            '/before/something/after',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/before/something/after')
+        );
+        $this->assertSame(
+            '/before/?/after',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/before/something/after')
+        );
     }
 
     public function testWrongIncomingConfigurationResultsInMissedPathNormalizationButDefaultStillWorks()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=no_asterisk,']);
-        $this->assertSame('/no_asterisk/?/after', _util_normalize_incoming_path('/no_asterisk/123/after'));
+        $this->assertSame(
+            '/no_asterisk/?/after',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/no_asterisk/123/after')
+        );
     }
 
     public function testWrongOutgoingConfigurationResultsInMissedPathNormalizationButDefaultStillWorks()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=no_asterisk,']);
-        $this->assertSame('/no_asterisk/?/after', _util_normalize_outgoing_path('/no_asterisk/123/after'));
+        $this->assertSame(
+            '/no_asterisk/?/after',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/no_asterisk/123/after')
+        );
     }
 
     public function testMixingFragmentRegexAndPatternMatchingIncoming()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=name/*']);
-        $this->assertSame('/numeric/?/name/?', _util_normalize_incoming_path('/numeric/123/name/some_name'));
+        $this->assertSame(
+            '/numeric/?/name/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/numeric/123/name/some_name')
+        );
     }
 
     public function testMixingFragmentRegexAndPatternMatchingOutgoing()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=name/*']);
-        $this->assertSame('/numeric/?/name/?', _util_normalize_outgoing_path('/numeric/123/name/some_name'));
+        $this->assertSame(
+            '/numeric/?/name/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/numeric/123/name/some_name')
+        );
     }
 
     /**
@@ -116,7 +161,7 @@ class UrlsTest extends BaseTestCase
      */
     public function testDefaultPathFragmentsNormalizationIncoming($uri, $expected)
     {
-        $this->assertSame(_util_normalize_incoming_path($uri), $expected);
+        $this->assertSame(\DDtrace\Private_\util_uri_normalize_incoming_path($uri), $expected);
     }
 
     /**
@@ -124,7 +169,7 @@ class UrlsTest extends BaseTestCase
      */
     public function testDefaultPathFragmentsNormalizationOutgoing($uri, $expected)
     {
-        $this->assertSame(_util_normalize_outgoing_path($uri), $expected);
+        $this->assertSame(\DDtrace\Private_\util_uri_normalize_outgoing_path($uri), $expected);
     }
 
     public function defaultPathNormalizationScenarios()
@@ -164,8 +209,14 @@ class UrlsTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/^some_name$/',
         ]);
 
-        $this->assertSame('/int/?/name/?', _util_normalize_incoming_path('/int/123/name/some_name'));
-        $this->assertSame('/int/?/name/?', _util_normalize_outgoing_path('/int/123/name/some_name'));
+        $this->assertSame(
+            '/int/?/name/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123/name/some_name')
+        );
+        $this->assertSame(
+            '/int/?/name/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/name/some_name')
+        );
     }
 
     public function testWrongFragmentNormalizationRegexDoesNotCauseError()
@@ -174,8 +225,14 @@ class UrlsTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/(((((]]]]]]wrong_regex$/',
         ]);
 
-        $this->assertSame('/int/?', _util_normalize_incoming_path('/int/123'));
-        $this->assertSame('/int/?', _util_normalize_outgoing_path('/int/123'));
+        $this->assertSame(
+            '/int/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123')
+        );
+        $this->assertSame(
+            '/int/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123')
+        );
     }
 
     public function testWrongFragmentNormalizationRegexDoesNotImpactOtherRegexes()
@@ -184,20 +241,38 @@ class UrlsTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/(((((]]]]]]wrong_regex$/,/valid/',
         ]);
 
-        $this->assertSame('/int/?/path/?', _util_normalize_incoming_path('/int/123/path/valid'));
-        $this->assertSame('/int/?/path/?', _util_normalize_outgoing_path('/int/123/path/valid'));
+        $this->assertSame(
+            '/int/?/path/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123/path/valid')
+        );
+        $this->assertSame(
+            '/int/?/path/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/path/valid')
+        );
     }
 
     public function testProvidedPathIsAddedLeadingSlashIfMissing()
     {
-        $this->assertSame('/int/?', _util_normalize_incoming_path('int/123'));
-        $this->assertSame('/int/?', _util_normalize_outgoing_path('int/123'));
+        $this->assertSame(
+            '/int/?',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('int/123')
+        );
+        $this->assertSame(
+            '/int/?',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('int/123')
+        );
     }
 
     public function testUriAcceptsTrailingSlash()
     {
-        $this->assertSame('/int/?/', _util_normalize_incoming_path('/int/123/'));
-        $this->assertSame('/int/?/', _util_normalize_outgoing_path('/int/123/'));
+        $this->assertSame(
+            '/int/?/',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123/')
+        );
+        $this->assertSame(
+            '/int/?/',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/')
+        );
     }
 
     public function testSamePatternMultipleLocations()
@@ -209,11 +284,11 @@ class UrlsTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/path/?/int/?/path/?',
-            _util_normalize_incoming_path('/int/123/path/one/int/456/path/two')
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123/path/one/int/456/path/two')
         );
         $this->assertSame(
             '/int/?/path/?/int/?/path/?',
-            _util_normalize_outgoing_path('/int/123/path/one/int/456/path/two')
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/path/one/int/456/path/two')
         );
     }
 
@@ -226,11 +301,11 @@ class UrlsTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/path/?-something/path/two-else',
-            _util_normalize_incoming_path('/int/123/path/one-something/path/two-else')
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123/path/one-something/path/two-else')
         );
         $this->assertSame(
             '/int/?/path/?-something/path/two-else',
-            _util_normalize_outgoing_path('/int/123/path/one-something/path/two-else')
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/path/one-something/path/two-else')
         );
     }
 
@@ -243,11 +318,11 @@ class UrlsTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/path/?/?/then/something/?',
-            _util_normalize_incoming_path('/int/123/path/one/two/then/something/else')
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123/path/one/two/then/something/else')
         );
         $this->assertSame(
             '/int/?/path/?/?/then/something/?',
-            _util_normalize_outgoing_path('/int/123/path/one/two/then/something/else')
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/path/one/two/then/something/else')
         );
     }
 
@@ -260,11 +335,11 @@ class UrlsTest extends BaseTestCase
 
         $this->assertSame(
             '/int/?/path/?-something/else',
-            _util_normalize_incoming_path('/int/123/path/one-something/else')
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123/path/one-something/else')
         );
         $this->assertSame(
             '/int/?/path/?-something/else',
-            _util_normalize_outgoing_path('/int/123/path/one-something/else')
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/path/one-something/else')
         );
     }
 }

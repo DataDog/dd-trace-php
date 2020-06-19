@@ -1,17 +1,23 @@
 <?php
 
-namespace DDTrace;
+namespace DDTrace\Private_;
 
 use DDTrace\Http\Urls;
 
-function _util_normalize_outgoing_path($uriPath)
+const DEFAULT_URI_PART_NORMALIZE_REGEXES = [
+    '/^\d+$/',
+    '/^[0-9a-f]{8}-?[0-9a-f]{4}-?[1-5][0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$/',
+    '/^[0-9a-f]{8,128}$/',
+];
+
+function util_uri_normalize_outgoing_path($uriPath)
 {
-    return _util_uri_apply_rules($uriPath, /* incoming */ false);
+    return util_uri_apply_rules($uriPath, /* incoming */ false);
 }
 
-function _util_normalize_incoming_path($uriPath)
+function util_uri_normalize_incoming_path($uriPath)
 {
-    return _util_uri_apply_rules($uriPath, /* incoming */ true);
+    return util_uri_apply_rules($uriPath, /* incoming */ true);
 }
 
 /**
@@ -19,7 +25,7 @@ function _util_normalize_incoming_path($uriPath)
  * @param boolean $incoming
  * @return string
  */
-function _util_uri_apply_rules($uriPath, $incoming)
+function util_uri_apply_rules($uriPath, $incoming)
 {
     if ($uriPath === '/' || $uriPath === '' || null === $uriPath) {
         return '/';
@@ -86,9 +92,4 @@ function _util_uri_apply_rules($uriPath, $incoming)
     }
 
     return implode('/', $fragments);
-}
-
-function _util_path_matching_pattern_to_regex($mappingFragments)
-{
-    $regex = '/';
 }

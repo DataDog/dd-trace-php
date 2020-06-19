@@ -9,8 +9,6 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-use function DDTrace\_util_normalize_outgoing_path;
-
 /**
  * @param \DDTrace\SpanData $span
  * @param array &$info
@@ -65,7 +63,7 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
 
                 $info = \curl_getinfo($ch);
                 $sanitizedUrl = Urls::sanitize($info['url']);
-                $normalizedUri = _util_normalize_outgoing_path($info['url']);
+                $normalizedUri = \DDtrace\Private_\util_uri_normalize_outgoing_path($info['url']);
                 unset($info['url']);
 
                 if (\ddtrace_config_http_client_split_by_domain_enabled()) {

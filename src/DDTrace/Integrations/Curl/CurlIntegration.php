@@ -11,8 +11,6 @@ use DDTrace\Type;
 use DDTrace\Util\ArrayKVStore;
 use DDTrace\GlobalTracer;
 
-use function DDTrace\_util_normalize_outgoing_path;
-
 /**
  * @param \DDTrace\Span $span
  * @param string $tagName
@@ -78,7 +76,7 @@ class CurlIntegration extends Integration
 
                 $info = curl_getinfo($ch);
                 $sanitizedUrl = Urls::sanitize($info['url']);
-                $normalizedUrl = _util_normalize_outgoing_path($_SERVER['REQUEST_URI']);
+                $normalizedUrl = \DDtrace\Private_\util_uri_normalize_outgoing_path($_SERVER['REQUEST_URI']);
                 unset($info['url']);
 
                 if (\ddtrace_config_http_client_split_by_domain_enabled()) {

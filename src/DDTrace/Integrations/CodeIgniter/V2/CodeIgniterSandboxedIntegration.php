@@ -9,8 +9,6 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-use function DDTrace\_util_normalize_incoming_path;
-
 class CodeIgniterSandboxedIntegration extends SandboxedIntegration
 {
     const NAME = 'codeigniter';
@@ -69,7 +67,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
         $root->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
 
         if ('cli' !== PHP_SAPI) {
-            $normalizedPath = _util_normalize_incoming_path($_SERVER['REQUEST_URI']);
+            $normalizedPath = \DDtrace\Private_\util_uri_normalize_incoming_path($_SERVER['REQUEST_URI']);
             $root->setTag(
                 Tag::RESOURCE_NAME,
                 "{$_SERVER['REQUEST_METHOD']} $normalizedPath",
