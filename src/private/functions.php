@@ -53,8 +53,9 @@ function _util_uri_apply_rules($uriPath, $incoming)
         return '/';
     }
 
-    // We always expect leading slash if it is a pure path, otherwise if it is a full url we preserve schema and port.
-    if ($uriPath[0] !== '/' && substr($uriPath, 0, 4) !== "http") {
+    // We always expect leading slash if it is a pure path, while urls with RFC3986 complaint schemes are preserved.
+    // See: https://tools.ietf.org/html/rfc3986#page-17
+    if ($uriPath[0] !== '/' && 1 !== \preg_match('/^[a-z][a-zA-Z0-9+\-.]+:\/\//', $uriPath)) {
         $uriPath = '/' . $uriPath;
     }
 

@@ -219,7 +219,7 @@ class UriTest extends BaseTestCase
         );
     }
 
-    public function testProvidedFragmentRegexCanHasOptionalLeadingAndTrailingSlash()
+    public function testProvidedFragmentRegexHasOptionalLeadingAndTrailingSlash()
     {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=^some_name$',
@@ -374,7 +374,7 @@ class UriTest extends BaseTestCase
         );
     }
 
-    public function testPatternCanNormalizeSingelFragment()
+    public function testPatternCanNormalizeSingleFragment()
     {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=*-something',
@@ -424,6 +424,31 @@ class UriTest extends BaseTestCase
         $this->assertSame(
             'https://example.com/int/?/path/?/nested/?',
             \DDtrace\Private_\util_uri_normalize_outgoing_path('https://example.com/int/123/path/abc/nested/some')
+        );
+    }
+
+    public function testItWorksWithComplexSchemePatternAsDefinedByRFC3986()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=^abc$',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=nested/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=nested/*',
+        ]);
+
+        // https://tools.ietf.org/html/rfc3986#page-17
+        $rfc3986CompliantScheme = 'letter+1-2-3.CAPITAL.123';
+
+        $this->assertSame(
+            "$rfc3986CompliantScheme://example.com/int/?/path/?/nested/?",
+            \DDtrace\Private_\util_uri_normalize_incoming_path(
+                "$rfc3986CompliantScheme://example.com/int/123/path/abc/nested/some"
+            )
+        );
+        $this->assertSame(
+            "$rfc3986CompliantScheme://example.com/int/?/path/?/nested/?",
+            \DDtrace\Private_\util_uri_normalize_outgoing_path(
+                "$rfc3986CompliantScheme://example.com/int/123/path/abc/nested/some"
+            )
         );
     }
 
