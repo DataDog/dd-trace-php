@@ -14,11 +14,11 @@ class Test {
     }
 }
 
-dd_trace_function("test", ['prehook' => function($s, array $args){
+DDTrace\trace_function("test", ['prehook' => function($s, array $args){
     echo "HOOK " . implode(" ", $args) . PHP_EOL;
 }]);
 
-dd_trace_method("Test", "m", ['prehook' => function($s, array $args){
+DDTrace\trace_method("Test", "m", ['prehook' => function($s, array $args){
     echo "HOOK " . implode(" ", $args) . PHP_EOL;
 }]);
 

@@ -42,7 +42,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         $integration = $this;
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
-        dd_trace_method('PDO', '__construct', function (SpanData $span, array $args) {
+        \DDTrace\trace_method('PDO', '__construct', function (SpanData $span, array $args) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -53,7 +53,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         });
 
         // public int PDO::exec(string $query)
-        dd_trace_method('PDO', 'exec', function (SpanData $span, array $args, $retval) use ($integration) {
+        \DDTrace\trace_method('PDO', 'exec', function (SpanData $span, array $args, $retval) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -76,7 +76,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_CLASS, string $classname, array $ctorargs)
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_INFO, object $object)
         // public int PDO::exec(string $query)
-        dd_trace_method('PDO', 'query', function (SpanData $span, array $args, $retval) use ($integration) {
+        \DDTrace\trace_method('PDO', 'query', function (SpanData $span, array $args, $retval) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -96,7 +96,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         });
 
         // public bool PDO::commit ( void )
-        dd_trace_method('PDO', 'commit', function (SpanData $span) {
+        \DDTrace\trace_method('PDO', 'commit', function (SpanData $span) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -107,7 +107,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         });
 
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
-        dd_trace_method('PDO', 'prepare', function (SpanData $span, array $args, $retval) {
+        \DDTrace\trace_method('PDO', 'prepare', function (SpanData $span, array $args, $retval) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -120,23 +120,27 @@ class PDOSandboxedIntegration extends SandboxedIntegration
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
-        dd_trace_method('PDOStatement', 'execute', function (SpanData $span, array $args, $retval) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
+        \DDTrace\trace_method(
+            'PDOStatement',
+            'execute',
+            function (SpanData $span, array $args, $retval) use ($integration) {
+                if (dd_trace_tracer_is_limited()) {
+                    return false;
+                }
+                $span->name = 'PDOStatement.execute';
+                $span->service = 'pdo';
+                $span->type = Type::SQL;
+                $span->resource = $this->queryString;
+                if ($retval === true) {
+                    $span->meta = [
+                        'db.rowcount' => $this->rowCount(),
+                    ];
+                }
+                PDOSandboxedIntegration::setStatementTags($this, $span);
+                $integration->addTraceAnalyticsIfEnabled($span);
+                PDOSandboxedIntegration::detectError($this, $span);
             }
-            $span->name = 'PDOStatement.execute';
-            $span->service = 'pdo';
-            $span->type = Type::SQL;
-            $span->resource = $this->queryString;
-            if ($retval === true) {
-                $span->meta = [
-                    'db.rowcount' => $this->rowCount(),
-                ];
-            }
-            PDOSandboxedIntegration::setStatementTags($this, $span);
-            $integration->addTraceAnalyticsIfEnabled($span);
-            PDOSandboxedIntegration::detectError($this, $span);
-        });
+        );
 
         return SandboxedIntegration::LOADED;
     }

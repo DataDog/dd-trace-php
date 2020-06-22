@@ -13,7 +13,7 @@ class Test {
 }
 
 $no = 1;
-dd_trace_method("Test", "method", function($span, array $args, $retval) use ($no){
+DDTrace\trace_method("Test", "method", function($span, array $args, $retval) use ($no){
     echo $retval . "-override ". $no . PHP_EOL;
 });
 

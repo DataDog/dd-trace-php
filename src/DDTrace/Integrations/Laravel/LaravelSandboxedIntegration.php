@@ -55,7 +55,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
 
         $integration = $this;
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Foundation\Application',
             'handle',
             function (SpanData $span, $args, $response) use ($rootSpan, $integration) {
@@ -74,7 +74,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Routing\Router',
             'findRoute',
             function (SpanData $span, $args, $route) use ($rootSpan, $integration) {
@@ -99,7 +99,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Routing\Route',
             'run',
             function (SpanData $span) use ($integration) {
@@ -110,7 +110,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Symfony\Component\HttpFoundation\Response',
             'setStatusCode',
             function (SpanData $span, $args) use ($rootSpan) {
@@ -119,21 +119,25 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method('Illuminate\Events\Dispatcher', 'fire', function (SpanData $span, $args) use ($integration) {
-            $span->name = 'laravel.event.handle';
-            $span->type = Type::WEB_SERVLET;
-            $span->service = $integration->getServiceName();
-            $span->resource = $args[0];
-        });
+        \DDTrace\trace_method(
+            'Illuminate\Events\Dispatcher',
+            'fire',
+            function (SpanData $span, $args) use ($integration) {
+                $span->name = 'laravel.event.handle';
+                $span->type = Type::WEB_SERVLET;
+                $span->service = $integration->getServiceName();
+                $span->resource = $args[0];
+            }
+        );
 
-        \dd_trace_method('Illuminate\View\View', 'render', function (SpanData $span) use ($integration) {
+        \DDTrace\trace_method('Illuminate\View\View', 'render', function (SpanData $span) use ($integration) {
             $span->name = 'laravel.view.render';
             $span->type = Type::WEB_SERVLET;
             $span->service = $integration->getServiceName();
             $span->resource = $this->view;
         });
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\View\Engines\CompilerEngine',
             'get',
             function (SpanData $span, $args) use ($integration, $rootSpan) {
@@ -148,7 +152,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Foundation\ProviderRepository',
             'load',
             function (SpanData $span) use ($rootSpan, $integration) {
@@ -162,7 +166,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Console\Application',
             '__construct',
             function () use ($rootSpan, $integration) {
@@ -175,7 +179,7 @@ class LaravelSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Symfony\Component\Console\Application',
             'renderException',
             function (SpanData $span, $args) use ($rootSpan) {

@@ -9,10 +9,10 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=DateTime::format,DateTime::setTime
 <?php
 date_default_timezone_set('UTC');
 
-dd_trace_method('DateTime', 'format', function (\DDTrace\SpanData $span) {
+DDTrace\trace_method('DateTime', 'format', function (\DDTrace\SpanData $span) {
     $span->name = 'DateTime.format';
 });
-dd_trace_method('DateTime', 'setTime', [
+DDTrace\trace_method('DateTime', 'setTime', [
     'instrument_when_limited' => 1,
     'posthook' => function (\DDTrace\SpanData $span) {
         $span->name = 'DateTime.setTime';

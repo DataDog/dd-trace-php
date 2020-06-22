@@ -28,12 +28,12 @@ function testExceptionIsPassed()
     throw new Exception('Oops!');
 }
 
-dd_trace_function('testExceptionIsNull', function (SpanData $span, array $args, $retval, $ex) {
+DDTrace\trace_function('testExceptionIsNull', function (SpanData $span, array $args, $retval, $ex) {
     $span->name = 'TestNull';
     var_dump($ex === null);
 });
 
-dd_trace_function('testExceptionIsPassed', function (SpanData $span, array $args, $retval, $ex) {
+DDTrace\trace_function('testExceptionIsPassed', function (SpanData $span, array $args, $retval, $ex) {
     $span->name = 'TestEx';
     var_dump($ex instanceof Exception);
 });

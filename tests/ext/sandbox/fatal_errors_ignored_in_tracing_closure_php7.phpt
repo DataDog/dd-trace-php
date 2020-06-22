@@ -7,7 +7,7 @@ DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--
 <?php
-dd_trace_function('array_sum', function (DDTrace\SpanData $span) {
+DDTrace\trace_function('array_sum', function (DDTrace\SpanData $span) {
     $span->name = 'array_sum';
     this_function_does_not_exist();
 });

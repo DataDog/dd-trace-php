@@ -1,5 +1,5 @@
 --TEST--
-[Prehook Regression] dd_trace_method() binds the called object to the tracing closure
+[Prehook Regression] DDTrace\trace_method() binds the called object to the tracing closure
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
@@ -16,12 +16,12 @@ class Foo
     }
 }
 
-dd_trace_method('Foo', 'testBinding', ['prehook' => function () {
+DDTrace\trace_method('Foo', 'testBinding', ['prehook' => function () {
     echo "Traced testBinding\n";
     var_dump($this);
 }]);
 
-dd_trace_method('DatePeriod', 'getStartDate', ['prehook' => function () {
+DDTrace\trace_method('DatePeriod', 'getStartDate', ['prehook' => function () {
     echo "Traced getStartDate\n";
     var_dump($this instanceof DatePeriod);
 }]);

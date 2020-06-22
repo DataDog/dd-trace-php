@@ -1,5 +1,5 @@
 --TEST--
-dd_trace_method() can trace with internal spans
+DDTrace\trace_method() can trace with internal spans
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
@@ -37,11 +37,11 @@ class Foo
     }
 }
 
-var_dump(dd_trace_method('Test', 'testFoo', function (SpanData $span) {
+var_dump(DDTrace\trace_method('Test', 'testFoo', function (SpanData $span) {
     $span->name = 'TestFoo';
 }));
-var_dump(dd_trace_method('TestService', 'testServiceFoo', null));
-var_dump(dd_trace_method(
+var_dump(DDTrace\trace_method('TestService', 'testServiceFoo', null));
+var_dump(DDTrace\trace_method(
     'Foo', 'bar',
     function (SpanData $span, $args, $retval) {
         $span->name = 'FooName';
@@ -60,7 +60,7 @@ var_dump(dd_trace_method(
         ];
     }
 ));
-var_dump(dd_trace_function('mt_rand', function (SpanData $span, $args, $retval) {
+var_dump(DDTrace\trace_function('mt_rand', function (SpanData $span, $args, $retval) {
     $span->name = 'MT';
     $span->meta = [
         'rand.range' => $args[0] . ' - ' . $args[1],

@@ -19,7 +19,7 @@ class Test
     }
 }
 
-dd_trace_method("Test", "protected_method", function(){
+DDTrace\trace_method("Test", "protected_method", function(){
     echo "PROTECTED HOOK" . PHP_EOL;
 });
 

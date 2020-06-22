@@ -19,12 +19,12 @@ function doSomething() {
     return 'Done';
 }
 
-dd_trace_function('getResults', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('getResults', function(SpanData $s, $a, $retval) {
     $s->name = 'getResults';
     $s->resource = $retval[0];
 });
 
-dd_trace_function('doSomething', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('doSomething', function(SpanData $s, $a, $retval) {
     $s->name = 'doSomething';
     $s->resource = $retval;
 });

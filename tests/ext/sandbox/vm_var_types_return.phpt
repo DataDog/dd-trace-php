@@ -6,25 +6,25 @@ VM variable types are handled properly for return
 <?php
 use DDTrace\SpanData;
 
-dd_trace_function('retval_IS_CONST', function (SpanData $span, array $args, $retval) {
+DDTrace\trace_function('retval_IS_CONST', function (SpanData $span, array $args, $retval) {
     $span->name = 'retval_IS_CONST';
     $span->resource = $retval;
     var_dump($retval);
 });
 
-dd_trace_function('retval_IS_CV', function (SpanData $span, array $args, $retval) {
+DDTrace\trace_function('retval_IS_CV', function (SpanData $span, array $args, $retval) {
     $span->name = 'retval_IS_CV';
     $span->resource = $retval;
     var_dump($retval);
 });
 
-dd_trace_function('retval_IS_VAR', function (SpanData $span, array $args, $retval) {
+DDTrace\trace_function('retval_IS_VAR', function (SpanData $span, array $args, $retval) {
     $span->name = 'retval_IS_VAR';
     $span->resource = $retval;
     var_dump($retval);
 });
 
-dd_trace_function('retval_IS_TMP_VAR', function (SpanData $span, array $args, $retval) {
+DDTrace\trace_function('retval_IS_TMP_VAR', function (SpanData $span, array $args, $retval) {
     $span->name = 'retval_IS_TMP_VAR';
     $span->resource = $retval;
     var_dump($retval);

@@ -1,5 +1,5 @@
 --TEST--
-[Prehook Regression] dd_trace_method() can trace with internal spans
+[Prehook Regression] DDTrace\trace_method() can trace with internal spans
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
@@ -37,10 +37,10 @@ class Foo
     }
 }
 
-dd_trace_method('Test', 'testFoo', ['prehook' => function (SpanData $span) {
+DDTrace\trace_method('Test', 'testFoo', ['prehook' => function (SpanData $span) {
     $span->name = 'TestFoo';
 }]);
-dd_trace_method(
+DDTrace\trace_method(
     'Foo', 'bar',
     ['prehook' => function (SpanData $span, $args) {
         $span->name = 'FooName';
@@ -56,7 +56,7 @@ dd_trace_method(
         ];
     }]
 );
-dd_trace_function('mt_rand', ['prehook' => function (SpanData $span, $args) {
+DDTrace\trace_function('mt_rand', ['prehook' => function (SpanData $span, $args) {
     $span->name = 'MT';
     $span->meta = [
         'rand.range' => $args[0] . ' - ' . $args[1],

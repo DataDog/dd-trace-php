@@ -14,16 +14,16 @@ require 'fake_tracer.inc';
 require 'fake_global_tracer.inc';
 
 // This is called from the flush() method of the fake tracer
-dd_trace_function('DDTrace\\fake_curl_exec', function (SpanData $span) {
+DDTrace\trace_function('DDTrace\\fake_curl_exec', function (SpanData $span) {
     $span->name = 'fake_curl_exec';
 });
 
-dd_trace_function('array_sum', function (SpanData $span, $args, $retval) {
+DDTrace\trace_function('array_sum', function (SpanData $span, $args, $retval) {
     $span->name = 'array_sum';
     $span->resource = $retval;
 });
 
-dd_trace_function('main', function (SpanData $span) {
+DDTrace\trace_function('main', function (SpanData $span) {
     $span->name = 'main';
 });
 

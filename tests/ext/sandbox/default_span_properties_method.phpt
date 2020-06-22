@@ -10,16 +10,16 @@ use DDTrace\SpanData;
 
 date_default_timezone_set('UTC');
 
-dd_trace_method('DateTime', '__construct', function (SpanData $span, array $args) {
+DDTrace\trace_method('DateTime', '__construct', function (SpanData $span, array $args) {
     $span->meta = ['date' => $args[0]];
 });
 
-dd_trace_method('DateTime', 'format', function (SpanData $span, array $args) {
+DDTrace\trace_method('DateTime', 'format', function (SpanData $span, array $args) {
     $span->name = 'MyDateTimeFormat';
     $span->meta = ['format' => $args[0]];
 });
 
-dd_trace_method('Foo', 'main', function (SpanData $span, array $args) {
+DDTrace\trace_method('Foo', 'main', function (SpanData $span, array $args) {
     $span->meta = ['year' => $args[0]];
 });
 

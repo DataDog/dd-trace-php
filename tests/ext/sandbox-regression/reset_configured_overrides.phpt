@@ -10,7 +10,7 @@ class Test {
     }
 }
 
-dd_trace_method("Test", "m", function(){
+DDTrace\trace_method("Test", "m", function(){
     echo "METHOD HOOK" . PHP_EOL;
 });
 
@@ -18,7 +18,7 @@ function test(){
     echo "FUNCTION" . PHP_EOL;
 }
 
-dd_trace_function("test", function(){
+DDTrace\trace_function("test", function(){
     echo "FUNCTION HOOK" . PHP_EOL;
 });
 
@@ -32,11 +32,11 @@ echo (dd_trace_reset() ? "TRUE": "FALSE") . PHP_EOL;
 //$object->m();
 //test();
 
-dd_trace_method("Test", "m", function(){
+DDTrace\trace_method("Test", "m", function(){
     echo "METHOD HOOK2" . PHP_EOL;
 });
 
-dd_trace_function("test", function(){
+DDTrace\trace_function("test", function(){
     echo "FUNCTION HOOK2" . PHP_EOL;
 });
 

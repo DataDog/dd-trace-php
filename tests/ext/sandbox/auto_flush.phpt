@@ -13,12 +13,12 @@ use DDTrace\SpanData;
 require 'fake_tracer.inc';
 require 'fake_global_tracer.inc';
 
-dd_trace_function('array_sum', function (SpanData $span, $args, $retval) {
+DDTrace\trace_function('array_sum', function (SpanData $span, $args, $retval) {
     $span->name = 'array_sum';
     $span->resource = $retval;
 });
 
-dd_trace_function('main', function (SpanData $span) {
+DDTrace\trace_function('main', function (SpanData $span) {
     $span->name = 'main';
 });
 

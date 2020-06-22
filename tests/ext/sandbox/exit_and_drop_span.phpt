@@ -4,7 +4,7 @@ Exit gracefully handles a dropped span
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
-dd_trace_function('foo', function () {
+DDTrace\trace_function('foo', function () {
     echo 'Dropping span' . PHP_EOL;
     return false;
 });

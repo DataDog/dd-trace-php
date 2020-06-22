@@ -1,5 +1,5 @@
 --TEST--
-dd_trace_function() can trace with internal spans
+DDTrace\trace_function() can trace with internal spans
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
@@ -32,17 +32,17 @@ function bar($thoughts, array $bar = [])
     ];
 }
 
-var_dump(dd_trace_function('array_sum', function (SpanData $span) {
+var_dump(DDTrace\trace_function('array_sum', function (SpanData $span) {
     $span->name = 'ArraySum';
 }));
-var_dump(dd_trace_function('mt_rand', null));
-var_dump(dd_trace_function('testFoo', function (SpanData $span) {
+var_dump(DDTrace\trace_function('mt_rand', null));
+var_dump(DDTrace\trace_function('testFoo', function (SpanData $span) {
     $span->name = 'TestFoo';
 }));
-var_dump(dd_trace_function('addOne', function (SpanData $span) {
+var_dump(DDTrace\trace_function('addOne', function (SpanData $span) {
     $span->name = 'AddOne';
 }));
-var_dump(dd_trace_function(
+var_dump(DDTrace\trace_function(
     'bar',
     function (SpanData $span, $args, $retval) {
         $span->name = 'BarName';

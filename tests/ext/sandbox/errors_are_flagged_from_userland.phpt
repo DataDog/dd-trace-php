@@ -11,7 +11,7 @@ function testErrorFromUserland()
     echo "testErrorFromUserland()\n";
 }
 
-dd_trace_function('testErrorFromUserland', function (SpanData $span) {
+DDTrace\trace_function('testErrorFromUserland', function (SpanData $span) {
     $span->name = 'testErrorFromUserland';
     $span->meta = ['error.msg' => 'Foo error'];
 });

@@ -58,27 +58,31 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
                 $integration->rootSpan->overwriteOperationName('cakephp.request');
             }
 
-            \dd_trace_method('Controller', 'invokeAction', function (SpanData $span, array $args) use ($integration) {
-                $span->name = $span->resource = 'Controller.invokeAction';
-                $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->appName;
+            \DDTrace\trace_method(
+                'Controller',
+                'invokeAction',
+                function (SpanData $span, array $args) use ($integration) {
+                    $span->name = $span->resource = 'Controller.invokeAction';
+                    $span->type = Type::WEB_SERVLET;
+                    $span->service = $integration->appName;
 
-                $request = $args[0];
-                if (!$request instanceof CakeRequest) {
-                    return;
-                }
+                    $request = $args[0];
+                    if (!$request instanceof CakeRequest) {
+                        return;
+                    }
 
-                $integration->rootSpan->setTag(
-                    Tag::RESOURCE_NAME,
-                    $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action']
-                );
-                $integration->rootSpan->setTag(Tag::HTTP_URL, Router::url($request->here, true));
-                $integration->rootSpan->setTag('cakephp.route.controller', $request->params['controller']);
-                $integration->rootSpan->setTag('cakephp.route.action', $request->params['action']);
-                if (isset($request->params['plugin'])) {
-                    $integration->rootSpan->setTag('cakephp.plugin', $request->params['plugin']);
+                    $integration->rootSpan->setTag(
+                        Tag::RESOURCE_NAME,
+                        $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action']
+                    );
+                    $integration->rootSpan->setTag(Tag::HTTP_URL, Router::url($request->here, true));
+                    $integration->rootSpan->setTag('cakephp.route.controller', $request->params['controller']);
+                    $integration->rootSpan->setTag('cakephp.route.action', $request->params['action']);
+                    if (isset($request->params['plugin'])) {
+                        $integration->rootSpan->setTag('cakephp.plugin', $request->params['plugin']);
+                    }
                 }
-            });
+            );
 
             // This only traces the default exception renderer
             // Remove this when error tracking is added
@@ -87,7 +91,7 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
             // - Controller::appError()
             // - Exception.handler
             // - Exception.renderer
-            \dd_trace_method('ExceptionRenderer', '__construct', [
+            \DDTrace\trace_method('ExceptionRenderer', '__construct', [
                 'instrument_when_limited' => 1,
                 'posthook' => function (SpanData $span, array $args) use ($integration) {
                     $integration->rootSpan->setError($args[0]);
@@ -95,7 +99,7 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
                 },
             ]);
 
-            \dd_trace_method('CakeResponse', 'statusCode', [
+            \DDTrace\trace_method('CakeResponse', 'statusCode', [
                 'instrument_when_limited' => 1,
                 'posthook' => function (SpanData $span, $args, $return) use ($integration) {
                     $integration->rootSpan->setTag(Tag::HTTP_STATUS_CODE, $return);
@@ -104,7 +108,7 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
             ]);
 
             // Create a trace span for every template rendered
-            \dd_trace_method('View', 'render', function (SpanData $span) use ($integration) {
+            \DDTrace\trace_method('View', 'render', function (SpanData $span) use ($integration) {
                 $span->name = 'cakephp.view';
                 $span->type = Type::WEB_SERVLET;
                 $file = $this->viewPath . '/' . $this->view . $this->ext;
@@ -118,12 +122,12 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
 
         if ('cli' === PHP_SAPI) {
             // CLI bootstrap
-            //\dd_trace_method('ShellDispatcher', '__construct', $initCakeV2);
+            //\DDTrace\trace_method('ShellDispatcher', '__construct', $initCakeV2);
             // Workaround until we fix request_init_hook for non-autoloaded projects
-            \dd_trace_method('App', 'init', $initCakeV2);
+            \DDTrace\trace_method('App', 'init', $initCakeV2);
         } else {
             // Web bootstrap
-            \dd_trace_method('Dispatcher', '__construct', $initCakeV2);
+            \DDTrace\trace_method('Dispatcher', '__construct', $initCakeV2);
         }
 
         return SandboxedIntegration::LOADED;

@@ -17,7 +17,7 @@ function foo()
     return 42;
 }
 
-dd_trace_function('foo', function (SpanData $span, array $args, $retval, $ex) {
+DDTrace\trace_function('foo', function (SpanData $span, array $args, $retval, $ex) {
     var_dump($ex instanceof Exception);
     var_dump($retval);
 });

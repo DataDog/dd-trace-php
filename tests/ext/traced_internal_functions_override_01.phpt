@@ -3,11 +3,11 @@ Ensure that if a user adds an internal function we already trace to traced inter
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=header
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip: requires dd_trace_function'); ?>
+<?php if (PHP_VERSION_ID < 50500) die('skip: requires DDTrace\\trace_function'); ?>
 --FILE--
 <?php
 
-dd_trace_function('header', function () {
+DDTrace\trace_function('header', function () {
     echo "Traced header.\n";
 });
 

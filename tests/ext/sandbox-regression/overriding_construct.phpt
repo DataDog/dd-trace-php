@@ -11,7 +11,7 @@ class Test {
 }
 
 $no = 1;
-dd_trace_method("Test", "__construct", function () use ($no) {
+DDTrace\trace_method("Test", "__construct", function () use ($no) {
     echo "HOOK " . $no . PHP_EOL;
 });
 

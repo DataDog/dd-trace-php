@@ -1,5 +1,5 @@
 --TEST--
-dd_trace_method() binds the called object to the tracing closure
+DDTrace\trace_method() binds the called object to the tracing closure
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
@@ -16,12 +16,12 @@ class Foo
     }
 }
 
-dd_trace_method('Foo', 'testBinding', function () {
+DDTrace\trace_method('Foo', 'testBinding', function () {
     echo "Traced testBinding\n";
     var_dump($this);
 });
 
-dd_trace_method('DatePeriod', 'getStartDate', function () {
+DDTrace\trace_method('DatePeriod', 'getStartDate', function () {
     echo "Traced getStartDate\n";
     var_dump($this instanceof DatePeriod);
 });

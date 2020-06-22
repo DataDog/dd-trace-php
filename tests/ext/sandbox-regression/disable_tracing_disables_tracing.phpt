@@ -10,7 +10,7 @@ class Test {
     }
 }
 
-dd_trace_method("Test", "m", function() {
+DDTrace\trace_method("Test", "m", function() {
     echo 'HOOK ';
 });
 

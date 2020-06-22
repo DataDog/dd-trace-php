@@ -8,15 +8,15 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,range
 <?php
 use DDTrace\SpanData;
 
-dd_trace_function('array_sum', function (SpanData $span, array $args, $retval) {
+DDTrace\trace_function('array_sum', function (SpanData $span, array $args, $retval) {
     $span->meta = ['retval' => $retval];
 });
 
-dd_trace_function('range', function (SpanData $span) {
+DDTrace\trace_function('range', function (SpanData $span) {
     $span->name = 'MyRange';
 });
 
-dd_trace_function('main', function (SpanData $span, array $args) {
+DDTrace\trace_function('main', function (SpanData $span, array $args) {
     $span->meta = ['max' => $args[0]];
 });
 

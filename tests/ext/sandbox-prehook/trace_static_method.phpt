@@ -13,7 +13,7 @@ class Test
 
 }
 
-dd_trace_method("Test", "public_static_method", ['prehook' => function(){
+DDTrace\trace_method("Test", "public_static_method", ['prehook' => function(){
     echo "test_access hook" . PHP_EOL;
 }]);
 

@@ -24,7 +24,7 @@ class YiiIntegrationLoader
         $integration->addTraceAnalyticsIfEnabledLegacy($root);
         $service = \ddtrace_config_app_name(YiiSandboxedIntegration::NAME);
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'yii\web\Application',
             'run',
             function (SpanData $span) use ($service) {
@@ -36,7 +36,7 @@ class YiiIntegrationLoader
 
         // We assume the first controller is the one to assign to app.endpoint
         $firstController = null;
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'yii\web\Application',
             'createController',
             function (SpanData $span, $args, $retval, $ex) use (&$firstController) {
@@ -53,7 +53,7 @@ class YiiIntegrationLoader
          * modules are worth tracing independently, as multiple modules can trigger per
          * application, such as in the event of an unhandled exception.
          */
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'yii\base\Module',
             'runAction',
             function (SpanData $span, $args) use ($service) {
@@ -64,7 +64,7 @@ class YiiIntegrationLoader
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'yii\base\Controller',
             'runAction',
             function (SpanData $span, $args) use (&$firstController, $service, $root) {
@@ -104,7 +104,7 @@ class YiiIntegrationLoader
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'yii\base\View',
             'renderFile',
             function (SpanData $span, $args) use ($service) {

@@ -29,7 +29,7 @@ class SlimSandboxedIntegration extends SandboxedIntegration
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
 
-        \dd_trace_method('Slim\App', '__construct', function () use ($integration, $appName) {
+        \DDTrace\trace_method('Slim\App', '__construct', function () use ($integration, $appName) {
             // At the moment we only report internals of Slim 3.*
             $majorVersion = substr(self::VERSION, 0, 1);
             if ('3' !== $majorVersion) {
@@ -43,7 +43,7 @@ class SlimSandboxedIntegration extends SandboxedIntegration
             $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
 
             // Hook into the router to extract the proper route name
-            \dd_trace_method('Slim\Router', 'lookupRoute', function (SpanData $span, $args, $return) use ($rootSpan) {
+            \DDTrace\trace_method('Slim\Router', 'lookupRoute', function (SpanData $s, $a, $return) use ($rootSpan) {
                 /** @var \Slim\Interfaces\RouteInterface $route */
                 $route = $return;
                 $rootSpan->setTag(
@@ -71,15 +71,15 @@ class SlimSandboxedIntegration extends SandboxedIntegration
             };
             // If the tracer ever supports tracing an interface, we should trace the following:
             // Slim\Interfaces\InvocationStrategyInterface::__invoke
-            \dd_trace_method('Slim\Handlers\Strategies\RequestResponse', '__invoke', [
+            \DDTrace\trace_method('Slim\Handlers\Strategies\RequestResponse', '__invoke', [
                 'prehook' => $traceControllers,
             ]);
-            \dd_trace_method('Slim\Handlers\Strategies\RequestResponseArgs', '__invoke', [
+            \DDTrace\trace_method('Slim\Handlers\Strategies\RequestResponseArgs', '__invoke', [
                 'prehook' => $traceControllers,
             ]);
 
             // Handling Twig views
-            \dd_trace_method('Slim\Views\Twig', 'render', function (SpanData $span, $args) use ($appName) {
+            \DDTrace\trace_method('Slim\Views\Twig', 'render', function (SpanData $span, $args) use ($appName) {
                 $span->name = 'slim.view';
                 $span->service = $appName;
                 $span->type = Type::WEB_SERVLET;

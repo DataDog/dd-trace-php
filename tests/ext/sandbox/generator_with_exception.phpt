@@ -32,12 +32,12 @@ function doSomething() {
     }
 }
 
-dd_trace_function('maybeThrowException', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('maybeThrowException', function(SpanData $s, $a, $retval) {
     $s->name = 'maybeThrowException';
     $s->resource = $retval;
 });
 
-dd_trace_function('doSomething', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('doSomething', function(SpanData $s, $a, $retval) {
     $s->name = 'doSomething';
     $s->resource = $retval;
 });

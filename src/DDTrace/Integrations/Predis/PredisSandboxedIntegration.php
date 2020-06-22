@@ -34,7 +34,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
     {
         $integration = $this;
 
-        \dd_trace_method('Predis\Client', '__construct', function (SpanData $span, $args) {
+        \DDTrace\trace_method('Predis\Client', '__construct', function (SpanData $span, $args) {
             $span->name = 'Predis.Client.__construct';
             $span->type = Type::CACHE;
             $span->service = 'redis';
@@ -43,7 +43,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
             PredisSandboxedIntegration::setConnectionTags($this, $span);
         });
 
-        \dd_trace_method('Predis\Client', 'connect', function (SpanData $span, $args) {
+        \DDTrace\trace_method('Predis\Client', 'connect', function (SpanData $span, $args) {
             $span->name = 'Predis.Client.connect';
             $span->type = Type::CACHE;
             $span->service = 'redis';
@@ -51,7 +51,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
             PredisSandboxedIntegration::setConnectionTags($this, $span);
         });
 
-        \dd_trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) use ($integration) {
             $span->name = 'Predis.Client.executeCommand';
             $span->type = Type::CACHE;
             $span->service = 'redis';
@@ -75,7 +75,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
             $span->meta['redis.raw_command'] = $query;
         });
 
-        \dd_trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) use ($integration) {
             $span->name = 'Predis.Client.executeRaw';
             $span->type = Type::CACHE;
             $span->service = 'redis';
@@ -99,7 +99,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
         // PHP 5 does not support prehook, which is required to get the pipeline count before
         // tasks are dequeued.
         if (Versions::phpVersionMatches('5')) {
-            \dd_trace_method('Predis\Pipeline\Pipeline', 'executePipeline', function (SpanData $span, $args) {
+            \DDTrace\trace_method('Predis\Pipeline\Pipeline', 'executePipeline', function (SpanData $span, $args) {
                 $span->name = 'Predis.Pipeline.executePipeline';
                 $span->resource = $span->name;
                 $span->type = Type::CACHE;
@@ -107,7 +107,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
                 PredisSandboxedIntegration::setConnectionTags($this, $span);
             });
         } else {
-            \dd_trace_method(
+            \DDTrace\trace_method(
                 'Predis\Pipeline\Pipeline',
                 'executePipeline',
                 [
