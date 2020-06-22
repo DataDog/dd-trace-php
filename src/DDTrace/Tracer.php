@@ -4,10 +4,8 @@ namespace DDTrace;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Encoders\SpanEncoder;
-use DDTrace\Http\Urls;
 use DDTrace\Encoders\MessagePack;
 use DDTrace\Log\LoggingTrait;
-use DDTrace\Processing\TraceAnalyticsProcessor;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
@@ -423,8 +421,7 @@ final class Tracer implements TracerInterface
         // Normalized URL as the resource name
         $resourceName = $_SERVER['REQUEST_METHOD'];
         if (isset($_SERVER['REQUEST_URI'])) {
-            $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
-            $resourceName .= ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']);
+            $resourceName .= ' ' . \DDtrace\Private_\util_uri_normalize_incoming_path($_SERVER['REQUEST_URI']);
         }
         $span->setTag(Tag::RESOURCE_NAME, $resourceName, true);
     }

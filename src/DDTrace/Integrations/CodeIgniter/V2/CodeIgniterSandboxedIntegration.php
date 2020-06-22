@@ -4,7 +4,6 @@ namespace DDTrace\Integrations\CodeIgniter\V2;
 
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
-use DDTrace\Http\Urls;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -68,10 +67,10 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
         $root->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
 
         if ('cli' !== PHP_SAPI) {
-            $normalizer = new Urls(\explode(',', \getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
+            $normalizedPath = \DDtrace\Private_\util_uri_normalize_incoming_path($_SERVER['REQUEST_URI']);
             $root->setTag(
                 Tag::RESOURCE_NAME,
-                "{$_SERVER['REQUEST_METHOD']} {$normalizer->normalize($_SERVER['REQUEST_URI'])}",
+                "{$_SERVER['REQUEST_METHOD']} $normalizedPath",
                 true
             );
         }

@@ -2,6 +2,7 @@
 
 return [
     __DIR__ . '/configuration.php',
+    __DIR__ . '/../src/private/functions.php',
     __DIR__ . '/../src/api/Contracts/Tracer.php',
     __DIR__ . '/../src/api/Contracts/Span.php',
     __DIR__ . '/../src/api/Contracts/Scope.php',
