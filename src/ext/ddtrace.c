@@ -171,43 +171,6 @@ static PHP_GINIT_FUNCTION(ddtrace) {
     php_ddtrace_init_globals(ddtrace_globals);
 }
 
-/* DDTrace\SpanData */
-zend_class_entry *ddtrace_ce_span_data;
-
-static void register_span_data_ce(TSRMLS_D) {
-    zend_class_entry ce_span_data;
-    INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", NULL);
-    ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data TSRMLS_CC);
-
-    // trace_id, span_id, parent_id, start & duration are stored directly on
-    // ddtrace_span_t so we don't need to make them properties on DDTrace\SpanData
-    /*
-     * ORDER MATTERS: If you make any changes to the properties below, update the
-     * corresponding ddtrace_spandata_property_*() function with the proper offset.
-     */
-    zend_declare_property_null(ddtrace_ce_span_data, "name", sizeof("name") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "resource", sizeof("resource") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "service", sizeof("service") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "type", sizeof("type") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "meta", sizeof("meta") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-    zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
-}
-
-#if PHP_VERSION_ID >= 70000
-// SpanData::$name
-zval *ddtrace_spandata_property_name(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 0); }
-// SpanData::$resource
-zval *ddtrace_spandata_property_resource(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 1); }
-// SpanData::$service
-zval *ddtrace_spandata_property_service(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 2); }
-// SpanData::$type
-zval *ddtrace_spandata_property_type(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 3); }
-// SpanData::$meta
-zval *ddtrace_spandata_property_meta(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 4); }
-// SpanData::$metrics
-zval *ddtrace_spandata_property_metrics(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 5); }
-#endif
-
 static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     if (strcmp("fpm-fcgi", sapi_module.name) == 0 || strcmp("apache2handler", sapi_module.name) == 0 ||
         strcmp("cli", sapi_module.name) == 0 || strcmp("cli-server", sapi_module.name) == 0 ||
@@ -293,7 +256,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_dogstatsd_client_minit(TSRMLS_C);
     ddtrace_signals_minit(TSRMLS_C);
 
-    register_span_data_ce(TSRMLS_C);
+    ddtrace_span_minit(TSRMLS_C);
 
     ddtrace_engine_hooks_minit();
 

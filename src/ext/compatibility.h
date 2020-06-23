@@ -1,9 +1,7 @@
 #ifndef DD_COMPATIBILITY_H
 #define DD_COMPATIBILITY_H
 
-#include <TSRM/TSRM.h>
-#include <Zend/zend.h>
-#include <php_version.h>
+#include <php.h>
 
 #define UNUSED_1(x) (void)(x)
 #define UNUSED_2(x, y) \
@@ -62,6 +60,23 @@
 typedef zval ddtrace_exception_t;
 #else
 typedef zend_object ddtrace_exception_t;
+#endif
+
+#if PHP_VERSION_ID < 70000
+static zend_always_inline void *zend_object_alloc(size_t obj_size, zend_class_entry *ce) {
+    void *obj = emalloc(obj_size);
+    memset(obj, 0, obj_size);
+    return obj;
+}
+#elif PHP_VERSION_ID < 70300
+// https://heap.space/xref/PHP-7.3/Zend/zend_objects_API.h?r=9afce019#90-98
+static zend_always_inline void *zend_object_alloc(size_t obj_size, zend_class_entry *ce) {
+    void *obj = emalloc(obj_size + zend_object_properties_size(ce));
+    /* Subtraction of sizeof(zval) is necessary, because zend_object_properties_size() may be
+     * -sizeof(zval), if the object has no properties. */
+    memset(obj, 0, obj_size - sizeof(zval));
+    return obj;
+}
 #endif
 
 #endif  // DD_COMPATIBILITY_H

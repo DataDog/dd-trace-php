@@ -247,7 +247,7 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_t *span) {
-    zval meta_zv, *meta = ddtrace_spandata_property_meta(span->span_data);
+    zval meta_zv, *meta = ddtrace_spandata_property_meta(&span->span_data);
 
     array_init(&meta_zv);
     if (meta && Z_TYPE_P(meta) == IS_ARRAY) {
@@ -305,7 +305,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC
     add_assoc_long(el, "duration", span->duration);
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
-    zval *prop_name = ddtrace_spandata_property_name(span->span_data);
+    zval *prop_name = ddtrace_spandata_property_name(&span->span_data);
     zval prop_name_as_string;
     if (Z_TYPE_P(prop_name) != IS_NULL) {
         ddtrace_convert_to_string(&prop_name_as_string, prop_name);
@@ -313,7 +313,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC
     }
 
     // SpanData::$resource defaults to SpanData::$name
-    zval *prop_resource = ddtrace_spandata_property_resource(span->span_data);
+    zval *prop_resource = ddtrace_spandata_property_resource(&span->span_data);
     if (Z_TYPE_P(prop_resource) != IS_NULL) {
         _dd_add_assoc_zval_as_string(el, "resource", prop_resource);
     } else {
@@ -325,20 +325,20 @@ void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC
     }
 
     // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
-    zval *prop_service = ddtrace_spandata_property_service(span->span_data);
+    zval *prop_service = ddtrace_spandata_property_service(&span->span_data);
     if (Z_TYPE_P(prop_service) != IS_NULL) {
         _dd_add_assoc_zval_as_string(el, "service", prop_service);
     }
 
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
-    zval *prop_type = ddtrace_spandata_property_type(span->span_data);
+    zval *prop_type = ddtrace_spandata_property_type(&span->span_data);
     if (Z_TYPE_P(prop_type) != IS_NULL) {
         _dd_add_assoc_zval_as_string(el, "type", prop_type);
     }
 
     _serialize_meta(el, span TSRMLS_CC);
 
-    zval *metrics = ddtrace_spandata_property_metrics(span->span_data);
+    zval *metrics = ddtrace_spandata_property_metrics(&span->span_data);
     if (Z_TYPE_P(metrics) == IS_ARRAY) {
         _add_assoc_zval_copy(el, "metrics", metrics);
     }

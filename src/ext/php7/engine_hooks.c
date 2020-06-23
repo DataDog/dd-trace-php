@@ -237,7 +237,7 @@ static void _dd_setup_fcall(zend_execute_data *execute_data, zend_fcall_info *fc
     fci->retval = *result;
 }
 
-static bool _dd_execute_tracing_closure(zval *callable, zval *span_data, zend_execute_data *call, zval *user_args,
+static bool _dd_execute_tracing_closure(zval *callable, zend_object *span_data, zend_execute_data *call, zval *user_args,
                                         zval *user_retval, zend_object *exception) {
     bool status = true;
     zend_fcall_info fci = {0};
@@ -245,11 +245,6 @@ static bool _dd_execute_tracing_closure(zval *callable, zval *span_data, zend_ex
     zval rv;
     INIT_ZVAL(rv);
     zval args[4];
-    zval exception_arg = {.value = {0}};
-    ZVAL_NULL(&exception_arg);
-    if (exception) {
-        ZVAL_OBJ(&exception_arg, exception);
-    }
     zval *this = _dd_this(call);
 
     if (!callable || !span_data || !user_args) {
@@ -275,7 +270,9 @@ static bool _dd_execute_tracing_closure(zval *callable, zval *span_data, zend_ex
     }
 
     // Arg 0: DDTrace\SpanData $span
-    ZVAL_COPY(&args[0], span_data);
+    zval spandata_arg;
+    ZVAL_OBJ(&spandata_arg, span_data);
+    ZVAL_COPY(&args[0], &spandata_arg);
 
     // Arg 1: array $args
     ZVAL_COPY(&args[1], user_args);
@@ -287,6 +284,12 @@ static bool _dd_execute_tracing_closure(zval *callable, zval *span_data, zend_ex
     ZVAL_COPY(&args[2], user_retval);
 
     // Arg 3: Exception|null $exception
+    zval exception_arg = {.value = {0}};
+    if (exception) {
+        ZVAL_OBJ(&exception_arg, exception);
+    } else {
+        ZVAL_NULL(&exception_arg);
+    }
     ZVAL_COPY(&args[3], &exception_arg);
 
     fci.param_count = 4;
@@ -350,7 +353,7 @@ static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_t *span, zval *calla
     ddtrace_error_handling eh;
     ddtrace_backup_error_handling(&eh, EH_THROW);
 
-    keep_span = _dd_execute_tracing_closure(callable, span->span_data, call, &user_args, user_retval, exception);
+    keep_span = _dd_execute_tracing_closure(callable, &span->span_data, call, &user_args, user_retval, exception);
 
     if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
         const char *fname = Z_STRVAL(dispatch->function_name);
@@ -426,12 +429,12 @@ void _dd_set_fqn(zval *zv, zend_execute_data *ex) {
 
 static void _dd_set_default_properties(void) {
     ddtrace_span_t *span = DDTRACE_G(open_spans_top);
-    if (span == NULL || span->span_data == NULL || span->call == NULL) {
+    if (span == NULL || span->call == NULL) {
         return;
     }
     // SpanData::$name defaults to fully qualified called name
     // The other span property defaults are set at serialization time
-    zval *prop_name = ddtrace_spandata_property_name(span->span_data);
+    zval *prop_name = ddtrace_spandata_property_name(&span->span_data);
     if (prop_name && Z_TYPE_P(prop_name) == IS_NULL) {
         zval prop_name_default;
         ZVAL_NULL(&prop_name_default);
@@ -449,7 +452,7 @@ static void ddtrace_posthook(zend_function *fbc, ddtrace_span_t *span, zval *use
         dd_trace_stop_span_time(span);
 
         bool keep_span = true;
-        if (span->dispatch->options & DDTRACE_DISPATCH_POSTHOOK) {
+        if (span->dispatch && (span->dispatch->options & DDTRACE_DISPATCH_POSTHOOK)) {
             keep_span = _dd_call_sandboxed_tracing_closure(span, &span->dispatch->posthook, user_retval);
         }
 

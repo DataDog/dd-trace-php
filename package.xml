@@ -269,6 +269,9 @@
                         <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
                         <file name="safe_to_string_properties.phpt" role="test" />
                         <file name="sandbox_api_not_available_on_unsupported_versions.phpt" role="test" />
+                        <file name="span_data_inline.phpt" role="test" />
+                        <file name="span_data_inline_out_of_sync_001.phpt" role="test" />
+                        <file name="span_data_inline_out_of_sync_002.phpt" role="test" />
                         <file name="spans_out_of_sync.phpt" role="test" />
                         <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
                         <file name="variadic_args_internal.phpt" role="test" />
