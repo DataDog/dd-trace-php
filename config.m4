@@ -36,7 +36,6 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/configuration_php_iface.c \
     src/ext/ddtrace_string.c \
     src/ext/dispatch.c \
-    src/ext/dispatch_setup.c \
     src/ext/dogstatsd_client.c \
     src/ext/engine_hooks.c \
     src/ext/env_config.c \
