@@ -10,14 +10,6 @@
 // avoid Older GCC being overly cautious over {0} struct initializer
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 
-#define BUSY_FLAG 1
-
-#if PHP_VERSION_ID >= 70100
-#define RETURN_VALUE_USED(opline) ((opline)->result_type != IS_UNUSED)
-#else
-#define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
-#endif
-
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 extern inline void ddtrace_dispatch_copy(ddtrace_dispatch_t *dispatch);
