@@ -19,18 +19,10 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
     } while (0)
 #endif
 
-zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
+zend_function *ddtrace_ftable_get(const HashTable *table, zval *name) {
     char *key = zend_str_tolower_dup(Z_STRVAL_P(name), Z_STRLEN_P(name));
-
     zend_function *fptr = NULL;
-
     zend_hash_find(table, key, Z_STRLEN_P(name) + 1, (void **)&fptr);
-
-    DD_PRINTF("Looking for key %s (length: %d, h: 0x%lX) in table", key, Z_STRLEN_P(name),
-              zend_inline_hash_func(key, Z_STRLEN_P(name) + 1));
-    DD_PRINT_HASH(table);
-    DD_PRINTF("Found: %s", fptr != NULL ? "true" : "false");
-
     efree(key);
     return fptr;
 }
