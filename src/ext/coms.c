@@ -622,17 +622,17 @@ void ddtrace_coms_curl_shutdown(void) {
 
 static long _dd_max_long(long a, long b) { return a >= b ? a : b; }
 
-static void _dd_curl_set_timeout(CURL *curl) {
+void ddtrace_curl_set_timeout(CURL *curl) {
     long timeout = _dd_max_long(get_dd_trace_bgs_timeout(), get_dd_trace_agent_timeout());
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout);
 }
 
-static void _dd_curl_set_connect_timeout(CURL *curl) {
+void ddtrace_curl_set_connect_timeout(CURL *curl) {
     long timeout = _dd_max_long(get_dd_trace_bgs_connect_timeout(), get_dd_trace_agent_connect_timeout());
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
 }
 
-static void _dd_curl_set_hostname(CURL *curl) {
+void ddtrace_curl_set_hostname(CURL *curl) {
     char *hostname = get_dd_agent_host();
     int64_t port = get_dd_trace_agent_port();
     if (port <= 0 || port > 65535) {
@@ -716,9 +716,9 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
         struct _grouped_stack_t *kData = read_data;
         _dd_curl_set_headers(writer, kData->total_groups);
         curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
-        _dd_curl_set_hostname(writer->curl);
-        _dd_curl_set_timeout(writer->curl);
-        _dd_curl_set_connect_timeout(writer->curl);
+        ddtrace_curl_set_hostname(writer->curl);
+        ddtrace_curl_set_timeout(writer->curl);
+        ddtrace_curl_set_connect_timeout(writer->curl);
 
         curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
         curl_easy_setopt(writer->curl, CURLOPT_INFILESIZE, 10);
