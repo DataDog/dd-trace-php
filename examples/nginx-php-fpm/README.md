@@ -14,7 +14,7 @@ You can configure the Datadog PHP tracing library via [environment variables](ht
 
 By default environment variables set in the host are not visible to PHP-FPM process.
 
-If have not set `clear_env` or `clear_env=1` then you can use the `env` directive in the `www.conf` file to set a specific setting. See this example's [www.conf](./www.conf) file for an example.
+If have not set `clear_env` or `clear_env=1` then you can use the `env` directive in the `www.conf` file to set a specific setting. See this app's [www.conf](./www.conf) file for an example.
 
 If you have `clear_env=0` then environment variables values from the host are visibile to the PHP process and you can avoid using the `env` directive.
 
