@@ -56,6 +56,8 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/signals.c \
     src/ext/span.c \
     src/ext/third-party/mt19937-64.c \
+    src/ext/integrations/integrations.c \
+    src/ext/integrations/defered.c \
   "
 
   PHP_VERSION=$($PHP_CONFIG --vernum)

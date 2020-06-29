@@ -120,7 +120,7 @@ void ddtrace_dispatch_reset(TSRMLS_D) {
     }
 }
 
-zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC) {
+static HashTable *_get_lookup_for_target(zval *class_name, zval *function_name TSRMLS_DC) {
     HashTable *overridable_lookup = NULL;
     if (class_name && DDTRACE_G(class_lookup)) {
 #if PHP_VERSION_ID < 70000
@@ -152,34 +152,68 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
                                         Z_STRVAL_P(function_name));
             }
 
-            return 0;
+            return NULL;
         }
 
         overridable_lookup = DDTRACE_G(function_lookup);
     }
 
-    if (!overridable_lookup) {
-        return 0;
+    return overridable_lookup;
+}
+
+static void _initialize_dispatch(ddtrace_dispatch_t *dispatch, zval *function_name, zval *callable, uint32_t options) {
+    memset(dispatch, 0, sizeof(ddtrace_dispatch_t));
+    if (callable != NULL) {
+        dispatch->callable = *callable;
+        zval_copy_ctor(&dispatch->callable);
+    } else {
+        ZVAL_NULL(&dispatch->callable);
+    }
+#if PHP_VERSION_ID < 70000
+    ZVAL_STRINGL(&dispatch->function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);
+#else
+    ZVAL_STRINGL(&dispatch->function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name));
+#endif
+    ddtrace_downcase_zval(&dispatch->function_name);  // method/function names are case insensitive in PHP
+    ZVAL_NULL(&dispatch->defered_load_function_name);
+
+    dispatch->options = options;
+}
+
+zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC) {
+    HashTable *overridable_lookup = _get_lookup_for_target(class_name, function_name TSRMLS_CC);
+    if (overridable_lookup == NULL) {
+        return FALSE;
     }
 
     ddtrace_dispatch_t dispatch;
-    memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
-
-    dispatch.callable = *callable;
-    zval_copy_ctor(&dispatch.callable);
-    dispatch.options = options;
-
-#if PHP_VERSION_ID < 70000
-    ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);
-#else
-    ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name));
-#endif
-    ddtrace_downcase_zval(&dispatch.function_name);  // method/function names are case insensitive in PHP
+    _initialize_dispatch(&dispatch, function_name, callable, options);
 
     if (ddtrace_dispatch_store(overridable_lookup, &dispatch)) {
-        return 1;
+        return TRUE;
     } else {
         ddtrace_dispatch_dtor(&dispatch);
-        return 0;
+        return FALSE;
+    }
+}
+
+zend_bool ddtrace_defered_load_via_function(zval class_name, zval function_name, zval autoload_function TSRMLS_DC) {
+    HashTable *overridable_lookup = _get_lookup_for_target(&class_name, &function_name TSRMLS_CC);
+    if (overridable_lookup == NULL) {
+        return FALSE;
+    }
+    ddtrace_dispatch_t dispatch;
+    _initialize_dispatch(&dispatch, &function_name, NULL, DDTRACE_DISPATCH_DEFERED_LOADER);
+#if PHP_VERSION_ID < 70000
+    ZVAL_STRINGL(&dispatch.defered_load_function_name, Z_STRVAL(autoload_function), Z_STRLEN(autoload_function), 1);
+#else
+    ZVAL_STRINGL(&dispatch.defered_load_function_name, Z_STRVAL(autoload_function), Z_STRLEN(autoload_function));
+#endif
+
+    if (ddtrace_dispatch_store(overridable_lookup, &dispatch)) {
+        return TRUE;
+    } else {
+        ddtrace_dispatch_dtor(&dispatch);
+        return FALSE;
     }
 }

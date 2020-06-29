@@ -84,8 +84,26 @@ static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc,
      *
      * It would avoid lowering the string and reduce memory churn; win-win.
      */
-    *dispatch = ddtrace_find_dispatch(this ? Z_OBJCE_P(this) : fbc->common.scope, &fname);
-    return *dispatch;
+    zend_class_entry *scope = this ? Z_OBJCE_P(this) : fbc->common.scope;
+    ddtrace_dispatch_t *_dispatch = ddtrace_find_dispatch(scope, &fname);
+    if (_dispatch != NULL && Z_TYPE(_dispatch->callable) != IS_OBJECT) {
+        if (_dispatch->options & DDTRACE_DISPATCH_DEFERED_LOADER) {
+            // don't execute in the future
+            _dispatch->options ^= DDTRACE_DISPATCH_DEFERED_LOADER;
+
+            if (Z_TYPE(_dispatch->defered_load_function_name) != IS_NULL) {
+                zval retval;
+                call_user_function(EG(function_table), NULL, &_dispatch->defered_load_function_name, &retval, 0, NULL);
+                zval_ptr_dtor(&retval);
+
+                // attempt to load newly set dispatch fo function
+                _dispatch = ddtrace_find_dispatch(scope, &fname);
+            }
+        }
+    }
+
+    *dispatch = _dispatch;
+    return _dispatch;
 }
 
 static bool _dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {

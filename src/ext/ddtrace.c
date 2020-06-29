@@ -33,6 +33,7 @@
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
 #include "handlers_internal.h"
+#include "integrations/integrations.h"
 #include "logging.h"
 #include "memory_limit.h"
 #include "random.h"
@@ -252,13 +253,16 @@ static void _dd_register_known_calls(void) {
         zval callable;
         ZVAL_NULL(&callable);
         uint32_t options = DDTRACE_DISPATCH_POSTHOOK;
+
         if (integration.class_name.ptr) {
             ZVAL_STRINGL(&class_name, integration.class_name.ptr, integration.class_name.len);
         } else {
             ZVAL_NULL(&class_name);
         }
         ZVAL_STRINGL(&function_name, integration.fname.ptr, integration.fname.len);
+
         ddtrace_trace(&class_name, &function_name, &callable, options);
+
         zval_dtor(&function_name);
         zval_dtor(&class_name);
     }
@@ -370,6 +374,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
      * coding known integrations (and for now only the problematic ones).
      */
     _dd_register_known_calls();
+    dd_initialize_defered_integrations();
 #endif
 
     // Reset compile time after request init hook has compiled

@@ -12,11 +12,13 @@
 #define DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED (1u << 1u)
 #define DDTRACE_DISPATCH_POSTHOOK (1u << 2u)
 #define DDTRACE_DISPATCH_PREHOOK (1u << 3u)
+#define DDTRACE_DISPATCH_DEFERED_LOADER (1u << 4u)
 
 typedef struct ddtrace_dispatch_t {
     uint16_t options;
     bool busy;
     uint32_t acquired;
+    zval defered_load_function_name;
     union {
         zval callable;  // legacy
         zval prehook;
@@ -27,6 +29,7 @@ typedef struct ddtrace_dispatch_t {
 
 ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname TSRMLS_DC);
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC);
+zend_bool ddtrace_defered_load_via_function(zval class_name, zval function_name, zval autoload_function TSRMLS_DC);
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch);
 
