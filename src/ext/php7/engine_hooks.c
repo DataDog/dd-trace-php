@@ -57,7 +57,7 @@ static zval *_dd_this(zend_execute_data *call) {
 
 #define DDTRACE_NOT_TRACED ((void *)1)
 
-static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch) {
+static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch_ptr) {
     if (DDTRACE_G(class_lookup) == NULL || DDTRACE_G(function_lookup) == NULL) {
         return false;
     }
@@ -85,25 +85,29 @@ static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc,
      * It would avoid lowering the string and reduce memory churn; win-win.
      */
     zend_class_entry *scope = this ? Z_OBJCE_P(this) : fbc->common.scope;
-    ddtrace_dispatch_t *_dispatch = ddtrace_find_dispatch(scope, &fname);
-    if (_dispatch != NULL && Z_TYPE(_dispatch->callable) != IS_OBJECT) {
-        if (_dispatch->options & DDTRACE_DISPATCH_DEFERED_LOADER) {
-            // don't execute in the future
-            _dispatch->options ^= DDTRACE_DISPATCH_DEFERED_LOADER;
 
-            if (Z_TYPE(_dispatch->defered_load_function_name) != IS_NULL) {
+    ddtrace_dispatch_t *dispatch = ddtrace_find_dispatch(scope, &fname);
+    if (dispatch != NULL && Z_TYPE(dispatch->callable) != IS_OBJECT) {
+        if (dispatch->options & DDTRACE_DISPATCH_DEFERED_LOADER) {
+            // don't execute in the future
+            dispatch->options ^= DDTRACE_DISPATCH_DEFERED_LOADER;
+
+            if (Z_TYPE(dispatch->defered_load_function_name) != IS_NULL) {
                 zval retval;
-                call_user_function(EG(function_table), NULL, &_dispatch->defered_load_function_name, &retval, 0, NULL);
+                call_user_function(EG(function_table), NULL, &dispatch->defered_load_function_name, &retval, 0, NULL);
                 zval_ptr_dtor(&retval);
 
                 // attempt to load newly set dispatch fo function
-                _dispatch = ddtrace_find_dispatch(scope, &fname);
+                dispatch = ddtrace_find_dispatch(scope, &fname);
             }
         }
     }
 
-    *dispatch = _dispatch;
-    return _dispatch;
+    if (dispatch_ptr != NULL) {
+        *dispatch_ptr = dispatch;
+    }
+
+    return dispatch;
 }
 
 static bool _dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
