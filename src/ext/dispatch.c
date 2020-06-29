@@ -175,7 +175,6 @@ static void _initialize_dispatch(ddtrace_dispatch_t *dispatch, zval *function_na
     ZVAL_STRINGL(&dispatch->function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name));
 #endif
     ddtrace_downcase_zval(&dispatch->function_name);  // method/function names are case insensitive in PHP
-    ZVAL_NULL(&dispatch->defered_load_function_name);
 
     dispatch->options = options;
 }

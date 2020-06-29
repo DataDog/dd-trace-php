@@ -18,9 +18,9 @@ typedef struct ddtrace_dispatch_t {
     uint16_t options;
     bool busy;
     uint32_t acquired;
-    zval defered_load_function_name;
     union {
         zval callable;  // legacy
+        zval defered_load_function_name;
         zval prehook;
         zval posthook;
     };
