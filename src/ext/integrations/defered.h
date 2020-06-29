@@ -10,21 +10,21 @@ struct ddtrace_defered_integration {
 typedef struct ddtrace_defered_integration ddtrace_defered_integration;
 
 #define DDTRACE_DEFERED_INTEGRATION_LOADER(class_str, fname_str, loader_str) \
-    {                                                                                   \
-        .class_name =                                                                   \
-            {                                                                           \
-                .ptr = class_str,                                                       \
-                .len = sizeof(class_str) - 1,                                           \
-            },                                                                          \
-        .fname =                                                                        \
-            {                                                                           \
-                .ptr = fname_str,                                                       \
-                .len = sizeof(fname_str) - 1,                                           \
-            },                                                                          \
+    {                                                                        \
+        .class_name =                                                        \
+            {                                                                \
+                .ptr = class_str,                                            \
+                .len = sizeof(class_str) - 1,                                \
+            },                                                               \
+        .fname =                                                             \
+            {                                                                \
+                .ptr = fname_str,                                            \
+                .len = sizeof(fname_str) - 1,                                \
+            },                                                               \
         .loader = {                                                          \
             .ptr = loader_str,                                               \
             .len = sizeof(loader_str) - 1,                                   \
-        },                                                                              \
+        },                                                                   \
     }
 #endif
 

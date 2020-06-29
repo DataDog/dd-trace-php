@@ -374,7 +374,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
      * coding known integrations (and for now only the problematic ones).
      */
     _dd_register_known_calls();
-    dd_initialize_defered_integrations();
+    dd_initialize_defered_integrations(TSRMLS_C);
 #endif
 
     // Reset compile time after request init hook has compiled
