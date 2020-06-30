@@ -199,7 +199,11 @@ zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string functi
     memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
     dispatch.options = options;
     DDTRACE_STRING_ZVAL_L(&dispatch.function_name, function_name);
-    DDTRACE_STRING_ZVAL_L(&dispatch.callable, callable);
+    if (callable.ptr) {
+        DDTRACE_STRING_ZVAL_L(&dispatch.callable, callable);
+    } else {
+        ZVAL_NULL(&dispatch.callable);
+    }
 
     if (class_name.ptr) {
         zval z_class_name;

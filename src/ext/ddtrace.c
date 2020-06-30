@@ -220,52 +220,13 @@ static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
 }
 
 #if PHP_VERSION_ID >= 70000
-struct ddtrace_known_integration {
-    ddtrace_string class_name;  // nullptr if not a class
-    ddtrace_string fname;
-};
-typedef struct ddtrace_known_integration ddtrace_known_integration;
-
-#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str) \
-    {                                                   \
-        .class_name =                                   \
-            {                                           \
-                .ptr = class_str,                       \
-                .len = sizeof(class_str) - 1,           \
-            },                                          \
-        .fname = {                                      \
-            .ptr = fname_str,                           \
-            .len = sizeof(fname_str) - 1,               \
-        },                                              \
-    }
-
-static ddtrace_known_integration ddtrace_known_integrations[] = {
-    DDTRACE_KNOWN_INTEGRATION("wpdb", "query"),
-    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire"),
-};
+#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str)                                         \
+    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class_str), DDTRACE_STRING_LITERAL(fname_str), \
+                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK)
 
 static void _dd_register_known_calls(void) {
-    size_t known_integrations_size = sizeof ddtrace_known_integrations / sizeof ddtrace_known_integrations[0];
-    for (size_t i = 0; i < known_integrations_size; ++i) {
-        ddtrace_known_integration integration = ddtrace_known_integrations[i];
-        zval class_name;
-        zval function_name;
-        zval callable;
-        ZVAL_NULL(&callable);
-        uint32_t options = DDTRACE_DISPATCH_POSTHOOK;
-
-        if (integration.class_name.ptr) {
-            ZVAL_STRINGL(&class_name, integration.class_name.ptr, integration.class_name.len);
-        } else {
-            ZVAL_NULL(&class_name);
-        }
-        ZVAL_STRINGL(&function_name, integration.fname.ptr, integration.fname.len);
-
-        ddtrace_trace(&class_name, &function_name, &callable, options);
-
-        zval_dtor(&function_name);
-        zval_dtor(&class_name);
-    }
+    DDTRACE_KNOWN_INTEGRATION("wpdb", "query");
+    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire");
 }
 #endif
 
