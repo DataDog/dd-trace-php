@@ -219,17 +219,6 @@ static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     DDTRACE_G(disable) = 1;
 }
 
-#if PHP_VERSION_ID >= 70000
-#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str)                                         \
-    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class_str), DDTRACE_STRING_LITERAL(fname_str), \
-                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK)
-
-static void _dd_register_known_calls(void) {
-    DDTRACE_KNOWN_INTEGRATION("wpdb", "query");
-    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire");
-}
-#endif
-
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
@@ -326,16 +315,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_init_span_stacks(TSRMLS_C);
     ddtrace_coms_on_pid_change();
 
-#if PHP_VERSION_ID >= 70000
-    /* Due to negative lookup caching, we need to have a list of all things we
-     * might instrument so that if a call is made to something we want to later
-     * instrument but is not currently instrumented, that we don't cache this.
-     *
-     * We should improve how this list is made in the future instead of hard-
-     * coding known integrations (and for now only the problematic ones).
-     */
-    _dd_register_known_calls();
-#endif
     // Initialize C integrations and deferred loading
     dd_integrations_initialize(TSRMLS_C);
 
