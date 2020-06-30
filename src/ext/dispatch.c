@@ -9,6 +9,7 @@
 #include "arrays.h"
 #include "compat_string.h"
 #include "ddtrace.h"
+#include "ddtrace_string.h"
 #include "debug.h"
 
 // avoid Older GCC being overly cautious over {0} struct initializer
@@ -161,24 +162,6 @@ static HashTable *_get_lookup_for_target(zval *class_name, zval *function_name T
     return overridable_lookup;
 }
 
-static void _initialize_dispatch(ddtrace_dispatch_t *dispatch, zval *function_name, zval *callable, uint32_t options) {
-    memset(dispatch, 0, sizeof(ddtrace_dispatch_t));
-    if (callable != NULL) {
-        dispatch->callable = *callable;
-        zval_copy_ctor(&dispatch->callable);
-    } else {
-        ZVAL_NULL(&dispatch->callable);
-    }
-#if PHP_VERSION_ID < 70000
-    ZVAL_STRINGL(&dispatch->function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);
-#else
-    ZVAL_STRINGL(&dispatch->function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name));
-#endif
-    ddtrace_downcase_zval(&dispatch->function_name);  // method/function names are case insensitive in PHP
-
-    dispatch->options = options;
-}
-
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC) {
     HashTable *overridable_lookup = _get_lookup_for_target(class_name, function_name TSRMLS_CC);
     if (overridable_lookup == NULL) {
@@ -186,7 +169,21 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
     }
 
     ddtrace_dispatch_t dispatch;
-    _initialize_dispatch(&dispatch, function_name, callable, options);
+    memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
+    if (callable != NULL) {
+        dispatch.callable = *callable;
+        zval_copy_ctor(&dispatch.callable);
+    } else {
+        ZVAL_NULL(&dispatch.callable);
+    }
+
+#if PHP_VERSION_ID < 70000
+    ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);
+#else
+    ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name));
+#endif
+    ddtrace_downcase_zval(&dispatch.function_name);  // method/function names are case insensitive in PHP
+    dispatch.options = options;
 
     if (ddtrace_dispatch_store(overridable_lookup, &dispatch)) {
         return TRUE;
@@ -196,23 +193,31 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
     }
 }
 
-zend_bool ddtrace_defered_load_via_function(zval class_name, zval function_name, zval autoload_function TSRMLS_DC) {
-    HashTable *overridable_lookup = _get_lookup_for_target(&class_name, &function_name TSRMLS_CC);
-    if (overridable_lookup == NULL) {
-        return FALSE;
-    }
+zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string function_name, ddtrace_string callable, uint32_t options TSRMLS_DC) {
+    HashTable *overridable_lookup;
     ddtrace_dispatch_t dispatch;
-    _initialize_dispatch(&dispatch, &function_name, NULL, DDTRACE_DISPATCH_DEFERED_LOADER);
-#if PHP_VERSION_ID < 70000
-    ZVAL_STRINGL(&dispatch.defered_load_function_name, Z_STRVAL(autoload_function), Z_STRLEN(autoload_function), 1);
-#else
-    ZVAL_STRINGL(&dispatch.defered_load_function_name, Z_STRVAL(autoload_function), Z_STRLEN(autoload_function));
-#endif
+    memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));
+    dispatch.options = options;
+    DDTRACE_STRING_ZVAL_L(&dispatch.function_name, function_name);
+    DDTRACE_STRING_ZVAL_L(&dispatch.callable, callable);
 
-    if (ddtrace_dispatch_store(overridable_lookup, &dispatch)) {
-        return TRUE;
+    if (class_name.ptr) {
+        zval z_class_name;
+        // class name handling in get_lookup involves another copy as well as downcasing
+        // TODO: we should avoid doing that
+        DDTRACE_STRING_ZVAL_L(&z_class_name, class_name);
+        overridable_lookup = _get_lookup_for_target(&z_class_name, &dispatch.function_name TSRMLS_CC);
+        zval_dtor(&z_class_name);
     } else {
-        ddtrace_dispatch_dtor(&dispatch);
-        return FALSE;
+        overridable_lookup = _get_lookup_for_target(NULL, &dispatch.function_name TSRMLS_CC);
     }
+    zend_bool dispatch_stored = FALSE;
+    if (overridable_lookup) {
+        dispatch_stored = ddtrace_dispatch_store(overridable_lookup, &dispatch);
+    }
+
+    if (!dispatch_stored) {
+        ddtrace_dispatch_dtor(&dispatch);
+    }
+    return dispatch_stored;
 }

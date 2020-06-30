@@ -5,8 +5,8 @@
 #include "configuration.h"
 #include "defered.h"
 
-static inline void _dd_test_initialize_defered_integration() {
-    char *test_defered = getenv("_TEST_DEFERED");
+static inline void _dd_load_test_integrations() {
+    char *test_defered = getenv("_DD_LOAD_TEST_INTEGRATIONS");
     if (!test_defered) {
         return;
     }

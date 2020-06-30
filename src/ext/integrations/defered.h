@@ -3,7 +3,7 @@
 #include "ddtrace_string.h"
 
 struct ddtrace_defered_integration {
-    ddtrace_string class_name;  // nullptr if not a class
+    ddtrace_string class_name;
     ddtrace_string fname;
     ddtrace_string loader;
 };

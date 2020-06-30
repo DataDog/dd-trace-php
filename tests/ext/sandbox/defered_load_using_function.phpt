@@ -3,7 +3,7 @@
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
-_TEST_DEFERED=1
+_DD_LOAD_TEST_INTEGRATIONS=1
 --FILE--
 <?php
 function load_test_integration(){
