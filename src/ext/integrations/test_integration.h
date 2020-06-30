@@ -11,6 +11,7 @@ static inline void _dd_load_test_integrations() {
     }
 
     DDTRACE_DEFERED_INTEGRATION_LOADER("test", "public_static_method", "load_test_integration");
+    DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
 }
 
 #endif

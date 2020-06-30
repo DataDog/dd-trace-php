@@ -87,32 +87,32 @@ static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc,
     zend_class_entry *scope = this ? Z_OBJCE_P(this) : fbc->common.scope;
 
     ddtrace_dispatch_t *dispatch = ddtrace_find_dispatch(scope, &fname);
-    if (dispatch != NULL && Z_TYPE(dispatch->callable) != IS_OBJECT) {
-        if (dispatch->options & DDTRACE_DISPATCH_DEFERED_LOADER) {
-            // don't execute in the future
-            dispatch->options ^= DDTRACE_DISPATCH_DEFERED_LOADER;
+    if (dispatch != NULL && dispatch->options & DDTRACE_DISPATCH_DEFERED_LOADER) {
+        // don't execute in the future
+        dispatch->options ^= DDTRACE_DISPATCH_DEFERED_LOADER;
 
-            if (Z_TYPE(dispatch->defered_load_function_name) != IS_NULL) {
-                zval retval;
-                call_user_function(EG(function_table), NULL, &dispatch->defered_load_function_name, &retval, 0, NULL);
-                zval_ptr_dtor(&retval);
-
+        if (Z_TYPE(dispatch->defered_load_function_name) != IS_NULL) {
+            zval retval;
+            if (FAILURE !=
+                call_user_function(EG(function_table), NULL, &dispatch->defered_load_function_name, &retval, 0, NULL)) {
                 // attempt to load newly set dispatch fo function
                 dispatch = ddtrace_find_dispatch(scope, &fname);
             }
+            zval_ptr_dtor(&retval);
+        } else {
+            dispatch = NULL;
         }
     }
 
     if (dispatch_ptr != NULL) {
         *dispatch_ptr = dispatch;
     }
-
     return dispatch;
 }
 
 static bool _dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
     // the callable can be NULL for ddtrace_known_integrations
-    if (Z_TYPE(dispatch->callable) != IS_OBJECT) {
+    if (Z_TYPE(dispatch->callable) != IS_OBJECT && Z_TYPE(dispatch->callable) != IS_STRING) {
         return false;
     }
 
@@ -354,10 +354,6 @@ static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_t *span, zval *calla
     ddtrace_dispatch_t *dispatch = span->dispatch;
     zend_object *exception = NULL, *prev_exception = NULL;
     zval user_args;
-
-    if (Z_TYPE_P(callable) != IS_OBJECT) {
-        return true;
-    }
 
     _dd_copy_function_args(call, &user_args, dispatch->options & DDTRACE_DISPATCH_POSTHOOK);
     if (EG(exception)) {
