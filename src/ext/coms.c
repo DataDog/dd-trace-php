@@ -644,6 +644,7 @@ static void _dd_curl_set_hostname(CURL *curl) {
         free(agent_url);
         return;
     }
+    free(url);
 
     char *hostname = get_dd_agent_host();
     int64_t port = get_dd_trace_agent_port();
