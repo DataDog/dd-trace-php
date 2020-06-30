@@ -78,6 +78,14 @@
                     <file name="span.h" role="src" />
                     <file name="version.h" role="src" />
                     <file name="compatibility.h" role="src" />
+                    <dir name="integrations" role="src">
+                        <file name="defered.c" role="src" />
+                        <file name="defered.h" role="src" />
+                        <file name="integrations.c" role="src" />
+                        <file name="integrations.h" role="src" />
+                        <file name="elasticsearch.h" role="src" />
+                        <file name="test_integration.h" role="src" />
+                    </dir>
                     <dir name="mpack">
                         <file name="AUTHORS.md" role="doc" />
                         <file name="CHANGELOG.md" role="doc" />
