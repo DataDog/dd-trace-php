@@ -651,7 +651,7 @@ static void _dd_curl_set_hostname(CURL *curl) {
     if (port <= 0 || port > 65535) {
         port = 8126;
     }
-    
+
     if (hostname) {
         size_t agent_url_len =
             strlen(hostname) + sizeof(HOST_FORMAT_STR) + 10;  // port digit allocation + some headroom
