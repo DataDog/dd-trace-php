@@ -66,8 +66,11 @@ int64_t ddtrace_compile_time_get(TSRMLS_D) { return DDTRACE_G(compile_time_micro
 
 extern inline void ddtrace_backup_error_handling(ddtrace_error_handling *eh, zend_error_handling_t mode TSRMLS_DC);
 extern inline void ddtrace_restore_error_handling(ddtrace_error_handling *eh TSRMLS_DC);
+extern inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup TSRMLS_DC);
 #if PHP_VERSION_ID < 70000
+extern inline ddtrace_sandbox_backup ddtrace_sandbox_begin(zend_op *opline_before_exception TSRMLS_DC);
 extern inline void ddtrace_maybe_clear_exception(TSRMLS_D);
 #else
+extern inline ddtrace_sandbox_backup ddtrace_sandbox_begin(void);
 extern inline void ddtrace_maybe_clear_exception(void);
 #endif
