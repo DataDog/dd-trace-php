@@ -238,6 +238,72 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('custom-resource', $traces[0][0]['resource']);
     }
 
+    public function testEnvironmentIsAddedToASpan()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV=my-env']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertSame('my-env', $traces[0][0]['meta']['env']);
+    }
+
+    public function testEnvironmentIsOptional()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertTrue(empty($traces[0][0]['meta']['env']));
+    }
+
+    public function testDDEnvHasPrecendenceOverGlobalTags()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertSame('from-env', $traces[0][0]['meta']['env']);
+    }
+
+    public function testServiceVersionIsAddedToASpan()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION=1.2.3']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertSame('1.2.3', $traces[0][0]['meta']['version']);
+    }
+
+    public function testServiceVersionIsOptional()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertTrue(empty($traces[0][0]['meta']['version']));
+    }
+
+    public function testDDVersionHasPrecendenceOverGlobalTags()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertSame('from-env', $traces[0][0]['meta']['version']);
+    }
+
     public function testServiceMappingNoEnvMapping()
     {
         $traces = $this->isolateTracer(function (Tracer $tracer) {

@@ -227,4 +227,28 @@ class Configuration extends AbstractConfiguration
         $service = $service ?: $default;
         return $service;
     }
+
+    /**
+     * The version of the application.
+     * A return value of null indicates the version is not set.
+     *
+     * @return string|null
+     */
+    public function getServiceVersion()
+    {
+        // Using the env `DD_VERSION` for consistency with other tracers.
+        return $this->stringValue('version', null);
+    }
+
+    /**
+     * The environment for the application.
+     * A return value of null indicates the env is not set.
+     *
+     * @return string|null
+     */
+    public function getEnv()
+    {
+        // Using the env `DD_ENV` for consistency with other tracers.
+        return $this->stringValue('env', null);
+    }
 }
