@@ -590,40 +590,30 @@ void _dd_set_default_properties(TSRMLS_D) {
     }
 }
 
-static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, const zend_op *opline_before_exception TSRMLS_DC) {
+static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, zend_op *opline_before_exception TSRMLS_DC) {
     zend_execute_data *call = span->call;
     ddtrace_dispatch_t *dispatch = span->dispatch;
     zval *user_args;
     ALLOC_INIT_ZVAL(user_args);
-    zval *exception = NULL, *prev_exception = NULL;
 
     dd_trace_stop_span_time(span);
 
     ddtrace_copy_function_args(call, user_args);
-    if (EG(exception)) {
-        exception = EG(exception);
-        EG(exception) = NULL;
-        prev_exception = EG(prev_exception);
-        EG(prev_exception) = NULL;
-        ddtrace_span_attach_exception(span, exception);
-        zend_clear_exception(TSRMLS_C);
-    }
+    ddtrace_span_attach_exception(span, EG(exception));
+
+    ddtrace_sandbox_backup backup = ddtrace_sandbox_begin(opline_before_exception TSRMLS_CC);
 
     BOOL_T keep_span = TRUE;
     if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
-        ddtrace_error_handling eh;
-        ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
-
         keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, call, user_args, user_retval,
-                                                    exception TSRMLS_CC);
+                                                    backup.exception TSRMLS_CC);
 
-        if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+        if (get_dd_trace_debug() && PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
             const char *fname = Z_STRVAL(dispatch->function_name);
             ddtrace_log_errf("Error raised in tracing closure for %s(): %s in %s on line %d", fname,
                              PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
         }
 
-        ddtrace_restore_error_handling(&eh TSRMLS_CC);
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (get_dd_trace_debug() && EG(exception)) {
             zval *ex = EG(exception), *message = NULL;
@@ -634,7 +624,6 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, const zend_op 
                                                                         : "(internal error reading exception message)";
             ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
         }
-        ddtrace_maybe_clear_exception(TSRMLS_C);
     }
 
     if (keep_span == TRUE) {
@@ -644,19 +633,14 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, const zend_op 
         ddtrace_drop_top_open_span(TSRMLS_C);
     }
 
-    if (exception) {
-        EG(exception) = exception;
-        EG(prev_exception) = prev_exception;
-        EG(opline_before_exception) = (zend_op *)opline_before_exception;
-        EG(current_execute_data)->opline = EG(exception_op);
-    }
+    ddtrace_sandbox_end(&backup TSRMLS_CC);
 
     zval_ptr_dtor(&user_args);
 }
 
 static void ddtrace_trace_dispatch(ddtrace_dispatch_t *dispatch, zend_function *fbc,
                                    zend_execute_data *execute_data TSRMLS_DC) {
-    const zend_op *opline = EX(opline);
+    zend_op *opline = EX(opline);
 
     zval *user_retval = NULL;
     ALLOC_INIT_ZVAL(user_retval);
@@ -839,39 +823,29 @@ static bool _dd_should_trace_dispatch(ddtrace_dispatch_t *dispatch TSRMLS_DC) {
 }
 
 static void _dd_execute_end_span(zend_execute_data *call, ddtrace_span_t *span, zval *user_retval,
-                                 const zend_op *opline_before_exception TSRMLS_DC) {
+                                 zend_op *opline_before_exception TSRMLS_DC) {
     ddtrace_dispatch_t *dispatch = span->dispatch;
     zval *user_args;
     ALLOC_INIT_ZVAL(user_args);
-    zval *exception = NULL, *prev_exception = NULL;
 
     dd_trace_stop_span_time(span);
 
     ddtrace_copy_function_args(call, user_args);
-    if (EG(exception)) {
-        exception = EG(exception);
-        EG(exception) = NULL;
-        prev_exception = EG(prev_exception);
-        EG(prev_exception) = NULL;
-        ddtrace_span_attach_exception(span, exception);
-        zend_clear_exception(TSRMLS_C);
-    }
+    ddtrace_span_attach_exception(span, EG(exception));
+
+    ddtrace_sandbox_backup backup = ddtrace_sandbox_begin(opline_before_exception TSRMLS_CC);
 
     BOOL_T keep_span = TRUE;
     if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
-        ddtrace_error_handling eh;
-        ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
-
         keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, call, user_args, user_retval,
-                                                    exception TSRMLS_CC);
+                                                    backup.exception TSRMLS_CC);
 
-        if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+        if (get_dd_trace_debug() && PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
             const char *fname = Z_STRVAL(dispatch->function_name);
             ddtrace_log_errf("Error raised in tracing closure for %s(): %s in %s on line %d", fname,
                              PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
         }
 
-        ddtrace_restore_error_handling(&eh TSRMLS_CC);
         // If the tracing closure threw an exception, ignore it to not impact the original call
         if (get_dd_trace_debug() && EG(exception)) {
             zval *ex = EG(exception), *message = NULL;
@@ -882,7 +856,6 @@ static void _dd_execute_end_span(zend_execute_data *call, ddtrace_span_t *span, 
                                                                         : "(internal error reading exception message)";
             ddtrace_log_errf("%s thrown in tracing closure for %s: %s", type, name, msg);
         }
-        ddtrace_maybe_clear_exception(TSRMLS_C);
     }
 
     if (keep_span == TRUE) {
@@ -892,12 +865,7 @@ static void _dd_execute_end_span(zend_execute_data *call, ddtrace_span_t *span, 
         ddtrace_drop_top_open_span(TSRMLS_C);
     }
 
-    if (exception) {
-        EG(exception) = exception;
-        EG(prev_exception) = prev_exception;
-        EG(opline_before_exception) = (zend_op *)opline_before_exception;
-        EG(current_execute_data)->opline = EG(exception_op);
-    }
+    ddtrace_sandbox_end(&backup TSRMLS_CC);
 
     zval_ptr_dtor(&user_args);
 }

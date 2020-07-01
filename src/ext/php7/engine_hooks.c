@@ -352,31 +352,21 @@ static zend_class_entry *_dd_get_exception_base(zval *object) {
 static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_t *span, zval *callable, zval *user_retval) {
     zend_execute_data *call = span->call;
     ddtrace_dispatch_t *dispatch = span->dispatch;
-    zend_object *exception = NULL, *prev_exception = NULL;
     zval user_args;
 
     _dd_copy_function_args(call, &user_args, dispatch->options & DDTRACE_DISPATCH_POSTHOOK);
-    if (EG(exception)) {
-        exception = EG(exception);
-        EG(exception) = NULL;
-        prev_exception = EG(prev_exception);
-        EG(prev_exception) = NULL;
-        zend_clear_exception();
-    }
+    ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
     bool keep_span = true;
-    ddtrace_error_handling eh;
-    ddtrace_backup_error_handling(&eh, EH_THROW);
 
-    keep_span = _dd_execute_tracing_closure(callable, span->span_data, call, &user_args, user_retval, exception);
+    keep_span = _dd_execute_tracing_closure(callable, span->span_data, call, &user_args, user_retval, backup.exception);
 
-    if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+    if (get_dd_trace_debug() && PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
         const char *fname = Z_STRVAL(dispatch->function_name);
         ddtrace_log_errf("Error raised in tracing closure for %s(): %s in %s on line %d", fname, PG(last_error_message),
                          PG(last_error_file), PG(last_error_lineno));
     }
 
-    ddtrace_restore_error_handling(&eh);
     // If the tracing closure threw an exception, ignore it to not impact the original call
     if (get_dd_trace_debug() && EG(exception)) {
         zend_object *ex = EG(exception);
@@ -392,16 +382,10 @@ static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_t *span, zval *calla
             zval_dtor(message);
         }
     }
-    ddtrace_maybe_clear_exception();
+
+    ddtrace_sandbox_end(&backup);
 
     zval_dtor(&user_args);
-
-    if (exception) {
-        EG(exception) = exception;
-        EG(prev_exception) = prev_exception;
-
-        zend_throw_exception_internal(NULL);
-    }
 
     return keep_span;
 }
