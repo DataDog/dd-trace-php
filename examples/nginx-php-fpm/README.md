@@ -4,9 +4,9 @@ Example of how to configure tracing with nginx and php-fpm.
 
 ## Nginx configuration
 
-Nothing specific has to change here. [default.com](default.conf) file you see in this example has no changes required specific to the tracing library.
+Nothing specific has to change here. [default.conf](default.conf) file you see in this example has no changes required specific to the tracing library.
 
-*Note*: if you come from a older version you might have used `fastcgi_param`s to configure  the tracer. This approach is now deprecated in favor of `env` directive in the fpm pool configuration. See next section.
+*Note*: if you come from an older version you might have used `fastcgi_param`s to configure  the tracer. This approach is now deprecated in favor of `env` directive in the fpm pool configuration. See next section.
 
 ## PHP-FPM configuration
 
