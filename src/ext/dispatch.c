@@ -193,7 +193,8 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
     }
 }
 
-zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string function_name, ddtrace_string callable, uint32_t options TSRMLS_DC) {
+zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string function_name, ddtrace_string callable,
+                                uint32_t options TSRMLS_DC) {
     HashTable *overridable_lookup;
     ddtrace_dispatch_t dispatch;
     memset(&dispatch, 0, sizeof(ddtrace_dispatch_t));

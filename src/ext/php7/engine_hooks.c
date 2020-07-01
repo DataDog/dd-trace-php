@@ -92,6 +92,8 @@ static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc,
         dispatch->options ^= DDTRACE_DISPATCH_DEFERED_LOADER;
 
         if (Z_TYPE(dispatch->defered_load_function_name) != IS_NULL) {
+            ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
+
             zval retval;
             if (FAILURE !=
                 call_user_function(EG(function_table), NULL, &dispatch->defered_load_function_name, &retval, 0, NULL)) {
@@ -99,6 +101,8 @@ static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc,
                 dispatch = ddtrace_find_dispatch(scope, &fname);
             }
             zval_ptr_dtor(&retval);
+
+            ddtrace_sandbox_end(&backup);
         } else {
             dispatch = NULL;
         }

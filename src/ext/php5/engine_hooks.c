@@ -604,7 +604,7 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, zend_op *oplin
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin(opline_before_exception TSRMLS_CC);
 
     BOOL_T keep_span = TRUE;
-    if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
+    if (Z_TYPE(dispatch->callable) == IS_OBJECT || Z_TYPE(dispatch->callable) == IS_STRING) {
         keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, call, user_args, user_retval,
                                                     backup.exception TSRMLS_CC);
 
@@ -836,7 +836,7 @@ static void _dd_execute_end_span(zend_execute_data *call, ddtrace_span_t *span, 
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin(opline_before_exception TSRMLS_CC);
 
     BOOL_T keep_span = TRUE;
-    if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
+    if (Z_TYPE(dispatch->callable) == IS_OBJECT || Z_TYPE(dispatch->callable) == IS_STRING) {
         keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, call, user_args, user_retval,
                                                     backup.exception TSRMLS_CC);
 
