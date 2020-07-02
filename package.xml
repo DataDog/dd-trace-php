@@ -78,7 +78,7 @@
                     <file name="span.h" role="src" />
                     <file name="version.h" role="src" />
                     <file name="compatibility.h" role="src" />
-                    <dir name="integrations" role="src">
+                    <dir name="integrations">
                         <file name="defered.c" role="src" />
                         <file name="defered.h" role="src" />
                         <file name="integrations.c" role="src" />
@@ -227,6 +227,8 @@
                         <file name="dd_trace_set_trace_id.phpt" role="test" />
                         <file name="default_span_properties.phpt" role="test" />
                         <file name="default_span_properties_method.phpt" role="test" />
+                        <file name="defered_load_using_function.phpt" role="test" />
+                        <file name="defered_load_attempt_loading_once.phpt" role="test" />
                         <file name="distributed_tracing.inc" role="test" />
                         <file name="distributed_tracing_curl.phpt" role="test" />
                         <file name="distributed_tracing_curl_copy_handle.phpt" role="test" />
@@ -271,6 +273,7 @@
                         <file name="keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
                         <file name="memory_limit_graceful_bailout.phpt" role="test" />
                         <file name="new_static.phpt" role="test" />
+                        <file name="preinitialized_tracing_of_method.phpt" role="test" />
                         <file name="return_by_ref.phpt" role="test" />
                         <file name="retval_is_null_with_exception.phpt" role="test" />
                         <file name="safe_to_string_metadata.phpt" role="test" />

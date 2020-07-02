@@ -556,7 +556,7 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, const zend_op 
     }
 
     BOOL_T keep_span = TRUE;
-    if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
+    if (Z_TYPE(dispatch->callable) == IS_OBJECT || Z_TYPE(dispatch->callable) == IS_STRING) {
         ddtrace_error_handling eh;
         ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
 
