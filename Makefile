@@ -63,7 +63,7 @@ test_c_asan: $(SO_FILE)
 	export REPORT_EXIT_STATUS=1; \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-test.xml; \
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean test  TESTS="-q --asan --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean test  TESTS="-q --asan --show-all -d ddtrace.request_init_hook=$(ROOT_DIR)/bridge/dd_wrap_autoloader.php $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
 	)
 
 test_extension_ci: $(SO_FILE)
@@ -76,7 +76,7 @@ test_extension_ci: $(SO_FILE)
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean test  TESTS="-q -m -s $$TEST_PHP_OUTPUT --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT  && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean test  TESTS="-q -m -s $$TEST_PHP_OUTPUT --show-all -d ddtrace.request_init_hook=$(ROOT_DIR)/bridge/dd_wrap_autoloader.php $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT  && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
 test_integration: install_ini
