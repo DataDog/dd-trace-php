@@ -1,5 +1,7 @@
 --TEST--
 Check if we can safely override instrumentation from within instrumentation.
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 function test($a){

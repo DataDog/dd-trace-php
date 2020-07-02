@@ -1,5 +1,7 @@
 --TEST--
 Check if we can safely override function being called deep in the call stack
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 function test($a){

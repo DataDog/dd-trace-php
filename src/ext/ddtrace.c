@@ -51,6 +51,8 @@
 bool ddtrace_blacklisted_disable_legacy;
 bool ddtrace_has_blacklisted_module;
 
+atomic_int ddtrace_warn_legacy_api;
+
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
 
 PHP_INI_BEGIN()
@@ -284,6 +286,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     // config initialization needs to be at the top
     ddtrace_initialize_config(TSRMLS_C);
     _dd_disable_if_incompatible_sapi_detected(TSRMLS_C);
+    atomic_init(&ddtrace_warn_legacy_api, 1);
 
     /* This allows an extension (e.g. extension=ddtrace.so) to have zend_engine
      * hooks too, but not loadable as zend_extension=ddtrace.so.
@@ -652,6 +655,12 @@ static BOOL_T _parse_config_array(zval *config_array, zval **tracing_closure, ui
     return TRUE;
 }
 
+static bool ddtrace_should_warn_legacy(void) {
+    int expected = 1;
+    return atomic_compare_exchange_strong(&ddtrace_warn_legacy_api, &expected, 0) &&
+           get_dd_trace_warn_legacy_dd_trace();
+}
+
 static PHP_FUNCTION(dd_trace) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *function = NULL;
@@ -680,10 +689,14 @@ static PHP_FUNCTION(dd_trace) {
 
         RETURN_BOOL(0);
     }
-    if (class_name) {
-        DD_PRINTF("Class name: %s", Z_STRVAL_P(class_name));
+
+    if (ddtrace_should_warn_legacy()) {
+        char *message =
+            "dd_trace DEPRECATION NOTICE: the function `dd_trace` is deprecated and will become a no-op in the next "
+            "release, and eventually will be removed. Please follow https://github.com/DataDog/dd-trace-php/issues/924 "
+            "for instructions to update your code; set DD_TRACE_WARN_LEGACY_DD_TRACE=0 to suppress this warning.";
+        ddtrace_log_err(message);
     }
-    DD_PRINTF("Function name: %s", Z_STRVAL_P(function));
 
     if (ddtrace_blacklisted_disable_legacy && !get_dd_trace_ignore_legacy_blacklist()) {
         ddtrace_log_debugf(

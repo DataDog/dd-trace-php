@@ -1,5 +1,7 @@
 --TEST--
 Check a function can be untraced.
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --SKIPIF--
 <?php if (PHP_MAJOR_VERSION > 5) die('skip: test requires legacy API'); ?>
 --FILE--

@@ -1,5 +1,7 @@
 --TEST--
 dd_trace can skip over the call it instruments (LEGACY BEHAVIOR -- DO NOT RELY ON)
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 

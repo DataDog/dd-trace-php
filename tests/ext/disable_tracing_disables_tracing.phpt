@@ -1,5 +1,7 @@
 --TEST--
 Disable tracing disables all tracing from happening
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 class Test {
