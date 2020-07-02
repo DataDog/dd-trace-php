@@ -24,8 +24,13 @@ void dd_integrations_initialize(TSRMLS_D) {
      * coding known integrations (and for now only the problematic ones).
      */
     _dd_register_known_calls();
-#endif
+
+    /* In PHP 5.6 currently adding defered integrations seem to trigger increase in heap
+     * size - even though the memory usage is below the limit. We still can trigger memory
+     * allocation error to be issued
+     */
 
     _dd_es_initialize_defered_integration(TSRMLS_C);
+#endif
     _dd_load_test_integrations();
 }
