@@ -32,5 +32,5 @@ void dd_integrations_initialize(TSRMLS_D) {
 
     _dd_es_initialize_defered_integration(TSRMLS_C);
 #endif
-    _dd_load_test_integrations();
+    _dd_load_test_integrations(TSRMLS_C);
 }

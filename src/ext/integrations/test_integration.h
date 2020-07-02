@@ -4,7 +4,7 @@
 
 #include "integrations.h"
 
-static inline void _dd_load_test_integrations() {
+static inline void _dd_load_test_integrations(TSRMLS_D) {
     char *test_defered = getenv("_DD_LOAD_TEST_INTEGRATIONS");
     if (!test_defered) {
         return;
