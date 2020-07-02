@@ -7,3 +7,5 @@ switch ($_SERVER['REQUEST_URI']) {
     case "/error":
         http_response_code(500);
 }
+
+echo "Done.\n";
