@@ -25,6 +25,7 @@ use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\PDO\PDOSandboxedIntegration;
+use DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Predis\PredisSandboxedIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
@@ -117,6 +118,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration';
             $this->integrations[PDOSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
+            $this->integrations[PHPRedisSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration';
             $this->integrations[PredisSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Predis\PredisSandboxedIntegration';
             $this->integrations[SlimSandboxedIntegration::NAME] =

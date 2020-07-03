@@ -86,6 +86,7 @@ void ddtrace_curl_handlers_startup(void);
 void ddtrace_memcached_handlers_startup(void);
 void ddtrace_mysqli_handlers_startup(void);
 void ddtrace_pdo_handlers_startup(void);
+void ddtrace_phpredis_handlers_startup(void);
 
 void ddtrace_mysqli_handlers_shutdown(void);
 void ddtrace_pdo_handlers_shutdown(void);
@@ -111,6 +112,7 @@ void ddtrace_internal_handlers_startup(void) {
     ddtrace_memcached_handlers_startup();
     ddtrace_mysqli_handlers_startup();
     ddtrace_pdo_handlers_startup();
+    ddtrace_phpredis_handlers_startup();
 
     // set up handlers for user-specified internal functions
     ddtrace_string traced_internal_functions = ddtrace_string_getenv(ZEND_STRL("DD_TRACE_TRACED_INTERNAL_FUNCTIONS"));
