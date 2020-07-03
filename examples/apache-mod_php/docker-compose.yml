@@ -7,7 +7,6 @@ services:
       context: .
       args:
         DD_TRACER_VERSION: 0.46.0
-        DD_AGENT_HOST: agent
     environment:
       DD_AGENT_HOST: agent
     ports:
