@@ -4,15 +4,15 @@ Example to showcase how to configure tracing with Apache and mod_php.
 
 ## Tracer installation
 
-Refer to the [Dockerfile] in this example for the one liner installation command.
+Refer to the [Dockerfile](Dockerfile) in this example for the one liner installation command.
 
 ## Configuration
 
 In Apache + mod_php applications we have two different ways to set environment variables to configure the tracer.
 
-1. Any environment variable set in the host machine is visible to the PHP process, unless you have some specific configuration. In this example the environment variable `DD_AGENT_HOST` is set at the host level in the [docker-compose.yml] file.
+1. Any environment variable set in the host machine is visible to the PHP process, unless you have some specific configuration. In this example the environment variable `DD_AGENT_HOST` is set at the host level in the [docker-compose.yml](docker-compose.yml) file.
 
-2. Apache `SetEnv` directive can be used to configure additional per-virtualhost settings. See `DD_TRACE_AGENT_PORT` configured in the [virtual-host.conf] file for this example.
+2. Apache `SetEnv` directive can be used to configure additional per-virtualhost settings. See `DD_TRACE_AGENT_PORT` configured in the [virtual-host.conf](virtual-host.conf) file for this example.
 
 ## How to run this app
 
