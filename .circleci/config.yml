@@ -1177,5 +1177,6 @@ workflows:
           requires: [ 'Prepare Code' ]
       - "Static Analysis":
           requires: [ 'Prepare Code' ]
-      - "Post-Install Hook":
-          requires: [ 'Prepare Code' ]
+      # # Removing post-install hook verification as it will be part of the regular tests execution
+      # - "Post-Install Hook":
+      #     requires: [ 'Prepare Code' ]
