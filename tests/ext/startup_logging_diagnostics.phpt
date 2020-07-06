@@ -38,6 +38,6 @@ service_name: "foo_service"
 service_name_error: "Usage of DD_SERVICE_NAME is deprecated, use DD_SERVICE instead."
 global_tags: "foo_tag"
 global_tags_error: "Usage of DD_TRACE_GLOBAL_TAGS is deprecated, use DD_TAGS instead."
-agent_url: "https://invalid_host:8126"
+agent_url: "http://invalid_host:8126"
 ddtrace.request_init_hook: "%s/includes/request_init_hook.inc"
 open_basedir_configured: true

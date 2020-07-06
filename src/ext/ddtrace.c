@@ -500,9 +500,7 @@ static void _dd_info_diagnostics_table(TSRMLS_D) {
     }
 #endif
 
-    if (zend_hash_num_elements(ht) == 0) {
-        php_info_print_table_row(2, "All diagnostic checks", "passed");
-    }
+    php_info_print_table_row(2, "Diagnostic checks", zend_hash_num_elements(ht) == 0 ? "passed" : "failed");
 
     zend_hash_destroy(ht);
     FREE_HASHTABLE(ht);

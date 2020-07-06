@@ -86,7 +86,7 @@ static bool _dd_parse_bool(const char *name, size_t name_len) {
 
 static void _dd_get_agent_url(char *buf) {
     char *host = get_dd_agent_host();
-    sprintf(buf, "https://%s:%d", host, (int)get_dd_trace_agent_port());
+    sprintf(buf, "http://%s:%d", host, (int)get_dd_trace_agent_port());
     free(host);
 }
 
