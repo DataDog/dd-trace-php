@@ -120,10 +120,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Predis\PredisSandboxedIntegration';
             $this->integrations[SlimSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Slim\SlimSandboxedIntegration';
-            if (\PHP_MAJOR_VERSION > 5) {
-                $this->integrations[SymfonySandboxedIntegration::NAME] =
-                    '\DDTrace\Integrations\Symfony\SymfonySandboxedIntegration';
-            }
+            $this->integrations[SymfonySandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\Symfony\SymfonySandboxedIntegration';
             $this->integrations[WordPressSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\WordPress\WordPressSandboxedIntegration';
             $this->integrations[YiiSandboxedIntegration::NAME] =
