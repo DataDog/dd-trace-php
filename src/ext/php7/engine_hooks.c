@@ -87,16 +87,16 @@ static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc,
     zend_class_entry *scope = this ? Z_OBJCE_P(this) : fbc->common.scope;
 
     ddtrace_dispatch_t *dispatch = ddtrace_find_dispatch(scope, &fname);
-    if (dispatch != NULL && dispatch->options & DDTRACE_DISPATCH_DEFERED_LOADER) {
+    if (dispatch != NULL && dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER) {
         // don't execute in the future
-        dispatch->options ^= DDTRACE_DISPATCH_DEFERED_LOADER;
+        dispatch->options ^= DDTRACE_DISPATCH_DEFERRED_LOADER;
 
-        if (Z_TYPE(dispatch->defered_load_function_name) != IS_NULL) {
+        if (Z_TYPE(dispatch->deferred_load_function_name) != IS_NULL) {
             ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
             zval retval;
             if (FAILURE !=
-                call_user_function(EG(function_table), NULL, &dispatch->defered_load_function_name, &retval, 0, NULL)) {
+                call_user_function(EG(function_table), NULL, &dispatch->deferred_load_function_name, &retval, 0, NULL)) {
                 // attempt to load newly set dispatch fo function
                 dispatch = ddtrace_find_dispatch(scope, &fname);
             }

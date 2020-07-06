@@ -121,6 +121,9 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE([$ext_srcdir/src/ext/mpack])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/mpack])
 
+  PHP_ADD_INCLUDE([$ext_srcdir/src/ext/integrations])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/integrations])
+
   PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
 

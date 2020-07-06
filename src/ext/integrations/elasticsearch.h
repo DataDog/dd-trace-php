@@ -4,9 +4,9 @@
 #include "integrations.h"
 
 #define _DD_AL_ES(class, method) \
-    DDTRACE_DEFERED_INTEGRATION_LOADER(class, method, "DDTrace\\Integrations\\ElasticSearch\\V1\\load")
+    DDTRACE_DEFERRED_INTEGRATION_LOADER(class, method, "DDTrace\\Integrations\\ElasticSearch\\V1\\load")
 
-static inline void _dd_es_initialize_defered_integration(TSRMLS_D) {
+static inline void _dd_es_initialize_deferred_integration(TSRMLS_D) {
     if (!ddtrace_config_integration_enabled(DDTRACE_STRING_LITERAL("elasticsearch") TSRMLS_CC)) {
         return;
     }

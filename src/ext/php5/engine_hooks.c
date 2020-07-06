@@ -180,8 +180,8 @@ static BOOL_T _dd_should_trace_call(zend_execute_data *execute_data, zend_functi
 
     ddtrace_dispatch_t *dispatch = ddtrace_find_dispatch(scope, fname TSRMLS_CC);
 
-    if (dispatch != NULL && dispatch->options & DDTRACE_DISPATCH_DEFERED_LOADER) {
-        // TODO: implement defered loader once logacy fcall handlers are not used in 5.x
+    if (dispatch != NULL && dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER) {
+        // TODO: implement deferred loader once logacy fcall handlers are not used in 5.x
         dispatch = NULL;
     }
     if (!dispatch || dispatch->busy) {

@@ -13,7 +13,7 @@
 #define DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED (1u << 1u)
 #define DDTRACE_DISPATCH_POSTHOOK (1u << 2u)
 #define DDTRACE_DISPATCH_PREHOOK (1u << 3u)
-#define DDTRACE_DISPATCH_DEFERED_LOADER (1u << 4u)
+#define DDTRACE_DISPATCH_DEFERRED_LOADER (1u << 4u)
 
 typedef struct ddtrace_dispatch_t {
     uint16_t options;
@@ -21,7 +21,7 @@ typedef struct ddtrace_dispatch_t {
     uint32_t acquired;
     union {
         zval callable;  // legacy
-        zval defered_load_function_name;
+        zval deferred_load_function_name;
         zval prehook;
         zval posthook;
     };

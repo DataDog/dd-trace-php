@@ -79,8 +79,8 @@
                     <file name="version.h" role="src" />
                     <file name="compatibility.h" role="src" />
                     <dir name="integrations">
-                        <file name="defered.c" role="src" />
-                        <file name="defered.h" role="src" />
+                        <file name="deferred.c" role="src" />
+                        <file name="deferred.h" role="src" />
                         <file name="integrations.c" role="src" />
                         <file name="integrations.h" role="src" />
                         <file name="elasticsearch.h" role="src" />
@@ -227,8 +227,8 @@
                         <file name="dd_trace_set_trace_id.phpt" role="test" />
                         <file name="default_span_properties.phpt" role="test" />
                         <file name="default_span_properties_method.phpt" role="test" />
-                        <file name="defered_load_using_function.phpt" role="test" />
-                        <file name="defered_load_attempt_loading_once.phpt" role="test" />
+                        <file name="deferred_load_using_function.phpt" role="test" />
+                        <file name="deferred_load_attempt_loading_once.phpt" role="test" />
                         <file name="distributed_tracing.inc" role="test" />
                         <file name="distributed_tracing_curl.phpt" role="test" />
                         <file name="distributed_tracing_curl_copy_handle.phpt" role="test" />
