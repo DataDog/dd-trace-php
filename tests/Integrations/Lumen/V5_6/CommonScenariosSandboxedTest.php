@@ -51,6 +51,13 @@ class CommonScenariosSandboxedTest extends V5_2_CommonScenariosSandboxedTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'Laravel\Lumen\Application.handleFoundRoute',
+                            'lumen_test_app',
+                            'web',
+                            'Laravel\Lumen\Application.handleFoundRoute'
+                        )
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -66,17 +73,24 @@ class CommonScenariosSandboxedTest extends V5_2_CommonScenariosSandboxedTest
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::build(
-                            'laravel.view.render',
+                            'Laravel\Lumen\Application.handleFoundRoute',
                             'lumen_test_app',
                             'web',
-                            'simple_view'
-                        )->withExactTags([])->withChildren([
+                            'Laravel\Lumen\Application.handleFoundRoute'
+                        )->withChildren([
                             SpanAssertion::build(
-                                'lumen.view',
+                                'laravel.view.render',
                                 'lumen_test_app',
                                 'web',
-                                '*/resources/views/simple_view.blade.php'
-                            )->withExactTags([]),
+                                'simple_view'
+                            )->withExactTags([])->withChildren([
+                                SpanAssertion::build(
+                                    'lumen.view',
+                                    'lumen_test_app',
+                                    'web',
+                                    '*/resources/views/simple_view.blade.php'
+                                )->withExactTags([]),
+                            ]),
                         ]),
                     ]),
                 ],
@@ -93,7 +107,23 @@ class CommonScenariosSandboxedTest extends V5_2_CommonScenariosSandboxedTest
                         'http.status_code' => '500',
                     ])->withExistingTagsNames([
                         'error.stack',
-                    ])->setError('Exception', 'Controller error'),
+                    ])->setError('Exception', 'Controller error')
+                    ->withChildren([
+                        SpanAssertion::build(
+                            'Laravel\Lumen\Application.handleFoundRoute',
+                            'lumen_test_app',
+                            'web',
+                            'Laravel\Lumen\Application.handleFoundRoute'
+                        )->withExistingTagsNames([
+                            'error.stack',
+                        ])->setError('Exception', 'Controller error'),
+                        SpanAssertion::build(
+                            'Laravel\Lumen\Application.sendExceptionToHandler',
+                            'lumen_test_app',
+                            'web',
+                            'Laravel\Lumen\Application.sendExceptionToHandler'
+                        ),
+                    ]),
                 ],
             ]
         );
