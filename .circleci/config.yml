@@ -1180,3 +1180,18 @@ workflows:
             - "Compile PHP 72-zts"
             - "Compile PHP 73-zts"
             - "Compile PHP 74-zts"
+      - unit_tests:
+          requires: [ "package extension" ]
+          name: "PHP 71 Unit tests"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      # - opcache_tests:
+      #     requires: [ 'Prepare Code' ]
+      #     name: "PHP 71 opcache tests"
+      #     docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
+      # - xdebug_tests:
+      #     requires: [ 'Prepare Code' ]
+      #     name: "PHP 71 Xdebug tests"
+      #     docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
+      #     xdebug_version_one: "2.9.2"
+      #     xdebug_version_two: "2.9.5"
