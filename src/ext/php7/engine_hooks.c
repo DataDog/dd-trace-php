@@ -95,8 +95,8 @@ static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc,
             ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
             zval retval;
-            if (FAILURE !=
-                call_user_function(EG(function_table), NULL, &dispatch->deferred_load_function_name, &retval, 0, NULL)) {
+            if (FAILURE != call_user_function(EG(function_table), NULL, &dispatch->deferred_load_function_name, &retval,
+                                              0, NULL)) {
                 // attempt to load newly set dispatch fo function
                 dispatch = ddtrace_find_dispatch(scope, &fname);
             }
