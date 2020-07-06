@@ -321,7 +321,11 @@ class CurlIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        $this->assertTrue(function_exists('DDTrace\\Bridge\\curl_inject_distributed_headers'));
+        $this->assertEquals(
+            PHP_MAJOR_VERSION === 5,
+            function_exists('DDTrace\\Bridge\\curl_inject_distributed_headers')
+        );
+
         // trace is: custom
         $this->assertSame($traces[0][0]['trace_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec
