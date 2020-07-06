@@ -1084,10 +1084,9 @@ workflows:
           requires: [ 'Prepare Code' ]
       - "Static Analysis":
           requires: [ 'Prepare Code' ]
-      - "Validate Commit":
-          requires:
-            - "Lint files"
-            - "Static Analysis"
+      - placeholder:
+          requires: [ "Lint files", "Static Analysis" ]
+          name: "Validate Commit"
       - compile_extension:
           name: "Compile PHP 54"
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
