@@ -6,6 +6,9 @@
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_extensions.h>
+#if PHP_VERSION_ID >= 70000
+#include <Zend/zend_smart_str.h>
+#endif
 #include <Zend/zend_vm.h>
 #include <inttypes.h>
 #include <php.h>
@@ -14,6 +17,9 @@
 
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
+#if PHP_VERSION_ID < 70000
+#include <ext/standard/php_smart_str.h>
+#endif
 
 #include "arrays.h"
 #include "auto_flush.h"
@@ -40,6 +46,7 @@
 #include "serializer.h"
 #include "signals.h"
 #include "span.h"
+#include "startup_logging.h"
 
 bool ddtrace_blacklisted_disable_legacy;
 bool ddtrace_has_blacklisted_module;
@@ -64,6 +71,7 @@ static int ddtrace_startup(struct _zend_extension *extension) {
 
     ddtrace_blacklist_startup();
     ddtrace_internal_handlers_startup();
+    ddtrace_startup_logging_startup();
     return SUCCESS;
 }
 
@@ -157,6 +165,9 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_init, 0, 0, 1)
 ZEND_ARG_INFO(0, dir)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
@@ -405,6 +416,98 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
 
 static int datadog_info_print(const char *str TSRMLS_DC) { return php_output_write(str, strlen(str) TSRMLS_CC); }
 
+static void _dd_info_tracer_config(void) {
+    smart_str buf = {0};
+    ddtrace_startup_logging_json(&buf);
+#if PHP_VERSION_ID >= 70000
+    php_info_print_table_row(2, "DATADOG TRACER CONFIGURATION", ZSTR_VAL(buf.s));
+#else
+    php_info_print_table_row(2, "DATADOG TRACER CONFIGURATION", buf.c);
+#endif
+    smart_str_free(&buf);
+}
+
+static void _dd_info_diagnostics_row(const char *key, const char *value TSRMLS_DC) {
+    if (sapi_module.phpinfo_as_text) {
+        php_info_print_table_row(2, key, value);
+        return;
+    }
+    datadog_info_print("<tr><td class='e'>" TSRMLS_CC);
+    datadog_info_print(key TSRMLS_CC);
+    datadog_info_print("</td><td class='v' style='background-color:#f0e881;'>" TSRMLS_CC);
+    datadog_info_print(value TSRMLS_CC);
+    datadog_info_print("</td></tr>" TSRMLS_CC);
+}
+
+static void _dd_info_diagnostics_table(TSRMLS_D) {
+    php_info_print_table_start();
+    php_info_print_table_colspan_header(2, "Diagnostics");
+
+    HashTable *ht;
+    ALLOC_HASHTABLE(ht);
+    zend_hash_init(ht, 8, NULL, ZVAL_PTR_DTOR, 0);
+
+    ddtrace_startup_diagnostics(ht);
+
+#if PHP_VERSION_ID >= 70000
+    zend_string *key;
+    zval *val;
+    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, key, val) {
+        switch (Z_TYPE_P(val)) {
+            case IS_STRING:
+                _dd_info_diagnostics_row(ZSTR_VAL(key), Z_STRVAL_P(val) TSRMLS_CC);
+                break;
+            case IS_NULL:
+                _dd_info_diagnostics_row(ZSTR_VAL(key), "NULL" TSRMLS_CC);
+                break;
+            case IS_TRUE:
+            case IS_FALSE:
+                _dd_info_diagnostics_row(ZSTR_VAL(key), Z_TYPE_P(val) == IS_TRUE ? "true" : "false" TSRMLS_CC);
+                break;
+            default:
+                _dd_info_diagnostics_row(ZSTR_VAL(key), "{unknown type}" TSRMLS_CC);
+                break;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+#else
+    int key_type;
+    zval **val;
+    HashPosition pos;
+    char *key;
+    uint key_len;
+    ulong num_key;
+    zend_hash_internal_pointer_reset_ex(ht, &pos);
+    while (zend_hash_get_current_data_ex(ht, (void **)&val, &pos) == SUCCESS) {
+        key_type = zend_hash_get_current_key_ex(ht, &key, &key_len, &num_key, 0, &pos);
+        if (key_type == HASH_KEY_IS_STRING) {
+            switch (Z_TYPE_PP(val)) {
+                case IS_STRING:
+                    _dd_info_diagnostics_row(key, Z_STRVAL_PP(val) TSRMLS_CC);
+                    break;
+                case IS_NULL:
+                    _dd_info_diagnostics_row(key, "NULL" TSRMLS_CC);
+                    break;
+                case IS_BOOL:
+                    _dd_info_diagnostics_row(key, Z_BVAL_PP(val) ? "true" : "false" TSRMLS_CC);
+                    break;
+                default:
+                    _dd_info_diagnostics_row(key, "{unknown type}" TSRMLS_CC);
+                    break;
+            }
+        }
+        zend_hash_move_forward_ex(ht, &pos);
+    }
+#endif
+
+    php_info_print_table_row(2, "Diagnostic checks", zend_hash_num_elements(ht) == 0 ? "passed" : "failed");
+
+    zend_hash_destroy(ht);
+    FREE_HASHTABLE(ht);
+
+    php_info_print_table_end();
+}
+
 static PHP_MINFO_FUNCTION(ddtrace) {
     UNUSED(zend_module);
 
@@ -421,13 +524,16 @@ static PHP_MINFO_FUNCTION(ddtrace) {
             "https://docs.datadoghq.com/tracing/languages/php/" TSRMLS_CC);
     }
     datadog_info_print(!sapi_module.phpinfo_as_text ? "<br><br>" : "\n" TSRMLS_CC);
-    datadog_info_print("(c) Datadog 2019\n" TSRMLS_CC);
+    datadog_info_print("(c) Datadog 2020\n" TSRMLS_CC);
     php_info_print_box_end();
 
     php_info_print_table_start();
     php_info_print_table_row(2, "Datadog tracing support", DDTRACE_G(disable) ? "disabled" : "enabled");
     php_info_print_table_row(2, "Version", PHP_DDTRACE_VERSION);
+    _dd_info_tracer_config();
     php_info_print_table_end();
+
+    _dd_info_diagnostics_table(TSRMLS_C);
 
     DISPLAY_INI_ENTRIES();
 }
@@ -1248,6 +1354,20 @@ static PHP_FUNCTION(dd_trace_compile_time_microseconds) {
     RETURN_LONG(ddtrace_compile_time_get(TSRMLS_C));
 }
 
+static PHP_FUNCTION(startup_logs) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+
+    smart_str buf = {0};
+    ddtrace_startup_logging_json(&buf);
+#if PHP_VERSION_ID >= 70000
+    ZVAL_NEW_STR(return_value, buf.s);
+#else
+    ZVAL_STRINGL(return_value, buf.c, buf.len, 1);
+    smart_str_free(&buf);
+#endif
+}
+
 static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace, NULL),
     DDTRACE_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span),
@@ -1287,6 +1407,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_NS_FE(trace_method, arginfo_ddtrace_trace_method),
     DDTRACE_FALIAS(dd_trace_method, trace_method, arginfo_ddtrace_trace_method),
 #endif
+    DDTRACE_NS_FE(startup_logs, arginfo_ddtrace_void),
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,
