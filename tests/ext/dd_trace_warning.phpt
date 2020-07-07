@@ -2,6 +2,8 @@
 Warn on dd_trace usage only once
 --ENV--
 DD_TRACE_WARN_LEGACY_DD_TRACE=1
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 50500) die("skip: the warning is different on PHP 5.4"); ?>
 --FILE--
 <?php
 dd_trace('dd_trace_noop', function () {});

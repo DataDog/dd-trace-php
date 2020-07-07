@@ -691,6 +691,12 @@ static PHP_FUNCTION(dd_trace) {
     }
 
     if (ddtrace_should_warn_legacy()) {
+#if PHP_VERSION_ID < 50500
+        char *message =
+            "dd_trace DEPRECATION NOTICE: the function `dd_trace` is deprecated and will become a no-op in the next "
+            "release, and eventually will be removed. Set DD_TRACE_WARN_LEGACY_DD_TRACE=0 to suppress this warning.";
+        ddtrace_log_err(message);
+#else
         char *message =
             "dd_trace DEPRECATION NOTICE: the function `dd_trace` (target: %s%s%s) is deprecated and will become a "
             "no-op in the next release, and eventually will be removed. Please follow "
@@ -698,6 +704,7 @@ static PHP_FUNCTION(dd_trace) {
             "DD_TRACE_WARN_LEGACY_DD_TRACE=0 to suppress this warning.";
         ddtrace_log_errf(message, class_name ? Z_STRVAL_P(class_name) : "", class_name ? "::" : "",
                          Z_STRVAL_P(function));
+#endif
     }
 
     if (ddtrace_blacklisted_disable_legacy && !get_dd_trace_ignore_legacy_blacklist()) {
