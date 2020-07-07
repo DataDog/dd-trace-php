@@ -1,5 +1,7 @@
 --TEST--
 Check that a method and a function can be traced before it exists.
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 

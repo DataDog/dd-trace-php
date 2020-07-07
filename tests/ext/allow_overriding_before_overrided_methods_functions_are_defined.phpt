@@ -1,5 +1,7 @@
 --TEST--
 Override function/method before its defined
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 dd_trace("Test", "m", function() {
