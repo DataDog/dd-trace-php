@@ -33,7 +33,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         $integration = $this;
 
         $traceConnectOpen = function (SpanData $span, $args) {
-            PHPRedisSandboxedIntegration::setBasicTags($span);
+            PHPRedisSandboxedIntegration::enrichSpan($span);
             $span->meta[Tag::TARGET_HOST] = (isset($args[0]) && \is_string($args[0])) ? $args[0] : '127.0.0.1';
             $span->meta[Tag::TARGET_PORT] = (isset($args[1]) && \is_numeric($args[1])) ? $args[1] : 6379;
         };
@@ -42,53 +42,62 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         \DDTrace\trace_method('Redis', 'open', $traceConnectOpen);
         \DDTrace\trace_method('Redis', 'popen', $traceConnectOpen);
 
-        $simpleTracing = function (SpanData $span, $args) {
-            PHPRedisSandboxedIntegration::setBasicTags($span);
-        };
-        \DDTrace\trace_method('Redis', 'close', $simpleTracing);
-        \DDTrace\trace_method('Redis', 'auth', $simpleTracing);
-        \DDTrace\trace_method('Redis', 'ping', $simpleTracing);
-        \DDTrace\trace_method('Redis', 'echo', $simpleTracing);
-        \DDTrace\trace_method('Redis', 'bgRewriteAOF', $simpleTracing);
-        \DDTrace\trace_method('Redis', 'bgSave', $simpleTracing);
-        \DDTrace\trace_method('Redis', 'flushAll', $simpleTracing);
-        \DDTrace\trace_method('Redis', 'flushDb', $simpleTracing);
-        \DDTrace\trace_method('Redis', 'save', $simpleTracing);
+        self::obfuscableSimpleMethod('close');
+        self::obfuscableSimpleMethod('auth');
+        self::obfuscableSimpleMethod('ping');
+        self::obfuscableSimpleMethod('echo');
+        self::obfuscableSimpleMethod('bgRewriteAOF');
+        self::obfuscableSimpleMethod('bgSave');
+        self::obfuscableSimpleMethod('flushAll');
+        self::obfuscableSimpleMethod('flushDb');
+        self::obfuscableSimpleMethod('save');
 
         \DDTrace\trace_method('Redis', 'select', function (SpanData $span, $args) {
-            PHPRedisSandboxedIntegration::setBasicTags($span);
+            PHPRedisSandboxedIntegration::enrichSpan($span);
             if (isset($args[0]) && \is_numeric($args[0])) {
                 $span->meta['db.index'] = $args[0];
             }
         });
 
         // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
-        \DDTrace\trace_method('Redis', 'append', self::obfuscableKeyValueCallback('append'));
-        \DDTrace\trace_method('Redis', 'decr', self::obfuscableKeyValueCallback('decr'));
-        \DDTrace\trace_method('Redis', 'decrBy', self::obfuscableKeyValueCallback('decrBy'));
-        \DDTrace\trace_method('Redis', 'get', self::obfuscableKeyValueCallback('get'));
-        \DDTrace\trace_method('Redis', 'getBit', self::obfuscableKeyValueCallback('getBit'));
-        \DDTrace\trace_method('Redis', 'getRange', self::obfuscableKeyValueCallback('getRange'));
-        \DDTrace\trace_method('Redis', 'getSet', self::obfuscableKeyValueCallback('getSet'));
-        \DDTrace\trace_method('Redis', 'incr', self::obfuscableKeyValueCallback('decr'));
-        \DDTrace\trace_method('Redis', 'incrBy', self::obfuscableKeyValueCallback('incrBy'));
-        \DDTrace\trace_method('Redis', 'incrByFloat', self::obfuscableKeyValueCallback('incrByFloat'));
+        self::obfuscableKeyValuesMethod('append');
+        self::obfuscableKeyValuesMethod('decr');
+        self::obfuscableKeyValuesMethod('decrBy');
+        self::obfuscableKeyValuesMethod('get');
+        self::obfuscableKeyValuesMethod('getBit');
+        self::obfuscableKeyValuesMethod('getRange');
+        self::obfuscableKeyValuesMethod('getSet');
+        self::obfuscableKeyValuesMethod('incr');
+        self::obfuscableKeyValuesMethod('incrBy');
+        self::obfuscableKeyValuesMethod('incrByFloat');
 
         return SandboxedIntegration::LOADED;
     }
 
-    public static function setBasicTags(SpanData $span)
+    public static function enrichSpan(SpanData $span, $method = null)
     {
         $span->service = 'phpredis';
         $span->type = Type::CACHE;
+        if (null !== $method) {
+            // method names for internal functions are lowered so we need to explitly set them if we want to have the
+            // proper case.
+            $span->name = $span->resource = "Redis.$method";
+        }
     }
 
-    public static function obfuscableKeyValueCallback($method)
+    public static function obfuscableSimpleMethod($method)
     {
-        return function (SpanData $span, $args) use ($method) {
-            PHPRedisSandboxedIntegration::setBasicTags($span);
+        \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
+            PHPRedisSandboxedIntegration::enrichSpan($span, $method);
+        });
+    }
+
+    public static function obfuscableKeyValuesMethod($method)
+    {
+        \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
+            PHPRedisSandboxedIntegration::enrichSpan($span, $method);
             $span->meta[Tag::REDIS_RAW_COMMAND] = PHPRedisSandboxedIntegration::obfuscateArgs($method, $args);
-        };
+        });
     }
 
     public static function obfuscateArgs($command, $args)

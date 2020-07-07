@@ -17,10 +17,27 @@ class PHPRedisTest extends IntegrationTestCase
     private $host = 'redis_integration';
     private $port = '6379';
 
+    /** Redis */
+    private $client;
+
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
         IntegrationsLoader::load();
+    }
+
+    public function setUp()
+    {
+        parent::setUp();
+        $this->redis = new \Redis();
+        $this->redis->connect($this->host);
+    }
+
+    public function tearDown()
+    {
+        $this->redis->flushAll();
+        $this->redis->close();
+        parent::tearDown();
     }
 
     /**
@@ -29,9 +46,8 @@ class PHPRedisTest extends IntegrationTestCase
     public function testConnectionOk($method)
     {
         $redis = new \Redis();
-        $host = $this->host;
-        $traces = $this->isolateTracer(function () use ($redis, $method, $host) {
-            $redis->$method($host);
+        $traces = $this->isolateTracer(function () use ($redis, $method) {
+            $redis->$method($this->host);
         });
         $redis->close();
 
@@ -112,17 +128,33 @@ class PHPRedisTest extends IntegrationTestCase
         ];
     }
 
+    public function testClose()
+    {
+        $redis = new \Redis();
+        $redis->connect($this->host);
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.close",
+                'phpredis',
+                'cache',
+                "Redis.close"
+            ),
+        ]);
+    }
+
     /**
      * @dataProvider dataProviderTestMethodsSimpleSpan
      */
     public function testMethodsOnlySpan($method, $arg)
     {
-        $redis = new \Redis();
-        $redis->connect($this->host);
+        $redis = $this->redis;
         $traces = $this->isolateTracer(function () use ($redis, $method, $arg) {
             null === $arg ? $redis->$method() : $redis->$method($arg);
         });
-        $redis->close();
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
@@ -137,27 +169,23 @@ class PHPRedisTest extends IntegrationTestCase
     public function dataProviderTestMethodsSimpleSpan()
     {
         return [
-            'close' => ['close', null],
             'auth' => ['auth', 'user'],
             'ping' => ['ping', null],
             'echo' => ['echo', 'hey'],
             'save' => ['save', null],
-            // These do not work: callback is invoked but Span is empty and not sent.
-            // 'bgRewriteAOF' => ['bgRewriteAOF', null],
-            // 'bgSave' => ['bgSave', null],
-            // 'flushAll' => ['flushAll', null],
-            // 'flushDb' => ['flushDb', null],
+            'bgRewriteAOF' => ['bgRewriteAOF', null],
+            'bgSave' => ['bgSave', null],
+            'flushAll' => ['flushAll', null],
+            'flushDb' => ['flushDb', null],
         ];
     }
 
     public function testSelect()
     {
-        $redis = new \Redis();
-        $redis->connect($this->host);
+        $redis = $this->redis;
         $traces = $this->isolateTracer(function () use ($redis) {
             $redis->select(1);
         });
-        $redis->close();
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
@@ -170,19 +198,25 @@ class PHPRedisTest extends IntegrationTestCase
     }
 
     /**
-     * @dataProvider dataProviderTestStringCommand
+     * @dataProvider dataProviderTestStringCommandSet
      */
-    public function testStringCommand($method, $args)
+    public function testStringCommandsSet($method, $args, $expected, $rawCommand, $initial = null)
     {
-        $redis = new \Redis();
-        $redis->connect($this->host);
+        $redis = $this->redis;
+
+        if (null !== $initial) {
+            $redis->set($args[0], $initial);
+        }
+
         $traces = $this->isolateTracer(function () use ($redis, $method, $args) {
             if (count($args) === 1) {
                 $redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $redis->$method($args[0], $args[1]);
             } else {
+                throw new \Exception('Number of arguments not supported: ' . \count($args));
             }
         });
-        $redis->close();
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
@@ -190,14 +224,141 @@ class PHPRedisTest extends IntegrationTestCase
                 'phpredis',
                 'cache',
                 "Redis.$method"
-            ),
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
+
+        $this->assertSame($expected, $redis->get($args[0]));
     }
 
-    public function dataProviderTestStringCommand()
+    public function dataProviderTestStringCommandSet()
     {
         return [
-            'append' => ['append', ['k1', 'v1']],
+            [
+                'append', // method
+                [ 'k1' , 'v1' ], // arguments
+                'v1', // expected final value
+                'append k1 v1', // raw command
+            ],
+            [
+                'append', // method
+                [ 'k1' , 'v1' ], // arguments
+                'beforev1', // expected final value
+                'append k1 v1', // raw command
+                'before', // initial
+            ],
+            [
+                'decr', // method
+                [ 'k1' ], // arguments
+                '-1', // expected final value
+                'decr k1', // raw command
+            ],
+            [
+                'decr', // method
+                [ 'k1', '10' ], // arguments
+                '-10', // expected final value
+                'decr k1 10', // raw command
+            ],
+            [
+                'decrBy', // method
+                [ 'k1', '10' ], // arguments
+                '-10', // expected final value
+                'decrBy k1 10', // raw command
+            ],
+            [
+                'incr', // method
+                [ 'k1' ], // arguments
+                '1', // expected final value
+                'incr k1', // raw command
+            ],
+            [
+                'incr', // method
+                [ 'k1', '10' ], // arguments
+                '10', // expected final value
+                'incr k1 10', // raw command
+            ],
+            [
+                'incrBy', // method
+                [ 'k1', '10' ], // arguments
+                '10', // expected final value
+                'incrBy k1 10', // raw command
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider dataProviderTestStringCommandGet
+     */
+    public function testStringCommandsGet($method, $args, $expected, $rawCommand, $initial = null)
+    {
+        $redis = $this->redis;
+
+        if (null !== $initial) {
+            $redis->set($args[0], $initial);
+        }
+
+        $result = null;
+
+        $traces = $this->isolateTracer(function () use ($redis, $method, $args, &$result) {
+            if (count($args) === 1) {
+                $result = $redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $result = $redis->$method($args[0], $args[1]);
+            } elseif (count($args) === 3) {
+                $result = $redis->$method($args[0], $args[1], $args[2]);
+            } else {
+                throw new \Exception('Number of arguments not supported: ' . \count($args));
+            }
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.$method",
+                'phpredis',
+                'cache',
+                "Redis.$method"
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
+        ]);
+
+        $this->assertSame($expected, $result);
+    }
+
+    public function dataProviderTestStringCommandGet()
+    {
+        return [
+            [
+                'get', // method
+                [ 'k1' ], // arguments
+                false, // expected final value
+                'get k1', // raw command
+            ],
+            [
+                'get', // method
+                [ 'k1' ], // arguments
+                'v1', // expected final value
+                'get k1', // raw command
+                'v1', // initial
+            ],
+            [
+                'getBit', // method
+                [ 'k1', 1 ], // arguments
+                1, // expected final value
+                'getBit k1 1', // raw command
+                '\x7f', // initial
+            ],
+            [
+                'getRange', // method
+                [ 'k1', 1, 3], // arguments
+                'bcd', // expected final value
+                'getRange k1 1 3', // raw command
+                'abcdef', // initial
+            ],
+            [
+                'getSet', // method
+                [ 'k1', 'v1'], // arguments
+                'old', // expected final value
+                'getSet k1 v1', // raw command
+                'old', // initial
+            ],
         ];
     }
 }

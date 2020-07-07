@@ -4,13 +4,13 @@ void ddtrace_phpredis_handlers_startup(void) {
     // clang-format off
     ddtrace_string methods[] = {
         DDTRACE_STRING_LITERAL("auth"),
-        DDTRACE_STRING_LITERAL("bgRewriteAOF"),
-        DDTRACE_STRING_LITERAL("bgSave"),
+        DDTRACE_STRING_LITERAL("bgrewriteaof"),
+        DDTRACE_STRING_LITERAL("bgsave"),
         DDTRACE_STRING_LITERAL("close"),
         DDTRACE_STRING_LITERAL("connect"),
         DDTRACE_STRING_LITERAL("echo"),
-        DDTRACE_STRING_LITERAL("flushAll"),
-        DDTRACE_STRING_LITERAL("flushDb"),
+        DDTRACE_STRING_LITERAL("flushall"),
+        DDTRACE_STRING_LITERAL("flushdb"),
         DDTRACE_STRING_LITERAL("open"),
         DDTRACE_STRING_LITERAL("pconnect"),
         DDTRACE_STRING_LITERAL("ping"),
@@ -20,14 +20,14 @@ void ddtrace_phpredis_handlers_startup(void) {
 
         DDTRACE_STRING_LITERAL("append"),
         DDTRACE_STRING_LITERAL("decr"),
-        DDTRACE_STRING_LITERAL("decrBy"),
+        DDTRACE_STRING_LITERAL("decrby"),
         DDTRACE_STRING_LITERAL("get"),
-        DDTRACE_STRING_LITERAL("getBit"),
-        DDTRACE_STRING_LITERAL("getRange"),
-        DDTRACE_STRING_LITERAL("getSet"),
+        DDTRACE_STRING_LITERAL("getbit"),
+        DDTRACE_STRING_LITERAL("getrange"),
+        DDTRACE_STRING_LITERAL("getset"),
         DDTRACE_STRING_LITERAL("incr"),
-        DDTRACE_STRING_LITERAL("incrBy"),
-        DDTRACE_STRING_LITERAL("incrByFloat"),
+        DDTRACE_STRING_LITERAL("incrby"),
+        DDTRACE_STRING_LITERAL("incrbyfloat"),
     };
     // clang-format on
 
