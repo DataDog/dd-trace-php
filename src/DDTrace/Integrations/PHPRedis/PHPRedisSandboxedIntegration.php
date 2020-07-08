@@ -70,6 +70,13 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::obfuscableKeyValuesMethod('incr');
         self::obfuscableKeyValuesMethod('incrBy');
         self::obfuscableKeyValuesMethod('incrByFloat');
+        self::obfuscableKeyValuesMethod('set');
+        self::obfuscableKeyValuesMethod('setBit');
+        self::obfuscableKeyValuesMethod('setEx');
+        self::obfuscableKeyValuesMethod('pSetEx');
+        self::obfuscableKeyValuesMethod('setNx');
+        self::obfuscableKeyValuesMethod('setRange');
+        self::obfuscableKeyValuesMethod('strLen');
 
         return SandboxedIntegration::LOADED;
     }

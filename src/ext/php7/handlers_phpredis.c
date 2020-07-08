@@ -28,6 +28,13 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("incr"),
         DDTRACE_STRING_LITERAL("incrby"),
         DDTRACE_STRING_LITERAL("incrbyfloat"),
+        DDTRACE_STRING_LITERAL("set"),
+        DDTRACE_STRING_LITERAL("setbit"),
+        DDTRACE_STRING_LITERAL("setex"),
+        DDTRACE_STRING_LITERAL("psetex"),
+        DDTRACE_STRING_LITERAL("setnx"),
+        DDTRACE_STRING_LITERAL("setrange"),
+        DDTRACE_STRING_LITERAL("strlen"),
     };
     // clang-format on
 

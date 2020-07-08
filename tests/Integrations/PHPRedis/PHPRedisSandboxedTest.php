@@ -213,6 +213,8 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 $redis->$method($args[0]);
             } elseif (count($args) === 2) {
                 $redis->$method($args[0], $args[1]);
+            } elseif (count($args) === 3) {
+                $redis->$method($args[0], $args[1], $args[2]);
             } else {
                 throw new \Exception('Number of arguments not supported: ' . \count($args));
             }
@@ -318,15 +320,15 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             [
                 'setNx', // method
                 [ 'k1', 'b' ], // arguments
-                'b', // expected final value
-                'setNx b', // raw command
+                'a', // expected final value
+                'setNx k1 b', // raw command
                 'a', // initial "0010 1010"
             ],
             [
                 'setRange', // method
                 [ 'k1', 6, 'redis' ], // arguments
                 'Hello redis', // expected final value
-                'setRange 6 redis', // raw command
+                'setRange k1 6 redis', // raw command
                 'Hello world', // initial "0010 1010"
             ],
         ];
@@ -407,10 +409,10 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 'old', // initial
             ],
             [
-                'strlen', // method
+                'strLen', // method
                 [ 'k1'], // arguments
                 3, // expected final value
-                'strlen k1', // raw command
+                'strLen k1', // raw command
                 'old', // initial
             ],
         ];
