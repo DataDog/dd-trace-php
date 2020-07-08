@@ -10,7 +10,7 @@ use Exception;
 use PHPUnit_Framework_AssertionFailedError;
 use Predis\Configuration\Options;
 
-class PHPRedisTest extends IntegrationTestCase
+class PHPRedisSandboxedTest extends IntegrationTestCase
 {
     const IS_SANDBOX = true;
 
@@ -282,6 +282,53 @@ class PHPRedisTest extends IntegrationTestCase
                 '10', // expected final value
                 'incrBy k1 10', // raw command
             ],
+            [
+                'incrByFloat', // method
+                [ 'k1', '1.3' ], // arguments
+                '1.3', // expected final value
+                'incrByFloat k1 1.3', // raw command
+            ],
+            [
+                'set', // method
+                [ 'k1', 'a' ], // arguments
+                'a', // expected final value
+                'set k1 a', // raw command
+            ],
+            [
+                'setBit', // method
+                [ 'k1', 7, 1 ], // arguments
+                '1', // expected final value
+                'setBit k1 7 1', // raw command
+                '0', // initial "0010 1010"
+            ],
+            [
+                'setEx', // method
+                [ 'k1', 1000, 'b' ], // arguments
+                'b', // expected final value
+                'setEx k1 1000 b', // raw command
+                'a', // initial "0010 1010"
+            ],
+            [
+                'pSetEx', // method
+                [ 'k1', 1000, 'b' ], // arguments
+                'b', // expected final value
+                'pSetEx k1 1000 b', // raw command
+                'a', // initial "0010 1010"
+            ],
+            [
+                'setNx', // method
+                [ 'k1', 'b' ], // arguments
+                'b', // expected final value
+                'setNx b', // raw command
+                'a', // initial "0010 1010"
+            ],
+            [
+                'setRange', // method
+                [ 'k1', 6, 'redis' ], // arguments
+                'Hello redis', // expected final value
+                'setRange 6 redis', // raw command
+                'Hello world', // initial "0010 1010"
+            ],
         ];
     }
 
@@ -357,6 +404,13 @@ class PHPRedisTest extends IntegrationTestCase
                 [ 'k1', 'v1'], // arguments
                 'old', // expected final value
                 'getSet k1 v1', // raw command
+                'old', // initial
+            ],
+            [
+                'strlen', // method
+                [ 'k1'], // arguments
+                3, // expected final value
+                'strlen k1', // raw command
                 'old', // initial
             ],
         ];
