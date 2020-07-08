@@ -378,9 +378,9 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
     }
 
     /**
-     * @dataProvider dataProviderTestStringCommandGet
+     * @dataProvider dataProviderTestCommandsWithResult
      */
-    public function testStringCommandsGet($method, $args, $expected, $rawCommand, $initial = null)
+    public function testCommandsWithResult($method, $args, $expected, $rawCommand, $initial = null)
     {
         $redis = $this->redis;
 
@@ -414,7 +414,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
         $this->assertSame($expected, $result);
     }
 
-    public function dataProviderTestStringCommandGet()
+    public function dataProviderTestCommandsWithResult()
     {
         return [
             [
@@ -472,7 +472,51 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 'strLen k1', // raw command
                 'old', // initial
             ],
+            [
+                'del', // method
+                [ 'k1'], // arguments
+                1, // expected final value
+                'del k1', // raw command
+                'v1', // initial
+            ],
+            [
+                'delete', // method
+                [ 'k1'], // arguments
+                1, // expected final value
+                'delete k1', // raw command
+                'v1', // initial
+            ],
         ];
+    }
+
+    public function testDumpRestore()
+    {
+        $redis = $this->redis;
+        $redis->set('k1', 'v1');
+        error_log('Get: ' . print_r($redis->get('k1'), 1));
+
+        // $traces = $this->isolateTracer(function () use ($redis) {
+            $dump = $redis->dump('k1');
+            $redis->restore('k2', 1000, $dump);
+        // });
+
+        // $this->assertFlameGraph($traces, [
+        //     SpanAssertion::build(
+        //         "Redis.dump",
+        //         'phpredis',
+        //         'cache',
+        //         "Redis.dump"
+        //     )->withExactTags(['redis.raw_command' => 'dump k1']),
+        //     SpanAssertion::build(
+        //         "Redis.restore",
+        //         'phpredis',
+        //         'cache',
+        //         "Redis.restore"
+        //     ),
+        // ]);
+
+        $this->assertSame('v1', $redis->get('k1'));
+        $this->assertSame('v1', $redis->get('k2 '));
     }
 
     /**

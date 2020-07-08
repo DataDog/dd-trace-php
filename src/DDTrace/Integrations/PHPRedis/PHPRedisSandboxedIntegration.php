@@ -51,6 +51,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodNoArgs('flushAll');
         self::traceMethodNoArgs('flushDb');
         self::traceMethodNoArgs('save');
+        self::traceMethodNoArgs('restore');
 
         \DDTrace\trace_method('Redis', 'select', function (SpanData $span, $args) {
             PHPRedisSandboxedIntegration::enrichSpan($span);
@@ -96,7 +97,6 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('renameNx');
         self::traceMethodAsCommand('type');
         self::traceMethodAsCommand('sort');
-        self::traceMethodAsCommand('restore');
 
         return SandboxedIntegration::LOADED;
     }
