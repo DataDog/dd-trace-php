@@ -10,17 +10,48 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>${date}</date>
+    <date>2020-07-08</date>
     <version>
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.47.0</release>
+        <api>0.47.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+**Deprecation notice**:
+- Setting service name via `DD_SERVICE_NAME` is now deprecated and will be removed in a future release. Use `DD_SERVICE` instead for consistency with other Datadog tracers and services.
+- Setting global tags via `DD_TRACE_GLOBAL_TAGS` is now deprecated and will be removed in a future release. Use `DD_TAGS` instead (with the same format) for consistency with other Datadog tracers and services.
+- `DD_TRACE_RESOURCE_URI_MAPPING` is deprecated now that it has been split into `DD_TRACE_RESOURCE_URI_MAPPING_INCOMING` and `DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING`.
+- The functions `dd_trace` and `dd_trace_forward_call` are deprecated and will be made a no-op in the next release. See #924 for how to migrate.
+
+### Added
+
+- Apply new uri to resource normalization rules #928
+- Add DDTrace namespace for internal functions #930
+- Startup logging (can be disabled by setting `DD_TRACE_STARTUP_LOGS=0`) #935
+
+### Changed
+
+- Sandboxed cURL (PHP 5) #911, #938
+- Sandbox Lumen (PHP 5) #945
+- Sandboxed Symfony (PHP 5) #946
+- Add support for service name configuration via DD_SERVICE #919
+- Add support for DD_TAGS, fallback to DD_TRACE_GLOBAL_TAGS #920
+- Add support for DD_VERSION and DD_ENV variables #803 - thanks @brettlangdon
+- Enable OpenTracing test suite in CI #921
+- Defaults for name and resource on SpanData #923
+- Refactor dispatch.{c,h} #932
+- Extract ddtrace_sandbox_begin/ddtrace_sandbox_end helpers #940
+- Warn on dd_trace usage if DD_TRACE_WARN_LEGACY_DD_TRACE #941
+
+### Fixed
+
+- Only build on 64-bit platforms #929 (thanks for the report @remicollet)
+- (PHP 5.4) Make compilation to single file compatible with `include __DIR__ . '...'` in files #943
+    </notes>
     <contents>
         <dir name="/">
             <dir name="src">
