@@ -382,10 +382,10 @@ jobs:
       name: with_httpbin
       docker_image: << parameters.docker_image >>
     steps:
-      # - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
           command: << parameters.lib_curl_command >>
-      - prepare_extension_and_composer_with_cache
+      # - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - copy_valgrind_rc:
