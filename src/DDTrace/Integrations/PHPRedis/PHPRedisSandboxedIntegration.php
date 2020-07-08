@@ -42,15 +42,15 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         \DDTrace\trace_method('Redis', 'open', $traceConnectOpen);
         \DDTrace\trace_method('Redis', 'popen', $traceConnectOpen);
 
-        self::obfuscableSimpleMethod('close');
-        self::obfuscableSimpleMethod('auth');
-        self::obfuscableSimpleMethod('ping');
-        self::obfuscableSimpleMethod('echo');
-        self::obfuscableSimpleMethod('bgRewriteAOF');
-        self::obfuscableSimpleMethod('bgSave');
-        self::obfuscableSimpleMethod('flushAll');
-        self::obfuscableSimpleMethod('flushDb');
-        self::obfuscableSimpleMethod('save');
+        self::traceSimpleMethod('close');
+        self::traceSimpleMethod('auth');
+        self::traceSimpleMethod('ping');
+        self::traceSimpleMethod('echo');
+        self::traceSimpleMethod('bgRewriteAOF');
+        self::traceSimpleMethod('bgSave');
+        self::traceSimpleMethod('flushAll');
+        self::traceSimpleMethod('flushDb');
+        self::traceSimpleMethod('save');
 
         \DDTrace\trace_method('Redis', 'select', function (SpanData $span, $args) {
             PHPRedisSandboxedIntegration::enrichSpan($span);
@@ -60,23 +60,23 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         });
 
         // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
-        self::obfuscableKeyValuesMethod('append');
-        self::obfuscableKeyValuesMethod('decr');
-        self::obfuscableKeyValuesMethod('decrBy');
-        self::obfuscableKeyValuesMethod('get');
-        self::obfuscableKeyValuesMethod('getBit');
-        self::obfuscableKeyValuesMethod('getRange');
-        self::obfuscableKeyValuesMethod('getSet');
-        self::obfuscableKeyValuesMethod('incr');
-        self::obfuscableKeyValuesMethod('incrBy');
-        self::obfuscableKeyValuesMethod('incrByFloat');
-        self::obfuscableKeyValuesMethod('set');
-        self::obfuscableKeyValuesMethod('setBit');
-        self::obfuscableKeyValuesMethod('setEx');
-        self::obfuscableKeyValuesMethod('pSetEx');
-        self::obfuscableKeyValuesMethod('setNx');
-        self::obfuscableKeyValuesMethod('setRange');
-        self::obfuscableKeyValuesMethod('strLen');
+        self::traceKeyValuesMethod('append');
+        self::traceKeyValuesMethod('decr');
+        self::traceKeyValuesMethod('decrBy');
+        self::traceKeyValuesMethod('get');
+        self::traceKeyValuesMethod('getBit');
+        self::traceKeyValuesMethod('getRange');
+        self::traceKeyValuesMethod('getSet');
+        self::traceKeyValuesMethod('incr');
+        self::traceKeyValuesMethod('incrBy');
+        self::traceKeyValuesMethod('incrByFloat');
+        self::traceKeyValuesMethod('set');
+        self::traceKeyValuesMethod('setBit');
+        self::traceKeyValuesMethod('setEx');
+        self::traceKeyValuesMethod('pSetEx');
+        self::traceKeyValuesMethod('setNx');
+        self::traceKeyValuesMethod('setRange');
+        self::traceKeyValuesMethod('strLen');
 
         return SandboxedIntegration::LOADED;
     }
@@ -92,14 +92,14 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         }
     }
 
-    public static function obfuscableSimpleMethod($method)
+    public static function traceSimpleMethod($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisSandboxedIntegration::enrichSpan($span, $method);
         });
     }
 
-    public static function obfuscableKeyValuesMethod($method)
+    public static function traceKeyValuesMethod($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisSandboxedIntegration::enrichSpan($span, $method);
