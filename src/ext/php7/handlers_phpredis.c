@@ -35,6 +35,23 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("setnx"),
         DDTRACE_STRING_LITERAL("setrange"),
         DDTRACE_STRING_LITERAL("strlen"),
+
+        DDTRACE_STRING_LITERAL("del"),
+        DDTRACE_STRING_LITERAL("delete"),
+        DDTRACE_STRING_LITERAL("dump"),
+        DDTRACE_STRING_LITERAL("exists"),
+        DDTRACE_STRING_LITERAL("keys"),
+        DDTRACE_STRING_LITERAL("getKeys"),
+        DDTRACE_STRING_LITERAL("scan"),
+        DDTRACE_STRING_LITERAL("migrate"),
+        DDTRACE_STRING_LITERAL("move"),
+        DDTRACE_STRING_LITERAL("persist"),
+        DDTRACE_STRING_LITERAL("rename"),
+        DDTRACE_STRING_LITERAL("renameKey"),
+        DDTRACE_STRING_LITERAL("renameNx"),
+        DDTRACE_STRING_LITERAL("type"),
+        DDTRACE_STRING_LITERAL("sort"),
+        DDTRACE_STRING_LITERAL("restore"),
     };
     // clang-format on
 

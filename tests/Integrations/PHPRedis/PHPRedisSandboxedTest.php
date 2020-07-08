@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Integrations\PHPRedis;
 
 use DDTrace\Integrations\IntegrationsLoader;
+use DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Util\Versions;
@@ -415,6 +416,27 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 'strLen k1', // raw command
                 'old', // initial
             ],
+        ];
+    }
+
+    /**
+     * @dataProvider dataProviderTestObfuscateArgs
+     */
+    public function testObfuscateArgs($args, $expected)
+    {
+        $actual = PHPRedisSandboxedIntegration::obfuscateArgs($args);
+        $this->assertSame($expected, $actual);
+    }
+
+    public function dataProviderTestObfuscateArgs()
+    {
+        return [
+            'no args' => [ [], '' ],
+            'one args' => [ ['k1'], 'k1' ],
+            'two args' => [ ['k1', 'v1'], 'k1 v1' ],
+            'int args' => [ ['k1', 1, 'v1'], 'k1 1 v1' ],
+            'array args' => [ [ ['k1', 'k2'] ], 'k1 k2' ],
+            'mixed array and scalar args' => [ [ ['k1', 'k2'], 1, ['v1', 'v2']], 'k1 k2 1 v1 v2' ],
         ];
     }
 }

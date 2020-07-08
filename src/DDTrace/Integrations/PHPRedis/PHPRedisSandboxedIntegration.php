@@ -59,7 +59,6 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
         self::traceMethodAsCommand('append');
         self::traceMethodAsCommand('decr');
         self::traceMethodAsCommand('decrBy');
@@ -77,6 +76,23 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('setNx');
         self::traceMethodAsCommand('setRange');
         self::traceMethodAsCommand('strLen');
+
+        self::traceMethodAsCommand('del');
+        self::traceMethodAsCommand('delete');
+        self::traceMethodAsCommand('dump');
+        self::traceMethodAsCommand('exists');
+        self::traceMethodAsCommand('keys');
+        self::traceMethodAsCommand('getKeys');
+        self::traceMethodAsCommand('scan');
+        self::traceMethodAsCommand('migrate');
+        self::traceMethodAsCommand('move');
+        self::traceMethodAsCommand('persist');
+        self::traceMethodAsCommand('rename');
+        self::traceMethodAsCommand('renameKey');
+        self::traceMethodAsCommand('renameNx');
+        self::traceMethodAsCommand('type');
+        self::traceMethodAsCommand('sort');
+        self::traceMethodAsCommand('restore');
 
         return SandboxedIntegration::LOADED;
     }
@@ -103,16 +119,22 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisSandboxedIntegration::enrichSpan($span, $method);
-            $span->meta[Tag::REDIS_RAW_COMMAND] = PHPRedisSandboxedIntegration::obfuscateArgs($method, $args);
+            // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
+            $span->meta[Tag::REDIS_RAW_COMMAND] = $method . ' ' . PHPRedisSandboxedIntegration::obfuscateArgs($args);
         });
     }
 
-    public static function obfuscateArgs($command, $args)
+    /**
+     * Based on logic from pyhton tracer:
+     * https://github.com/DataDog/dd-trace-py/blob/0d7e7cb38216acb0c8b29f0ae1318d25bc160123/ddtrace/contrib/redis/util.py#L25
+     *
+     * @param array $args
+     * @return string
+     */
+    public static function obfuscateArgs($args)
     {
-        $rawCommandParts = [ $command ];
+        $rawCommandParts = [];
 
-        // Based on logic in pyhton tracer:
-        // https://github.com/DataDog/dd-trace-py/blob/0d7e7cb38216acb0c8b29f0ae1318d25bc160123/ddtrace/contrib/redis/util.py#L25
         $totalArgsLength = 0;
         foreach ($args as $arg) {
             if ($totalArgsLength > self::CMD_MAX_LEN) {
@@ -127,6 +149,9 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
                 $partValue = (string)$arg;
             } elseif (\is_null($arg)) {
                 $partValue = 'null';
+            } elseif (\is_array($arg)) {
+                $rawCommandParts[] = self::obfuscateArgs($arg);
+                continue;
             } else {
                 $rawCommandParts[] = self::VALUE_PLACEHOLDER;
                 continue;
