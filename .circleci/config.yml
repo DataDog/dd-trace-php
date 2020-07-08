@@ -1080,13 +1080,13 @@ workflows:
       #     requires: [ 'Prepare Code' ]
       #     name: "Hyperfine 74 benchmarks"
       #     docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
-      - "Lint files":
-          requires: [ 'Prepare Code' ]
-      - "Static Analysis":
-          requires: [ 'Prepare Code' ]
-      - placeholder:
-          requires: [ "Lint files", "Static Analysis" ]
-          name: "Validate Commit"
+      # - "Lint files":
+      #     requires: [ 'Prepare Code' ]
+      # - "Static Analysis":
+      #     requires: [ 'Prepare Code' ]
+      # - placeholder:
+      #     requires: [ "Lint files", "Static Analysis" ]
+      #     name: "Validate Commit"
       # - compile_extension:
       #     name: "Compile PHP 54"
       #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
@@ -1107,7 +1107,8 @@ workflows:
       #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_0"
       #     so_suffix: "20151012"
       - compile_extension:
-          requires: [ "Validate Commit" ]
+          # requires: [ "Validate Commit" ]
+          requires: [ "Prepare Code" ]
           name: "Compile PHP 71"
           lib_curl_command: yum -y install libcurl-devel
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_1"
