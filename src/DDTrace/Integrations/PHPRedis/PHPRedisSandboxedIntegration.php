@@ -69,6 +69,10 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('incr');
         self::traceMethodAsCommand('incrBy');
         self::traceMethodAsCommand('incrByFloat');
+        self::traceMethodAsCommand('mGet');
+        self::traceMethodAsCommand('getMultiple');
+        self::traceMethodAsCommand('mSet');
+        self::traceMethodAsCommand('mSetNx');
         self::traceMethodAsCommand('set');
         self::traceMethodAsCommand('setBit');
         self::traceMethodAsCommand('setEx');
@@ -120,7 +124,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisSandboxedIntegration::enrichSpan($span, $method);
             // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
-            $span->meta[Tag::REDIS_RAW_COMMAND] = $method . ' ' . PHPRedisSandboxedIntegration::obfuscateArgs($args);
+            $span->meta[Tag::REDIS_RAW_COMMAND] = $method . ' ' . PHPRedisSandboxedIntegration::normalizeArgs($args);
         });
     }
 
@@ -131,7 +135,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
      * @param array $args
      * @return string
      */
-    public static function obfuscateArgs($args)
+    public static function normalizeArgs($args)
     {
         $rawCommandParts = [];
 
@@ -150,7 +154,18 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
             } elseif (\is_null($arg)) {
                 $partValue = 'null';
             } elseif (\is_array($arg)) {
-                $rawCommandParts[] = self::obfuscateArgs($arg);
+                // This is best effort as specific index might be missing or be shifted, e.g. [0 => 'a', 2 => 'b'].
+                // In this case the worst that can happen is that we generate '0 a 2 b' instead of 'a b'. We accept this
+                // in order to keep things as simple as possible. Note: there is a test for this.
+                $isAssociative = array_values($arg) !== $arg;
+                if ($isAssociative) {
+                    foreach ($arg as $key => $val) {
+                        $rawCommandParts[] = $key;
+                        $rawCommandParts[] = self::normalizeArgs([ $val ]);
+                    }
+                } else {
+                    $rawCommandParts[] = self::normalizeArgs($arg);
+                }
                 continue;
             } else {
                 $rawCommandParts[] = self::VALUE_PLACEHOLDER;

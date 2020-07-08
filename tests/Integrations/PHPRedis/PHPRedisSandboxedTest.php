@@ -335,6 +335,48 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
         ];
     }
 
+    public function testMSet()
+    {
+        $redis = $this->redis;
+
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->mSet([ 'k1' => 'v1', 'k2' => 'v2' ]);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.mSet",
+                'phpredis',
+                'cache',
+                "Redis.mSet"
+            )->withExactTags(['redis.raw_command' => 'mSet k1 v1 k2 v2']),
+        ]);
+
+        $this->assertSame('v1', $redis->get('k1'));
+        $this->assertSame('v2', $redis->get('k2'));
+    }
+
+    public function testMSetNx()
+    {
+        $redis = $this->redis;
+
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->mSetNx([ 'k1' => 'v1', 'k2' => 'v2' ]);
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.mSetNx",
+                'phpredis',
+                'cache',
+                "Redis.mSetNx"
+            )->withExactTags(['redis.raw_command' => 'mSetNx k1 v1 k2 v2']),
+        ]);
+
+        $this->assertSame('v1', $redis->get('k1'));
+        $this->assertSame('v2', $redis->get('k2'));
+    }
+
     /**
      * @dataProvider dataProviderTestStringCommandGet
      */
@@ -343,7 +385,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
         $redis = $this->redis;
 
         if (null !== $initial) {
-            $redis->set($args[0], $initial);
+            \is_array($initial) ? $redis->mSet($initial) : $redis->set($args[0], $initial);
         }
 
         $result = null;
@@ -410,6 +452,20 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 'old', // initial
             ],
             [
+                'mGet', // method
+                [ ['k1', 'k2'] ], // arguments
+                [ 'v1', 'v2' ], // expected final value
+                'mGet k1 k2', // raw command
+                [ 'k1' => 'v1', 'k2' => 'v2'], // initial
+            ],
+            [
+                'getMultiple', // method
+                [ ['k1', 'k2'] ], // arguments
+                [ 'v1', 'v2' ], // expected final value
+                'getMultiple k1 k2', // raw command
+                [ 'k1' => 'v1', 'k2' => 'v2'], // initial
+            ],
+            [
                 'strLen', // method
                 [ 'k1'], // arguments
                 3, // expected final value
@@ -420,22 +476,24 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
     }
 
     /**
-     * @dataProvider dataProviderTestObfuscateArgs
+     * @dataProvider dataProviderTestNormalizeArgs
      */
-    public function testObfuscateArgs($args, $expected)
+    public function testNormalizeArgs($args, $expected)
     {
-        $actual = PHPRedisSandboxedIntegration::obfuscateArgs($args);
+        $actual = PHPRedisSandboxedIntegration::normalizeArgs($args);
         $this->assertSame($expected, $actual);
     }
 
-    public function dataProviderTestObfuscateArgs()
+    public function dataProviderTestNormalizeArgs()
     {
         return [
             'no args' => [ [], '' ],
             'one args' => [ ['k1'], 'k1' ],
             'two args' => [ ['k1', 'v1'], 'k1 v1' ],
             'int args' => [ ['k1', 1, 'v1'], 'k1 1 v1' ],
-            'array args' => [ [ ['k1', 'k2'] ], 'k1 k2' ],
+            'indexed array args' => [ [ ['k1', 'k2'] ], 'k1 k2' ],
+            'associative array args' => [ [ [ 'k1' => 'v1', 'k2' => 'v2' ] ], 'k1 v1 k2 v2' ],
+            'associative numeric array args' => [ [ [ '123' => 'v1', '456' => 'v2' ] ], '123 v1 456 v2' ],
             'mixed array and scalar args' => [ [ ['k1', 'k2'], 1, ['v1', 'v2']], 'k1 k2 1 v1 v2' ],
         ];
     }
