@@ -1,5 +1,7 @@
 --TEST--
 Test if desctructor is called when variable goes out of scope
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 

@@ -2,6 +2,7 @@
 [Legacy] Keep spans in limited mode (userland methods)
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 class MyClass

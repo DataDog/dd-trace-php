@@ -26,11 +26,6 @@ class CommonScenariosSandboxedTest extends CommonScenariosTest
 
     public function provideSpecs()
     {
-        return \PHP_MAJOR_VERSION < 7 ?  $this->build5xDataProvider() :  $this->build7xDataProvider();
-    }
-
-    private function build5xDataProvider()
-    {
         return $this->buildDataProvider(
             [
                 'A simple GET request returning a string' => $this->getSimpleTrace(),
@@ -47,79 +42,39 @@ class CommonScenariosSandboxedTest extends CommonScenariosTest
                         'http.status_code' => '200',
                     ])->withChildren([
                         SpanAssertion::build(
-                            'laravel.view.render',
+                            'Laravel\Lumen\Application.handleFoundRoute',
                             'lumen_test_app',
                             'web',
-                            'simple_view'
-                        )->withChildren([
+                            'Laravel\Lumen\Application.handleFoundRoute'
+                        )->withExactTags([])
+                        ->withChildren([
                             SpanAssertion::build(
-                                'lumen.view',
+                                'laravel.view.render',
                                 'lumen_test_app',
                                 'web',
-                                'lumen.view'
-                            )->withExactTags([]),
+                                'simple_view'
+                            )->withExactTags([])
+                            ->withChildren([
+                                SpanAssertion::build(
+                                    'lumen.view',
+                                    'lumen_test_app',
+                                    'web',
+                                    '*/resources/views/simple_view.blade.php'
+                                )->withExactTags([]),
+                                SpanAssertion::build(
+                                    'laravel.event.handle',
+                                    'lumen_test_app',
+                                    'web',
+                                    'composing: simple_view'
+                                )->withExactTags([]),
+                            ]),
                             SpanAssertion::build(
                                 'laravel.event.handle',
                                 'lumen_test_app',
                                 'web',
-                                'composing: simple_view'
-                            )->withExactTags([]),
-                        ]),
-                        SpanAssertion::build(
-                            'laravel.event.handle',
-                            'lumen_test_app',
-                            'web',
-                            'creating: simple_view'
-                        )->withExactTags([])
-                    ]),
-                ],
-                'A GET request with an exception' => $this->getErrorTrace(),
-            ]
-        );
-    }
-
-    private function build7xDataProvider()
-    {
-        return $this->buildDataProvider(
-            [
-                'A simple GET request returning a string' => $this->getSimpleTrace(),
-                'A simple GET request with a view' => [
-                    SpanAssertion::build(
-                        'lumen.request',
-                        'lumen_test_app',
-                        'web',
-                        'GET App\Http\Controllers\ExampleController@simpleView'
-                    )->withExactTags([
-                        'lumen.route.action' => 'App\Http\Controllers\ExampleController@simpleView',
-                        'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple_view',
-                        'http.status_code' => '200',
-                    ])->withChildren([
-                        SpanAssertion::build(
-                            'laravel.view.render',
-                            'lumen_test_app',
-                            'web',
-                            'simple_view'
-                        )->withExactTags([])->withChildren([
-                            SpanAssertion::build(
-                                'lumen.view',
-                                'lumen_test_app',
-                                'web',
-                                '*/resources/views/simple_view.blade.php'
-                            )->withExactTags([]),
-                            SpanAssertion::build(
-                                'laravel.event.handle',
-                                'lumen_test_app',
-                                'web',
-                                'composing: simple_view'
-                            )->withExactTags([]),
-                        ]),
-                        SpanAssertion::build(
-                            'laravel.event.handle',
-                            'lumen_test_app',
-                            'web',
-                            'creating: simple_view'
-                        )->withExactTags([])
+                                'creating: simple_view'
+                            )->withExactTags([])
+                        ])
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -133,9 +88,26 @@ class CommonScenariosSandboxedTest extends CommonScenariosTest
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                    ])->withExistingTagsNames([
-                        'error.stack',
-                    ])->setError('Exception', 'Controller error'),
+                    ])->withExistingTagsNames(\PHP_MAJOR_VERSION === 5 ? [] : ['error.stack'])
+                    ->setError(
+                        \PHP_MAJOR_VERSION === 5 ? 'Internal Server Error' : 'Exception',
+                        \PHP_MAJOR_VERSION === 5 ? null : 'Controller error'
+                    )->withChildren([
+                        SpanAssertion::build(
+                            'Laravel\Lumen\Application.handleFoundRoute',
+                            'lumen_test_app',
+                            'web',
+                            'Laravel\Lumen\Application.handleFoundRoute'
+                        )->withExistingTagsNames([
+                            'error.stack'
+                        ])->setError('Exception', 'Controller error'),
+                        SpanAssertion::build(
+                            'Laravel\Lumen\Application.sendExceptionToHandler',
+                            'lumen_test_app',
+                            'web',
+                            'Laravel\Lumen\Application.sendExceptionToHandler'
+                        ),
+                    ]),
                 ],
             ]
         );

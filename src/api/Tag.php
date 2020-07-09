@@ -31,6 +31,8 @@ class Tag
     const ANALYTICS_KEY = '_dd1.sr.eausr';
     const HOSTNAME = '_dd.hostname';
     const ORIGIN = '_dd.origin';
+    const VERSION = 'version';
+    const SERVICE_VERSION = 'service.version'; // OpenTelemetry compatible tag
 
     // Elasticsearch
     const ELASTICSEARCH_BODY = 'elasticsearch.body';
