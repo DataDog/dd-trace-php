@@ -152,9 +152,9 @@ packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
 verify_pecl_file_definitions:
-	@for i in $(notdir $(C_FILES) $(TEST_FILES)); do\
-		grep -q $$i package.xml && continue;\
-		echo package.xml is missing \"$$i\"; \
+	@for i in $(C_FILES) $(TEST_FILES) $(M4_FILES); do\
+		grep -q $${i#"$(BUILD_DIR)/"} package.xml && continue;\
+		echo package.xml is missing \"$${i#"$(BUILD_DIR)/"}\"; \
 		exit 1;\
 	done
 	@echo "PECL file definitions are correct"
