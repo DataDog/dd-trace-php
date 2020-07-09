@@ -2,8 +2,12 @@
 
 function dd_get_php_cgi()
 {
-    $executable = dirname(getenv('TEST_PHP_EXECUTABLE')) . '/php-cgi';
-    return file_exists($executable) && is_executable($executable) ? $executable : '';
+    $executable = getenv('TEST_PHP_CGI_EXECUTABLE') ?: getenv('TEST_PHP_EXECUTABLE') . '-cgi';
+    if (file_exists($executable) && is_executable($executable)) {
+		$args = getenv('TEST_PHP_ARGS');
+		return $args ? "$executable $args" : "$executable";
+	}
+	return '';
 }
 
 function dd_get_startup_logs(array $args = [], array $env = [])
