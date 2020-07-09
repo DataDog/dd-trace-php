@@ -15,7 +15,7 @@ final class CommonScenariosTest extends CLITestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_SERVICE_NAME' => 'console_test_app',
+            'DD_SERVICE' => 'console_test_app',
         ]);
     }
 
@@ -30,7 +30,6 @@ final class CommonScenariosTest extends CLITestCase
                 'cli',
                 'run'
             )->withExactTags([
-                'integration.name' => 'web',
             ])
         ]);
     }

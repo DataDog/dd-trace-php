@@ -12,8 +12,8 @@ function inner($message) {
     throw new Exception($message);
 }
 
-dd_trace_function("outer", ['prehook' => function() {}]);
-dd_trace_function("inner", ['prehook' => function() {}]);
+DDTrace\trace_function("outer", ['prehook' => function() {}]);
+DDTrace\trace_function("inner", ['prehook' => function() {}]);
 
 try {
     outer();

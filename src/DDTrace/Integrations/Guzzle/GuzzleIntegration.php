@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Guzzle;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
@@ -112,7 +111,7 @@ final class GuzzleIntegration extends Integration
             if (null !== $url) {
                 $span->setTag(Tag::HTTP_URL, $url);
 
-                if (Configuration::get()->isHttpClientSplitByDomain()) {
+                if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                     $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($url));
                 }
             }
@@ -126,7 +125,7 @@ final class GuzzleIntegration extends Integration
     {
         $self = $this;
         return function (array $args) use ($self) {
-            if (!Configuration::get()->isDistributedTracingEnabled()) {
+            if (!\ddtrace_config_distributed_tracing_enabled()) {
                 return null;
             }
 
@@ -177,7 +176,7 @@ final class GuzzleIntegration extends Integration
      */
     public function applyDistributedTracingHeaders(Span $span, $request)
     {
-        if (!Configuration::get()->isDistributedTracingEnabled()) {
+        if (!\ddtrace_config_distributed_tracing_enabled()) {
             return;
         }
 

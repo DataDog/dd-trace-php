@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Curl;
 
-use DDTrace\Configuration;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
@@ -44,15 +43,13 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
             return SandboxedIntegration::NOT_LOADED;
         }
 
-        $service = \ddtrace_config_app_name(self::NAME);
-
-        \dd_trace_function('curl_exec', [
+        \DDTrace\trace_function('curl_exec', [
             // the ddtrace extension will handle distributed headers
             'instrument_when_limited' => 0,
-            'posthook' => function (SpanData $span, $args, $retval) use ($service) {
+            'posthook' => function (SpanData $span, $args, $retval) {
                 $span->name = $span->resource = 'curl_exec';
                 $span->type = Type::HTTP_CLIENT;
-                $span->service = $service;
+                $span->service = 'curl';
 
                 if (!isset($args[0])) {
                     return;
@@ -64,17 +61,16 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
                     $span->meta[Tag::ERROR_TYPE] = 'curl error';
                 }
 
-                $globalConfig = Configuration::get();
-
                 $info = \curl_getinfo($ch);
                 $sanitizedUrl = Urls::sanitize($info['url']);
+                $normalizedPath = \DDtrace\Private_\util_uri_normalize_outgoing_path($info['url']);
                 unset($info['url']);
 
-                if ($globalConfig->isHttpClientSplitByDomain()) {
+                if (\ddtrace_config_http_client_split_by_domain_enabled()) {
                     $span->service = Urls::hostnameForTag($sanitizedUrl);
                 }
 
-                $span->resource = $sanitizedUrl;
+                $span->resource = $normalizedPath;
 
                 /* Special case the Datadog Standard Attributes
                  * See https://docs.datadoghq.com/logs/processing/attributes_naming_convention/

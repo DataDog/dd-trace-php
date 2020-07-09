@@ -117,6 +117,19 @@ function env($key)
         : getenv($key);
 }
 
+function check_opcache()
+{
+    if (!function_exists('opcache_get_configuration')) {
+        render('Opcache installed:', 'NO');
+        return;
+    }
+    render('Opcache installed:', 'YES');
+    $configs = opcache_get_configuration();
+    foreach ($configs['directives'] as $name => $value) {
+        sub_paragraph("$name = $value");
+    }
+}
+
 function check_agent_connectivity()
 {
     $host = env('DD_AGENT_HOST') ?: 'localhost';
@@ -185,16 +198,19 @@ $initHookReachable = quiet_file_exists($initHook);
 renderSuccessOrFailure('ddtrace.request_init_hook reachable', $initHookReachable);
 $openBaseDirs = ini_get('open_basedir') ? explode(':', ini_get('open_basedir')) : [];
 if ($initHookReachable) {
-    $initHookHasRun = function_exists('DDTrace\\Bridge\\dd_wrap_autoloader');
+    $initHookHasRun = function_exists('DDTrace\\Bridge\\dd_tracing_enabled');
     renderSuccessOrFailure('ddtrace.request_init_hook has run', $initHookHasRun);
 } elseif($initHook && $openBaseDirs) {
     $initHookDir = dirname($initHook);
-    if (!in_array($initHookDir, $openBaseDirs)) {
+    $rootDir = dirname($initHookDir);
+    if (!in_array($rootDir, $openBaseDirs)) {
         $hint = <<<EOT
 Ini directive 'open_basedir' has been set but it does not include the directory where
 the extension is installed. This prevents our extension PHP code to be executed.
 After consulting with your system admin, you might
-want to add the path to the folder where the extension is installed to the ini directive 'open_basedir'.
+want to add the path to the folder where the extension is installed ('/opt/datadog-php/dd-trace-sources' by default)
+to the ini directive 'open_basedir'.
+More info here: https://www.php.net/manual/en/ini.core.php#ini.open-basedir
 EOT;
         sub_paragraph($hint);
     }
@@ -244,6 +260,8 @@ render("Background sender is enabled?", $isBackgroundSenderEnabled ? 'YES' : 'NO
 if (!$isBackgroundSenderEnabled) {
     sub_paragraph('You can enable the background sender via DD_TRACE_BETA_SEND_TRACES_VIA_THREAD=true');
 }
+
+check_opcache();
 
 check_agent_connectivity();
 

@@ -2,9 +2,11 @@
 [Prehook] Variadic arguments are passed to tracing closure for internal functions
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
+--ENV--
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_unshift
 --FILE--
 <?php
-dd_trace_function('array_unshift', ['prehook' => function (DDTrace\SpanData $s, array $args) {
+DDTrace\trace_function('array_unshift', ['prehook' => function (DDTrace\SpanData $s, array $args) {
     var_dump($args);
 }]);
 

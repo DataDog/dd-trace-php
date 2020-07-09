@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\Tag;
 use DDTrace\GlobalTracer;
@@ -32,6 +31,14 @@ abstract class Integration
     public function __construct()
     {
         $this->configuration = $this->buildConfiguration();
+    }
+
+    public function addTraceAnalyticsIfEnabledLegacy(Span $span)
+    {
+        if (!$this->configuration->isTraceAnalyticsEnabled()) {
+            return;
+        }
+        $span->setMetric(Tag::ANALYTICS_KEY, $this->configuration->getTraceAnalyticsSampleRate());
     }
 
     /**
@@ -128,10 +135,6 @@ abstract class Integration
 
             $scope = $tracer->startActiveSpan($className . '.' . $method);
             $span = $scope->getSpan();
-
-            if (null !== $integration) {
-                $span->setIntegration($integration);
-            }
 
             $integrationClass::setDefaultTags($span, $method);
             if (null !== $preCallHook) {

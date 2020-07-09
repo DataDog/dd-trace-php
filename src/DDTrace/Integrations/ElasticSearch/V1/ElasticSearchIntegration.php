@@ -147,8 +147,7 @@ class ElasticSearchIntegration extends Integration
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                ElasticSearchIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 "Elasticsearch.Endpoint.performRequest"
             );
             $span = $scope->getSpan();
@@ -198,6 +197,7 @@ class ElasticSearchIntegration extends Integration
         $class = 'Elasticsearch\Client';
 
         dd_trace($class, $name, function () use ($name, $isTraceAnalyticsCandidate) {
+            $integration = ElasticSearchIntegration::getInstance();
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
@@ -209,13 +209,12 @@ class ElasticSearchIntegration extends Integration
                 list($params) = $args;
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                ElasticSearchIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 "Elasticsearch.Client.$name"
             );
             $span = $scope->getSpan();
             if ($isTraceAnalyticsCandidate) {
-                $span->setTraceAnalyticsCandidate();
+                $integration->addTraceAnalyticsIfEnabledLegacy($span);
             }
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
@@ -255,7 +254,7 @@ class ElasticSearchIntegration extends Integration
             }
 
             $operationName = str_replace('\\', '.', "$class.$name");
-            $scope = $tracer->startIntegrationScopeAndSpan(ElasticSearchIntegration::getInstance(), $operationName);
+            $scope = $tracer->startActiveSpan($operationName);
             $span = $scope->getSpan();
 
             $span->setTag(Tag::SERVICE_NAME, ElasticSearchIntegration::DEFAULT_SERVICE_NAME);
@@ -301,8 +300,7 @@ class ElasticSearchIntegration extends Integration
             if (isset($args[0])) {
                 list($params) = $args;
             }
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                ElasticSearchIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 "Elasticsearch.$namespace.$name"
             );
             $span = $scope->getSpan();

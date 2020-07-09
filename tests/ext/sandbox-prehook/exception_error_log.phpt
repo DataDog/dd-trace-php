@@ -4,9 +4,10 @@
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--
 <?php
-dd_trace_function('array_sum', ['prehook' => function () {
+DDTrace\trace_function('array_sum', ['prehook' => function () {
     throw new RuntimeException("This exception is expected");
 }]);
 $sum = array_sum([1, 3, 5]);

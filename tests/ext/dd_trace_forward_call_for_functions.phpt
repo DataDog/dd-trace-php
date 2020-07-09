@@ -1,5 +1,9 @@
 --TEST--
 The original function call is invoked from the closure
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
+--SKIPIF--
+<?php if (PHP_MAJOR_VERSION > 5) die('skip: test requires legacy API'); ?>
 --FILE--
 <?php
 function doStuff($foo, array $bar = [])
@@ -7,7 +11,8 @@ function doStuff($foo, array $bar = [])
     return '[' . $foo . '] ' . array_sum($bar);
 }
 
-echo doStuff('Before', [1, 2]) . "\n";
+// Cannot call a function while it is not traced and later expect it to trace
+//echo doStuff('Before', [1, 2]) . "\n";
 
 dd_trace('doStuff', function () {
     echo "**TRACED**\n";
@@ -21,7 +26,6 @@ dd_trace('array_sum', function () {
 echo doStuff('After', [2, 3]) . "\n";
 ?>
 --EXPECT--
-[Before] 3
 **TRACED**
 **TRACED INTERNAL**
 [After] 5

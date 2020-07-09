@@ -16,7 +16,7 @@ class Bar extends Foo {
     // Empty
 }
 
-dd_trace_method('Foo', 'get', function (SpanData $span) {
+DDTrace\trace_method('Foo', 'get', function (SpanData $span) {
     $span->name = get_called_class();
 });
 

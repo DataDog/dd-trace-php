@@ -23,4 +23,4 @@ if ('/curl-ip' === $uriPath) {
     error_log('/curl-ip completed');
 }
 
-return "OK\n";
+echo "OK\n";

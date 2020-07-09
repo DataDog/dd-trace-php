@@ -7,6 +7,14 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class DistributedTraceTest extends WebFrameworkTestCase
 {
+    protected function setUp()
+    {
+        parent::setUp();
+        /* Here we are disabling ddtrace for the test harness so that it doesn't
+         * instrument the curl call and alter the x-datadog headers. */
+        \dd_trace_disable_in_request();
+    }
+
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../Frameworks/Custom/Version_Not_Autoloaded/index.php';

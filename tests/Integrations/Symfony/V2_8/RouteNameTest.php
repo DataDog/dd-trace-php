@@ -21,7 +21,7 @@ class RouteNameTest extends WebFrameworkTestCase
     public function testResource2UriMapping()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $spec  = GetSpec::create('Resource name properly set to route', '/');
+            $spec  = GetSpec::create('Resource name properly set to route', '/app.php');
             $this->call($spec);
         });
 
@@ -33,9 +33,8 @@ class RouteNameTest extends WebFrameworkTestCase
                 'AppBundle\Controller\DefaultController testingRouteNameAction'
             )->withExactTags([
                 'http.method' => 'GET',
-                'http.url' => '/',
+                'http.url' => '/app.php',
                 'http.status_code' => '200',
-                'integration.name' => 'symfony',
             ]),
         ]);
     }

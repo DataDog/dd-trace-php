@@ -16,7 +16,7 @@ class Foo
     }
 }
 
-dd_trace_method('Foo', 'test', static function () {
+DDTrace\trace_method('Foo', 'test', static function () {
     echo "TRACED Foo::test()\n";
 });
 

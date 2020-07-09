@@ -9,6 +9,7 @@ This is how the tracer sandboxes the flushing functionality in userland
 memory_limit=2M
 --ENV--
 DD_TRACE_DEBUG=1
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--
 <?php
 function flushTracer() {
@@ -37,7 +38,7 @@ register_shutdown_function(function () {
     var_dump(error_get_last());
 });
 
-dd_trace_function('flushTracer', function () {
+DDTrace\trace_function('flushTracer', function () {
     echo 'Flushing...' . PHP_EOL;
     array_map(function($span) {
         echo $span['name'] . PHP_EOL;
@@ -48,7 +49,7 @@ dd_trace_function('flushTracer', function () {
     var_dump(error_get_last());
 });
 
-dd_trace_function('array_sum', function (DDTrace\SpanData $span) {
+DDTrace\trace_function('array_sum', function (DDTrace\SpanData $span) {
     $span->name = 'array_sum';
 });
 

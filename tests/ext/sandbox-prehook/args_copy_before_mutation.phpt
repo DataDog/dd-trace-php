@@ -6,7 +6,7 @@
 <?php
 use DDTrace\SpanData;
 
-dd_trace_function('foo', [
+DDTrace\trace_function('foo', [
     'prehook' => function (SpanData $span, array $args) {
         echo 'foo() prehook' . PHP_EOL;
         var_dump($args);

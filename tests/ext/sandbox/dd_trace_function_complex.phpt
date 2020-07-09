@@ -1,7 +1,9 @@
 --TEST--
-dd_trace_function() can trace with internal spans
+DDTrace\trace_function() can trace with internal spans
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+--ENV--
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,mt_rand
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -30,17 +32,17 @@ function bar($thoughts, array $bar = [])
     ];
 }
 
-var_dump(dd_trace_function('array_sum', function (SpanData $span) {
+var_dump(DDTrace\trace_function('array_sum', function (SpanData $span) {
     $span->name = 'ArraySum';
 }));
-var_dump(dd_trace_function('mt_rand', null));
-var_dump(dd_trace_function('testFoo', function (SpanData $span) {
+var_dump(DDTrace\trace_function('mt_rand', null));
+var_dump(DDTrace\trace_function('testFoo', function (SpanData $span) {
     $span->name = 'TestFoo';
 }));
-var_dump(dd_trace_function('addOne', function (SpanData $span) {
+var_dump(DDTrace\trace_function('addOne', function (SpanData $span) {
     $span->name = 'AddOne';
 }));
-var_dump(dd_trace_function(
+var_dump(DDTrace\trace_function(
     'bar',
     function (SpanData $span, $args, $retval) {
         $span->name = 'BarName';
@@ -131,7 +133,7 @@ array(5) {
     }
   }
   [1]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -144,9 +146,11 @@ array(5) {
     int(%d)
     ["name"]=>
     string(8) "ArraySum"
+    ["resource"]=>
+    string(8) "ArraySum"
   }
   [2]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -159,9 +163,11 @@ array(5) {
     int(%d)
     ["name"]=>
     string(6) "AddOne"
+    ["resource"]=>
+    string(6) "AddOne"
   }
   [3]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -172,6 +178,8 @@ array(5) {
     int(%d)
     ["name"]=>
     string(6) "AddOne"
+    ["resource"]=>
+    string(6) "AddOne"
     ["meta"]=>
     array(1) {
       ["system.pid"]=>
@@ -179,7 +187,7 @@ array(5) {
     }
   }
   [4]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -189,6 +197,8 @@ array(5) {
     ["duration"]=>
     int(%d)
     ["name"]=>
+    string(7) "TestFoo"
+    ["resource"]=>
     string(7) "TestFoo"
     ["meta"]=>
     array(1) {

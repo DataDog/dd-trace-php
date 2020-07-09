@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\CakePHP\V2;
 
-use CakeEvent;
 use CakeRequest;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\CakePHP\CakePHPIntegration;
@@ -29,8 +28,7 @@ class CakePHPIntegrationLoader
         }
         $this->rootSpan = GlobalTracer::get()->getRootScope()->getSpan();
         // Overwrite the default web integration
-        $this->rootSpan->setIntegration($integration);
-        $this->rootSpan->setTraceAnalyticsCandidate();
+        $integration->addTraceAnalyticsIfEnabledLegacy($this->rootSpan);
         $this->rootSpan->overwriteOperationName('cakephp.request');
         $this->rootSpan->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name(CakePHPIntegration::NAME));
 
@@ -62,13 +60,20 @@ class CakePHPIntegrationLoader
             return dd_trace_forward_call();
         });
 
+        // Set the HTTP status code
+        dd_trace('CakeResponse', 'statusCode', function () use ($loader) {
+            $code = dd_trace_forward_call();
+            $loader->rootSpan->setTag(Tag::HTTP_STATUS_CODE, $code);
+            return $code;
+        });
+
         // Create a trace span for every template rendered
         dd_trace('View', 'render', function () use ($integration) {
             $tracer = GlobalTracer::get();
             if ($tracer->limited()) {
                 return dd_trace_forward_call();
             }
-            $scope = $tracer->startIntegrationScopeAndSpan($integration, 'cakephp.view');
+            $scope = $tracer->startActiveSpan('cakephp.view');
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
             $file = $this->viewPath . '/' . $this->view . $this->ext;
             $scope->getSpan()->setTag(Tag::RESOURCE_NAME, $file);

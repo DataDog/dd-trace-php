@@ -23,7 +23,7 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_SERVICE_NAME' => 'yii2_test_app',
+            'DD_SERVICE' => 'yii2_test_app',
         ]);
     }
 
@@ -46,7 +46,6 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                     Tag::HTTP_METHOD => 'GET',
                     Tag::HTTP_URL => 'http://localhost:9999/homes/new-york/new-york/manhattan',
                     Tag::HTTP_STATUS_CODE => '200',
-                    'integration.name' => 'yii',
                     'app.route.path' => '/homes/:state/:city/:neighborhood',
                     'app.endpoint' => 'app\controllers\HomesController::actionView',
                 ])->withChildren([

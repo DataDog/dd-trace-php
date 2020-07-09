@@ -2,6 +2,8 @@
 Existing errors are kept
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+--ENV--
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--
 <?php
 
@@ -12,7 +14,7 @@ if (
     && $last_error['type'] == E_NOTICE
     && strpos($last_error['message'], 'Undefined variable') === 0
 ) {
-    dd_trace_function('array_sum', function () {
+    DDTrace\trace_function('array_sum', function () {
         echo $i_also_do_not_exist;
     });
     array_sum([]);

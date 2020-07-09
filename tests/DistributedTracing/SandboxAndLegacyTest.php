@@ -28,7 +28,7 @@ class SandboxAndLegacyTest extends WebFrameworkTestCase
             $spec = new RequestSpec(
                 __FUNCTION__,
                 'GET',
-                '/',
+                '/sandbox.php',
                 [
                     'x-datadog-trace-id: 1042',
                     'x-datadog-parent-id: 1000',
@@ -56,7 +56,7 @@ class SandboxAndLegacyTest extends WebFrameworkTestCase
             $spec = new RequestSpec(
                 __FUNCTION__,
                 'GET',
-                '/',
+                '/sandbox.php',
                 [
                     'x-datadog-trace-id: 6017420907356617206',
                     'x-datadog-parent-id: 0',
@@ -78,7 +78,7 @@ class SandboxAndLegacyTest extends WebFrameworkTestCase
     public function testNonDistributedTest()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            $spec = new RequestSpec(__FUNCTION__, 'GET', '/');
+            $spec = new RequestSpec(__FUNCTION__, 'GET', '/sandbox.php');
             $this->call($spec);
         });
 

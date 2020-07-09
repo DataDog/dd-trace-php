@@ -32,6 +32,9 @@
         <testsuite name="codeigniter-22-test">
             <directory>tests/Integrations/CodeIgniter/V2_2</directory>
         </testsuite>
+        <testsuite name="composer-tests">
+            <directory>tests/Composer</directory>
+        </testsuite>
         <testsuite name="laravel-58-test">
             <directory>tests/Integrations/Laravel/V5_8</directory>
             <directory>tests/Integrations/CLI/Laravel/V5_8</directory>

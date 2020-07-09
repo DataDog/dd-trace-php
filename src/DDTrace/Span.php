@@ -2,7 +2,6 @@
 
 namespace DDTrace;
 
-use DDTrace\Integrations\Integration;
 use DDTrace\Data\Span as DataSpan;
 use DDTrace\Exceptions\InvalidSpanArgument;
 use DDTrace\SpanContext as SpanContext;
@@ -26,6 +25,7 @@ final class Span extends DataSpan
         Tag::HTTP_STATUS_CODE => true,
         Tag::MANUAL_KEEP => true,
         Tag::MANUAL_DROP => true,
+        Tag::SERVICE_VERSION => true,
     ];
 
     /**
@@ -179,6 +179,11 @@ final class Span extends DataSpan
                 if (!isset($this->tags[Tag::ERROR_TYPE])) {
                     $this->tags[Tag::ERROR_TYPE] = 'Internal Server Error';
                 }
+            }
+
+            if ($key === Tag::SERVICE_VERSION) {
+                // Also set `version` tag (we want both)
+                $this->setTag(Tag::VERSION, $value);
             }
 
             if (array_key_exists($key, self::$metricNames)) {
@@ -390,26 +395,6 @@ final class Span extends DataSpan
     public function getAllBaggageItems()
     {
         return $this->context->baggageItems;
-    }
-
-    /**
-     * {@inheritdoc}
-     *
-     * @param Integration $integration
-     * @return self
-     */
-    public function setIntegration(Integration $integration)
-    {
-        $this->integration = $integration;
-        return $this;
-    }
-
-    /**
-     * @return null|Integration
-     */
-    public function getIntegration()
-    {
-        return $this->integration;
     }
 
     /**

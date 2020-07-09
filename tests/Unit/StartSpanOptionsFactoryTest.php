@@ -18,6 +18,7 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
 
     protected function setUp()
     {
+        putenv('DD_DISTRIBUTED_TRACING');
         parent::setUp();
         $this->tracer = \Mockery::mock('DDTrace\Contracts\Tracer');
     }
@@ -44,10 +45,7 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
 
     public function testCreateForWebRequestNotExtractedContextIfDisabled()
     {
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isDistributedTracingEnabled' => false,
-            'isDebugModeEnabled' => false,
-        ]));
+        putenv('DD_DISTRIBUTED_TRACING=false');
         $this->tracer->shouldReceive('extract')->never();
 
         $startSpanOptions = StartSpanOptionsFactory::createForWebRequest($this->tracer);

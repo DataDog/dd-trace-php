@@ -1,5 +1,7 @@
 --TEST--
 Check if closure can safely use variable names also present in outside scope
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 // variable present in outside scope
@@ -18,7 +20,8 @@ function setup($variable){
     });
 }
 
-(new Test())->m();
+// Cannot call a function while it is not traced and later expect it to trace
+//(new Test())->m();
 setup(1);
 (new Test())->m();
 setup(3);
@@ -26,7 +29,6 @@ setup(3);
 
 ?>
 --EXPECT--
-METHOD
 METHOD
 HOOK 1
 METHOD

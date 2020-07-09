@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\ZendFramework;
 
-use DDTrace\Configuration;
 use DDTrace\GlobalTracer;
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
@@ -56,7 +55,7 @@ class ZendFrameworkSandboxedIntegration extends SandboxedIntegration
         // name 'zendframework', we are instead using the 'zf1' prefix.
         $appName = \ddtrace_config_app_name('zf1');
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Zend_Controller_Plugin_Broker',
             'preDispatch',
             function (SpanData $spanData, $args) use ($integration, $appName) {
@@ -75,8 +74,7 @@ class ZendFrameworkSandboxedIntegration extends SandboxedIntegration
                 try {
                     /** @var Zend_Controller_Request_Abstract $request */
                     list($request) = $args;
-                    $rootSpan->setIntegration($integration);
-                    $rootSpan->setTraceAnalyticsCandidate();
+                    $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
                     $rootSpan->overwriteOperationName($integration->getOperationName());
                     $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
                     $controller = $request->getControllerName();
@@ -100,7 +98,7 @@ class ZendFrameworkSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        dd_trace_method('Zend_Controller_Plugin_Broker', 'postDispatch', function () {
+        \DDTrace\trace_method('Zend_Controller_Plugin_Broker', 'postDispatch', function () {
             $rootScope = GlobalTracer::get()->getRootScope();
             if (null === $rootScope || null === ($rootSpan = $rootScope->getSpan())) {
                 return false;

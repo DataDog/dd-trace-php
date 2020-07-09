@@ -1,3 +1,3 @@
 <?php
 
-echo "Sanity check\n";
+error_log('Sanity check');

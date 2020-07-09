@@ -1,5 +1,7 @@
 --TEST--
 Verify recursive execution works by only overriding outermost invocation.
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 function test($c, $end){

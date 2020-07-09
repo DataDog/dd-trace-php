@@ -41,9 +41,9 @@ class LaravelProvider extends ServiceProvider
 
             $requestSpan = $self->rootScope->getSpan();
             $requestSpan->overwriteOperationName('laravel.request');
+            $integration = \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance();
             // Overwriting the default web integration
-            $requestSpan->setIntegration(\DDTrace\Integrations\Laravel\LaravelIntegration::getInstance());
-            $requestSpan->setTraceAnalyticsCandidate();
+            $integration->addTraceAnalyticsIfEnabledLegacy($requestSpan);
             $requestSpan->setTag(Tag::SERVICE_NAME, $appName);
 
             $response = dd_trace_forward_call();
@@ -106,8 +106,7 @@ class LaravelProvider extends ServiceProvider
      */
     public static function buildBaseScope($operation, $resource)
     {
-        $scope = GlobalTracer::get()->startIntegrationScopeAndSpan(
-            \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
+        $scope = GlobalTracer::get()->startActiveSpan(
             $operation
         );
         $span = $scope->getSpan();

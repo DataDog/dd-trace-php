@@ -4,6 +4,7 @@ Exceptions and errors are ignored when inside a tracing closure
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand,mt_srand
 --INI--
 error_reporting=E_ALL
 --FILE--
@@ -22,17 +23,17 @@ class Test
     }
 }
 
-dd_trace_method('Test', 'testFoo', function (SpanData $span) {
+DDTrace\trace_method('Test', 'testFoo', function (SpanData $span) {
     $span->name = 'TestFoo';
     $span->service = $this_normally_raises_a_notice; // E_NOTICE
 });
 
-dd_trace_function('mt_srand', function (SpanData $span) {
+DDTrace\trace_function('mt_srand', function (SpanData $span) {
     $span->name = 'MTSeed';
     throw new Exception('This should be ignored');
 });
 
-dd_trace_function('mt_rand', function (SpanData $span) {
+DDTrace\trace_function('mt_rand', function (SpanData $span) {
     $span->name = 'MTRand';
     htmlentities('<b>', 0, 'BIG5'); // E_STRICT
 });

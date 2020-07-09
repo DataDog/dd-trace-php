@@ -4,6 +4,7 @@
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand,mt_srand
 --INI--
 error_reporting=E_ALL
 --FILE--
@@ -22,17 +23,17 @@ class Test
     }
 }
 
-dd_trace_method('Test', 'testFoo', ['prehook' => function (SpanData $span) {
+DDTrace\trace_method('Test', 'testFoo', ['prehook' => function (SpanData $span) {
     $span->name = 'TestFoo';
     $span->service = $this_normally_raises_a_notice; // E_NOTICE
 }]);
 
-dd_trace_function('mt_srand', ['prehook' => function (SpanData $span) {
+DDTrace\trace_function('mt_srand', ['prehook' => function (SpanData $span) {
     $span->name = 'MTSeed';
     throw new Exception('This should be ignored');
 }]);
 
-dd_trace_function('mt_rand', ['prehook' => function (SpanData $span) {
+DDTrace\trace_function('mt_rand', ['prehook' => function (SpanData $span) {
     $span->name = 'MTRand';
     htmlentities('<b>', 0, 'BIG5'); // E_STRICT
 }]);

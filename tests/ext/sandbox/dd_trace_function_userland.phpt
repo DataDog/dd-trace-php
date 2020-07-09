@@ -1,12 +1,12 @@
 --TEST--
-dd_trace_function() can trace userland functions with internal spans
+DDTrace\trace_function() can trace userland functions with internal spans
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
 
-var_dump(dd_trace_function('filter_to_array', function (SpanData $span) {
+var_dump(DDTrace\trace_function('filter_to_array', function (SpanData $span) {
     $span->name = 'filter_to_array';
 }));
 
@@ -40,7 +40,7 @@ array (
 ---
 array(1) {
   [0]=>
-  array(6) {
+  array(7) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -50,6 +50,8 @@ array(1) {
     ["duration"]=>
     int(%d)
     ["name"]=>
+    string(15) "filter_to_array"
+    ["resource"]=>
     string(15) "filter_to_array"
     ["meta"]=>
     array(1) {

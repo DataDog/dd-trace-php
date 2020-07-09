@@ -12,7 +12,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
 
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/app.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_3_3/web/index.php';
     }
 
     protected static function getEnvs()
@@ -47,7 +47,6 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
-                        'integration.name' => 'symfony',
                     ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,

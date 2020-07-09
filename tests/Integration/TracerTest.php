@@ -17,12 +17,12 @@ final class TracerTest extends BaseTestCase
     protected function setUp()
     {
         parent::setUp();
-        \putenv('DD_TRACE_GLOBAL_TAGS=global_tag:global,also_in_span:should_not_ovverride');
+        \putenv('DD_TAGS=global_tag:global,also_in_span:should_not_ovverride');
     }
 
     protected function tearDown()
     {
-        \putenv('DD_TRACE_GLOBAL_TAGS');
+        \putenv('DD_TAGS');
         \putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
         \putenv('DD_SERVICE_MAPPING');
         parent::tearDown();
@@ -51,14 +51,18 @@ final class TracerTest extends BaseTestCase
         if (Versions::phpVersionMatches('5.4')) {
             $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
         }
-        \dd_trace_method('DDTrace\Tests\Integration\TracerTest', 'dummyMethodGlobalTags', function (SpanData $span) {
-            $span->service = 'custom.service';
-            $span->name = 'custom.name';
-            $span->resource = 'custom.resource';
-            $span->type = 'custom';
-            $span->meta['local_tag'] = 'local';
-            $span->meta['also_in_span'] = 'span_wins';
-        });
+        \DDTrace\trace_method(
+            'DDTrace\Tests\Integration\TracerTest',
+            'dummyMethodGlobalTags',
+            function (SpanData $span) {
+                $span->service = 'custom.service';
+                $span->name = 'custom.name';
+                $span->resource = 'custom.resource';
+                $span->type = 'custom';
+                $span->meta['local_tag'] = 'local';
+                $span->meta['also_in_span'] = 'span_wins';
+            }
+        );
 
         $test = $this;
         $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
@@ -135,7 +139,7 @@ final class TracerTest extends BaseTestCase
             $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
         }
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'DDTrace\Tests\Integration\TracerTest',
             'dummyMethodResourceNormalizationInternalApi',
             function (SpanData $span) {
@@ -234,6 +238,72 @@ final class TracerTest extends BaseTestCase
         $this->assertSame('custom-resource', $traces[0][0]['resource']);
     }
 
+    public function testEnvironmentIsAddedToASpan()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV=my-env']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertSame('my-env', $traces[0][0]['meta']['env']);
+    }
+
+    public function testEnvironmentIsOptional()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertTrue(empty($traces[0][0]['meta']['env']));
+    }
+
+    public function testDDEnvHasPrecendenceOverGlobalTags()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertSame('from-env', $traces[0][0]['meta']['env']);
+    }
+
+    public function testServiceVersionIsAddedToASpan()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION=1.2.3']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertSame('1.2.3', $traces[0][0]['meta']['version']);
+    }
+
+    public function testServiceVersionIsOptional()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertTrue(empty($traces[0][0]['meta']['version']));
+    }
+
+    public function testDDVersionHasPrecendenceOverGlobalTags()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags']);
+        $traces = $this->isolateTracer(function (Tracer $tracer) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scope->close();
+        });
+
+        $this->assertSame('from-env', $traces[0][0]['meta']['version']);
+    }
+
     public function testServiceMappingNoEnvMapping()
     {
         $traces = $this->isolateTracer(function (Tracer $tracer) {
@@ -281,7 +351,7 @@ final class TracerTest extends BaseTestCase
             $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
         }
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'DDTrace\Tests\Integration\TracerTest',
             'dummyMethodServiceMappingInternalApi',
             function (SpanData $span) {

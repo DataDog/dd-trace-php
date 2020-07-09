@@ -53,7 +53,7 @@ class WordPressSandboxedIntegration extends SandboxedIntegration
         $integration = self::getInstance();
 
         // This call happens right after WP registers an autoloader for the first time
-        dd_trace_method('Requests', 'set_certificate_path', function () use ($integration) {
+        \DDTrace\trace_method('Requests', 'set_certificate_path', function () use ($integration) {
             if (!isset($GLOBALS['wp_version']) || !is_string($GLOBALS['wp_version'])) {
                 return false;
             }

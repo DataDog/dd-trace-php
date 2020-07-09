@@ -1,5 +1,3 @@
-#include "handlers_curl.h"
-
 #include <Zend/zend_interfaces.h>
 #include <php.h>
 
@@ -7,6 +5,7 @@
 #include "configuration.h"
 #include "engine_api.h"
 #include "engine_hooks.h"  // for ddtrace_backup_error_handling
+#include "handlers_internal.h"
 
 #ifndef ZVAL_COPY_DEREF
 #define ZVAL_COPY_DEREF(z, v)                     \
@@ -34,33 +33,28 @@ bool _dd_ext_curl_loaded = false;  // True global -- do not modify after startup
 ZEND_TLS int le_curl = 0;
 
 /* Cache things we tend to use a few times */
-ZEND_TLS zval _dd_Configuration_obj = {.u1.type_info = IS_UNDEF};
 ZEND_TLS zval _dd_curl_httpheaders = {.u1.type_info = IS_UNDEF};
 ZEND_TLS zval _dd_format_curl_http_headers = {.u1.type_info = IS_UNDEF};
 ZEND_TLS zend_class_entry *_dd_ArrayKVStore_ce = NULL;
-ZEND_TLS zend_class_entry *_dd_Configuration_ce = NULL;
 ZEND_TLS zend_class_entry *_dd_GlobalTracer_ce = NULL;
 ZEND_TLS zend_class_entry *_dd_SpanContext_ce = NULL;
 ZEND_TLS zend_function *_dd_ArrayKVStore_putForResource_fe = NULL;
 ZEND_TLS zend_function *_dd_ArrayKVStore_getForResource_fe = NULL;
 ZEND_TLS zend_function *_dd_ArrayKVStore_deleteResource_fe = NULL;
-ZEND_TLS zend_function *_dd_Configuration_get_fe = NULL;
-ZEND_TLS zend_function *_dd_Configuration_isDistributedTracingEnabled_fe = NULL;
 ZEND_TLS zend_function *_dd_GlobalTracer_get_fe = NULL;
-ZEND_TLS zend_function *_dd_GlobalTracer_inject_fe = NULL;
 ZEND_TLS zend_function *_dd_SpanContext_ctor = NULL;
 ZEND_TLS bool _dd_curl_integration_loaded = false;
 
 static void (*_dd_curl_close_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*_dd_curl_exec_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
-static void (*_dd_copy_exec_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+static void (*_dd_curl_copy_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*_dd_curl_init_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*_dd_curl_setopt_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*_dd_curl_setopt_array_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 
 // Should be run after request_init_hook is run *and* all the classes are loaded
 static bool _dd_load_curl_integration(void) {
-    if (!get_dd_trace_sandbox_enabled()) {
+    if (!get_dd_trace_sandbox_enabled() || DDTRACE_G(disable_in_current_request)) {
         return false;
     }
 
@@ -69,11 +63,10 @@ static bool _dd_load_curl_integration(void) {
     }
 
     _dd_ArrayKVStore_ce = ddtrace_lookup_ce(ZEND_STRL("DDTrace\\Util\\ArrayKVStore"));
-    _dd_Configuration_ce = ddtrace_lookup_ce(ZEND_STRL("DDTrace\\Configuration"));
     _dd_GlobalTracer_ce = ddtrace_lookup_ce(ZEND_STRL("DDTrace\\GlobalTracer"));
     _dd_SpanContext_ce = ddtrace_lookup_ce(ZEND_STRL("DDTrace\\SpanContext"));
 
-    if (!_dd_ArrayKVStore_ce || !_dd_Configuration_ce || !_dd_GlobalTracer_ce || !_dd_SpanContext_ce) {
+    if (!_dd_ArrayKVStore_ce || !_dd_GlobalTracer_ce || !_dd_SpanContext_ce) {
         return false;
     }
 
@@ -95,21 +88,14 @@ static bool _dd_load_curl_integration(void) {
         return false;
     }
 
-    if (ddtrace_call_method(NULL, _dd_Configuration_ce, &_dd_Configuration_get_fe, ZEND_STRL("get"),
-                            &_dd_Configuration_obj, 0, NULL) == FAILURE) {
-        return false;
-    }
-
     _dd_curl_integration_loaded = true;
     return true;
 }
 
-static bool _dd_Configuration_isDistributedTracingEnabled(void) {
-    zval enabled;
-    ZEND_RESULT_CODE result = ddtrace_call_method(Z_OBJ(_dd_Configuration_obj), _dd_Configuration_ce,
-                                                  &_dd_Configuration_isDistributedTracingEnabled_fe,
-                                                  ZEND_STRL("isDistributedTracingEnabled"), &enabled, 0, NULL);
-    return result == SUCCESS && Z_TYPE(enabled) == IS_TRUE;
+static void _dd_ArrayKVStore_deleteResource(zval *ch) {
+    zval retval;
+    zend_call_method_with_1_params(NULL, _dd_ArrayKVStore_ce, &_dd_ArrayKVStore_deleteResource_fe, "deleteresource",
+                                   &retval, ch);
 }
 
 static zval *_dd_ArrayKVStore_getForResource(zval *ch, zval *format, zval *value, zval *retval) {
@@ -135,37 +121,32 @@ static void _dd_ArrayKVStore_putForResource(zval *ch, zval *format, zval *value)
 ZEND_FUNCTION(ddtrace_curl_close) {
     zval *ch;
 
-    ddtrace_error_handling eh;
-    ddtrace_backup_error_handling(&eh, EH_THROW);
+    ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
     if (_dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "r", &ch) == SUCCESS) {
-        zval retval;
-        zend_call_method_with_1_params(NULL, _dd_ArrayKVStore_ce, &_dd_ArrayKVStore_deleteResource_fe, "deleteresource",
-                                       &retval, ch);
+        _dd_ArrayKVStore_deleteResource(ch);
     }
 
-    ddtrace_restore_error_handling(&eh);
-    ddtrace_maybe_clear_exception();
+    ddtrace_sandbox_end(&backup);
 
     _dd_curl_close_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
-ZEND_FUNCTION(ddtrace_copy_exec_handle) {
+ZEND_FUNCTION(ddtrace_curl_copy_handle) {
     zval *ch1;
 
     if (!_dd_load_curl_integration() ||
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "r", &ch1) == FAILURE) {
-        _dd_copy_exec_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        _dd_curl_copy_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
     }
 
-    _dd_copy_exec_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    _dd_curl_copy_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    ddtrace_error_handling eh;
-    ddtrace_backup_error_handling(&eh, EH_THROW);
+    ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
-    if (Z_TYPE_P(return_value) == IS_RESOURCE && _dd_Configuration_isDistributedTracingEnabled()) {
+    if (Z_TYPE_P(return_value) == IS_RESOURCE && ddtrace_config_distributed_tracing_enabled()) {
         zval *ch2 = return_value;
 
         zval default_headers;
@@ -182,8 +163,7 @@ ZEND_FUNCTION(ddtrace_copy_exec_handle) {
         zval_dtor(&default_headers);
     }
 
-    ddtrace_restore_error_handling(&eh);
-    ddtrace_maybe_clear_exception();
+    ddtrace_sandbox_end(&backup);
 }
 
 /* curl_exec {{{ */
@@ -282,9 +262,9 @@ static ZEND_RESULT_CODE _dd_tracer_inject_helper(zval *headers, zval *format, dd
 
     zval inject_args[3] = {context, *format, *headers};
     zval retval;
-    ZEND_RESULT_CODE result = ddtrace_call_method(Z_OBJ(tracer), Z_OBJ(tracer)->ce, &_dd_GlobalTracer_inject_fe,
-                                                  ZEND_STRL("inject"), &retval, 3, inject_args);
     // $tracer->inject($context, Format::CURL_HTTP_HEADERS, $httpHeaders);
+    ZEND_RESULT_CODE result =
+        ddtrace_call_method(Z_OBJ(tracer), Z_OBJ(tracer)->ce, NULL, ZEND_STRL("inject"), &retval, 3, inject_args);
 
     if (result == SUCCESS) {
         ZVAL_COPY_DEREF(headers, &inject_args[2]);
@@ -307,10 +287,9 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
 
     if (le_curl && _dd_load_curl_integration() && Z_TYPE(_dd_curl_httpheaders) == IS_LONG &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "r", &ch) == SUCCESS) {
-        ddtrace_error_handling eh;
-        ddtrace_backup_error_handling(&eh, EH_THROW);
+        ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
         void *resource = zend_fetch_resource(Z_RES_P(ch), NULL, le_curl);
-        if (resource) {
+        if (resource && ddtrace_config_distributed_tracing_enabled()) {
             zval default_headers;
             array_init(&default_headers);
             zval http_headers = ddtrace_zval_null();
@@ -331,8 +310,7 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
             }
             zval_dtor(&default_headers);
         }
-        ddtrace_restore_error_handling(&eh);
-        ddtrace_maybe_clear_exception();
+        ddtrace_sandbox_end(&backup);
     }
 
     _dd_curl_exec_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
@@ -342,8 +320,13 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
 ZEND_FUNCTION(ddtrace_curl_init) {
     _dd_curl_init_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (!le_curl && Z_TYPE_P(return_value) == IS_RESOURCE) {
-        le_curl = Z_RES_TYPE_P(return_value);
+    if (Z_TYPE_P(return_value) == IS_RESOURCE) {
+        if (!le_curl) {
+            le_curl = Z_RES_TYPE_P(return_value);
+        }
+        if (_dd_load_curl_integration()) {
+            _dd_ArrayKVStore_deleteResource(return_value);
+        }
     }
 }
 
@@ -359,18 +342,15 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
 
     _dd_curl_setopt_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    ddtrace_error_handling eh;
-    ddtrace_backup_error_handling(&eh, EH_THROW);
+    ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
-    if (Z_TYPE_P(return_value) == IS_TRUE && Z_TYPE(_dd_curl_httpheaders) == IS_LONG &&
-        Z_LVAL(_dd_curl_httpheaders) == option) {
-        if (_dd_Configuration_isDistributedTracingEnabled()) {
-            _dd_ArrayKVStore_putForResource(zid, &_dd_format_curl_http_headers, zvalue);
-        }
+    bool call_succeeded = Z_TYPE_P(return_value) == IS_TRUE;
+    bool option_matches = Z_TYPE(_dd_curl_httpheaders) == IS_LONG && Z_LVAL(_dd_curl_httpheaders) == option;
+    if (call_succeeded && option_matches && ddtrace_config_distributed_tracing_enabled()) {
+        _dd_ArrayKVStore_putForResource(zid, &_dd_format_curl_http_headers, zvalue);
     }
 
-    ddtrace_restore_error_handling(&eh);
-    ddtrace_maybe_clear_exception();
+    ddtrace_sandbox_end(&backup);
 }
 
 ZEND_FUNCTION(ddtrace_curl_setopt_array) {
@@ -378,21 +358,19 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
 
     if (le_curl && _dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &zid, &arr) == SUCCESS) {
-        ddtrace_error_handling eh;
-        ddtrace_backup_error_handling(&eh, EH_THROW);
+        ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
         void *resource = zend_fetch_resource(Z_RES_P(zid), NULL, le_curl);
-        if (resource) {
+        if (resource && ddtrace_config_distributed_tracing_enabled()) {
             if (Z_TYPE(_dd_curl_httpheaders) == IS_LONG) {
                 zval *value = zend_hash_index_find(Z_ARR_P(arr), Z_LVAL(_dd_curl_httpheaders));
-                if (value && _dd_Configuration_isDistributedTracingEnabled()) {
+                if (value) {
                     _dd_ArrayKVStore_putForResource(zid, &_dd_format_curl_http_headers, value);
                 }
             }
         }
 
-        ddtrace_restore_error_handling(&eh);
-        ddtrace_maybe_clear_exception();
+        ddtrace_sandbox_end(&backup);
     }
 
     _dd_curl_setopt_array_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
@@ -420,13 +398,19 @@ void ddtrace_curl_handlers_startup(void) {
     zend_string *curl = zend_string_init(ZEND_STRL("curl"), 0);
     _dd_ext_curl_loaded = zend_hash_exists(&module_registry, curl);
     zend_string_release(curl);
-    if (!_dd_ext_curl_loaded || !get_dd_trace_sandbox_enabled()) {
+    if (!_dd_ext_curl_loaded) {
         return;
     }
 
+    /* We hook into curl_exec twice:
+     *   - One that handles general dispatch so it will call the associated closure with curl_exec
+     *   - One that handles the distributed tracing headers
+     * The latter expects the former is already done because it needs a span id for the distributed tracing headers;
+     * register them inside-out.
+     */
     _dd_curl_handler handlers[] = {
         {ZEND_STRL("curl_close"), &_dd_curl_close_handler, ZEND_FN(ddtrace_curl_close)},
-        {ZEND_STRL("copy_exec_handle"), &_dd_curl_close_handler, ZEND_FN(ddtrace_curl_close)},
+        {ZEND_STRL("curl_copy_handle"), &_dd_curl_copy_handle_handler, ZEND_FN(ddtrace_curl_copy_handle)},
         {ZEND_STRL("curl_exec"), &_dd_curl_exec_handler, ZEND_FN(ddtrace_curl_exec)},
         {ZEND_STRL("curl_init"), &_dd_curl_init_handler, ZEND_FN(ddtrace_curl_init)},
         {ZEND_STRL("curl_setopt"), &_dd_curl_setopt_handler, ZEND_FN(ddtrace_curl_setopt)},
@@ -436,26 +420,25 @@ void ddtrace_curl_handlers_startup(void) {
     for (size_t i = 0; i < handlers_len; ++i) {
         _dd_install_handler(handlers[i]);
     }
+
+    if (ddtrace_resource != -1) {
+        ddtrace_string curl_exec = DDTRACE_STRING_LITERAL("curl_exec");
+        ddtrace_replace_internal_function(CG(function_table), curl_exec);
+    }
 }
 
 void ddtrace_curl_handlers_rshutdown(void) {
     le_curl = 0;
-    zval_dtor(&_dd_Configuration_obj);
     zval_dtor(&_dd_format_curl_http_headers);
-    ZVAL_UNDEF(&_dd_Configuration_obj);
     ZVAL_UNDEF(&_dd_curl_httpheaders);
     ZVAL_UNDEF(&_dd_format_curl_http_headers);
     _dd_ArrayKVStore_ce = NULL;
-    _dd_Configuration_ce = NULL;
     _dd_GlobalTracer_ce = NULL;
     _dd_SpanContext_ce = NULL;
     _dd_ArrayKVStore_putForResource_fe = NULL;
     _dd_ArrayKVStore_getForResource_fe = NULL;
     _dd_ArrayKVStore_deleteResource_fe = NULL;
-    _dd_Configuration_get_fe = NULL;
-    _dd_Configuration_isDistributedTracingEnabled_fe = NULL;
     _dd_GlobalTracer_get_fe = NULL;
-    _dd_GlobalTracer_inject_fe = NULL;
     _dd_SpanContext_ctor = NULL;
     _dd_curl_integration_loaded = false;
 }

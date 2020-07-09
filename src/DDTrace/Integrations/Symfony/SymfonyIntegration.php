@@ -129,7 +129,6 @@ class SymfonyIntegration extends Integration
             }
 
             if ($rootSpan) {
-                $rootSpan->setIntegration($self);
                 if (count($resourceParts) > 0) {
                     $rootSpan->setResource(implode(' ', $resourceParts));
                 }

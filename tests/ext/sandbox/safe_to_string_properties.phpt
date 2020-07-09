@@ -16,7 +16,7 @@ class MyDt extends DateTime {
 
 function prop_to_string($data) {}
 
-dd_trace_function('prop_to_string', function (SpanData $span, array $args) {
+DDTrace\trace_function('prop_to_string', function (SpanData $span, array $args) {
     $span->name = $args[0];
     $span->resource = $args[0];
     $span->service = $args[0];
@@ -107,8 +107,8 @@ string(%d) "object(Closure)#%d"
 string(%d) "object(Closure)#%d"
 
 NULL
-'name' dropped
-'resource' dropped
+string(14) "prop_to_string"
+string(14) "prop_to_string"
 'service' dropped
 'type' dropped
 

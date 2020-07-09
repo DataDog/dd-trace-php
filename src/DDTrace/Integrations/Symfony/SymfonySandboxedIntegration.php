@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Symfony;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
@@ -43,7 +42,7 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
     {
         $integration = $this;
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             '__construct',
             function () use ($integration) {
@@ -76,10 +75,9 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         $integration->appName = \ddtrace_config_app_name('symfony');
         $integration->symfonyRequestSpan->overwriteOperationName('symfony.request');
         $integration->symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
-        $integration->symfonyRequestSpan->setIntegration($integration);
-        $integration->symfonyRequestSpan->setTraceAnalyticsCandidate();
+        $integration->addTraceAnalyticsIfEnabledLegacy($integration->symfonyRequestSpan);
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handle',
             function (SpanData $span, $args, $response) use ($integration) {
@@ -115,7 +113,7 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         */
         $hookType = (PHP_MAJOR_VERSION >= 7) ? 'prehook' : 'posthook';
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Symfony\Component\EventDispatcher\EventDispatcher',
             'dispatch',
             [
@@ -145,7 +143,7 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
             ]
         );
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             'handleException',
             function (SpanData $span, $args) use ($integration) {
@@ -156,28 +154,27 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         );
 
         // Tracing templating engines
-        $renderTraceCallback = function (SpanData $span, $args) use ($integration) {
+        $traceRender = function (SpanData $span, $args) use ($integration) {
             $span->name = 'symfony.templating.render';
             $span->service = $integration->appName;
             $span->type = Type::WEB_SERVLET;
 
             $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);
             $span->resource = $resourceName;
-            $span->meta[Tag::INTEGRATION_NAME] = $integration->getName();
         };
-        dd_trace_method('Symfony\Bridge\Twig\TwigEngine', 'render', $renderTraceCallback);
-        dd_trace_method('Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $renderTraceCallback);
-        dd_trace_method('Symfony\Bundle\TwigBundle\TwigEngine', 'render', $renderTraceCallback);
-        dd_trace_method('Symfony\Component\Templating\DelegatingEngine', 'render', $renderTraceCallback);
-        dd_trace_method('Symfony\Component\Templating\PhpEngine', 'render', $renderTraceCallback);
-        dd_trace_method('Twig\Environment', 'render', $renderTraceCallback);
-        dd_trace_method('Twig_Environment', 'render', $renderTraceCallback);
+        \DDTrace\trace_method('Symfony\Bridge\Twig\TwigEngine', 'render', $traceRender);
+        \DDTrace\trace_method('Symfony\Bundle\FrameworkBundle\Templating\TimedPhpEngine', 'render', $traceRender);
+        \DDTrace\trace_method('Symfony\Bundle\TwigBundle\TwigEngine', 'render', $traceRender);
+        \DDTrace\trace_method('Symfony\Component\Templating\DelegatingEngine', 'render', $traceRender);
+        \DDTrace\trace_method('Symfony\Component\Templating\PhpEngine', 'render', $traceRender);
+        \DDTrace\trace_method('Twig\Environment', 'render', $traceRender);
+        \DDTrace\trace_method('Twig_Environment', 'render', $traceRender);
     }
 
     public function loadSymfony2($integration)
     {
         // Symfony 2.x specific resource name assignment
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\Event\FilterControllerEvent',
             'setController',
             function (SpanData $span, $args) use ($integration) {
@@ -200,7 +197,6 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
                 }
 
                 if ($integration->symfonyRequestSpan) {
-                    $integration->symfonyRequestSpan->setIntegration($integration);
                     if (count($resourceParts) > 0) {
                         $integration->symfonyRequestSpan->setResource(\implode(' ', $resourceParts));
                     }

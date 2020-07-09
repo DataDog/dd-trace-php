@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Eloquent;
 
-use DDTrace\Configuration;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
@@ -33,7 +32,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
     {
         $integration = $this;
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Builder',
             'getModels',
             function (SpanData $span) use ($integration) {
@@ -45,7 +44,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'performInsert',
             function (SpanData $span) use ($integration) {
@@ -55,7 +54,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'performUpdate',
             function (SpanData $span) use ($integration) {
@@ -65,7 +64,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'delete',
             function (SpanData $span) use ($integration) {
@@ -75,7 +74,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'destroy',
             function (SpanData $span) use ($integration) {
@@ -85,7 +84,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'refresh',
             function (SpanData $span) use ($integration) {
@@ -107,7 +106,6 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
     {
         $span->type = Type::SQL;
         $span->service = $this->getAppName();
-        $span->meta[Tag::INTEGRATION_NAME] = $this->getName();
     }
 
     /**

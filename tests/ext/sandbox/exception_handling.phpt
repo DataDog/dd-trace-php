@@ -12,8 +12,8 @@ function inner($message) {
     throw new Exception($message);
 }
 
-dd_trace_function("outer", function() {});
-dd_trace_function("inner", function() {});
+DDTrace\trace_function("outer", function() {});
+DDTrace\trace_function("inner", function() {});
 
 try {
     outer();

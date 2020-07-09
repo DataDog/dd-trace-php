@@ -13,6 +13,7 @@ use GuzzleHttp\Psr7\Response;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\GlobalTracer;
+use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class GuzzleIntegrationTest extends IntegrationTestCase
 {
@@ -42,7 +43,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     protected function tearDown()
     {
         parent::tearDown();
+        putenv('DD_DISTRIBUTED_TRACING');
         putenv('DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN');
+        putenv('DD_DISTRIBUTED_TRACING');
     }
 
     /**
@@ -160,11 +163,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
     {
+        putenv('DD_DISTRIBUTED_TRACING=false');
         $client = $this->getRealClient();
         $found = [];
-        Configuration::replace(\Mockery::mock(Configuration::get(), [
-            'isDistributedTracingEnabled' => false,
-        ]));
 
         $this->isolateTracer(function () use (&$found, $client) {
             /** @var Tracer $tracer */
@@ -240,6 +241,41 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
+                ]),
+        ]);
+    }
+
+    public function testDoesNotInheritTopLevelAppName()
+    {
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $execute(GetSpec::create('GET', '/guzzle_in_web_request.php'));
+            },
+            __DIR__ . '/guzzle_in_web_request.php',
+            [
+                'DD_SERVICE' => 'top_level_app',
+                'DD_TRACE_SANDBOX_ENABLED' => static::IS_SANDBOX,
+                'DD_TRACE_NO_AUTOLOADER' => true,
+            ]
+        );
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /guzzle_in_web_request.php')
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withChildren([
+                    SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+                        ->setTraceAnalyticsCandidate()
+                        ->withExactTags([
+                            'http.method' => 'GET',
+                            'http.url' => self::URL . '/status/200',
+                            'http.status_code' => '200',
+                        ])
+                        ->withChildren([
+                            SpanAssertion::exists('GuzzleHttp\Client.transfer')
+                                ->withChildren([
+                                    SpanAssertion::exists('curl_exec'),
+                                ]),
+                        ]),
                 ]),
         ]);
     }

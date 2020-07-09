@@ -1,5 +1,7 @@
 --TEST--
 Check private method can be overwritten and we are able to call original.
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 class Test

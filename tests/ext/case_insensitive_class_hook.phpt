@@ -1,5 +1,7 @@
 --TEST--
 Check if for case insensitive class name support
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 class Base {

@@ -45,16 +45,16 @@ function embeddedCatch() {
     }
 }
 
-dd_trace_function('throwException', function(SpanData $s) {
+DDTrace\trace_function('throwException', function(SpanData $s) {
     $s->name = 'throwException';
 });
 
-dd_trace_function('multiCatch', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('multiCatch', function(SpanData $s, $a, $retval) {
     $s->name = 'multiCatch';
     $s->resource = $retval;
 });
 
-dd_trace_function('embeddedCatch', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('embeddedCatch', function(SpanData $s, $a, $retval) {
     $s->name = 'embeddedCatch';
     $s->resource = $retval;
 });
@@ -73,6 +73,6 @@ array_map(function($span) {
 BarException caught
 BarException caught
 embeddedCatch, BarException caught
-throwException, Oops!
+throwException, throwException, Oops!
 multiCatch, BarException caught
-throwException, Oops!
+throwException, throwException, Oops!

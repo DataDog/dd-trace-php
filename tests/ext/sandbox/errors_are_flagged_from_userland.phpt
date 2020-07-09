@@ -11,7 +11,7 @@ function testErrorFromUserland()
     echo "testErrorFromUserland()\n";
 }
 
-dd_trace_function('testErrorFromUserland', function (SpanData $span) {
+DDTrace\trace_function('testErrorFromUserland', function (SpanData $span) {
     $span->name = 'testErrorFromUserland';
     $span->meta = ['error.msg' => 'Foo error'];
 });
@@ -24,7 +24,7 @@ var_dump(dd_trace_serialize_closed_spans());
 testErrorFromUserland()
 array(1) {
   [0]=>
-  array(7) {
+  array(8) {
     ["trace_id"]=>
     int(%d)
     ["span_id"]=>
@@ -34,6 +34,8 @@ array(1) {
     ["duration"]=>
     int(%d)
     ["name"]=>
+    string(21) "testErrorFromUserland"
+    ["resource"]=>
     string(21) "testErrorFromUserland"
     ["error"]=>
     int(1)

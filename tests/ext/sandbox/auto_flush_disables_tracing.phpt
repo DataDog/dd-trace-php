@@ -5,23 +5,25 @@ Auto-flushing will not instrument while flushing
 <?php if (PHP_VERSION_ID < 70000) die('skip: Auto flushing not supported on PHP 5'); ?>
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=1
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --FILE--
 <?php
 use DDTrace\SpanData;
 
 require 'fake_tracer.inc';
+require 'fake_global_tracer.inc';
 
 // This is called from the flush() method of the fake tracer
-dd_trace_function('DDTrace\\fake_curl_exec', function (SpanData $span) {
+DDTrace\trace_function('DDTrace\\fake_curl_exec', function (SpanData $span) {
     $span->name = 'fake_curl_exec';
 });
 
-dd_trace_function('array_sum', function (SpanData $span, $args, $retval) {
+DDTrace\trace_function('array_sum', function (SpanData $span, $args, $retval) {
     $span->name = 'array_sum';
     $span->resource = $retval;
 });
 
-dd_trace_function('main', function (SpanData $span) {
+DDTrace\trace_function('main', function (SpanData $span) {
     $span->name = 'main';
 });
 
@@ -41,7 +43,7 @@ echo PHP_EOL;
 3
 6
 Flushing tracer...
-main
+main (main)
 array_sum (6)
 array_sum (3)
 Tracer reset
@@ -49,7 +51,7 @@ Tracer reset
 10
 15
 Flushing tracer...
-main
+main (main)
 array_sum (15)
 array_sum (10)
 Tracer reset
@@ -57,7 +59,7 @@ Tracer reset
 21
 28
 Flushing tracer...
-main
+main (main)
 array_sum (28)
 array_sum (21)
 Tracer reset

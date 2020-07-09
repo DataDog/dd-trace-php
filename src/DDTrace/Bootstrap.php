@@ -28,7 +28,6 @@ final class Bootstrap
         self::$bootstrapped = true;
 
         $tracer = self::resetTracer();
-        self::registerOpenTracing();
 
         $flushTracer = function () {
             dd_trace_disable_in_request(); //disable function tracing to speedup shutdown
@@ -49,7 +48,7 @@ final class Bootstrap
             }
             return;
         }
-        dd_trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', [
+        \DDTrace\trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', [
             'instrument_when_limited' => 1,
             'posthook' => $flushTracer,
         ]);
@@ -101,25 +100,6 @@ final class Bootstrap
     }
 
     /**
-     * Replace the OT tracer with a wrapper containing the datadog tracer.
-     */
-    private static function registerOpenTracing()
-    {
-        dd_trace('OpenTracing\GlobalTracer', 'get', function () {
-            $original = \OpenTracing\GlobalTracer::get();
-
-            if (is_a($original, 'DDTrace\OpenTracer')) {
-                return $original;
-            }
-
-            $otWrapper = new \DDTrace\OpenTracer\Tracer(GlobalTracer::get());
-            \OpenTracing\GlobalTracer::set($otWrapper);
-
-            return $otWrapper;
-        });
-    }
-
-    /**
      * Initialize the root span
      *
      * @param Tracer $tracer
@@ -155,9 +135,34 @@ final class Bootstrap
             // Status code defaults to 200, will be later on changed when http_response_code will be called
             $span->setTag(Tag::HTTP_STATUS_CODE, 200);
         }
-        $span->setIntegration(WebIntegration::getInstance());
-        $span->setTraceAnalyticsCandidate();
+        $integration = WebIntegration::getInstance();
+        $integration->addTraceAnalyticsIfEnabledLegacy($span);
         $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name($operationName));
+
+        if (\dd_trace_env_config("DD_TRACE_SANDBOX_ENABLED")) {
+            $rootSpan = $span;
+            \DDTrace\trace_function('header', function (SpanData $span, $args) use ($rootSpan) {
+                if (isset($args[2])) {
+                    $parsedHttpStatusCode = $args[2];
+                } elseif (isset($args[0])) {
+                    $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
+                }
+
+                if (isset($parsedHttpStatusCode)) {
+                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
+                }
+                return false;
+            });
+
+            \DDTrace\trace_function('http_response_code', function (SpanData $span, $args) use ($rootSpan) {
+                if (isset($args[0]) && \is_numeric($args[0])) {
+                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
+                }
+
+                return false;
+            });
+            return;
+        }
 
         dd_trace('header', function () use ($span) {
             $args = func_get_args();

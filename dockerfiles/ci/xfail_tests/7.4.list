@@ -1,4 +1,3 @@
-ext/pdo_sqlite/tests/common.phpt
 tests/classes/__call_004.phpt
 tests/classes/__call_005.phpt
 tests/classes/__call_007.phpt
@@ -291,6 +290,8 @@ ext/standard/tests/serialize/bug72785.phpt
 ext/standard/tests/serialize/serialize_globals_var_refs.phpt
 ext/standard/tests/strings/implode1.phpt
 sapi/cli/tests/upload_2G.phpt
+sapi/phpdbg/tests/exceptions_003.phpt
+sapi/phpdbg/tests/stepping_001.phpt
 tests/classes/tostring_001.phpt
 Zend/tests/arrow_functions/005.phpt
 Zend/tests/assign_coalesce_001.phpt
@@ -378,3 +379,16 @@ Zend/tests/bug79155.phpt
 ext/simplexml/tests/bug51615.phpt
 ext/standard/tests/array/arsort_object1.phpt
 ext/standard/tests/array/arsort_object2.phpt
+tests/lang/bug45392.phpt
+Zend/tests/bug70258.phpt
+Zend/tests/bug70805.phpt
+Zend/tests/bug70805_1.phpt
+Zend/tests/bug70805_2.phpt
+Zend/tests/gc_031.phpt
+Zend/tests/gc_037.phpt
+ext/curl/tests/bug45161.phpt
+ext/curl/tests/bug79033.phpt
+ext/standard/tests/streams/bug78902.phpt
+ext/phar/tests/phar_buildfromiterator10.phpt
+ext/phar/tests/phar_buildfromiterator8.phpt
+ext/standard/tests/file/lstat_stat_variation10.phpt

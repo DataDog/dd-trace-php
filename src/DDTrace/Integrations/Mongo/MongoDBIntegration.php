@@ -28,11 +28,10 @@ final class MongoDBIntegration extends Integration
         $mongoIntegration = MongoIntegration::getInstance();
 
         // array MongoDB::command ( array $command [, array $options = array() [, string &$hash ]] )
-        self::traceMethod('command', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
+        self::traceMethod('command', function (Span $span, array $args) use ($mongoIntegration) {
             if (isset($args[0]['query'])) {
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]['query']));
-                $span->setTraceAnalyticsCandidate();
+                $mongoIntegration->addTraceAnalyticsIfEnabledLegacy($span);
             }
             if (isset($args[1]['socketTimeoutMS'])) {
                 $span->setTag(Tag::MONGODB_TIMEOUT, $args[1]['socketTimeoutMS']);
@@ -42,7 +41,6 @@ final class MongoDBIntegration extends Integration
         }, null, $mongoIntegration);
         // array MongoDB::createDBRef ( string $collection , mixed $document_or_id )
         self::traceMethod('createDBRef', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_COLLECTION, $args[0]);
         }, function (Span $span, $ref) {
             if (is_array($ref) && isset($ref['$id'])) {
@@ -51,35 +49,26 @@ final class MongoDBIntegration extends Integration
         }, $mongoIntegration);
         // MongoCollection MongoDB::createCollection ( string $name [, array $options ] )
         self::traceMethod('createCollection', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_COLLECTION, $args[0]);
         }, null, $mongoIntegration);
         // MongoCollection MongoDB::selectCollection ( string $name )
         self::traceMethod('selectCollection', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_COLLECTION, $args[0]);
         }, null, $mongoIntegration);
         // array MongoDB::getDBRef ( array $ref )
         self::traceMethod('getDBRef', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
             if (isset($args[0]['$ref'])) {
                 $span->setTag(Tag::MONGODB_COLLECTION, $args[0]['$ref']);
             }
         }, null, $mongoIntegration);
         // int MongoDB::setProfilingLevel ( int $level )
         self::traceMethod('setProfilingLevel', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_PROFILING_LEVEL, $args[0]);
         }, null, $mongoIntegration);
         // bool MongoDB::setReadPreference ( string $read_preference [, array $tags ] )
         self::traceMethod('setReadPreference', function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
             $span->setTag(Tag::MONGODB_READ_PREFERENCE, $args[0]);
         }, null, $mongoIntegration);
-
-        $setIntegration = function (Span $span, array $args) {
-            $span->setIntegration(MongoIntegration::getInstance());
-        };
 
         // Methods that don't need extra tags added
         self::traceMethod('drop', null, null, $mongoIntegration);

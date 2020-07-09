@@ -51,29 +51,29 @@ final class MongoCollectionIntegration extends Integration
             }
         }, $mongoIntegration);
         // array MongoCollection::distinct ( string $key [, array $query ] )
-        self::traceMethod('distinct', function (Span $span, array $args) {
+        self::traceMethod('distinct', function (Span $span, array $args) use ($mongoIntegration) {
             if (isset($args[1])) {
-                $span->setTraceAnalyticsCandidate();
+                $mongoIntegration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[1]));
             }
         }, null, $mongoIntegration);
         // MongoCursor MongoCollection::find ([ array $query = array() [, array $fields = array() ]] )
-        self::traceMethod('find', function (Span $span, array $args) {
+        self::traceMethod('find', function (Span $span, array $args) use ($mongoIntegration) {
             if (isset($args[0])) {
-                $span->setTraceAnalyticsCandidate();
+                $mongoIntegration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
             }
         }, null, $mongoIntegration);
         // array MongoCollection::findAndModify ( array $query [, array $update [, array $fields [, array $options ]]] )
-        self::traceMethod('findAndModify', function (Span $span, array $args) {
-            $span->setTraceAnalyticsCandidate();
+        self::traceMethod('findAndModify', function (Span $span, array $args) use ($mongoIntegration) {
+            $mongoIntegration->addTraceAnalyticsIfEnabledLegacy($span);
             $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
         }, null, $mongoIntegration);
         // array MongoCollection::findOne ([ array $query = array() [, array $fields = array()
         // [, array $options = array() ]]] )
-        self::traceMethod('findOne', function (Span $span, array $args) {
+        self::traceMethod('findOne', function (Span $span, array $args) use ($mongoIntegration) {
             if (isset($args[0])) {
-                $span->setTraceAnalyticsCandidate();
+                $mongoIntegration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
             }
         }, null, $mongoIntegration);
@@ -97,9 +97,9 @@ final class MongoCollectionIntegration extends Integration
             $span->setTag(Tag::MONGODB_READ_PREFERENCE, $args[0]);
         }, null, $mongoIntegration);
         // bool|array MongoCollection::update ( array $criteria , array $new_object [, array $options = array() ] )
-        self::traceMethod('update', function (Span $span, array $args) {
+        self::traceMethod('update', function (Span $span, array $args) use ($mongoIntegration) {
             if (isset($args[0])) {
-                $span->setTraceAnalyticsCandidate();
+                $mongoIntegration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(Tag::MONGODB_QUERY, json_encode($args[0]));
             }
         }, null, $mongoIntegration);

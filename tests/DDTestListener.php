@@ -11,10 +11,12 @@ class DDTestListener extends BaseTestListener
     public function startTest(PHPUnit_Framework_Test $test)
     {
         Configuration::clear();
+        \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
     public function endTest(\PHPUnit_Framework_Test $test, $time)
     {
         Configuration::clear();
+        \dd_trace_internal_fn('ddtrace_reload_config');
     }
 }

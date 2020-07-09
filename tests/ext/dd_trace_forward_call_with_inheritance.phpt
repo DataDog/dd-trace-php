@@ -1,5 +1,7 @@
 --TEST--
 The original method call is invoked from a sub class
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 
@@ -32,10 +34,12 @@ class Bar extends Foo
 $foo = new Foo;
 $bar = new Bar;
 
+/* Cannot call a function while it is not traced and later expect it to trace
 echo "=== Before tracing ===\n";
 echo $foo->doStuff('foo') . "\n";
 echo $bar->parentDoStuff() . "\n";
 echo $bar->myDoStuff() . "\n";
+*/
 
 dd_trace('Foo', 'doStuff', function () {
     echo "**TRACED**\n";
@@ -48,10 +52,6 @@ echo $bar->parentDoStuff() . "\n";
 echo $bar->myDoStuff() . "\n";
 ?>
 --EXPECT--
-=== Before tracing ===
-[foo] 0
-[parent] 6
-BAR 12 {mine}
 === After tracing ===
 **TRACED**
 [foo] 0

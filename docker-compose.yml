@@ -157,6 +157,8 @@ services:
 
   httpbin_integration:
     image: kennethreitz/httpbin
+    ports:
+      - "8765:80"
 
   ddagent_integration:
     image: datadog/agent:latest

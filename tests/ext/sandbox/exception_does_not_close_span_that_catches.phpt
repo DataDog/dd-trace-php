@@ -32,17 +32,17 @@ function doException() {
     return 'You should not see this either';
 }
 
-dd_trace_function('main', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('main', function(SpanData $s, $a, $retval) {
     $s->name = 'main';
     $s->resource = $retval;
 });
 
-dd_trace_function('handle', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('handle', function(SpanData $s, $a, $retval) {
     $s->name = 'handle';
     $s->resource = $retval;
 });
 
-dd_trace_function('handleException', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('handleException', function(SpanData $s, $a, $retval) {
     $s->name = 'handleException';
     $s->resource = $retval;
 });

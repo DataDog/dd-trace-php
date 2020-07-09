@@ -10,7 +10,7 @@ function test($a){
     return 'FUNCTION ' . $a;
 }
 
-dd_trace_function("test", function($s, $a, $retval){
+DDTrace\trace_function("test", function($s, $a, $retval){
     echo 'HOOK ' . $retval . PHP_EOL;
 });
 

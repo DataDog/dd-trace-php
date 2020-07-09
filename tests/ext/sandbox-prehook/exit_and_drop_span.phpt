@@ -4,7 +4,7 @@
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --FILE--
 <?php
-dd_trace_function('foo', ['prehook' => function () {
+DDTrace\trace_function('foo', ['prehook' => function () {
     echo 'Dropping span' . PHP_EOL;
     return false;
 }]);

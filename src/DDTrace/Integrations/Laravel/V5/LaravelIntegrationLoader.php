@@ -33,9 +33,9 @@ class LaravelIntegrationLoader
             list($route, $request) = func_get_args();
             if ($self->rootScope) {
                 $span = $self->rootScope->getSpan();
+                $integration = LaravelIntegration::getInstance();
                 // Overwriting the default web integration
-                $span->setIntegration(LaravelIntegration::getInstance());
-                $span->setTraceAnalyticsCandidate();
+                $integration->addTraceAnalyticsIfEnabledLegacy($span);
                 $span->setTag(
                     Tag::RESOURCE_NAME,
                     $route->getActionName() . ' ' . (Route::currentRouteName() ?: 'unnamed_route')
@@ -74,7 +74,6 @@ class LaravelIntegrationLoader
         dd_trace('Illuminate\Console\Application', '__construct', function () {
             $span = GlobalTracer::get()->getRootScope()->getSpan();
             // Overwrite the default web integration
-            $span->setIntegration(LaravelIntegration::getInstance());
             $span->overwriteOperationName('laravel.artisan');
             $span->setTag(
                 Tag::RESOURCE_NAME,
@@ -131,8 +130,7 @@ class LaravelIntegrationLoader
 
                     $handlerMethod = $this->method;
                     dd_trace($class, $handlerMethod, function () use ($tracer, $handlerMethod) {
-                        $scope = $tracer->startIntegrationScopeAndSpan(
-                            \DDTrace\Integrations\Laravel\LaravelIntegration::getInstance(),
+                        $scope = $tracer->startActiveSpan(
                             'laravel.pipeline.pipe'
                         );
                         $span = $scope->getSpan();
@@ -154,8 +152,7 @@ class LaravelIntegrationLoader
                 return dd_trace_forward_call();
             }
 
-            $scope = $tracer->startIntegrationScopeAndSpan(
-                LaravelIntegration::getInstance(),
+            $scope = $tracer->startActiveSpan(
                 'laravel.view'
             );
             $scope->getSpan()->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);

@@ -1,5 +1,7 @@
 --TEST--
 Check if closure can safely use variable names also present in outside scope
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 class Test {
@@ -28,8 +30,8 @@ final class TestSetup {
     }
 }
 
-
-(new Test())->m(0);
+// Cannot call a function while it is not traced and later expect it to trace
+//(new Test())->m(0);
 
 // use convoluted way to execute to test if it also works
 $o = new TestSetup();
@@ -45,7 +47,6 @@ $o->setup_ext(100);
 
 ?>
 --EXPECT--
-METHOD 0
 METHOD 11
 HOOK 11
 METHOD 1101

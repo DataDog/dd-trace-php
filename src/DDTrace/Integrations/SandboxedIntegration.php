@@ -23,23 +23,6 @@ abstract class SandboxedIntegration extends Integration
     }
 
     /**
-     * Set integration name ONLY when running in a test.
-     * Note: This is only for testing purposes and possibly temporary as we may want to add integration name
-     * to the span's metadata in a consistent way across various tracers.
-     *
-     * @param DDTrace\SpanData $span
-     * @return void
-     */
-    public function addIntegrationInfo(SpanData $span)
-    {
-        if (!in_array(getenv('DD_TEST_INTEGRATION'), ['1', 'true'])) {
-            return;
-        }
-
-        $span->meta['integration.name'] = $this->getName();
-    }
-
-    /**
      * Sets common error tags for an exception.
      *
      * @param SpanData $span

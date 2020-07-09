@@ -16,11 +16,11 @@ register_shutdown_function(function () {
     );
 });
 
-dd_trace_function('outer', function (SpanData $span, $args, $retval) {
+DDTrace\trace_function('outer', function (SpanData $span, $args, $retval) {
     $span->name =  'outer' . (isset($retval) ? ' was not null' : ' was null');
 });
 
-dd_trace_function('inner', function (SpanData $span, $args, $retval) {
+DDTrace\trace_function('inner', function (SpanData $span, $args, $retval) {
     $span->name =  'inner' . (isset($retval) ? ' was not null' : ' was null');
 });
 

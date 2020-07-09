@@ -1,5 +1,7 @@
 --TEST--
-dd_trace_method() works alongside dd_trace()
+DDTrace\trace_method() works alongside dd_trace()
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
@@ -38,7 +40,7 @@ var_dump(dd_trace('Foo', 'oldWay', function () {
     var_dump($retval);
     return $retval;
 }));
-var_dump(dd_trace_method(
+var_dump(DDTrace\trace_method(
     'Foo', 'newWay',
     function (SpanData $span, $args, $retval) {
         echo "TRACED Test::newWay()\n";
