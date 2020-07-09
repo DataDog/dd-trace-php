@@ -149,11 +149,12 @@ static zend_function *_get_current_fbc(zend_execute_data *execute_data TSRMLS_DC
 
 // todo: use op_array.reserved slot to cache negative lookups (ones that do not trace)
 static BOOL_T _dd_should_trace_call(zend_execute_data *execute_data, zend_function **fbc,
-                                    ddtrace_dispatch_t **dispatch TSRMLS_DC) {
+                                    ddtrace_dispatch_t **dispatch_ptr TSRMLS_DC) {
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
         DDTRACE_G(function_lookup) == NULL) {
         return FALSE;
     }
+
     *fbc = _get_current_fbc(execute_data TSRMLS_CC);
     if (!*fbc) {
         return FALSE;
@@ -175,12 +176,23 @@ static BOOL_T _dd_should_trace_call(zend_execute_data *execute_data, zend_functi
     }
 
     zval *this = ddtrace_this(execute_data);
-    *dispatch = ddtrace_find_dispatch(this ? Z_OBJCE_P(this) : (*fbc)->common.scope, fname TSRMLS_CC);
-    if (!*dispatch || (*dispatch)->busy) {
+    zend_class_entry *scope = this ? Z_OBJCE_P(this) : (*fbc)->common.scope;
+
+    ddtrace_dispatch_t *dispatch = ddtrace_find_dispatch(scope, fname TSRMLS_CC);
+
+    if (dispatch != NULL && dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER) {
+        // TODO: implement deferred loader once logacy fcall handlers are not used in 5.x
+        dispatch = NULL;
+    }
+    if (!dispatch || dispatch->busy) {
         return FALSE;
     }
-    if (ddtrace_tracer_is_limited(TSRMLS_C) && ((*dispatch)->options & DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED) == 0) {
+    if (ddtrace_tracer_is_limited(TSRMLS_C) && (dispatch->options & DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED) == 0) {
         return FALSE;
+    }
+
+    if (dispatch_ptr != NULL) {
+        *dispatch_ptr = dispatch;
     }
 
     return TRUE;
@@ -592,7 +604,7 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, zend_op *oplin
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin(opline_before_exception TSRMLS_CC);
 
     BOOL_T keep_span = TRUE;
-    if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
+    if (Z_TYPE(dispatch->callable) == IS_OBJECT || Z_TYPE(dispatch->callable) == IS_STRING) {
         keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, call, user_args, user_retval,
                                                     backup.exception TSRMLS_CC);
 
@@ -824,7 +836,7 @@ static void _dd_execute_end_span(zend_execute_data *call, ddtrace_span_t *span, 
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin(opline_before_exception TSRMLS_CC);
 
     BOOL_T keep_span = TRUE;
-    if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
+    if (Z_TYPE(dispatch->callable) == IS_OBJECT || Z_TYPE(dispatch->callable) == IS_STRING) {
         keep_span = ddtrace_execute_tracing_closure(dispatch, span->span_data, call, user_args, user_retval,
                                                     backup.exception TSRMLS_CC);
 

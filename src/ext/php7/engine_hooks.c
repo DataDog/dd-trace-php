@@ -57,7 +57,7 @@ static zval *_dd_this(zend_execute_data *call) {
 
 #define DDTRACE_NOT_TRACED ((void *)1)
 
-static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch) {
+static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch_ptr) {
     if (DDTRACE_G(class_lookup) == NULL || DDTRACE_G(function_lookup) == NULL) {
         return false;
     }
@@ -84,13 +84,39 @@ static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc,
      *
      * It would avoid lowering the string and reduce memory churn; win-win.
      */
-    *dispatch = ddtrace_find_dispatch(this ? Z_OBJCE_P(this) : fbc->common.scope, &fname);
-    return *dispatch;
+    zend_class_entry *scope = this ? Z_OBJCE_P(this) : fbc->common.scope;
+
+    ddtrace_dispatch_t *dispatch = ddtrace_find_dispatch(scope, &fname);
+    if (dispatch != NULL && dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER) {
+        // don't execute in the future
+        dispatch->options ^= DDTRACE_DISPATCH_DEFERRED_LOADER;
+
+        if (Z_TYPE(dispatch->deferred_load_function_name) != IS_NULL) {
+            ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
+
+            zval retval;
+            if (FAILURE != call_user_function(EG(function_table), NULL, &dispatch->deferred_load_function_name, &retval,
+                                              0, NULL)) {
+                // attempt to load newly set dispatch fo function
+                dispatch = ddtrace_find_dispatch(scope, &fname);
+            }
+            zval_ptr_dtor(&retval);
+
+            ddtrace_sandbox_end(&backup);
+        } else {
+            dispatch = NULL;
+        }
+    }
+
+    if (dispatch_ptr != NULL) {
+        *dispatch_ptr = dispatch;
+    }
+    return dispatch;
 }
 
 static bool _dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
     // the callable can be NULL for ddtrace_known_integrations
-    if (Z_TYPE(dispatch->callable) != IS_OBJECT) {
+    if (Z_TYPE(dispatch->callable) != IS_OBJECT && Z_TYPE(dispatch->callable) != IS_STRING) {
         return false;
     }
 
@@ -331,10 +357,6 @@ static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_t *span, zval *calla
     zend_execute_data *call = span->call;
     ddtrace_dispatch_t *dispatch = span->dispatch;
     zval user_args;
-
-    if (Z_TYPE_P(callable) != IS_OBJECT) {
-        return true;
-    }
 
     _dd_copy_function_args(call, &user_args, dispatch->options & DDTRACE_DISPATCH_POSTHOOK);
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();

@@ -7,11 +7,13 @@
 #include <stdint.h>
 
 #include "compatibility.h"
+#include "ddtrace_string.h"
 
 #define DDTRACE_DISPATCH_INNERHOOK (1u << 0u)
 #define DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED (1u << 1u)
 #define DDTRACE_DISPATCH_POSTHOOK (1u << 2u)
 #define DDTRACE_DISPATCH_PREHOOK (1u << 3u)
+#define DDTRACE_DISPATCH_DEFERRED_LOADER (1u << 4u)
 
 typedef struct ddtrace_dispatch_t {
     uint16_t options;
@@ -19,6 +21,7 @@ typedef struct ddtrace_dispatch_t {
     uint32_t acquired;
     union {
         zval callable;  // legacy
+        zval deferred_load_function_name;
         zval prehook;
         zval posthook;
     };
@@ -27,6 +30,8 @@ typedef struct ddtrace_dispatch_t {
 
 ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname TSRMLS_DC);
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC);
+zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string function_name, ddtrace_string callable,
+                                uint32_t options TSRMLS_DC);
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch);
 

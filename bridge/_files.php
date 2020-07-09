@@ -88,6 +88,7 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchCommon.php',
     __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchSandboxedIntegration.php',
+    __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/loader.php',
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.php',
