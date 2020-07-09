@@ -31,7 +31,7 @@ dd_dump_startup_logs($logs, [
 ]);
 ?>
 --EXPECTF--
-agent_error: "Could not resolve host: invalid_host"
+agent_error: %sinvalid_host%s
 open_basedir_init_hook_allowed: false
 open_basedir_container_tagging_allowed: false
 service_name: "foo_service"
