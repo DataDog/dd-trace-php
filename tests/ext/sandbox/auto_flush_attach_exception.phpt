@@ -27,7 +27,7 @@ class Foo
     }
 }
 
-dd_trace_method('Foo', 'bar', function (SpanData $span) {
+DDTrace\trace_method('Foo', 'bar', function (SpanData $span) {
     $span->name = 'Foo.bar';
 });
 
@@ -40,6 +40,6 @@ try {
 ?>
 --EXPECT--
 Flushing tracer...
-Foo.bar (error: Oops!)
+Foo.bar (Foo.bar) (error: Oops!)
 Tracer reset
 Caught exception: Oops!

@@ -284,7 +284,7 @@ final class TracerTest extends BaseTestCase
         // Clear existing internal spans
         dd_trace_serialize_closed_spans();
 
-        \dd_trace_function(__NAMESPACE__ . '\\baz', function () {
+        \DDTrace\trace_function(__NAMESPACE__ . '\\baz', function () {
             // Do nothing
         });
         $tracer = new Tracer(new DebugTransport());

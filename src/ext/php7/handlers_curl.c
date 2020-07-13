@@ -121,16 +121,14 @@ static void _dd_ArrayKVStore_putForResource(zval *ch, zval *format, zval *value)
 ZEND_FUNCTION(ddtrace_curl_close) {
     zval *ch;
 
-    ddtrace_error_handling eh;
-    ddtrace_backup_error_handling(&eh, EH_THROW);
+    ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
     if (_dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "r", &ch) == SUCCESS) {
         _dd_ArrayKVStore_deleteResource(ch);
     }
 
-    ddtrace_restore_error_handling(&eh);
-    ddtrace_maybe_clear_exception();
+    ddtrace_sandbox_end(&backup);
 
     _dd_curl_close_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
@@ -146,8 +144,7 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
 
     _dd_curl_copy_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    ddtrace_error_handling eh;
-    ddtrace_backup_error_handling(&eh, EH_THROW);
+    ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
     if (Z_TYPE_P(return_value) == IS_RESOURCE && ddtrace_config_distributed_tracing_enabled()) {
         zval *ch2 = return_value;
@@ -166,8 +163,7 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
         zval_dtor(&default_headers);
     }
 
-    ddtrace_restore_error_handling(&eh);
-    ddtrace_maybe_clear_exception();
+    ddtrace_sandbox_end(&backup);
 }
 
 /* curl_exec {{{ */
@@ -291,8 +287,7 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
 
     if (le_curl && _dd_load_curl_integration() && Z_TYPE(_dd_curl_httpheaders) == IS_LONG &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "r", &ch) == SUCCESS) {
-        ddtrace_error_handling eh;
-        ddtrace_backup_error_handling(&eh, EH_THROW);
+        ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
         void *resource = zend_fetch_resource(Z_RES_P(ch), NULL, le_curl);
         if (resource && ddtrace_config_distributed_tracing_enabled()) {
             zval default_headers;
@@ -315,8 +310,7 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
             }
             zval_dtor(&default_headers);
         }
-        ddtrace_restore_error_handling(&eh);
-        ddtrace_maybe_clear_exception();
+        ddtrace_sandbox_end(&backup);
     }
 
     _dd_curl_exec_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
@@ -348,8 +342,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
 
     _dd_curl_setopt_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    ddtrace_error_handling eh;
-    ddtrace_backup_error_handling(&eh, EH_THROW);
+    ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
     bool call_succeeded = Z_TYPE_P(return_value) == IS_TRUE;
     bool option_matches = Z_TYPE(_dd_curl_httpheaders) == IS_LONG && Z_LVAL(_dd_curl_httpheaders) == option;
@@ -357,8 +350,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
         _dd_ArrayKVStore_putForResource(zid, &_dd_format_curl_http_headers, zvalue);
     }
 
-    ddtrace_restore_error_handling(&eh);
-    ddtrace_maybe_clear_exception();
+    ddtrace_sandbox_end(&backup);
 }
 
 ZEND_FUNCTION(ddtrace_curl_setopt_array) {
@@ -366,8 +358,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
 
     if (le_curl && _dd_load_curl_integration() &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "ra", &zid, &arr) == SUCCESS) {
-        ddtrace_error_handling eh;
-        ddtrace_backup_error_handling(&eh, EH_THROW);
+        ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
         void *resource = zend_fetch_resource(Z_RES_P(zid), NULL, le_curl);
         if (resource && ddtrace_config_distributed_tracing_enabled()) {
@@ -379,8 +370,7 @@ ZEND_FUNCTION(ddtrace_curl_setopt_array) {
             }
         }
 
-        ddtrace_restore_error_handling(&eh);
-        ddtrace_maybe_clear_exception();
+        ddtrace_sandbox_end(&backup);
     }
 
     _dd_curl_setopt_array_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);

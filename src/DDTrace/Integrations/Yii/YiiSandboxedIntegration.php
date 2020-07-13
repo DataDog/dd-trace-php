@@ -53,7 +53,7 @@ class YiiSandboxedIntegration extends SandboxedIntegration
         $integration = self::getInstance();
 
         // This happens somewhat early in the setup, though there may be a better candidate
-        \dd_trace_method('yii\di\Container', '__construct', function () use ($integration) {
+        \DDTrace\trace_method('yii\di\Container', '__construct', function () use ($integration) {
             if (Versions::versionMatches('2.0', \Yii::getVersion())) {
                 $loader = new V2\YiiIntegrationLoader();
                 $loader->load($integration);

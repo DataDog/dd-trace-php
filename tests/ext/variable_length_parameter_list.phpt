@@ -1,5 +1,7 @@
 --TEST--
 Check function with variable list of  params can be overwritten and we're able to call original function with modified params
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 function test($a, $b, $c){

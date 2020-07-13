@@ -6,7 +6,7 @@ Variadic arguments are passed to tracing closure for internal functions
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=sscanf
 --FILE--
 <?php
-dd_trace_function('sscanf', function (DDTrace\SpanData $s, array $args) {
+DDTrace\trace_function('sscanf', function (DDTrace\SpanData $s, array $args) {
     var_dump($args);
 });
 

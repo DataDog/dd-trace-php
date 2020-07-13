@@ -316,14 +316,6 @@ static void _dd_update_opcode_leave(zend_execute_data *execute_data TSRMLS_DC) {
 #endif
 }
 
-static zend_function *datadog_current_function(zend_execute_data *execute_data) {
-    if (EX(opline)->opcode == ZEND_DO_FCALL_BY_NAME) {
-        return FBC();
-    } else {
-        return EX(function_state).function;
-    }
-}
-
 static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute_data *execute_data,
                           zval **return_value_ptr TSRMLS_DC) {
     zend_fcall_info fci = {0};
@@ -337,11 +329,7 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
         executed_method_class = Z_OBJCE_P(this);
     }
 
-    zend_function *func;
-
     const char *func_name = DDTRACE_CALLBACK_NAME;
-    func = datadog_current_function(execute_data);
-
     zend_function *callable = (zend_function *)zend_get_closure_method_def(&dispatch->callable TSRMLS_CC);
 
     // convert passed callable to not be static as we're going to bind it to *this
@@ -351,20 +339,6 @@ static void execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute
 
     zend_create_closure(&closure, callable, executed_method_class, this TSRMLS_CC);
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error TSRMLS_CC) != SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
-            const char *scope_name, *function_name;
-
-            scope_name = (func->common.scope) ? func->common.scope->name : NULL;
-            function_name = func->common.function_name;
-            if (scope_name) {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                        "cannot set override for %s::%s - %s", scope_name, function_name, error);
-            } else {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "cannot set override for %s - %s",
-                                        function_name, error);
-            }
-        }
-
         if (error) {
             efree(error);
         }
@@ -556,7 +530,7 @@ static void _dd_end_span(ddtrace_span_t *span, zval *user_retval, const zend_op 
     }
 
     BOOL_T keep_span = TRUE;
-    if (Z_TYPE(dispatch->callable) == IS_OBJECT) {
+    if (Z_TYPE(dispatch->callable) == IS_OBJECT || Z_TYPE(dispatch->callable) == IS_STRING) {
         ddtrace_error_handling eh;
         ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
 

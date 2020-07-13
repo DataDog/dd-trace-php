@@ -8,7 +8,7 @@ function test(){
     return "FUNCTION";
 }
 
-dd_trace_function("test", function($s, $a, $retval){
+DDTrace\trace_function("test", function($s, $a, $retval){
     echo $retval . ' HOOK' . PHP_EOL;
 });
 

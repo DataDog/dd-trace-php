@@ -37,7 +37,7 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
          * not send distributed tracing headers; curl will almost guaranteed do
          * it for us anyway. Just do a post-hook to get the response.
          */
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'send',
             function (SpanData $span, $args, $retval) use ($integration) {
@@ -68,7 +68,7 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'transfer',
             function (SpanData $span, $args, $retval) use ($integration) {

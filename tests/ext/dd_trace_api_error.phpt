@@ -2,6 +2,7 @@
 dd_trace() declarative API error cases
 --ENV--
 DD_TRACE_DEBUG=1
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 # Functions
@@ -46,6 +47,7 @@ var_dump(dd_trace('foo', 'foo', [
 var_dump(dd_trace('foo', 'foo', []));
 ?>
 --EXPECT--
+Unexpected parameter combination, expected (class, function, closure | config_array) or (function, closure | config_array)
 bool(false)
 Expected config_array to be an associative array
 bool(false)
@@ -62,6 +64,7 @@ bool(false)
 Required key 'posthook', 'prehook' or 'innerhook' not found in config_array
 bool(false)
 
+Unexpected parameter combination, expected (class, function, closure | config_array) or (function, closure | config_array)
 bool(false)
 Expected config_array to be an associative array
 bool(false)

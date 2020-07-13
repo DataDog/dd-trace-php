@@ -12,7 +12,7 @@ class Test {
     }
 }
 
-dd_trace_method("Test", "m", function($s, array $args){
+DDTrace\trace_method("Test", "m", function($s, array $args){
     list($a, $b, $c) = $args;
     echo "HOOK " . $a ." ". $b . " " . $c . PHP_EOL;
 });

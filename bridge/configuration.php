@@ -114,7 +114,7 @@ function _ddtrace_config_indexed_array($value, $default)
 
     return array_map(
         function ($entry) {
-            return strtolower(trim($entry));
+            return trim($entry);
         },
         explode(',', $value)
     );
@@ -154,6 +154,26 @@ function _ddtrace_config_associative_array($value, $default)
         $result[$keyFragment] = $valueFragment;
     }
     return $result;
+}
+
+/**
+ * Returns the configured environment or null if none is configured.
+ *
+ * @return string
+ */
+function ddtrace_config_env()
+{
+    return \_ddtrace_config_string(\getenv('DD_ENV'), null);
+}
+
+/**
+ * Returns the configured service version or null if none is configured.
+ *
+ * @return string
+ */
+function ddtrace_config_service_version()
+{
+    return \_ddtrace_config_string(\getenv('DD_VERSION'), null);
 }
 
 /**
@@ -205,6 +225,30 @@ function ddtrace_config_hostname_reporting_enabled()
 function ddtrace_config_url_resource_name_enabled()
 {
     return \_ddtrace_config_bool(\getenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED'), true);
+}
+
+/**
+ * @return string[]
+ */
+function ddtrace_config_path_fragment_regex()
+{
+    return \_ddtrace_config_indexed_array(\getenv('DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX'), []);
+}
+
+/**
+ * @return string[]
+ */
+function ddtrace_config_path_mapping_incoming()
+{
+    return \_ddtrace_config_indexed_array(\getenv('DD_TRACE_RESOURCE_URI_MAPPING_INCOMING'), []);
+}
+
+/**
+ * @return string[]
+ */
+function ddtrace_config_path_mapping_outgoing()
+{
+    return \_ddtrace_config_indexed_array(\getenv('DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING'), []);
 }
 
 /**

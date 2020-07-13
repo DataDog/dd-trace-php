@@ -21,6 +21,7 @@ final class ConfigurationTest extends BaseTestCase
     private function cleanUpEnvs()
     {
         putenv('DD_DISTRIBUTED_TRACING');
+        putenv('DD_ENV');
         putenv('DD_INTEGRATIONS_DISABLED');
         putenv('DD_PRIORITY_SAMPLING');
         putenv('DD_SAMPLING_RATE');
@@ -34,6 +35,7 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_TRACE_GLOBAL_TAGS');
         putenv('DD_TRACE_SAMPLE_RATE');
         putenv('DD_TRACE_SAMPLING_RULES');
+        putenv('DD_VERSION');
     }
 
     public function testTracerEnabledByDefault()
@@ -389,6 +391,34 @@ final class ConfigurationTest extends BaseTestCase
         ];
     }
 
+    public function testEnv()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV=my-env']);
+        $this->assertSame('my-env', Configuration::get()->getEnv());
+        $this->assertSame('my-env', \ddtrace_config_env());
+    }
+
+    public function testEnvNotSet()
+    {
+        $this->putEnvAndReloadConfig(['DD_ENV']);
+        $this->assertNull(Configuration::get()->getEnv());
+        $this->assertNull(\ddtrace_config_env());
+    }
+
+    public function testVersion()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION=1.2.3']);
+        $this->assertSame('1.2.3', Configuration::get()->getServiceVersion());
+        $this->assertSame('1.2.3', \ddtrace_config_service_version());
+    }
+
+    public function testVersionNotSet()
+    {
+        $this->putEnvAndReloadConfig(['DD_VERSION']);
+        $this->assertNull(Configuration::get()->getServiceVersion());
+        $this->assertNull(\ddtrace_config_service_version());
+    }
+
     public function testUriAsResourceNameEnabledDefault()
     {
         $this->assertTrue(Configuration::get()->isURLAsResourceNameEnabled());
@@ -431,5 +461,31 @@ final class ConfigurationTest extends BaseTestCase
         $this->putEnvAndReloadConfig(['DD_TAGS=wrong_key_value']);
         $this->assertEquals([], Configuration::get()->getGlobalTags());
         $this->assertEquals([], \ddtrace_config_global_tags());
+    }
+
+    public function testUriNormalizationSettingWhenNotSet()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
+        ]);
+
+        $this->assertSame([], \ddtrace_config_path_fragment_regex());
+        $this->assertSame([], \ddtrace_config_path_mapping_incoming());
+        $this->assertSame([], \ddtrace_config_path_mapping_outgoing());
+    }
+
+    public function testUriNormalizationSettingWheSet()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX=/a/',
+            'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING=path/*',
+            'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING=path/*',
+        ]);
+
+        $this->assertSame(['/a/'], \ddtrace_config_path_fragment_regex());
+        $this->assertSame(['path/*'], \ddtrace_config_path_mapping_incoming());
+        $this->assertSame(['path/*'], \ddtrace_config_path_mapping_outgoing());
     }
 }

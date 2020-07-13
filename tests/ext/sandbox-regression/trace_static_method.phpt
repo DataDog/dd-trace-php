@@ -14,7 +14,7 @@ class Test
 
 }
 
-dd_trace_method("Test", "public_static_method", function($s, $a, $retval){
+DDTrace\trace_method("Test", "public_static_method", function($s, $a, $retval){
     echo "test_access hook start" . PHP_EOL . $retval . "test_access hook end" . PHP_EOL;
 });
 

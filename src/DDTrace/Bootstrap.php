@@ -48,7 +48,7 @@ final class Bootstrap
             }
             return;
         }
-        dd_trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', [
+        \DDTrace\trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', [
             'instrument_when_limited' => 1,
             'posthook' => $flushTracer,
         ]);
@@ -141,7 +141,7 @@ final class Bootstrap
 
         if (\dd_trace_env_config("DD_TRACE_SANDBOX_ENABLED")) {
             $rootSpan = $span;
-            \dd_trace_function('header', function (SpanData $span, $args) use ($rootSpan) {
+            \DDTrace\trace_function('header', function (SpanData $span, $args) use ($rootSpan) {
                 if (isset($args[2])) {
                     $parsedHttpStatusCode = $args[2];
                 } elseif (isset($args[0])) {
@@ -154,7 +154,7 @@ final class Bootstrap
                 return false;
             });
 
-            \dd_trace_function('http_response_code', function (SpanData $span, $args) use ($rootSpan) {
+            \DDTrace\trace_function('http_response_code', function (SpanData $span, $args) use ($rootSpan) {
                 if (isset($args[0]) && \is_numeric($args[0])) {
                     $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
                 }

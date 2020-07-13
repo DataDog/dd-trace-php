@@ -4,6 +4,7 @@
 <?php if (PHP_MAJOR_VERSION > 5) die('skip: test requires legacy API'); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 date_default_timezone_set('UTC');

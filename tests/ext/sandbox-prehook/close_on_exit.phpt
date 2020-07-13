@@ -16,14 +16,14 @@ register_shutdown_function(function () {
     );
 });
 
-dd_trace_function('outer', ['prehook' => function (SpanData $span) {
+DDTrace\trace_function('outer', ['prehook' => function (SpanData $span) {
     $span->name = 'outer';
     $span->resource = $span->name;
     $span->service = 'test';
     $span->type = 'custom';
 }]);
 
-dd_trace_function('inner', ['prehook' => function (SpanData $span) {
+DDTrace\trace_function('inner', ['prehook' => function (SpanData $span) {
     $span->name = 'inner';
     $span->resource = $span->name;
     $span->service = 'test';

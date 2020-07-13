@@ -1,5 +1,7 @@
 --TEST--
 Check user defined function can safely catch and rethrow exception
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 function test($param = 2){

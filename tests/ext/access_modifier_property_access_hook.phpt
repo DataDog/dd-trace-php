@@ -1,5 +1,7 @@
 --TEST--
 Check object's private and protected properties can be accessed from a callback.
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 class Test

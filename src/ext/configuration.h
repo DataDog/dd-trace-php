@@ -86,14 +86,34 @@ void ddtrace_config_shutdown(void);
 #define DD_CONFIGURATION                                                                                             \
     CHAR(get_dd_trace_agent_url, "DD_TRACE_AGENT_URL", "")                                                           \
     CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost")                                                            \
+    BOOL(get_dd_distributed_tracing, "DD_DISTRIBUTED_TRACING", true)                                                 \
     CHAR(get_dd_dogstatsd_port, "DD_DOGSTATSD_PORT", "8125")                                                         \
+    CHAR(get_dd_env, "DD_ENV", "")                                                                                   \
+    CHAR(get_dd_integrations_disabled, "DD_INTEGRATIONS_DISABLED", "")                                               \
+    BOOL(get_dd_priority_sampling, "DD_PRIORITY_SAMPLING", true)                                                     \
+    CHAR(get_dd_service, "DD_SERVICE", "")                                                                           \
+    CHAR(get_dd_service_mapping, "DD_SERVICE_MAPPING", "")                                                           \
+    CHAR(get_dd_service_name, "DD_SERVICE_NAME", "")                                                                 \
+    CHAR(get_dd_tags, "DD_TAGS", "")                                                                                 \
     INT(get_dd_trace_agent_port, "DD_TRACE_AGENT_PORT", 8126)                                                        \
+    BOOL(get_dd_trace_analytics_enabled, "DD_TRACE_ANALYTICS_ENABLED", false)                                        \
     BOOL(get_dd_trace_auto_flush_enabled, "DD_TRACE_AUTO_FLUSH_ENABLED", false)                                      \
+    BOOL(get_dd_trace_cli_enabled, "DD_TRACE_CLI_ENABLED", false)                                                    \
     BOOL(get_dd_trace_measure_compile_time, "DD_TRACE_MEASURE_COMPILE_TIME", true)                                   \
     BOOL(get_dd_trace_debug, "DD_TRACE_DEBUG", false)                                                                \
+    BOOL(get_dd_trace_enabled, "DD_TRACE_ENABLED", true)                                                             \
+    CHAR(get_dd_trace_global_tags, "DD_TRACE_GLOBAL_TAGS", "")                                                       \
     BOOL(get_dd_trace_heath_metrics_enabled, "DD_TRACE_HEALTH_METRICS_ENABLED", false)                               \
     DOUBLE(get_dd_trace_heath_metrics_heartbeat_sample_rate, "DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE", 0.001) \
+    BOOL(get_dd_trace_http_client_split_by_domain, "DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN", false)                    \
     CHAR(get_dd_trace_memory_limit, "DD_TRACE_MEMORY_LIMIT", NULL)                                                   \
+    BOOL(get_dd_trace_report_hostname, "DD_TRACE_REPORT_HOSTNAME", false)                                            \
+    CHAR(get_dd_trace_resource_uri_fragment_regex, "DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX", "")                       \
+    CHAR(get_dd_trace_resource_uri_mapping_incoming, "DD_TRACE_RESOURCE_URI_MAPPING_INCOMING", "")                   \
+    CHAR(get_dd_trace_resource_uri_mapping_outgoing, "DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING", "")                   \
+    DOUBLE(get_dd_trace_sample_rate, "DD_TRACE_SAMPLE_RATE", 1.0)                                                    \
+    CHAR(get_dd_trace_sampling_rules, "DD_TRACE_SAMPLING_RULES", "")                                                 \
+    CHAR(get_dd_trace_traced_internal_functions, "DD_TRACE_TRACED_INTERNAL_FUNCTIONS", "")                           \
     INT(get_dd_trace_agent_timeout, "DD_TRACE_AGENT_TIMEOUT", DD_TRACE_AGENT_TIMEOUT)                                \
     INT(get_dd_trace_agent_connect_timeout, "DD_TRACE_AGENT_CONNECT_TIMEOUT", DD_TRACE_AGENT_CONNECT_TIMEOUT)        \
     INT(get_dd_trace_debug_prng_seed, "DD_TRACE_DEBUG_PRNG_SEED", -1)                                                \
@@ -111,11 +131,14 @@ void ddtrace_config_shutdown(void);
     INT(get_dd_trace_agent_flush_interval, "DD_TRACE_AGENT_FLUSH_INTERVAL", 5000)                                    \
     INT(get_dd_trace_agent_flush_after_n_requests, "DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS", 10)                      \
     INT(get_dd_trace_shutdown_timeout, "DD_TRACE_SHUTDOWN_TIMEOUT", 5000)                                            \
+    BOOL(get_dd_trace_startup_logs, "DD_TRACE_STARTUP_LOGS", true)                                                   \
     BOOL(get_dd_trace_agent_debug_verbose_curl, "DD_TRACE_AGENT_DEBUG_VERBOSE_CURL", false)                          \
     BOOL(get_dd_trace_debug_curl_output, "DD_TRACE_DEBUG_CURL_OUTPUT", false)                                        \
     INT(get_dd_trace_beta_high_memory_pressure_percent, "DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT", 80,            \
         "reaching this percent threshold of a span buffer will trigger background thread "                           \
-        "to attempt to flush existing data to trace agent")
+        "to attempt to flush existing data to trace agent")                                                          \
+    BOOL(get_dd_trace_warn_legacy_dd_trace, "DD_TRACE_WARN_LEGACY_DD_TRACE", true)                                   \
+    CHAR(get_dd_version, "DD_VERSION", "")
 
 // render all configuration getters and define memoization struct
 #include "configuration_render.h"

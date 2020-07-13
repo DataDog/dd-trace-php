@@ -5,6 +5,15 @@ PHP_ARG_WITH(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
   [  --with-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
 
 if test "$PHP_DDTRACE" != "no"; then
+  AC_CHECK_SIZEOF([long])
+  AC_MSG_CHECKING([for 64-bit platform])
+  AS_IF([test "$ac_cv_sizeof_long" -eq 4],[
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([ddtrace only supports 64-bit platforms])
+  ],[
+    AC_MSG_RESULT([yes])
+  ])
+
   m4_include([m4/polyfill.m4])
   m4_include([m4/ax_execinfo.m4])
 
@@ -36,7 +45,6 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/configuration_php_iface.c \
     src/ext/ddtrace_string.c \
     src/ext/dispatch.c \
-    src/ext/dispatch_setup.c \
     src/ext/dogstatsd_client.c \
     src/ext/engine_hooks.c \
     src/ext/env_config.c \
@@ -48,6 +56,7 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/signals.c \
     src/ext/span.c \
     src/ext/third-party/mt19937-64.c \
+    src/ext/integrations/integrations.c \
   "
 
   PHP_VERSION=$($PHP_CONFIG --vernum)
@@ -61,6 +70,7 @@ if test "$PHP_DDTRACE" != "no"; then
       src/ext/php5_4/engine_hooks.c \
       src/ext/php5_4/handlers_internal.c \
       src/ext/php5_4/serializer.c \
+      src/ext/php5/startup_logging.c \
     "
   elif test $PHP_VERSION -lt 70000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
@@ -73,6 +83,7 @@ if test "$PHP_DDTRACE" != "no"; then
       src/ext/php5/handlers_curl.c \
       src/ext/php5/handlers_internal.c \
       src/ext/php5/serializer.c \
+      src/ext/php5/startup_logging.c \
     "
   elif test $PHP_VERSION -lt 80000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
@@ -88,6 +99,7 @@ if test "$PHP_DDTRACE" != "no"; then
       src/ext/php7/handlers_mysqli.c \
       src/ext/php7/handlers_pdo.c \
       src/ext/php7/serializer.c \
+      src/ext/php7/startup_logging.c \
     "
   else
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES=""
@@ -111,6 +123,9 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_ADD_INCLUDE([$ext_srcdir/src/ext/mpack])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/mpack])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/src/ext/integrations])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/integrations])
 
   PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])

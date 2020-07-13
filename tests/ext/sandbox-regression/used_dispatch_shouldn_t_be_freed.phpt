@@ -5,13 +5,13 @@
 --FILE--
 <?php
 function test($a){
-    dd_trace_function("test", function($s, $a, $retval){
+    DDTrace\trace_function("test", function($s, $a, $retval){
         echo 'NEW HOOK ' . $retval . PHP_EOL;
     });
     return 'METHOD ' . $a;
 }
 
-dd_trace_function("test", function($s, $a, $retval){
+DDTrace\trace_function("test", function($s, $a, $retval){
     echo 'OLD HOOK ' . $retval . PHP_EOL;
 });
 

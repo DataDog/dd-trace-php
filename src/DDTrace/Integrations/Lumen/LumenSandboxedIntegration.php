@@ -49,7 +49,7 @@ class LumenSandboxedIntegration extends SandboxedIntegration
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
 
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Laravel\Lumen\Application',
             'prepareRequest',
             function (SpanData $span, $args) use ($rootSpan, $integration, $appName) {
@@ -63,14 +63,18 @@ class LumenSandboxedIntegration extends SandboxedIntegration
             }
         );
 
+        // convert to non-tracing API
+        $hook = 'posthook';
         // Extracting resource name as in legacy integration
-        \dd_trace_method(
+        \DDTrace\trace_method(
             'Laravel\Lumen\Application',
             'handleFoundRoute',
             [
-                'prehook' => function (SpanData $span, $args) use ($rootSpan) {
+                $hook => function (SpanData $span, $args) use ($rootSpan, $appName) {
+                    $span->service = $appName;
+                    $span->type = 'web';
                     if (count($args) < 1 || !\is_array($args[0])) {
-                        return false;
+                        return;
                     }
                     $routeInfo = $args[0];
                     $resourceName = null;
@@ -89,23 +93,22 @@ class LumenSandboxedIntegration extends SandboxedIntegration
                             $rootSpan->getTag(Tag::HTTP_METHOD) . ' ' . $resourceName
                         );
                     }
-
-                    return false;
                 },
             ]
         );
 
-        $exceptionRenderer = function (SpanData $span, $args) use ($rootSpan) {
+        $exceptionRender = function (SpanData $span, $args) use ($rootSpan, $appName) {
+            $span->service = $appName;
+            $span->type = 'web';
             if (count($args) < 1 || !\is_a($args[0], 'Throwable')) {
-                return false;
+                return;
             }
             $exception = $args[0];
             $rootSpan->setError($exception);
-            return false;
         };
 
-        \dd_trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [ 'prehook' => $exceptionRenderer]);
-        \dd_trace_method('Laravel\Lumen\Application', 'sendExceptionToHandler', [ 'prehook' => $exceptionRenderer]);
+        \DDTrace\trace_method('Laravel\Lumen\Application', 'handleUncaughtException', [$hook => $exceptionRender]);
+        \DDTrace\trace_method('Laravel\Lumen\Application', 'sendExceptionToHandler', [$hook => $exceptionRender]);
 
         // View is rendered in laravel as the method name overlaps
 

@@ -8,7 +8,7 @@ function test($param = 2){
     throw new RuntimeException("FUNCTION " . $param);
 }
 
-dd_trace_function("test", function($s, $a, $r, $e){
+DDTrace\trace_function("test", function($s, $a, $r, $e){
     echo "EXCEPTION IN HOOK " . $e->getMessage() . PHP_EOL;
 });
 

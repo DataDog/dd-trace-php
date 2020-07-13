@@ -50,11 +50,11 @@ install_all: install install_ini
 
 test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE)
-	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -d ddtrace.request_init_hook=$(ROOT_DIR)/bridge/dd_wrap_autoloader.php $(TESTS)"
+	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)"
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE)
-	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -d ddtrace.request_init_hook=$(ROOT_DIR)/bridge/dd_wrap_autoloader.php -m $(TESTS)"
+	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS)"
 
 test_c_asan: export DD_TRACE_CLI_ENABLED=1
 test_c_asan: $(SO_FILE)
@@ -152,9 +152,9 @@ packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
 verify_pecl_file_definitions:
-	@for i in $(notdir $(C_FILES) $(TEST_FILES)); do\
-		grep -q $$i package.xml && continue;\
-		echo package.xml is missing \"$$i\"; \
+	@for i in $(C_FILES) $(TEST_FILES) $(M4_FILES); do\
+		grep -q $${i#"$(BUILD_DIR)/"} package.xml && continue;\
+		echo package.xml is missing \"$${i#"$(BUILD_DIR)/"}\"; \
 		exit 1;\
 	done
 	@echo "PECL file definitions are correct"

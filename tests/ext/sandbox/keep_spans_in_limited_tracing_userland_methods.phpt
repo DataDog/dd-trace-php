@@ -17,10 +17,10 @@ class MyClass
     }
 }
 
-dd_trace_method('MyClass', 'myMethod1', function (\DDTrace\SpanData $span) {
+DDTrace\trace_method('MyClass', 'myMethod1', function (\DDTrace\SpanData $span) {
     $span->name = 'MyClass.myMethod1';
 });
-dd_trace_method('MyClass', 'myMethod2', [
+DDTrace\trace_method('MyClass', 'myMethod2', [
     'instrument_when_limited' => 1,
     'posthook' => function (\DDTrace\SpanData $span) {
         $span->name = 'MyClass.myMethod2';

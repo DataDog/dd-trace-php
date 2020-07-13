@@ -11,7 +11,7 @@ function a(){
     throw new Exception('Oops!');
 }
 
-dd_trace_function('a', function($s, $args, $r, $ex) {
+DDTrace\trace_function('a', function($s, $args, $r, $ex) {
     $s->name = 'a';
     throw $ex;
 });

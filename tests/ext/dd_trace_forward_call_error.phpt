@@ -1,5 +1,7 @@
 --TEST--
 Error conditions for dd_trace_forward_call()
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 // Out of closure context

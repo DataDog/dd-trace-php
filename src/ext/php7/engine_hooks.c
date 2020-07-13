@@ -57,7 +57,7 @@ static zval *_dd_this(zend_execute_data *call) {
 
 #define DDTRACE_NOT_TRACED ((void *)1)
 
-static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch) {
+static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch_ptr) {
     if (DDTRACE_G(class_lookup) == NULL || DDTRACE_G(function_lookup) == NULL) {
         return false;
     }
@@ -84,13 +84,39 @@ static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc,
      *
      * It would avoid lowering the string and reduce memory churn; win-win.
      */
-    *dispatch = ddtrace_find_dispatch(this ? Z_OBJCE_P(this) : fbc->common.scope, &fname);
-    return *dispatch;
+    zend_class_entry *scope = this ? Z_OBJCE_P(this) : fbc->common.scope;
+
+    ddtrace_dispatch_t *dispatch = ddtrace_find_dispatch(scope, &fname);
+    if (dispatch != NULL && dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER) {
+        // don't execute in the future
+        dispatch->options ^= DDTRACE_DISPATCH_DEFERRED_LOADER;
+
+        if (Z_TYPE(dispatch->deferred_load_function_name) != IS_NULL) {
+            ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
+
+            zval retval;
+            if (FAILURE != call_user_function(EG(function_table), NULL, &dispatch->deferred_load_function_name, &retval,
+                                              0, NULL)) {
+                // attempt to load newly set dispatch fo function
+                dispatch = ddtrace_find_dispatch(scope, &fname);
+            }
+            zval_ptr_dtor(&retval);
+
+            ddtrace_sandbox_end(&backup);
+        } else {
+            dispatch = NULL;
+        }
+    }
+
+    if (dispatch_ptr != NULL) {
+        *dispatch_ptr = dispatch;
+    }
+    return dispatch;
 }
 
 static bool _dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
     // the callable can be NULL for ddtrace_known_integrations
-    if (Z_TYPE(dispatch->callable) != IS_OBJECT) {
+    if (Z_TYPE(dispatch->callable) != IS_OBJECT && Z_TYPE(dispatch->callable) != IS_STRING) {
         return false;
     }
 
@@ -327,39 +353,24 @@ static zend_class_entry *_dd_get_exception_base(zval *object) {
 #define GET_PROPERTY(object, id) zend_read_property_ex(_dd_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
 #endif
 
-static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_t *span, zval *user_retval) {
+static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_t *span, zval *callable, zval *user_retval) {
     zend_execute_data *call = span->call;
     ddtrace_dispatch_t *dispatch = span->dispatch;
-    zend_object *exception = NULL, *prev_exception = NULL;
     zval user_args;
 
-    if (Z_TYPE(dispatch->callable) != IS_OBJECT) {
-        return true;
-    }
-
     _dd_copy_function_args(call, &user_args, dispatch->options & DDTRACE_DISPATCH_POSTHOOK);
-    if (EG(exception)) {
-        exception = EG(exception);
-        EG(exception) = NULL;
-        prev_exception = EG(prev_exception);
-        EG(prev_exception) = NULL;
-        zend_clear_exception();
-    }
+    ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
     bool keep_span = true;
-    ddtrace_error_handling eh;
-    ddtrace_backup_error_handling(&eh, EH_THROW);
 
-    keep_span =
-        _dd_execute_tracing_closure(&dispatch->callable, span->span_data, call, &user_args, user_retval, exception);
+    keep_span = _dd_execute_tracing_closure(callable, span->span_data, call, &user_args, user_retval, backup.exception);
 
-    if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
+    if (get_dd_trace_debug() && PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
         const char *fname = Z_STRVAL(dispatch->function_name);
         ddtrace_log_errf("Error raised in tracing closure for %s(): %s in %s on line %d", fname, PG(last_error_message),
                          PG(last_error_file), PG(last_error_lineno));
     }
 
-    ddtrace_restore_error_handling(&eh);
     // If the tracing closure threw an exception, ignore it to not impact the original call
     if (get_dd_trace_debug() && EG(exception)) {
         zend_object *ex = EG(exception);
@@ -375,40 +386,91 @@ static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_t *span, zval *user_
             zval_dtor(message);
         }
     }
-    ddtrace_maybe_clear_exception();
+
+    ddtrace_sandbox_end(&backup);
 
     zval_dtor(&user_args);
-
-    if (exception) {
-        EG(exception) = exception;
-        EG(prev_exception) = prev_exception;
-
-        zend_throw_exception_internal(NULL);
-    }
 
     return keep_span;
 }
 
-static void _dd_end_span(ddtrace_span_t *span, zval *user_retval) {
-    ddtrace_dispatch_t *dispatch = span->dispatch;
-    dd_trace_stop_span_time(span);
+static ddtrace_span_t *ddtrace_prehook(zend_execute_data *call, ddtrace_dispatch_t *dispatch, zval *user_retval) {
+    bool continue_tracing = true;
+    ZEND_ASSERT(dispatch);
 
-    bool keep_span = true;
-    if (dispatch->options & DDTRACE_DISPATCH_POSTHOOK) {
-        keep_span = _dd_call_sandboxed_tracing_closure(span, user_retval);
+    ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
+    dispatch->busy = 1;               // guard against recursion, catching only topmost execution
+
+    ddtrace_span_t *span = ddtrace_open_span(call, dispatch);
+
+    if (dispatch->options & DDTRACE_DISPATCH_PREHOOK) {
+        continue_tracing = _dd_call_sandboxed_tracing_closure(span, &dispatch->prehook, user_retval);
+        if (!continue_tracing) {
+            ddtrace_drop_top_open_span();
+            span = NULL;
+        }
     }
 
-    if (keep_span) {
-        ddtrace_close_span();
+    return span;
+}
+
+void _dd_set_fqn(zval *zv, zend_execute_data *ex) {
+    if (!ex->func || !ex->func->common.function_name) {
+        return;
+    }
+    zend_class_entry *called_scope = zend_get_called_scope(ex);
+    if (called_scope) {
+        // This cannot be cached on the dispatch since sub classes can share the same parent dispatch
+        zend_string *fqn =
+            strpprintf(0, "%s.%s", ZSTR_VAL(called_scope->name), ZSTR_VAL(ex->func->common.function_name));
+        ZVAL_STR_COPY(zv, fqn);
+        zend_string_release(fqn);
     } else {
-        ddtrace_drop_top_open_span();
+        ZVAL_STR_COPY(zv, ex->func->common.function_name);
     }
 }
 
-static void _dd_update_opcode_leave(zend_execute_data *execute_data) {
-    DD_PRINTF("Update opcode leave");
-    EX(call) = EX(call)->prev_execute_data;
+static void _dd_set_default_properties(void) {
+    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    if (span == NULL || span->span_data == NULL || span->call == NULL) {
+        return;
+    }
+    // SpanData::$name defaults to fully qualified called name
+    // The other span property defaults are set at serialization time
+    zval *prop_name = ddtrace_spandata_property_name(span->span_data);
+    if (prop_name && Z_TYPE_P(prop_name) == IS_NULL) {
+        zval prop_name_default;
+        ZVAL_NULL(&prop_name_default);
+        _dd_set_fqn(&prop_name_default, span->call);
+        ZVAL_COPY_VALUE(prop_name, &prop_name_default);
+        zval_copy_ctor(prop_name);
+        zval_dtor(&prop_name_default);
+    }
 }
+
+static void ddtrace_posthook(zend_function *fbc, ddtrace_span_t *span, zval *user_retval) {
+    if (span == DDTRACE_G(open_spans_top)) {
+        _dd_span_attach_exception(span, EG(exception));
+
+        dd_trace_stop_span_time(span);
+
+        bool keep_span = true;
+        if (span->dispatch->options & DDTRACE_DISPATCH_POSTHOOK) {
+            keep_span = _dd_call_sandboxed_tracing_closure(span, &span->dispatch->posthook, user_retval);
+        }
+
+        if (keep_span) {
+            _dd_set_default_properties();
+            ddtrace_close_span();
+        } else {
+            ddtrace_drop_top_open_span();
+        }
+    } else if (fbc && get_dd_trace_debug()) {
+        ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", ZSTR_VAL(fbc->common.function_name));
+    }
+}
+
+static void _dd_update_opcode_leave(zend_execute_data *execute_data) { EX(call) = EX(call)->prev_execute_data; }
 
 static void _dd_execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute_data *execute_data,
                               zval **return_value_ptr) {
@@ -423,27 +485,10 @@ static void _dd_execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_exe
         executed_method_class = Z_OBJCE_P(this);
     }
 
-    zend_function *func;
-
     zend_string *func_name = zend_string_init(ZEND_STRL(DDTRACE_CALLBACK_NAME), 0);
-    func = EX(func);
     zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable),
                         executed_method_class, executed_method_class, this);
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error) != SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
-            const char *scope_name, *function_name;
-
-            scope_name = (func->common.scope) ? ZSTR_VAL(func->common.scope->name) : NULL;
-            function_name = ZSTR_VAL(func->common.function_name);
-            if (scope_name) {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "cannot set override for %s::%s - %s",
-                                        scope_name, function_name, error);
-            } else {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "cannot set override for %s - %s",
-                                        function_name, error);
-            }
-        }
-
         if (error) {
             efree(error);
         }
@@ -548,14 +593,7 @@ static void _dd_fcall_helper(zend_execute_data *call, ddtrace_dispatch_t *dispat
     }
 #endif
 
-    ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
-    dispatch->busy = 1;               // guard against recursion, catching only topmost execution
-
-    ddtrace_span_t *span = ddtrace_open_span(call, dispatch);
-
-    if ((dispatch->options & DDTRACE_DISPATCH_PREHOOK) && _dd_call_sandboxed_tracing_closure(span, NULL) == false) {
-        ddtrace_drop_top_open_span();
-    }
+    ddtrace_prehook(call, dispatch, NULL);
 }
 
 static int _dd_legacy_fcall_helper(zend_execute_data *execute_data, ddtrace_dispatch_t *dispatch) {
@@ -717,7 +755,7 @@ static void _dd_return_helper(zend_execute_data *execute_data) {
             ZVAL_NULL(&rv);
             retval = &rv;
         }
-        _dd_end_span(span, retval);
+        ddtrace_posthook(NULL, span, retval);
     }
 }
 
@@ -766,7 +804,7 @@ static void _dd_yield_helper(zend_execute_data *execute_data) {
             ZVAL_NULL(&rv);
             retval = &rv;
         }
-        _dd_end_span(span, retval);
+        ddtrace_posthook(NULL, span, retval);
     }
 }
 
@@ -895,7 +933,7 @@ static int _dd_handle_exception_handler(zend_execute_data *execute_data) {
             if (EG(exception)) {
                 _dd_span_attach_exception(span, EG(exception));
             }
-            _dd_end_span(span, &retval);
+            ddtrace_posthook(NULL, span, &retval);
         }
     }
 
@@ -908,7 +946,7 @@ static int _dd_exit_handler(zend_execute_data *execute_data) {
         while ((span = DDTRACE_G(open_spans_top))) {
             zval retval;
             ZVAL_NULL(&retval);
-            _dd_end_span(span, &retval);
+            ddtrace_posthook(NULL, span, &retval);
         }
     }
 
@@ -996,28 +1034,14 @@ static void _dd_execute_internal(zend_execute_data *execute_data, zval *return_v
         return;
     }
 
-    ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
-    dispatch->busy = 1;               // guard against recursion, catching only topmost execution
+    ddtrace_span_t *span = ddtrace_prehook(execute_data, dispatch, NULL);
 
-    ddtrace_span_t *span = ddtrace_open_span(execute_data, dispatch);
-    if ((dispatch->options & DDTRACE_DISPATCH_PREHOOK) && _dd_call_sandboxed_tracing_closure(span, NULL) == false) {
-        ddtrace_drop_top_open_span();
-
-        _prev_execute_internal(execute_data, return_value);
-        return;
-    }
     _prev_execute_internal(execute_data, return_value);
-    if (span == DDTRACE_G(open_spans_top)) {
-        if (EG(exception)) {
-            _dd_span_attach_exception(span, EG(exception));
-        }
-        _dd_end_span(span, return_value);
+    if (span) {
         return;
     }
-    if (get_dd_trace_debug()) {
-        ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync",
-                         ZSTR_VAL(current_fbc->common.function_name));
-    }
+
+    ddtrace_posthook(current_fbc, span, return_value);
     dispatch->busy = 0;
 }
 
@@ -1030,25 +1054,9 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
         return;
     }
 
-    ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
-    dispatch->busy = 1;               // guard against recursion, catching only topmost execution
-
-    ddtrace_span_t *span = ddtrace_open_span(execute_data, dispatch);
-
-    if ((dispatch->options & DDTRACE_DISPATCH_PREHOOK) && _dd_call_sandboxed_tracing_closure(span, NULL) == false) {
-        ddtrace_drop_top_open_span();
-    }
-
+    ddtrace_span_t *span = ddtrace_prehook(execute_data, dispatch, NULL);
     handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-
-    span = DDTRACE_G(open_spans_top);
-    if (span && span->call == execute_data) {
-        _dd_span_attach_exception(span, EG(exception));
-        _dd_end_span(span, return_value);
-    } else {
-        if (get_dd_trace_debug()) {
-            ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync",
-                             ZSTR_VAL(EX(func)->common.function_name));
-        }
+    if (span) {
+        ddtrace_posthook(EX(func), span, return_value);
     }
 }

@@ -35,27 +35,22 @@ char *ddtrace_getenv_multi(char *primary, size_t primary_len, char *secondary, s
 }
 
 char *get_local_env_or_sapi_env(char *name TSRMLS_DC) {
-    char *env = NULL, *tmp = getenv(name);
-    if (tmp) {
-        env = ddtrace_strdup(tmp);
-    } else {
-        // reading sapi_getenv from within writer thread can and will lead to undefined behaviour
-        if (ddtrace_in_writer_thread()) {
-            return NULL;
-        }
-
+    char *env = NULL;
+    // reading sapi_getenv from within writer thread can and will lead to undefined behaviour
+    if (!ddtrace_in_writer_thread()) {
         env = sapi_getenv(name, strlen(name) TSRMLS_CC);
         if (env) {
             // convert PHP memory to pure C memory since this could be used in non request contexts too
             // currently we're not using permanent C memory anywhere, while this could be applied here
             // it seems more practical to simply use "C memory" instead of having 3rd way to free and allocate memory
-            char *oldenv = env;
-            env = ddtrace_strdup(env);
-            efree(oldenv);
+            char *tmp = ddtrace_strdup(env);
+            efree(env);
+            return tmp;
         }
     }
 
-    return env;
+    env = getenv(name);
+    return env ? ddtrace_strdup(env) : NULL;
 }
 
 BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def TSRMLS_DC) {

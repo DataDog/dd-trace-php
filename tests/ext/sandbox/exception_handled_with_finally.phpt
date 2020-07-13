@@ -23,11 +23,11 @@ function doCatchWithFinally() {
     }
 }
 
-dd_trace_function('throwException', function(SpanData $s) {
+DDTrace\trace_function('throwException', function(SpanData $s) {
     $s->name = 'throwException';
 });
 
-dd_trace_function('doCatchWithFinally', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('doCatchWithFinally', function(SpanData $s, $a, $retval) {
     $s->name = 'doCatchWithFinally';
     $s->resource = $retval;
 });
@@ -44,4 +44,4 @@ array_map(function($span) {
 --EXPECT--
 Finally retval
 doCatchWithFinally, Finally retval
-throwException, Oops!
+throwException, throwException, Oops!

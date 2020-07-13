@@ -19,7 +19,13 @@ struct ddtrace_string {
 typedef struct ddtrace_string ddtrace_string;
 
 #define DDTRACE_STRING_LITERAL(str) \
-    { .ptr = str, .len = sizeof(str) - 1 }
+    (ddtrace_string) { .ptr = str, .len = sizeof(str) - 1 }
+
+#if PHP_VERSION_ID < 70000
+#define DDTRACE_STRING_ZVAL_L(zval_ptr, str) ZVAL_STRINGL(zval_ptr, str.ptr, str.len, 1)
+#else
+#define DDTRACE_STRING_ZVAL_L(zval_ptr, str) ZVAL_STRINGL(zval_ptr, str.ptr, str.len)
+#endif
 
 inline ddtrace_string ddtrace_string_cstring_ctor(char *ptr) {
     ddtrace_string string = {

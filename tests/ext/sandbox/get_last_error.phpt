@@ -14,7 +14,7 @@ if (
     && $last_error['type'] == E_NOTICE
     && strpos($last_error['message'], 'Undefined variable') === 0
 ) {
-    dd_trace_function('array_sum', function () {
+    DDTrace\trace_function('array_sum', function () {
         echo $i_also_do_not_exist;
     });
     array_sum([]);

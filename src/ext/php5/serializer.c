@@ -345,9 +345,31 @@ void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC
     add_assoc_long(el, "start", span->start);
     add_assoc_long(el, "duration", span->duration);
 
-    ADD_ELEMENT_IF_NOT_NULL("name");
-    ADD_ELEMENT_IF_NOT_NULL("resource");
+    // SpanData::$name defaults to fully qualified called name (set at span close)
+    zval *prop_name = _read_span_property(span->span_data, ZEND_STRL("name") TSRMLS_CC);
+    zval *prop_name_as_string = NULL;
+    if (Z_TYPE_P(prop_name) != IS_NULL) {
+        ALLOC_INIT_ZVAL(prop_name_as_string);
+        ddtrace_convert_to_string(prop_name_as_string, prop_name TSRMLS_CC);
+        add_assoc_zval(el, "name", prop_name_as_string);
+    }
+
+    // SpanData::$resource defaults to SpanData::$name
+    zval *prop_resource = _read_span_property(span->span_data, ZEND_STRL("resource") TSRMLS_CC);
+    zval *prop_resource_as_string = NULL;
+    if (Z_TYPE_P(prop_resource) != IS_NULL) {
+        ALLOC_INIT_ZVAL(prop_resource_as_string);
+        ddtrace_convert_to_string(prop_resource_as_string, prop_resource TSRMLS_CC);
+        add_assoc_zval(el, "resource", prop_resource_as_string);
+    } else if (prop_name_as_string) {
+        Z_ADDREF_P(prop_name_as_string);
+        add_assoc_zval(el, "resource", prop_name_as_string);
+    }
+
+    // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
     ADD_ELEMENT_IF_NOT_NULL("service");
+
+    // SpanData::$type is optional and defaults to 'custom' at the Agent level
     ADD_ELEMENT_IF_NOT_NULL("type");
 
     _serialize_meta(el, span TSRMLS_CC);

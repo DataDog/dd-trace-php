@@ -40,32 +40,32 @@ class Test {
     }
 }
 
-dd_trace_function("test_a", function(){
+DDTrace\trace_function("test_a", function(){
     echo "HOOK A" . PHP_EOL;
 });
 
-dd_trace_function("test_b", function(){
+DDTrace\trace_function("test_b", function(){
     echo "HOOK B" . PHP_EOL;
 });
 
-dd_trace_function("test_c", function(){
+DDTrace\trace_function("test_c", function(){
     echo "HOOK C" . PHP_EOL;
 });
 
-dd_trace_function("test_d", function(){
+DDTrace\trace_function("test_d", function(){
     echo "HOOK D" . PHP_EOL;
 });
 
-dd_trace_method("Test", "m_a", function(){
+DDTrace\trace_method("Test", "m_a", function(){
     echo "HOOK MA" . PHP_EOL;
 });
-dd_trace_method("Test", "m_b", function(){
+DDTrace\trace_method("Test", "m_b", function(){
     echo "HOOK MB" . PHP_EOL;
 });
-dd_trace_method("Test", "m_c", function(){
+DDTrace\trace_method("Test", "m_c", function(){
     echo "HOOK MC" . PHP_EOL;
 });
-dd_trace_method("Test", "m_d", function(){
+DDTrace\trace_method("Test", "m_d", function(){
     echo "HOOK MD" . PHP_EOL;
 });
 

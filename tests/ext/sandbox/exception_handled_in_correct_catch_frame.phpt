@@ -43,22 +43,22 @@ function level3() {
     return 'You should not see this ' . __FUNCTION__;
 }
 
-dd_trace_function('level0', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('level0', function(SpanData $s, $a, $retval) {
     $s->name = 'level0';
     $s->resource = $retval;
 });
 
-dd_trace_function('level1', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('level1', function(SpanData $s, $a, $retval) {
     $s->name = 'level1';
     $s->resource = $retval;
 });
 
-dd_trace_function('level2', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('level2', function(SpanData $s, $a, $retval) {
     $s->name = 'level2';
     $s->resource = $retval;
 });
 
-dd_trace_function('level3', function(SpanData $s, $a, $retval) {
+DDTrace\trace_function('level3', function(SpanData $s, $a, $retval) {
     $s->name = 'level3';
     $s->resource = $retval;
 });
@@ -81,5 +81,5 @@ Exception was handled by level1(): Oops!
 HANDLED
 Span: level0-HANDLED
 Span: level1-HANDLED
-Span: level2 (Oops!)
-Span: level3 (Oops!)
+Span: level2-level2 (Oops!)
+Span: level3-level3 (Oops!)

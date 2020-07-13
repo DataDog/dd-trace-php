@@ -21,7 +21,7 @@ register_shutdown_function(function () {
     echo 'You should not see this.' . PHP_EOL;
 });
 
-dd_trace_function('array_sum', function (DDTrace\SpanData $span) {
+DDTrace\trace_function('array_sum', function (DDTrace\SpanData $span) {
     $span->name = 'array_sum' . str_repeat('.', 500);
     $span->resource = 'array_sum' . str_repeat('-', 500);
     $span->service = 'php';

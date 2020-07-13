@@ -7,7 +7,7 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=spl_autoload_register
 --FILE--
 <?php
 
-dd_trace_function("spl_autoload_register", function() {
+DDTrace\trace_function("spl_autoload_register", function() {
     echo "HOOK" . PHP_EOL;
 });
 

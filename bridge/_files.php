@@ -2,6 +2,7 @@
 
 return [
     __DIR__ . '/configuration.php',
+    __DIR__ . '/../src/private/functions.php',
     __DIR__ . '/../src/api/Contracts/Tracer.php',
     __DIR__ . '/../src/api/Contracts/Span.php',
     __DIR__ . '/../src/api/Contracts/Scope.php',
@@ -87,6 +88,7 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchCommon.php',
     __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/ElasticSearchSandboxedIntegration.php',
+    __DIR__ . '/../src/DDTrace/Integrations/ElasticSearch/V1/loader.php',
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/V4/LaravelIntegration.php',

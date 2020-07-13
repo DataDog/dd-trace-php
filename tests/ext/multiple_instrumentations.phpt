@@ -1,5 +1,7 @@
 --TEST--
 Verify Multiple functions and methods will be instrumented successfully
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 function test_a($a){

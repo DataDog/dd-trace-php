@@ -33,7 +33,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
          * MongoClient
          */
 
-        dd_trace_method('MongoClient', '__construct', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoClient', '__construct', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -50,7 +50,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoClient', 'selectCollection', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoClient', 'selectCollection', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -63,7 +63,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoClient', 'selectDB', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoClient', 'selectDB', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -73,7 +73,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoClient', 'setReadPreference', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoClient', 'setReadPreference', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -93,7 +93,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
          * MongoCollection
          */
 
-        dd_trace_method('MongoCollection', '__construct', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoCollection', '__construct', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -106,23 +106,27 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoCollection', 'createDBRef', function (SpanData $span, $args, $return) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
+        \DDTrace\trace_method(
+            'MongoCollection',
+            'createDBRef',
+            function (SpanData $span, $args, $return) use ($integration) {
+                if (dd_trace_tracer_is_limited()) {
+                    return false;
+                }
+                $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'createDBRef');
+                if (!is_array($return)) {
+                    return;
+                }
+                if (isset($return['$id'])) {
+                    $span->meta[Tag::MONGODB_BSON_ID] = $return['$id'];
+                }
+                if (isset($return['$ref'])) {
+                    $span->meta[Tag::MONGODB_COLLECTION] = $return['$ref'];
+                }
             }
-            $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'createDBRef');
-            if (!is_array($return)) {
-                return;
-            }
-            if (isset($return['$id'])) {
-                $span->meta[Tag::MONGODB_BSON_ID] = $return['$id'];
-            }
-            if (isset($return['$ref'])) {
-                $span->meta[Tag::MONGODB_COLLECTION] = $return['$ref'];
-            }
-        });
+        );
 
-        dd_trace_method('MongoCollection', 'getDBRef', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoCollection', 'getDBRef', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -136,7 +140,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoCollection', 'distinct', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoCollection', 'distinct', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -147,15 +151,19 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoCollection', 'setReadPreference', function (SpanData $span, $args) use ($integration) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
+        \DDTrace\trace_method(
+            'MongoCollection',
+            'setReadPreference',
+            function (SpanData $span, $args) use ($integration) {
+                if (dd_trace_tracer_is_limited()) {
+                    return false;
+                }
+                $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'setReadPreference');
+                if (isset($args[0])) {
+                    $span->meta[Tag::MONGODB_READ_PREFERENCE] = $args[0];
+                }
             }
-            $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'setReadPreference');
-            if (isset($args[0])) {
-                $span->meta[Tag::MONGODB_READ_PREFERENCE] = $args[0];
-            }
-        });
+        );
 
         $this->traceMongoQuery('MongoCollection', 'count', false);
         $this->traceMongoQuery('MongoCollection', 'find');
@@ -186,7 +194,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
          * MongoDB
          */
 
-        dd_trace_method('MongoDB', 'setReadPreference', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoDB', 'setReadPreference', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -196,7 +204,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoDB', 'setProfilingLevel', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoDB', 'setProfilingLevel', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -206,7 +214,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoDB', 'command', function (SpanData $span, $args, $return) use ($integration) {
+        \DDTrace\trace_method('MongoDB', 'command', function (SpanData $span, $args, $return) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -221,7 +229,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoDB', 'createDBRef', function (SpanData $span, $args, $return) use ($integration) {
+        \DDTrace\trace_method('MongoDB', 'createDBRef', function (SpanData $span, $args, $return) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -234,7 +242,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoDB', 'getDBRef', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoDB', 'getDBRef', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -244,7 +252,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoDB', 'createCollection', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoDB', 'createCollection', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -257,7 +265,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        dd_trace_method('MongoDB', 'selectCollection', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('MongoDB', 'selectCollection', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -295,7 +303,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
     public function traceMongoMethod($class, $method)
     {
         $integration = $this;
-        dd_trace_method($class, $method, function (SpanData $span) use ($class, $method, $integration) {
+        \DDTrace\trace_method($class, $method, function (SpanData $span) use ($class, $method, $integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -315,7 +323,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
     public function traceMongoQuery($class, $method, $isTraceAnalithicsCandidate = true)
     {
         $integration = $this;
-        dd_trace_method(
+        \DDTrace\trace_method(
             $class,
             $method,
             function (SpanData $span, $args) use ($class, $method, $isTraceAnalithicsCandidate, $integration) {

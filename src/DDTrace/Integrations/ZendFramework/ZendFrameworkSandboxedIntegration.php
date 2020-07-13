@@ -55,7 +55,7 @@ class ZendFrameworkSandboxedIntegration extends SandboxedIntegration
         // name 'zendframework', we are instead using the 'zf1' prefix.
         $appName = \ddtrace_config_app_name('zf1');
 
-        dd_trace_method(
+        \DDTrace\trace_method(
             'Zend_Controller_Plugin_Broker',
             'preDispatch',
             function (SpanData $spanData, $args) use ($integration, $appName) {
@@ -98,7 +98,7 @@ class ZendFrameworkSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        dd_trace_method('Zend_Controller_Plugin_Broker', 'postDispatch', function () {
+        \DDTrace\trace_method('Zend_Controller_Plugin_Broker', 'postDispatch', function () {
             $rootScope = GlobalTracer::get()->getRootScope();
             if (null === $rootScope || null === ($rootSpan = $rootScope->getSpan())) {
                 return false;

@@ -4,10 +4,8 @@ namespace DDTrace;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Encoders\SpanEncoder;
-use DDTrace\Http\Urls;
 use DDTrace\Encoders\MessagePack;
 use DDTrace\Log\LoggingTrait;
-use DDTrace\Processing\TraceAnalyticsProcessor;
 use DDTrace\Propagators\CurlHeadersMap;
 use DDTrace\Propagators\Noop as NoopPropagator;
 use DDTrace\Propagators\TextMap;
@@ -92,6 +90,16 @@ final class Tracer implements TracerInterface
     private static $version;
 
     /**
+     * @var string|null The user's service version, e.g. '1.2.3'
+     */
+    private $serviceVersion;
+
+    /**
+     * @var string|null The environment assigned to the current service.
+     */
+    private $environment;
+
+    /**
      * @param Transport $transport
      * @param Propagator[] $propagators
      * @param array $config
@@ -109,6 +117,8 @@ final class Tracer implements TracerInterface
         $this->config = array_merge($this->config, $config);
         $this->reset();
         $this->config['global_tags'] = array_merge($this->config['global_tags'], \ddtrace_config_global_tags());
+        $this->serviceVersion = \ddtrace_config_service_version();
+        $this->environment = \ddtrace_config_env();
     }
 
     public function limited()
@@ -178,6 +188,20 @@ final class Tracer implements TracerInterface
 
         foreach ($tags as $key => $value) {
             $span->setTag($key, $value);
+        }
+
+        // Set extra default tags from configuration
+        // These take precedence over user defined global tags to encourage
+        // configuring them individually
+
+        // Application version
+        if (null !== $this->serviceVersion) {
+            $span->setTag(Tag::VERSION, $this->serviceVersion);
+        }
+
+        // Application environment
+        if (null !== $this->environment) {
+            $span->setTag(Tag::ENV, $this->environment);
         }
 
         $this->record($span);
@@ -423,8 +447,7 @@ final class Tracer implements TracerInterface
         // Normalized URL as the resource name
         $resourceName = $_SERVER['REQUEST_METHOD'];
         if (isset($_SERVER['REQUEST_URI'])) {
-            $normalizer = new Urls(explode(',', getenv('DD_TRACE_RESOURCE_URI_MAPPING')));
-            $resourceName .= ' ' . $normalizer->normalize($_SERVER['REQUEST_URI']);
+            $resourceName .= ' ' . \DDtrace\Private_\util_uri_normalize_incoming_path($_SERVER['REQUEST_URI']);
         }
         $span->setTag(Tag::RESOURCE_NAME, $resourceName, true);
     }

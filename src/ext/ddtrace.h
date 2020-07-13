@@ -11,6 +11,15 @@
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
 
+#if PHP_VERSION_ID >= 70000
+zval *ddtrace_spandata_property_name(zval *spandata);
+zval *ddtrace_spandata_property_resource(zval *spandata);
+zval *ddtrace_spandata_property_service(zval *spandata);
+zval *ddtrace_spandata_property_type(zval *spandata);
+zval *ddtrace_spandata_property_meta(zval *spandata);
+zval *ddtrace_spandata_property_metrics(zval *spandata);
+#endif
+
 BOOL_T ddtrace_tracer_is_limited(TSRMLS_D);
 
 typedef struct _ddtrace_original_context {
@@ -32,7 +41,6 @@ zend_bool disable;
 zend_bool disable_in_current_request;
 char *request_init_hook;
 zend_bool request_init_hook_loaded;
-zend_bool strict_mode;
 
 uint32_t traces_group_id;
 HashTable *class_lookup;
@@ -91,8 +99,11 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 
 #define DDTRACE_FENTRY(zend_name, name, arg_info, flags) \
     { #zend_name, name, arg_info, DDTRACE_ARG_INFO_SIZE(arg_info), flags }
+#define DDTRACE_RAW_FENTRY(zend_name, name, arg_info, flags) \
+    { zend_name, name, arg_info, DDTRACE_ARG_INFO_SIZE(arg_info), flags }
 
 #define DDTRACE_FE(name, arg_info) DDTRACE_FENTRY(name, ZEND_FN(name), arg_info, 0)
+#define DDTRACE_NS_FE(name, arg_info) DDTRACE_RAW_FENTRY("DDTrace\\" #name, ZEND_FN(name), arg_info, 0)
 #define DDTRACE_FALIAS(name, alias, arg_info) DDTRACE_FENTRY(name, ZEND_FN(alias), arg_info, 0)
 #define DDTRACE_FE_END ZEND_FE_END
 

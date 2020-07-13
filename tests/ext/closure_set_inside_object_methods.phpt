@@ -1,5 +1,7 @@
 --TEST--
 Check if closure can safely use variable names also present in outside scope
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 class Test {

@@ -45,13 +45,13 @@ class Bar
     }
 }
 
-dd_trace_method('Foo', 'aPublic', ['prehook' => function() {
+DDTrace\trace_method('Foo', 'aPublic', ['prehook' => function() {
     $this->getBar()->dPublic();
     var_dump($this->bProtected());
     var_dump($this->cPrivate());
 }]);
 
-dd_trace_method('Bar', 'dPublic', ['prehook' => function() {
+DDTrace\trace_method('Bar', 'dPublic', ['prehook' => function() {
     var_dump($this->eProtected());
     var_dump($this->fPrivate());
 }]);

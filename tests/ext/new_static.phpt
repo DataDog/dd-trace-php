@@ -1,5 +1,7 @@
 --TEST--
 New static instantiates from expected class
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 abstract class Foo {

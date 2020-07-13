@@ -93,14 +93,14 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
         $this->traceCommand('touch');
         $this->traceCommandByKey('touchByKey');
 
-        dd_trace_method('Memcached', 'flush', function (SpanData $span) use ($integration) {
+        \DDTrace\trace_method('Memcached', 'flush', function (SpanData $span) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
             $integration->setCommonData($span, 'flush');
         });
 
-        dd_trace_method('Memcached', 'cas', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('Memcached', 'cas', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -110,7 +110,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
             $integration->setServerTags($span, $this);
         });
 
-        dd_trace_method('Memcached', 'casByKey', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('Memcached', 'casByKey', function (SpanData $span, $args) use ($integration) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -128,7 +128,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
     public function traceCommand($command)
     {
         $integration = $this;
-        dd_trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
+        \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -145,7 +145,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
     public function traceCommandByKey($command)
     {
         $integration = $this;
-        dd_trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
+        \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -163,7 +163,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
     public function traceMulti($command)
     {
         $integration = $this;
-        dd_trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
+        \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }
@@ -179,7 +179,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
     public function traceMultiByKey($command)
     {
         $integration = $this;
-        dd_trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
+        \DDTrace\trace_method('Memcached', $command, function (SpanData $span, $args) use ($integration, $command) {
             if (dd_trace_tracer_is_limited()) {
                 return false;
             }

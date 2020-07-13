@@ -1,5 +1,7 @@
 --TEST--
-[Prehook Regression] dd_trace_method() works alongside dd_trace()
+[Prehook Regression] DDTrace\trace_method() works alongside dd_trace()
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --FILE--
@@ -39,7 +41,7 @@ dd_trace('Foo', 'oldWay', function () {
     return $retval;
 });
 
-dd_trace_method(
+DDTrace\trace_method(
     'Foo', 'newWay',
     ['prehook' => function (SpanData $span, $args) {
         echo "TRACED Test::newWay()\n";

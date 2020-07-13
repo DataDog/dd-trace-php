@@ -5,48 +5,11 @@
 
 #include <ext/spl/spl_exceptions.h>
 
+#include "arrays.h"
 #include "compatibility.h"
 #include "ddtrace.h"
-#include "debug.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
-
-static int ddtrace_is_all_lower(zend_string *s) {
-    unsigned char *c, *e;
-
-    c = (unsigned char *)ZSTR_VAL(s);
-    e = c + ZSTR_LEN(s);
-
-    int rv = 1;
-    while (c < e) {
-        if (isupper(*c)) {
-            rv = 0;
-            break;
-        }
-        c++;
-    }
-    return rv;
-}
-
-zend_function *ddtrace_function_get(const HashTable *table, zval *name) {
-    if (Z_TYPE_P(name) != IS_STRING) {
-        return NULL;
-    }
-
-    zend_string *to_free = NULL, *key = Z_STR_P(name);
-    // todo: see if this can just be replaced with zend_string_tolower, which already does an optimization like this
-    if (!ddtrace_is_all_lower(key)) {
-        key = zend_string_tolower(key);
-        to_free = key;
-    }
-
-    zend_function *ptr = zend_hash_find_ptr(table, key);
-
-    if (to_free) {
-        zend_string_release(to_free);
-    }
-    return ptr;
-}
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch) {
     zval_ptr_dtor(&dispatch->function_name);
@@ -54,7 +17,6 @@ void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch) {
 }
 
 void ddtrace_class_lookup_release_compat(zval *zv) {
-    DD_PRINTF("freeing %p", (void *)zv);
     ddtrace_dispatch_t *dispatch = Z_PTR_P(zv);
     ddtrace_dispatch_release(dispatch);
 }
