@@ -242,12 +242,6 @@ class AutoloadTest
 $integrationsLoaderExists = class_exists('\\DDTrace\\Integrations\\IntegrationsLoader');
 renderSuccessOrFailure('IntegrationsLoader exists', $integrationsLoaderExists);
 if ($integrationsLoaderExists) {
-    $notLoaded = \DDTrace\Integrations\IntegrationsLoader::get()->getLoadingStatus('web');
-    renderSuccessOrFailure('Integrations not loaded yet', 0 === $notLoaded);
-
-    echo '- Registering an autoloader...' . PHP_EOL;
-    spl_autoload_register('AutoloadTest::load');
-
     $loaded = \DDTrace\Integrations\IntegrationsLoader::get()->getLoadingStatus('web');
     renderSuccessOrFailure('Integrations loaded', 0 !== $loaded);
 }

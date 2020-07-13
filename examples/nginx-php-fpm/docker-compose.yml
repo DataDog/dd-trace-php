@@ -8,6 +8,8 @@ services:
       dockerfile: Dockerfile_php_fpm
       args:
         DD_TRACER_VERSION: ${DD_TRACER_VERSION}
+    depends_on:
+      - agent
 
   nginx:
     image: nginx
@@ -16,6 +18,8 @@ services:
     volumes:
       - ./default.conf:/etc/nginx/conf.d/default.conf
       - ./public:/var/www/public
+    depends_on:
+      - php-fpm
 
   agent:
     image: datadog/agent:latest
