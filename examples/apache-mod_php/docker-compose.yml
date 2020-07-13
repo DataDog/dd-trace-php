@@ -11,6 +11,8 @@ services:
       DD_AGENT_HOST: agent
     ports:
       - 8889:80
+    depends_on:
+      - agent
 
   agent:
     image: datadog/agent:latest
