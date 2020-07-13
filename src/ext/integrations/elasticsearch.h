@@ -7,7 +7,8 @@
     DDTRACE_DEFERRED_INTEGRATION_LOADER(class, method, "DDTrace\\Integrations\\ElasticSearch\\V1\\load")
 
 static inline void _dd_es_initialize_deferred_integration(TSRMLS_D) {
-    if (!ddtrace_config_integration_enabled(DDTRACE_STRING_LITERAL("elasticsearch") TSRMLS_CC)) {
+    ddtrace_string elasticsearch = DDTRACE_STRING_LITERAL("elasticsearch");
+    if (!ddtrace_config_integration_enabled(elasticsearch TSRMLS_CC)) {
         return;
     }
 

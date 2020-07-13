@@ -48,6 +48,7 @@ var_dump(DDTrace\trace_method('foo', 'foo', [
 var_dump(DDTrace\trace_method('foo', 'foo', []));
 ?>
 --EXPECT--
+Unexpected parameters, expected (function_name, tracing_closure | config_array)
 bool(false)
 Expected config_array to be an associative array
 bool(false)
@@ -64,6 +65,7 @@ bool(false)
 Required key 'posthook', 'prehook' or 'innerhook' not found in config_array
 bool(false)
 
+Unexpected parameters, expected (class_name, method_name, tracing_closure | config_array)
 bool(false)
 Expected config_array to be an associative array
 bool(false)

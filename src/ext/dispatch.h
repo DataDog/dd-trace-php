@@ -44,7 +44,6 @@ inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch) {
     }
 }
 
-zend_class_entry *ddtrace_target_class_entry(zval *, zval *TSRMLS_DC);
 void ddtrace_dispatch_init(TSRMLS_D);
 void ddtrace_dispatch_destroy(TSRMLS_D);
 void ddtrace_dispatch_reset(TSRMLS_D);
@@ -78,7 +77,6 @@ void ddtrace_class_lookup_release_compat(zval *zv);
 #define INIT_ZVAL(x) ZVAL_NULL(&x)
 #endif
 
-zend_function *ddtrace_ftable_get(const HashTable *table, zval *name);
 HashTable *ddtrace_new_class_lookup(zval *clazz TSRMLS_DC);
 zend_bool ddtrace_dispatch_store(HashTable *class_lookup, ddtrace_dispatch_t *dispatch);
 void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC);

@@ -11,18 +11,6 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
-zend_function *ddtrace_ftable_get(const HashTable *table, zval *name) {
-    if (Z_TYPE_P(name) != IS_STRING) {
-        return NULL;
-    }
-
-    // todo: use (and enhance if needed first) ddtrace_hash_find_ptr_lc
-    zend_string *key = zend_string_tolower(Z_STR_P(name));
-    zend_function *ptr = zend_hash_find_ptr(table, key);
-    zend_string_release(key);
-    return ptr;
-}
-
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch) {
     zval_ptr_dtor(&dispatch->function_name);
     zval_ptr_dtor(&dispatch->callable);

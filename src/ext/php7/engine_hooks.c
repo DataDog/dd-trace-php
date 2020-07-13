@@ -470,10 +470,7 @@ static void ddtrace_posthook(zend_function *fbc, ddtrace_span_t *span, zval *use
     }
 }
 
-static void _dd_update_opcode_leave(zend_execute_data *execute_data) {
-    DD_PRINTF("Update opcode leave");
-    EX(call) = EX(call)->prev_execute_data;
-}
+static void _dd_update_opcode_leave(zend_execute_data *execute_data) { EX(call) = EX(call)->prev_execute_data; }
 
 static void _dd_execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_execute_data *execute_data,
                               zval **return_value_ptr) {
@@ -488,27 +485,10 @@ static void _dd_execute_fcall(ddtrace_dispatch_t *dispatch, zval *this, zend_exe
         executed_method_class = Z_OBJCE_P(this);
     }
 
-    zend_function *func;
-
     zend_string *func_name = zend_string_init(ZEND_STRL(DDTRACE_CALLBACK_NAME), 0);
-    func = EX(func);
     zend_create_closure(&closure, (zend_function *)zend_get_closure_method_def(&dispatch->callable),
                         executed_method_class, executed_method_class, this);
     if (zend_fcall_info_init(&closure, 0, &fci, &fcc, NULL, &error) != SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
-            const char *scope_name, *function_name;
-
-            scope_name = (func->common.scope) ? ZSTR_VAL(func->common.scope->name) : NULL;
-            function_name = ZSTR_VAL(func->common.function_name);
-            if (scope_name) {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "cannot set override for %s::%s - %s",
-                                        scope_name, function_name, error);
-            } else {
-                zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "cannot set override for %s - %s",
-                                        function_name, error);
-            }
-        }
-
         if (error) {
             efree(error);
         }
