@@ -84,6 +84,7 @@ void ddtrace_config_shutdown(void);
 #endif
 
 #define DD_CONFIGURATION                                                                                             \
+    CHAR(get_dd_trace_agent_url, "DD_TRACE_AGENT_URL", "")                                                           \
     CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost")                                                            \
     BOOL(get_dd_distributed_tracing, "DD_DISTRIBUTED_TRACING", true)                                                 \
     CHAR(get_dd_dogstatsd_port, "DD_DOGSTATSD_PORT", "8125")                                                         \
