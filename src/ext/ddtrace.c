@@ -66,8 +66,6 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "@php_dir@/datadog_trace/bridge/d
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
 #endif
-STD_PHP_INI_BOOLEAN("ddtrace.strict_mode", "0", PHP_INI_SYSTEM, OnUpdateBool, strict_mode, zend_ddtrace_globals,
-                    ddtrace_globals)
 PHP_INI_END()
 
 static int ddtrace_startup(struct _zend_extension *extension) {
@@ -632,11 +630,9 @@ static PHP_FUNCTION(dd_trace) {
                                  &config_array) != SUCCESS &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "za", &function, &config_array) !=
             SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameter combination, expected (class, function, closure | "
-                                    "config_array) or (function, closure | config_array)");
-        }
+        ddtrace_log_debug(
+            "Unexpected parameter combination, expected (class, function, closure | config_array) or (function, "
+            "closure | config_array)");
 
         RETURN_BOOL(0);
     }
@@ -672,25 +668,9 @@ static PHP_FUNCTION(dd_trace) {
         }
         ddtrace_zval_ptr_dtor(function);
 
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "function/method name parameter must be a string");
-        }
+        ddtrace_log_debug("function/method name parameter must be a string");
 
         RETURN_BOOL(0);
-    }
-
-    if (class_name && DDTRACE_G(strict_mode) && Z_TYPE_P(class_name) == IS_STRING) {
-        zend_class_entry *class = ddtrace_target_class_entry(class_name, function TSRMLS_CC);
-
-        if (!class) {
-            ddtrace_zval_ptr_dtor(class_name);
-            ddtrace_zval_ptr_dtor(function);
-
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "class not found");
-
-            RETURN_BOOL(0);
-        }
     }
 
     if (config_array) {
@@ -730,19 +710,12 @@ static PHP_FUNCTION(trace_method) {
                                  &tracing_closure, zend_ce_closure) != SUCCESS &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "zza", &class_name, &function,
                                  &config_array) != SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(
-                spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                "unexpected parameters, expected (class_name, method_name, tracing_closure | config_array)");
-        }
+        ddtrace_log_debug("Unexpected parameters, expected (class_name, method_name, tracing_closure | config_array)");
         RETURN_BOOL(0);
     }
 
     if (Z_TYPE_P(class_name) != IS_STRING || Z_TYPE_P(function) != IS_STRING) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "class_name and method_name must be a string");
-        }
+        ddtrace_log_debug("class_name and method_name must be a string");
         RETURN_BOOL(0);
     }
 
@@ -777,17 +750,12 @@ static PHP_FUNCTION(trace_function) {
                                  zend_ce_closure) != SUCCESS &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "za", &function, &config_array) !=
             SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameters, expected (function_name, tracing_closure | config_array)");
-        }
+        ddtrace_log_debug("Unexpected parameters, expected (function_name, tracing_closure | config_array)");
         RETURN_BOOL(0);
     }
 
     if (Z_TYPE_P(function) != IS_STRING) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "function_name must be a string");
-        }
+        ddtrace_log_debug("function_name must be a string");
         RETURN_BOOL(0);
     }
 
@@ -835,10 +803,7 @@ static PHP_FUNCTION(dd_trace_env_config) {
     zval *env_name = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &env_name) != SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameter. the environment variable name must be provided");
-        }
+        ddtrace_log_debug("unexpected parameter. the environment variable name must be provided");
         RETURN_FALSE;
     }
     if (env_name) {
@@ -862,10 +827,7 @@ static PHP_FUNCTION(dd_untrace) {
 
     // Remove the traced function from the global lookup
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "z", &function) != SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameter. the function name must be provided");
-        }
+        ddtrace_log_debug("unexpected parameter. the function name must be provided");
         RETURN_BOOL(0);
     }
 
@@ -1123,9 +1085,7 @@ static PHP_FUNCTION(dd_trace_buffer_span) {
     zval *trace_array = NULL;
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "a", &trace_array) == FAILURE) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC, "Expected group id and an array");
-        }
+        ddtrace_log_debug("Expected group id and an array");
         RETURN_BOOL(0);
     }
 
@@ -1158,18 +1118,12 @@ static PHP_FUNCTION(dd_trace_internal_fn) {
 
     zval *function_val = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z*", &function_val, &params, &params_count) != SUCCESS) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameter. the function name must be provided");
-        }
+        ddtrace_log_debug("unexpected parameter. the function name must be provided");
         RETURN_BOOL(0);
     }
 
     if (!function_val || Z_TYPE_P(function_val) != IS_STRING) {
-        if (DDTRACE_G(strict_mode)) {
-            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0 TSRMLS_CC,
-                                    "unexpected parameter. the function name must be provided");
-        }
+        ddtrace_log_debug("unexpected parameter. the function name must be provided");
         RETURN_BOOL(0);
     }
     char *fn = Z_STRVAL_P(function_val);

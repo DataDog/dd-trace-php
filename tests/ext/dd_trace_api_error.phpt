@@ -47,6 +47,7 @@ var_dump(dd_trace('foo', 'foo', [
 var_dump(dd_trace('foo', 'foo', []));
 ?>
 --EXPECT--
+Unexpected parameter combination, expected (class, function, closure | config_array) or (function, closure | config_array)
 bool(false)
 Expected config_array to be an associative array
 bool(false)
@@ -63,6 +64,7 @@ bool(false)
 Required key 'posthook', 'prehook' or 'innerhook' not found in config_array
 bool(false)
 
+Unexpected parameter combination, expected (class, function, closure | config_array) or (function, closure | config_array)
 bool(false)
 Expected config_array to be an associative array
 bool(false)

@@ -19,14 +19,6 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
     } while (0)
 #endif
 
-zend_function *ddtrace_ftable_get(const HashTable *table, zval *name) {
-    char *key = zend_str_tolower_dup(Z_STRVAL_P(name), Z_STRLEN_P(name));
-    zend_function *fptr = NULL;
-    zend_hash_find(table, key, Z_STRLEN_P(name) + 1, (void **)&fptr);
-    efree(key);
-    return fptr;
-}
-
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch) {
     zval_dtor(&dispatch->function_name);
     zval_dtor(&dispatch->callable);

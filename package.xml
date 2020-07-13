@@ -416,7 +416,6 @@
             <file name="tests/ext/sandbox-regression/destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/disable_tracing_disables_tracing.phpt" role="test" />
-            <file name="tests/ext/sandbox-regression/enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/extension_disabled.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/method_invoked_via_reflection.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/method_returning_array.phpt" role="test" />
@@ -471,7 +470,6 @@
             <file name="tests/ext/dd_trace_tracer_is_limited_memory.phpt" role="test" />
             <file name="tests/ext/dd_trace_warning.phpt" role="test" />
             <file name="tests/ext/destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
-            <file name="tests/ext/enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
             <file name="tests/ext/from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
             <file name="tests/ext/from_php_7_3_bug61728.phpt" role="test" />
             <file name="tests/ext/method_invoked_via_reflection.phpt" role="test" />

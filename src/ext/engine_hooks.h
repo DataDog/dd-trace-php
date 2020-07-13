@@ -78,7 +78,7 @@ inline void ddtrace_restore_error_handling(ddtrace_error_handling *eh TSRMLS_DC)
 
 #if PHP_VERSION_ID < 70000
 inline void ddtrace_maybe_clear_exception(TSRMLS_D) {
-    if (EG(exception) && !DDTRACE_G(strict_mode)) {
+    if (EG(exception)) {
         // Cannot use zend_clear_exception() in PHP 5 since there is no NULL check on the opline
         zval_ptr_dtor(&EG(exception));
         EG(exception) = NULL;
@@ -93,7 +93,7 @@ inline void ddtrace_maybe_clear_exception(TSRMLS_D) {
 }
 #else
 inline void ddtrace_maybe_clear_exception(void) {
-    if (EG(exception) && !DDTRACE_G(strict_mode)) {
+    if (EG(exception)) {
         zend_clear_exception();
     }
 }
