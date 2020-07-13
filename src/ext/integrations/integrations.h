@@ -23,9 +23,14 @@
  * It will be executed the first time someMethod is called, then an internal lookup will be repeated
  * for the someMethod to get the actual implementation of tracing function
  **/
-#define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, loader_function)              \
-    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
-                          DDTRACE_STRING_LITERAL(loader_function), DDTRACE_DISPATCH_DEFERRED_LOADER TSRMLS_CC)
+#define DDTRACE_DEFERRED_INTEGRATION_LOADER(Class, fname, loader_function)               \
+    do {                                                                                 \
+        ddtrace_string dd_tmp_class = DDTRACE_STRING_LITERAL(Class);                     \
+        ddtrace_string dd_tmp_fname = DDTRACE_STRING_LITERAL(fname);                     \
+        ddtrace_string dd_tmp_loader_function = DDTRACE_STRING_LITERAL(loader_function); \
+        ddtrace_hook_callable(dd_tmp_class, dd_tmp_fname, dd_tmp_loader_function,        \
+                              DDTRACE_DISPATCH_DEFERRED_LOADER TSRMLS_CC);               \
+    } while (0)
 
 /**
  * DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)
@@ -39,9 +44,13 @@
  * options need to specify either DDTRACE_DISPATCH_POSTHOOK or DDTRACE_DISPATCH_PREHOOK
  * in order for the callable to be called by the hooks
  **/
-#define DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)                      \
-    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
-                          DDTRACE_STRING_LITERAL(callable), options TSRMLS_CC)
+#define DDTRACE_INTEGRATION_TRACE(Class, fname, callable, options)                             \
+    do {                                                                                       \
+        ddtrace_string dd_tmp_class = DDTRACE_STRING_LITERAL(Class);                           \
+        ddtrace_string dd_tmp_fname = DDTRACE_STRING_LITERAL(fname);                           \
+        ddtrace_string dd_tmp_callable = DDTRACE_STRING_LITERAL(callable);                     \
+        ddtrace_hook_callable(dd_tmp_class, dd_tmp_fname, dd_tmp_callable, options TSRMLS_CC); \
+    } while (0)
 
 void dd_integrations_initialize(TSRMLS_D);
 #endif
