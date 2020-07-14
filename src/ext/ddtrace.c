@@ -52,6 +52,7 @@
 bool ddtrace_blacklisted_disable_legacy;
 bool ddtrace_has_blacklisted_module;
 
+atomic_int ddtrace_first_rinit;
 atomic_int ddtrace_warn_legacy_api;
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
@@ -77,7 +78,6 @@ static int ddtrace_startup(struct _zend_extension *extension) {
 
     ddtrace_blacklist_startup();
     ddtrace_internal_handlers_startup();
-    ddtrace_startup_logging_startup();
     return SUCCESS;
 }
 
@@ -243,6 +243,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     // config initialization needs to be at the top
     ddtrace_initialize_config(TSRMLS_C);
     _dd_disable_if_incompatible_sapi_detected(TSRMLS_C);
+    atomic_init(&ddtrace_first_rinit, 1);
     atomic_init(&ddtrace_warn_legacy_api, 1);
 
     /* This allows an extension (e.g. extension=ddtrace.so) to have zend_engine
@@ -309,6 +310,18 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     if (DDTRACE_G(disable)) {
         return SUCCESS;
+    }
+
+    // Things that should only run on the first RINIT
+    int expected_first_rinit = 1;
+    if (atomic_compare_exchange_strong(&ddtrace_first_rinit, &expected_first_rinit, 0)) {
+        /* The env vars are memoized on MINIT before the SAPI env vars are available.
+         * We use the first RINIT to bust the env var cache and use the SAPI env vars.
+         * TODO Audit/remove config usages before RINIT and move config init to RINIT.
+         */
+        ddtrace_reload_config(TSRMLS_C);
+
+        ddtrace_startup_logging_first_rinit();
     }
 
     DDTRACE_G(request_init_hook_loaded) = 0;
@@ -399,7 +412,7 @@ static void _dd_info_diagnostics_table(TSRMLS_D) {
     ALLOC_HASHTABLE(ht);
     zend_hash_init(ht, 8, NULL, ZVAL_PTR_DTOR, 0);
 
-    ddtrace_startup_diagnostics(ht);
+    ddtrace_startup_diagnostics(ht, false);
 
 #if PHP_VERSION_ID >= 70000
     zend_string *key;
