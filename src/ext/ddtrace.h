@@ -45,6 +45,8 @@ zend_bool request_init_hook_loaded;
 uint32_t traces_group_id;
 HashTable *class_lookup;
 HashTable *function_lookup;
+ddtrace_dispatch_pool_t *dispatch_pools;
+uint32_t dispatch_pools_size;
 zend_bool log_backtrace;
 zend_bool backtrace_handler_already_run;
 dogstatsd_client dogstatsd_client;

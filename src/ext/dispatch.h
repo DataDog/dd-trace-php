@@ -15,7 +15,7 @@
 #define DDTRACE_DISPATCH_PREHOOK (1u << 3u)
 #define DDTRACE_DISPATCH_DEFERRED_LOADER (1u << 4u)
 
-typedef struct ddtrace_dispatch_t {
+typedef struct _ddtrace_dispatch_t {
     uint16_t options;
     bool busy;
     uint32_t acquired;
@@ -25,22 +25,33 @@ typedef struct ddtrace_dispatch_t {
         zval prehook;
         zval posthook;
     };
+    bool non_pool;
     zval function_name;
 } ddtrace_dispatch_t;
+
+#define DDTRACE_DISPATCH_POOLS_COUNT 100
+
+typedef struct _ddtrace_dispatch_pool_t {
+    ddtrace_dispatch_t *dispatches;
+    uint32_t allocated;
+    uint32_t size;
+} ddtrace_dispatch_pool_t;
 
 ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname TSRMLS_DC);
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC);
 zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string function_name, ddtrace_string callable,
-                                uint32_t options TSRMLS_DC);
+                                uint32_t options, uint32_t pool_id, uint32_t dispatch_id TSRMLS_DC);
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch);
+
+ddtrace_dispatch_pool_t *ddtrace_initialize_new_dispatch_pool(uint32_t pool_id, uint32_t number_of_dispatches);
+ddtrace_dispatch_t *ddtrace_get_from_dispatch_pool(ddtrace_dispatch_pool_t *pool, uint32_t dispatch_id);
 
 inline void ddtrace_dispatch_copy(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }
 
 inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch) {
     if (--dispatch->acquired == 0) {
         ddtrace_dispatch_dtor(dispatch);
-        efree(dispatch);
     }
 }
 

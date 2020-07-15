@@ -6,7 +6,7 @@
 #if PHP_VERSION_ID >= 70000
 #define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str)                                         \
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class_str), DDTRACE_STRING_LITERAL(fname_str), \
-                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK)
+                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK, 0, 0)
 
 static void _dd_register_known_calls(void) {
     DDTRACE_KNOWN_INTEGRATION("wpdb", "query");

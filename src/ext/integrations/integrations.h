@@ -23,9 +23,9 @@
  * It will be executed the first time someMethod is called, then an internal lookup will be repeated
  * for the someMethod to get the actual implementation of tracing function
  **/
-#define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, loader_function)              \
-    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
-                          DDTRACE_STRING_LITERAL(loader_function), DDTRACE_DISPATCH_DEFERRED_LOADER TSRMLS_CC)
+#define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, loader_function, pool_id, dispatch_id) \
+    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname),       \
+                          DDTRACE_STRING_LITERAL(loader_function), DDTRACE_DISPATCH_DEFERRED_LOADER, pool_id, dispatch_id TSRMLS_CC)
 
 /**
  * DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)
@@ -41,7 +41,8 @@
  **/
 #define DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)                      \
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
-                          DDTRACE_STRING_LITERAL(callable), options TSRMLS_CC)
+                          DDTRACE_STRING_LITERAL(callable), options, 0, 0 TSRMLS_CC)
 
 void dd_integrations_initialize(TSRMLS_D);
+
 #endif

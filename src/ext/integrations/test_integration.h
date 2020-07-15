@@ -10,7 +10,7 @@ static inline void _dd_load_test_integrations(TSRMLS_D) {
         return;
     }
 
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("test", "public_static_method", "load_test_integration");
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("test", "public_static_method", "load_test_integration", 1, 0);
     DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
 }
 
