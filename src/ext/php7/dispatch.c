@@ -12,15 +12,15 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch) {
-    if (Z_TYPE(dispatch->function_name) != IS_NULL && Z_TYPE(dispatch->function_name) != IS_UNDEF) {
-        zval_ptr_dtor(&dispatch->function_name);
-        ZVAL_NULL(dispatch->function_name);
-    }
+    // if (Z_TYPE(dispatch->function_name) != IS_NULL && Z_TYPE(dispatch->function_name) != IS_UNDEF) {
+    zval_ptr_dtor(&dispatch->function_name);
+    ZVAL_NULL(&dispatch->function_name);
+    // }
 
-    if (Z_TYPE(dispatch->callable) != IS_NULL && Z_TYPE(dispatch->function_name) != IS_UNDEF) {
-        zval_ptr_dtor(&dispatch->callable);
-        ZVAL_NULL(dispatch->callable);
-    }
+    // if (Z_TYPE(dispatch->callable) != IS_NULL && Z_TYPE(dispatch->callable) != IS_UNDEF) {
+    zval_ptr_dtor(&dispatch->callable);
+    ZVAL_NULL(&dispatch->callable);
+    // }
 }
 
 void ddtrace_class_lookup_release_compat(zval *zv) {
@@ -44,7 +44,7 @@ HashTable *ddtrace_new_class_lookup(zval *class_name) {
 #define DDTRACE_IS_ARRAY_PERSISTENT HASH_FLAG_PERSISTENT
 #endif
 
-zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch_orig) {
+zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch) {
     return zend_hash_update_ptr(lookup, Z_STR(dispatch->function_name), dispatch) != NULL;
 }
 

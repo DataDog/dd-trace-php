@@ -20,8 +20,6 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 extern inline void ddtrace_dispatch_copy(ddtrace_dispatch_t *dispatch);
 extern inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch);
 
-
-
 static void _ddtrace_dispatch_pools_rinit() {
     if (DDTRACE_G(dispatch_pools) == NULL) {
         DDTRACE_G(dispatch_pools_size) = DDTRACE_DISPATCH_POOLS_COUNT;
@@ -29,17 +27,33 @@ static void _ddtrace_dispatch_pools_rinit() {
     }
 }
 
-// TODO: eventually all dispatch objects should be allocated on a pool
+static void _ddtrace_dispatch_pools_rshutdown() {
+    if (DDTRACE_G(dispatch_pools) == NULL) {
+        return;
+    }
+
+    for (uint32_t i = 0 ; i < DDTRACE_G(dispatch_pools_size); i++) {
+        ddtrace_dispatch_pool_t *pool = &DDTRACE_G(dispatch_pools)[i];
+        if (pool->dispatches == NULL) {
+            continue;
+        }
+        free(pool->dispatches);
+    }
+    free(DDTRACE_G(dispatch_pools));
+}
+
+// TODO: eventually all dispatch objects should be allocated on a pool and this function would not be needed
 static ddtrace_dispatch_t *_new_non_pool_dispatch() {
     ddtrace_dispatch_t *dispatch = calloc(1, sizeof(ddtrace_dispatch_t));
-    dispatch->non_pool = true;
+    dispatch->id = DDTRACE_NON_POOLED_DISPATCH;
     ZVAL_NULL(&dispatch->callable);
     ZVAL_NULL(&dispatch->function_name);
+    dispatch->acquired = 1;
     return dispatch;
 }
 
 static ddtrace_dispatch_pool_t *_ddtrace_dispatch_get_pool(uint32_t pool_id) {
-    if (DDTRACE_G(dispatch_pools) != NULL && pool_id < DDTRACE_G(dispatch_pools_size)){
+    if (DDTRACE_G(dispatch_pools) != NULL && pool_id < DDTRACE_G(dispatch_pools_size)) {
         return &DDTRACE_G(dispatch_pools)[pool_id];
     }
     return NULL;
@@ -47,24 +61,31 @@ static ddtrace_dispatch_pool_t *_ddtrace_dispatch_get_pool(uint32_t pool_id) {
 
 // @Levi example of future use for caching in opcache
 // ddtrace_dispatch_t dispatch_from_id(uint64_t id) {
-//     uint32_t pool_id = (u32)(id & 0xFFFFFFFFLL);
-//     uint32_t dispatch_id = (u32)((id & 0xFFFFFFFF00000000LL) >> 32);
+//     uint32_t pool_id = (u16)(id & 0xFFFFL);
+//     uint32_t dispatch_id = (u16)((id & 0xFFFF0000L) >> 16);
 
 //     _dispatch_from_pool(pool_id, dispatch_id);
 // }
 
-static ddtrace_dispatch_t *_dispatch_from_pool(uint32_t pool_id, uint32_t dispatch_id) {
+static ddtrace_dispatch_t *_dispatch_new_from_pool(uint32_t pool_id, uint32_t dispatch_id) {
     ddtrace_dispatch_pool_t *pool = _ddtrace_dispatch_get_pool(pool_id);
-    return ddtrace_get_from_dispatch_pool(pool, dispatch_id);
+
+    ddtrace_dispatch_t *dispatch = ddtrace_get_from_dispatch_pool(pool, dispatch_id);
+    dispatch->acquired = 1;
+    dispatch->pool_id = pool_id;
+    dispatch->dispatch_id = dispatch_id;
+    return dispatch;
 }
 
 ddtrace_dispatch_pool_t *ddtrace_initialize_new_dispatch_pool(uint32_t pool_id, uint32_t number_of_dispatches) {
     ddtrace_dispatch_pool_t *pool = _ddtrace_dispatch_get_pool(pool_id);
-    if (pool == NULL || pool->dispatches != NULL){ // if pool->dispatches was already allocated - then this pool was used previously
+    if (pool == NULL || pool->dispatches != NULL) {
+        // if pool->dispatches was already allocated - then this pool was used previously
         return NULL;
     }
 
     pool->dispatches = calloc(number_of_dispatches, sizeof(ddtrace_dispatch_t));
+    pool->size = number_of_dispatches;
     return pool;
 }
 
@@ -148,6 +169,7 @@ void ddtrace_dispatch_destroy(TSRMLS_D) {
         FREE_HASHTABLE(DDTRACE_G(function_lookup));
         DDTRACE_G(function_lookup) = NULL;
     }
+    _ddtrace_dispatch_pools_rshutdown();
 }
 
 void ddtrace_dispatch_reset(TSRMLS_D) {
@@ -254,7 +276,6 @@ zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string functi
         overridable_lookup = _get_lookup_for_target(NULL TSRMLS_CC);
     }
 
-
     ddtrace_dispatch_t *dispatch = NULL;
     if (overridable_lookup) {
         zval z_function_name;
@@ -268,7 +289,7 @@ zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string functi
     if (dispatch != NULL) {
         ddtrace_dispatch_dtor(dispatch);
     } else {
-        dispatch = _dispatch_from_pool(pool_id, dispatch_id);
+        dispatch = _dispatch_new_from_pool(pool_id, dispatch_id);
         needs_storing = true;
     }
 
@@ -279,7 +300,9 @@ zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string functi
     dispatch->options = options;
     DDTRACE_STRING_ZVAL_L(&dispatch->function_name, function_name);
     if (callable.ptr) {
-        DDTRACE_STRING_ZVAL_L(&dispatch->callable, callable);
+        // DDTRACE_STRING_ZVAL_L(&dispatch->callable, callable);
+        ZVAL_NULL(&dispatch->callable);
+
     } else {
         ZVAL_NULL(&dispatch->callable);
     }

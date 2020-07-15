@@ -7,6 +7,7 @@
 #include "random.h"
 #include "span.h"
 #include "version.h"
+struct ddtrace_dispatch_pool_t;
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
@@ -45,7 +46,7 @@ zend_bool request_init_hook_loaded;
 uint32_t traces_group_id;
 HashTable *class_lookup;
 HashTable *function_lookup;
-ddtrace_dispatch_pool_t *dispatch_pools;
+struct ddtrace_dispatch_pool_t *dispatch_pools;
 uint32_t dispatch_pools_size;
 zend_bool log_backtrace;
 zend_bool backtrace_handler_already_run;

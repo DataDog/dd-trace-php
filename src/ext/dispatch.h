@@ -15,7 +15,7 @@
 #define DDTRACE_DISPATCH_PREHOOK (1u << 3u)
 #define DDTRACE_DISPATCH_DEFERRED_LOADER (1u << 4u)
 
-typedef struct _ddtrace_dispatch_t {
+typedef struct ddtrace_dispatch_t {
     uint16_t options;
     bool busy;
     uint32_t acquired;
@@ -25,13 +25,20 @@ typedef struct _ddtrace_dispatch_t {
         zval prehook;
         zval posthook;
     };
-    bool non_pool;
+    union {
+        uint32_t id;
+        struct {
+            uint16_t dispatch_id;
+            uint16_t pool_id;
+        };
+    };
     zval function_name;
 } ddtrace_dispatch_t;
 
 #define DDTRACE_DISPATCH_POOLS_COUNT 100
+#define DDTRACE_NON_POOLED_DISPATCH 0xFFFFFFFF
 
-typedef struct _ddtrace_dispatch_pool_t {
+typedef struct ddtrace_dispatch_pool_t {
     ddtrace_dispatch_t *dispatches;
     uint32_t allocated;
     uint32_t size;

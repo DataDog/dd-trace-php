@@ -3,7 +3,7 @@
 #include "configuration.h"
 #include "integrations.h"
 
-#define ELASTIC_POOL_ID 2
+#define ES_INTEGRATION_POOL_ID 2
 
 #define _DD_AL_ES(class, method) \
     DDTRACE_DEFERRED_INTEGRATION_LOADER(class, method, "DDTrace\\Integrations\\ElasticSearch\\V1\\load", 2, 0)
@@ -13,7 +13,9 @@ static inline void _dd_es_initialize_deferred_integration(TSRMLS_D) {
     if (!ddtrace_config_integration_enabled(elasticsearch TSRMLS_CC)) {
         return;
     }
-    ddtrace_initialize_new_dispatch_pool(2, 84);
+    if (!ddtrace_initialize_new_dispatch_pool(ES_INTEGRATION_POOL_ID, 84)) {
+        return;
+    }
 
     _DD_AL_ES("elasticsearch\\client", "__construct");
     _DD_AL_ES("elasticsearch\\client", "count");
