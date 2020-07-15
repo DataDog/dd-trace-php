@@ -543,7 +543,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts
-            find ~/datadog/tests -type f -name 'nginx_*.log' -o -name 'dd_php_error.log' -exec cp --parents '{}' /tmp/artifacts \;
+            find ~/datadog/tests -type f -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -exec cp --parents '{}' /tmp/artifacts \;
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts/
@@ -882,6 +882,13 @@ workflows:
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test-web-74"
+          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
+          resource_class: medium+
+          sapi: fpm-fcgi
+          integration_testsuite: "custom-framework-autoloaded-suite"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
   build:
     jobs:
