@@ -17,6 +17,10 @@ if test "$PHP_DDTRACE" != "no"; then
   m4_include([m4/polyfill.m4])
   m4_include([m4/ax_execinfo.m4])
 
+  PHP_REQUIRE_CXX()
+  PHP_ADD_LIBRARY(stdc++, 1, EXTRA_LDFLAGS)
+  CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations -std=c++11"
+
   AX_EXECINFO
 
   AS_IF([test x"$ac_cv_header_execinfo_h" = xyes],
@@ -105,7 +109,7 @@ if test "$PHP_DDTRACE" != "no"; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES=""
   fi
 
-  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_PHP_SOURCES $DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
+  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_PHP_SOURCES $DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
   PHP_ADD_BUILD_DIR($ext_builddir/src/ext, 1)
 
   PHP_CHECK_LIBRARY(rt, shm_open,
