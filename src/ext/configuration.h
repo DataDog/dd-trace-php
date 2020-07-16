@@ -31,8 +31,13 @@ bool ddtrace_config_distributed_tracing_enabled(TSRMLS_D);
 bool ddtrace_config_trace_enabled(TSRMLS_D);
 
 // note: only call this if ddtrace_config_trace_enabled() returns true
+#ifdef __cplusplus
+extern "C" {
+#endif
 bool ddtrace_config_integration_enabled(ddtrace_string integration TSRMLS_DC);
-
+#ifdef __cplusplus
+}
+#endif
 inline ddtrace_string ddtrace_string_getenv(char *str, size_t len TSRMLS_DC) {
     return ddtrace_string_cstring_ctor(ddtrace_getenv(str, len TSRMLS_CC));
 }

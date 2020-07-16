@@ -19,7 +19,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_REQUIRE_CXX()
   PHP_ADD_LIBRARY(stdc++, 1, EXTRA_LDFLAGS)
-  CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations -std=c++11"
+  CXXFLAGS="$CXXFLAGS -Wall -Wno-unused-function -Wno-deprecated -Wno-deprecated-declarations -std=c++17"
 
   AX_EXECINFO
 
@@ -60,7 +60,7 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/signals.c \
     src/ext/span.c \
     src/ext/third-party/mt19937-64.c \
-    src/ext/integrations/integrations.c \
+    src/ext/integrations/integrations.cpp \
   "
 
   PHP_VERSION=$($PHP_CONFIG --vernum)

@@ -43,5 +43,11 @@
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
                           DDTRACE_STRING_LITERAL(callable), options TSRMLS_CC)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void dd_integrations_initialize(TSRMLS_D);
+#ifdef __cplusplus
+}
+#endif
 #endif

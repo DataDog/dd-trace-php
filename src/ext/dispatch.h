@@ -28,12 +28,19 @@ typedef struct ddtrace_dispatch_t {
     zval function_name;
 } ddtrace_dispatch_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname TSRMLS_DC);
 zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, uint32_t options TSRMLS_DC);
 zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string function_name, ddtrace_string callable,
                                 uint32_t options TSRMLS_DC);
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch);
+#ifdef __cplusplus
+}
+#endif
+
 
 inline void ddtrace_dispatch_copy(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }
 

@@ -14,6 +14,8 @@ static void _dd_register_known_calls(void) {
 }
 #endif
 
+extern "C" void dd_integrations_initialize(TSRMLS_D);
+
 void dd_integrations_initialize(TSRMLS_D) {
 #if PHP_VERSION_ID >= 70000
     /* Due to negative lookup caching, we need to have a list of all things we
