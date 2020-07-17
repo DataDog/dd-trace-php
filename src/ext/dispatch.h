@@ -41,7 +41,6 @@ void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch);
 }
 #endif
 
-
 inline void ddtrace_dispatch_copy(ddtrace_dispatch_t *dispatch) { dispatch->acquired++; }
 
 inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch) {

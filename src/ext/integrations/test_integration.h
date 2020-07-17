@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "integrations.h"
+using namespace ddtrace;
 
 static inline void _dd_load_test_integrations(TSRMLS_D) {
     char *test_deferred = getenv("_DD_LOAD_TEST_INTEGRATIONS");

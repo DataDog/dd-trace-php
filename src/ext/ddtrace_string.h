@@ -4,6 +4,7 @@
 #include <php_version.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #if PHP_VERSION_ID < 70000
@@ -12,14 +13,46 @@ typedef int ddtrace_zppstrlen_t;
 typedef size_t ddtrace_zppstrlen_t;
 #endif
 
+#ifdef __cplusplus
+#include <string>
+
+#include "php_hash.hpp"
+#endif
+
 struct ddtrace_string {
     char *ptr;
     ddtrace_zppstrlen_t len;
+    uint64_t hash;
+#ifdef __cplusplus
+    constexpr ddtrace_string(char *ptr, ddtrace_zppstrlen_t len, uint64_t hash) : ptr(ptr), len(len), hash(hash) {}
+    constexpr ddtrace_string(char *ptr, ddtrace_zppstrlen_t len)
+        : ptr(ptr), len(len), hash(ddtrace::string_hash(ptr, (size_t)len)){};
+    constexpr ddtrace_string() : ptr(NULL), len(0), hash(0){};
+    bool operator==(const ddtrace_string &other) const { return (this->hash == other.hash); }
+#endif
 };
+
+#ifdef __cplusplus
+namespace ddtrace {
+inline constexpr struct ddtrace_string operator"" _s(const char *c, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        if (c[i] >= 'a' and c[i] <= 'z') {
+            static_assert(true);
+        } else {
+        }
+    }
+    return {(char *)c, len};
+}
+
+// hash can be computed at compiletime
+static_assert(9223372036854953430ULL == "1"_s.hash);
+}  // namespace ddtrace
+#endif
+
 typedef struct ddtrace_string ddtrace_string;
 
 #define DDTRACE_STRING_LITERAL(str) \
-    (ddtrace_string) { .ptr = (char *)str, .len = sizeof(str) - 1 }
+    (ddtrace_string) { (char *)str, sizeof(str) - 1, 0 }
 
 #if PHP_VERSION_ID < 70000
 #define DDTRACE_STRING_ZVAL_L(zval_ptr, str) ZVAL_STRINGL(zval_ptr, str.ptr, str.len, 1)
@@ -32,10 +65,7 @@ typedef struct ddtrace_string ddtrace_string;
 #endif
 
 inline ddtrace_string ddtrace_string_cstring_ctor(char *ptr) {
-    ddtrace_string string = {
-        .ptr = ptr,
-        .len = ptr ? strlen(ptr) : 0,
-    };
+    ddtrace_string string = {ptr, ptr ? strlen(ptr) : 0, 0};
     return string;
 }
 
@@ -64,10 +94,7 @@ inline ddtrace_string ddtrace_trim(ddtrace_string src) {
     char *end = begin + src.len;
     begin = ddtrace_ltrim(begin, end);
     end = ddtrace_rtrim(begin, end);
-    ddtrace_string result = {
-        .ptr = begin,
-        .len = (ddtrace_zppstrlen_t)(end - begin),
-    };
+    ddtrace_string result = {begin, (ddtrace_zppstrlen_t)(end - begin), 0};
     return result;
 }
 
