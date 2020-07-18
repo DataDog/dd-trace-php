@@ -4,6 +4,44 @@
 #include <stddef.h>
 
 namespace ddtrace {
+#if PHP_VERSION_ID < 70000
+inline constexpr static uint64_t string_hash(const char *arKey, size_t nKeyLength) {
+    register ulong hash = 5381;
+
+    /* variant with the hash unrolled eight times */
+    for (; nKeyLength >= 8; nKeyLength -= 8) {
+        hash = ((hash << 5) + hash) + *arKey++;
+        hash = ((hash << 5) + hash) + *arKey++;
+        hash = ((hash << 5) + hash) + *arKey++;
+        hash = ((hash << 5) + hash) + *arKey++;
+        hash = ((hash << 5) + hash) + *arKey++;
+        hash = ((hash << 5) + hash) + *arKey++;
+        hash = ((hash << 5) + hash) + *arKey++;
+        hash = ((hash << 5) + hash) + *arKey++;
+    }
+    switch (nKeyLength) {
+        case 7:
+            hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+        case 6:
+            hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+        case 5:
+            hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+        case 4:
+            hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+        case 3:
+            hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+        case 2:
+            hash = ((hash << 5) + hash) + *arKey++; /* fallthrough... */
+        case 1:
+            hash = ((hash << 5) + hash) + *arKey++;
+            break;
+        case 0:
+            break;
+            EMPTY_SWITCH_DEFAULT_CASE()
+    }
+    return hash;
+}
+#else
 inline constexpr static uint64_t string_hash(const char *str, size_t len) {
     uint64_t hash = 5381UL;
 
@@ -79,7 +117,8 @@ inline constexpr static uint64_t string_hash(const char *str, size_t len) {
 #elif SIZEOF_ZEND_LONG == 4
     return hash | Z_UL(0x80000000);
 #else
-#error "Unknown SIZEOF_ZEND_LONG"
+// #error "Unknown SIZEOF_ZEND_LONG"
 #endif
 }
+#endif
 }  // namespace ddtrace

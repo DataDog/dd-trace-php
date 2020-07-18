@@ -26,7 +26,7 @@ struct ddtrace_string {
 #ifdef __cplusplus
     constexpr ddtrace_string(char *ptr, ddtrace_zppstrlen_t len, uint64_t hash) : ptr(ptr), len(len), hash(hash) {}
     constexpr ddtrace_string(char *ptr, ddtrace_zppstrlen_t len)
-        : ptr(ptr), len(len), hash(ddtrace::string_hash(ptr, (size_t)len)){};
+        : ptr(ptr), len(len), hash(ddtrace::string_hash(ptr, (ddtrace_zppstrlen_t)len)){};
     constexpr ddtrace_string() : ptr(NULL), len(0), hash(0){};
     bool operator==(const ddtrace_string &other) const { return (this->hash == other.hash); }
 #endif
@@ -34,18 +34,10 @@ struct ddtrace_string {
 
 #ifdef __cplusplus
 namespace ddtrace {
-inline constexpr struct ddtrace_string operator"" _s(const char *c, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        if (c[i] >= 'a' and c[i] <= 'z') {
-            static_assert(true);
-        } else {
-        }
-    }
-    return {(char *)c, len};
-}
+inline constexpr struct ddtrace_string operator"" _s(const char *c, size_t len) { return {(char *)c, (ddtrace_zppstrlen_t)len}; }
 
 // hash can be computed at compiletime
-static_assert(9223372036854953430ULL == "1"_s.hash);
+// static_assert(9223372036854953430ULL == "1"_s.hash);
 }  // namespace ddtrace
 #endif
 
@@ -65,7 +57,7 @@ typedef struct ddtrace_string ddtrace_string;
 #endif
 
 inline ddtrace_string ddtrace_string_cstring_ctor(char *ptr) {
-    ddtrace_string string = {ptr, ptr ? strlen(ptr) : 0, 0};
+    ddtrace_string string = {ptr, ptr ? (ddtrace_zppstrlen_t)strlen(ptr) : 0, 0};
     return string;
 }
 

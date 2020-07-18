@@ -1,9 +1,13 @@
-#include "integrations.h"
-
+#if 1
+// This is here for formatting to accept non default order - as on older gcc's these files need to be loaded first
+#include <cstddef>
 #include <string>
 #include <unordered_set>
+#include <utility>
+#endif
 
 #include "elasticsearch.h"
+#include "integrations.h"
 #include "php_hash.hpp"
 #include "test_integration.h"
 using namespace ddtrace;
@@ -16,11 +20,9 @@ struct Integration {
         : klass(klass), method(method), callable(callable), options(options){};
     constexpr Integration(ddtrace_string klass, ddtrace_string method, uint16_t options)
         : klass(klass), method(method), callable({}), options(options){};
-    void reg() { ddtrace_hook_callable(this->klass, this->method, this->callable, this->options); };
+    void reg(TSRMLS_D) { ddtrace_hook_callable(this->klass, this->method, this->callable, this->options TSRMLS_CC); };
     bool operator==(const Integration& other) const { return (klass == other.klass && method == other.method); }
-     std::size_t hash() const {
-        return this->klass.hash ^ (this->method.hash << 1);
-    }
+    std::size_t hash() const { return this->klass.hash ^ (this->method.hash << 1); }
 };
 
 struct IntegrationHash {
@@ -52,9 +54,9 @@ struct Integrations {
         data.insert(l);
         return *this;
     }
-    void reg() {
+    void reg(TSRMLS_D) {
         for (auto i : data) {
-            i.reg();
+            i.reg(TSRMLS_C);
         }
     }
 };
@@ -74,7 +76,6 @@ void dd_integrations_initialize(TSRMLS_D) {
      */
     integrations.add({Posthook("wpdb"_s, "query"_s), Posthook("illuminate\\events\\dispatcher"_s, "fire"_s)});
 
-
     /* In PHP 5.6 currently adding deferred integrations seem to trigger increase in heap
      * size - even though the memory usage is below the limit. We still can trigger memory
      * allocation error to be issued
@@ -82,12 +83,13 @@ void dd_integrations_initialize(TSRMLS_D) {
 
     _dd_es_initialize_deferred_integration(TSRMLS_C);
 #endif
-    // DDTRACE_DEFERRED_INTEGRATION_LOADER("test", "public_static_method", "load_test_integration");
-    // DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
+    integrations
+        .add({
+            Deferred("test"_s, "public_static_method"_s, "load_test_integration"_s),
+            Posthook("test"_s, "automaticaly_traced_method"_s, "tracing_function"_s),
+        })
+        .reg(TSRMLS_C);
 
-    integrations.add({
-        Deferred("test"_s, "public_static_method"_s, "load_test_integration"_s),
-        Posthook("test"_s, "automaticaly_traced_method"_s, "tracing_function"_s),
-    }).reg();
+    // TODO: just POC
     // _dd_load_test_integrations(TSRMLS_C);
 }
