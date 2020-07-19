@@ -88,8 +88,13 @@ static bool _dd_should_trace_helper(zend_execute_data *call, zend_function *fbc,
 
     ddtrace_dispatch_t *dispatch = ddtrace_find_dispatch(scope, &fname);
     if (dispatch != NULL && dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER) {
-        // don't execute in the future
-        dispatch->options ^= DDTRACE_DISPATCH_DEFERRED_LOADER;
+        // don't execute any loader in the pool
+        ddtrace_dispatch_pool_t *pool = ddtrace_dispatch_get_pool(dispatch->pool_id);
+        if (pool != NULL) {
+            for (size_t i = 0; i < pool->size; i++) {
+                pool->dispatches[i].options &= ~DDTRACE_DISPATCH_DEFERRED_LOADER;
+            }
+        }
 
         if (Z_TYPE(dispatch->deferred_load_function_name) != IS_NULL) {
             ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();

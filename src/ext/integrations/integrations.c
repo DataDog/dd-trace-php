@@ -6,13 +6,14 @@
 #define KNOWN_INTEGRATIONS_POOL 4
 
 #if PHP_VERSION_ID >= 70000
-#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str)                                         \
+#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str, id)                                     \
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class_str), DDTRACE_STRING_LITERAL(fname_str), \
-                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK, KNOWN_INTEGRATIONS_POOL, 0)
+                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK, KNOWN_INTEGRATIONS_POOL, id)
 
 static void _dd_register_known_calls(void) {
-    DDTRACE_KNOWN_INTEGRATION("wpdb", "query");
-    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire");
+    ddtrace_initialize_new_dispatch_pool(KNOWN_INTEGRATIONS_POOL, 3);
+    DDTRACE_KNOWN_INTEGRATION("wpdb", "query", 0);
+    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire", 1);
 }
 #endif
 

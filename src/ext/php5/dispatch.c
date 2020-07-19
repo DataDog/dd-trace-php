@@ -20,14 +20,14 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 #endif
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch) {
-    if (Z_TYPE(dispatch->function_name) != IS_NULL && Z_TYPE(dispatch->function_name) != IS_UNDEF) {
+    if (Z_TYPE(dispatch->function_name) != IS_NULL) {
         zval_dtor(&dispatch->function_name);
-        ZVAL_NULL(dispatch->function_name);
+        ZVAL_NULL(&dispatch->function_name);
     }
 
-    if (Z_TYPE(dispatch->callable) != IS_NULL && Z_TYPE(dispatch->function_name) != IS_UNDEF) {
+    if (Z_TYPE(dispatch->callable) != IS_NULL) {
         zval_dtor(&dispatch->callable);
-        ZVAL_NULL(dispatch->callable);
+        ZVAL_NULL(&dispatch->callable);
     }
 }
 
@@ -46,7 +46,7 @@ HashTable *ddtrace_new_class_lookup(zval *class_name TSRMLS_DC) {
     return class_lookup;
 }
 
-zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch_orig) {
+zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch) {
     return zend_hash_update(lookup, Z_STRVAL(dispatch->function_name), Z_STRLEN(dispatch->function_name), &dispatch,
                             sizeof(ddtrace_dispatch_t *), NULL) == SUCCESS;
 }

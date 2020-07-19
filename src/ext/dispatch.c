@@ -32,7 +32,7 @@ static void _ddtrace_dispatch_pools_rshutdown() {
         return;
     }
 
-    for (uint32_t i = 0 ; i < DDTRACE_G(dispatch_pools_size); i++) {
+    for (uint32_t i = 0; i < DDTRACE_G(dispatch_pools_size); i++) {
         ddtrace_dispatch_pool_t *pool = &DDTRACE_G(dispatch_pools)[i];
         if (pool->dispatches == NULL) {
             continue;
@@ -52,7 +52,7 @@ static ddtrace_dispatch_t *_new_non_pool_dispatch() {
     return dispatch;
 }
 
-static ddtrace_dispatch_pool_t *_ddtrace_dispatch_get_pool(uint32_t pool_id) {
+ddtrace_dispatch_pool_t *ddtrace_dispatch_get_pool(uint32_t pool_id) {
     if (DDTRACE_G(dispatch_pools) != NULL && pool_id < DDTRACE_G(dispatch_pools_size)) {
         return &DDTRACE_G(dispatch_pools)[pool_id];
     }
@@ -68,9 +68,12 @@ static ddtrace_dispatch_pool_t *_ddtrace_dispatch_get_pool(uint32_t pool_id) {
 // }
 
 static ddtrace_dispatch_t *_dispatch_new_from_pool(uint32_t pool_id, uint32_t dispatch_id) {
-    ddtrace_dispatch_pool_t *pool = _ddtrace_dispatch_get_pool(pool_id);
+    ddtrace_dispatch_pool_t *pool = ddtrace_dispatch_get_pool(pool_id);
 
     ddtrace_dispatch_t *dispatch = ddtrace_get_from_dispatch_pool(pool, dispatch_id);
+    if (!dispatch) {
+        return dispatch;
+    }
     dispatch->acquired = 1;
     dispatch->pool_id = pool_id;
     dispatch->dispatch_id = dispatch_id;
@@ -78,7 +81,7 @@ static ddtrace_dispatch_t *_dispatch_new_from_pool(uint32_t pool_id, uint32_t di
 }
 
 ddtrace_dispatch_pool_t *ddtrace_initialize_new_dispatch_pool(uint32_t pool_id, uint32_t number_of_dispatches) {
-    ddtrace_dispatch_pool_t *pool = _ddtrace_dispatch_get_pool(pool_id);
+    ddtrace_dispatch_pool_t *pool = ddtrace_dispatch_get_pool(pool_id);
     if (pool == NULL || pool->dispatches != NULL) {
         // if pool->dispatches was already allocated - then this pool was used previously
         return NULL;
@@ -227,7 +230,8 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
         needs_storing = true;
     }
 
-    if (Z_TYPE(dispatch->function_name) == IS_NULL || Z_TYPE(dispatch->callable) == IS_UNDEF) {
+    // if function name is already set. then we don't need to write to it again
+    if (Z_TYPE(dispatch->function_name) == IS_NULL) {
 #if PHP_VERSION_ID < 70000
         ZVAL_STRINGL(&dispatch->function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);
 #else
@@ -236,7 +240,8 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
         ddtrace_downcase_zval(&dispatch->function_name);  // method/function names are case insensitive in PHP
     }
 
-    if (Z_TYPE(dispatch->callable) != IS_NULL && Z_TYPE(dispatch->callable) != IS_UNDEF) {
+    // If callable is non null, it means we have to free it to override it
+    if (Z_TYPE(dispatch->callable) != IS_NULL) {
         zval_dtor(&dispatch->callable);
         ZVAL_NULL(&dispatch->callable);
     }
@@ -300,9 +305,7 @@ zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string functi
     dispatch->options = options;
     DDTRACE_STRING_ZVAL_L(&dispatch->function_name, function_name);
     if (callable.ptr) {
-        // DDTRACE_STRING_ZVAL_L(&dispatch->callable, callable);
-        ZVAL_NULL(&dispatch->callable);
-
+        DDTRACE_STRING_ZVAL_L(&dispatch->callable, callable);
     } else {
         ZVAL_NULL(&dispatch->callable);
     }

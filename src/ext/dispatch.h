@@ -36,7 +36,7 @@ typedef struct ddtrace_dispatch_t {
 } ddtrace_dispatch_t;
 
 #define DDTRACE_DISPATCH_POOLS_COUNT 100
-#define DDTRACE_NON_POOLED_DISPATCH 0xFFFFFFFF
+#define DDTRACE_NON_POOLED_DISPATCH 0xFFFFFFFFU
 
 typedef struct ddtrace_dispatch_pool_t {
     ddtrace_dispatch_t *dispatches;
@@ -51,6 +51,7 @@ zend_bool ddtrace_hook_callable(ddtrace_string class_name, ddtrace_string functi
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch);
 
+ddtrace_dispatch_pool_t *ddtrace_dispatch_get_pool(uint32_t pool_id);
 ddtrace_dispatch_pool_t *ddtrace_initialize_new_dispatch_pool(uint32_t pool_id, uint32_t number_of_dispatches);
 ddtrace_dispatch_t *ddtrace_get_from_dispatch_pool(ddtrace_dispatch_pool_t *pool, uint32_t dispatch_id);
 
@@ -59,6 +60,9 @@ inline void ddtrace_dispatch_copy(ddtrace_dispatch_t *dispatch) { dispatch->acqu
 inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch) {
     if (--dispatch->acquired == 0) {
         ddtrace_dispatch_dtor(dispatch);
+        if (dispatch->id == DDTRACE_NON_POOLED_DISPATCH) {
+            free(dispatch);
+        }
     }
 }
 

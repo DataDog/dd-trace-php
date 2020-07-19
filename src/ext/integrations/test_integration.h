@@ -10,12 +10,17 @@ static inline void _dd_load_test_integrations(TSRMLS_D) {
     if (!test_deferred) {
         return;
     }
-    if (!ddtrace_initialize_new_dispatch_pool(TEST_INTEGRATION_POOL_ID, 2)) {
+    if (!ddtrace_initialize_new_dispatch_pool(TEST_INTEGRATION_POOL_ID, 3)) {
         return;
     }
 
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("test", "public_static_method", "load_test_integration", TEST_INTEGRATION_POOL_ID, 0);
-    DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK, TEST_INTEGRATION_POOL_ID, 1);
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("test", "public_static_method", "load_test_integration",
+                                        TEST_INTEGRATION_POOL_ID, 0);
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("test", "second_public_static_method", "load_test_integration",
+                                        TEST_INTEGRATION_POOL_ID, 2);
+
+    DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK,
+                              TEST_INTEGRATION_POOL_ID, 1);
 }
 
 #endif

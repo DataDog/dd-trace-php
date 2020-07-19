@@ -36,14 +36,14 @@ zend_function *ddtrace_ftable_get(const HashTable *table, zval *name) {
 }
 
 void ddtrace_dispatch_dtor(ddtrace_dispatch_t *dispatch) {
-    if (Z_TYPE(dispatch->function_name) != IS_NULL && Z_TYPE(dispatch->function_name) != IS_UNDEF) {
+    if (Z_TYPE(dispatch->function_name) != IS_NULL) {
         zval_dtor(&dispatch->function_name);
-        ZVAL_NULL(dispatch->function_name);
+        ZVAL_NULL(&dispatch->function_name);
     }
 
-    if (Z_TYPE(dispatch->callable) != IS_NULL && Z_TYPE(dispatch->function_name) != IS_UNDEF) {
+    if (Z_TYPE(dispatch->callable) != IS_NULL) {
         zval_dtor(&dispatch->callable);
-        ZVAL_NULL(dispatch->callable);
+        ZVAL_NULL(&dispatch->callable);
     }
 }
 
