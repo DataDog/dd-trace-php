@@ -34,7 +34,9 @@ struct ddtrace_string {
 
 #ifdef __cplusplus
 namespace ddtrace {
-inline constexpr struct ddtrace_string operator"" _s(const char *c, size_t len) { return {(char *)c, (ddtrace_zppstrlen_t)len}; }
+inline constexpr struct ddtrace_string operator"" _s(const char *c, size_t len) {
+    return {(char *)c, (ddtrace_zppstrlen_t)len};
+}
 
 // hash can be computed at compiletime
 // static_assert(9223372036854953430ULL == "1"_s.hash);
