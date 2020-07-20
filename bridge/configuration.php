@@ -5,6 +5,8 @@
 // \ddtrace_config_distributed_tracing_enabled()
 // \ddtrace_config_integration_enabled()
 // \ddtrace_config_trace_enabled()
+// \DDTrace\Config\integration_analytics_enabled()
+// \DDTrace\Config\integration_analytics_sample_rate()
 
 /**
  * Reads and normalizes a string configuration param, applying default value if appropriate.
@@ -331,18 +333,6 @@ function ddtrace_config_sampling_rules()
         ];
     }
     return $normalized;
-}
-
-function ddtrace_config_integration_analytics_enabled($name)
-{
-    $integrationNameForEnv = strtoupper(str_replace('-', '_', trim($name)));
-    return \_ddtrace_config_bool(\getenv("DD_${integrationNameForEnv}_ANALYTICS_ENABLED"), false);
-}
-
-function ddtrace_config_integration_analytics_sample_rate($name)
-{
-    $integrationNameForEnv = strtoupper(str_replace('-', '_', trim($name)));
-    return \_ddtrace_config_float(\getenv("DD_${integrationNameForEnv}_ANALYTICS_SAMPLE_RATE"), 1.0);
 }
 
 /**

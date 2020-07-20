@@ -4,6 +4,7 @@
 
 #include "ddtrace_string.h"
 #include "env_config.h"
+#include "integrations/integrations.h"
 
 extern inline ddtrace_string ddtrace_string_getenv(char* str, size_t len TSRMLS_DC);
 extern inline ddtrace_string ddtrace_string_getenv_multi(char* primary, size_t primary_len, char* secondary,
@@ -138,26 +139,15 @@ DD_CONFIGURATION
 #undef DOUBLE
 
 bool ddtrace_config_bool(ddtrace_string subject, bool default_value) {
-    ddtrace_string str_1 = {
-        .ptr = "1",
-        .len = 1,
-    };
-    ddtrace_string str_true = {
-        .ptr = "true",
-        .len = sizeof("true") - 1,
-    };
-    if (ddtrace_string_equals(subject, str_1) || ddtrace_string_equals(subject, str_true)) {
+    if (subject.len == 1) {
+        if (strcmp(subject.ptr, "1") == 0) {
+            return true;
+        } else if (strcmp(subject.ptr, "0") == 0) {
+            return false;
+        }
+    } else if ((subject.len == 4 && strcasecmp(subject.ptr, "true") == 0)) {
         return true;
-    }
-    ddtrace_string str_0 = {
-        .ptr = "0",
-        .len = 1,
-    };
-    ddtrace_string str_false = {
-        .ptr = "false",
-        .len = sizeof("false") - 1,
-    };
-    if (ddtrace_string_equals(subject, str_0) || ddtrace_string_equals(subject, str_false)) {
+    } else if ((subject.len == 5 && strcasecmp(subject.ptr, "false") == 0)) {
         return false;
     }
     return default_value;
@@ -167,11 +157,7 @@ bool ddtrace_config_env_bool(ddtrace_string env_name, bool default_value TSRMLS_
     ddtrace_string env_val = ddtrace_string_getenv(env_name.ptr, env_name.len TSRMLS_CC);
     bool result = default_value;
     if (env_val.len) {
-        /* We need to lowercase the str for ddtrace_config_bool.
-         * It's been duplicated by ddtrace_getenv, so we can lower it in-place.
-         */
-        zend_str_tolower(env_val.ptr, env_val.len);
-        result = ddtrace_config_bool(env_val, true);
+        result = ddtrace_config_bool(env_val, default_value);
     }
     if (env_val.ptr) {
         efree(env_val.ptr);
@@ -184,15 +170,136 @@ bool ddtrace_config_distributed_tracing_enabled(TSRMLS_D) {
     return ddtrace_config_env_bool(env_name, true TSRMLS_CC);
 }
 
+// Get env name for <PREFIX_><INTEGRATION><_SUFFIX> (i.e. <DD_TRACE_><LARAVEL><_ENABLED>)
+size_t ddtrace_config_integration_env_name(char* name, const char* prefix, ddtrace_integration* integration,
+                                           const char* suffix) {
+#if PHP_VERSION_ID >= 70000
+    ZEND_ASSERT(strlen(prefix) <= DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN);
+    ZEND_ASSERT(strlen(suffix) <= DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN);
+#endif
+    return (size_t)snprintf(name, DDTRACE_LONGEST_INTEGRATION_ENV_LEN, "%s%s%s", prefix, integration->name_ucase,
+                            suffix);
+}
+
+// Get env value for <PREFIX_><INTEGRATION><_SUFFIX>
+ddtrace_string _dd_env_integration_value(const char* prefix, ddtrace_integration* integration,
+                                         const char* suffix TSRMLS_DC) {
+    char name[DDTRACE_LONGEST_INTEGRATION_ENV_LEN];
+    size_t len = ddtrace_config_integration_env_name(name, prefix, integration, suffix);
+    return ddtrace_string_getenv(name, len TSRMLS_CC);
+}
+
+#define DD_INTEGRATION_ENABLED_DEFAULT true
+
 // note: only call this if ddtrace_config_trace_enabled() returns true
-bool ddtrace_config_integration_enabled(ddtrace_string integration TSRMLS_DC) {
-    ddtrace_string integrations_disabled = ddtrace_string_getenv(ZEND_STRL("DD_INTEGRATIONS_DISABLED") TSRMLS_CC);
-    bool result = true;
-    if (integrations_disabled.len && integration.len) {
-        result = !ddtrace_string_contains_in_csv(integrations_disabled, integration);
+bool ddtrace_config_integration_enabled(ddtrace_string integration_str TSRMLS_DC) {
+    ddtrace_integration* integration = ddtrace_get_integration_from_string(integration_str);
+    if (integration == NULL) {
+        return DD_INTEGRATION_ENABLED_DEFAULT;
     }
-    if (integrations_disabled.ptr) {
-        efree(integrations_disabled.ptr);
+    return ddtrace_config_integration_enabled_ex(integration->name TSRMLS_CC);
+}
+
+bool ddtrace_config_integration_enabled_ex(ddtrace_integration_name integration_name TSRMLS_DC) {
+    bool result = DD_INTEGRATION_ENABLED_DEFAULT;
+    ddtrace_integration* integration = &ddtrace_integrations[integration_name];
+
+    ddtrace_string env_val = _dd_env_integration_value("DD_TRACE_", integration, "_ENABLED" TSRMLS_CC);
+    if (env_val.len) {
+        result = ddtrace_config_bool(env_val, result);
+        efree(env_val.ptr);
+        return result;
+    }
+    if (env_val.ptr) {
+        efree(env_val.ptr);
+    }
+
+    // Deprecated as of 0.47.1
+    env_val = ddtrace_string_getenv(ZEND_STRL("DD_INTEGRATIONS_DISABLED") TSRMLS_CC);
+    if (env_val.len) {
+        ddtrace_string tmp;
+        tmp.ptr = integration->name_lcase;
+        tmp.len = integration->name_len;
+        result = !ddtrace_string_contains_in_csv(env_val, tmp);
+    }
+    if (env_val.ptr) {
+        efree(env_val.ptr);
+    }
+    return result;
+}
+
+#define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
+
+bool ddtrace_config_integration_analytics_enabled(ddtrace_string integration_str TSRMLS_DC) {
+    ddtrace_integration* integration = ddtrace_get_integration_from_string(integration_str);
+    if (integration == NULL) {
+        return DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT;
+    }
+    return ddtrace_config_integration_analytics_enabled_ex(integration->name TSRMLS_CC);
+}
+
+bool ddtrace_config_integration_analytics_enabled_ex(ddtrace_integration_name integration_name TSRMLS_DC) {
+    bool result = DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT;
+    ddtrace_integration* integration = &ddtrace_integrations[integration_name];
+    ddtrace_string env_val;
+
+    env_val = _dd_env_integration_value("DD_TRACE_", integration, "_ANALYTICS_ENABLED" TSRMLS_CC);
+    if (env_val.len) {
+        result = ddtrace_config_bool(env_val, result);
+        efree(env_val.ptr);
+        return result;
+    }
+    if (env_val.ptr) {
+        efree(env_val.ptr);
+    }
+
+    // Deprecated as of 0.47.1
+    env_val = _dd_env_integration_value("DD_", integration, "_ANALYTICS_ENABLED" TSRMLS_CC);
+    if (env_val.len) {
+        result = ddtrace_config_bool(env_val, result);
+        efree(env_val.ptr);
+        return result;
+    }
+    if (env_val.ptr) {
+        efree(env_val.ptr);
+    }
+    return result;
+}
+
+#define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1.0
+
+double ddtrace_config_integration_analytics_sample_rate(ddtrace_string integration_str TSRMLS_DC) {
+    ddtrace_integration* integration = ddtrace_get_integration_from_string(integration_str);
+    if (integration == NULL) {
+        return DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT;
+    }
+    return ddtrace_config_integration_analytics_sample_rate_ex(integration->name TSRMLS_CC);
+}
+
+double ddtrace_config_integration_analytics_sample_rate_ex(ddtrace_integration_name integration_name TSRMLS_DC) {
+    double result = DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT;
+    ddtrace_integration* integration = &ddtrace_integrations[integration_name];
+    ddtrace_string env_val;
+
+    env_val = _dd_env_integration_value("DD_TRACE_", integration, "_ANALYTICS_SAMPLE_RATE" TSRMLS_CC);
+    if (env_val.len) {
+        result = ddtrace_char_to_double(env_val.ptr, result);
+        efree(env_val.ptr);
+        return result;
+    }
+    if (env_val.ptr) {
+        efree(env_val.ptr);
+    }
+
+    // Deprecated as of 0.47.1
+    env_val = _dd_env_integration_value("DD_", integration, "_ANALYTICS_SAMPLE_RATE" TSRMLS_CC);
+    if (env_val.len) {
+        result = ddtrace_char_to_double(env_val.ptr, result);
+        efree(env_val.ptr);
+        return result;
+    }
+    if (env_val.ptr) {
+        efree(env_val.ptr);
     }
     return result;
 }

@@ -44,7 +44,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
     public function testSingleIntegrationLoadingCanBeDisabled()
     {
         putenv('DD_TRACE_ENABLED=1');
-        putenv('DD_INTEGRATIONS_DISABLED=integration_1');
+        putenv('DD_INTEGRATIONS_DISABLED=pdo');
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isDebugModeEnabled' => false,
             'isSandboxEnabled' => false,
@@ -56,7 +56,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
         putenv('DD_INTEGRATIONS_DISABLED');
         putenv('DD_TRACE_ENABLED');
 
-        $this->assertSame(Integration::NOT_LOADED, $loader->getLoadingStatus('integration_1'));
+        $this->assertSame(Integration::NOT_LOADED, $loader->getLoadingStatus('pdo'));
     }
 
     public function testIntegrationsAreLoaded()
