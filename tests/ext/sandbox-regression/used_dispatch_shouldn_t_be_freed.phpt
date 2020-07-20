@@ -20,5 +20,5 @@ test("exec_b");
 
 ?>
 --EXPECT--
-OLD HOOK METHOD exec_a
+NEW HOOK METHOD exec_a
 NEW HOOK METHOD exec_b
