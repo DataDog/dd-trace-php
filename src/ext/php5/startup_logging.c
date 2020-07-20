@@ -81,12 +81,6 @@ static bool _dd_parse_bool(const char *name, size_t name_len) {
     }
 }
 
-static void _dd_get_agent_url(char *buf) {
-    char *host = get_dd_agent_host();
-    sprintf(buf, "http://%s:%d", host, (int)get_dd_trace_agent_port());
-    free(host);
-}
-
 static void _dd_get_startup_config(HashTable *ht) {
     // Cross-language tracer values
     char time[ISO_8601_LEN];
@@ -109,9 +103,7 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_string_free(ht, ZEND_STRL("service"), get_dd_service());
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled_cli"), get_dd_trace_cli_enabled());
 
-    char agent_url[64];
-    _dd_get_agent_url(agent_url);
-    _dd_add_assoc_string(ht, ZEND_STRL("agent_url"), agent_url);
+    _dd_add_assoc_string_free(ht, ZEND_STRL("agent_url"), ddtrace_agent_url());
 
     _dd_add_assoc_bool(ht, ZEND_STRL("debug"), get_dd_trace_debug());
     _dd_add_assoc_bool(ht, ZEND_STRL("analytics_enabled"), get_dd_trace_analytics_enabled());
