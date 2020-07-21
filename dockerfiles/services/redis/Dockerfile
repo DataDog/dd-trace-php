@@ -1,4 +1,4 @@
-FROM circleci/redis:3.0-alpine
+FROM circleci/redis:4.0-alpine
 
 ADD app_start.sh /app_start.sh
 ADD conf_template.conf /conf_template.conf
