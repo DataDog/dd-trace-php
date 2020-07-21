@@ -2,36 +2,25 @@
 
 namespace DDTrace\Tests\Integrations\PHPRedis;
 
-use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Util\Versions;
-use Exception;
-use PHPUnit_Framework_AssertionFailedError;
-use Predis\Configuration\Options;
 
 class PHPRedisSandboxedTest extends IntegrationTestCase
 {
     const IS_SANDBOX = true;
 
     private $host = 'redis_integration';
-    private $port = '6379';
+    private $port = '6380';
 
     /** Redis */
-    private $client;
-
-    public static function setUpBeforeClass()
-    {
-        parent::setUpBeforeClass();
-        IntegrationsLoader::load();
-    }
+    private $redis;
 
     public function setUp()
     {
         parent::setUp();
         $this->redis = new \Redis();
-        $this->redis->connect($this->host);
+        $this->redis->connect($this->host, $this->port);
     }
 
     public function tearDown()
@@ -332,6 +321,27 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 'setRange k1 6 redis', // raw command
                 'Hello world', // initial "0010 1010"
             ],
+            [
+                'expire', // method
+                [ 'k1', 6 ], // arguments
+                'value', // expected final value
+                'expire k1 6', // raw command
+                'value', // initial "0010 1010"
+            ],
+            [
+                'setTimeout', // method
+                [ 'k1', 6 ], // arguments
+                'value', // expected final value
+                'setTimeout k1 6', // raw command
+                'value', // initial "0010 1010"
+            ],
+            [
+                'pexpire', // method
+                [ 'k1', 6 ], // arguments
+                'value', // expected final value
+                'pexpire k1 6', // raw command
+                'value', // initial "0010 1010"
+            ],
         ];
     }
 
@@ -375,6 +385,26 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
 
         $this->assertSame('v1', $redis->get('k1'));
         $this->assertSame('v2', $redis->get('k2'));
+    }
+
+    public function testRawCommand()
+    {
+        $redis = $this->redis;
+
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->rawCommand('set', 'k1', 'v1');
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.rawCommand",
+                'phpredis',
+                'cache',
+                "Redis.rawCommand"
+            )->withExactTags(['redis.raw_command' => 'rawCommand set k1 v1']),
+        ]);
+
+        $this->assertSame('v1', $redis->get('k1'));
     }
 
     /**
@@ -486,6 +516,13 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 'delete k1', // raw command
                 'v1', // initial
             ],
+            [
+                'exists', // method
+                [ 'k1'], // arguments
+                true, // expected final value
+                'exists k1', // raw command
+                'v1', // initial
+            ],
         ];
     }
 
@@ -493,30 +530,29 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
     {
         $redis = $this->redis;
         $redis->set('k1', 'v1');
-        error_log('Get: ' . print_r($redis->get('k1'), 1));
 
-        // $traces = $this->isolateTracer(function () use ($redis) {
+        $traces = $this->isolateTracer(function () use ($redis) {
             $dump = $redis->dump('k1');
-            $redis->restore('k2', 1000, $dump);
-        // });
+            $redis->restore('k2', 0, $dump);
+        });
 
-        // $this->assertFlameGraph($traces, [
-        //     SpanAssertion::build(
-        //         "Redis.dump",
-        //         'phpredis',
-        //         'cache',
-        //         "Redis.dump"
-        //     )->withExactTags(['redis.raw_command' => 'dump k1']),
-        //     SpanAssertion::build(
-        //         "Redis.restore",
-        //         'phpredis',
-        //         'cache',
-        //         "Redis.restore"
-        //     ),
-        // ]);
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.dump",
+                'phpredis',
+                'cache',
+                "Redis.dump"
+            )->withExactTags(['redis.raw_command' => 'dump k1']),
+            SpanAssertion::build(
+                "Redis.restore",
+                'phpredis',
+                'cache',
+                "Redis.restore"
+            ),
+        ]);
 
         $this->assertSame('v1', $redis->get('k1'));
-        $this->assertSame('v1', $redis->get('k2 '));
+        $this->assertSame('v1', $redis->get('k2'));
     }
 
     /**

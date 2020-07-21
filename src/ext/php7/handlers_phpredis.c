@@ -56,6 +56,11 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("type"),
         DDTRACE_STRING_LITERAL("sort"),
         DDTRACE_STRING_LITERAL("restore"),
+        DDTRACE_STRING_LITERAL("expire"),
+        DDTRACE_STRING_LITERAL("settimeout"),
+        DDTRACE_STRING_LITERAL("pexpire"),
+
+        DDTRACE_STRING_LITERAL("rawcommand"),
     };
     // clang-format on
 
