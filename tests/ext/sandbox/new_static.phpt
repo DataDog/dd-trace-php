@@ -6,26 +6,31 @@ New static instantiates from expected class
 <?php
 use DDTrace\SpanData;
 
-abstract class Foo {
-    public static function get() {
+abstract class Foo
+{
+    public static function get()
+    {
         return new static();
     }
 }
 
-class Bar extends Foo {
+class Bar extends Foo
+{
     // Empty
 }
 
 DDTrace\trace_method('Foo', 'get', function (SpanData $span) {
-    $span->name = get_called_class();
+    $span->name = $span->resource = get_called_class();
+    $span->service = 'phpt';
 });
 
 $bar = Bar::get();
 var_dump($bar instanceof Bar);
 
-array_map(function($span) {
-    echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+foreach (dd_trace_serialize_closed_spans() as $span) {
+        echo $span['name'] . PHP_EOL;
+}
+
 ?>
 --EXPECT--
 bool(true)

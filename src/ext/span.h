@@ -9,9 +9,8 @@
 
 struct ddtrace_dispatch_t;
 
-typedef struct ddtrace_span_t {
+struct ddtrace_span_t {
     zval *span_data;
-    ddtrace_exception_t *exception;
     uint64_t trace_id;
     uint64_t parent_id;
     uint64_t span_id;
@@ -21,19 +20,29 @@ typedef struct ddtrace_span_t {
         uint64_t duration;
     };
     pid_t pid;
-    struct ddtrace_span_t *next;
+};
+typedef struct ddtrace_span_t ddtrace_span_t;
 
-    zend_execute_data *call;
+struct ddtrace_span_fci {
+    zend_execute_data *execute_data;
     struct ddtrace_dispatch_t *dispatch;
+    ddtrace_exception_t *exception;
 #if PHP_VERSION_ID < 70000
+    zval *This;
+    zend_class_entry *called_scope;
+    zend_function *fbc;
+    void **arguments;
     zval *retval;
 #endif
-} ddtrace_span_t;
+    struct ddtrace_span_fci *next;
+    ddtrace_span_t span[1];
+};
+typedef struct ddtrace_span_fci ddtrace_span_fci;
 
 void ddtrace_init_span_stacks(TSRMLS_D);
 void ddtrace_free_span_stacks(TSRMLS_D);
 
-ddtrace_span_t *ddtrace_open_span(zend_execute_data *call, struct ddtrace_dispatch_t *dispatch TSRMLS_DC);
+void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC);
 void dd_trace_stop_span_time(ddtrace_span_t *span);
 void ddtrace_close_span(TSRMLS_D);
 void ddtrace_drop_top_open_span(TSRMLS_D);

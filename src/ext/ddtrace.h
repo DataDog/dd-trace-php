@@ -64,8 +64,8 @@ int le_curl;
 
 uint64_t trace_id;
 ddtrace_span_ids_t *span_ids_top;
-ddtrace_span_t *open_spans_top;
-ddtrace_span_t *closed_spans_top;
+ddtrace_span_fci *open_spans_top;
+ddtrace_span_fci *closed_spans_top;
 uint32_t open_spans_count;
 uint32_t closed_spans_count;
 int64_t compile_time_microseconds;

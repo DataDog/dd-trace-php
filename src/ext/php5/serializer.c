@@ -247,10 +247,10 @@ static void _serialize_stack_trace(zval *meta, zval *trace TSRMLS_DC) {
     add_assoc_string(meta, "error.stack", res, 0);
 }
 
-static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRMLS_DC) {
+static void _serialize_exception(zval *el, zval *meta, ddtrace_exception_t *exception TSRMLS_DC) {
     zend_uint class_name_len;
     const char *class_name;
-    zval *exception = span->exception, *msg = NULL, *stack = NULL;
+    zval *msg = NULL, *stack = NULL;
 
     if (!exception) {
         return;
@@ -277,7 +277,8 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span TSRM
     zval_ptr_dtor(&stack);
 }
 
-static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
+static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
+    ddtrace_span_t *span = &span_fci->span[0];
     zval *meta, *orig_meta = _read_span_property(span->span_data, ZEND_STRL("meta") TSRMLS_CC);
     ALLOC_INIT_ZVAL(meta);
     array_init(meta);
@@ -301,9 +302,9 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
         }
     }
 
-    _serialize_exception(el, meta, span TSRMLS_CC);
+    _serialize_exception(el, meta, span_fci->exception TSRMLS_CC);
     // zend_hash_exists on PHP 5 needs `sizeof(string)`, not `sizeof(string) - 1`
-    if (!span->exception && zend_hash_exists(Z_ARRVAL_P(meta), "error.msg", sizeof("error.msg"))) {
+    if (!span_fci->exception && zend_hash_exists(Z_ARRVAL_P(meta), "error.msg", sizeof("error.msg"))) {
         add_assoc_long(el, "error", 1);
     }
     if (span->parent_id == 0) {
@@ -332,7 +333,8 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span TSRMLS_DC) {
         }                                                                                    \
     } while (0);
 
-void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC) {
+void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSRMLS_DC) {
+    ddtrace_span_t *span = &span_fci->span[0];
     zval *el;
     ALLOC_INIT_ZVAL(el);
     array_init(el);
@@ -372,7 +374,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
     ADD_ELEMENT_IF_NOT_NULL("type");
 
-    _serialize_meta(el, span TSRMLS_CC);
+    _serialize_meta(el, span_fci TSRMLS_CC);
 
     zval *metrics = _read_span_property(span->span_data, ZEND_STRL("metrics") TSRMLS_CC);
     if (Z_TYPE_P(metrics) == IS_ARRAY) {

@@ -297,10 +297,10 @@ ZEND_FUNCTION(ddtrace_curl_exec) {
                 _dd_ArrayKVStore_getForResource(ch, &_dd_format_curl_http_headers, &default_headers, &http_headers);
 
             if (existing_headers) {
+                ddtrace_span_fci *active_span = DDTRACE_G(open_spans_top);
                 if (Z_TYPE_P(existing_headers) == IS_ARRAY) {
-                    ddtrace_span_t *active_span = DDTRACE_G(open_spans_top);
-                    if (_dd_tracer_inject_helper(existing_headers, &_dd_format_curl_http_headers, active_span) ==
-                        SUCCESS) {
+                    if (_dd_tracer_inject_helper(existing_headers, &_dd_format_curl_http_headers,
+                                                 active_span ? active_span->span : NULL) == SUCCESS) {
                         zval setopt_args[3] = {*ch, _dd_curl_httpheaders, *existing_headers};
                         zval retval;
                         ddtrace_call_function(ZEND_STRL("curl_setopt"), &retval, 3, setopt_args);

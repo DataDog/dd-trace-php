@@ -221,13 +221,13 @@ static void _serialize_stack_trace(zval *meta, zval *trace) {
     add_assoc_zval(meta, "error.stack", &output);
 }
 
-static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
+static void _serialize_exception(zval *el, zval *meta, zend_object *exception_obj) {
     zval exception, name, msg, stack;
-    if (!span->exception) {
+    if (!exception_obj) {
         return;
     }
 
-    ZVAL_OBJ(&exception, span->exception);
+    ZVAL_OBJ(&exception, exception_obj);
 
     add_assoc_long(el, "error", 1);
 
@@ -246,7 +246,8 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
     zval_ptr_dtor(&stack);
 }
 
-static void _serialize_meta(zval *el, ddtrace_span_t *span) {
+static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
+    ddtrace_span_t *span = span_fci->span;
     zval meta_zv, *meta = ddtrace_spandata_property_meta(span->span_data);
 
     array_init(&meta_zv);
@@ -263,8 +264,8 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span) {
     }
     meta = &meta_zv;
 
-    _serialize_exception(el, meta, span);
-    if (!span->exception) {
+    _serialize_exception(el, meta, span_fci->exception);
+    if (!span_fci->exception) {
         zval *error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg"));
         if (error) {
             add_assoc_long(el, "error", 1);
@@ -290,7 +291,8 @@ static void _dd_add_assoc_zval_as_string(zval *el, const char *name, zval *value
     zval_dtor(&value_as_string);
 }
 
-void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC) {
+void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSRMLS_DC) {
+    ddtrace_span_t *span = span_fci->span;
     zval *el;
     zval zv;
     el = &zv;
@@ -336,7 +338,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC
         _dd_add_assoc_zval_as_string(el, "type", prop_type);
     }
 
-    _serialize_meta(el, span TSRMLS_CC);
+    _serialize_meta(el, span_fci TSRMLS_CC);
 
     zval *metrics = ddtrace_spandata_property_metrics(span->span_data);
     if (Z_TYPE_P(metrics) == IS_ARRAY) {

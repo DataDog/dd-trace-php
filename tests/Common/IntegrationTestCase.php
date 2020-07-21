@@ -47,6 +47,9 @@ abstract class IntegrationTestCase extends TestCase
         if (Versions::phpVersionMatches('5.4') && self::isSandboxed()) {
             $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4.');
         }
+        if (Versions::phpVersionMatches('5.6') && !self::isSandboxed()) {
+            $this->markTestSkipped("PHP 5.6 does not support the legacy API");
+        }
     }
 
     protected function tearDown()

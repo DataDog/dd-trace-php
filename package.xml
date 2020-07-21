@@ -273,10 +273,17 @@
                 <file name="dd_wrap_autoloader.php" role="php" />
                 <file name="functions.php" role="php" />
             </dir>
+
+            <file name="tests/ext/call_user_func/namespaced-array.phpt" role="test" />
+            <file name="tests/ext/call_user_func/namespaced.phpt" role="test" />
+            <file name="tests/ext/call_user_func/not-namespaced-array.phpt" role="test" />
+            <file name="tests/ext/call_user_func/not-namespaced.phpt" role="test" />
+
             <file name="tests/ext/includes/dd_init.php" role="test" />
             <file name="tests/ext/includes/request_init_hook.inc" role="test" />
             <file name="tests/ext/includes/sanity_check.php" role="test" />
             <file name="tests/ext/includes/try_catch_finally.php" role="test" />
+
             <file name="tests/ext/request-init-hook/contains-binary-character/dd_init.php" role="test" />
             <file name="tests/ext/request-init-hook/raises-e-notice/dd_init.php" role="test" />
             <file name="tests/ext/request-init-hook/raises-fatal-error/dd_init.php" role="test" />
@@ -302,6 +309,7 @@
             <file name="tests/ext/request-init-hook/run_file_before_request_handling.phpt" role="test" />
             <file name="tests/ext/request-init-hook/shebang.phpt" role="test" />
             <file name="tests/ext/request-init-hook/throws_exception.php" role="test" />
+
             <file name="tests/ext/sandbox/auto_flush.phpt" role="test" />
             <file name="tests/ext/sandbox/auto_flush_attach_exception.phpt" role="test" />
             <file name="tests/ext/sandbox/auto_flush_disables_tracing.phpt" role="test" />
@@ -383,6 +391,7 @@
             <file name="tests/ext/sandbox/variadic_args_internal.phpt" role="test" />
             <file name="tests/ext/sandbox/variadic_no_args.phpt" role="test" />
             <file name="tests/ext/sandbox/vm_var_types_return.phpt" role="test" />
+
             <file name="tests/ext/sandbox-prehook/access_modifier_method_access_hook.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/access_modifier_property_access_hook.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/args_copy_before_mutation.phpt" role="test" />
@@ -406,6 +415,7 @@
             <file name="tests/ext/sandbox-prehook/trace_static_method.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/variable_length_parameter_list.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/variadic_args_internal.phpt" role="test" />
+
             <file name="tests/ext/sandbox-regression/access_modifier_method_access_hook.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/access_modifier_property_access_hook.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
@@ -440,75 +450,46 @@
             <file name="tests/ext/sandbox-regression/very_nested_functions.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/with_params_function_hook.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/with_params_method_hook.phpt" role="test" />
-            <file name="tests/ext/access_modifier_method_access_hook.phpt" role="test" />
-            <file name="tests/ext/access_modifier_property_access_hook.phpt" role="test" />
-            <file name="tests/ext/allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
-            <file name="tests/ext/case_insensitive_class_hook.phpt" role="test" />
-            <file name="tests/ext/case_insensitive_method_hook.phpt" role="test" />
-            <file name="tests/ext/closure_accessing_outside_variables.phpt" role="test" />
-            <file name="tests/ext/closure_set_inside_object_methods.phpt" role="test" />
+
+            <file name="tests/ext/check_memory_under_limit_default.phpt" role="test" />
+            <file name="tests/ext/check_memory_under_limit_high_limit.phpt" role="test" />
+            <file name="tests/ext/check_memory_under_limit_high_user_limit.phpt" role="test" />
+            <file name="tests/ext/check_memory_under_limit_low_limit.phpt" role="test" />
+            <file name="tests/ext/check_memory_under_limit_low_user_limit.phpt" role="test" />
             <file name="tests/ext/circuit_breaker_info.phpt" role="test" />
-            <file name="tests/ext/circuit_breaker_retry_time.phpt" role="test" />
             <file name="tests/ext/circuit_breaker_max_failures.phpt" role="test" />
+            <file name="tests/ext/circuit_breaker_retry_time.phpt" role="test" />
             <file name="tests/ext/dd_trace_api_error.phpt" role="test" />
-            <file name="tests/ext/dd_trace_can_skip_original_call.phpt" role="test" />
+            <file name="tests/ext/dd_trace_coms_empty_stacks_correctly_recycled.phpt" role="test" />
+            <file name="tests/ext/dd_trace_forward_call_for_functions.phpt" role="test" />
+            <file name="tests/ext/dd_trace_push_span_id_from_userland.phpt" role="test" />
             <file name="tests/ext/dd_trace_send_traces_via_thread_001.phpt" role="test" />
             <file name="tests/ext/dd_trace_send_traces_via_thread_002.phpt" role="test" />
             <file name="tests/ext/dd_trace_serialize_msgpack.phpt" role="test" />
             <file name="tests/ext/dd_trace_serialize_msgpack_error.phpt" role="test" />
             <file name="tests/ext/dd_trace_serialize_msgpack_reference.phpt" role="test" />
-            <file name="tests/ext/dd_trace_coms_empty_stacks_correctly_recycled.phpt" role="test" />
-            <file name="tests/ext/disable_tracing_disables_tracing.phpt" role="test" />
-            <file name="tests/ext/do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
-            <file name="tests/ext/dd_trace_forward_call_error.phpt" role="test" />
-            <file name="tests/ext/dd_trace_forward_call_for_functions.phpt" role="test" />
-            <file name="tests/ext/dd_trace_forward_call_from_include.phpt" role="test" />
-            <file name="tests/ext/dd_trace_forward_call_with_inheritance.phpt" role="test" />
-            <file name="tests/ext/dd_trace_forward_call_with_private_callback.phpt" role="test" />
-            <file name="tests/ext/dd_trace_push_span_id_from_userland.phpt" role="test" />
             <file name="tests/ext/dd_trace_tracer_is_limited_hard.phpt" role="test" />
             <file name="tests/ext/dd_trace_tracer_is_limited_memory.phpt" role="test" />
             <file name="tests/ext/dd_trace_warning.phpt" role="test" />
-            <file name="tests/ext/destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
-            <file name="tests/ext/from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
-            <file name="tests/ext/from_php_7_3_bug61728.phpt" role="test" />
-            <file name="tests/ext/method_invoked_via_reflection.phpt" role="test" />
-            <file name="tests/ext/method_returning_array.phpt" role="test" />
-            <file name="tests/ext/multiple_instrumentations.phpt" role="test" />
-            <file name="tests/ext/namespaces.phpt" role="test" />
-            <file name="tests/ext/new_static.phpt" role="test" />
-            <file name="tests/ext/overriding_construct.phpt" role="test" />
-            <file name="tests/ext/overriding_method_defined_in_parent.phpt" role="test" />
-            <file name="tests/ext/private_method_hook.phpt" role="test" />
-            <file name="tests/ext/private_self_access.phpt" role="test" />
-            <file name="tests/ext/protected_method_hook.phpt" role="test" />
-            <file name="tests/ext/recursion.phpt" role="test" />
-            <file name="tests/ext/read_c_configuration.phpt" role="test" />
-            <file name="tests/ext/reset_configured_overrides.phpt" role="test" />
-            <file name="tests/ext/reset_function_tracing.phpt" role="test" />
-            <file name="tests/ext/return_value_passed.phpt" role="test" />
-            <file name="tests/ext/segfault_backtrace_disabled.phpt" role="test" />
-            <file name="tests/ext/segfault_backtrace_enabled.phpt" role="test" />
-            <file name="tests/ext/get_memory_limit_set_by_percentage.phpt" role="test" />
-            <file name="tests/ext/get_memory_limit_unlimited_set_by_percentage.phpt" role="test" />
-            <file name="tests/ext/check_memory_under_limit_high_user_limit.phpt" role="test" />
-            <file name="tests/ext/get_memory_limit_unlimited_set_by_absolute.phpt" role="test" />
-            <file name="tests/ext/get_memory_limit_0.phpt" role="test" />
-            <file name="tests/ext/check_memory_under_limit_high_limit.phpt" role="test" />
-            <file name="tests/ext/check_memory_under_limit_low_user_limit.phpt" role="test" />
-            <file name="tests/ext/get_memory_limit_unlimited_default.phpt" role="test" />
-            <file name="tests/ext/check_memory_under_limit_default.phpt" role="test" />
-            <file name="tests/ext/get_memory_limit_set_by_absolute.phpt" role="test" />
-            <file name="tests/ext/get_memory_limit_default.phpt" role="test" />
-            <file name="tests/ext/check_memory_under_limit_low_limit.phpt" role="test" />
+            <file name="tests/ext/do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
             <file name="tests/ext/extension_disabled.phpt" role="test" />
+            <file name="tests/ext/from_php_7_3_bug61728.phpt" role="test" />
+            <file name="tests/ext/from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_0.phpt" role="test" />
             <file name="tests/ext/get_memory_limit_0_percent.phpt" role="test" />
-            <file name="tests/ext/keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
-            <file name="tests/ext/keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_default.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_set_by_absolute.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_set_by_percentage.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_unlimited_default.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_unlimited_set_by_absolute.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_unlimited_set_by_percentage.phpt" role="test" />
             <file name="tests/ext/keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
             <file name="tests/ext/keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
-            <file name="tests/ext/simple_function_hook.phpt" role="test" />
-            <file name="tests/ext/simple_method_hook.phpt" role="test" />
+            <file name="tests/ext/new_static.phpt" role="test" />
+            <file name="tests/ext/read_c_configuration.phpt" role="test" />
+            <file name="tests/ext/reset_function_tracing.phpt" role="test" />
+            <file name="tests/ext/segfault_backtrace_disabled.phpt" role="test" />
+            <file name="tests/ext/segfault_backtrace_enabled.phpt" role="test" />
             <file name="tests/ext/startup_logging.inc" role="test" />
             <file name="tests/ext/startup_logging.phpt" role="test" />
             <file name="tests/ext/startup_logging_config.phpt" role="test" />
@@ -517,16 +498,8 @@
             <file name="tests/ext/startup_logging_json.phpt" role="test" />
             <file name="tests/ext/startup_logging_json_config.phpt" role="test" />
             <file name="tests/ext/startup_logging_skipif.inc" role="test" />
-            <file name="tests/ext/throw_exception.phpt" role="test" />
-            <file name="tests/ext/trace_method_or_function_that_will_exist_later.phpt" role="test" />
-            <file name="tests/ext/trace_static_method.phpt" role="test" />
             <file name="tests/ext/traced_internal_functions_override_01.phpt" role="test" />
             <file name="tests/ext/traced_internal_functions_override_02.phpt" role="test" />
-            <file name="tests/ext/used_dispatch_shouldn_t_be_freed.phpt" role="test" />
-            <file name="tests/ext/variable_length_parameter_list.phpt" role="test" />
-            <file name="tests/ext/very_nested_functions.phpt" role="test" />
-            <file name="tests/ext/with_params_function_hook.phpt" role="test" />
-            <file name="tests/ext/with_params_method_hook.phpt" role="test" />
             <file name="CHANGELOG.md" role="doc" />
             <file name="config.m4" role="src" />
             <file name="LICENSE" role="doc" />

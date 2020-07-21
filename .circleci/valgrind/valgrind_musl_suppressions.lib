@@ -113,6 +113,7 @@
     fun:_emalloc
     fun:ZEND_SEND_VAL_SPEC_TMP_HANDLER
     fun:execute_ex
+    fun:ddtrace_execute_ex
     fun:zend_execute
     fun:zend_execute_scripts
     fun:php_execute_script

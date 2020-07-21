@@ -15,6 +15,7 @@ function foo() {
 }
 
 DDTrace\trace_function('foo', function ($span, array $args) {
+    $span->name = $span->resource = 'foo';
     var_dump($args);
 });
 

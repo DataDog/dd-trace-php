@@ -265,6 +265,7 @@
             "@symfony-33-suite",
             "@symfony-34-suite",
             "@yii-2-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],

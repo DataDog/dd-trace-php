@@ -1,7 +1,7 @@
 --TEST--
 Exceptions get attached to spans
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die('skip: PHP 5 has its own test'); ?>
+<?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not yet supported'); ?>
 --FILE--
 <?php
 
@@ -12,8 +12,14 @@ function inner($message) {
     throw new Exception($message);
 }
 
-DDTrace\trace_function("outer", function() {});
-DDTrace\trace_function("inner", function() {});
+DDTrace\trace_function("outer", function ($span) {
+    $span->name = $span->resource = 'outer';
+    $span->service = 'phpt';
+});
+DDTrace\trace_function("inner", function ($span) {
+    $span->name = $span->resource = 'inner';
+    $span->service = 'phpt';
+});
 
 try {
     outer();

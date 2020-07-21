@@ -44,7 +44,7 @@ foreach ($allTheTypes as $value) {
 $allTheTypes = array_reverse($allTheTypes);
 
 $i = 0;
-array_map(function($span) use (&$i, $allTheTypes) {
+foreach (dd_trace_serialize_closed_spans() as $span) {
     var_dump($allTheTypes[$i]);
     foreach (['name', 'resource', 'service', 'type'] as $prop) {
         if (isset($span[$prop])) {
@@ -55,7 +55,7 @@ array_map(function($span) use (&$i, $allTheTypes) {
     }
     echo PHP_EOL;
     $i++;
-}, dd_trace_serialize_closed_spans());
+}
 ?>
 --EXPECTF--
 resource(%d) of type (curl)

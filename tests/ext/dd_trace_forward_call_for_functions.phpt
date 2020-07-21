@@ -3,7 +3,7 @@ The original function call is invoked from the closure
 --ENV--
 DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --SKIPIF--
-<?php if (PHP_MAJOR_VERSION > 5) die('skip: test requires legacy API'); ?>
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 function doStuff($foo, array $bar = [])
@@ -18,14 +18,9 @@ dd_trace('doStuff', function () {
     echo "**TRACED**\n";
     return dd_trace_forward_call();
 });
-dd_trace('array_sum', function () {
-    echo "**TRACED INTERNAL**\n";
-    return dd_trace_forward_call();
-});
 
 echo doStuff('After', [2, 3]) . "\n";
 ?>
 --EXPECT--
 **TRACED**
-**TRACED INTERNAL**
 [After] 5

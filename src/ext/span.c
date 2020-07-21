@@ -24,48 +24,49 @@ void ddtrace_init_span_stacks(TSRMLS_D) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-static void _free_span(ddtrace_span_t *span) {
-    if (!span) {
+static void _free_span(ddtrace_span_fci *span_fci) {
+    if (!span_fci) {
         return;
     }
 #if PHP_VERSION_ID < 70000
+    ddtrace_span_t *span = &span_fci->span[0];
     if (span->span_data) {
         zval_ptr_dtor(&span->span_data);
         span->span_data = NULL;
     }
-    if (span->exception) {
-        zval_ptr_dtor(&span->exception);
-        span->exception = NULL;
+    if (span_fci->exception) {
+        zval_ptr_dtor(&span_fci->exception);
+        span_fci->exception = NULL;
     }
 #else
-    if (span->span_data) {
-        zval_ptr_dtor(span->span_data);
-        efree(span->span_data);
-        span->span_data = NULL;
+    if (span_fci->span->span_data) {
+        zval_ptr_dtor(span_fci->span->span_data);
+        efree(span_fci->span->span_data);
+        span_fci->span->span_data = NULL;
     }
-    if (span->exception) {
-        OBJ_RELEASE(span->exception);
-        span->exception = NULL;
+    if (span_fci->exception) {
+        OBJ_RELEASE(span_fci->exception);
+        span_fci->exception = NULL;
     }
 #endif
 
-    efree(span);
+    efree(span_fci);
 }
 
-static void ddtrace_drop_span(ddtrace_span_t *span) {
-    if (span->dispatch) {
-        span->dispatch->busy = 0;
-        ddtrace_dispatch_release(span->dispatch);
-        span->dispatch = NULL;
+static void ddtrace_drop_span(ddtrace_span_fci *span_fci) {
+    if (span_fci->dispatch) {
+        span_fci->dispatch->busy = 0;
+        ddtrace_dispatch_release(span_fci->dispatch);
+        span_fci->dispatch = NULL;
     }
 
-    _free_span(span);
+    _free_span(span_fci);
 }
 
-static void _free_span_stack(ddtrace_span_t *span) {
-    while (span != NULL) {
-        ddtrace_span_t *tmp = span;
-        span = tmp->next;
+static void _free_span_stack(ddtrace_span_fci *span_fci) {
+    while (span_fci != NULL) {
+        ddtrace_span_fci *tmp = span_fci;
+        span_fci = tmp->next;
         ddtrace_drop_span(tmp);
     }
 }
@@ -87,10 +88,11 @@ static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
     return 0;
 }
 
-ddtrace_span_t *ddtrace_open_span(zend_execute_data *call, struct ddtrace_dispatch_t *dispatch TSRMLS_DC) {
-    ddtrace_span_t *span = ecalloc(1, sizeof(ddtrace_span_t));
-    span->next = DDTRACE_G(open_spans_top);
-    DDTRACE_G(open_spans_top) = span;
+void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
+    span_fci->next = DDTRACE_G(open_spans_top);
+    DDTRACE_G(open_spans_top) = span_fci;
+
+    ddtrace_span_t *span = &span_fci->span[0];
 
     /* On PHP 5 object_init_ex does not set refcount to 1, but on PHP 7 it does */
 #if PHP_VERSION_ID < 70000
@@ -106,15 +108,10 @@ ddtrace_span_t *ddtrace_open_span(zend_execute_data *call, struct ddtrace_dispat
     // Set the trace_id last so we have ID's on the stack
     span->trace_id = DDTRACE_G(trace_id);
     span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
-    span->exception = NULL;
     span->pid = getpid();
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
     span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
-
-    span->call = call;
-    span->dispatch = dispatch;
-    return span;
 }
 
 void dd_trace_stop_span_time(ddtrace_span_t *span) {
@@ -122,22 +119,22 @@ void dd_trace_stop_span_time(ddtrace_span_t *span) {
 }
 
 void ddtrace_close_span(TSRMLS_D) {
-    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
-    if (span == NULL) {
+    ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
+    if (span_fci == NULL) {
         return;
     }
-    DDTRACE_G(open_spans_top) = span->next;
+    DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
     // TODO Assuming the tracing closure has run at this point, we can serialize the span onto a buffer with
     // ddtrace_coms_buffer_data() and free the span
-    span->next = DDTRACE_G(closed_spans_top);
-    DDTRACE_G(closed_spans_top) = span;
+    span_fci->next = DDTRACE_G(closed_spans_top);
+    DDTRACE_G(closed_spans_top) = span_fci;
 
-    if (span->dispatch) {
-        span->dispatch->busy = 0;
-        ddtrace_dispatch_release(span->dispatch);
-        span->dispatch = NULL;
+    if (span_fci->dispatch) {
+        span_fci->dispatch->busy = 0;
+        ddtrace_dispatch_release(span_fci->dispatch);
+        span_fci->dispatch = NULL;
     }
 
     // A userland span might still be open so we check the span ID stack instead of the internal span stack
@@ -149,14 +146,14 @@ void ddtrace_close_span(TSRMLS_D) {
 }
 
 void ddtrace_drop_top_open_span(TSRMLS_D) {
-    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
-    if (span == NULL) {
+    ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
+    if (span_fci == NULL) {
         return;
     }
-    DDTRACE_G(open_spans_top) = span->next;
+    DDTRACE_G(open_spans_top) = span_fci->next;
     // Sync with span ID stack
     ddtrace_pop_span_id(TSRMLS_C);
-    ddtrace_drop_span(span);
+    ddtrace_drop_span(span_fci);
 }
 
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
@@ -166,15 +163,15 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     DDTRACE_G(open_spans_count) = 0;
     ddtrace_free_span_id_stack(TSRMLS_C);
 
-    ddtrace_span_t *span = DDTRACE_G(closed_spans_top);
+    ddtrace_span_fci *span_fci = DDTRACE_G(closed_spans_top);
     array_init(serialized);
-    while (span != NULL) {
-        ddtrace_span_t *tmp = span;
-        span = tmp->next;
+    while (span_fci != NULL) {
+        ddtrace_span_fci *tmp = span_fci;
+        span_fci = tmp->next;
         ddtrace_serialize_span_to_array(tmp, serialized TSRMLS_CC);
         _free_span(tmp);
         // Move the stack down one as ddtrace_serialize_span_to_array() might do a long jump
-        DDTRACE_G(closed_spans_top) = span;
+        DDTRACE_G(closed_spans_top) = span_fci;
     }
     DDTRACE_G(closed_spans_top) = NULL;
     DDTRACE_G(closed_spans_count) = 0;

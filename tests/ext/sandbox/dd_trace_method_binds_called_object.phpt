@@ -16,14 +16,18 @@ class Foo
     }
 }
 
-DDTrace\trace_method('Foo', 'testBinding', function () {
+DDTrace\trace_method('Foo', 'testBinding', function ($span) {
     echo "Traced testBinding\n";
+    $span->name = $span->resource = 'Foo.testBinding';
+    $span->service = 'phpt';
     var_dump($this);
 });
 
-DDTrace\trace_method('DatePeriod', 'getStartDate', function () {
+DDTrace\trace_method('DatePeriod', 'getStartDate', function ($span) {
     echo "Traced getStartDate\n";
     var_dump($this instanceof DatePeriod);
+    $span->name = $span->resource = 'DatePeriod.getStartDate';
+    $span->service = 'phpt';
 });
 
 $foo = new Foo();
