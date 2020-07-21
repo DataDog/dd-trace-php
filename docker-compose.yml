@@ -150,7 +150,7 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=test
 
   redis_integration:
-    image: "circleci/redis:4.0-alpine"
+    image: "datadog/dd-trace-ci:php-redis-4.0"
 
   memcached_integration:
     image: "memcached:1.5-alpine"
