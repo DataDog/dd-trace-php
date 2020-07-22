@@ -20,7 +20,7 @@ class ExitTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_SERVICE_NAME' => 'codeigniter_test_app',
+            'DD_SERVICE' => 'codeigniter_test_app',
         ]);
     }
 

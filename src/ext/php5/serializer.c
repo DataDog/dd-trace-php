@@ -278,7 +278,7 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_exception_t *exce
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
-    ddtrace_span_t *span = &span_fci->span[0];
+    ddtrace_span_t *span = &span_fci->span;
     zval *meta, *orig_meta = _read_span_property(span->span_data, ZEND_STRL("meta") TSRMLS_CC);
     ALLOC_INIT_ZVAL(meta);
     array_init(meta);
@@ -334,7 +334,7 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
     } while (0);
 
 void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSRMLS_DC) {
-    ddtrace_span_t *span = &span_fci->span[0];
+    ddtrace_span_t *span = &span_fci->span;
     zval *el;
     ALLOC_INIT_ZVAL(el);
     array_init(el);

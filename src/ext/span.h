@@ -35,7 +35,7 @@ struct ddtrace_span_fci {
     zval *retval;
 #endif
     struct ddtrace_span_fci *next;
-    ddtrace_span_t span[1];
+    ddtrace_span_t span;
 };
 typedef struct ddtrace_span_fci ddtrace_span_fci;
 

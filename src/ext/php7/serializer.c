@@ -247,7 +247,7 @@ static void _serialize_exception(zval *el, zval *meta, zend_object *exception_ob
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
-    ddtrace_span_t *span = span_fci->span;
+    ddtrace_span_t *span = &span_fci->span;
     zval meta_zv, *meta = ddtrace_spandata_property_meta(span->span_data);
 
     array_init(&meta_zv);
@@ -292,7 +292,7 @@ static void _dd_add_assoc_zval_as_string(zval *el, const char *name, zval *value
 }
 
 void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSRMLS_DC) {
-    ddtrace_span_t *span = span_fci->span;
+    ddtrace_span_t *span = &span_fci->span;
     zval *el;
     zval zv;
     el = &zv;

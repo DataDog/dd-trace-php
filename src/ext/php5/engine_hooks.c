@@ -20,7 +20,7 @@ static user_opcode_handler_t _dd_prev_exit_handler;
 
 BOOL_T ddtrace_execute_tracing_closure(ddtrace_span_fci *span_fci, zval *user_args, zval *user_retval TSRMLS_DC) {
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
-    zval *span_data = span_fci->span->span_data;
+    zval *span_data = span_fci->span.span_data;
     zval *This = span_fci->This;
     zend_function *fbc = span_fci->fbc;
     zval *exception = span_fci->exception;
@@ -149,11 +149,11 @@ void _dd_set_fqn(zval *zv, ddtrace_span_fci *span_fci) {
 
 void _dd_set_default_properties(TSRMLS_D) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
-    if (span_fci == NULL || span_fci->span->span_data == NULL || span_fci->execute_data == NULL) {
+    if (span_fci == NULL || span_fci->span.span_data == NULL || span_fci->execute_data == NULL) {
         return;
     }
 
-    ddtrace_span_t *span = span_fci->span;
+    ddtrace_span_t *span = &span_fci->span;
     // SpanData::$name defaults to fully qualified called name
     // The other span property defaults are set at serialization time
     zval *prop_name = zend_read_property(ddtrace_ce_span_data, span->span_data, ZEND_STRL("name"), 1 TSRMLS_CC);
@@ -168,7 +168,7 @@ void _dd_set_default_properties(TSRMLS_D) {
 }
 
 static void _dd_end_span(ddtrace_span_fci *span_fci, zval *user_retval, zend_op *opline_before_exception TSRMLS_DC) {
-    ddtrace_span_t *span = span_fci->span;
+    ddtrace_span_t *span = &span_fci->span;
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
     zval *user_args;
     ALLOC_INIT_ZVAL(user_args);
@@ -268,7 +268,7 @@ static bool _dd_should_trace_dispatch(ddtrace_dispatch_t *dispatch TSRMLS_DC) {
 
 static void _dd_execute_end_span(ddtrace_span_fci *span_fci, zval *user_retval,
                                  zend_op *opline_before_exception TSRMLS_DC) {
-    ddtrace_span_t *span = span_fci->span;
+    ddtrace_span_t *span = &span_fci->span;
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
     zval *user_args;
     MAKE_STD_ZVAL(user_args);
@@ -328,14 +328,13 @@ void ddtrace_execute_ex(zend_execute_data *execute_data TSRMLS_DC) {
     ddtrace_dispatch_copy(dispatch);
 
     ddtrace_span_fci *span_fci = ecalloc(1, sizeof *span_fci);
-    // ddtrace_open_span(span, execute_data, dispatch TSRMLS_CC);
-    ddtrace_open_span(span_fci TSRMLS_CC);
     span_fci->execute_data = execute_data;
     span_fci->dispatch = dispatch;
     span_fci->This = This;
     span_fci->called_scope = EG(called_scope);
     span_fci->fbc = fbc;
     span_fci->arguments = EX(prev_execute_data)->function_state.arguments;
+    ddtrace_open_span(span_fci TSRMLS_CC);
 
     zval *retval = NULL;
     zend_op *opline = EX(prev_execute_data)->opline;

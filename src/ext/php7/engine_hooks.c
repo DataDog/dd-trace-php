@@ -353,7 +353,7 @@ static zend_class_entry *_dd_get_exception_base(zval *object) {
 static bool _dd_call_sandboxed_tracing_closure(ddtrace_span_fci *span_fci, zval *callable, zval *user_retval) {
     zend_execute_data *call = span_fci->execute_data;
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
-    ddtrace_span_t *span = span_fci->span;
+    ddtrace_span_t *span = &span_fci->span;
     zval user_args;
 
     _dd_copy_function_args(call, &user_args, dispatch->options & DDTRACE_DISPATCH_POSTHOOK);
@@ -433,11 +433,11 @@ void _dd_set_fqn(zval *zv, zend_execute_data *ex) {
 
 static void _dd_set_default_properties(void) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
-    if (span_fci == NULL || span_fci->span->span_data == NULL || span_fci->execute_data == NULL) {
+    if (span_fci == NULL || span_fci->span.span_data == NULL || span_fci->execute_data == NULL) {
         return;
     }
 
-    ddtrace_span_t *span = span_fci->span;
+    ddtrace_span_t *span = &span_fci->span;
     // SpanData::$name defaults to fully qualified called name
     // The other span property defaults are set at serialization time
     zval *prop_name = ddtrace_spandata_property_name(span->span_data);
@@ -456,7 +456,7 @@ static void ddtrace_posthook(zend_function *fbc, ddtrace_span_fci *span_fci, zva
         ddtrace_dispatch_t *dispatch = span_fci->dispatch;
         _dd_span_attach_exception(span_fci, EG(exception));
 
-        dd_trace_stop_span_time(span_fci->span);
+        dd_trace_stop_span_time(&span_fci->span);
 
         bool keep_span = true;
         if (dispatch->options & DDTRACE_DISPATCH_POSTHOOK) {

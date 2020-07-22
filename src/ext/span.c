@@ -28,8 +28,8 @@ static void _free_span(ddtrace_span_fci *span_fci) {
     if (!span_fci) {
         return;
     }
+    ddtrace_span_t *span = &span_fci->span;
 #if PHP_VERSION_ID < 70000
-    ddtrace_span_t *span = &span_fci->span[0];
     if (span->span_data) {
         zval_ptr_dtor(&span->span_data);
         span->span_data = NULL;
@@ -39,10 +39,10 @@ static void _free_span(ddtrace_span_fci *span_fci) {
         span_fci->exception = NULL;
     }
 #else
-    if (span_fci->span->span_data) {
-        zval_ptr_dtor(span_fci->span->span_data);
-        efree(span_fci->span->span_data);
-        span_fci->span->span_data = NULL;
+    if (span->span_data) {
+        zval_ptr_dtor(span->span_data);
+        efree(span->span_data);
+        span->span_data = NULL;
     }
     if (span_fci->exception) {
         OBJ_RELEASE(span_fci->exception);
@@ -92,7 +92,7 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     span_fci->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = span_fci;
 
-    ddtrace_span_t *span = &span_fci->span[0];
+    ddtrace_span_t *span = &span_fci->span;
 
     /* On PHP 5 object_init_ex does not set refcount to 1, but on PHP 7 it does */
 #if PHP_VERSION_ID < 70000
