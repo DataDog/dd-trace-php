@@ -5,13 +5,14 @@ namespace DDTrace\Tests\Integrations\PHPRedis;
 use DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use Exception;
 
 class PHPRedisSandboxedTest extends IntegrationTestCase
 {
     const IS_SANDBOX = true;
 
     private $host = 'redis_integration';
-    private $port = '6380';
+    private $port = '6379';
 
     /** Redis */
     private $redis;
@@ -45,7 +46,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.$method",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.$method"
             )->withExactTags([
                 'out.host' => $this->host,
@@ -85,7 +86,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.$method",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.$method"
             )
             ->setError()
@@ -130,10 +131,71 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.close",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.close"
             ),
         ]);
+    }
+
+    /**
+     * This function tests ALL the methods that are also tested in the phpredis own test suite. For this reason here
+     * we are note testing results (i.e. the fact that method still works).
+     * We are only testing the fact that the span is generated.
+     *
+     * @dataProvider dataProviderTestMethodsSpansOnly
+     */
+    public function testMethodsSpansOnly($method, $args, $rawCommand)
+    {
+        $this->redis->set('k1', 'v1');
+        $traces = $this->isolateTracer(function () use ($method, $args) {
+            if (count($args) === 0) {
+                $this->redis->$method();
+            } elseif (count($args) === 1) {
+                $this->redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $this->redis->$method($args[0], $args[1]);
+            } else {
+                throw new \Exception('number of args not supported');
+            }
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.$method",
+                'phpredis',
+                'redis',
+                "Redis.$method"
+            )->withExactTags(['redis.raw_command' => "$method $rawCommand"]),
+        ]);
+    }
+
+    public function dataProviderTestMethodsSpansOnly()
+    {
+        return [
+            ['del', ['k1'], 'k1'],
+            ['del', [['k1', 'k2']], 'k1 k2'],
+            ['delete', ['k1'], 'k1'],
+            ['delete', [['k1', 'k2']], 'k1 k2'],
+            ['exists', ['k1'], 'k1'],
+            ['setTimeout', ['k1', 2], 'k1 2'],
+            ['expire', ['k1', 2], 'k1 2'],
+            ['pexpire', ['k1', 2], 'k1 2'],
+            ['expireAt', ['k1', 2], 'k1 2'],
+            ['keys', ['*'], '*'],
+            ['getKeys', ['*'], '*'],
+            ['scan', [null], '0'], // the argument is the LONG (reference), initialized to NULL
+            ['object', ['encoding', 'k1'], 'encoding k1'],
+            ['persist', ['k1'], 'k1'],
+            ['randomKey', [], ''],
+            ['rename', ['k1', 'k3'], 'k1 k3'],
+            ['renameKey', ['k1', 'k3'], 'k1 k3'],
+            ['renameNx', ['k1', 'k3'], 'k1 k3'],
+            ['type', ['k1'], 'k1'],
+            ['sort', ['k1'], 'k1'],
+            ['sort', ['k1', ['sort' => 'desc']], 'k1 sort desc'],
+            ['ttl', ['k1'], 'k1'],
+            ['pttl', ['k1'], 'k1'],
+        ];
     }
 
     /**
@@ -150,7 +212,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.$method",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.$method"
             ),
         ]);
@@ -181,7 +243,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.select",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.select"
             )->withExactTags(['db.index' => '1']),
         ]);
@@ -214,7 +276,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.$method",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
@@ -357,7 +419,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.mSet",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.mSet"
             )->withExactTags(['redis.raw_command' => 'mSet k1 v1 k2 v2']),
         ]);
@@ -378,7 +440,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.mSetNx",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.mSetNx"
             )->withExactTags(['redis.raw_command' => 'mSetNx k1 v1 k2 v2']),
         ]);
@@ -399,7 +461,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.rawCommand",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.rawCommand"
             )->withExactTags(['redis.raw_command' => 'rawCommand set k1 v1']),
         ]);
@@ -436,7 +498,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.$method",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
@@ -540,19 +602,66 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             SpanAssertion::build(
                 "Redis.dump",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.dump"
             )->withExactTags(['redis.raw_command' => 'dump k1']),
             SpanAssertion::build(
                 "Redis.restore",
                 'phpredis',
-                'cache',
+                'redis',
                 "Redis.restore"
             ),
         ]);
 
         $this->assertSame('v1', $redis->get('k1'));
         $this->assertSame('v1', $redis->get('k2'));
+    }
+
+    public function testSetGetWithBinarySafeStringsAsValue()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->redis->set('k1', $this->getBinarySafeString());
+            $this->assertSame($this->getBinarySafeString(), $this->redis->get('k1'));
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.set",
+                'phpredis',
+                'redis',
+                "Redis.set"
+            )->withExistingTagsNames(['redis.raw_command']),
+            SpanAssertion::build(
+                "Redis.get",
+                'phpredis',
+                'redis',
+                "Redis.get"
+            )->withExistingTagsNames(['redis.raw_command']),
+        ]);
+    }
+
+
+    public function testSetGetWithBinarySafeStringsAsKey()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->redis->set($this->getBinarySafeString(), 'v1');
+            $this->assertSame('v1', $this->redis->get($this->getBinarySafeString()));
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.set",
+                'phpredis',
+                'redis',
+                "Redis.set"
+            )->withExistingTagsNames(['redis.raw_command']),
+            SpanAssertion::build(
+                "Redis.get",
+                'phpredis',
+                'redis',
+                "Redis.get"
+            )->withExistingTagsNames(['redis.raw_command']),
+        ]);
     }
 
     /**
@@ -576,5 +685,37 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             'associative numeric array args' => [ [ [ '123' => 'v1', '456' => 'v2' ] ], '123 v1 456 v2' ],
             'mixed array and scalar args' => [ [ ['k1', 'k2'], 1, ['v1', 'v2']], 'k1 k2 1 v1 v2' ],
         ];
+    }
+
+    public function testBinarySafeStringsCanBeNormalized()
+    {
+        // Based on redis docs, key and values can be 'binary-safe' strings, so we need to make sure they are
+        // correctly converted to a placeholder.
+        $this->assertSame(106, strlen(PHPRedisSandboxedIntegration::normalizeArgs([$this->getBinarySafeString(), 'v1'])));
+    }
+
+    public function getBinarySafeString()
+    {
+        // Binary-safe string made of random bytes.
+        $bytes = [
+            '01011001', '11010001', '00001111', '11101001', '10010100', '01010110', '10111110', '00111011',
+            '10001101', '11100010', '00110110', '10101100', '11000100', '01010100', '10100010', '11110001',
+            '01100101', '01000001', '01100010', '01001000', '01000110', '01011001', '11001000', '10111010',
+            '01100000', '11010111', '00001111', '00011011', '10011011', '11010011', '01011110', '01110100',
+            '10000111', '11001001', '10000111', '11011111', '11010000', '00111000', '10001011', '11110000',
+            '01111111', '00110010', '00010010', '11101110', '00011101', '11101001', '11000111', '10111101',
+            '11000001', '00110011', '01101001', '11010010', '01011011', '01110011', '11000111', '00101101',
+            '01010001', '11010110', '00000001', '11101111', '00100001', '00111110', '11100110', '10111011',
+            '11010010', '00100101', '10101001', '01100101', '01101011', '10000101', '11111000', '00000101',
+            '01000101', '01101011', '11100101', '01100001', '10010001', '01011011', '01110100', '11101010',
+            '01001111', '01011011', '00010001', '00110100', '11001000', '00001101', '01000010', '00101011',
+            '11010010', '00001100', '10111001', '10100001', '01011001', '10100100', '10100000', '10001110',
+            '11010111', '10011011', '00111001', '01100010', '11001000', '00001101', '01000010', '00101011',
+        ];
+        $binarySafeString = null;
+        foreach ($bytes as $binary) {
+            $binarySafeString .= pack('H*', dechex(bindec($binary)));
+        }
+        return $binarySafeString;
     }
 }

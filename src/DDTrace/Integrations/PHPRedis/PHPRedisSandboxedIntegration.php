@@ -94,13 +94,18 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('move');
         self::traceMethodAsCommand('persist');
         self::traceMethodAsCommand('rename');
+        self::traceMethodAsCommand('object');
+        self::traceMethodAsCommand('randomKey');
         self::traceMethodAsCommand('renameKey');
         self::traceMethodAsCommand('renameNx');
         self::traceMethodAsCommand('type');
         self::traceMethodAsCommand('sort');
         self::traceMethodAsCommand('expire');
+        self::traceMethodAsCommand('expireAt');
         self::traceMethodAsCommand('setTimeout');
         self::traceMethodAsCommand('pexpire');
+        self::traceMethodAsCommand('ttl');
+        self::traceMethodAsCommand('pttl');
 
         self::traceMethodAsCommand('rawCommand');
 
@@ -110,7 +115,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
     public static function enrichSpan(SpanData $span, $method = null)
     {
         $span->service = 'phpredis';
-        $span->type = Type::CACHE;
+        $span->type = Type::REDIS;
         if (null !== $method) {
             // method names for internal functions are lowered so we need to explitly set them if we want to have the
             // proper case.
