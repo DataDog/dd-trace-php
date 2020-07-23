@@ -139,8 +139,9 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
 
     /**
      * This function tests ALL the methods that are also tested in the phpredis own test suite. For this reason here
-     * we are note testing results (i.e. the fact that method still works).
+     * we are not testing results (i.e. the fact that the method still works).
      * We are only testing the fact that the span is generated.
+     * See ./PHPredisProjectTestsuite folder for original library testsuites.
      *
      * @dataProvider dataProviderTestMethodsSpansOnly
      */
