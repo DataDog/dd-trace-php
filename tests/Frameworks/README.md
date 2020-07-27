@@ -120,7 +120,13 @@ Link: https://symfony.com/doc/4.0/setup.html
 
 Link: https://symfony.com/doc/4.2/setup.html
 
-    $ composer create-project symfony/website-skeleton Version_4_2
+    $ composer create-project symfony/website-skeleton Version_4_2 "4.2.*"
+
+### Symfony 4.4
+
+Link: https://symfony.com/doc/4.4/setup.html
+
+    $ composer create-project symfony/website-skeleton Version_4_4 "4.4.*"
 
 ## Custom frameworks
 
