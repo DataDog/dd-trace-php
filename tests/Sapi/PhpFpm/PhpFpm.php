@@ -101,13 +101,8 @@ final class PhpFpm implements Sapi
             if (is_bool($value)) {
                 $value = $value ? 'true' : 'false';
             }
-            // PHP-FPM thinks that "false" is an empty value and will fail on startup with:
-            // ERROR: [%s:%d] empty value
-            if ('false' === $value) {
-                $value = '0';
-            }
             if ('' !== $value) {
-                $lines[] = sprintf('env[%s] = %s', $name, $value);
+                $lines[] = sprintf("env[%s] = '%s'", $name, str_replace("'", "\'", $value));
             }
         }
         return implode(PHP_EOL, $lines);

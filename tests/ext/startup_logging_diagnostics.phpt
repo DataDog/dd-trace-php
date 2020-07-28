@@ -3,6 +3,8 @@ Startup logging diagnostics
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: run-tests crashes with shell commands on PHP 5'); ?>
 <?php include 'startup_logging_skipif.inc'; ?>
+--ENV--
+DD_TRACE_DEBUG=1
 --FILE--
 <?php
 include_once 'startup_logging.inc';
@@ -31,7 +33,7 @@ dd_dump_startup_logs($logs, [
 ]);
 ?>
 --EXPECTF--
-agent_error: "Could not resolve host: invalid_host"
+agent_error: "%s"
 open_basedir_init_hook_allowed: false
 open_basedir_container_tagging_allowed: false
 service_name: "foo_service"

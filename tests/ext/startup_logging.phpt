@@ -14,7 +14,6 @@ unset($logs['agent_error']);
 dd_dump_startup_logs($logs);
 ?>
 --EXPECTF--
-ddtrace.request_init_hook_reachable: false
 date: "%s"
 os_name: "%s"
 os_version: "%s"
