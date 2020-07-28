@@ -181,7 +181,7 @@ final class Tracer implements TracerInterface
             $options->getStartTime()
         );
 
-        $tags = $options->getTags() + $this->config['global_tags'];
+        $tags = $options->getTags() + $this->getGlobalTags();
         if ($context->getParentId() === null) {
             $tags[Tag::PID] = getmypid();
         }
@@ -190,23 +190,30 @@ final class Tracer implements TracerInterface
             $span->setTag($key, $value);
         }
 
+        $this->record($span);
+
+        return $span;
+    }
+
+    private function getGlobalTags()
+    {
+        $tags = $this->config['global_tags'];
+
         // Set extra default tags from configuration
         // These take precedence over user defined global tags to encourage
         // configuring them individually
 
         // Application version
         if (null !== $this->serviceVersion) {
-            $span->setTag(Tag::VERSION, $this->serviceVersion);
+            $tags[Tag::VERSION] = $this->serviceVersion;
         }
 
         // Application environment
         if (null !== $this->environment) {
-            $span->setTag(Tag::ENV, $this->environment);
+            $tags[Tag::ENV] = $this->environment;
         }
 
-        $this->record($span);
-
-        return $span;
+        return $tags;
     }
 
     /**
@@ -384,7 +391,7 @@ final class Tracer implements TracerInterface
         $internalSpans = dd_trace_serialize_closed_spans();
 
         // Setting global tags on internal spans, if any
-        $globalTags = \ddtrace_config_global_tags();
+        $globalTags = $this->getGlobalTags();
         if ($globalTags) {
             foreach ($internalSpans as &$internalSpan) {
                 // If resource is empty, we normalize it the the operation name.
