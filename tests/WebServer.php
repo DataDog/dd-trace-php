@@ -2,10 +2,11 @@
 
 namespace DDTrace\Tests;
 
-use DDTrace\Tests\Integrations\CLI\EnvSerializer;
-use DDTrace\Tests\Integrations\CLI\IniSerializer;
 use DDTrace\Tests\Nginx\NginxServer;
-use Symfony\Component\Process\Process;
+use DDTrace\Tests\Sapi\CliServer\CliServer;
+use DDTrace\Tests\Sapi\PhpCgi\PhpCgi;
+use DDTrace\Tests\Sapi\PhpFpm\PhpFpm;
+use DDTrace\Tests\Sapi\Sapi;
 
 /**
  * A controllable php server running in a separate process.
@@ -18,11 +19,11 @@ final class WebServer
     const ERROR_LOG_NAME = 'dd_php_error.log';
 
     /**
-     * Symfony Process object managing the server
+     * The PHP SAPI to use
      *
-     * @var Process
+     * @var Sapi
      */
-    private $process;
+    private $sapi;
 
     /**
      * Separate process for web server when running PHP as FastCGI
@@ -66,7 +67,6 @@ final class WebServer
 
     private $defaultInis = [
         'log_errors' => 'on',
-        'error_log' => 'error.log',
     ];
 
     /**
@@ -86,7 +86,36 @@ final class WebServer
 
     public function start()
     {
-        if (\getenv('DD_TRACE_TEST_SAPI') === 'cgi-fcgi') {
+        switch (\getenv('DD_TRACE_TEST_SAPI')) {
+            case 'cgi-fcgi':
+                $this->sapi = new PhpCgi(
+                    self::FCGI_HOST,
+                    self::FCGI_PORT,
+                    $this->envs,
+                    $this->inis
+                );
+                break;
+            case 'fpm-fcgi':
+                $this->sapi = new PhpFpm(
+                    dirname($this->indexFile),
+                    self::FCGI_HOST,
+                    self::FCGI_PORT,
+                    $this->envs,
+                    $this->inis
+                );
+                break;
+            default:
+                $this->sapi = new CliServer(
+                    $this->indexFile,
+                    $this->host,
+                    $this->port,
+                    $this->envs,
+                    $this->inis
+                );
+                break;
+        }
+
+        if ($this->sapi->isFastCgi()) {
             $this->server = new NginxServer(
                 $this->indexFile,
                 $this->host,
@@ -95,38 +124,9 @@ final class WebServer
                 self::FCGI_PORT
             );
             $this->server->start();
-
-            $cmd = sprintf(
-                'php-cgi %s -b %s:%d',
-                $this->getSerializedIniForCli(),
-                self::FCGI_HOST,
-                self::FCGI_PORT
-            );
-        } else {
-            /**
-             * If a router is provided to the built-in web server (the index file),
-             * the request init hook (which hooks auto_prepend_file) will not run.
-             * If there is no router, the script is run with php_execute_script():
-             * @see https://heap.space/xref/PHP-7.4/sapi/cli/php_cli_server.c?r=58b17906#2077
-             * This runs the auto_prepend_file as expected. However, if a router is present,
-             * zend_execute_scripts() will be used instead:
-             * @see https://heap.space/xref/PHP-7.4/sapi/cli/php_cli_server.c?r=58b17906#2202
-             * As a result auto_prepend_file (and the request init hook) is not executed.
-             */
-            $cmd = sprintf(
-                'php %s -S %s:%d -t %s', // . ' %s'
-                $this->getSerializedIniForCli(),
-                $this->host,
-                $this->port,
-                dirname($this->indexFile)
-                //$this->indexFile
-            );
         }
 
-        $envs = $this->getSerializedEnvsForCli();
-        $processCmd = "$envs exec $cmd";
-        $this->process = new Process($processCmd);
-        $this->process->start();
+        $this->sapi->start();
         usleep(500000);
     }
 
@@ -135,28 +135,18 @@ final class WebServer
      */
     public function stop()
     {
-        if ($this->process) {
+        if ($this->sapi) {
             $shouldWaitForBgs = !isset($this->envs['DD_TRACE_BGS_ENABLED']) || !$this->envs['DD_TRACE_BGS_ENABLED'];
             if ($shouldWaitForBgs) {
                 // If we don't before stopping the server the main process might die before traces
                 // are actually sent to the agent via the BGS.
                 \usleep($this->envs['DD_TRACE_AGENT_FLUSH_INTERVAL'] * 2 * 1000);
             }
-            $this->process->stop(0);
+            $this->sapi->stop();
         }
         if ($this->server) {
             $this->server->stop();
         }
-    }
-
-    /**
-     * @param array $envs
-     * @return WebServer
-     */
-    public function setEnvs($envs)
-    {
-        $this->envs = $envs;
-        return $this;
     }
 
     /**
@@ -173,45 +163,9 @@ final class WebServer
      * @param array $inis
      * @return WebServer
      */
-    public function setInis($inis)
-    {
-        $this->inis = $inis;
-        return $this;
-    }
-
-    /**
-     * @param array $inis
-     * @return WebServer
-     */
     public function mergeInis($inis)
     {
         $this->inis = array_merge($this->defaultInis, $this->inis, $inis);
         return $this;
-    }
-
-    /**
-     * Returns the CLI compatible version of an associative array representing env variables.
-     *
-     * @return string
-     */
-    private function getSerializedEnvsForCli()
-    {
-        $serializer = new EnvSerializer(
-            array_merge($this->defaultEnvs, $this->envs)
-        );
-        return (string) $serializer;
-    }
-
-    /**
-     * Returns the CLI compatible version of an associative array representing ini configuration values.
-     *
-     * @return string
-     */
-    private function getSerializedIniForCli()
-    {
-        $serializer = new IniSerializer(
-            array_merge($this->defaultInis, $this->inis)
-        );
-        return (string) $serializer;
     }
 }

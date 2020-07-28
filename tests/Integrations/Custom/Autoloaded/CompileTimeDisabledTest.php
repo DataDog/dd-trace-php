@@ -7,6 +7,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 final class CompileTimeDisabledTest extends WebFrameworkTestCase
 {
+    const IS_SANDBOX = true;
 
     protected static function getAppIndexScript()
     {
