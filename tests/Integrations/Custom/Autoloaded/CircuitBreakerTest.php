@@ -9,6 +9,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 final class CircuitBreakerTest extends WebFrameworkTestCase
 {
     const FLUSH_INTERVAL_MS = 500;
+    const IS_SANDBOX = true;
 
     protected static function getAppIndexScript()
     {

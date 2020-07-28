@@ -23,6 +23,8 @@ error.log
 dd_php_error.log
 nginx.pid
 nginx_*.log
+php_fpm_*.log
+phpunit_error.log
 libtool
 ltmain.sh
 missing

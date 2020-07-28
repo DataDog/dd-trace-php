@@ -8,6 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 final class BackgroundSenderLogTest extends WebFrameworkTestCase
 {
     const BGS_FLUSH_INTERVAL_MS = 500;
+    const IS_SANDBOX = true;
 
     protected static function getAppIndexScript()
     {
