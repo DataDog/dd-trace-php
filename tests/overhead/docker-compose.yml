@@ -2,23 +2,23 @@ version: '3.6'
 
 services:
 
-  # nginx:
-  #   image: overhead-nginx
-  #   ports:
-  #     # no tracer
-  #     - 8886:8886
-  #     # current master on GitHub
-  #     - 8887:8887
-  #     # current local head
-  #     - 8888:8888
-  #     # a specific release, set DD_TRACER_LIBRARY_VERSION=X.Y.Z in service
-  #     # 'php-fpm-release'
-  #     - 8889:8889
-  #   depends_on:
-  #     - php-fpm-notracer
-  #     - php-fpm-master
-  #     - php-fpm-release
-  #     - php-fpm-head
+  nginx:
+    image: overhead-nginx
+    ports:
+      # no tracer
+      - 8886:8886
+      # current master on GitHub
+      - 8887:8887
+      # current local head
+      - 8888:8888
+      # a specific release, set DD_TRACER_LIBRARY_VERSION=X.Y.Z in service
+      # 'php-fpm-release'
+      - 8889:8889
+    depends_on:
+      - php-fpm-notracer
+      - php-fpm-master
+      - php-fpm-release
+      - php-fpm-head
 
   php-fpm-notracer:
     image: overhead-php-fpm-notracer
