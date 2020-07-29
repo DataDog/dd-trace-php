@@ -5,7 +5,7 @@ Any description you feel is relevant and gives more background to this PR, if ne
 -->
 
 ### Readiness checklist
-- [ ] (only for Members) Changelog has been added to the appropriate release draft. Create one if necessary.
+- [ ] (only for Members) Changelog has been added to the release document.
 - [ ] Tests added for this feature/bug.
 
 ### Reviewer checklist
