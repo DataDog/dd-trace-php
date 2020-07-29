@@ -110,6 +110,10 @@
                     <file name="startup_logging.h" role="src" />
                     <file name="version.h" role="src" />
                     <file name="compatibility.h" role="src" />
+                    <dir name="integrations">
+                        <file name="integrations.c" role="src" />
+                        <file name="integrations.h" role="src" />
+                    </dir>
                     <dir name="mpack">
                         <file name="AUTHORS.md" role="doc" />
                         <file name="CHANGELOG.md" role="doc" />

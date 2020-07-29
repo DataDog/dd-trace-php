@@ -39,6 +39,7 @@
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
 #include "handlers_internal.h"
+#include "integrations/integrations.h"
 #include "logging.h"
 #include "memory_limit.h"
 #include "random.h"

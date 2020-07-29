@@ -1,8 +1,6 @@
 #include "integrations.h"
 
 #include "ddtrace_string.h"
-#include "elasticsearch.h"
-#include "test_integration.h"
 
 ddtrace_integration ddtrace_integrations[] = {
     {DDTRACE_INTEGRATION_CAKEPHP, "CAKEPHP", ZEND_STRL("cakephp")},
@@ -45,29 +43,6 @@ void ddtrace_integrations_minit(void) {
 void ddtrace_integrations_mshutdown(void) { zend_hash_destroy(&_dd_string_to_integration_name_map); }
 
 #if PHP_VERSION_ID >= 70000
-#define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str)                                         \
-    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class_str), DDTRACE_STRING_LITERAL(fname_str), \
-                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK)
-
-static void _dd_register_known_calls(void) {
-    DDTRACE_KNOWN_INTEGRATION("wpdb", "query");
-    DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire");
-}
-
-void ddtrace_integrations_rinit(TSRMLS_D) {
-    /* Due to negative lookup caching, we need to have a list of all things we
-     * might instrument so that if a call is made to something we want to later
-     * instrument but is not currently instrumented, that we don't cache this.
-     *
-     * We should improve how this list is made in the future instead of hard-
-     * coding known integrations (and for now only the problematic ones).
-     */
-    _dd_register_known_calls();
-
-    _dd_es_initialize_deferred_integration(TSRMLS_C);
-    _dd_load_test_integrations(TSRMLS_C);
-}
-
 ddtrace_integration* ddtrace_get_integration_from_string(ddtrace_string integration) {
     return zend_hash_str_find_ptr(&_dd_string_to_integration_name_map, integration.ptr, integration.len);
 }
@@ -78,14 +53,6 @@ static void _dd_add_integration_to_map(char* name, size_t name_len, ddtrace_inte
     ZEND_ASSERT(DDTRACE_LONGEST_INTEGRATION_NAME_LEN >= name_len);
 }
 #else
-void ddtrace_integrations_rinit(TSRMLS_D) {
-    /* In PHP 5.6 currently adding deferred integrations seem to trigger increase in heap
-     * size - even though the memory usage is below the limit. We still can trigger memory
-     * allocation error to be issued
-     */
-    _dd_load_test_integrations(TSRMLS_C);
-}
-
 ddtrace_integration *ddtrace_get_integration_from_string(ddtrace_string integration) {
     ddtrace_integration **tmp;
     if (zend_hash_find(&_dd_string_to_integration_name_map, integration.ptr, integration.len + 1, (void **)&tmp) ==

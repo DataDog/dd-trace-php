@@ -56,6 +56,7 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/signals.c \
     src/ext/span.c \
     src/ext/third-party/mt19937-64.c \
+    src/ext/integrations/integrations.c \
   "
 
   PHP_VERSION=$($PHP_CONFIG --vernum)
@@ -122,6 +123,9 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_ADD_INCLUDE([$ext_srcdir/src/ext/mpack])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/mpack])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/src/ext/integrations])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/integrations])
 
   PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
