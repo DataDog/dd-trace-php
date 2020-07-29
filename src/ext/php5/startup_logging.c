@@ -12,6 +12,7 @@
 
 #include "coms.h"
 #include "configuration.h"
+#include "integrations/integrations.h"
 #include "logging.h"
 #include "version.h"
 
@@ -197,6 +198,41 @@ static bool _dd_open_basedir_allowed(const char *file TSRMLS_DC) {
     return (php_check_open_basedir_ex(file, 0 TSRMLS_CC) != -1);
 }
 
+#define DD_ENV_DEPRECATION_MESSAGE "'%s=%s' is deprecated, use %s instead."
+
+static void _dd_check_for_deprecated_env(HashTable *ht, const char *old_name, size_t old_name_len, const char *new_name,
+                                         size_t new_name_len TSRMLS_DC) {
+    ddtrace_string val = ddtrace_string_getenv((char *)old_name, old_name_len TSRMLS_CC);
+    if (val.len) {
+        size_t messsage_len = sizeof(DD_ENV_DEPRECATION_MESSAGE) + old_name_len + val.len + new_name_len;
+        char *message = emalloc(messsage_len);
+        int actual_len = snprintf(message, messsage_len, DD_ENV_DEPRECATION_MESSAGE, old_name, val.ptr, new_name);
+
+        if (actual_len > 0) {
+            _dd_add_assoc_string(ht, old_name, old_name_len, message);
+        }
+        efree(message);
+    }
+    if (val.ptr) {
+        efree(val.ptr);
+    }
+}
+
+static void _dd_check_for_deprecated_integration_envs(HashTable *ht, ddtrace_integration *integration TSRMLS_DC) {
+    char old[DDTRACE_LONGEST_INTEGRATION_ENV_LEN];
+    size_t old_len;
+    char new[DDTRACE_LONGEST_INTEGRATION_ENV_LEN];
+    size_t new_len;
+
+    old_len = ddtrace_config_integration_env_name(old, "DD_", integration, "_ANALYTICS_ENABLED");
+    new_len = ddtrace_config_integration_env_name(new, "DD_TRACE_", integration, "_ANALYTICS_ENABLED");
+    _dd_check_for_deprecated_env(ht, old, old_len, new, new_len TSRMLS_CC);
+
+    old_len = ddtrace_config_integration_env_name(old, "DD_", integration, "_ANALYTICS_SAMPLE_RATE");
+    new_len = ddtrace_config_integration_env_name(new, "DD_TRACE_", integration, "_ANALYTICS_SAMPLE_RATE");
+    _dd_check_for_deprecated_env(ht, old, old_len, new, new_len TSRMLS_CC);
+}
+
 /* Supported zval types for diagnostics: string, bool, null
  * To support other types, update:
  *     - ddtrace.c:_dd_info_diagnostics_table(); PHP info output
@@ -233,21 +269,22 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
     //_dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_incoming_error"), ""); // TODO Parse at C level
     //_dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_outgoing_error"), ""); // TODO Parse at C level
 
-    char *old_service = get_dd_service_name();
-    if (strcmp(old_service, "") != 0) {
-        _dd_add_assoc_string(ht, ZEND_STRL("service_name"), old_service);
-        _dd_add_assoc_string(ht, ZEND_STRL("service_name_error"),
-                             "Usage of DD_SERVICE_NAME is deprecated, use DD_SERVICE instead.");
-    }
-    free(old_service);
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_SERVICE_NAME"), ZEND_STRL("DD_SERVICE") TSRMLS_CC);
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_TRACE_APP_NAME"), ZEND_STRL("DD_SERVICE") TSRMLS_CC);
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("ddtrace_app_name"), ZEND_STRL("DD_SERVICE") TSRMLS_CC);
 
-    char *old_tags = get_dd_trace_global_tags();
-    if (strcmp(old_tags, "") != 0) {
-        _dd_add_assoc_string(ht, ZEND_STRL("global_tags"), old_tags);
-        _dd_add_assoc_string(ht, ZEND_STRL("global_tags_error"),
-                             "Usage of DD_TRACE_GLOBAL_TAGS is deprecated, use DD_TAGS instead.");
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_TRACE_GLOBAL_TAGS"), ZEND_STRL("DD_TAGS") TSRMLS_CC);
+    _dd_check_for_deprecated_env(
+        ht, ZEND_STRL("DD_TRACE_RESOURCE_URI_MAPPING"),
+        ZEND_STRL("DD_TRACE_RESOURCE_URI_MAPPING_INCOMING and DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING") TSRMLS_CC);
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_SAMPLING_RATE"), ZEND_STRL("DD_TRACE_SAMPLE_RATE") TSRMLS_CC);
+
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_INTEGRATIONS_DISABLED"),
+                                 ZEND_STRL("DD_TRACE_[INTEGRATION]_ENABLED=false") TSRMLS_CC);
+
+    for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
+        _dd_check_for_deprecated_integration_envs(ht, &ddtrace_integrations[i] TSRMLS_CC);
     }
-    free(old_tags);
 }
 
 static void _dd_json_escape_string(smart_str *buf, const char *val, size_t len) {

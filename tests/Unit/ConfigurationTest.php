@@ -35,6 +35,8 @@ final class ConfigurationTest extends BaseTestCase
         putenv('DD_TRACE_GLOBAL_TAGS');
         putenv('DD_TRACE_SAMPLE_RATE');
         putenv('DD_TRACE_SAMPLING_RULES');
+        putenv('DD_TRACE_SLIM_ENABLED');
+        putenv('DD_TRACE_PDO_ENABLED');
         putenv('DD_VERSION');
     }
 
@@ -92,28 +94,57 @@ final class ConfigurationTest extends BaseTestCase
 
     public function testAllIntegrationsEnabledByDefault()
     {
-        $this->assertTrue(Configuration::get()->isIntegrationEnabled('any_one'));
-        $this->assertTrue(\ddtrace_config_integration_enabled('any_one'));
+        $this->assertTrue(Configuration::get()->isIntegrationEnabled('pdo'));
+        $this->assertTrue(\ddtrace_config_integration_enabled('pdo'));
+    }
+
+    public function testIntegrationsDisabledDeprecatedEnv()
+    {
+        $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=pdo,slim']);
+        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
+        $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
+        $this->assertTrue(Configuration::get()->isIntegrationEnabled('mysqli'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('pdo'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('slim'));
+        $this->assertTrue(\ddtrace_config_integration_enabled('mysqli'));
+    }
+
+    public function testIntegrationsDisabledIfGlobalDisabledDeprecatedEnv()
+    {
+        $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=pdo', 'DD_TRACE_ENABLED=false']);
+        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
+        $this->assertFalse(Configuration::get()->isIntegrationEnabled('mysqli'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('pdo'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('mysqli'));
     }
 
     public function testIntegrationsDisabled()
     {
-        $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=one,two']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('one'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('two'));
-        $this->assertTrue(Configuration::get()->isIntegrationEnabled('three'));
-        $this->assertFalse(\ddtrace_config_integration_enabled('one'));
-        $this->assertFalse(\ddtrace_config_integration_enabled('two'));
-        $this->assertTrue(\ddtrace_config_integration_enabled('three'));
+        $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=false', 'DD_TRACE_SLIM_ENABLED=false']);
+        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
+        $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
+        $this->assertTrue(Configuration::get()->isIntegrationEnabled('mysqli'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('pdo'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('slim'));
+        $this->assertTrue(\ddtrace_config_integration_enabled('mysqli'));
     }
 
     public function testIntegrationsDisabledIfGlobalDisabled()
     {
-        $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=one', 'DD_TRACE_ENABLED=false']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('one'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('two'));
-        $this->assertFalse(\ddtrace_config_integration_enabled('one'));
-        $this->assertFalse(\ddtrace_config_integration_enabled('two'));
+        $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=false', 'DD_TRACE_ENABLED=false']);
+        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
+        $this->assertFalse(Configuration::get()->isIntegrationEnabled('mysqli'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('pdo'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('mysqli'));
+    }
+
+    public function testIntegrationsDisabledPrecedenceWithDeprecatedEnv()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=true', 'DD_INTEGRATIONS_DISABLED=pdo,slim']);
+        $this->assertTrue(Configuration::get()->isIntegrationEnabled('pdo'));
+        $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
+        $this->assertTrue(\ddtrace_config_integration_enabled('pdo'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('slim'));
     }
 
     public function testAppNameFallbackPriorities()

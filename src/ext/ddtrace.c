@@ -162,6 +162,14 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_integration_enabled, 0, 0, 1)
 ZEND_ARG_INFO(0, integration_name)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_integration_analytics_enabled, 0, 0, 1)
+ZEND_ARG_INFO(0, integration_name)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_integration_analytics_sample_rate, 0, 0, 1)
+ZEND_ARG_INFO(0, integration_name)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_trace_enabled, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -315,6 +323,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_coms_minit();
     ddtrace_coms_init_and_start_writer();
 
+    ddtrace_integrations_minit();
+
     return SUCCESS;
 }
 
@@ -327,6 +337,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_config_shutdown();
         return SUCCESS;
     }
+
+    ddtrace_integrations_mshutdown();
 
     ddtrace_signals_mshutdown();
 
@@ -1137,6 +1149,24 @@ static PHP_FUNCTION(ddtrace_config_integration_enabled) {
     RETVAL_BOOL(ddtrace_config_integration_enabled(integration TSRMLS_CC));
 }
 
+static PHP_FUNCTION(integration_analytics_enabled) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    ddtrace_string integration;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
+        RETURN_NULL()
+    }
+    RETVAL_BOOL(ddtrace_config_integration_analytics_enabled(integration TSRMLS_CC));
+}
+
+static PHP_FUNCTION(integration_analytics_sample_rate) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    ddtrace_string integration;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
+        RETURN_NULL()
+    }
+    RETVAL_DOUBLE(ddtrace_config_integration_analytics_sample_rate(integration TSRMLS_CC));
+}
+
 static PHP_FUNCTION(ddtrace_init) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     if (DDTRACE_G(request_init_hook_loaded) == 1) {
@@ -1443,6 +1473,9 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FALIAS(dd_trace_method, trace_method, arginfo_ddtrace_trace_method),
 #endif
     DDTRACE_NS_FE(startup_logs, arginfo_ddtrace_void),
+    DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
+    DDTRACE_SUB_NS_FE("Config\\", integration_analytics_sample_rate,
+                      arginfo_ddtrace_config_integration_analytics_sample_rate),
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,

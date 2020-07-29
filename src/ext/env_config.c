@@ -111,8 +111,13 @@ double ddtrace_get_double_config(char *name, double def TSRMLS_DC) {
     if (!env) {
         return def;
     }
+    double result = ddtrace_char_to_double(env, def);
+    free(env);
+    return result;
+}
 
-    char *endptr = env;
+double ddtrace_char_to_double(char *subject, double default_value) {
+    char *endptr = subject;
 
     // The strtod function is a bit tricky, so I've quoted docs to explain code
 
@@ -122,18 +127,16 @@ double ddtrace_get_double_config(char *name, double def TSRMLS_DC) {
      * value after the call.
      */
     errno = 0;
-    double result = strtod(env, &endptr);
+    double result = strtod(subject, &endptr);
 
     /* If endptr is not NULL, a pointer to the character after the last
      * character used in the conversion is stored in the location referenced
      * by endptr. If no conversion is performed, zero is returned and the value
      * of nptr is stored in the location referenced by endptr.
      */
-    int conversion_performed = endptr != env && errno == 0;
+    int conversion_performed = endptr != subject && errno == 0;
 
-    free(env);
-
-    return conversion_performed ? result : def;
+    return conversion_performed ? result : default_value;
 }
 
 char *ddtrace_get_c_string_config(char *name TSRMLS_DC) {
