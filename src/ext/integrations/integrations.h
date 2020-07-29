@@ -5,7 +5,7 @@
 #include "ddtrace_string.h"
 #include "dispatch.h"
 
-#define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 14  // "zendframework" FTW!
+#define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 13  // "zendframework" FTW!
 
 typedef enum {
     DDTRACE_INTEGRATION_CAKEPHP,
