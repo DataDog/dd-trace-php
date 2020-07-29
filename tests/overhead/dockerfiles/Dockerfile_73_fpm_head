@@ -9,3 +9,6 @@ WORKDIR /dd-trace-php
 RUN composer install
 RUN composer install-ext
 RUN echo "ddtrace.request_init_hook=/dd-trace-php/bridge/dd_wrap_autoloader.php" >> /usr/local/etc/php/conf.d/ddtrace.ini
+
+ADD ./tests/overhead/dockerfiles/ioncube_loader_lin_7.3.so /usr/local/lib/php/extensions/no-debug-non-zts-20180731/ioncube_loader.so
+RUN echo "zend_extension=ioncube_loader.so" >> /usr/local/etc/php/php.ini

@@ -9,8 +9,9 @@
 
 static bool _dd_is_blacklisted_module(zend_module_entry *module) {
     if (strcmp("ionCube Loader", module->name) == 0) {
-        ddtrace_log_debugf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
-        return true;
+        return false;
+        // ddtrace_log_debugf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
+        // return true;
     }
     if (strcmp("xdebug", module->name) == 0) {
         /*
