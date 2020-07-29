@@ -25,7 +25,7 @@ ddtrace_integration ddtrace_integrations[] = {
     {DDTRACE_INTEGRATION_YII, "YII", ZEND_STRL("yii")},
     {DDTRACE_INTEGRATION_ZENDFRAMEWORK, "ZENDFRAMEWORK", ZEND_STRL("zendframework")},
 };
-size_t ddtrace_integrations_len = 0;
+size_t ddtrace_integrations_len = sizeof ddtrace_integrations / sizeof ddtrace_integrations[0];
 
 // Map of lowercase strings to the ddtrace_integration equivalent
 static HashTable _dd_string_to_integration_name_map;
@@ -33,7 +33,6 @@ static HashTable _dd_string_to_integration_name_map;
 static void _dd_add_integration_to_map(char* name, size_t name_len, ddtrace_integration* integration);
 
 void ddtrace_integrations_minit(void) {
-    ddtrace_integrations_len = sizeof ddtrace_integrations / sizeof ddtrace_integrations[0];
     zend_hash_init(&_dd_string_to_integration_name_map, ddtrace_integrations_len, NULL, NULL, 1);
 
     for (size_t i = 0; i < ddtrace_integrations_len; ++i) {

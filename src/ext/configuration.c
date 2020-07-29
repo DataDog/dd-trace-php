@@ -230,15 +230,7 @@ bool ddtrace_config_integration_enabled_ex(ddtrace_integration_name integration_
 
 #define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
 
-bool ddtrace_config_integration_analytics_enabled(ddtrace_string integration_str TSRMLS_DC) {
-    ddtrace_integration* integration = ddtrace_get_integration_from_string(integration_str);
-    if (integration == NULL) {
-        return DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT;
-    }
-    return ddtrace_config_integration_analytics_enabled_ex(integration->name TSRMLS_CC);
-}
-
-bool ddtrace_config_integration_analytics_enabled_ex(ddtrace_integration_name integration_name TSRMLS_DC) {
+static bool _dd_config_integration_analytics_enabled_ex(ddtrace_integration_name integration_name TSRMLS_DC) {
     bool result = DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT;
     ddtrace_integration* integration = &ddtrace_integrations[integration_name];
     ddtrace_string env_val;
@@ -266,17 +258,17 @@ bool ddtrace_config_integration_analytics_enabled_ex(ddtrace_integration_name in
     return result;
 }
 
-#define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1.0
-
-double ddtrace_config_integration_analytics_sample_rate(ddtrace_string integration_str TSRMLS_DC) {
+bool ddtrace_config_integration_analytics_enabled(ddtrace_string integration_str TSRMLS_DC) {
     ddtrace_integration* integration = ddtrace_get_integration_from_string(integration_str);
     if (integration == NULL) {
-        return DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT;
+        return DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT;
     }
-    return ddtrace_config_integration_analytics_sample_rate_ex(integration->name TSRMLS_CC);
+    return _dd_config_integration_analytics_enabled_ex(integration->name TSRMLS_CC);
 }
 
-double ddtrace_config_integration_analytics_sample_rate_ex(ddtrace_integration_name integration_name TSRMLS_DC) {
+#define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1.0
+
+static double _dd_config_integration_analytics_sample_rate_ex(ddtrace_integration_name integration_name TSRMLS_DC) {
     double result = DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT;
     ddtrace_integration* integration = &ddtrace_integrations[integration_name];
     ddtrace_string env_val;
@@ -302,6 +294,14 @@ double ddtrace_config_integration_analytics_sample_rate_ex(ddtrace_integration_n
         efree(env_val.ptr);
     }
     return result;
+}
+
+double ddtrace_config_integration_analytics_sample_rate(ddtrace_string integration_str TSRMLS_DC) {
+    ddtrace_integration* integration = ddtrace_get_integration_from_string(integration_str);
+    if (integration == NULL) {
+        return DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT;
+    }
+    return _dd_config_integration_analytics_sample_rate_ex(integration->name TSRMLS_CC);
 }
 
 bool ddtrace_config_trace_enabled(TSRMLS_D) {

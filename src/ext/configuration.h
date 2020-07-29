@@ -31,8 +31,8 @@ bool ddtrace_config_env_bool(ddtrace_string env_name, bool default_value TSRMLS_
 bool ddtrace_config_distributed_tracing_enabled(TSRMLS_D);
 bool ddtrace_config_trace_enabled(TSRMLS_D);
 
-#define DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN 10  // "DD_TRACE_" FTW!
-#define DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN 23  // "_ANALYTICS_SAMPLE_RATE" FTW!
+#define DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN 9  // "DD_TRACE_" FTW!
+#define DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN 22  // "_ANALYTICS_SAMPLE_RATE" FTW!
 #define DDTRACE_LONGEST_INTEGRATION_ENV_LEN                                              \
     (DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN + DDTRACE_LONGEST_INTEGRATION_NAME_LEN + \
      DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN)
@@ -41,9 +41,7 @@ bool ddtrace_config_trace_enabled(TSRMLS_D);
 bool ddtrace_config_integration_enabled(ddtrace_string integration TSRMLS_DC);
 bool ddtrace_config_integration_enabled_ex(ddtrace_integration_name integration_name TSRMLS_DC);
 bool ddtrace_config_integration_analytics_enabled(ddtrace_string integration TSRMLS_DC);
-bool ddtrace_config_integration_analytics_enabled_ex(ddtrace_integration_name integration_name TSRMLS_DC);
 double ddtrace_config_integration_analytics_sample_rate(ddtrace_string integration TSRMLS_DC);
-double ddtrace_config_integration_analytics_sample_rate_ex(ddtrace_integration_name integration_name TSRMLS_DC);
 
 size_t ddtrace_config_integration_env_name(char *name, const char *prefix, ddtrace_integration *integration,
                                            const char *suffix);
