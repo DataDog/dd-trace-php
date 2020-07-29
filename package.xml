@@ -10,10 +10,10 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
-    <date>2020-07-08</date>
+    <date>2020-07-30</date>
     <version>
-        <release>0.47.0</release>
-        <api>0.47.0</api>
+        <release>0.47.1</release>
+        <api>0.47.1</api>
     </version>
     <stability>
         <release>stable</release>
@@ -21,36 +21,25 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-**Deprecation notice**:
-- Setting service name via `DD_SERVICE_NAME` is now deprecated and will be removed in a future release. Use `DD_SERVICE` instead for consistency with other Datadog tracers and services.
-- Setting global tags via `DD_TRACE_GLOBAL_TAGS` is now deprecated and will be removed in a future release. Use `DD_TAGS` instead (with the same format) for consistency with other Datadog tracers and services.
-- `DD_TRACE_RESOURCE_URI_MAPPING` is deprecated now that it has been split into `DD_TRACE_RESOURCE_URI_MAPPING_INCOMING` and `DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING`.
-- The functions `dd_trace` and `dd_trace_forward_call` are deprecated and will be made a no-op in the next release. See #924 for how to migrate.
+        **Deprecation notice**: The following environment variable names have changed. The old names are deprecated. See #969 for more details.
 
-### Added
+        | Old Name                                       | New Name                                             |
+        | ---------------------------------------------- | ---------------------------------------------------- |
+        | `DD_&lt;INTEGRATION&gt;_ANALYTICS_ENABLED`     | `DD_TRACE_&lt;INTEGRATION&gt;_ANALYTICS_ENABLED`     |
+        | `DD_&lt;INTEGRATION&gt;_ANALYTICS_SAMPLE_RATE` | `DD_TRACE_&lt;INTEGRATION&gt;_ANALYTICS_SAMPLE_RATE` |
+        | `DD_INTEGRATIONS_DISABLED`                     | `DD_TRACE_&lt;INTEGRATION&gt;_ENABLED`               |
 
-- Apply new uri to resource normalization rules #928
-- Add DDTrace namespace for internal functions #930
-- Startup logging (can be disabled by setting `DD_TRACE_STARTUP_LOGS=0`) #935
+        ### Added
 
-### Changed
+        - Add `DD_TRACE_AGENT_URL` environment support #926 (thank you @nurcahyo!) #962
+        - Support for `DD_TRACE_&lt;INTEGRATION&gt;_&lt;SUFFIX&gt;` env vars #969
+        - Deeper instrumentation of Symfony 4.4 #967
 
-- Sandboxed cURL (PHP 5) #911, #938
-- Sandbox Lumen (PHP 5) #945
-- Sandboxed Symfony (PHP 5) #946
-- Add support for service name configuration via DD_SERVICE #919
-- Add support for DD_TAGS, fallback to DD_TRACE_GLOBAL_TAGS #920
-- Add support for DD_VERSION and DD_ENV variables #803 - thanks @brettlangdon
-- Enable OpenTracing test suite in CI #921
-- Defaults for name and resource on SpanData #923
-- Refactor dispatch.{c,h} #932
-- Extract ddtrace_sandbox_begin/ddtrace_sandbox_end helpers #940
-- Warn on dd_trace usage if DD_TRACE_WARN_LEGACY_DD_TRACE #941
+        ### Fixed
 
-### Fixed
-
-- Only build on 64-bit platforms #929 (thanks for the report @remicollet)
-- (PHP 5.4) Make compilation to single file compatible with `include __DIR__ . '...'` in files #943
+        - Move startup logging to first RINIT #961
+        - Fix propagation of `DD_ENV` and `DD_VERSION` to children spans #963
+        - Remove query string when new resource mapper is used #973
     </notes>
     <contents>
         <dir name="/">

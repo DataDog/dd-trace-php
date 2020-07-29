@@ -26,7 +26,7 @@ final class Tracer implements TracerInterface
     /**
      * @deprecated Use Tracer::version() instead
      */
-    const VERSION = '0.47.0'; // Update ./version.php too
+    const VERSION = '0.47.1'; // Update ./version.php too
 
     /**
      * @var Span[][]
