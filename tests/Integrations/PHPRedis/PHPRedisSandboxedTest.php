@@ -11,6 +11,13 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
 {
     const IS_SANDBOX = true;
 
+    const A_STRING = 'A_STRING';
+    const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';
+    const ARRAY_COUNT_2 = 'ARRAY_COUNT_2';
+    const ARRAY_COUNT_3 = 'ARRAY_COUNT_3';
+    const ARRAY_COUNT_4 = 'ARRAY_COUNT_4';
+    const ARRAY_COUNT_5 = 'ARRAY_COUNT_5';
+
     private $host = 'redis_integration';
     private $port = '6379';
     private $portSecondInstance = '6380';
@@ -1020,6 +1027,198 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                     'l2' => $l2,
                 ], // expected final value
                 'rPushX l1 v3', // raw command
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider dataProviderTestSetFunctions
+     */
+    public function testSetFunctions($method, $args, $expectedResult, $expectedFinal, $rawCommand)
+    {
+        $this->redis->sAdd('s1', 'v1', 'v2', 'v3');
+        $this->redis->sAdd('s2', 'z1', 'v2' /* 'v2' not a typo */, 'z3');
+        $result = null;
+
+        $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
+            if (count($args) === 1) {
+                $result = $this->redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $result = $this->redis->$method($args[0], $args[1]);
+            } elseif (count($args) === 3) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2]);
+            } elseif (count($args) === 4) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2], $args[3]);
+            } else {
+                throw new \Exception('Number of arguments not supported: ' . \count($args));
+            }
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.$method",
+                'phpredis',
+                'redis',
+                "Redis.$method"
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
+        ]);
+
+        if ($expectedResult === self::A_STRING) {
+            $this->assertGreaterThan(0, \strlen($result));
+        } elseif ($expectedResult === self::ARRAY_COUNT_1) {
+            $this->assertCount(1, $result);
+        } elseif ($expectedResult === self::ARRAY_COUNT_2) {
+            $this->assertCount(2, $result);
+        } elseif ($expectedResult === self::ARRAY_COUNT_3) {
+            $this->assertCount(3, $result);
+        } elseif ($expectedResult === self::ARRAY_COUNT_4) {
+            $this->assertCount(4, $result);
+        } elseif ($expectedResult === self::ARRAY_COUNT_5) {
+            $this->assertCount(5, $result);
+        } else {
+            $this->assertSame($expectedResult, $result);
+        }
+
+        foreach ($expectedFinal as $set => $value) {
+            $this->assertSame($this->redis->sSize($set), $value);
+        }
+    }
+
+    public function dataProviderTestSetFunctions()
+    {
+        return [
+            [
+                'sAdd', // method
+                [ 's1', 'v4' ], // arguments
+                1, // expected result
+                [ 's1' => 4, 's2' => 3 ], // expected final value
+                'sAdd s1 v4', // raw command
+            ],
+            [
+                'sCard', // method
+                [ 's1' ], // arguments
+                3, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sCard s1', // raw command
+            ],
+            [
+                'sSize', // method
+                [ 's1' ], // arguments
+                3, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sSize s1', // raw command
+            ],
+            [
+                'sDiff', // method
+                [ 's1', 's2' ], // arguments
+                [ 'v1', 'v3' ], // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sDiff s1 s2', // raw command
+            ],
+            [
+                'sDiffStore', // method
+                [ 'out', 's1', 's2' ], // arguments
+                2, // expected result
+                [ 's1' => 3, 's2' => 3, 'out' => 2 ], // expected final value
+                'sDiffStore out s1 s2', // raw command
+            ],
+            [
+                'sInter', // method
+                [ 's1', 's2' ], // arguments
+                [ 'v2' ], // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sInter s1 s2', // raw command
+            ],
+            [
+                'sInterStore', // method
+                [ 'out', 's1', 's2' ], // arguments
+                1, // expected result
+                [ 's1' => 3, 's2' => 3, 'out' => 1 ], // expected final value
+                'sInterStore out s1 s2', // raw command
+            ],
+            [
+                'sIsMember', // method
+                [ 's1', 'v3' ], // arguments
+                true, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sIsMember s1 v3', // raw command
+            ],
+            [
+                'sContains', // method
+                [ 's1', 'v3' ], // arguments
+                true, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sContains s1 v3', // raw command
+            ],
+            [
+                'sMembers', // method
+                [ 's1' ], // arguments
+                self::ARRAY_COUNT_3, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sMembers s1', // raw command
+            ],
+            [
+                'sGetMembers', // method
+                [ 's1' ], // arguments
+                self::ARRAY_COUNT_3, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sGetMembers s1', // raw command
+            ],
+            [
+                'sMove', // method
+                [ 's1', 's2', 'v1' ], // arguments
+                true, // expected result
+                [ 's1' => 2, 's2' => 4 ], // expected final value
+                'sMove s1 s2 v1', // raw command
+            ],
+            [
+                'sPop', // method
+                [ 's1', 2 ], // arguments
+                self::ARRAY_COUNT_2, // expected result
+                [ 's1' => 1, 's2' => 3 ], // expected final value
+                'sPop s1 2', // raw command
+            ],
+            [
+                'sRandMember', // method
+                [ 's1' ], // arguments
+                self::A_STRING, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sRandMember s1', // raw command
+            ],
+            [
+                'sRem', // method
+                [ 's1', 'v1' ], // arguments
+                1, // expected result
+                [ 's1' => 2, 's2' => 3 ], // expected final value
+                'sRem s1 v1', // raw command
+            ],
+            [
+                'sRemove', // method
+                [ 's1', 'v1' ], // arguments
+                1, // expected result
+                [ 's1' => 2, 's2' => 3 ], // expected final value
+                'sRemove s1 v1', // raw command
+            ],
+            [
+                'sUnion', // method
+                [ 's1', 's2' ], // arguments
+                self::ARRAY_COUNT_5, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sUnion s1 s2', // raw command
+            ],
+            [
+                'sUnionStore', // method
+                [ 'out', 's1', 's2' ], // arguments
+                5, // expected result
+                [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final value
+                'sUnionStore out s1 s2', // raw command
+            ],
+            [
+                'sScan', // method
+                [ 's1', null ], // arguments
+                self::ARRAY_COUNT_3, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final value
+                'sScan s1 0', // raw command
             ],
         ];
     }

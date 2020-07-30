@@ -105,6 +105,27 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("rpush"),
         DDTRACE_STRING_LITERAL("rpushx"),
 
+        // Sets
+        DDTRACE_STRING_LITERAL("sadd"),
+        DDTRACE_STRING_LITERAL("scard"),
+        DDTRACE_STRING_LITERAL("scontains"),
+        DDTRACE_STRING_LITERAL("sdiff"),
+        DDTRACE_STRING_LITERAL("sdiffstore"),
+        DDTRACE_STRING_LITERAL("sgetmembers"),
+        DDTRACE_STRING_LITERAL("sinter"),
+        DDTRACE_STRING_LITERAL("sinterstore"),
+        DDTRACE_STRING_LITERAL("sismember"),
+        DDTRACE_STRING_LITERAL("smembers"),
+        DDTRACE_STRING_LITERAL("smove"),
+        DDTRACE_STRING_LITERAL("spop"),
+        DDTRACE_STRING_LITERAL("srandmember"),
+        DDTRACE_STRING_LITERAL("srem"),
+        DDTRACE_STRING_LITERAL("sremove"),
+        DDTRACE_STRING_LITERAL("sscan"),
+        DDTRACE_STRING_LITERAL("ssize"),
+        DDTRACE_STRING_LITERAL("sunion"),
+        DDTRACE_STRING_LITERAL("sunionstore"),
+
         DDTRACE_STRING_LITERAL("rawcommand"),
     };
     // clang-format on

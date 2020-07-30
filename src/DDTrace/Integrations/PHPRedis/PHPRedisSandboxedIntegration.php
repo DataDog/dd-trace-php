@@ -149,6 +149,27 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('rPush');
         self::traceMethodAsCommand('rPushX');
 
+        // Sets
+        self::traceMethodAsCommand('sAdd');
+        self::traceMethodAsCommand('sCard');
+        self::traceMethodAsCommand('sContains');
+        self::traceMethodAsCommand('sDiff');
+        self::traceMethodAsCommand('sDiffStore');
+        self::traceMethodAsCommand('sGetMembers');
+        self::traceMethodAsCommand('sInter');
+        self::traceMethodAsCommand('sInterStore');
+        self::traceMethodAsCommand('sIsMember');
+        self::traceMethodAsCommand('sMembers');
+        self::traceMethodAsCommand('sMove');
+        self::traceMethodAsCommand('sPop');
+        self::traceMethodAsCommand('sRandMember');
+        self::traceMethodAsCommand('sRem');
+        self::traceMethodAsCommand('sRemove');
+        self::traceMethodAsCommand('sScan');
+        self::traceMethodAsCommand('sSize');
+        self::traceMethodAsCommand('sUnion');
+        self::traceMethodAsCommand('sUnionStore');
+
         // Raw command
         self::traceMethodAsCommand('rawCommand');
 
