@@ -125,6 +125,30 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('hScan');
         self::traceMethodAsCommand('hStrLen');
 
+        // Lists
+        self::traceMethodAsCommand('blPop');
+        self::traceMethodAsCommand('brPop');
+        self::traceMethodAsCommand('bRPopLPush');
+        self::traceMethodAsCommand('lGet');
+        self::traceMethodAsCommand('lGetRange');
+        self::traceMethodAsCommand('lIndex');
+        self::traceMethodAsCommand('lInsert');
+        self::traceMethodAsCommand('listTrim');
+        self::traceMethodAsCommand('lLen');
+        self::traceMethodAsCommand('lPop');
+        self::traceMethodAsCommand('lPush');
+        self::traceMethodAsCommand('lPushx');
+        self::traceMethodAsCommand('lRange');
+        self::traceMethodAsCommand('lRem');
+        self::traceMethodAsCommand('lRemove');
+        self::traceMethodAsCommand('lSet');
+        self::traceMethodAsCommand('lSize');
+        self::traceMethodAsCommand('lTrim');
+        self::traceMethodAsCommand('rPop');
+        self::traceMethodAsCommand('rPopLPush');
+        self::traceMethodAsCommand('rPush');
+        self::traceMethodAsCommand('rPushX');
+
         // Raw command
         self::traceMethodAsCommand('rawCommand');
 
@@ -186,7 +210,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
             } elseif (\is_array($arg)) {
                 // This is best effort as specific index might be missing or be shifted, e.g. [0 => 'a', 2 => 'b'].
                 // In this case the worst that can happen is that we generate '0 a 2 b' instead of 'a b'. We accept this
-                // in order to keep things as simple as possible. Note: there is a test for this.
+                // in order to keep things as simple as possible.
                 $isAssociative = array_values($arg) !== $arg;
                 if ($isAssociative) {
                     foreach ($arg as $key => $val) {

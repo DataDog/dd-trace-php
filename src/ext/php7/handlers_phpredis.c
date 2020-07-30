@@ -81,6 +81,30 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("hstrlen"),
         DDTRACE_STRING_LITERAL("hvals"),
 
+        // Lists
+        DDTRACE_STRING_LITERAL("blpop"),
+        DDTRACE_STRING_LITERAL("brpop"),
+        DDTRACE_STRING_LITERAL("brpoplpush"),
+        DDTRACE_STRING_LITERAL("lget"),
+        DDTRACE_STRING_LITERAL("lgetrange"),
+        DDTRACE_STRING_LITERAL("lindex"),
+        DDTRACE_STRING_LITERAL("linsert"),
+        DDTRACE_STRING_LITERAL("listtrim"),
+        DDTRACE_STRING_LITERAL("llen"),
+        DDTRACE_STRING_LITERAL("lpop"),
+        DDTRACE_STRING_LITERAL("lpush"),
+        DDTRACE_STRING_LITERAL("lpushx"),
+        DDTRACE_STRING_LITERAL("lrange"),
+        DDTRACE_STRING_LITERAL("lrem"),
+        DDTRACE_STRING_LITERAL("lremove"),
+        DDTRACE_STRING_LITERAL("lset"),
+        DDTRACE_STRING_LITERAL("lsize"),
+        DDTRACE_STRING_LITERAL("ltrim"),
+        DDTRACE_STRING_LITERAL("rpop"),
+        DDTRACE_STRING_LITERAL("rpoplpush"),
+        DDTRACE_STRING_LITERAL("rpush"),
+        DDTRACE_STRING_LITERAL("rpushx"),
+
         DDTRACE_STRING_LITERAL("rawcommand"),
     };
     // clang-format on

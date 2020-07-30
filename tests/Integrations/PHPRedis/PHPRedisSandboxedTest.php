@@ -606,7 +606,6 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
         ];
     }
 
-
     /**
      * @dataProvider dataProviderTestHashFunctions
      */
@@ -750,6 +749,277 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 2, // expected result
                 $all, // expected final hash value
                 'hStrLen h1 k1', // raw command
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider dataProviderTestListFunctions
+     */
+    public function testListFunctions($method, $args, $expectedResult, $expectedFinal, $rawCommand)
+    {
+        $this->redis->rPush('l1', 'v1');
+        $this->redis->rPush('l1', 'v2');
+        $this->redis->rPush('l2', 'z1');
+        $result = null;
+
+        $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
+            if (count($args) === 1) {
+                $result = $this->redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $result = $this->redis->$method($args[0], $args[1]);
+            } elseif (count($args) === 3) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2]);
+            } elseif (count($args) === 4) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2], $args[3]);
+            } else {
+                throw new \Exception('Number of arguments not supported: ' . \count($args));
+            }
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.$method",
+                'phpredis',
+                'redis',
+                "Redis.$method"
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
+        ]);
+
+        $this->assertSame($expectedResult, $result);
+
+        foreach ($expectedFinal as $list => $values) {
+            $this->assertCount($this->redis->lSize($list), $values);
+            for ($element = 0; $element < count($values); $element++) {
+                $this->assertSame($expectedFinal[$list][$element], $this->redis->lGet($list, $element));
+            }
+        }
+    }
+
+    public function dataProviderTestListFunctions()
+    {
+        $l1 = [ 'v1', 'v2' ];
+        $l2 = [ 'z1' ];
+        return [
+            [
+                'blPop', // method
+                [ 'l1', 'l2', 10 ], // arguments
+                [ 'l1', 'v1' ], // expected result
+                [
+                    'l1' => [ 'v2' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'blPop l1 l2 10', // raw command
+            ],
+            [
+                'brPop', // method
+                [ 'l1', 'l2', 10 ], // arguments
+                [ 'l1', 'v2' ], // expected result
+                [
+                    'l1' => [ 'v1' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'brPop l1 l2 10', // raw command
+            ],
+            [
+                'bRPopLPush', // method
+                [ 'l1', 'l2', 10 ], // arguments
+                'v2', // expected result
+                [
+                    'l1' => [ 'v1' ],
+                    'l2' => [ 'v2', 'z1' ],
+                ], // expected final value
+                'bRPopLPush l1 l2 10', // raw command
+            ],
+            [
+                'rPopLPush', // method
+                [ 'l1', 'l2' ], // arguments
+                'v2', // expected result
+                [
+                    'l1' => [ 'v1' ],
+                    'l2' => [ 'v2', 'z1' ],
+                ], // expected final value
+                'rPopLPush l1 l2', // raw command
+            ],
+            [
+                'lIndex', // method
+                [ 'l1', 0 ], // arguments
+                'v1', // expected result
+                [
+                    'l1' => $l1,
+                    'l2' => $l2,
+                ], // expected final value
+                'lIndex l1 0', // raw command
+            ],
+            [
+                'lGet', // method
+                [ 'l1', 0 ], // arguments
+                'v1', // expected result
+                [
+                    'l1' => $l1,
+                    'l2' => $l2,
+                ], // expected final value
+                'lGet l1 0', // raw command
+            ],
+            [
+                'lInsert', // method
+                [ 'l1', \Redis::BEFORE, 'v2', 'v3' ], // arguments
+                3, // expected result
+                [
+                    'l1' => ['v1', 'v3', 'v2'],
+                    'l2' => $l2,
+                ], // expected final value
+                'lInsert l1 before v2 v3', // raw command
+            ],
+            [
+                'lLen', // method
+                [ 'l1' ], // arguments
+                2, // expected result
+                [
+                    'l1' => $l1,
+                    'l2' => $l2,
+                ], // expected final value
+                'lLen l1', // raw command
+            ],
+            [
+                'lSize', // method
+                [ 'l1' ], // arguments
+                2, // expected result
+                [
+                    'l1' => $l1,
+                    'l2' => $l2,
+                ], // expected final value
+                'lSize l1', // raw command
+            ],
+            [
+                'lPop', // method
+                [ 'l1' ], // arguments
+                'v1', // expected result
+                [
+                    'l1' => [ 'v2' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'lPop l1', // raw command
+            ],
+            [
+                'lPush', // method
+                [ 'l1', 'v3' ], // arguments
+                3, // expected result
+                [
+                    'l1' => [ 'v3', 'v1', 'v2' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'lPush l1 v3', // raw command
+            ],
+            [
+                'lPushx', // method
+                [ 'l1', 'v3' ], // arguments
+                3, // expected result
+                [
+                    'l1' => [ 'v3', 'v1', 'v2' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'lPushx l1 v3', // raw command
+            ],
+            [
+                'lRange', // method
+                [ 'l1', '0', '0' ], // arguments
+                [ 'v1' ], // expected result
+                [
+                    'l1' => $l1,
+                    'l2' => $l2,
+                ], // expected final value
+                'lRange l1 0 0', // raw command
+            ],
+            [
+                'lGetRange', // method
+                [ 'l1', '0', '0' ], // arguments
+                [ 'v1' ], // expected result
+                [
+                    'l1' => $l1,
+                    'l2' => $l2,
+                ], // expected final value
+                'lGetRange l1 0 0', // raw command
+            ],
+            [
+                'lRem', // method
+                [ 'l1', 'v1', '2' ], // arguments
+                1, // expected result
+                [
+                    'l1' => [ 'v2' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'lRem l1 v1 2', // raw command
+            ],
+            [
+                'lRemove', // method
+                [ 'l1', 'v1', '2' ], // arguments
+                1, // expected result
+                [
+                    'l1' => [ 'v2' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'lRemove l1 v1 2', // raw command
+            ],
+            [
+                'lSet', // method
+                [ 'l1', 1, 'changed' ], // arguments
+                true, // expected result
+                [
+                    'l1' => [ 'v1', 'changed' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'lSet l1 1 changed', // raw command
+            ],
+            [
+                'lTrim', // method
+                [ 'l1', 1, 2 ], // arguments
+                true, // expected result
+                [
+                    'l1' => [ 'v2' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'lTrim l1 1 2', // raw command
+            ],
+            [
+                'listTrim', // method
+                [ 'l1', 1, 2 ], // arguments
+                true, // expected result
+                [
+                    'l1' => [ 'v2' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'listTrim l1 1 2', // raw command
+            ],
+            [
+                'rPop', // method
+                [ 'l1' ], // arguments
+                'v2', // expected result
+                [
+                    'l1' => [ 'v1' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'rPop l1', // raw command
+            ],
+            [
+                'rPush', // method
+                [ 'l1', 'v3' ], // arguments
+                3, // expected result
+                [
+                    'l1' => [ 'v1', 'v2', 'v3' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'rPush l1 v3', // raw command
+            ],
+            [
+                'rPushX', // method
+                [ 'l1', 'v3' ], // arguments
+                3, // expected result
+                [
+                    'l1' => [ 'v1', 'v2', 'v3' ],
+                    'l2' => $l2,
+                ], // expected final value
+                'rPushX l1 v3', // raw command
             ],
         ];
     }
