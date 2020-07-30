@@ -64,6 +64,23 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("ttl"),
         DDTRACE_STRING_LITERAL("type"),
 
+        // Hash functions
+        DDTRACE_STRING_LITERAL("hdel"),
+        DDTRACE_STRING_LITERAL("hexists"),
+        DDTRACE_STRING_LITERAL("hget"),
+        DDTRACE_STRING_LITERAL("hgetall"),
+        DDTRACE_STRING_LITERAL("hincrby"),
+        DDTRACE_STRING_LITERAL("hincrbyfloat"),
+        DDTRACE_STRING_LITERAL("hkeys"),
+        DDTRACE_STRING_LITERAL("hlen"),
+        DDTRACE_STRING_LITERAL("hmget"),
+        DDTRACE_STRING_LITERAL("hmset"),
+        DDTRACE_STRING_LITERAL("hscan"),
+        DDTRACE_STRING_LITERAL("hset"),
+        DDTRACE_STRING_LITERAL("hsetnx"),
+        DDTRACE_STRING_LITERAL("hstrlen"),
+        DDTRACE_STRING_LITERAL("hvals"),
+
         DDTRACE_STRING_LITERAL("rawcommand"),
     };
     // clang-format on

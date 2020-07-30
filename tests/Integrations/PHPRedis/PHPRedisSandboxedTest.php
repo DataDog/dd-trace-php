@@ -606,6 +606,154 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
         ];
     }
 
+
+    /**
+     * @dataProvider dataProviderTestHashFunctions
+     */
+    public function testHashFunctions($method, $args, $expectedResult, $expectedFinal, $rawCommand)
+    {
+        $this->redis->hSet('h1', 'k1', 'v1');
+        $this->redis->hSet('h1', 'k2', 'v2');
+        $this->redis->hSet('h1', 'k3', 3);
+        $result = null;
+
+        $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
+            if (count($args) === 1) {
+                $result = $this->redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $result = $this->redis->$method($args[0], $args[1]);
+            } elseif (count($args) === 3) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2]);
+            } else {
+                throw new \Exception('Number of arguments not supported: ' . \count($args));
+            }
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.$method",
+                'phpredis',
+                'redis',
+                "Redis.$method"
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
+        ]);
+
+        $this->assertSame($expectedResult, $result);
+        $this->assertSame($expectedFinal, $this->redis->hGetAll('h1'));
+    }
+
+    public function dataProviderTestHashFunctions()
+    {
+        $all = [ 'k1' => 'v1', 'k2' => 'v2', 'k3' => '3' ];
+        return [
+            [
+                'hDel', // method
+                [ 'h1', 'k1', 'k2' ], // arguments
+                2, // expected result
+                [ 'k3' => '3' ], // expected final hash value
+                'hDel h1 k1 k2', // raw command
+            ],
+            [
+                'hExists', // method
+                [ 'h1', 'k1' ], // arguments
+                true, // expected result
+                $all, // expected final hash value
+                'hExists h1 k1', // raw command
+            ],
+            [
+                'hGet', // method
+                [ 'h1', 'k1' ], // arguments
+                'v1', // expected result
+                $all, // expected final hash value
+                'hGet h1 k1', // raw command
+            ],
+            [
+                'hGetAll', // method
+                [ 'h1' ], // arguments
+                $all, // expected result
+                $all, // expected final hash value
+                'hGetAll h1', // raw command
+            ],
+            [
+                'hIncrBy', // method
+                [ 'h1', 'k3', 1 ], // arguments
+                4, // expected result
+                [ 'k1' => 'v1', 'k2' => 'v2', 'k3' => '4' ], // expected final hash value
+                'hIncrBy h1 k3 1', // raw command
+            ],
+            [
+                'hIncrByFloat', // method
+                [ 'h1', 'k3', 1.6 ], // arguments
+                4.6, // expected result
+                [ 'k1' => 'v1', 'k2' => 'v2', 'k3' => '4.6' ], // expected final hash value
+                'hIncrByFloat h1 k3 1.6', // raw command
+            ],
+            [
+                'hKeys', // method
+                [ 'h1' ], // arguments
+                array_keys($all), // expected result
+                [ 'k1' => 'v1', 'k2' => 'v2', 'k3' => '3' ], // expected final hash value
+                'hKeys h1', // raw command
+            ],
+            [
+                'hLen', // method
+                [ 'h1' ], // arguments
+                3, // expected result
+                $all, // expected final hash value
+                'hLen h1', // raw command
+            ],
+            [
+                'hMGet', // method
+                [ 'h1', ['k1', 'k3'] ], // arguments
+                [ 'k1' => 'v1', 'k3' => '3' ], // expected result
+                $all, // expected final hash value
+                'hMGet h1 k1 k3', // raw command
+            ],
+            [
+                'hMSet', // method
+                [ 'h1', ['k1' => 'a', 'k3' => 'b'] ], // arguments
+                true, // expected result
+                [ 'k1' => 'a', 'k2' => 'v2', 'k3' => 'b' ], // expected final hash value
+                'hMSet h1 k1 a k3 b', // raw command
+            ],
+            [
+                'hSet', // method
+                [ 'h1', 'k1', 'a' ], // arguments
+                0, // expected result
+                [ 'k1' => 'a', 'k2' => 'v2', 'k3' => '3' ], // expected final hash value
+                'hSet h1 k1 a', // raw command
+            ],
+            [
+                'hSetNx', // method
+                [ 'h1', 'k4', 'a' ], // arguments
+                true, // expected result
+                [ 'k1' => 'v1', 'k2' => 'v2', 'k3' => '3', 'k4' => 'a' ], // expected final hash value
+                'hSetNx h1 k4 a', // raw command
+            ],
+            [
+                'hVals', // method
+                [ 'h1' ], // arguments
+                [ 'v1', 'v2', '3' ], // expected result
+                $all, // expected final hash value
+                'hVals h1', // raw command
+            ],
+            [
+                'hScan', // method
+                [ 'h1', null ], // arguments
+                $all, // expected result
+                $all, // expected final hash value
+                'hScan h1 0', // raw command
+            ],
+            [
+                'hStrLen', // method
+                [ 'h1', 'k1' ], // arguments
+                2, // expected result
+                $all, // expected final hash value
+                'hStrLen h1 k1', // raw command
+            ],
+        ];
+    }
+
     public function testDumpRestore()
     {
         $redis = $this->redis;

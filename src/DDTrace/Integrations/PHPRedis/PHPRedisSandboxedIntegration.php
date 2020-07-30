@@ -108,6 +108,24 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('ttl');
         self::traceMethodAsCommand('pttl');
 
+        // Hash functions
+        self::traceMethodAsCommand('hDel');
+        self::traceMethodAsCommand('hExists');
+        self::traceMethodAsCommand('hGet');
+        self::traceMethodAsCommand('hGetAll');
+        self::traceMethodAsCommand('hIncrBy');
+        self::traceMethodAsCommand('hIncrByFloat');
+        self::traceMethodAsCommand('hKeys');
+        self::traceMethodAsCommand('hLen');
+        self::traceMethodAsCommand('hMGet');
+        self::traceMethodAsCommand('hMSet');
+        self::traceMethodAsCommand('hSet');
+        self::traceMethodAsCommand('hSetNx');
+        self::traceMethodAsCommand('hVals');
+        self::traceMethodAsCommand('hScan');
+        self::traceMethodAsCommand('hStrLen');
+
+        // Raw command
         self::traceMethodAsCommand('rawCommand');
 
         return SandboxedIntegration::LOADED;
