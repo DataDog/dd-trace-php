@@ -11,4 +11,4 @@ Any description you feel is relevant and gives more background to this PR, if ne
 ### Reviewer checklist
 - [ ] Appropriate labels assigned.
 - [ ] Milestone is set.
-- [ ] Changelog has been added to the appropriate release draft. For community contributors the reviewer is in charge of this task.
+- [ ] Changelog has been added to the release document. For community contributors the reviewer is in charge of this task.
