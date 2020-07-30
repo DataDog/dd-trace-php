@@ -140,7 +140,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
     }
 
     /**
-     * Based on logic from pyhton tracer:
+     * Based on logic from python tracer:
      * https://github.com/DataDog/dd-trace-py/blob/0d7e7cb38216acb0c8b29f0ae1318d25bc160123/ddtrace/contrib/redis/util.py#L25
      *
      * @param array $args
