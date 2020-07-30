@@ -6,6 +6,7 @@
 #include "compatibility.h"
 #include "ddtrace_string.h"
 #include "env_config.h"
+#include "integrations/integrations.h"
 
 /**
  * Returns true if `subject` matches "true" or "1".
@@ -30,8 +31,20 @@ bool ddtrace_config_env_bool(ddtrace_string env_name, bool default_value TSRMLS_
 bool ddtrace_config_distributed_tracing_enabled(TSRMLS_D);
 bool ddtrace_config_trace_enabled(TSRMLS_D);
 
+#define DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN 9  // "DD_TRACE_" FTW!
+#define DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN 22  // "_ANALYTICS_SAMPLE_RATE" FTW!
+#define DDTRACE_LONGEST_INTEGRATION_ENV_LEN                                              \
+    (DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN + DDTRACE_LONGEST_INTEGRATION_NAME_LEN + \
+     DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN)
+
 // note: only call this if ddtrace_config_trace_enabled() returns true
 bool ddtrace_config_integration_enabled(ddtrace_string integration TSRMLS_DC);
+bool ddtrace_config_integration_enabled_ex(ddtrace_integration_name integration_name TSRMLS_DC);
+bool ddtrace_config_integration_analytics_enabled(ddtrace_string integration TSRMLS_DC);
+double ddtrace_config_integration_analytics_sample_rate(ddtrace_string integration TSRMLS_DC);
+
+size_t ddtrace_config_integration_env_name(char *name, const char *prefix, ddtrace_integration *integration,
+                                           const char *suffix);
 
 inline ddtrace_string ddtrace_string_getenv(char *str, size_t len TSRMLS_DC) {
     return ddtrace_string_cstring_ctor(ddtrace_getenv(str, len TSRMLS_CC));
@@ -84,6 +97,7 @@ void ddtrace_config_shutdown(void);
 #endif
 
 #define DD_CONFIGURATION                                                                                             \
+    CHAR(get_dd_trace_agent_url, "DD_TRACE_AGENT_URL", "")                                                           \
     CHAR(get_dd_agent_host, "DD_AGENT_HOST", "localhost")                                                            \
     BOOL(get_dd_distributed_tracing, "DD_DISTRIBUTED_TRACING", true)                                                 \
     CHAR(get_dd_dogstatsd_port, "DD_DOGSTATSD_PORT", "8125")                                                         \

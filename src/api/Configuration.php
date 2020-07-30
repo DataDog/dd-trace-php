@@ -153,6 +153,9 @@ class Configuration extends AbstractConfiguration
      */
     public function isIntegrationEnabled($name)
     {
+        if (function_exists('ddtrace_config_integration_enabled')) {
+            return \ddtrace_config_integration_enabled($name);
+        }
         return $this->isEnabled() && !$this->inArray('integrations.disabled', $name);
     }
 

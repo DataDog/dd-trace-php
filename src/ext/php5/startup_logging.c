@@ -12,21 +12,19 @@
 
 #include "coms.h"
 #include "configuration.h"
+#include "integrations/integrations.h"
 #include "logging.h"
 #include "version.h"
 
 #define ISO_8601_LEN (20 + 1)  // +1 for terminating null-character
 
-// True global; only modify on MINIT/STARTUP
-static time_t startup_time = -1;
-
-static void _dd_get_startup_time(char *buf) {
-    time_t now = (startup_time == -1) ? time(NULL) : startup_time;
+static void _dd_get_time(char *buf) {
+    time_t now = time(NULL);
     struct tm *tm = gmtime(&now);
     if (tm) {
         strftime(buf, ISO_8601_LEN, "%Y-%m-%dT%TZ", tm);
     } else {
-        ddtrace_log_debug("Error getting startup time");
+        ddtrace_log_debug("Error getting time");
     }
 }
 
@@ -81,16 +79,10 @@ static bool _dd_parse_bool(const char *name, size_t name_len) {
     }
 }
 
-static void _dd_get_agent_url(char *buf) {
-    char *host = get_dd_agent_host();
-    sprintf(buf, "http://%s:%d", host, (int)get_dd_trace_agent_port());
-    free(host);
-}
-
 static void _dd_get_startup_config(HashTable *ht) {
     // Cross-language tracer values
     char time[ISO_8601_LEN];
-    _dd_get_startup_time(time);
+    _dd_get_time(time);
     _dd_add_assoc_string(ht, ZEND_STRL("date"), time);
 
     char *os_name = php_get_uname('a');
@@ -109,9 +101,7 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_string_free(ht, ZEND_STRL("service"), get_dd_service());
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled_cli"), get_dd_trace_cli_enabled());
 
-    char agent_url[64];
-    _dd_get_agent_url(agent_url);
-    _dd_add_assoc_string(ht, ZEND_STRL("agent_url"), agent_url);
+    _dd_add_assoc_string_free(ht, ZEND_STRL("agent_url"), ddtrace_agent_url());
 
     _dd_add_assoc_bool(ht, ZEND_STRL("debug"), get_dd_trace_debug());
     _dd_add_assoc_bool(ht, ZEND_STRL("analytics_enabled"), get_dd_trace_analytics_enabled());
@@ -162,11 +152,20 @@ static size_t _dd_curl_write_noop(void *ptr, size_t size, size_t nmemb, void *us
     return size * nmemb;
 }
 
-static size_t _dd_check_for_agent_error(char *error) {
+static size_t _dd_check_for_agent_error(char *error, bool quick) {
     CURL *curl = curl_easy_init();
     ddtrace_curl_set_hostname(curl);
-    ddtrace_curl_set_timeout(curl);
-    ddtrace_curl_set_connect_timeout(curl);
+    if (quick) {
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, DDTRACE_AGENT_QUICK_TIMEOUT);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, DDTRACE_AGENT_QUICK_CONNECT_TIMEOUT);
+    } else {
+        ddtrace_curl_set_timeout(curl);
+        ddtrace_curl_set_connect_timeout(curl);
+    }
+
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers, "X-Datadog-Diagnostic-Check: 1");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
     const char *body = "[]";
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(body));
@@ -182,6 +181,7 @@ static size_t _dd_check_for_agent_error(char *error) {
         strcpy(error, curl_easy_strerror(res));
         error_len = strlen(error);
     }
+    curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     return error_len;
 }
@@ -198,16 +198,51 @@ static bool _dd_open_basedir_allowed(const char *file TSRMLS_DC) {
     return (php_check_open_basedir_ex(file, 0 TSRMLS_CC) != -1);
 }
 
+#define DD_ENV_DEPRECATION_MESSAGE "'%s=%s' is deprecated, use %s instead."
+
+static void _dd_check_for_deprecated_env(HashTable *ht, const char *old_name, size_t old_name_len, const char *new_name,
+                                         size_t new_name_len TSRMLS_DC) {
+    ddtrace_string val = ddtrace_string_getenv((char *)old_name, old_name_len TSRMLS_CC);
+    if (val.len) {
+        size_t messsage_len = sizeof(DD_ENV_DEPRECATION_MESSAGE) + old_name_len + val.len + new_name_len;
+        char *message = emalloc(messsage_len);
+        int actual_len = snprintf(message, messsage_len, DD_ENV_DEPRECATION_MESSAGE, old_name, val.ptr, new_name);
+
+        if (actual_len > 0) {
+            _dd_add_assoc_string(ht, old_name, old_name_len, message);
+        }
+        efree(message);
+    }
+    if (val.ptr) {
+        efree(val.ptr);
+    }
+}
+
+static void _dd_check_for_deprecated_integration_envs(HashTable *ht, ddtrace_integration *integration TSRMLS_DC) {
+    char old[DDTRACE_LONGEST_INTEGRATION_ENV_LEN];
+    size_t old_len;
+    char new[DDTRACE_LONGEST_INTEGRATION_ENV_LEN];
+    size_t new_len;
+
+    old_len = ddtrace_config_integration_env_name(old, "DD_", integration, "_ANALYTICS_ENABLED");
+    new_len = ddtrace_config_integration_env_name(new, "DD_TRACE_", integration, "_ANALYTICS_ENABLED");
+    _dd_check_for_deprecated_env(ht, old, old_len, new, new_len TSRMLS_CC);
+
+    old_len = ddtrace_config_integration_env_name(old, "DD_", integration, "_ANALYTICS_SAMPLE_RATE");
+    new_len = ddtrace_config_integration_env_name(new, "DD_TRACE_", integration, "_ANALYTICS_SAMPLE_RATE");
+    _dd_check_for_deprecated_env(ht, old, old_len, new, new_len TSRMLS_CC);
+}
+
 /* Supported zval types for diagnostics: string, bool, null
  * To support other types, update:
  *     - ddtrace.c:_dd_info_diagnostics_table(); PHP info output
  *     - _dd_print_values_to_log(); Debug log output
  */
-void ddtrace_startup_diagnostics(HashTable *ht) {
+void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
     TSRMLS_FETCH();
     // Cross-language tracer values
     char agent_error[CURL_ERROR_SIZE];
-    if (_dd_check_for_agent_error(agent_error)) {
+    if (_dd_check_for_agent_error(agent_error, quick)) {
         _dd_add_assoc_string(ht, ZEND_STRL("agent_error"), agent_error);
     }
     //_dd_add_assoc_string(ht, ZEND_STRL("sampling_rules_error"), ""); // TODO Parse at C level
@@ -234,21 +269,22 @@ void ddtrace_startup_diagnostics(HashTable *ht) {
     //_dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_incoming_error"), ""); // TODO Parse at C level
     //_dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_outgoing_error"), ""); // TODO Parse at C level
 
-    char *old_service = get_dd_service_name();
-    if (strcmp(old_service, "") != 0) {
-        _dd_add_assoc_string(ht, ZEND_STRL("service_name"), old_service);
-        _dd_add_assoc_string(ht, ZEND_STRL("service_name_error"),
-                             "Usage of DD_SERVICE_NAME is deprecated, use DD_SERVICE instead.");
-    }
-    free(old_service);
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_SERVICE_NAME"), ZEND_STRL("DD_SERVICE") TSRMLS_CC);
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_TRACE_APP_NAME"), ZEND_STRL("DD_SERVICE") TSRMLS_CC);
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("ddtrace_app_name"), ZEND_STRL("DD_SERVICE") TSRMLS_CC);
 
-    char *old_tags = get_dd_trace_global_tags();
-    if (strcmp(old_tags, "") != 0) {
-        _dd_add_assoc_string(ht, ZEND_STRL("global_tags"), old_tags);
-        _dd_add_assoc_string(ht, ZEND_STRL("global_tags_error"),
-                             "Usage of DD_TRACE_GLOBAL_TAGS is deprecated, use DD_TAGS instead.");
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_TRACE_GLOBAL_TAGS"), ZEND_STRL("DD_TAGS") TSRMLS_CC);
+    _dd_check_for_deprecated_env(
+        ht, ZEND_STRL("DD_TRACE_RESOURCE_URI_MAPPING"),
+        ZEND_STRL("DD_TRACE_RESOURCE_URI_MAPPING_INCOMING and DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING") TSRMLS_CC);
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_SAMPLING_RATE"), ZEND_STRL("DD_TRACE_SAMPLE_RATE") TSRMLS_CC);
+
+    _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_INTEGRATIONS_DISABLED"),
+                                 ZEND_STRL("DD_TRACE_[INTEGRATION]_ENABLED=false") TSRMLS_CC);
+
+    for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
+        _dd_check_for_deprecated_integration_envs(ht, &ddtrace_integrations[i] TSRMLS_CC);
     }
-    free(old_tags);
 }
 
 static void _dd_json_escape_string(smart_str *buf, const char *val, size_t len) {
@@ -363,7 +399,7 @@ void ddtrace_startup_logging_json(smart_str *buf) {
     zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
 
     _dd_get_startup_config(ht);
-    ddtrace_startup_diagnostics(ht);
+    ddtrace_startup_diagnostics(ht, false);
 
     _dd_serialize_json(ht, buf);
 
@@ -371,7 +407,7 @@ void ddtrace_startup_logging_json(smart_str *buf) {
     FREE_HASHTABLE(ht);
 }
 
-static void _dd_print_values_to_log(HashTable *ht, char *time) {
+static void _dd_print_values_to_log(HashTable *ht) {
     int key_type;
     zval **val;
     HashPosition pos;
@@ -385,20 +421,20 @@ static void _dd_print_values_to_log(HashTable *ht, char *time) {
         if (key_type == HASH_KEY_IS_STRING) {
             switch (Z_TYPE_PP(val)) {
                 case IS_STRING:
-                    ddtrace_log_errf("[%s] DATADOG TRACER DIAGNOSTICS - %s: %s", time, key, Z_STRVAL_PP(val));
+                    ddtrace_log_errf("DATADOG TRACER DIAGNOSTICS - %s: %s", key, Z_STRVAL_PP(val));
                     break;
                 case IS_NULL:
-                    ddtrace_log_errf("[%s] DATADOG TRACER DIAGNOSTICS - %s: NULL", time, key);
+                    ddtrace_log_errf("DATADOG TRACER DIAGNOSTICS - %s: NULL", key);
                     break;
                 case IS_BOOL:
                     if (Z_BVAL_PP(val)) {
-                        ddtrace_log_errf("[%s] DATADOG TRACER DIAGNOSTICS - %s: true", time, key);
+                        ddtrace_log_errf("DATADOG TRACER DIAGNOSTICS - %s: true", key);
                     } else {
-                        ddtrace_log_errf("[%s] DATADOG TRACER DIAGNOSTICS - %s: false", time, key);
+                        ddtrace_log_errf("DATADOG TRACER DIAGNOSTICS - %s: false", key);
                     }
                     break;
                 default:
-                    ddtrace_log_errf("[%s] DATADOG TRACER DIAGNOSTICS - %s: {unknown type}", time, key);
+                    ddtrace_log_errf("DATADOG TRACER DIAGNOSTICS - %s: {unknown type}", key);
                     break;
             }
         }
@@ -406,28 +442,33 @@ static void _dd_print_values_to_log(HashTable *ht, char *time) {
     }
 }
 
-void ddtrace_startup_logging_startup(void) {
-    startup_time = time(NULL);
+// Only show startup logs on the first request
+void ddtrace_startup_logging_first_rinit(void) {
     if (!get_dd_trace_startup_logs() || strcmp("cli", sapi_module.name) == 0) {
         return;
     }
-
-    char time[ISO_8601_LEN];
-    _dd_get_startup_time(time);
 
     HashTable *ht;
     ALLOC_HASHTABLE(ht);
     zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
 
-    ddtrace_startup_diagnostics(ht);
     if (get_dd_trace_debug()) {
-        _dd_print_values_to_log(ht, time);
+        ddtrace_startup_diagnostics(ht, true);
+        _dd_print_values_to_log(ht);
     }
     _dd_get_startup_config(ht);
 
     smart_str buf = {0};
     _dd_serialize_json(ht, &buf);
-    ddtrace_log_errf("[%s] DATADOG TRACER CONFIGURATION - %s", time, buf.c);
+    ddtrace_log_errf("DATADOG TRACER CONFIGURATION - %s", buf.c);
+    if (!get_dd_trace_debug()) {
+        ddtrace_log_errf(
+            "For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
+            "page. Alternatively set DD_TRACE_DEBUG=1 to add diagnostic checks to the error logs on the first request "
+            "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
+    } else {
+        ddtrace_log_errf("Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
+    }
     smart_str_free(&buf);
 
     zend_hash_destroy(ht);

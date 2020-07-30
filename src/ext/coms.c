@@ -607,7 +607,8 @@ static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
     return stack;
 }
 
-#define HOST_FORMAT_STR "http://%s:%u/v0.4/traces"
+#define TRACE_PATH_STR "/v0.4/traces"
+#define HOST_FORMAT_STR "http://%s:%u"
 
 atomic_uintptr_t memoized_agent_curl_headers;
 
@@ -632,25 +633,41 @@ void ddtrace_curl_set_connect_timeout(CURL *curl) {
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
 }
 
-void ddtrace_curl_set_hostname(CURL *curl) {
-    char *hostname = get_dd_agent_host();
-    int64_t port = get_dd_trace_agent_port();
-    if (port <= 0 || port > 65535) {
-        port = 8126;
+char *ddtrace_agent_url(void) {
+    char *url = get_dd_trace_agent_url();
+    if (url && url[0]) {
+        return url;
     }
+    free(url);
+    url = NULL;
 
+    char *hostname = get_dd_agent_host();
     if (hostname) {
         size_t agent_url_len =
             strlen(hostname) + sizeof(HOST_FORMAT_STR) + 10;  // port digit allocation + some headroom
-        char *agent_url = malloc(agent_url_len);
-        snprintf(agent_url, agent_url_len, HOST_FORMAT_STR, hostname, (uint32_t)port);
-
-        curl_easy_setopt(curl, CURLOPT_URL, agent_url);
-        free(hostname);
-        free(agent_url);
+        url = malloc(agent_url_len);
+        int64_t port = get_dd_trace_agent_port();
+        if (port <= 0 || port > 65535) {
+            port = 8126;
+        }
+        snprintf(url, agent_url_len, HOST_FORMAT_STR, hostname, (uint32_t)port);
     } else {
-        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8126/v0.4/traces");
+        url = ddtrace_strdup("http://localhost:8126");
     }
+    free(hostname);
+    return url;
+}
+
+void ddtrace_curl_set_hostname(CURL *curl) {
+    char *url = ddtrace_agent_url();
+    if (url && url[0]) {
+        size_t agent_url_len = strlen(url) + sizeof(TRACE_PATH_STR);
+        char *agent_url = malloc(agent_url_len);
+        sprintf(agent_url, "%s%s", url, TRACE_PATH_STR);
+        curl_easy_setopt(curl, CURLOPT_URL, agent_url);
+        free(agent_url);
+    }
+    free(url);
 }
 
 static struct timespec _dd_deadline_in_ms(uint32_t ms) {

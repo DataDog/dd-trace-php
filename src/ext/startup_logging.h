@@ -2,6 +2,7 @@
 #define DD_TRACE_STARTUP_LOGGING_H
 
 #include <php.h>
+#include <stdbool.h>
 
 #if PHP_VERSION_ID >= 70000
 #include <Zend/zend_smart_str.h>
@@ -9,10 +10,17 @@
 #include <ext/standard/php_smart_str.h>
 #endif
 
-#define DDTRACE_STARTUP_STAT_COUNT 43  // Number of config & diagnostic values
+/* Number of config & diagnostic values */
+#define DDTRACE_STARTUP_STAT_COUNT 43
 
-void ddtrace_startup_logging_startup(void);
-void ddtrace_startup_diagnostics(HashTable *ht);
+/* These are the Agent connectivity timeouts for the diagnostic check on the first RINIT
+ * so they should be quick to not block script execution too long.
+ */
+#define DDTRACE_AGENT_QUICK_TIMEOUT 500L
+#define DDTRACE_AGENT_QUICK_CONNECT_TIMEOUT 100L
+
+void ddtrace_startup_logging_first_rinit(void);
+void ddtrace_startup_diagnostics(HashTable *ht, bool quick);
 
 /* Returns a json-encoded string of config/diagnostic info; caller must free.
  *     smart_str buf = {0};

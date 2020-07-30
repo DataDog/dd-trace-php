@@ -1,10 +1,10 @@
 EXEC_REPETITIONS := 30
 
-build: 73_notracer 73_master 73_head 73_release
+build: 73_notracer 73_master 73_head 73_release nginx
 	@echo "Build completed!"
 
-# nginx:
-# 	@docker build -t overhead-nginx -f dockerfiles/Dockerfile_nginx ../..
+nginx:
+	@docker build -t overhead-nginx -f dockerfiles/Dockerfile_nginx ../..
 
 73_base:
 	@docker build -t overhead-php-fpm-base -f dockerfiles/Dockerfile_73_fpm_base ../..

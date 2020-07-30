@@ -43,11 +43,7 @@
             <directory>tests/Integrations/Slim/V3_12</directory>
         </testsuite>
         <testsuite name="custom-framework-autoloaded-test">
-            <file>tests/Integrations/Custom/Autoloaded/BackgroundSenderLogTest.php</file>
-            <file>tests/Integrations/Custom/Autoloaded/CircuitBreakerTest.php</file>
-            <file>tests/Integrations/Custom/Autoloaded/CommonScenariosTest.php</file>
-            <file>tests/Integrations/Custom/Autoloaded/CompileTimeDisabledTest.php</file>
-            <file>tests/Integrations/Custom/Autoloaded/CompileTimeEnabledTest.php</file>
+            <directory>tests/Integrations/Custom/Autoloaded</directory>
             <directory>tests/Integrations/CLI/Custom/Autoloaded</directory>
         </testsuite>
         <testsuite name="unit">

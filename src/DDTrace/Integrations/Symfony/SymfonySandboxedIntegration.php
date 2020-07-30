@@ -143,15 +143,16 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
             ]
         );
 
-        \DDTrace\trace_method(
-            'Symfony\Component\HttpKernel\HttpKernel',
-            'handleException',
-            function (SpanData $span, $args) use ($integration) {
-                $span->name = $span->resource = 'symfony.kernel.handleException';
-                $span->service = $integration->appName;
-                $integration->symfonyRequestSpan->setError($args[0]);
-            }
-        );
+        // Handling exceptions
+        $exceptionHandlingTracer = function (SpanData $span, $args) use ($integration) {
+            $span->name = $span->resource = 'symfony.kernel.handleException';
+            $span->service = $integration->appName;
+            $integration->symfonyRequestSpan->setError($args[0]);
+        };
+        // Symfony 4.3-
+        \DDTrace\trace_method('Symfony\Component\HttpKernel\HttpKernel', 'handleException', $exceptionHandlingTracer);
+        // Symfony 4.4+
+        \DDTrace\trace_method('Symfony\Component\HttpKernel\HttpKernel', 'handleThrowable', $exceptionHandlingTracer);
 
         // Tracing templating engines
         $traceRender = function (SpanData $span, $args) use ($integration) {

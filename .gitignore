@@ -22,7 +22,7 @@ install-sh
 error.log
 dd_php_error.log
 nginx.pid
-nginx_*.log
+tests/Frameworks/**/*.log
 libtool
 ltmain.sh
 missing

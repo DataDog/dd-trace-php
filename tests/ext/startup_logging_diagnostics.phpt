@@ -11,9 +11,11 @@ $args = [
     '-dddtrace.request_init_hook=' . __DIR__ . '/includes/request_init_hook.inc',
 ];
 $env = [
+    'DD_TRACE_DEBUG=1',
     'DD_AGENT_HOST=invalid_host',
     'DD_SERVICE_NAME=foo_service',
     'DD_TRACE_GLOBAL_TAGS=foo_tag',
+    'DD_TRACE_RESOURCE_URI_MAPPING=/foo',
 ];
 $logs = dd_get_startup_logs($args, $env);
 
@@ -21,23 +23,21 @@ dd_dump_startup_logs($logs, [
     'agent_error',
     'open_basedir_init_hook_allowed',
     'open_basedir_container_tagging_allowed',
-    'service_name',
-    'service_name_error',
-    'global_tags',
-    'global_tags_error',
+    'DD_SERVICE_NAME',
+    'DD_TRACE_GLOBAL_TAGS',
+    'DD_TRACE_RESOURCE_URI_MAPPING',
     'agent_url',
     'ddtrace.request_init_hook',
     'open_basedir_configured',
 ]);
 ?>
 --EXPECTF--
-agent_error: "Could not resolve host: invalid_host"
+agent_error: "%s"
 open_basedir_init_hook_allowed: false
 open_basedir_container_tagging_allowed: false
-service_name: "foo_service"
-service_name_error: "Usage of DD_SERVICE_NAME is deprecated, use DD_SERVICE instead."
-global_tags: "foo_tag"
-global_tags_error: "Usage of DD_TRACE_GLOBAL_TAGS is deprecated, use DD_TAGS instead."
+DD_SERVICE_NAME: "'DD_SERVICE_NAME=foo_service' is deprecated, use DD_SERVICE instead."
+DD_TRACE_GLOBAL_TAGS: "'DD_TRACE_GLOBAL_TAGS=foo_tag' is deprecated, use DD_TAGS instead."
+DD_TRACE_RESOURCE_URI_MAPPING: "'DD_TRACE_RESOURCE_URI_MAPPING=/foo' is deprecated, use DD_TRACE_RESOURCE_URI_MAPPING_INCOMING and DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING instead."
 agent_url: "http://invalid_host:8126"
 ddtrace.request_init_hook: "%s/includes/request_init_hook.inc"
 open_basedir_configured: true

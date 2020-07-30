@@ -486,4 +486,16 @@ class UriTest extends BaseTestCase
             \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/nested/some')
         );
     }
+
+    public function testQueryStringIsRemoved()
+    {
+        $this->assertSame(
+            '/int/?/nested/some',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123/nested/some?key=value')
+        );
+        $this->assertSame(
+            '/int/?/nested/some',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/nested/some?key=value')
+        );
+    }
 }

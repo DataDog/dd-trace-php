@@ -350,6 +350,7 @@
             "@symfony-34-test",
             "@symfony-40-suite",
             "@symfony-42-suite",
+            "@symfony-44-suite",
             "@wordpress-48-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
@@ -374,6 +375,7 @@
             "@slim-312-test",
             "@symfony-40-suite",
             "@symfony-42-suite",
+            "@symfony-44-suite",
             "@wordpress-48-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
@@ -398,6 +400,7 @@
             "@slim-312-test",
             "@symfony-40-suite",
             "@symfony-42-suite",
+            "@symfony-44-suite",
             "@wordpress-48-test",
             "@yii-2-suite",
             "@zend-framework-1-test",
@@ -542,6 +545,13 @@
         ],
         "symfony-42-test": "@composer test -- tests/Integrations/Symfony/V4_2",
         "symfony-42-suite": [ "@symfony-42-update", "@symfony-42-test" ],
+        "symfony-44-update": [
+            "@increase-memory-limit",
+            "@composer --working-dir=tests/Frameworks/Symfony/Version_4_4 update",
+            "php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod"
+        ],
+        "symfony-44-test": "@composer test -- tests/Integrations/Symfony/V4_4",
+        "symfony-44-suite": [ "@symfony-44-update", "@symfony-44-test" ],
 
         "wordpress-48-test": "@composer test -- tests/Integrations/WordPress/V4_8",
 
