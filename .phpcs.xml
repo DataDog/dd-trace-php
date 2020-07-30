@@ -39,4 +39,5 @@
     <exclude-pattern>tests/overhead/*</exclude-pattern>
     <exclude-pattern>tests/Frameworks/*/Version_*/*</exclude-pattern>
     <exclude-pattern>tests/AutoInstrumentation</exclude-pattern>
+    <exclude-pattern>tests/Integrations/PHPRedis/PHPredisProjectTestsuite</exclude-pattern>
 </ruleset>
