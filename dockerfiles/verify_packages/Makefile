@@ -1,4 +1,4 @@
-JESSIE_PHP_VERSIONS:=5.6.jessie 7.0.jessie 7.1.jessie 7.2.jessie
+JESSIE_PHP_VERSIONS:=5.6.jessie # We don't test PHP 7 on Jessie; PHP packages on sury.org went EOL June 30, 2020
 STRETCH_PHP_VERSIONS:=5.6.stretch 7.0.stretch 7.1.stretch 7.2.stretch
 CENTOS6_PHP_VERSIONS:=5.4.centos6 5.6.centos6 7.0.centos6 7.1.centos6 7.2.centos6
 CENTOS7_PHP_VERSIONS:=5.4.centos7 5.6.centos7 7.0.centos7 7.1.centos7 7.2.centos7 #7.3.centos7
