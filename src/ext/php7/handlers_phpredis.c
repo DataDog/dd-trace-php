@@ -40,6 +40,7 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("pconnect"),
         DDTRACE_STRING_LITERAL("persist"),
         DDTRACE_STRING_LITERAL("pexpire"),
+        DDTRACE_STRING_LITERAL("pexpireat"),
         DDTRACE_STRING_LITERAL("ping"),
         DDTRACE_STRING_LITERAL("popen"),
         DDTRACE_STRING_LITERAL("psetex"),

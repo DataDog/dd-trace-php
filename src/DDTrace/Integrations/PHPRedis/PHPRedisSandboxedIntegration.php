@@ -104,6 +104,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('expireAt');
         self::traceMethodAsCommand('setTimeout');
         self::traceMethodAsCommand('pexpire');
+        self::traceMethodAsCommand('pexpireAt');
         self::traceMethodAsCommand('ttl');
         self::traceMethodAsCommand('pttl');
 

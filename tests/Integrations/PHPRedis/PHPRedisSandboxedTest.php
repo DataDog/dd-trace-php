@@ -13,21 +13,27 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
 
     private $host = 'redis_integration';
     private $port = '6379';
+    private $portSecondInstance = '6380';
 
     /** Redis */
     private $redis;
+    private $redisSecondInstance;
 
     public function setUp()
     {
         parent::setUp();
         $this->redis = new \Redis();
         $this->redis->connect($this->host, $this->port);
+        $this->redisSecondInstance = new \Redis();
+        $this->redisSecondInstance->connect($this->host, $this->portSecondInstance);
     }
 
     public function tearDown()
     {
         $this->redis->flushAll();
         $this->redis->close();
+        $this->redisSecondInstance->flushAll();
+        $this->redisSecondInstance->close();
         parent::tearDown();
     }
 
@@ -405,6 +411,13 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 'pexpire k1 6', // raw command
                 'value', // initial "0010 1010"
             ],
+            [
+                'delete', // method
+                [ 'k1'], // arguments
+                false, // expected final value
+                'delete k1', // raw command
+                'v1', // initial
+            ],
         ];
     }
 
@@ -473,13 +486,11 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
     /**
      * @dataProvider dataProviderTestCommandsWithResult
      */
-    public function testCommandsWithResult($method, $args, $expected, $rawCommand, $initial = null)
+    public function testCommandsWithResult($method, $args, $expected, $rawCommand, array $initial = [])
     {
         $redis = $this->redis;
 
-        if (null !== $initial) {
-            \is_array($initial) ? $redis->mSet($initial) : $redis->set($args[0], $initial);
-        }
+        $redis->mSet($initial);
 
         $result = null;
 
@@ -503,7 +514,6 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 "Redis.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
-
         $this->assertSame($expected, $result);
     }
 
@@ -521,28 +531,28 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 [ 'k1' ], // arguments
                 'v1', // expected final value
                 'get k1', // raw command
-                'v1', // initial
+                ['k1' => 'v1'], // initial
             ],
             [
                 'getBit', // method
                 [ 'k1', 1 ], // arguments
                 1, // expected final value
                 'getBit k1 1', // raw command
-                '\x7f', // initial
+                ['k1' => '\x7f'], // initial
             ],
             [
                 'getRange', // method
                 [ 'k1', 1, 3], // arguments
                 'bcd', // expected final value
                 'getRange k1 1 3', // raw command
-                'abcdef', // initial
+                ['k1' => 'abcdef'], // initial
             ],
             [
                 'getSet', // method
                 [ 'k1', 'v1'], // arguments
                 'old', // expected final value
                 'getSet k1 v1', // raw command
-                'old', // initial
+                ['k1' => 'old'], // initial
             ],
             [
                 'mGet', // method
@@ -563,28 +573,35 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 [ 'k1'], // arguments
                 3, // expected final value
                 'strLen k1', // raw command
-                'old', // initial
+                ['k1' => 'old'], // initial
             ],
             [
                 'del', // method
                 [ 'k1'], // arguments
                 1, // expected final value
                 'del k1', // raw command
-                'v1', // initial
-            ],
-            [
-                'delete', // method
-                [ 'k1'], // arguments
-                1, // expected final value
-                'delete k1', // raw command
-                'v1', // initial
+                ['k1' => 'v1'], // initial
             ],
             [
                 'exists', // method
                 [ 'k1'], // arguments
                 true, // expected final value
                 'exists k1', // raw command
-                'v1', // initial
+                ['k1' => 'v1'], // initial
+            ],
+            [
+                'getKeys', // method
+                [ '*'], // arguments
+                [ 'k1' ], // expected final value
+                'getKeys *', // raw command
+                ['k1' => 'v1'], // initial
+            ],
+            [
+                'pexpireAt', // method
+                [ 'k1', 3000 ], // arguments
+                true, // expected final value
+                'pexpireAt k1 3000', // raw command
+                ['k1' => 'v1'], // initial
             ],
         ];
     }
@@ -616,6 +633,89 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
 
         $this->assertSame('v1', $redis->get('k1'));
         $this->assertSame('v1', $redis->get('k2'));
+    }
+
+    public function testMigrate()
+    {
+        $this->redis->set('k1', 'v1');
+        $this->redis->set('k2', 'v2');
+        $this->redis->set('k3', 'v3');
+
+        $this->assertFalse($this->redisSecondInstance->get('k1'));
+        $this->assertFalse($this->redisSecondInstance->get('k2'));
+        $this->assertFalse($this->redisSecondInstance->get('k3'));
+
+        $traces = $this->isolateTracer(function () {
+            $this->redis->migrate($this->host, $this->portSecondInstance, 'k1', 0, 3600);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.migrate",
+                'phpredis',
+                'redis',
+                "Redis.migrate"
+            )->withExactTags(['redis.raw_command' => "migrate redis_integration 6380 k1 0 3600"]),
+        ]);
+
+        $traces = $this->isolateTracer(function () {
+            $this->redis->migrate($this->host, $this->portSecondInstance, ['k2', 'k3'], 0, 3600);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.migrate",
+                'phpredis',
+                'redis',
+                "Redis.migrate"
+            )->withExactTags(['redis.raw_command' => "migrate redis_integration 6380 k2 k3 0 3600"]),
+        ]);
+
+        $this->assertSame('v1', $this->redisSecondInstance->get('k1'));
+        $this->assertSame('v2', $this->redisSecondInstance->get('k2'));
+        $this->assertSame('v3', $this->redisSecondInstance->get('k3'));
+        $this->assertFalse($this->redis->get('k1'));
+        $this->assertFalse($this->redis->get('k2'));
+        $this->assertFalse($this->redis->get('k3'));
+    }
+
+    public function testMove()
+    {
+        $this->redis->select(0);
+        $this->redis->set('k1', 'v1');
+        $traces = $this->isolateTracer(function () {
+            $this->redis->move('k1', 1);
+        });
+        $this->redis->select(1);
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.move",
+                'phpredis',
+                'redis',
+                "Redis.move"
+            )->withExactTags(['redis.raw_command' => "move k1 1"]),
+        ]);
+
+        $this->assertSame('v1', $this->redis->get('k1'));
+    }
+
+    public function testRenameKey()
+    {
+        $this->redis->set('k1', 'v1');
+        $traces = $this->isolateTracer(function () {
+            $this->redis->renameKey('k1', 'k2');
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.renameKey",
+                'phpredis',
+                'redis',
+                "Redis.renameKey"
+            )->withExactTags(['redis.raw_command' => "renameKey k1 k2"]),
+        ]);
+
+        $this->assertFalse($this->redis->get('k1'));
+        $this->assertSame('v1', $this->redis->get('k2'));
     }
 
     public function testSetGetWithBinarySafeStringsAsValue()

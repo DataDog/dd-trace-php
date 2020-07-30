@@ -6,6 +6,3 @@ test_redis_3:
 
 test_redis_array_3:
 	DD_TRACE_CLI_ENABLED=true php -d ddtrace.request_init_hook="$(INIT_HOOK)" 3.x/TestRedis.php --host $(REDIS_HOST) --class RedisArray
-
-prepare:
-	php TestRedis.php --host $(REDIS_HOST) --class redis
