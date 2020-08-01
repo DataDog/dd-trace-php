@@ -1223,6 +1223,223 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
         ];
     }
 
+    /**
+     * @dataProvider dataProviderTestSortedSetFunctions
+     */
+    public function testSortedSetFunctions($method, $args, $expectedResult, $expectedFinal, $rawCommand)
+    {
+        $this->redis->zAdd('s1', 1, 'v1');
+        $this->redis->zAdd('s1', 0, 'v2');
+        $this->redis->zAdd('s1', 5, 'v3');
+        $this->redis->zAdd('s2', 1, 'z1');
+        $this->redis->zAdd('s2', 0, 'v2' /* 'v2' is not a typo */);
+        $this->redis->zAdd('s2', 5, 'z3');
+        $result = null;
+
+        $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
+            if (count($args) === 1) {
+                $result = $this->redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $result = $this->redis->$method($args[0], $args[1]);
+            } elseif (count($args) === 3) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2]);
+            } elseif (count($args) === 4) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2], $args[3]);
+            } else {
+                throw new \Exception('Number of arguments not supported: ' . \count($args));
+            }
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.$method",
+                'phpredis',
+                'redis',
+                "Redis.$method"
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
+        ]);
+
+        if ($expectedResult === self::A_STRING) {
+            $this->assertGreaterThan(0, \strlen($result));
+        } elseif ($expectedResult === self::ARRAY_COUNT_1) {
+            $this->assertCount(1, $result);
+        } elseif ($expectedResult === self::ARRAY_COUNT_2) {
+            $this->assertCount(2, $result);
+        } elseif ($expectedResult === self::ARRAY_COUNT_3) {
+            $this->assertCount(3, $result);
+        } elseif ($expectedResult === self::ARRAY_COUNT_4) {
+            $this->assertCount(4, $result);
+        } elseif ($expectedResult === self::ARRAY_COUNT_5) {
+            $this->assertCount(5, $result);
+        } else {
+            $this->assertEquals($expectedResult, $result);
+        }
+
+        foreach ($expectedFinal as $set => $value) {
+            $this->assertSame($this->redis->zSize($set), $value);
+        }
+    }
+
+    public function dataProviderTestSortedSetFunctions()
+    {
+        return [
+            [
+                'zAdd', // method
+                [ 's1', 1, 'v4' ], // arguments
+                1, // expected result
+                [ 's1' => 4, 's2' => 3 ], // expected final sizes
+                'zAdd s1 1 v4', // raw command
+            ],
+            [
+                'zCard', // method
+                [ 's1' ], // arguments
+                3, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final sizes
+                'zCard s1', // raw command
+            ],
+            [
+                'zSize', // method
+                [ 's1' ], // arguments
+                3, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final sizes
+                'zSize s1', // raw command
+            ],
+            [
+                'zCount', // method
+                [ 's1', 0, 3 ], // arguments
+                2, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final sizes
+                'zCount s1 0 3', // raw command
+            ],
+            [
+                'zIncrBy', // method
+                [ 's1', 2.5, 'v1' ], // arguments
+                3.5, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final sizes
+                'zIncrBy s1 2.5 v1', // raw command
+            ],
+            [
+                'zInter', // method
+                [ 'out', ['s1', 's2'] ], // arguments
+                1, // expected result
+                [ 's1' => 3, 's2' => 3, 'out' => 1 ], // expected final sizes
+                'zInter out s1 s2', // raw command
+            ],
+            [
+                'zRange', // method
+                [ 's1', 0, 1, true ], // arguments
+                ['v1' => 1.0, 'v2' => 0.0], // expected result
+                [ 's1' => 3, 's2' => 3, ], // expected final sizes
+                'zRange s1 0 1 true', // raw command
+            ],
+            [
+                'zRangeByScore', // method
+                [ 's1', 0, 2, ['withscores' => true] ], // arguments
+                self::ARRAY_COUNT_2, // expected result
+                [ 's1' => 3, 's2' => 3, ], // expected final sizes
+                'zRangeByScore s1 0 2 withscores true', // raw command
+            ],
+            [
+                'zRevRangeByScore', // method
+                [ 's1', 2, 0 ], // arguments
+                self::ARRAY_COUNT_2, // expected result
+                [ 's1' => 3, 's2' => 3, ], // expected final sizes
+                'zRevRangeByScore s1 2 0', // raw command
+            ],
+            [
+                'zRangeByLex', // method
+                [ 's1', '-', '[v2' ], // arguments
+                self::ARRAY_COUNT_2, // expected result
+                [ 's1' => 3, 's2' => 3, ], // expected final sizes
+                'zRangeByLex s1 - [v2', // raw command
+            ],
+            [
+                'zRank', // method
+                [ 's1', 'v2' ], // arguments
+                0, // expected result
+                [ 's1' => 3, 's2' => 3, ], // expected final sizes
+                'zRank s1 v2', // raw command
+            ],
+            [
+                'zRevRank', // method
+                [ 's1', 'v2' ], // arguments
+                2, // expected result
+                [ 's1' => 3, 's2' => 3, ], // expected final sizes
+                'zRevRank s1 v2', // raw command
+            ],
+            [
+                'zRem', // method
+                [ 's1', 'v2' ], // arguments
+                1, // expected result
+                [ 's1' => 2, 's2' => 3, ], // expected final sizes
+                'zRem s1 v2', // raw command
+            ],
+            [
+                'zDelete', // method
+                [ 's1', 'v2' ], // arguments
+                1, // expected result
+                [ 's1' => 2, 's2' => 3, ], // expected final sizes
+                'zDelete s1 v2', // raw command
+            ],
+            [
+                'zRemRangeByRank', // method
+                [ 's1', 0, 1 ], // arguments
+                2, // expected result
+                [ 's1' => 1, 's2' => 3, ], // expected final sizes
+                'zRemRangeByRank s1 0 1', // raw command
+            ],
+            [
+                'zDeleteRangeByRank', // method
+                [ 's1', 0, 1 ], // arguments
+                2, // expected result
+                [ 's1' => 1, 's2' => 3, ], // expected final sizes
+                'zDeleteRangeByRank s1 0 1', // raw command
+            ],
+            [
+                'zRemRangeByScore', // method
+                [ 's1', 0, 1 ], // arguments
+                2, // expected result
+                [ 's1' => 1, 's2' => 3, ], // expected final sizes
+                'zRemRangeByScore s1 0 1', // raw command
+            ],
+            [
+                'zDeleteRangeByScore', // method
+                [ 's1', 0, 1 ], // arguments
+                2, // expected result
+                [ 's1' => 1, 's2' => 3, ], // expected final sizes
+                'zDeleteRangeByScore s1 0 1', // raw command
+            ],
+            [
+                'zRevRange', // method
+                [ 's1', 0, -2 ], // arguments
+                [ 'v3', 'v1' ], // expected result
+                [ 's1' => 3, 's2' => 3, ], // expected final sizes
+                'zRevRange s1 0 -2', // raw command
+            ],
+            [
+                'zScore', // method
+                [ 's1', 'v3' ], // arguments
+                5, // expected result
+                [ 's1' => 3, 's2' => 3, ], // expected final sizes
+                'zScore s1 v3', // raw command
+            ],
+            [
+                'zUnion', // method
+                [ 'out', ['s1', 's2'] ], // arguments
+                5, // expected result
+                [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final sizes
+                'zUnion out s1 s2', // raw command
+            ],
+            [
+                'zScan', // method
+                [ 's1', null ], // arguments
+                self::ARRAY_COUNT_3, // expected result
+                [ 's1' => 3, 's2' => 3 ], // expected final sizes
+                'zScan s1 0', // raw command
+            ],
+        ];
+    }
+
     public function testDumpRestore()
     {
         $redis = $this->redis;

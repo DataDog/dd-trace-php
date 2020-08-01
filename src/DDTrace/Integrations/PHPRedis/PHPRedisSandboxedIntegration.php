@@ -170,6 +170,30 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('sUnion');
         self::traceMethodAsCommand('sUnionStore');
 
+        // Sorted Sets
+        self::traceMethodAsCommand('zAdd');
+        self::traceMethodAsCommand('zCard');
+        self::traceMethodAsCommand('zSize');
+        self::traceMethodAsCommand('zCount');
+        self::traceMethodAsCommand('zIncrBy');
+        self::traceMethodAsCommand('zInter');
+        self::traceMethodAsCommand('zRange');
+        self::traceMethodAsCommand('zRangeByScore');
+        self::traceMethodAsCommand('zRevRangeByScore');
+        self::traceMethodAsCommand('zRangeByLex');
+        self::traceMethodAsCommand('zRank');
+        self::traceMethodAsCommand('zRevRank');
+        self::traceMethodAsCommand('zRem');
+        self::traceMethodAsCommand('zDelete');
+        self::traceMethodAsCommand('zRemRangeByRank');
+        self::traceMethodAsCommand('zDeleteRangeByRank');
+        self::traceMethodAsCommand('zRemRangeByScore');
+        self::traceMethodAsCommand('zDeleteRangeByScore');
+        self::traceMethodAsCommand('zRevRange');
+        self::traceMethodAsCommand('zScore');
+        self::traceMethodAsCommand('zUnion');
+        self::traceMethodAsCommand('zScan');
+
         // Raw command
         self::traceMethodAsCommand('rawCommand');
 
@@ -228,6 +252,8 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
                 $partValue = (string)$arg;
             } elseif (\is_null($arg)) {
                 $partValue = 'null';
+            } elseif (\is_bool($arg)) {
+                $partValue = $args ? 'true' : false;
             } elseif (\is_array($arg)) {
                 // This is best effort as specific index might be missing or be shifted, e.g. [0 => 'a', 2 => 'b'].
                 // In this case the worst that can happen is that we generate '0 a 2 b' instead of 'a b'. We accept this

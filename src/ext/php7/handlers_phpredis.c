@@ -126,6 +126,30 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("sunion"),
         DDTRACE_STRING_LITERAL("sunionstore"),
 
+        // Sorted Sets
+        DDTRACE_STRING_LITERAL("zadd"),
+        DDTRACE_STRING_LITERAL("zcard"),
+        DDTRACE_STRING_LITERAL("zsize"),
+        DDTRACE_STRING_LITERAL("zcount"),
+        DDTRACE_STRING_LITERAL("zincrby"),
+        DDTRACE_STRING_LITERAL("zinter"),
+        DDTRACE_STRING_LITERAL("zrange"),
+        DDTRACE_STRING_LITERAL("zrangebyscore"),
+        DDTRACE_STRING_LITERAL("zrevrangebyscore"),
+        DDTRACE_STRING_LITERAL("zrangebylex"),
+        DDTRACE_STRING_LITERAL("zrank"),
+        DDTRACE_STRING_LITERAL("zrevrank"),
+        DDTRACE_STRING_LITERAL("zrem"),
+        DDTRACE_STRING_LITERAL("zdelete"),
+        DDTRACE_STRING_LITERAL("zremrangebyrank"),
+        DDTRACE_STRING_LITERAL("zdeleterangebyrank"),
+        DDTRACE_STRING_LITERAL("zremrangebyscore"),
+        DDTRACE_STRING_LITERAL("zdeleterangebyscore"),
+        DDTRACE_STRING_LITERAL("zrevrange"),
+        DDTRACE_STRING_LITERAL("zscore"),
+        DDTRACE_STRING_LITERAL("zunion"),
+        DDTRACE_STRING_LITERAL("zscan"),
+
         DDTRACE_STRING_LITERAL("rawcommand"),
     };
     // clang-format on
