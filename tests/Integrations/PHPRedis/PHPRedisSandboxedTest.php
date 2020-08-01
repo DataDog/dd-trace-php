@@ -1440,6 +1440,22 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
         ];
     }
 
+    public function testPublish()
+    {
+        $traces = $this->isolateTracer(function () use (&$channel) {
+            $this->redis->publish('ch1', 'hi');
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.publish",
+                'phpredis',
+                'redis',
+                "Redis.publish"
+            )->withExactTags(['redis.raw_command' => 'publish ch1 hi']),
+        ]);
+    }
+
     public function testDumpRestore()
     {
         $redis = $this->redis;

@@ -194,6 +194,10 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('zUnion');
         self::traceMethodAsCommand('zScan');
 
+        // Publish: we only trace publish because subscribe is blocking and it will have to be manually traced
+        // as in long running processes.
+        self::traceMethodAsCommand('publish');
+
         // Raw command
         self::traceMethodAsCommand('rawCommand');
 

@@ -150,6 +150,9 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("zunion"),
         DDTRACE_STRING_LITERAL("zscan"),
 
+        // Pub/Sub
+        DDTRACE_STRING_LITERAL("publish"),
+
         DDTRACE_STRING_LITERAL("rawcommand"),
     };
     // clang-format on
