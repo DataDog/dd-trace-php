@@ -1442,7 +1442,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
 
     public function testPublish()
     {
-        $traces = $this->isolateTracer(function () use (&$channel) {
+        $traces = $this->isolateTracer(function () {
             $this->redis->publish('ch1', 'hi');
         });
 
