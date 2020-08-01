@@ -198,6 +198,10 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         // as in long running processes.
         self::traceMethodAsCommand('publish');
 
+        // Transactions: this should be improved to have 1 root span per transaction (see APMPHP-362).
+        self::traceMethodAsCommand('multi');
+        self::traceMethodAsCommand('exec');
+
         // Raw command
         self::traceMethodAsCommand('rawCommand');
 
@@ -226,8 +230,10 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisSandboxedIntegration::enrichSpan($span, $method);
+            $normalizedArgs = PHPRedisSandboxedIntegration::normalizeArgs($args);
             // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
-            $span->meta[Tag::REDIS_RAW_COMMAND] = $method . ' ' . PHPRedisSandboxedIntegration::normalizeArgs($args);
+            $span->meta[Tag::REDIS_RAW_COMMAND]
+                = empty($normalizedArgs) ? $method : ($method . ' ' . $normalizedArgs);
         });
     }
 

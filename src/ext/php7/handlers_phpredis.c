@@ -153,6 +153,11 @@ void ddtrace_phpredis_handlers_startup(void) {
         // Pub/Sub
         DDTRACE_STRING_LITERAL("publish"),
 
+        // Transactions
+        DDTRACE_STRING_LITERAL("multi"),
+        DDTRACE_STRING_LITERAL("exec"),
+
+        // Raw command
         DDTRACE_STRING_LITERAL("rawcommand"),
     };
     // clang-format on

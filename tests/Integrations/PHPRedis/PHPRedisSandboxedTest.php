@@ -1456,6 +1456,43 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
         ]);
     }
 
+    public function testTransactions()
+    {
+        $return = null;
+        $traces = $this->isolateTracer(function () use (&$return) {
+            $return = $this->redis->multi()->set('k1', 'v1')->get('k1')->exec();
+        });
+
+        $this->assertSame([true, 'v1'], $return);
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.multi",
+                'phpredis',
+                'redis',
+                "Redis.multi"
+            )->withExactTags(['redis.raw_command' => 'multi']),
+            SpanAssertion::build(
+                "Redis.set",
+                'phpredis',
+                'redis',
+                "Redis.set"
+            )->withExactTags(['redis.raw_command' => 'set k1 v1']),
+            SpanAssertion::build(
+                "Redis.get",
+                'phpredis',
+                'redis',
+                "Redis.get"
+            )->withExactTags(['redis.raw_command' => 'get k1']),
+            SpanAssertion::build(
+                "Redis.exec",
+                'phpredis',
+                'redis',
+                "Redis.exec"
+            )->withExactTags(['redis.raw_command' => 'exec']),
+        ]);
+    }
+
     public function testDumpRestore()
     {
         $redis = $this->redis;
