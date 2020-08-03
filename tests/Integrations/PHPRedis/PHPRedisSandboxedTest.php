@@ -175,13 +175,14 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             }
         });
 
+        $rawCommand = empty($rawCommand) ? $method : "$method $rawCommand";
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 "Redis.$method",
                 'phpredis',
                 'redis',
                 "Redis.$method"
-            )->withExactTags(['redis.raw_command' => "$method $rawCommand"]),
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
     }
 
