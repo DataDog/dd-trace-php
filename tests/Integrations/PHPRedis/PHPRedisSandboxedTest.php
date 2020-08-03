@@ -1495,14 +1495,12 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
         ]);
     }
 
-
     /**
      * @dataProvider dataProviderTestScriptingFunctions
      */
     public function testScriptingFunctions($method, $args, $expectedResult, /*$expectedFinal, */$rawCommand)
     {
-        $script = 'return 1';
-        $sha = $this->redis->script('load', $script);
+        $sha = $this->redis->script('load', 'return 1');
         $this->assertSame(self::SCRIPT_SHA, $sha);
         $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
