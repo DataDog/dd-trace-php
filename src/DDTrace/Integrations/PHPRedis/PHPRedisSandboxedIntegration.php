@@ -214,6 +214,13 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('_unserialize');
         self::traceMethodAsCommand('_serialize');
 
+        self::traceMethodAsCommand('isConnected');
+        self::traceMethodAsCommand('getHost');
+        self::traceMethodAsCommand('getPort');
+        self::traceMethodAsCommand('getDbNum');
+        self::traceMethodAsCommand('getTimeout');
+        self::traceMethodAsCommand('getReadTimeout');
+
         return SandboxedIntegration::LOADED;
     }
 

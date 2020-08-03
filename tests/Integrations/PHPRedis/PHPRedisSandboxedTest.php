@@ -1577,6 +1577,78 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
         ];
     }
 
+    /**
+     * @dataProvider dataProviderTestIntrospectionFunctions
+     */
+    public function testIntrospectionFunctions($method, $args, $expectedResult, /*$expectedFinal, */$rawCommand)
+    {
+        $result = null;
+
+        $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
+            if (count($args) === 0) {
+                $result = $this->redis->$method();
+            } elseif (count($args) === 1) {
+                $result = $this->redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $result = $this->redis->$method($args[0], $args[1]);
+            } else {
+                throw new \Exception('Number of arguments not supported: ' . \count($args));
+            }
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.$method",
+                'phpredis',
+                'redis',
+                "Redis.$method"
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
+        ]);
+        $this->assertEquals($expectedResult, $result);
+    }
+
+    public function dataProviderTestIntrospectionFunctions()
+    {
+        return [
+            [
+                'isConnected', // method
+                [], // arguments
+                true, // expected result
+                'isConnected', // raw command
+            ],
+            [
+                'getHost', // method
+                [], // arguments
+                $this->host, // expected result
+                'getHost', // raw command
+            ],
+            [
+                'getPort', // method
+                [], // arguments
+                $this->port, // expected result
+                'getPort', // raw command
+            ],
+            [
+                'getDbNum', // method
+                [], // arguments
+                0, // expected result
+                'getDbNum', // raw command
+            ],
+            [
+                'getTimeout', // method
+                [], // arguments
+                0, // expected result
+                'getTimeout', // raw command
+            ],
+            [
+                'getReadTimeout', // method
+                [], // arguments
+                0, // expected result
+                'getReadTimeout', // raw command
+            ],
+        ];
+    }
+
     public function testDumpRestore()
     {
         $redis = $this->redis;

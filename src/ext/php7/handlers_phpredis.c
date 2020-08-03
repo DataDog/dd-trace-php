@@ -168,6 +168,14 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("clearlasterror"),
         DDTRACE_STRING_LITERAL("_unserialize"),
         DDTRACE_STRING_LITERAL("_serialize"),
+
+        // Introspections
+        DDTRACE_STRING_LITERAL("isconnected"),
+        DDTRACE_STRING_LITERAL("gethost"),
+        DDTRACE_STRING_LITERAL("getport"),
+        DDTRACE_STRING_LITERAL("getdbnum"),
+        DDTRACE_STRING_LITERAL("gettimeout"),
+        DDTRACE_STRING_LITERAL("getreadtimeout"),
     };
     // clang-format on
 
