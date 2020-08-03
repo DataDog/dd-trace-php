@@ -1114,7 +1114,7 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
             [
                 'sDiff', // method
                 [ 's1', 's2' ], // arguments
-                [ 'v1', 'v3' ], // expected result
+                self::ARRAY_COUNT_2, // expected result
                 [ 's1' => 3, 's2' => 3 ], // expected final value
                 'sDiff s1 s2', // raw command
             ],
