@@ -80,6 +80,15 @@ class TestSuite {
         if($a === $b)
             return;
 
+        // Start DD float comparison fix
+        if (is_float($a) && is_float($b)) {
+            $delta = 0.00001;
+            if (abs($a - $b) < $delta) {
+                return;
+            }
+        }
+        // End DD float comparison fix
+
         $bt = debug_backtrace(false);
         self::$errors []= sprintf("Assertion failed (%s !== %s): %s:%d (%s)\n",
             print_r($a, true), print_r($b, true),
