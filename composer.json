@@ -187,6 +187,8 @@
             "@composer test-guzzle5",
             "@composer test-guzzle6",
             "@composer test-phpredis3",
+            "@composer test-phpredis4",
+            "@composer test-phpredis5",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -201,6 +203,8 @@
             "@composer test-guzzle5",
             "@composer test-guzzle6",
             "@composer test-phpredis3",
+            "@composer test-phpredis4",
+            "@composer test-phpredis5",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -215,6 +219,8 @@
             "@composer test-guzzle5",
             "@composer test-guzzle6",
             "@composer test-phpredis3",
+            "@composer test-phpredis4",
+            "@composer test-phpredis5",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -228,6 +234,8 @@
             "@composer test-guzzle5",
             "@composer test-guzzle6",
             "@composer test-phpredis3",
+            "@composer test-phpredis4",
+            "@composer test-phpredis5",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -241,6 +249,8 @@
             "@composer test-guzzle5",
             "@composer test-guzzle6",
             "@composer test-phpredis3",
+            "@composer test-phpredis4",
+            "@composer test-phpredis5",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -471,14 +481,26 @@
             "@composer test -- tests/Integrations/Guzzle/V6 --filter='/Sandbox/'",
             "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Guzzle/V6 --filter='/^((?!Sandbox).)+$/'"
         ],
+        "test-phpredis3": [
+            "@composer scenario phpredis3",
+            "@composer test -- tests/Integrations/PHPRedis/PHPRedisSandboxedTest.php"
+        ],
+        "test-phpredis4": [
+            "@composer scenario phpredis4",
+            "@composer test -- tests/Integrations/PHPRedis/PHPRedisSandboxedTest.php",
+            "make -C tests/Integrations/PHPRedis/PHPRedisProjectTestsuite test_redis_4",
+            "make -C tests/Integrations/PHPRedis/PHPRedisProjectTestsuite test_redis_array_4"
+        ],
+        "test-phpredis5": [
+            "@composer scenario phpredis5",
+            "@composer test -- tests/Integrations/PHPRedis/PHPRedisSandboxedTest.php",
+            "make -C tests/Integrations/PHPRedis/PHPRedisProjectTestsuite test_redis_5",
+            "make -C tests/Integrations/PHPRedis/PHPRedisProjectTestsuite test_redis_array_5"
+        ],
         "test-predis1": [
             "@composer scenario predis1",
             "@composer test -- tests/Integrations/Predis --filter='/Sandbox/'",
             "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Predis --filter='/^((?!Sandbox).)+$/'"
-        ],
-        "test-phpredis3": [
-            "@composer scenario phpredis3",
-            "@composer test -- tests/Integrations/PHPRedis/PHPRedisSandboxedTest.php"
         ],
 
         "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",

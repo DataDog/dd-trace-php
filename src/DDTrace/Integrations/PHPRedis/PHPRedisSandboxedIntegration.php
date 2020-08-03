@@ -209,12 +209,21 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('_unserialize');
         self::traceMethodAsCommand('_serialize');
 
+        // Introspection
         self::traceMethodAsCommand('isConnected');
         self::traceMethodAsCommand('getHost');
         self::traceMethodAsCommand('getPort');
         self::traceMethodAsCommand('getDbNum');
         self::traceMethodAsCommand('getTimeout');
         self::traceMethodAsCommand('getReadTimeout');
+
+        // Geocoding
+        self::traceMethodAsCommand('geoAdd');
+        self::traceMethodAsCommand('geoHash');
+        self::traceMethodAsCommand('geoPos');
+        self::traceMethodAsCommand('geoDist');
+        self::traceMethodAsCommand('geoRadius');
+        self::traceMethodAsCommand('geoRadiusByMember');
 
         return SandboxedIntegration::LOADED;
     }

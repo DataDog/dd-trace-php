@@ -176,6 +176,14 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("getdbnum"),
         DDTRACE_STRING_LITERAL("gettimeout"),
         DDTRACE_STRING_LITERAL("getreadtimeout"),
+
+        // Geocoding"
+        DDTRACE_STRING_LITERAL("geoadd"),
+        DDTRACE_STRING_LITERAL("geohash"),
+        DDTRACE_STRING_LITERAL("geopos"),
+        DDTRACE_STRING_LITERAL("geodist"),
+        DDTRACE_STRING_LITERAL("georadius"),
+        DDTRACE_STRING_LITERAL("georadiusbymember"),
     };
     // clang-format on
 
