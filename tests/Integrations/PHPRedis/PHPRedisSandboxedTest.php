@@ -18,6 +18,8 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
     const ARRAY_COUNT_4 = 'ARRAY_COUNT_4';
     const ARRAY_COUNT_5 = 'ARRAY_COUNT_5';
 
+    const SCRIPT_SHA = 'e0e1f9fabfc9d4800c877a703b823ac0578ff8db';
+
     private $host = 'redis_integration';
     private $port = '6379';
     private $portSecondInstance = '6380';
@@ -1491,6 +1493,90 @@ class PHPRedisSandboxedTest extends IntegrationTestCase
                 "Redis.exec"
             )->withExactTags(['redis.raw_command' => 'exec']),
         ]);
+    }
+
+
+    /**
+     * @dataProvider dataProviderTestScriptingFunctions
+     */
+    public function testScriptingFunctions($method, $args, $expectedResult, /*$expectedFinal, */$rawCommand)
+    {
+        $script = 'return 1';
+        $sha = $this->redis->script('load', $script);
+        $this->assertSame(self::SCRIPT_SHA, $sha);
+        $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+
+        $result = null;
+
+        $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
+            if (count($args) === 0) {
+                $result = $this->redis->$method();
+            } elseif (count($args) === 1) {
+                $result = $this->redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $result = $this->redis->$method($args[0], $args[1]);
+            } else {
+                throw new \Exception('Number of arguments not supported: ' . \count($args));
+            }
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.$method",
+                'phpredis',
+                'redis',
+                "Redis.$method"
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
+        ]);
+        $this->assertEquals($expectedResult, $result);
+    }
+
+    public function dataProviderTestScriptingFunctions()
+    {
+        return [
+            [
+                'eval', // method
+                [ 'return 1' ], // arguments
+                1, // expected result
+                'eval return 1', // raw command
+            ],
+            [
+                'evalSha', // method
+                [ self::SCRIPT_SHA ], // arguments
+                1, // expected result
+                'evalSha ' . self::SCRIPT_SHA, // raw command
+            ],
+            [
+                'script', // method
+                [ 'load', 'return 2' ], // arguments
+                '7f923f79fe76194c868d7e1d0820de36700eb649', // expected result
+                'script load return 2', // raw command
+            ],
+            [
+                'getLastError', // method
+                [ ], // arguments
+                null, // expected result
+                'getLastError', // raw command
+            ],
+            [
+                'clearLastError', // method
+                [ ], // arguments
+                true, // expected result
+                'clearLastError', // raw command
+            ],
+            [
+                '_serialize', // method
+                [ 'foo' ], // arguments
+                's:3:"foo";', // expected result
+                '_serialize foo', // raw command
+            ],
+            [
+                '_unserialize', // method
+                [ 's:3:"foo";' ], // arguments
+                'foo', // expected result
+                '_unserialize s:3:"foo";', // raw command
+            ],
+        ];
     }
 
     public function testDumpRestore()

@@ -159,6 +159,15 @@ void ddtrace_phpredis_handlers_startup(void) {
 
         // Raw command
         DDTRACE_STRING_LITERAL("rawcommand"),
+
+        // Scripting
+        DDTRACE_STRING_LITERAL("eval"),
+        DDTRACE_STRING_LITERAL("evalsha"),
+        DDTRACE_STRING_LITERAL("script"),
+        DDTRACE_STRING_LITERAL("getlasterror"),
+        DDTRACE_STRING_LITERAL("clearlasterror"),
+        DDTRACE_STRING_LITERAL("_unserialize"),
+        DDTRACE_STRING_LITERAL("_serialize"),
     };
     // clang-format on
 

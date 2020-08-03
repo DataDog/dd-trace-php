@@ -205,6 +205,15 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         // Raw command
         self::traceMethodAsCommand('rawCommand');
 
+        // Scripting
+        self::traceMethodAsCommand('eval');
+        self::traceMethodAsCommand('evalSha');
+        self::traceMethodAsCommand('script');
+        self::traceMethodAsCommand('getLastError');
+        self::traceMethodAsCommand('clearLastError');
+        self::traceMethodAsCommand('_unserialize');
+        self::traceMethodAsCommand('_serialize');
+
         return SandboxedIntegration::LOADED;
     }
 
