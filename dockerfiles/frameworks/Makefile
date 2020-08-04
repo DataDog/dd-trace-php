@@ -1,6 +1,6 @@
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 THIS_FILE := $(lastword $(MAKEFILE_LIST))
-VERSION_TO_INSTALL:=0.30.1
+VERSION_TO_INSTALL:=0.47.1
 
 YAMLS = $(filter-out nginx_file_server.yml docker-compose.yml, $(notdir $(wildcard $(ROOT_DIR)/*.yml)))
 DDTRACE_TARGETS = ${YAMLS:.yml=}

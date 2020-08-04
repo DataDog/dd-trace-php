@@ -846,6 +846,14 @@ workflows:
       #     name: "Symfony baseline testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
+          framework_target: phpredis3
+          name: "PHPRedis 3 testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: phpredis3_no_ddtrace
+          name: "PHPRedis 3 baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
           framework_target: wordpress
           name: "WordPress testsuite"
       - framework_tests:
