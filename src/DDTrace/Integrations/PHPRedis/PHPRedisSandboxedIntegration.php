@@ -281,17 +281,18 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
             } elseif (\is_bool($arg)) {
                 $partValue = $args ? 'true' : false;
             } elseif (\is_array($arg)) {
-                // This is best effort as specific index might be missing or be shifted, e.g. [0 => 'a', 2 => 'b'].
-                // In this case the worst that can happen is that we generate '0 a 2 b' instead of 'a b'. We accept this
-                // in order to keep things as simple as possible.
-                $isAssociative = array_values($arg) !== $arg;
-                if ($isAssociative) {
-                    foreach ($arg as $key => $val) {
+                if (empty($arg)) {
+                    continue;
+                }
+                // This is best effort. If we misinterpret the array as associative the worst that can happen is that we
+                // generate '0 a 2 b' instead of 'a b'. We accept this in order to keep things as simple as possible.
+                $expectedNextIndex = 0;
+                foreach ($arg as $key => $val) {
+                    if ($key !== $expectedNextIndex++) {
+                        // In this case is associative
                         $rawCommandParts[] = $key;
-                        $rawCommandParts[] = self::normalizeArgs([ $val ]);
                     }
-                } else {
-                    $rawCommandParts[] = self::normalizeArgs($arg);
+                    $rawCommandParts[] = self::normalizeArgs([ $val ]);
                 }
                 continue;
             } else {
