@@ -478,9 +478,7 @@
         ],
         "test-phpredis3": [
             "@composer scenario phpredis3",
-            "@composer test -- tests/Integrations/PHPRedis/PHPRedisSandboxedTest.php",
-            "make -C tests/Integrations/PHPRedis/PHPRedisProjectTestsuite test_redis_3",
-            "make -C tests/Integrations/PHPRedis/PHPRedisProjectTestsuite test_redis_array_3"
+            "@composer test -- tests/Integrations/PHPRedis/PHPRedisSandboxedTest.php"
         ],
 
         "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",
