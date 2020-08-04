@@ -25,13 +25,8 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         return self::NAME;
     }
 
-    /**
-     * Add instrumentation to PDO requests
-     */
     public function init()
     {
-        $integration = $this;
-
         $traceConnectOpen = function (SpanData $span, $args) {
             PHPRedisSandboxedIntegration::enrichSpan($span);
             $span->meta[Tag::TARGET_HOST] = (isset($args[0]) && \is_string($args[0])) ? $args[0] : '127.0.0.1';
