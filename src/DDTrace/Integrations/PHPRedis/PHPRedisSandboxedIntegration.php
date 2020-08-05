@@ -174,7 +174,8 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('zCount');
         self::traceMethodAsCommand('zIncrBy');
         self::traceMethodAsCommand('zInter');
-        self::traceMethodAsCommand('zPop');
+        self::traceMethodAsCommand('zPopMax');
+        self::traceMethodAsCommand('zPopMin');
         self::traceMethodAsCommand('zRange');
         self::traceMethodAsCommand('zRangeByScore');
         self::traceMethodAsCommand('zRevRangeByScore');

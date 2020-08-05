@@ -1439,6 +1439,20 @@ class PHPRedis45SandboxedTest extends IntegrationTestCase
                 'zRevRange s1 0 -2', // raw command
             ],
             [
+                'zPopMax', // method
+                [ 's1', 1 ], // arguments
+                [ 'v3' => 5.0 ], // expected result
+                [ 's1' => 2, 's2' => 3, ], // expected final sizes
+                'zPopMax s1 1', // raw command
+            ],
+            [
+                'zPopMin', // method
+                [ 's1', 1 ], // arguments
+                [ 'v2' => 0.0 ], // expected result
+                [ 's1' => 2, 's2' => 3, ], // expected final sizes
+                'zPopMin s1 1', // raw command
+            ],
+            [
                 'zScore', // method
                 [ 's1', 'v3' ], // arguments
                 5, // expected result
