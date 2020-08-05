@@ -174,6 +174,8 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('zCount');
         self::traceMethodAsCommand('zIncrBy');
         self::traceMethodAsCommand('zInter');
+        self::traceMethodAsCommand('zPopMax');
+        self::traceMethodAsCommand('zPopMin');
         self::traceMethodAsCommand('zRange');
         self::traceMethodAsCommand('zRangeByScore');
         self::traceMethodAsCommand('zRevRangeByScore');
@@ -181,14 +183,17 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('zRank');
         self::traceMethodAsCommand('zRevRank');
         self::traceMethodAsCommand('zRem');
+        self::traceMethodAsCommand('zRemove');
         self::traceMethodAsCommand('zDelete');
         self::traceMethodAsCommand('zRemRangeByRank');
         self::traceMethodAsCommand('zDeleteRangeByRank');
         self::traceMethodAsCommand('zRemRangeByScore');
         self::traceMethodAsCommand('zDeleteRangeByScore');
+        self::traceMethodAsCommand('zRemoveRangeByScore');
         self::traceMethodAsCommand('zRevRange');
         self::traceMethodAsCommand('zScore');
         self::traceMethodAsCommand('zUnion');
+        self::traceMethodAsCommand('zunionstore');
         self::traceMethodAsCommand('zScan');
 
         // Publish: we only trace publish because subscribe is blocking and it will have to be manually traced
