@@ -118,8 +118,10 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration';
             $this->integrations[PDOSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\PDO\PDOSandboxedIntegration';
-            $this->integrations[PHPRedisSandboxedIntegration::NAME] =
-                '\DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration';
+            if (\PHP_MAJOR_VERSION >= 7) {
+                $this->integrations[PHPRedisSandboxedIntegration::NAME] =
+                    '\DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration';
+            }
             $this->integrations[PredisSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Predis\PredisSandboxedIntegration';
             $this->integrations[SlimSandboxedIntegration::NAME] =
