@@ -12,6 +12,7 @@ class PHPRedis4SandboxedTest extends IntegrationTestCase
     const IS_SANDBOX = true;
 
     const A_STRING = 'A_STRING';
+    const A_FLOAT = 'A_FLOAT';
     const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';
     const ARRAY_COUNT_2 = 'ARRAY_COUNT_2';
     const ARRAY_COUNT_3 = 'ARRAY_COUNT_3';
@@ -1795,7 +1796,14 @@ class PHPRedis4SandboxedTest extends IntegrationTestCase
                 "Redis.$method"
             )->withExactTags(['redis.raw_command' => $rawCommand]),
         ]);
-        $this->assertEquals($expectedResult, $result);
+
+        if ($expectedResult === self::A_FLOAT) {
+            $this->assertTrue(\is_float($result));
+        } elseif ($expectedResult === self::ARRAY_COUNT_1) {
+            $this->assertCount(1, $result);
+        } else {
+            $this->assertSame($expectedResult, $result);
+        }
     }
 
     public function dataProviderTestGeocodingFunctions()
@@ -1817,14 +1825,14 @@ class PHPRedis4SandboxedTest extends IntegrationTestCase
                 'geoPos', // method
                 [ 'existing', 'San Francisco' ], // arguments
                 // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
-                [ [ '-122.43099', '37.7729' ] ], // expected result
+                self::ARRAY_COUNT_1, // expected result
                 'geoPos existing San Francisco', // raw command
             ],
             [
                 'geoDist', // method
                 [ 'existing', 'San Francisco', 'Honolulu', 'm' ], // arguments
                 // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
-                3853420.5375, // expected result
+                self::A_FLOAT, // expected result
                 'geoDist existing San Francisco Honolulu m', // raw command
             ],
             [
