@@ -188,6 +188,7 @@
             "@composer test-guzzle6",
             "@composer test-phpredis3",
             "@composer test-phpredis4",
+            "@composer test-phpredis5",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -203,6 +204,7 @@
             "@composer test-guzzle6",
             "@composer test-phpredis3",
             "@composer test-phpredis4",
+            "@composer test-phpredis5",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -218,6 +220,7 @@
             "@composer test-guzzle6",
             "@composer test-phpredis3",
             "@composer test-phpredis4",
+            "@composer test-phpredis5",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -232,6 +235,7 @@
             "@composer test-guzzle6",
             "@composer test-phpredis3",
             "@composer test-phpredis4",
+            "@composer test-phpredis5",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -246,6 +250,7 @@
             "@composer test-guzzle6",
             "@composer test-phpredis3",
             "@composer test-phpredis4",
+            "@composer test-phpredis5",
             "@composer test-predis1",
             "@composer scenario default"
         ],
