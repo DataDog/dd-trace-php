@@ -2,13 +2,13 @@ version: "3.6"
 
 services:
 
-  phpredis3:
+  phpredis4:
     depends_on:
       - nginx_file_server
       - redis
     environment:
       - REDIS_HOST=redis
-    image: datadog/dd-trace-ci:php-framework-phpredis-3
+    image: datadog/dd-trace-ci:php-framework-phpredis-4
     ulimits:
       core: 99999999999
     cap_add:
