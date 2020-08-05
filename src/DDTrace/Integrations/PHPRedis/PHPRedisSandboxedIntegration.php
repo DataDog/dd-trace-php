@@ -225,6 +225,21 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('geoRadius');
         self::traceMethodAsCommand('geoRadiusByMember');
 
+        // Streams
+        self::traceMethodAsCommand('xAck');
+        self::traceMethodAsCommand('xAdd');
+        self::traceMethodAsCommand('xClaim');
+        self::traceMethodAsCommand('xDel');
+        self::traceMethodAsCommand('xGroup');
+        self::traceMethodAsCommand('xInfo');
+        self::traceMethodAsCommand('xLen');
+        self::traceMethodAsCommand('xPending');
+        self::traceMethodAsCommand('xRange');
+        self::traceMethodAsCommand('xRead');
+        self::traceMethodAsCommand('xReadGroup');
+        self::traceMethodAsCommand('xRevRange');
+        self::traceMethodAsCommand('xTrim');
+
         return SandboxedIntegration::LOADED;
     }
 

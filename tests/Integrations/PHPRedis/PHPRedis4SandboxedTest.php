@@ -1843,6 +1843,195 @@ class PHPRedis4SandboxedTest extends IntegrationTestCase
         ];
     }
 
+    /**
+     * Various stream methods are very dependent on each other, so we test them sequentially.
+     * This at the cost of test readability, but otherwise it would add too much complexity in setting up fixtures.
+     */
+    public function testStreamsFunctions()
+    {
+        // xAdd
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xAdd('s1', '123-456', [ 'k1' => 'v1' ]);
+            $this->assertSame('123-456', $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xAdd",
+                'phpredis',
+                'redis',
+                "Redis.xAdd"
+            )->withExactTags(['redis.raw_command' => 'xAdd s1 123-456 k1 v1']),
+        ]);
+
+        // xGroup
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xGroup('CREATE', 's1', 'group1', '0');
+            $this->assertSame(true, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xGroup",
+                'phpredis',
+                'redis',
+                "Redis.xGroup"
+            )->withExactTags(['redis.raw_command' => 'xGroup CREATE s1 group1 0']),
+        ]);
+
+        // xInfo
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xInfo('GROUPS', 's1');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xInfo",
+                'phpredis',
+                'redis',
+                "Redis.xInfo"
+            )->withExactTags(['redis.raw_command' => 'xInfo GROUPS s1']),
+        ]);
+
+        // xLen
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xLen('s1');
+            $this->assertSame(1, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xLen",
+                'phpredis',
+                'redis',
+                "Redis.xLen"
+            )->withExactTags(['redis.raw_command' => 'xLen s1']),
+        ]);
+
+        // xPending
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xPending('s1', 'group1');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xPending",
+                'phpredis',
+                'redis',
+                "Redis.xPending"
+            )->withExactTags(['redis.raw_command' => 'xPending s1 group1']),
+        ]);
+
+        // xRange
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xRange('s1', '-', '+');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xRange",
+                'phpredis',
+                'redis',
+                "Redis.xRange"
+            )->withExactTags(['redis.raw_command' => 'xRange s1 - +']),
+        ]);
+
+        // xRevRange
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xRevRange('s1', '+', '-');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xRevRange",
+                'phpredis',
+                'redis',
+                "Redis.xRevRange"
+            )->withExactTags(['redis.raw_command' => 'xRevRange s1 + -']),
+        ]);
+
+        // xRead
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xRead(['s1' => '$']);
+            $this->assertSame([], $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xRead",
+                'phpredis',
+                'redis',
+                "Redis.xRead"
+            )->withExactTags(['redis.raw_command' => 'xRead s1 $']),
+        ]);
+
+        // xReadGroup
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xReadGroup('group1', 'consumer1', ['s1' => '>']);
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xReadGroup",
+                'phpredis',
+                'redis',
+                "Redis.xReadGroup"
+            )->withExactTags(['redis.raw_command' => 'xReadGroup group1 consumer1 s1 >']),
+        ]);
+
+        // xAck
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xAck('s1', 'group1', ['s1' => '123-456']);
+            $this->assertSame(1, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xAck",
+                'phpredis',
+                'redis',
+                "Redis.xAck"
+            )->withExactTags(['redis.raw_command' => 'xAck s1 group1 s1 123-456']),
+        ]);
+
+        // xClaim
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xClaim('s1', 'group1', 'consumer1', 0, ['s1' => '123-456']);
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xClaim",
+                'phpredis',
+                'redis',
+                "Redis.xClaim"
+            )->withExactTags(['redis.raw_command' => 'xClaim s1 group1 consumer1 0 s1 123-456']),
+        ]);
+
+        // xDel
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xDel('s1', ['123-456']);
+            $this->assertSame(1, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xDel",
+                'phpredis',
+                'redis',
+                "Redis.xDel"
+            )->withExactTags(['redis.raw_command' => 'xDel s1 123-456']),
+        ]);
+
+        // xTrim
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xTrim('s1', 0);
+            $this->assertSame(0, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xTrim",
+                'phpredis',
+                'redis',
+                "Redis.xTrim"
+            )->withExactTags(['redis.raw_command' => 'xTrim s1 0']),
+        ]);
+    }
+
     public function testSetGetWithBinarySafeStringsAsValue()
     {
         $traces = $this->isolateTracer(function () {

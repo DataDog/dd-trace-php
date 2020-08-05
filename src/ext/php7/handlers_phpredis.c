@@ -184,6 +184,21 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("geodist"),
         DDTRACE_STRING_LITERAL("georadius"),
         DDTRACE_STRING_LITERAL("georadiusbymember"),
+
+        // Streams
+        DDTRACE_STRING_LITERAL("xack"),
+        DDTRACE_STRING_LITERAL("xadd"),
+        DDTRACE_STRING_LITERAL("xclaim"),
+        DDTRACE_STRING_LITERAL("xdel"),
+        DDTRACE_STRING_LITERAL("xgroup"),
+        DDTRACE_STRING_LITERAL("xinfo"),
+        DDTRACE_STRING_LITERAL("xlen"),
+        DDTRACE_STRING_LITERAL("xpending"),
+        DDTRACE_STRING_LITERAL("xrange"),
+        DDTRACE_STRING_LITERAL("xread"),
+        DDTRACE_STRING_LITERAL("xreadgroup"),
+        DDTRACE_STRING_LITERAL("xrevrange"),
+        DDTRACE_STRING_LITERAL("xtrim"),
     };
     // clang-format on
 
