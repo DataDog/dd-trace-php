@@ -1390,6 +1390,13 @@ class PHPRedis45SandboxedTest extends IntegrationTestCase
                 'zDelete s1 v2', // raw command
             ],
             [
+                'zRemove', // method
+                [ 's1', 'v2' ], // arguments
+                1, // expected result
+                [ 's1' => 2, 's2' => 3, ], // expected final sizes
+                'zRemove s1 v2', // raw command
+            ],
+            [
                 'zRemRangeByRank', // method
                 [ 's1', 0, 1 ], // arguments
                 2, // expected result
@@ -1418,6 +1425,13 @@ class PHPRedis45SandboxedTest extends IntegrationTestCase
                 'zDeleteRangeByScore s1 0 1', // raw command
             ],
             [
+                'zRemoveRangeByScore', // method
+                [ 's1', 0, 1 ], // arguments
+                2, // expected result
+                [ 's1' => 1, 's2' => 3, ], // expected final sizes
+                'zRemoveRangeByScore s1 0 1', // raw command
+            ],
+            [
                 'zRevRange', // method
                 [ 's1', 0, -2 ], // arguments
                 [ 'v3', 'v1' ], // expected result
@@ -1437,6 +1451,13 @@ class PHPRedis45SandboxedTest extends IntegrationTestCase
                 5, // expected result
                 [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final sizes
                 'zUnion out s1 s2', // raw command
+            ],
+            [
+                'zunionstore', // method
+                [ 'out', ['s1', 's2'] ], // arguments
+                5, // expected result
+                [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final sizes
+                'zunionstore out s1 s2', // raw command
             ],
             [
                 'zScan', // method
