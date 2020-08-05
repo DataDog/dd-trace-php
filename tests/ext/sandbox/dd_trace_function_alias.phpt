@@ -12,6 +12,7 @@ function bar($message)
 }
 
 dd_trace_function('bar', function (SpanData $span) {
+    $span->name = $span->resource = 'bar';
     $span->service = 'alias';
 });
 

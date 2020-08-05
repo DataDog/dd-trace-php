@@ -15,6 +15,7 @@ class Foo
 }
 
 dd_trace_method('Foo', 'bar', function (SpanData $span) {
+    $span->name = $span->resource = 'Foo.bar';
     $span->service = 'alias';
 });
 

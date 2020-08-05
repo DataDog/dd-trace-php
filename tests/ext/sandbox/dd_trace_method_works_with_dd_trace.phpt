@@ -3,7 +3,7 @@ DDTrace\trace_method() works alongside dd_trace()
 --ENV--
 DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+<?php if (PHP_VERSION_ID < 70000) die("skip: requires dd_trace support"); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
