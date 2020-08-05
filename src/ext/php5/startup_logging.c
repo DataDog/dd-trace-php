@@ -219,9 +219,9 @@ static void _dd_check_for_deprecated_env(HashTable *ht, const char *old_name, si
 }
 
 static void _dd_check_for_deprecated_integration_envs(HashTable *ht, ddtrace_integration *integration TSRMLS_DC) {
-    char old[DDTRACE_LONGEST_INTEGRATION_ENV_LEN];
+    char old[DDTRACE_LONGEST_INTEGRATION_ENV_LEN + 1];
     size_t old_len;
-    char new[DDTRACE_LONGEST_INTEGRATION_ENV_LEN];
+    char new[DDTRACE_LONGEST_INTEGRATION_ENV_LEN + 1];
     size_t new_len;
 
     old_len = ddtrace_config_integration_env_name(old, "DD_", integration, "_ANALYTICS_ENABLED");

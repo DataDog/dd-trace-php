@@ -177,14 +177,14 @@ size_t ddtrace_config_integration_env_name(char* name, const char* prefix, ddtra
     ZEND_ASSERT(strlen(prefix) <= DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN);
     ZEND_ASSERT(strlen(suffix) <= DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN);
 #endif
-    return (size_t)snprintf(name, DDTRACE_LONGEST_INTEGRATION_ENV_LEN, "%s%s%s", prefix, integration->name_ucase,
+    return (size_t)snprintf(name, DDTRACE_LONGEST_INTEGRATION_ENV_LEN + 1, "%s%s%s", prefix, integration->name_ucase,
                             suffix);
 }
 
 // Get env value for <PREFIX_><INTEGRATION><_SUFFIX>
 ddtrace_string _dd_env_integration_value(const char* prefix, ddtrace_integration* integration,
                                          const char* suffix TSRMLS_DC) {
-    char name[DDTRACE_LONGEST_INTEGRATION_ENV_LEN];
+    char name[DDTRACE_LONGEST_INTEGRATION_ENV_LEN + 1];
     size_t len = ddtrace_config_integration_env_name(name, prefix, integration, suffix);
     return ddtrace_string_getenv(name, len TSRMLS_CC);
 }

@@ -6,6 +6,14 @@ use DDTrace\Configuration;
 
 final class ConfigurationTest extends BaseTestCase
 {
+    const INTEGRATION_ERROR = <<<'EOD'
+
+This could mean that a new integration was added in userland but was not added
+to the `ddtrace_integration_name` enum and the `ddtrace_integrations` array
+found in integrations.{h,c}. Integration-specific config for this integration will
+fall back to the defaults if they have not been added at the extension level.
+EOD;
+
     protected function setUp()
     {
         parent::setUp();
@@ -145,6 +153,75 @@ final class ConfigurationTest extends BaseTestCase
         $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
         $this->assertTrue(\ddtrace_config_integration_enabled('pdo'));
         $this->assertFalse(\ddtrace_config_integration_enabled('slim'));
+    }
+
+    public function testAllIntegrationsEnabledToggleConfig()
+    {
+        $integrations = self::getIntegrationsUpper();
+        foreach ($integrations as $integration) {
+            $this->putEnvAndReloadConfig(["DD_TRACE_{$integration}_ENABLED=false"]);
+
+            $lower = strtolower($integration);
+            $error = "'{$lower}' was expected to be disabled." . self::INTEGRATION_ERROR;
+            self::assertFalse(Configuration::get()->isIntegrationEnabled($lower), $error);
+            self::assertFalse(\ddtrace_config_integration_enabled($lower), $error);
+
+            // Reset
+            putenv("DD_TRACE_{$integration}_ENABLED");
+        }
+
+        // Make sure we're not testing the default fallback
+        self::assertTrue(Configuration::get()->isIntegrationEnabled('foo_invalid'));
+        self::assertTrue(\ddtrace_config_integration_enabled('foo_invalid'));
+    }
+
+    public function testAllIntegrationsAnalyticsEnabledToggleConfig()
+    {
+        $integrations = self::getIntegrationsUpper();
+        foreach ($integrations as $integration) {
+            $this->putEnvAndReloadConfig(["DD_TRACE_{$integration}_ANALYTICS_ENABLED=true"]);
+
+            $lower = strtolower($integration);
+            self::assertTrue(
+                \DDTrace\Config\integration_analytics_enabled($lower),
+                "App analytics for '{$lower}' was expected to be enabled." . self::INTEGRATION_ERROR
+            );
+
+            // Reset
+            putenv("DD_TRACE_{$integration}_ANALYTICS_ENABLED");
+        }
+
+        // Make sure we're not testing the default fallback
+        self::assertFalse(\DDTrace\Config\integration_analytics_enabled('foo_invalid'));
+    }
+
+    public function testAllIntegrationsAnalyticsSampleRateConfig()
+    {
+        $integrations = self::getIntegrationsUpper();
+        foreach ($integrations as $integration) {
+            $this->putEnvAndReloadConfig(["DD_TRACE_{$integration}_ANALYTICS_SAMPLE_RATE=0.42"]);
+
+            $lower = strtolower($integration);
+            self::assertSame(
+                0.42,
+                \DDTrace\Config\integration_analytics_sample_rate($lower),
+                "Invalid app analytics sample rate for '{$lower}'." . self::INTEGRATION_ERROR
+            );
+
+            // Reset
+            putenv("DD_TRACE_{$integration}_ANALYTICS_SAMPLE_RATE");
+        }
+
+        // Make sure we're not testing the default fallback
+        self::assertSame(\DDTrace\Config\integration_analytics_sample_rate('foo_invalid'), 1.0);
+    }
+
+    private static function getIntegrationsUpper()
+    {
+        $dirs = glob(__DIR__ . '/../../src/DDTrace/Integrations/*', GLOB_ONLYDIR);
+        return array_map(function ($entry) {
+            return strtoupper(substr($entry, strrpos($entry, '/') + 1));
+        }, $dirs);
     }
 
     public function testAppNameFallbackPriorities()
