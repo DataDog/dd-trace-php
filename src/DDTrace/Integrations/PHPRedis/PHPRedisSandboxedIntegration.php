@@ -56,6 +56,8 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
             }
         });
 
+        self::traceMethodAsCommand('swapdb');
+
         self::traceMethodAsCommand('append');
         self::traceMethodAsCommand('decr');
         self::traceMethodAsCommand('decrBy');

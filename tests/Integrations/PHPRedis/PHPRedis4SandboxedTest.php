@@ -212,6 +212,7 @@ class PHPRedis4SandboxedTest extends IntegrationTestCase
             ['sort', ['k1', ['sort' => 'desc']], 'k1 sort desc'],
             ['ttl', ['k1'], 'k1'],
             ['pttl', ['k1'], 'k1'],
+            ['swapdb', ['0', '1'], '0 1'],
         ];
     }
 

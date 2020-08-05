@@ -59,6 +59,7 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("setnx"),
         DDTRACE_STRING_LITERAL("setrange"),
         DDTRACE_STRING_LITERAL("settimeout"),
+        DDTRACE_STRING_LITERAL("swapdb"),
         DDTRACE_STRING_LITERAL("sort"),
         DDTRACE_STRING_LITERAL("strlen"),
         DDTRACE_STRING_LITERAL("ttl"),
