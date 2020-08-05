@@ -160,15 +160,18 @@ final class IntegrationsLoaderTest extends BaseTestCase
         }
 
         $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
+
+        $excluded = [];
         if (\PHP_MAJOR_VERSION < 7) {
-            $php7plusOnly = [
-                'phpredis',
-            ];
-            foreach ($php7plusOnly as $integrationToExclude) {
-                $index = array_search($integrationToExclude, $expected);
-                unset($expected[$index]);
-            }
+            $excluded[] = 'phpredis'; // PHP 7 only integration
+        } else {
+            $excluded[] = 'elasticsearch'; // Deferred loading integration
         }
+        foreach ($excluded as $integrationToExclude) {
+            $index = array_search($integrationToExclude, $expected, true);
+            unset($expected[$index]);
+        }
+
         \ksort($expected);
 
         $integrations = IntegrationsLoader::get()->getIntegrations();

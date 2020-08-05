@@ -97,11 +97,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration';
             $this->integrations[CurlSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Curl\CurlSandboxedIntegration';
-            // for PHP 7.0+ use C level integration autoloader
-            if (\PHP_MAJOR_VERSION < 7) {
-                $this->integrations[ElasticSearchSandboxedIntegration::NAME] =
-                    '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration';
-            }
+            $this->integrations[ElasticSearchSandboxedIntegration::NAME] =
+                '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration';
             $this->integrations[EloquentSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration';
             $this->integrations[GuzzleSandboxedIntegration::NAME] =
@@ -134,6 +131,11 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Yii\YiiSandboxedIntegration';
             $this->integrations[ZendFrameworkSandboxedIntegration::NAME] =
                 '\DDTrace\Integrations\ZendFramework\ZendFrameworkSandboxedIntegration';
+        }
+
+        // For PHP 7.0+ use C level deferred integration loader
+        if (\PHP_MAJOR_VERSION >= 7) {
+            unset($this->integrations[ElasticSearchSandboxedIntegration::NAME]);
         }
     }
 
