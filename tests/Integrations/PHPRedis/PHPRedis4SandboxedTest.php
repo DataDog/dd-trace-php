@@ -1817,7 +1817,7 @@ class PHPRedis4SandboxedTest extends IntegrationTestCase
                 'geoPos', // method
                 [ 'existing', 'San Francisco' ], // arguments
                 // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
-                [ [ '-122.43099957704544067', '37.77299896969628179' ] ], // expected result
+                [ [ '-122.43099', '37.7729' ] ], // expected result
                 'geoPos existing San Francisco', // raw command
             ],
             [
