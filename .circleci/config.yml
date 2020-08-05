@@ -862,6 +862,14 @@ workflows:
           name: "PHPRedis 4 baseline testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
+          framework_target: phpredis5
+          name: "PHPRedis 5 testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: phpredis5_no_ddtrace
+          name: "PHPRedis 5 baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
           framework_target: wordpress
           name: "WordPress testsuite"
       - framework_tests:
