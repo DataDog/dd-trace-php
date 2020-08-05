@@ -186,6 +186,7 @@
             "@composer test-elasticsearch1",
             "@composer test-guzzle5",
             "@composer test-guzzle6",
+            "@composer test-phpredis3",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -199,6 +200,7 @@
             "@composer test-elasticsearch1",
             "@composer test-guzzle5",
             "@composer test-guzzle6",
+            "@composer test-phpredis3",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -212,6 +214,7 @@
             "@composer test-elasticsearch1",
             "@composer test-guzzle5",
             "@composer test-guzzle6",
+            "@composer test-phpredis3",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -224,6 +227,7 @@
             "@composer test-pdo",
             "@composer test-guzzle5",
             "@composer test-guzzle6",
+            "@composer test-phpredis3",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -236,6 +240,7 @@
             "@composer test-pdo",
             "@composer test-guzzle5",
             "@composer test-guzzle6",
+            "@composer test-phpredis3",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -471,6 +476,10 @@
             "@composer test -- tests/Integrations/Predis --filter='/Sandbox/'",
             "DD_TRACE_SANDBOX_ENABLED=0 composer test -- tests/Integrations/Predis --filter='/^((?!Sandbox).)+$/'"
         ],
+        "test-phpredis3": [
+            "@composer scenario phpredis3",
+            "@composer test -- tests/Integrations/PHPRedis/PHPRedisSandboxedTest.php"
+        ],
 
         "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",
         "cakephp-28-test": "@composer test -- --testsuite=cakephp-28-test",
@@ -606,6 +615,17 @@
                 },
                 "scenario-options": {
                     "create-lockfile": false
+                }
+            },
+            "phpredis3": {
+                "scenario-options": {
+                    "create-lockfile": false
+                },
+                "scripts": {
+                    "pre-autoload-dump": [
+                        "sudo pecl uninstall redis",
+                        "printf 'no' | sudo pecl install -f redis-3.1.6"
+                    ]
                 }
             }
         },

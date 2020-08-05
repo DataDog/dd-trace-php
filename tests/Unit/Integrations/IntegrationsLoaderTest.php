@@ -158,8 +158,19 @@ final class IntegrationsLoaderTest extends BaseTestCase
         if (Versions::phpVersionMatches('5.4')) {
             $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4 so we cannot check for all integrations.');
         }
+
         $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
+        if (\PHP_MAJOR_VERSION < 7) {
+            $php7plusOnly = [
+                'phpredis',
+            ];
+            foreach ($php7plusOnly as $integrationToExclude) {
+                $index = array_search($integrationToExclude, $expected);
+                unset($expected[$index]);
+            }
+        }
         \ksort($expected);
+
         $integrations = IntegrationsLoader::get()->getIntegrations();
         \ksort($integrations);
         $loaded = $this->normalize(array_keys($integrations));

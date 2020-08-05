@@ -16,7 +16,7 @@ aliases:
       - DD_API_KEY=invalid_key_but_this_is_fine
 
   - &IMAGE_DOCKER_REDIS
-    image: circleci/redis:4.0-alpine
+    image: datadog/dd-trace-ci:php-redis-4.0
     name: redis_integration
 
   - &IMAGE_DOCKER_ELASTICSEARCH2
@@ -844,6 +844,14 @@ workflows:
       #     requires: [ "Framework tests" ]
       #     framework_target: symfony_no_ddtrace
       #     name: "Symfony baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: phpredis3
+          name: "PHPRedis 3 testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: phpredis3_no_ddtrace
+          name: "PHPRedis 3 baseline testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
           framework_target: wordpress

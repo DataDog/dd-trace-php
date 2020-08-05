@@ -122,6 +122,7 @@
             <file name="src/ext/php7/handlers_memcached.c" role="src" />
             <file name="src/ext/php7/handlers_mysqli.c" role="src" />
             <file name="src/ext/php7/handlers_pdo.c" role="src" />
+            <file name="src/ext/php7/handlers_phpredis.c" role="src" />
             <file name="src/ext/php7/serializer.c" role="src" />
             <file name="src/ext/php7/startup_logging.c" role="src" />
             <file name="src/ext/third-party/mt19937-64.c" role="src" />

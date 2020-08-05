@@ -49,4 +49,7 @@ class Tag
     const MONGODB_SERVER = 'mongodb.server';
     const MONGODB_TIMEOUT = 'mongodb.timeout';
     const MONGODB_QUERY = 'mongodb.query';
+
+    // REDIS
+    const REDIS_RAW_COMMAND = 'redis.raw_command';
 }

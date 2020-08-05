@@ -1,6 +1,7 @@
 **/vendor
 tmp/build_extension/
 composer.lock
+core
 .scenarios.lock/
 .vscode/
 .libs

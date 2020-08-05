@@ -65,6 +65,7 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/IntegrationsLoader.php',
     __DIR__ . '/../src/DDTrace/Integrations/PDO/PDOIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/PDO/PDOSandboxedIntegration.php',
+    __DIR__ . '/../src/DDTrace/Integrations/PHPRedis/PHPRedisSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Predis/PredisIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Predis/PredisSandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Eloquent/EloquentIntegration.php',
