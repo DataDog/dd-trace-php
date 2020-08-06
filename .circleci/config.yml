@@ -609,6 +609,47 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: sh dockerfiles/verify_packages/verify_<< parameters.package_type >>.sh
 
+  pecl_build:
+    working_directory: ~/datadog
+    executor:
+      name: with_agent
+      docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_COMPOSER_INSTALL
+      - run:
+          name: Make PECL build
+          command: |
+            tooling/bin/pecl-build
+            mkdir -p ./pecl && cp datadog_trace-*.tgz ./pecl
+      #- store_artifacts:
+      #    path: pecl
+      - persist_to_workspace:
+          root: .
+          paths: [pecl]
+
+  pecl_tests:
+    parameters:
+      docker_image:
+        type: string
+    working_directory: ~/datadog
+    executor:
+      name: with_agent
+      docker_image: << parameters.docker_image >>
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Install from PECL build
+          command: |
+            cp ./pecl/datadog_trace-*.tgz ./datadog_trace.tgz
+            sudo pecl install datadog_trace.tgz
+            echo "extension=ddtrace.so" | sudo tee /usr/local/etc/php/conf.d/ddtrace.ini
+            php --ri=ddtrace
+      - run:
+          name: Run phpt tests with PECL
+          command: |
+            sudo pecl run-tests --showdiff --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
+
   compile_extension:
     working_directory: ~/datadog
     parameters:
@@ -687,6 +728,7 @@ jobs:
           command: make packages
       - store_artifacts: { path: 'build/packages', destination: / }
       - store_artifacts: { path: 'packages.tar.gz', destination: '/all/packages.tar.gz' }
+      - store_artifacts: { path: 'pecl', destination: '/pecl' }
       - persist_to_workspace:
           root: '.'
           paths: ['./build/packages', 'dockerfiles/verify_packages']
@@ -797,6 +839,9 @@ workflows:
           docker_image: "circleci/php:7.4-zts"
           lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
           so_suffix: "20190902-zts"
+      - pecl_build:
+          requires: [ 'Prepare Code' ]
+          name: "Build PECL"
       - "package extension":
           requires:
             - "Compile PHP 54"
@@ -812,6 +857,7 @@ workflows:
             - "Compile PHP 72-zts"
             - "Compile PHP 73-zts"
             - "Compile PHP 74-zts"
+            - "Build PECL"
       - "package verification":
           requires:
             - "package extension"
@@ -886,6 +932,30 @@ workflows:
           name: "php:7.3"
           docker_image: php:7.3
           package_type: deb
+      - pecl_tests:
+          requires: [ "Build PECL" ]
+          name: "PHP 56 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
+      - pecl_tests:
+          requires: [ "Build PECL" ]
+          name: "PHP 70 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
+      - pecl_tests:
+          requires: [ "Build PECL" ]
+          name: "PHP 71 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
+      - pecl_tests:
+          requires: [ "Build PECL" ]
+          name: "PHP 72 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
+      - pecl_tests:
+          requires: [ "Build PECL" ]
+          name: "PHP 73 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
+      - pecl_tests:
+          requires: [ "Build PECL" ]
+          name: "PHP 74 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
