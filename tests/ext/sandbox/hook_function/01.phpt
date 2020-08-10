@@ -2,6 +2,8 @@
 DDTrace\hook_function supports both hooks simultaneously
 --XFAIL--
 This is not yet supported
+--SKIPIF--
+<?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pear/pecl test runner does not support XFAIL tests"); ?>
 --FILE--
 <?php
 
