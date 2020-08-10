@@ -20,13 +20,20 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 extern inline void ddtrace_dispatch_copy(ddtrace_dispatch_t *dispatch);
 extern inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch);
 
-static ddtrace_dispatch_t *_dd_find_function_dispatch(HashTable *ht, zval *fname) {
-    return ddtrace_hash_find_ptr_lc(ht, Z_STRVAL_P(fname), Z_STRLEN_P(fname));
+static bool dd_try_find_function_dispatch(HashTable *ht, zval *fname, ddtrace_dispatch_t **dispatch_ptr,
+                                          HashTable **function_table) {
+    ddtrace_dispatch_t *dispatch = ddtrace_hash_find_ptr_lc(ht, Z_STRVAL_P(fname), Z_STRLEN_P(fname));
+    if (dispatch) {
+        *dispatch_ptr = dispatch;
+        *function_table = ht;
+    }
+    return dispatch;
 }
 
-static ddtrace_dispatch_t *_dd_find_method_dispatch(zend_class_entry *class, zval *fname TSRMLS_DC) {
+static bool dd_try_find_method_dispatch(zend_class_entry *class, zval *fname, ddtrace_dispatch_t **dispatch_ptr,
+                                        HashTable **function_table TSRMLS_DC) {
     if (!fname || !Z_STRVAL_P(fname)) {
-        return NULL;
+        return false;
     }
     HashTable *class_lookup = NULL;
 
@@ -40,18 +47,27 @@ static ddtrace_dispatch_t *_dd_find_method_dispatch(zend_class_entry *class, zva
 
     class_lookup = ddtrace_hash_find_ptr_lc(DDTRACE_G(class_lookup), class_name, class_name_length);
     if (class_lookup) {
-        ddtrace_dispatch_t *dispatch = _dd_find_function_dispatch(class_lookup, fname);
-        if (dispatch) {
-            return dispatch;
+        if (dd_try_find_function_dispatch(class_lookup, fname, dispatch_ptr, function_table)) {
+            return true;
         }
     }
 
-    return class->parent ? _dd_find_method_dispatch(class->parent, fname TSRMLS_CC) : NULL;
+    return class->parent ? dd_try_find_method_dispatch(class->parent, fname, dispatch_ptr, function_table TSRMLS_CC)
+                         : false;
+}
+
+bool ddtrace_try_find_dispatch(zend_class_entry *scope, zval *fname, ddtrace_dispatch_t **dispatch_ptr,
+                               HashTable **function_table TSRMLS_DC) {
+    return scope ? dd_try_find_method_dispatch(scope, fname, dispatch_ptr, function_table TSRMLS_CC)
+                 : dd_try_find_function_dispatch(DDTRACE_G(function_lookup), fname, dispatch_ptr, function_table);
 }
 
 ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname TSRMLS_DC) {
-    return scope ? _dd_find_method_dispatch(scope, fname TSRMLS_CC)
-                 : _dd_find_function_dispatch(DDTRACE_G(function_lookup), fname);
+    ddtrace_dispatch_t *dispatch = NULL;
+    HashTable *function_table = NULL;
+
+    ddtrace_try_find_dispatch(scope, fname, &dispatch, &function_table TSRMLS_CC);
+    return dispatch;
 }
 
 #if PHP_VERSION_ID >= 70000
@@ -119,11 +135,14 @@ static HashTable *_get_lookup_for_target(zval *class_name TSRMLS_DC) {
         zval_ptr_dtor(&class_name);
         class_name = class_name_prev;
 #else
-        ddtrace_downcase_zval(class_name);
-        overridable_lookup = zend_hash_find_ptr(DDTRACE_G(class_lookup), Z_STR_P(class_name));
+        zend_string *class_name_lc = zend_string_tolower(Z_STR_P(class_name));
+        overridable_lookup = zend_hash_find_ptr(DDTRACE_G(class_lookup), class_name_lc);
         if (!overridable_lookup) {
-            overridable_lookup = ddtrace_new_class_lookup(class_name TSRMLS_CC);
+            zval tmp;
+            ZVAL_STR(&tmp, class_name_lc);
+            overridable_lookup = ddtrace_new_class_lookup(&tmp TSRMLS_CC);
         }
+        zend_string_release(class_name_lc);
 #endif
     } else {
         overridable_lookup = DDTRACE_G(function_lookup);
@@ -150,7 +169,7 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
 #if PHP_VERSION_ID < 70000
     ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);
 #else
-    ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name));
+    ZVAL_COPY(&dispatch.function_name, function_name);
 #endif
     ddtrace_downcase_zval(&dispatch.function_name);  // method/function names are case insensitive in PHP
     dispatch.options = options;

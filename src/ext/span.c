@@ -53,9 +53,8 @@ static void _free_span(ddtrace_span_fci *span_fci) {
     efree(span_fci);
 }
 
-static void ddtrace_drop_span(ddtrace_span_fci *span_fci) {
+void ddtrace_drop_span(ddtrace_span_fci *span_fci) {
     if (span_fci->dispatch) {
-        span_fci->dispatch->busy = 0;
         ddtrace_dispatch_release(span_fci->dispatch);
         span_fci->dispatch = NULL;
     }
@@ -88,9 +87,13 @@ static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
     return 0;
 }
 
-void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
+void ddtrace_push_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     span_fci->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = span_fci;
+}
+
+void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
+    ddtrace_push_span(span_fci TSRMLS_CC);
 
     ddtrace_span_t *span = &span_fci->span;
 
@@ -132,7 +135,6 @@ void ddtrace_close_span(TSRMLS_D) {
     DDTRACE_G(closed_spans_top) = span_fci;
 
     if (span_fci->dispatch) {
-        span_fci->dispatch->busy = 0;
         ddtrace_dispatch_release(span_fci->dispatch);
         span_fci->dispatch = NULL;
     }

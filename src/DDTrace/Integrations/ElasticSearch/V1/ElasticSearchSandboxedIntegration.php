@@ -125,9 +125,6 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
 
         // Endpoints
         \DDTrace\trace_method('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function (SpanData $span) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $span->name = "Elasticsearch.Endpoint.performRequest";
             $span->resource = 'performRequest';
             $span->service = ElasticSearchSandboxedIntegration::NAME;
@@ -170,10 +167,6 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
             $name,
             [
                 $hookType => function (SpanData $span, $args) use ($name, $isTraceAnalyticsCandidate, $integration) {
-                    if (dd_trace_tracer_is_limited()) {
-                        return false;
-                    }
-
                     $span->name = "Elasticsearch.Client.$name";
 
                     if ($isTraceAnalyticsCandidate) {
@@ -195,9 +188,6 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
     public function traceSimpleMethod($class, $name)
     {
         \DDTrace\trace_method($class, $name, function (SpanData $span) use ($class, $name) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $operationName = str_replace('\\', '.', "$class.$name");
             $span->name = $operationName;
             $span->resource = $operationName;
@@ -215,9 +205,6 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
         $class = 'Elasticsearch\Namespaces\\' . $namespace;
 
         \DDTrace\trace_method($class, $name, function (SpanData $span, $args) use ($namespace, $name) {
-            if (dd_trace_tracer_is_limited()) {
-                return false;
-            }
             $params = [];
             if (isset($args[0])) {
                 list($params) = $args;

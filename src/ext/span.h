@@ -6,6 +6,7 @@
 #include <sys/types.h>
 
 #include "compatibility.h"
+#include "ddtrace.h"
 
 struct ddtrace_dispatch_t;
 
@@ -28,11 +29,7 @@ struct ddtrace_span_fci {
     struct ddtrace_dispatch_t *dispatch;
     ddtrace_exception_t *exception;
 #if PHP_VERSION_ID < 70000
-    zval *This;
-    zend_class_entry *called_scope;
-    zend_function *fbc;
-    void **arguments;
-    zval *retval;
+    ddtrace_execute_data dd_execute_data;
 #endif
     struct ddtrace_span_fci *next;
     ddtrace_span_t span;
@@ -42,10 +39,14 @@ typedef struct ddtrace_span_fci ddtrace_span_fci;
 void ddtrace_init_span_stacks(TSRMLS_D);
 void ddtrace_free_span_stacks(TSRMLS_D);
 
+void ddtrace_push_span(ddtrace_span_fci *span_fci TSRMLS_DC);
 void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC);
 void dd_trace_stop_span_time(ddtrace_span_t *span);
 void ddtrace_close_span(TSRMLS_D);
 void ddtrace_drop_top_open_span(TSRMLS_D);
 void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC);
+
+// Prefer ddtrace_drop_top_open_span
+void ddtrace_drop_span(ddtrace_span_fci *span_fci);
 
 #endif  // DD_SPAN_H

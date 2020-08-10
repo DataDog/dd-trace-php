@@ -47,9 +47,9 @@ array_map(function($span) {
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-Error raised in tracing closure for testfoo(): Undefined variable: this_normally_raises_a_notice in %s on line %d
-Exception thrown in tracing closure for mt_srand: This should be ignored
-Error raised in tracing closure for mt_rand(): htmlentities(): Only basic entities substitution is supported for multi-byte encodings other than UTF-8; functionality is equivalent to htmlspecialchars in %s on line %d
+Error raised in ddtrace's closure for Test::testFoo(): Undefined variable: this_normally_raises_a_notice in %s on line %d
+Exception thrown in ddtrace's closure for mt_srand(): This should be ignored
+Error raised in ddtrace's closure for mt_rand(): htmlentities(): Only basic entities substitution is supported for multi-byte encodings other than UTF-8; functionality is equivalent to htmlspecialchars in %s on line %d
 Test::testFoo() fav num: %d
 TestFoo
 MTRand

@@ -6,6 +6,7 @@
 #include "engine_api.h"
 #include "engine_hooks.h"  // for ddtrace_backup_error_handling
 #include "handlers_internal.h"
+#include "span.h"
 
 #ifndef ZVAL_COPY_DEREF
 #define ZVAL_COPY_DEREF(z, v)                     \

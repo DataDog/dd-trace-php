@@ -36,23 +36,21 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
         }
         $service = \ddtrace_config_app_name(self::NAME);
 
-        \DDTrace\trace_method(
+        \DDTrace\hook_method(
             'CI_Router',
             '_set_routing',
-            function () use ($integration, $rootScope, $service) {
-                if (!defined('CI_VERSION')) {
-                    return false;
+            null,
+            function ($router) use ($integration, $rootScope, $service) {
+                if (!\defined('CI_VERSION') || !isset($router)) {
+                    return;
                 }
                 $majorVersion = \substr(\CI_VERSION, 0, 2);
                 if ('2.' === $majorVersion) {
                     /* After _set_routing has been called the class and method
                      * are known, so now we can set up tracing on CodeIgniter.
                      */
-                    $integration->registerIntegration($this, $rootScope->getSpan(), $service);
-                    // at the time of this writing, dd_untrace does not work with methods
-                    //\dd_untrace('CI_Router', '_set_routing');
+                    $integration->registerIntegration($router, $rootScope->getSpan(), $service);
                 }
-                return false;
             }
         );
 
@@ -159,7 +157,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
             'CI_Cache',
             '__get',
             function (SpanData $span, $args, $retval, $ex) use ($service, &$registered_cache_adapters) {
-                if (!$ex && is_object($retval)) {
+                if (!$ex && \is_object($retval)) {
                     $class = \get_class($retval);
                     if (!isset($registered_cache_adapters[$class])) {
                         CodeIgniterSandboxedIntegration::registerCacheAdapter($class, $service);

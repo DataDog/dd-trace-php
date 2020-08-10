@@ -117,6 +117,19 @@ ZEND_ARG_INFO(0, method_name)
 ZEND_ARG_INFO(0, tracing_closure)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_hook_method, 0, 0, 2)
+ZEND_ARG_INFO(0, class_name)
+ZEND_ARG_INFO(0, method_name)
+ZEND_ARG_INFO(0, prehook)
+ZEND_ARG_INFO(0, posthook)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_hook_function, 0, 0, 1)
+ZEND_ARG_INFO(0, function_name)
+ZEND_ARG_INFO(0, prehook)
+ZEND_ARG_INFO(0, posthook)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_trace_function, 0, 0, 2)
 ZEND_ARG_INFO(0, function_name)
 ZEND_ARG_INFO(0, tracing_closure)
@@ -702,12 +715,8 @@ static PHP_FUNCTION(dd_trace) {
         if (_parse_config_array(config_array, &callable, &options TSRMLS_CC) == FALSE) {
             RETURN_BOOL(0);
         }
-        if (options & DDTRACE_DISPATCH_POSTHOOK) {
-            ddtrace_log_debug("Legacy API does not support 'posthook'");
-            RETURN_BOOL(0);
-        }
-        if (options & DDTRACE_DISPATCH_PREHOOK) {
-            ddtrace_log_debug("Legacy API does not support 'prehook'");
+        if ((options & ~DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED) != DDTRACE_DISPATCH_INNERHOOK) {
+            ddtrace_log_debug("Legacy API only supports 'innerhook'");
             RETURN_BOOL(0);
         }
     } else {
@@ -759,6 +768,188 @@ static PHP_FUNCTION(trace_method) {
     zend_bool rv = ddtrace_trace(class_name, function, tracing_closure, options TSRMLS_CC);
     RETURN_BOOL(rv);
 }
+
+#if PHP_VERSION_ID < 70000
+/* Note that on PHP 5 we bind $this on the callbacks. If we don't then the VM
+ * will set the static flag on the closure in certain circumstances. For
+ * example, if a tracing closure is defined inside another closure that has a
+ * scope, then the tracing closure will get created as static and will be
+ * unable to bind to $this, as static closures cannot be bound to objects --
+ * at least in PHP 5.
+ *
+ * In PHP 7 we don't bind $this as we want only public access.
+ */
+static PHP_FUNCTION(hook_method) {
+    ddtrace_string classname = {.ptr = NULL, .len = 0};
+    ddtrace_string funcname = {.ptr = NULL, .len = 0};
+    zval *prehook = NULL, *posthook = NULL;
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "ss|O!O!", &classname.ptr,
+                                 &classname.len, &funcname.ptr, &funcname.len, &prehook, zend_ce_closure, &posthook,
+                                 zend_ce_closure) != SUCCESS) {
+        ddtrace_log_debug(
+            "Unable to parse parameters for DDTrace\\hook_method; expected "
+            "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)");
+        RETURN_FALSE
+    }
+
+    if (prehook && posthook) {
+        // both callbacks given; not yet supported
+        ddtrace_log_debug(
+            "DDTrace\\hook_method was given both prehook and posthook. This is not yet supported; ignoring call.");
+        RETURN_FALSE
+    }
+
+    if (!prehook && !posthook) {
+        ddtrace_log_debug("DDTrace\\hook_method was given neither prehook nor posthook.");
+        RETURN_FALSE
+    }
+
+    // at this point we know we have a posthook XOR posthook
+    zval *callable = prehook ?: posthook;
+    uint32_t options = (prehook ? DDTRACE_DISPATCH_PREHOOK : DDTRACE_DISPATCH_POSTHOOK) | DDTRACE_DISPATCH_NON_TRACING;
+
+    // todo: stop duplicating strings everywhere...
+    zval *class_name_zv = NULL, *method_name_zv = NULL;
+    MAKE_STD_ZVAL(class_name_zv);
+    MAKE_STD_ZVAL(method_name_zv);
+    ZVAL_STRINGL(class_name_zv, classname.ptr, classname.len, 1);
+    ZVAL_STRINGL(method_name_zv, funcname.ptr, funcname.len, 1);
+
+    zend_bool rv = ddtrace_trace(class_name_zv, method_name_zv, callable, options TSRMLS_CC);
+
+    zval_ptr_dtor(&method_name_zv);
+    zval_ptr_dtor(&class_name_zv);
+
+    RETURN_BOOL(rv)
+}
+
+static PHP_FUNCTION(hook_function) {
+    ddtrace_string funcname = {.ptr = NULL, .len = 0};
+    zval *prehook = NULL, *posthook = NULL;
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "s|O!O!", &funcname.ptr,
+                                 &funcname.len, &prehook, zend_ce_closure, &posthook, zend_ce_closure) != SUCCESS) {
+        ddtrace_log_debug(
+            "Unable to parse parameters for DDTrace\\hook_function; expected "
+            "(string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)");
+        RETURN_FALSE
+    }
+
+    if (prehook && posthook) {
+        // both callbacks given; not yet supported
+        ddtrace_log_debug(
+            "DDTrace\\hook_function was given both prehook and posthook. This is not yet supported; ignoring call.");
+        RETURN_FALSE
+    }
+
+    if (!prehook && !posthook) {
+        ddtrace_log_debug("DDTrace\\hook_function was given neither prehook nor posthook.");
+        RETURN_FALSE
+    }
+
+    // at this point we know we have a posthook XOR posthook
+    zval *callable = prehook ?: posthook;
+    uint32_t options = (prehook ? DDTRACE_DISPATCH_PREHOOK : DDTRACE_DISPATCH_POSTHOOK) | DDTRACE_DISPATCH_NON_TRACING;
+
+    zval *function_name_zv = NULL;
+    MAKE_STD_ZVAL(function_name_zv);
+    ZVAL_STRINGL(function_name_zv, funcname.ptr, funcname.len, 1);
+
+    zend_bool rv = ddtrace_trace(NULL, function_name_zv, callable, options TSRMLS_CC);
+
+    zval_ptr_dtor(&function_name_zv);
+    RETURN_BOOL(rv)
+}
+#else
+/*
+ * In PHP 7 we don't bind $this as we want only public access.
+ * In PHP 5 we have to bind $this; see PHP5's hook_method for details.
+ */
+static PHP_FUNCTION(hook_method) {
+    zend_string *class_name = NULL, *method_name = NULL;
+    zval *prehook = NULL, *posthook = NULL;
+
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 2, 4)
+    // clang-format off
+        Z_PARAM_STR(class_name)
+        Z_PARAM_STR(method_name)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_OBJECT_OF_CLASS_EX(prehook, zend_ce_closure, 1, 0)
+        Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0)
+    // clang-format on
+    ZEND_PARSE_PARAMETERS_END_EX({
+        ddtrace_log_debug(
+            "Unable to parse parameters for DDTrace\\hook_method; expected "
+            "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)");
+    });
+
+    if (prehook && posthook) {
+        // both callbacks given; not yet supported
+        ddtrace_log_debug(
+            "DDTrace\\hook_method was given both prehook and posthook. This is not yet supported; ignoring call.");
+        RETURN_FALSE
+    }
+
+    if (!prehook && !posthook) {
+        ddtrace_log_debug("DDTrace\\hook_method was given neither prehook nor posthook.");
+        RETURN_FALSE
+    }
+
+    // at this point we know we have a posthook XOR posthook
+    zval *callable = prehook ?: posthook;
+    uint32_t options = (prehook ? DDTRACE_DISPATCH_PREHOOK : DDTRACE_DISPATCH_POSTHOOK) | DDTRACE_DISPATCH_NON_TRACING;
+
+    // massage zend_string * into zval
+    zval class_name_zv, method_name_zv;
+    ZVAL_STR(&class_name_zv, class_name);
+    ZVAL_STR(&method_name_zv, method_name);
+
+    RETURN_BOOL(ddtrace_trace(&class_name_zv, &method_name_zv, callable, options TSRMLS_CC))
+}
+
+static PHP_FUNCTION(hook_function) {
+    zend_string *function_name = NULL;
+    zval *prehook = NULL, *posthook = NULL;
+
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_QUIET, 1, 3)
+    // clang-format off
+        Z_PARAM_STR(function_name)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_OBJECT_OF_CLASS_EX(prehook, zend_ce_closure, 1, 0)
+        Z_PARAM_OBJECT_OF_CLASS_EX(posthook, zend_ce_closure, 1, 0)
+    // clang-format on
+    ZEND_PARSE_PARAMETERS_END_EX({
+        ddtrace_log_debug(
+            "Unable to parse parameters for DDTrace\\hook_function; expected "
+            "(string $function_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)");
+    });
+
+    if (prehook && posthook) {
+        // both callbacks given; not yet supported
+        ddtrace_log_debug(
+            "DDTrace\\hook_function was given both prehook and posthook. This is not yet supported; ignoring call.");
+        RETURN_FALSE
+    }
+
+    if (!prehook && !posthook) {
+        ddtrace_log_debug("DDTrace\\hook_function was given neither prehook nor posthook.");
+        RETURN_FALSE
+    }
+
+    // at this point we know we have a posthook XOR posthook
+    zval *callable = prehook ?: posthook;
+    uint32_t options = (prehook ? DDTRACE_DISPATCH_PREHOOK : DDTRACE_DISPATCH_POSTHOOK) | DDTRACE_DISPATCH_NON_TRACING;
+
+    // massage zend_string * into zval
+    zval function_name_zv;
+    ZVAL_STR(&function_name_zv, function_name);
+
+    RETURN_BOOL(ddtrace_trace(NULL, &function_name_zv, callable, options TSRMLS_CC))
+}
+#endif
 
 static PHP_FUNCTION(trace_function) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
@@ -1376,6 +1567,8 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FALIAS(dd_trace_function, trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_NS_FE(trace_method, arginfo_ddtrace_trace_method),
     DDTRACE_FALIAS(dd_trace_method, trace_method, arginfo_ddtrace_trace_method),
+    DDTRACE_NS_FE(hook_function, arginfo_ddtrace_hook_function),
+    DDTRACE_NS_FE(hook_method, arginfo_ddtrace_hook_method),
 #endif
     DDTRACE_NS_FE(startup_logs, arginfo_ddtrace_void),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),

@@ -62,7 +62,6 @@ class IntegrationsLoader
     public static $officiallySupportedIntegrations = [
         CakePHPIntegration::NAME => '\DDTrace\Integrations\CakePHP\CakePHPIntegration',
         CurlIntegration::NAME => '\DDTrace\Integrations\Curl\CurlIntegration',
-        ElasticSearchIntegration::NAME => '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration',
         EloquentIntegration::NAME => '\DDTrace\Integrations\Eloquent\EloquentIntegration',
         GuzzleIntegration::NAME => '\DDTrace\Integrations\Guzzle\GuzzleIntegration',
         LaravelIntegration::NAME => '\DDTrace\Integrations\Laravel\LaravelIntegration',

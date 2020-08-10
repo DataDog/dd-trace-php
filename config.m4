@@ -28,9 +28,10 @@ if test "$PHP_DDTRACE" != "no"; then
   )
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
-    PHP_ADD_LIBRARY(asan, , EXTRA_LDFLAGS)
+    EXTRA_LDFLAGS="-fsanitize=address"
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
     PHP_SUBST(EXTRA_CFLAGS)
+    PHP_SUBST(EXTRA_LDFLAGS)
   fi
 
   dnl ddtrace.c comes first, then everything else alphabetically
