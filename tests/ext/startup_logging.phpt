@@ -6,7 +6,7 @@ Startup logging is enabled by default
 --FILE--
 <?php
 include_once 'startup_logging.inc';
-$logs = dd_get_startup_logs(['-dddtrace.request_init_hook=']);
+$logs = dd_get_startup_logs(['-dddtrace.request_init_hook='], ['DD_TRACE_DEBUG=1']);
 
 // Ignore any Agent connection errors for now
 unset($logs['agent_error']);
@@ -14,6 +14,7 @@ unset($logs['agent_error']);
 dd_dump_startup_logs($logs);
 ?>
 --EXPECTF--
+ddtrace.request_init_hook_reachable: false
 date: "%s"
 os_name: "%s"
 os_version: "%s"
@@ -25,7 +26,7 @@ enabled: true
 service: null
 enabled_cli: %s
 agent_url: "%s"
-debug: false
+debug: true
 analytics_enabled: false
 sample_rate: 1.0000
 sampling_rules: null

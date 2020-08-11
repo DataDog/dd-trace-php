@@ -415,7 +415,7 @@ static void _dd_print_values_to_log(HashTable *ht) {
 
 // Only show startup logs on the first request
 void ddtrace_startup_logging_first_rinit(void) {
-    if (!get_dd_trace_startup_logs() || strcmp("cli", sapi_module.name) == 0) {
+    if (!get_dd_trace_debug() || !get_dd_trace_startup_logs() || strcmp("cli", sapi_module.name) == 0) {
         return;
     }
 
@@ -423,23 +423,17 @@ void ddtrace_startup_logging_first_rinit(void) {
     ALLOC_HASHTABLE(ht);
     zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
 
-    if (get_dd_trace_debug()) {
-        ddtrace_startup_diagnostics(ht, true);
-        _dd_print_values_to_log(ht);
-    }
+    ddtrace_startup_diagnostics(ht, true);
+    _dd_print_values_to_log(ht);
     _dd_get_startup_config(ht);
 
     smart_str buf = {0};
     _dd_serialize_json(ht, &buf);
     ddtrace_log_errf("DATADOG TRACER CONFIGURATION - %s", ZSTR_VAL(buf.s));
-    if (!get_dd_trace_debug()) {
-        ddtrace_log_errf(
-            "For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
-            "page. Alternatively set DD_TRACE_DEBUG=1 to add diagnostic checks to the error logs on the first request "
-            "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
-    } else {
-        ddtrace_log_errf("Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
-    }
+    ddtrace_log_errf(
+        "For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
+        "page. Alternatively set DD_TRACE_DEBUG=1 to add diagnostic checks to the error logs on the first request "
+        "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
     smart_str_free(&buf);
 
     zend_hash_destroy(ht);
