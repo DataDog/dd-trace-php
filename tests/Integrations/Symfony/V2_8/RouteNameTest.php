@@ -8,7 +8,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class RouteNameTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = false;
+    const IS_SANDBOX = true;
 
     protected static function getAppIndexScript()
     {

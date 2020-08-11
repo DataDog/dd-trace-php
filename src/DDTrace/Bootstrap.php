@@ -139,68 +139,23 @@ final class Bootstrap
         $integration->addTraceAnalyticsIfEnabledLegacy($span);
         $span->setTag(Tag::SERVICE_NAME, \ddtrace_config_app_name($operationName));
 
-        if (\dd_trace_env_config("DD_TRACE_SANDBOX_ENABLED")) {
-            $rootSpan = $span;
-            \DDTrace\trace_function('header', function (SpanData $span, $args) use ($rootSpan) {
-                if (isset($args[2])) {
-                    $parsedHttpStatusCode = $args[2];
-                } elseif (isset($args[0])) {
-                    $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
-                }
-
-                if (isset($parsedHttpStatusCode)) {
-                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
-                }
-                return false;
-            });
-
-            \DDTrace\trace_function('http_response_code', function (SpanData $span, $args) use ($rootSpan) {
-                if (isset($args[0]) && \is_numeric($args[0])) {
-                    $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
-                }
-
-                return false;
-            });
-            return;
-        }
-
-        dd_trace('header', function () use ($span) {
-            $args = func_get_args();
-
-            // header ( string $header [, bool $replace = TRUE [, int $http_response_code ]] ) : void
-            $argsCount = count($args);
-
-            $parsedHttpStatusCode = null;
-            if ($argsCount === 1) {
-                $result = header($args[0]);
+        $rootSpan = $span;
+        \DDTrace\hook_function('header', null, function ($args) use ($rootSpan) {
+            if (isset($args[2])) {
+                $parsedHttpStatusCode = $args[2];
+            } elseif (isset($args[0])) {
                 $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
-            } elseif ($argsCount === 2) {
-                $result = header($args[0], $args[1]);
-                $parsedHttpStatusCode = Bootstrap::parseStatusCode($args[0]);
-            } else {
-                $result = header($args[0], $args[1], $args[2]);
-                // header() function can override the current status code
-                $parsedHttpStatusCode = $args[2] === null ? Bootstrap::parseStatusCode($args[0]) : $args[2];
             }
 
-            if (null !== $parsedHttpStatusCode) {
-                $span->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
+            if (isset($parsedHttpStatusCode)) {
+                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
             }
-
-            return $result;
         });
 
-        dd_trace('http_response_code', function () use ($span) {
-            $args = func_get_args();
-            if (isset($args[0])) {
-                $httpStatusCode = $args[0];
-
-                if (is_numeric($httpStatusCode)) {
-                    $span->setTag(Tag::HTTP_STATUS_CODE, $httpStatusCode);
-                }
+        \DDTrace\hook_function('http_response_code', null, function ($args) use ($rootSpan) {
+            if (isset($args[0]) && \is_numeric($code = $args[0])) {
+                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $code);
             }
-
-            return dd_trace_forward_call();
         });
     }
 

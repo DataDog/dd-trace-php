@@ -23,8 +23,10 @@ class Test
 
 }
 
-DDTrace\trace_method("Test", "test_access", function(){
-    echo "test_access hook start" . PHP_EOL . self::public_static_method() . self::private_static_method() . "test_access hook end" . PHP_EOL;
+DDTrace\trace_method("Test", "test_access", function() {
+    echo "test_access hook start" . PHP_EOL,
+        self::public_static_method() . self::private_static_method(),
+        "test_access hook end" . PHP_EOL;
 });
 
 echo (new Test)->test_access();

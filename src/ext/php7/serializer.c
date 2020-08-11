@@ -11,6 +11,7 @@
 #include "ddtrace.h"
 #include "logging.h"
 #include "mpack/mpack.h"
+#include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

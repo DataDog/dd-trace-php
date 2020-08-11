@@ -185,7 +185,6 @@
             <file name="tests/ext/sandbox/dd_trace_method.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_method_alias.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_method_binds_called_object.phpt" role="test" />
-            <file name="tests/ext/sandbox/dd_trace_method_works_with_dd_trace.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_push_span_id.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_trace_set_trace_id.phpt" role="test" />
             <file name="tests/ext/sandbox/default_span_properties.phpt" role="test" />
@@ -229,6 +228,63 @@
             <file name="tests/ext/sandbox/generator_with_return.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_yield_from.phpt" role="test" />
             <file name="tests/ext/sandbox/get_last_error.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_access_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_error_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_error_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exceptions_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exceptions_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exceptions_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exceptions_04.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exit_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exit_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_limited_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_access_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_error_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_error_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_exceptions_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_exceptions_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_exceptions_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_exceptions_04.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_04.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_05.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_06.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_07.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_access_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_error_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_error_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_exceptions_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_exceptions_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_exit_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_exit_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_span_ids_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_span_ids_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_04.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_05.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_access_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_error_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_error_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_exceptions_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_exceptions_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_span_ids_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_span_ids_02.phpt" role="test" />
             <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
             <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
             <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
@@ -260,7 +316,6 @@
             <file name="tests/ext/sandbox-prehook/dd_trace_function_userland.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/dd_trace_method.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/dd_trace_method_binds_called_object.phpt" role="test" />
-            <file name="tests/ext/sandbox-prehook/dd_trace_method_works_with_dd_trace.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/drop_spans.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exception_error_log.phpt" role="test" />
             <file name="tests/ext/sandbox-prehook/exception_handling.phpt" role="test" />
@@ -325,7 +380,6 @@
             <file name="tests/ext/dd_trace_serialize_msgpack.phpt" role="test" />
             <file name="tests/ext/dd_trace_serialize_msgpack_error.phpt" role="test" />
             <file name="tests/ext/dd_trace_serialize_msgpack_reference.phpt" role="test" />
-            <file name="tests/ext/dd_trace_tracer_is_limited_hard.phpt" role="test" />
             <file name="tests/ext/dd_trace_tracer_is_limited_memory.phpt" role="test" />
             <file name="tests/ext/dd_trace_warning.phpt" role="test" />
             <file name="tests/ext/do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
@@ -340,8 +394,6 @@
             <file name="tests/ext/get_memory_limit_unlimited_default.phpt" role="test" />
             <file name="tests/ext/get_memory_limit_unlimited_set_by_absolute.phpt" role="test" />
             <file name="tests/ext/get_memory_limit_unlimited_set_by_percentage.phpt" role="test" />
-            <file name="tests/ext/keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
-            <file name="tests/ext/keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
             <file name="tests/ext/new_static.phpt" role="test" />
             <file name="tests/ext/read_c_configuration.phpt" role="test" />
             <file name="tests/ext/reset_function_tracing.phpt" role="test" />

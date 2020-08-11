@@ -1,15 +1,18 @@
 #ifndef DDTRACE_H
 #define DDTRACE_H
 #include <dogstatsd_client/client.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "env_config.h"
 #include "random.h"
-#include "span.h"
 #include "version.h"
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
+
+typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
+typedef struct ddtrace_span_fci ddtrace_span_fci;
 
 #if PHP_VERSION_ID >= 70000
 zval *ddtrace_spandata_property_name(zval *spandata);
@@ -107,5 +110,20 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #define DDTRACE_SUB_NS_FE(ns, name, arg_info) DDTRACE_RAW_FENTRY("DDTrace\\" ns #name, ZEND_FN(name), arg_info, 0)
 #define DDTRACE_FALIAS(name, alias, arg_info) DDTRACE_FENTRY(name, ZEND_FN(alias), arg_info, 0)
 #define DDTRACE_FE_END ZEND_FE_END
+
+/* Currently used on PHP 5. After a zend_execute_ex has called the previous hook
+ * the execute_data cannot be trusted for some things, notably function_state.
+ * So we use this struct to back up the data.
+ */
+struct ddtrace_execute_data {
+    zval *This;
+    zend_class_entry *scope;
+    zend_function *fbc;
+    const zend_op *opline;
+    void **arguments;
+    zval *retval;
+    bool free_retval;
+};
+typedef struct ddtrace_execute_data ddtrace_execute_data;
 
 #endif  // DDTRACE_H

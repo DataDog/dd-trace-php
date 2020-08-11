@@ -76,7 +76,10 @@ test_extension_ci: $(SO_FILE)
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean test  TESTS="-q -m -s $$TEST_PHP_OUTPUT --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT  && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
+	# If we don't set CC="" then there is a really weird leak in PHP 5.6 sometimes\
+	# We obviously need a compiler to build though, so we split it into two steps \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all ; \
+	$(MAKE) -C $(BUILD_DIR) CC="" CFLAGS="-g" test  TESTS="-q -m -s $$TEST_PHP_OUTPUT --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT  && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
 test_integration: install_ini
