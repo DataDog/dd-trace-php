@@ -348,61 +348,6 @@ static void dd_copy_posthook_args(zval *args, zend_execute_data *call) {
     }
 }
 
-#if 0
-static void dd_copy_function_args(zend_execute_data *call, zval *user_args, bool extra_args_moved) {
-    uint32_t i, first_extra_arg, extra_arg_count;
-    zval *p, *q;
-    uint32_t arg_count = ZEND_CALL_NUM_ARGS(call);
-
-    // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
-    array_init_size(user_args, arg_count);
-    if (arg_count && call->func) {
-        first_extra_arg = call->func->op_array.num_args;
-        bool has_extra_args = arg_count > first_extra_arg;
-
-        zend_hash_real_init(Z_ARRVAL_P(user_args), 1);
-        ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(user_args)) {
-            i = 0;
-            p = ZEND_CALL_ARG(call, 1);
-            if (has_extra_args) {
-                if (extra_args_moved) {
-                    while (i < first_extra_arg) {
-                        q = p;
-                        DD_TRACE_COPY_NULLABLE_ARG(q);
-                        p++;
-                        i++;
-                    }
-                    if (call->func->type != ZEND_INTERNAL_FUNCTION) {
-                        p = ZEND_CALL_VAR_NUM(call, call->func->op_array.last_var + call->func->op_array.T);
-                    }
-                } else {
-                    i = arg_count - first_extra_arg;
-                }
-            }
-            while (i < arg_count) {
-                q = p;
-                DD_TRACE_COPY_NULLABLE_ARG(q);
-                p++;
-                i++;
-            }
-            /* If we are copying arguments before i_init_func_execute_data() has run, the extra agruments
-               have not yet been moved to a separate array. */
-            if (has_extra_args && !extra_args_moved) {
-                p = ZEND_CALL_VAR_NUM(call, first_extra_arg);
-                extra_arg_count = arg_count - first_extra_arg;
-                while (extra_arg_count--) {
-                    q = p;
-                    DD_TRACE_COPY_NULLABLE_ARG(q);
-                    p++;
-                }
-            }
-        }
-        ZEND_HASH_FILL_END();
-        Z_ARRVAL_P(user_args)->nNumOfElements = arg_count;
-    }
-}
-#endif
-
 static void dd_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
     if (exception && span_fci->exception == NULL) {
         GC_ADDREF(exception);
@@ -482,21 +427,9 @@ static bool dd_call_sandboxed_tracing_closure(ddtrace_span_fci *span_fci, zval *
     void (*copy_args)(zval * args, zend_execute_data * call) =
         dispatch->options & DDTRACE_DISPATCH_PREHOOK ? dd_copy_prehook_args : dd_copy_posthook_args;
     copy_args(&user_args, call);
-    // ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
-    bool keep_span = true;
-
-    keep_span = dd_execute_tracing_closure(callable, span->span_data, call, &user_args, user_retval, EG(exception));
-
-#if 0
-    if (get_dd_trace_debug() && PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
-        const char *fname = Z_STRVAL(dispatch->function_name);
-        ddtrace_log_errf("Error raised in tracing closure for %s(): %s in %s on line %d", fname, PG(last_error_message),
-                         PG(last_error_file), PG(last_error_lineno));
-    }
-#endif
-
-    // ddtrace_sandbox_end(&backup);
+    bool keep_span =
+        dd_execute_tracing_closure(callable, span->span_data, call, &user_args, user_retval, EG(exception));
 
     zval_dtor(&user_args);
 
@@ -645,7 +578,18 @@ static ddtrace_span_fci *(*dd_fcall_begin[])(zend_execute_data *call, ddtrace_di
     [DDTRACE_DISPATCH_PREHOOK | DDTRACE_DISPATCH_NON_TRACING] = dd_fcall_begin_non_tracing_prehook,
 };
 
-static ddtrace_span_fci *dd_prehook(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
+static ddtrace_span_fci *dd_observer_begin(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
+#if PHP_VERSION_ID < 70100
+    /*
+    For PHP < 7.1: The current execute_data gets replaced in the DO_FCALL handler and freed shortly
+    afterward, so there is no way to track the execute_data that is allocated for a generator.
+    */
+    if ((call->func->common.fn_flags & ZEND_ACC_GENERATOR) != 0) {
+        ddtrace_log_debug("Cannot instrument generators for PHP versions < 7.1");
+        return NULL;
+    }
+#endif
+
     uint16_t offset = DDTRACE_DISPATCH_JUMP_OFFSET(dispatch->options);
 
     ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
@@ -820,7 +764,7 @@ static void (*dd_fcall_end[])(ddtrace_span_fci *span_fci, zval *user_retval) = {
     [DDTRACE_DISPATCH_PREHOOK | DDTRACE_DISPATCH_NON_TRACING] = dd_fcall_end_non_tracing_prehook,
 };
 
-static void dd_posthook(zend_function *fbc, ddtrace_span_fci *span_fci, zval *user_retval) {
+static void dd_observer_end(zend_function *fbc, ddtrace_span_fci *span_fci, zval *user_retval) {
     if (span_fci == DDTRACE_G(open_spans_top)) {
         ddtrace_dispatch_t *dispatch = span_fci->dispatch;
         uint16_t offset = DDTRACE_DISPATCH_JUMP_OFFSET(dispatch->options);
@@ -830,28 +774,13 @@ static void dd_posthook(zend_function *fbc, ddtrace_span_fci *span_fci, zval *us
     }
 }
 
-static void dd_fcall_helper(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
-#if PHP_VERSION_ID < 70100
-    /*
-    For PHP < 7.1: The current execute_data gets replaced in the DO_FCALL handler and freed shortly
-    afterward, so there is no way to track the execute_data that is allocated for a generator.
-    */
-    if ((call->func->common.fn_flags & ZEND_ACC_GENERATOR) != 0) {
-        ddtrace_log_debug("Cannot instrument generators for PHP versions < 7.1");
-        return;
-    }
-#endif
-
-    dd_prehook(call, dispatch);
-}
-
 static int dd_do_ucall_handler(zend_execute_data *execute_data) {
     ddtrace_dispatch_t *dispatch = NULL;
     if (ZEND_DO_UCALL != EX(opline)->opcode || !EX(call)->func ||
         !dd_should_trace_call(EX(call), EX(call)->func, &dispatch)) {
         return prev_ucall_handler ? prev_ucall_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
     }
-    dd_fcall_helper(EX(call), dispatch);
+    dd_observer_begin(EX(call), dispatch);
     return prev_ucall_handler ? prev_ucall_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
@@ -861,7 +790,7 @@ static int dd_do_fcall_handler(zend_execute_data *execute_data) {
         !dd_should_trace_call(EX(call), EX(call)->func, &dispatch)) {
         return prev_fcall_handler ? prev_fcall_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
     }
-    dd_fcall_helper(EX(call), dispatch);
+    dd_observer_begin(EX(call), dispatch);
     return prev_fcall_handler ? prev_fcall_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
@@ -871,7 +800,7 @@ static int dd_do_fcall_by_name_handler(zend_execute_data *execute_data) {
         EX(call)->func->type == ZEND_INTERNAL_FUNCTION || !dd_should_trace_call(EX(call), EX(call)->func, &dispatch)) {
         return prev_fcall_by_name_handler ? prev_fcall_by_name_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
     }
-    dd_fcall_helper(EX(call), dispatch);
+    dd_observer_begin(EX(call), dispatch);
     return prev_fcall_by_name_handler ? prev_fcall_by_name_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
@@ -899,7 +828,7 @@ static void dd_return_helper(zend_execute_data *execute_data) {
             ZVAL_NULL(&rv);
             retval = &rv;
         }
-        dd_posthook(NULL, span_fci, retval);
+        dd_observer_end(NULL, span_fci, retval);
     }
 }
 
@@ -948,7 +877,7 @@ static void dd_yield_helper(zend_execute_data *execute_data) {
             ZVAL_NULL(&rv);
             retval = &rv;
         }
-        dd_posthook(NULL, span_fci, retval);
+        dd_observer_end(NULL, span_fci, retval);
     }
 }
 
@@ -1077,7 +1006,7 @@ static int dd_handle_exception_handler(zend_execute_data *execute_data) {
             if (EG(exception)) {
                 dd_span_attach_exception(span_fci, EG(exception));
             }
-            dd_posthook(NULL, span_fci, &retval);
+            dd_observer_end(NULL, span_fci, &retval);
         }
     }
 
@@ -1090,7 +1019,7 @@ static int dd_exit_handler(zend_execute_data *execute_data) {
         while ((span_fci = DDTRACE_G(open_spans_top))) {
             zval retval;
             ZVAL_NULL(&retval);
-            dd_posthook(NULL, span_fci, &retval);
+            dd_observer_end(NULL, span_fci, &retval);
         }
     }
 
@@ -1149,9 +1078,9 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
         return;
     }
 
-    ddtrace_span_fci *span_fci = dd_prehook(execute_data, dispatch);
+    ddtrace_span_fci *span_fci = dd_observer_begin(execute_data, dispatch);
     handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
     if (span_fci) {
-        dd_posthook(EX(func), span_fci, return_value);
+        dd_observer_end(EX(func), span_fci, return_value);
     }
 }
