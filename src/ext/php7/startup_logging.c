@@ -263,6 +263,14 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
     //_dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_incoming_error"), ""); // TODO Parse at C level
     //_dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_outgoing_error"), ""); // TODO Parse at C level
 
+    // opcache.file_cache was added in PHP 7.0
+    const char *opcache_file_cache = _dd_get_ini(ZEND_STRL("opcache.file_cache"));
+    if (opcache_file_cache && opcache_file_cache[0]) {
+        _dd_add_assoc_string(ht, ZEND_STRL("opcache_file_cache_set"),
+                             "The opcache.file_cache INI setting is set. This setting can cause unexpected behavior "
+                             "with the PHP tracer due to a bug in OPcache: https://bugs.php.net/bug.php?id=79825");
+    }
+
     _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_SERVICE_NAME"), ZEND_STRL("DD_SERVICE"));
     _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_TRACE_APP_NAME"), ZEND_STRL("DD_SERVICE"));
     _dd_check_for_deprecated_env(ht, ZEND_STRL("ddtrace_app_name"), ZEND_STRL("DD_SERVICE"));
@@ -415,7 +423,7 @@ static void _dd_print_values_to_log(HashTable *ht) {
 
 // Only show startup logs on the first request
 void ddtrace_startup_logging_first_rinit(void) {
-    if (!get_dd_trace_startup_logs() || strcmp("cli", sapi_module.name) == 0) {
+    if (!get_dd_trace_debug() || !get_dd_trace_startup_logs() || strcmp("cli", sapi_module.name) == 0) {
         return;
     }
 
@@ -423,23 +431,17 @@ void ddtrace_startup_logging_first_rinit(void) {
     ALLOC_HASHTABLE(ht);
     zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
 
-    if (get_dd_trace_debug()) {
-        ddtrace_startup_diagnostics(ht, true);
-        _dd_print_values_to_log(ht);
-    }
+    ddtrace_startup_diagnostics(ht, true);
+    _dd_print_values_to_log(ht);
     _dd_get_startup_config(ht);
 
     smart_str buf = {0};
     _dd_serialize_json(ht, &buf);
     ddtrace_log_errf("DATADOG TRACER CONFIGURATION - %s", ZSTR_VAL(buf.s));
-    if (!get_dd_trace_debug()) {
-        ddtrace_log_errf(
-            "For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
-            "page. Alternatively set DD_TRACE_DEBUG=1 to add diagnostic checks to the error logs on the first request "
-            "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
-    } else {
-        ddtrace_log_errf("Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
-    }
+    ddtrace_log_errf(
+        "For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
+        "page. Alternatively set DD_TRACE_DEBUG=1 to add diagnostic checks to the error logs on the first request "
+        "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
     smart_str_free(&buf);
 
     zend_hash_destroy(ht);
