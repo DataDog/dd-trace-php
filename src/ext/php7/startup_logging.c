@@ -263,6 +263,14 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
     //_dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_incoming_error"), ""); // TODO Parse at C level
     //_dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_outgoing_error"), ""); // TODO Parse at C level
 
+    // opcache.file_cache was added in PHP 7.0
+    const char *opcache_file_cache = _dd_get_ini(ZEND_STRL("opcache.file_cache"));
+    if (opcache_file_cache && opcache_file_cache[0]) {
+        _dd_add_assoc_string(ht, ZEND_STRL("opcache_file_cache_set"),
+                             "The opcache.file_cache INI setting is set. This setting can cause unexpected behavior "
+                             "with the PHP tracer due to a bug in OPcache: https://bugs.php.net/bug.php?id=79825");
+    }
+
     _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_SERVICE_NAME"), ZEND_STRL("DD_SERVICE"));
     _dd_check_for_deprecated_env(ht, ZEND_STRL("DD_TRACE_APP_NAME"), ZEND_STRL("DD_SERVICE"));
     _dd_check_for_deprecated_env(ht, ZEND_STRL("ddtrace_app_name"), ZEND_STRL("DD_SERVICE"));
