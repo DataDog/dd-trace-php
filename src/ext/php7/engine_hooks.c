@@ -204,7 +204,9 @@ static bool dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
     return true;
 }
 
-static bool dd_should_trace_call(zend_execute_data *call, zend_function *fbc, ddtrace_dispatch_t **dispatch) {
+static bool dd_should_trace_call(zend_execute_data *call, ddtrace_dispatch_t **dispatch) {
+    zend_function *fbc = call->func;
+
     if (DDTRACE_G(disable_in_current_request)) {
         return false;
     }
@@ -774,34 +776,61 @@ static void dd_observer_end(zend_function *fbc, ddtrace_span_fci *span_fci, zval
     }
 }
 
-static int dd_do_ucall_handler(zend_execute_data *execute_data) {
+static void dd_do_ucall_handler_impl(zend_execute_data *execute_data) {
     ddtrace_dispatch_t *dispatch = NULL;
-    if (ZEND_DO_UCALL != EX(opline)->opcode || !EX(call)->func ||
-        !dd_should_trace_call(EX(call), EX(call)->func, &dispatch)) {
-        return prev_ucall_handler ? prev_ucall_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+    if (ZEND_DO_UCALL == EX(opline)->opcode && EX(call)->func && dd_should_trace_call(EX(call), &dispatch)) {
+        dd_observer_begin(EX(call), dispatch);
     }
-    dd_observer_begin(EX(call), dispatch);
-    return prev_ucall_handler ? prev_ucall_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
-static int dd_do_fcall_handler(zend_execute_data *execute_data) {
-    ddtrace_dispatch_t *dispatch = NULL;
-    if (ZEND_DO_FCALL != EX(opline)->opcode || !EX(call)->func || EX(call)->func->type == ZEND_INTERNAL_FUNCTION ||
-        !dd_should_trace_call(EX(call), EX(call)->func, &dispatch)) {
-        return prev_fcall_handler ? prev_fcall_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
-    }
-    dd_observer_begin(EX(call), dispatch);
-    return prev_fcall_handler ? prev_fcall_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+static bool dd_is_user_call(zend_execute_data *call) {
+    ZEND_ASSUME(call != NULL);
+    return call->func && call->func->type == ZEND_USER_FUNCTION;
 }
 
-static int dd_do_fcall_by_name_handler(zend_execute_data *execute_data) {
+static void dd_do_fcall_handler_impl(zend_execute_data *execute_data) {
     ddtrace_dispatch_t *dispatch = NULL;
-    if (ZEND_DO_FCALL_BY_NAME != EX(opline)->opcode || !EX(call)->func ||
-        EX(call)->func->type == ZEND_INTERNAL_FUNCTION || !dd_should_trace_call(EX(call), EX(call)->func, &dispatch)) {
-        return prev_fcall_by_name_handler ? prev_fcall_by_name_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+    if (ZEND_DO_FCALL == EX(opline)->opcode && dd_is_user_call(EX(call)) && dd_should_trace_call(EX(call), &dispatch)) {
+        dd_observer_begin(EX(call), dispatch);
     }
-    dd_observer_begin(EX(call), dispatch);
-    return prev_fcall_by_name_handler ? prev_fcall_by_name_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+}
+
+static void dd_do_fcall_by_name_handler_impl(zend_execute_data *execute_data) {
+    ddtrace_dispatch_t *dispatch = NULL;
+    bool opcode_matches = ZEND_DO_FCALL_BY_NAME == EX(opline)->opcode;
+    if (opcode_matches && dd_is_user_call(EX(call)) && dd_should_trace_call(EX(call), &dispatch)) {
+        dd_observer_begin(EX(call), dispatch);
+    }
+}
+
+ZEND_HOT static int dd_do_ucall_handler(zend_execute_data *execute_data) {
+    dd_do_ucall_handler_impl(execute_data);
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
+ZEND_HOT static int dd_do_fcall_handler(zend_execute_data *execute_data) {
+    dd_do_fcall_handler_impl(execute_data);
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
+ZEND_HOT static int dd_do_fcall_by_name_handler(zend_execute_data *execute_data) {
+    dd_do_fcall_by_name_handler_impl(execute_data);
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
+ZEND_HOT static int dd_do_ucall_handler_with_prev(zend_execute_data *execute_data) {
+    dd_do_ucall_handler_impl(execute_data);
+    return prev_ucall_handler(execute_data);
+}
+
+ZEND_HOT static int dd_do_fcall_handler_with_prev(zend_execute_data *execute_data) {
+    dd_do_fcall_handler_impl(execute_data);
+    return prev_fcall_handler(execute_data);
+}
+
+ZEND_HOT static int dd_do_fcall_by_name_handler_with_prev(zend_execute_data *execute_data) {
+    dd_do_fcall_by_name_handler_impl(execute_data);
+    return prev_fcall_by_name_handler(execute_data);
 }
 
 static void dd_return_helper(zend_execute_data *execute_data) {
@@ -832,11 +861,20 @@ static void dd_return_helper(zend_execute_data *execute_data) {
     }
 }
 
-static int dd_return_handler(zend_execute_data *execute_data) {
+static void dd_return_handler_impl(zend_execute_data *execute_data) {
     if (ZEND_RETURN == EX(opline)->opcode) {
         dd_return_helper(execute_data);
     }
-    return prev_return_handler ? prev_return_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
+}
+
+static int dd_return_handler(zend_execute_data *execute_data) {
+    dd_return_handler_impl(execute_data);
+    return ZEND_USER_OPCODE_DISPATCH;
+}
+
+static int dd_return_handler_with_prev(zend_execute_data *execute_data) {
+    dd_return_handler_impl(execute_data);
+    return prev_return_handler(execute_data);
 }
 
 static int dd_return_by_ref_handler(zend_execute_data *execute_data) {
@@ -1031,12 +1069,20 @@ void ddtrace_opcode_minit(void) {
     prev_fcall_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL);
     prev_fcall_by_name_handler = zend_get_user_opcode_handler(ZEND_DO_FCALL_BY_NAME);
 
-    zend_set_user_opcode_handler(ZEND_DO_FCALL, dd_do_fcall_handler);
-    zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, dd_do_fcall_by_name_handler);
-    zend_set_user_opcode_handler(ZEND_DO_UCALL, dd_do_ucall_handler);
+    user_opcode_handler_t fcall_handler = prev_fcall_handler ? dd_do_fcall_handler_with_prev : dd_do_fcall_handler;
+    zend_set_user_opcode_handler(ZEND_DO_FCALL, fcall_handler);
+
+    user_opcode_handler_t fcall_by_name_handler =
+        prev_fcall_by_name_handler ? dd_do_fcall_by_name_handler_with_prev : dd_do_fcall_by_name_handler;
+    zend_set_user_opcode_handler(ZEND_DO_FCALL_BY_NAME, fcall_by_name_handler);
+
+    user_opcode_handler_t ucall_handler = prev_ucall_handler ? dd_do_ucall_handler_with_prev : dd_do_ucall_handler;
+    zend_set_user_opcode_handler(ZEND_DO_UCALL, ucall_handler);
 
     prev_return_handler = zend_get_user_opcode_handler(ZEND_RETURN);
-    zend_set_user_opcode_handler(ZEND_RETURN, dd_return_handler);
+    user_opcode_handler_t return_handler = prev_return_handler ? dd_return_handler_with_prev : dd_return_handler;
+    zend_set_user_opcode_handler(ZEND_RETURN, return_handler);
+
     prev_return_by_ref_handler = zend_get_user_opcode_handler(ZEND_RETURN_BY_REF);
     zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, dd_return_by_ref_handler);
 #if PHP_VERSION_ID >= 70100
@@ -1073,7 +1119,7 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
     ddtrace_dispatch_t *dispatch;
     void (*handler)(INTERNAL_FUNCTION_PARAMETERS) = EX(func)->internal_function.reserved[ddtrace_resource];
 
-    if (!get_dd_trace_sandbox_enabled() || !dd_should_trace_call(execute_data, EX(func), &dispatch)) {
+    if (!get_dd_trace_sandbox_enabled() || !dd_should_trace_call(execute_data, &dispatch)) {
         handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
         return;
     }
