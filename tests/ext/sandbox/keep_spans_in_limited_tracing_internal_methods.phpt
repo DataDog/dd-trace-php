@@ -1,7 +1,5 @@
 --TEST--
 Keep spans in limited mode (internal methods)
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=DateTime::format,DateTime::setTime

@@ -52,6 +52,13 @@ static zval *dd_call_this(zend_execute_data *call) {
     return NULL;
 }
 
+/* Call dd_get_called_scope if you don't know if the call is a method or not;
+ * if you already know it's a method then you can call zend_get_called_scope.
+ */
+static zend_class_entry *dd_get_called_scope(zend_execute_data *call) {
+    return call->func->common.scope ? zend_get_called_scope(call) : NULL;
+}
+
 static zend_class_entry *dd_get_exception_base(zval *object) {
     return instanceof_function(Z_OBJCE_P(object), zend_ce_exception) ? zend_ce_exception : zend_ce_error;
 }
@@ -143,9 +150,7 @@ static bool dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, 
     zval fname;
     ZVAL_STR(&fname, fbc->common.function_name);
 
-    zval *this = dd_call_this(call);
-
-    zend_class_entry *scope = this ? Z_OBJCE_P(this) : fbc->common.scope;
+    zend_class_entry *scope = dd_get_called_scope(call);
 
     ddtrace_dispatch_t *dispatch = NULL;
     HashTable *function_table = NULL;
@@ -403,7 +408,7 @@ static bool dd_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
     fcc.initialized = 1;
 #endif
     fcc.object = this ? Z_OBJ_P(this) : NULL;
-    fcc.called_scope = zend_get_called_scope(call);
+    fcc.called_scope = dd_get_called_scope(call);
     // Give the tracing closure access to private & protected class members
     fcc.function_handler->common.scope = fcc.called_scope;
 
@@ -537,11 +542,12 @@ static ddtrace_span_fci *dd_fcall_begin_tracing_prehook(zend_execute_data *call,
     return span_fci;
 }
 
-static ddtrace_span_fci *dd_fcall_begin_non_tracing_posthook(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
-    /* This is a hack. We put a span into the span stack so we can "tag" the
-     * frame as well as support close-at-exit functionality, but we want any
-     * children that this makes to be inherited by the currently active span,
-     * so we duplicate the span_id.
+static ddtrace_span_fci *dd_create_duplicate_span(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
+    /* This is a hack. We put a span into the span stack as a tag for:
+     *   1) close-at-exit posthook functionality
+     *   2) prehook's dispatch needs to get released after original call
+     * We want any children to be inherited by the currently active span, not
+     * this fake one, so we duplicate the span_id.
      */
     ddtrace_span_fci *span_fci = ecalloc(1, sizeof(*span_fci));
     span_fci->execute_data = call;
@@ -552,11 +558,19 @@ static ddtrace_span_fci *dd_fcall_begin_non_tracing_posthook(zend_execute_data *
 
     ddtrace_span_t *span = &span_fci->span;
 
-    span->span_data = NULL;
     span->trace_id = DDTRACE_G(trace_id);
     span->span_id = ddtrace_peek_span_id(TSRMLS_C);
 
+    // if you push a span_id of 0 it makes a new span id, which we don't want
+    if (span->span_id) {
+        ddtrace_push_span_id(span->span_id);
+    }
+
     return span_fci;
+}
+
+static ddtrace_span_fci *dd_fcall_begin_non_tracing_posthook(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
+    return dd_create_duplicate_span(call, dispatch);
 }
 
 static ddtrace_span_fci *dd_fcall_begin_non_tracing_prehook(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
@@ -568,9 +582,10 @@ static ddtrace_span_fci *dd_fcall_begin_non_tracing_prehook(zend_execute_data *c
         dd_do_hook_function_prehook(call, dispatch);
     }
 
-    ddtrace_dispatch_release(dispatch);
-
-    return NULL;
+    /* We need to keep the dispatch busy until the original call has returned,
+     * so make a duplicate span.
+     */
+    return dd_create_duplicate_span(call, dispatch);
 }
 
 static ddtrace_span_fci *(*dd_fcall_begin[])(zend_execute_data *call, ddtrace_dispatch_t *dispatch) = {
@@ -603,7 +618,7 @@ void dd_set_fqn(zval *zv, zend_execute_data *ex) {
     if (!ex->func || !ex->func->common.function_name) {
         return;
     }
-    zend_class_entry *called_scope = zend_get_called_scope(ex);
+    zend_class_entry *called_scope = dd_get_called_scope(ex);
     if (called_scope) {
         // This cannot be cached on the dispatch since sub classes can share the same parent dispatch
         zend_string *fqn =
@@ -742,8 +757,7 @@ static void dd_fcall_end_non_tracing_posthook(ddtrace_span_fci *span_fci, zval *
     }
 
     // drop the placeholder span -- we do not need it
-    DDTRACE_G(open_spans_top) = span_fci->next;
-    ddtrace_drop_span(span_fci);
+    ddtrace_drop_top_open_span();
 }
 
 static void dd_fcall_end_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_retval) {
@@ -755,8 +769,9 @@ static void dd_fcall_end_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_
 }
 
 static void dd_fcall_end_non_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_retval) {
-    // nothing to do
     PHP7_UNUSED(span_fci, user_retval);
+
+    ddtrace_drop_top_open_span();
 }
 
 static void (*dd_fcall_end[])(ddtrace_span_fci *span_fci, zval *user_retval) = {

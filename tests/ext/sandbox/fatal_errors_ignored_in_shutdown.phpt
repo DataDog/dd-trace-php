@@ -3,7 +3,6 @@ Fatal errors are ignored in shutdown handler
 --DESCRIPTION--
 This is how the tracer sandboxes the flushing functionality in userland
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 <?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
 --INI--
 memory_limit=2M

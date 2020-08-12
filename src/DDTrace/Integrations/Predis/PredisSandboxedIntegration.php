@@ -10,6 +10,11 @@ use DDTrace\Util\Versions;
 use Predis\Configuration\OptionsInterface;
 use Predis\Connection\AbstractConnection;
 
+const VALUE_PLACEHOLDER = "?";
+const VALUE_MAX_LEN = 100;
+const VALUE_TOO_LONG_MARK = "...";
+const CMD_MAX_LEN = 1000;
+
 class PredisSandboxedIntegration extends SandboxedIntegration
 {
     const NAME = 'predis';

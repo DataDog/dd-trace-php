@@ -14,7 +14,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-// todo: implement op_array.reserved caching for calls that do not trace
+#define DDTRACE_NOT_TRACED ((void *)1)
 int ddtrace_resource = -1;
 
 // True globals; only modify in minit/mshutdown
@@ -30,8 +30,10 @@ static ddtrace_execute_data dd_execute_data_init(zend_execute_data *execute_data
                 return dd_execute_data;
             }
         }
-        dd_execute_data.This = execute_data->object;
-        dd_execute_data.scope = execute_data->call ? execute_data->call->called_scope : NULL;
+        if (dd_execute_data.fbc->common.scope) {
+            dd_execute_data.scope = execute_data->call ? execute_data->call->called_scope : NULL;
+            dd_execute_data.This = execute_data->object;
+        }
         dd_execute_data.arguments = execute_data->function_state.arguments;
         dd_execute_data.opline = execute_data->opline;
     }
@@ -337,7 +339,7 @@ static int dd_exit_handler(zend_execute_data *execute_data TSRMLS_DC) {
     return dd_prev_exit_handler ? dd_prev_exit_handler(execute_data TSRMLS_CC) : ZEND_USER_OPCODE_DISPATCH;
 }
 
-static ddtrace_dispatch_t *dd_lookup_dispatch_from_fbc(zval *this, zend_function *fbc TSRMLS_DC) {
+static ddtrace_dispatch_t *dd_lookup_dispatch_from_fbc(zend_function *fbc TSRMLS_DC) {
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request) || DDTRACE_G(class_lookup) == NULL ||
         DDTRACE_G(function_lookup) == NULL) {
         return FALSE;
@@ -355,7 +357,7 @@ static ddtrace_dispatch_t *dd_lookup_dispatch_from_fbc(zval *this, zend_function
     fname = &zv;
     ZVAL_STRING(fname, fbc->common.function_name, 0);
 
-    return ddtrace_find_dispatch(this ? Z_OBJCE_P(this) : fbc->common.scope, fname TSRMLS_CC);
+    return ddtrace_find_dispatch(fbc->common.scope ? EG(called_scope) : NULL, fname TSRMLS_CC);
 }
 
 static bool dd_should_trace_dispatch(ddtrace_dispatch_t *dispatch TSRMLS_DC) {
@@ -405,13 +407,11 @@ static void dd_execute_end_span(ddtrace_span_fci *span_fci, zval *user_retval TS
 void (*dd_prev_execute_ex)(zend_execute_data *execute_data TSRMLS_DC);
 
 static void dd_do_non_tracing_prehook(ddtrace_execute_data *dd_execute_data, ddtrace_dispatch_t *dispatch TSRMLS_DC) {
-    ddtrace_dispatch_copy(dispatch);
-
     zend_fcall_info fci = {0};
     zend_fcall_info_cache fcc = {0};
 
     if (zend_fcall_info_init(&dispatch->prehook, 0, &fci, &fcc, NULL, NULL TSRMLS_CC) != SUCCESS) {
-        goto release_dispatch;
+        return;
     }
 
     fcc.initialized = 1;
@@ -460,19 +460,59 @@ static void dd_do_non_tracing_prehook(ddtrace_execute_data *dd_execute_data, ddt
         zval_ptr_dtor(&dd_execute_data->retval);
     }
     zval_ptr_dtor(&args);
-
-release_dispatch:
-    ddtrace_dispatch_release(dispatch);
 }
 
-static void dd_do_non_tracing_posthook(zend_execute_data *execute_data, ddtrace_execute_data *dd_execute_data,
-                                       ddtrace_dispatch_t *dispatch TSRMLS_DC) {
+// execute_ex hooks {{{
+typedef void (*dd_execute_ex_hook)(zend_execute_data *execute_data TSRMLS_DC);
+
+static void dd_execute_tracing_posthook(zend_execute_data *execute_data TSRMLS_DC) {
+    ddtrace_execute_data dd_execute_data = dd_execute_data_init(execute_data);
+    ddtrace_dispatch_t *dispatch = dd_execute_data.fbc->op_array.reserved[ddtrace_resource];
+    ddtrace_dispatch_copy(dispatch);
+
+    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(ddtrace_span_fci));
+    span_fci->execute_data = execute_data;
+    span_fci->dispatch = dispatch;
+    span_fci->dd_execute_data = dd_execute_data;
+    ddtrace_open_span(span_fci TSRMLS_CC);
+
+    bool free_retval = 0;
+
+    /* If the retval doesn't get used then sometimes the engine won't set the
+     * retval_ptr_ptr at all. We expect it to always be present, so adjust it.
+     * Be sure to dtor it later.
+     */
+    if (!EG(return_value_ptr_ptr)) {
+        EG(return_value_ptr_ptr) = &dd_execute_data.retval;
+        free_retval = 1;
+    }
+
+    dd_prev_execute_ex(execute_data TSRMLS_CC);
+
+    /* Sometimes the retval goes away when there is an exception, and
+     * sometimes it's there but points to nothing (even excluding our fixup
+     * above), so check both.
+     */
+    zval *actual_retval =
+        (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) ? *EG(return_value_ptr_ptr) : &zval_used_for_init;
+    dd_execute_end_span(span_fci, actual_retval TSRMLS_CC);
+
+    if (free_retval && *EG(return_value_ptr_ptr)) {
+        zval_ptr_dtor(EG(return_value_ptr_ptr));
+        EG(return_value_ptr_ptr) = NULL;
+    }
+}
+
+static void dd_execute_non_tracing_posthook(zend_execute_data *execute_data TSRMLS_DC) {
+    ddtrace_execute_data dd_execute_data = dd_execute_data_init(execute_data);
+    ddtrace_dispatch_t *dispatch = dd_execute_data.fbc->op_array.reserved[ddtrace_resource];
+
     ddtrace_dispatch_copy(dispatch);
 
     ddtrace_span_fci *span_fci = ecalloc(1, sizeof *span_fci);
     span_fci->execute_data = execute_data;
     span_fci->dispatch = dispatch;
-    span_fci->dd_execute_data = *dd_execute_data;
+    span_fci->dd_execute_data = dd_execute_data;
 
     ddtrace_push_span(span_fci TSRMLS_CC);
 
@@ -493,8 +533,8 @@ static void dd_do_non_tracing_posthook(zend_execute_data *execute_data, ddtrace_
      * Be sure to dtor it later.
      */
     if (!EG(return_value_ptr_ptr)) {
-        EG(return_value_ptr_ptr) = &dd_execute_data->retval;
-        dd_execute_data->free_retval = 1;
+        EG(return_value_ptr_ptr) = &dd_execute_data.retval;
+        dd_execute_data.free_retval = 1;
     }
 
     dd_prev_execute_ex(execute_data TSRMLS_CC);
@@ -508,74 +548,76 @@ static void dd_do_non_tracing_posthook(zend_execute_data *execute_data, ddtrace_
 
     ddtrace_fcall_end_non_tracing_posthook(span_fci, actual_retval TSRMLS_CC);
 
-    if (dd_execute_data->retval && dd_execute_data->retval) {
-        zval_ptr_dtor(&dd_execute_data->retval);
+    if (dd_execute_data.retval && dd_execute_data.retval) {
+        zval_ptr_dtor(&dd_execute_data.retval);
         EG(return_value_ptr_ptr) = NULL;
     }
 }
 
-static void dd_do_tracing_posthook(zend_execute_data *execute_data, ddtrace_execute_data *dd_execute_data,
-                                   ddtrace_dispatch_t *dispatch TSRMLS_DC) {
-    ddtrace_dispatch_copy(dispatch);
-
-    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(ddtrace_span_fci));
-    span_fci->execute_data = execute_data;
-    span_fci->dispatch = dispatch;
-    span_fci->dd_execute_data = *dd_execute_data;
-    ddtrace_open_span(span_fci TSRMLS_CC);
-
-    bool free_retval = 0;
-
-    /* If the retval doesn't get used then sometimes the engine won't set the
-     * retval_ptr_ptr at all. We expect it to always be present, so adjust it.
-     * Be sure to dtor it later.
-     */
-    if (!EG(return_value_ptr_ptr)) {
-        EG(return_value_ptr_ptr) = &dd_execute_data->retval;
-        free_retval = 1;
-    }
-
+static void dd_execute_tracing_prehook(zend_execute_data *execute_data TSRMLS_DC) {
+    // todo: implement tracing prehook on PHP 5
     dd_prev_execute_ex(execute_data TSRMLS_CC);
-
-    /* Sometimes the retval goes away when there is an exception, and
-     * sometimes it's there but points to nothing (even excluding our fixup
-     * above), so check both.
-     */
-    zval *actual_retval =
-        (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) ? *EG(return_value_ptr_ptr) : &zval_used_for_init;
-    dd_execute_end_span(span_fci, actual_retval TSRMLS_CC);
-
-    if (free_retval && *EG(return_value_ptr_ptr)) {
-        zval_ptr_dtor(EG(return_value_ptr_ptr));
-        EG(return_value_ptr_ptr) = NULL;
-    }
 }
 
-void ddtrace_execute_ex(zend_execute_data *execute_data TSRMLS_DC) {
+static void dd_execute_non_tracing_prehook(zend_execute_data *execute_data TSRMLS_DC) {
     ddtrace_execute_data dd_execute_data = dd_execute_data_init(execute_data);
-    ddtrace_dispatch_t *dispatch = dd_lookup_dispatch_from_fbc(dd_execute_data.This, dd_execute_data.fbc TSRMLS_CC);
-    if (!dispatch || !dd_should_trace_dispatch(dispatch TSRMLS_CC)) {
-        dd_prev_execute_ex(execute_data TSRMLS_CC);
-        return;
+    ddtrace_dispatch_t *dispatch = dd_execute_data.fbc->op_array.reserved[ddtrace_resource];
+    ddtrace_dispatch_copy(dispatch);
+    dd_do_non_tracing_prehook(&dd_execute_data, dispatch TSRMLS_CC);
+    dd_prev_execute_ex(execute_data TSRMLS_CC);
+    ddtrace_dispatch_release(dispatch);
+}
+
+static dd_execute_ex_hook execute_ex_hooks[4] = {
+    [DDTRACE_DISPATCH_POSTHOOK] = dd_execute_tracing_posthook,
+    [DDTRACE_DISPATCH_POSTHOOK | DDTRACE_DISPATCH_NON_TRACING] = dd_execute_non_tracing_posthook,
+    [DDTRACE_DISPATCH_PREHOOK] = dd_execute_tracing_prehook,
+    [DDTRACE_DISPATCH_PREHOOK | DDTRACE_DISPATCH_NON_TRACING] = dd_execute_non_tracing_prehook,
+};
+// }}}
+
+static bool dd_try_fetch_user_dispatch(zend_execute_data *execute_data TSRMLS_DC, ddtrace_dispatch_t **dispatch_ptr) {
+    zend_op_array *op_array = &execute_data->function_state.function->op_array;
+    void *slot = op_array->reserved[ddtrace_resource];
+
+    if (slot == DDTRACE_NOT_TRACED) {
+        return false;
     }
 
-    if (dispatch->options & DDTRACE_DISPATCH_NON_TRACING) {
-        if (dispatch->options & DDTRACE_DISPATCH_PREHOOK) {
-            dd_do_non_tracing_prehook(&dd_execute_data, dispatch TSRMLS_CC);
-            dd_prev_execute_ex(execute_data TSRMLS_CC);
-        } else {
-            dd_do_non_tracing_posthook(execute_data, &dd_execute_data, dispatch TSRMLS_CC);
-        }
-        return;
+    // we're not yet set-up to respect a cached dispatch; only a NOT_TRACED flag
+    ddtrace_dispatch_t *dispatch = NULL;
+    zend_function *fbc = (zend_function *)op_array;
+    dispatch = dd_lookup_dispatch_from_fbc(fbc TSRMLS_CC);
+
+    if (!dispatch) {
+        op_array->reserved[ddtrace_resource] = DDTRACE_NOT_TRACED;
+    } else if (dd_should_trace_dispatch(dispatch TSRMLS_CC)) {
+        op_array->reserved[ddtrace_resource] = dispatch;
+    } else {
+        // dispatch located but shouldn't trace; do not cache anything
+        dispatch = NULL;
     }
 
-    if (dispatch->options & DDTRACE_DISPATCH_PREHOOK) {
-        // todo: add tracing prehook support
-        dd_prev_execute_ex(execute_data TSRMLS_CC);
-        return;
-    }
+    *dispatch_ptr = dispatch;
 
-    dd_do_tracing_posthook(execute_data, &dd_execute_data, dispatch TSRMLS_CC);
+    return dispatch;
+}
+
+static void ddtrace_execute_ex(zend_execute_data *execute_data TSRMLS_DC) {
+    ddtrace_dispatch_t *dispatch = NULL;
+
+    dd_execute_ex_hook execute_hook = dd_try_fetch_user_dispatch(execute_data TSRMLS_CC, &dispatch)
+                                          ? execute_ex_hooks[DDTRACE_DISPATCH_JUMP_OFFSET(dispatch->options)]
+                                          : dd_prev_execute_ex;
+
+    if (++DDTRACE_G(call_depth) >= 512 && DDTRACE_G(should_warn_call_depth)) {
+        DDTRACE_G(should_warn_call_depth) = false;
+        php_log_err(
+            "ddtrace has detected a call stack depth of 512. If the call stack depth continues to grow the application "
+            "may encounter a segmentation fault; see TODO: URL for details." TSRMLS_CC);
+    }
+    execute_hook(execute_data TSRMLS_CC);
+    --DDTRACE_G(call_depth);
 }
 
 // zend_execute_internal override helpers {{{
@@ -640,6 +682,7 @@ static void dd_internal_non_tracing_posthook(ddtrace_span_fci *span_fci, zend_fc
 }
 
 static void dd_internal_tracing_prehook(ddtrace_span_fci *span_fci, zend_fcall_info *fci, int retval_used TSRMLS_DC) {
+    // todo: implement tracing prehook on PHP 5
     zend_execute_data *execute_data = span_fci->execute_data;
     dd_prev_execute_internal(execute_data, fci, retval_used TSRMLS_CC);
     efree(span_fci);
@@ -653,8 +696,10 @@ static void dd_internal_non_tracing_prehook(ddtrace_span_fci *span_fci, zend_fca
 
     efree(span_fci);
 
+    ddtrace_dispatch_copy(dispatch);
     dd_do_non_tracing_prehook(&dd_execute_data, dispatch TSRMLS_CC);
     dd_prev_execute_internal(execute_data, fci, retval_used TSRMLS_CC);
+    ddtrace_dispatch_release(dispatch);
 }
 
 static void (*dd_internal_hooks[])(ddtrace_span_fci *span_fci, zend_fcall_info *fci, int retval_used TSRMLS_DC) = {
@@ -667,7 +712,7 @@ static void (*dd_internal_hooks[])(ddtrace_span_fci *span_fci, zend_fcall_info *
 
 static void dd_execute_internal(zend_execute_data *execute_data, zend_fcall_info *fci, int retval_used TSRMLS_DC) {
     ddtrace_execute_data dd_execute_data = dd_execute_data_init(execute_data);
-    ddtrace_dispatch_t *dispatch = dd_lookup_dispatch_from_fbc(dd_execute_data.This, dd_execute_data.fbc TSRMLS_CC);
+    ddtrace_dispatch_t *dispatch = dd_lookup_dispatch_from_fbc(dd_execute_data.fbc TSRMLS_CC);
     if (!dispatch || !dd_should_trace_dispatch(dispatch TSRMLS_CC)) {
         dd_prev_execute_internal(execute_data, fci, retval_used TSRMLS_CC);
         return;

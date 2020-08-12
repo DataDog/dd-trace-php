@@ -96,12 +96,8 @@
             <file name="src/ext/mpack/mpack.c" role="src" />
             <file name="src/ext/mpack/mpack.h" role="src" />
             <file name="src/ext/php5_4/auto_flush.c" role="src" />
-            <file name="src/ext/php5_4/blacklist.c" role="src" />
             <file name="src/ext/php5_4/dispatch.c" role="src" />
-            <file name="src/ext/php5_4/distributed_tracing.c" role="src" />
             <file name="src/ext/php5_4/engine_hooks.c" role="src" />
-            <file name="src/ext/php5_4/handlers_internal.c" role="src" />
-            <file name="src/ext/php5_4/serializer.c" role="src" />
             <file name="src/ext/php5/auto_flush.c" role="src" />
             <file name="src/ext/php5/blacklist.c" role="src" />
             <file name="src/ext/php5/dispatch.c" role="src" />
@@ -173,6 +169,8 @@
             <file name="tests/ext/sandbox/auto_flush_disables_tracing.phpt" role="test" />
             <file name="tests/ext/sandbox/auto_flush_sandbox_exception.phpt" role="test" />
             <file name="tests/ext/sandbox/auto_flush_userland_root_span.phpt" role="test" />
+            <file name="tests/ext/sandbox/cake_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/cake_02.phpt" role="test" />
             <file name="tests/ext/sandbox/close-on-exit.phpt" role="test" />
             <file name="tests/ext/sandbox/close-on-exit-retval.phpt" role="test" />
             <file name="tests/ext/sandbox/dd_dumper.inc" role="test" />
@@ -244,6 +242,7 @@
             <file name="tests/ext/sandbox/hook_function/posthook_exit_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_exit_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/posthook_limited_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_variadic.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_03.phpt" role="test" />
@@ -254,6 +253,7 @@
             <file name="tests/ext/sandbox/hook_function/prehook_exceptions_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_exceptions_03.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/prehook_exceptions_04.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_variadic.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/03.phpt" role="test" />
@@ -271,6 +271,9 @@
             <file name="tests/ext/sandbox/hook_method/posthook_exceptions_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_exit_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_exit_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_scope_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_scope_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_scope_03.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_span_ids_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/posthook_span_ids_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_01.phpt" role="test" />
@@ -283,6 +286,9 @@
             <file name="tests/ext/sandbox/hook_method/prehook_error_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_exceptions_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_exceptions_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_scope_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_scope_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_scope_03.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_span_ids_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_span_ids_02.phpt" role="test" />
             <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
@@ -298,7 +304,6 @@
             <file name="tests/ext/sandbox/safe_to_string_metadata.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_properties.phpt" role="test" />
-            <file name="tests/ext/sandbox/sandbox_api_not_available_on_unsupported_versions.phpt" role="test" />
             <file name="tests/ext/sandbox/spans_out_of_sync.phpt" role="test" />
             <file name="tests/ext/sandbox/static_tracing_closures_will_not_bind_this.phpt" role="test" />
             <file name="tests/ext/sandbox/variadic_args_internal.phpt" role="test" />
@@ -359,7 +364,8 @@
             <file name="tests/ext/sandbox-regression/trace_static_method.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/used_dispatch_shouldn_t_be_freed.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/variable_length_parameter_list.phpt" role="test" />
-            <file name="tests/ext/sandbox-regression/very_nested_functions.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/very_nested_functions_php5.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/very_nested_functions_php7.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/with_params_function_hook.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/with_params_method_hook.phpt" role="test" />
 

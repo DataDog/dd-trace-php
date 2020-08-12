@@ -1,7 +1,5 @@
 --TEST--
 Exceptions get attached to spans
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not yet supported'); ?>
 --FILE--
 <?php
 

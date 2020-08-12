@@ -1,7 +1,5 @@
 --TEST--
 DDTrace\trace_function() and DDTrace\trace_method() declarative API error cases
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 --FILE--

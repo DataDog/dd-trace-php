@@ -48,9 +48,6 @@ final class TracerTest extends BaseTestCase
 
     public function testGlobalTagsArePresentOnInternalSpansByFlushTime()
     {
-        if (Versions::phpVersionMatches('5.4')) {
-            $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
-        }
         \DDTrace\trace_method(
             'DDTrace\Tests\Integration\TracerTest',
             'dummyMethodGlobalTags',
@@ -135,10 +132,6 @@ final class TracerTest extends BaseTestCase
      */
     public function testResourceNormalizationNonRootSpanInternalApi()
     {
-        if (Versions::phpVersionMatches('5.4')) {
-            $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
-        }
-
         \DDTrace\trace_method(
             'DDTrace\Tests\Integration\TracerTest',
             'dummyMethodResourceNormalizationInternalApi',
@@ -273,10 +266,6 @@ final class TracerTest extends BaseTestCase
 
     public function testDDEnvHasPrecedenceOverGlobalTagsForChildrenSpans()
     {
-        if (Versions::phpVersionMatches('5.4')) {
-            self::markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
-        }
-
         \DDTrace\trace_method(
             'DDTrace\Tests\Integration\TracerTest',
             'noopEnvPrecedence',
@@ -351,10 +340,6 @@ final class TracerTest extends BaseTestCase
 
     public function testDDVersionPrecedenceOverGlobalTagsForChildrenSpans()
     {
-        if (Versions::phpVersionMatches('5.4')) {
-            self::markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
-        }
-
         \DDTrace\trace_method(
             'DDTrace\Tests\Integration\TracerTest',
             'noopVersionPrecedence',
@@ -434,10 +419,6 @@ final class TracerTest extends BaseTestCase
     public function testServiceMappingInternalApi()
     {
         putenv('DD_SERVICE_MAPPING=original_service:changed_service');
-
-        if (Versions::phpVersionMatches('5.4')) {
-            $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
-        }
 
         \DDTrace\trace_method(
             'DDTrace\Tests\Integration\TracerTest',

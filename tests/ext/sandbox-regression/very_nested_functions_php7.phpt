@@ -1,9 +1,7 @@
 --TEST--
-[Sandbox regression] Trace deeply-nested function calls
---DESCRIPTION--
-This differs from the original dd_trace() test in that the original return value is not modified
+[Sandbox regression] Trace deeply-nested function calls (PHP 7)
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70000) die("skip: zend_execute_ex in use"); ?>
+<?php if (PHP_VERSION_ID < 70000) die("skip: PHP 5 has its own test"); ?>
 --FILE--
 <?php
 function test($a){

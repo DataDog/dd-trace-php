@@ -1,7 +1,5 @@
 --TEST--
 Span metadata is safely converted to strings without errors or exceptions
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;

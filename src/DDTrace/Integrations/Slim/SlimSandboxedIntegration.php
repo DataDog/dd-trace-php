@@ -7,6 +7,7 @@ use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\Versions;
 use Psr\Http\Message\ServerRequestInterface;
 
 class SlimSandboxedIntegration extends SandboxedIntegration
@@ -26,6 +27,11 @@ class SlimSandboxedIntegration extends SandboxedIntegration
      */
     public function init()
     {
+        // http://www.slimframework.com/docs/v3/start/installation.html
+        if (\PHP_VERSION_ID < 50500) {
+            return SandboxedIntegration::NOT_AVAILABLE;
+        }
+
         $integration = $this;
         $appName = \ddtrace_config_app_name(self::NAME);
 

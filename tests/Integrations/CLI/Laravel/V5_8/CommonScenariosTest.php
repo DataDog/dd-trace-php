@@ -7,7 +7,7 @@ use DDTrace\Tests\Integrations\CLI\CLITestCase;
 
 class CommonScenariosTest extends CLITestCase
 {
-    const IS_SANDBOX = false;
+    const IS_SANDBOX = true;
 
     protected function getScriptLocation()
     {

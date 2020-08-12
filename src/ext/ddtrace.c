@@ -110,7 +110,6 @@ static zend_extension _dd_zend_extension_entry = {"ddtrace",
 
                                                   STANDARD_ZEND_EXTENSION_PROPERTIES};
 
-#if PHP_VERSION_ID >= 50600
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_trace_method, 0, 0, 3)
 ZEND_ARG_INFO(0, class_name)
 ZEND_ARG_INFO(0, method_name)
@@ -134,7 +133,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_trace_function, 0, 0, 2)
 ZEND_ARG_INFO(0, function_name)
 ZEND_ARG_INFO(0, tracing_closure)
 ZEND_END_ARG_INFO()
-#endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_closed_spans, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -348,6 +346,10 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
         ddtrace_startup_logging_first_rinit();
     }
+
+#if PHP_MAJOR_VERSION < 7
+    DDTRACE_G(should_warn_call_depth) = ddtrace_get_bool_config("DD_TRACE_WARN_CALL_STACK_DEPTH", TRUE TSRMLS_CC);
+#endif
 
     DDTRACE_G(request_init_hook_loaded) = 0;
     if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
@@ -727,7 +729,6 @@ static PHP_FUNCTION(dd_trace) {
     RETURN_BOOL(rv);
 }
 
-#if PHP_VERSION_ID >= 50600
 static PHP_FUNCTION(trace_method) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
     zval *class_name = NULL;
@@ -990,7 +991,6 @@ static PHP_FUNCTION(trace_function) {
     zend_bool rv = ddtrace_trace(NULL, function, tracing_closure, options TSRMLS_CC);
     RETURN_BOOL(rv);
 }
-#endif
 
 static PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
@@ -1562,14 +1562,12 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
     DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled),
     DDTRACE_FE(ddtrace_init, arginfo_ddtrace_init),
-#if PHP_VERSION_ID >= 50600
     DDTRACE_NS_FE(trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_FALIAS(dd_trace_function, trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_NS_FE(trace_method, arginfo_ddtrace_trace_method),
     DDTRACE_FALIAS(dd_trace_method, trace_method, arginfo_ddtrace_trace_method),
     DDTRACE_NS_FE(hook_function, arginfo_ddtrace_hook_function),
     DDTRACE_NS_FE(hook_method, arginfo_ddtrace_hook_method),
-#endif
     DDTRACE_NS_FE(startup_logs, arginfo_ddtrace_void),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_sample_rate,

@@ -3,11 +3,24 @@
 namespace DDTrace\Tests\Integrations\Lumen\V5_2;
 
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-class CommonScenariosSandboxedTest extends CommonScenariosTest
+class CommonScenariosSandboxedTest extends WebFrameworkTestCase
 {
     const IS_SANDBOX = true;
+
+    protected static function getAppIndexScript()
+    {
+        return __DIR__ . '/../../../Frameworks/Lumen/Version_5_2/public/index.php';
+    }
+
+    protected static function getEnvs()
+    {
+        return array_merge(parent::getEnvs(), [
+            'DD_SERVICE' => 'lumen_test_app',
+        ]);
+    }
 
     /**
      * @dataProvider provideSpecs
@@ -111,5 +124,59 @@ class CommonScenariosSandboxedTest extends CommonScenariosTest
                 ],
             ]
         );
+    }
+
+    protected function getSimpleTrace()
+    {
+        return [
+            SpanAssertion::build(
+                'lumen.request',
+                'lumen_test_app',
+                'web',
+                'GET simple_route'
+            )->withExactTags([
+                'lumen.route.name' => 'simple_route',
+                'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
+                'http.method' => 'GET',
+                'http.url' => 'http://localhost:9999/simple',
+                'http.status_code' => '200',
+            ])->withChildren([
+                SpanAssertion::build(
+                    'Laravel\Lumen\Application.handleFoundRoute',
+                    'lumen_test_app',
+                    'web',
+                    'Laravel\Lumen\Application.handleFoundRoute'
+                )->withExactTags([])
+                    ->skipIf(!static::IS_SANDBOX),
+            ]),
+        ];
+    }
+
+    protected function getErrorTrace()
+    {
+        return [
+            SpanAssertion::build(
+                'lumen.request',
+                'lumen_test_app',
+                'web',
+                'GET App\Http\Controllers\ExampleController@error'
+            )->withExactTags([
+                'lumen.route.action' => 'App\Http\Controllers\ExampleController@error',
+                'http.method' => 'GET',
+                'http.url' => 'http://localhost:9999/error',
+                'http.status_code' => '500',
+            ])->setError()
+                ->withChildren([
+                    SpanAssertion::build(
+                        'Laravel\Lumen\Application.handleFoundRoute',
+                        'lumen_test_app',
+                        '',
+                        'Laravel\Lumen\Application.handleFoundRoute'
+                    )->withExistingTagsNames([
+                        'error.stack'
+                    ])->setError('Exception', 'Controller error')
+                        ->skipIf(!static::IS_SANDBOX),
+                ]),
+        ];
     }
 }
