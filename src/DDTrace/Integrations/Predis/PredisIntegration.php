@@ -7,7 +7,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\GlobalTracer;
 use Predis\Configuration\OptionsInterface;
-use Predis\Connection\AbstractConnection;
+use Predis\Connection\NodeConnectionInterface;
 use Predis\Pipeline\Pipeline;
 
 const VALUE_PLACEHOLDER = "?";
@@ -221,7 +221,7 @@ class PredisIntegration extends Integration
 
         $connection = $predis->getConnection();
 
-        if ($connection instanceof AbstractConnection) {
+        if ($connection instanceof NodeConnectionInterface) {
             $connectionParameters = $connection->getParameters();
 
             $tags[Tag::TARGET_HOST] = $connectionParameters->host;
