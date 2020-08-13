@@ -100,6 +100,7 @@ if test "$PHP_DDTRACE" != "no"; then
       src/ext/php7/handlers_mysqli.c \
       src/ext/php7/handlers_pdo.c \
       src/ext/php7/handlers_phpredis.c \
+      src/ext/php7/sampler.c \
       src/ext/php7/serializer.c \
       src/ext/php7/startup_logging.c \
     "

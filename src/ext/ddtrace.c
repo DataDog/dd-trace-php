@@ -42,6 +42,9 @@
 #include "integrations/integrations.h"
 #include "logging.h"
 #include "memory_limit.h"
+#if PHP_VERSION_ID >= 70000
+#include "php7/sampler.h"
+#endif
 #include "random.h"
 #include "request_hooks.h"
 #include "serializer.h"
@@ -378,6 +381,10 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
     DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
 
+#if PHP_VERSION_ID >= 70000
+    ddtrace_sampler_rinit();
+#endif
+
     return SUCCESS;
 }
 
@@ -387,6 +394,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+#if PHP_VERSION_ID >= 70000
+    ddtrace_sampler_rshutdown();
+#endif
 
     ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
