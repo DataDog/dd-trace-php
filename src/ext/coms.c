@@ -607,7 +607,7 @@ static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
     return stack;
 }
 
-#define TRACE_PATH_STR "/v0.4/traces"
+#define TRACE_PATH_STR "/v0.5/traces"
 #define HOST_FORMAT_STR "http://%s:%u"
 
 atomic_uintptr_t memoized_agent_curl_headers;
