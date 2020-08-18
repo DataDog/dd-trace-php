@@ -379,7 +379,6 @@
             <file name="tests/ext/circuit_breaker_retry_time.phpt" role="test" />
             <file name="tests/ext/dd_trace_api_error.phpt" role="test" />
             <file name="tests/ext/dd_trace_coms_empty_stacks_correctly_recycled.phpt" role="test" />
-            <file name="tests/ext/dd_trace_forward_call_for_functions.phpt" role="test" />
             <file name="tests/ext/dd_trace_push_span_id_from_userland.phpt" role="test" />
             <file name="tests/ext/dd_trace_send_traces_via_thread_001.phpt" role="test" />
             <file name="tests/ext/dd_trace_send_traces_via_thread_002.phpt" role="test" />
@@ -400,9 +399,7 @@
             <file name="tests/ext/get_memory_limit_unlimited_default.phpt" role="test" />
             <file name="tests/ext/get_memory_limit_unlimited_set_by_absolute.phpt" role="test" />
             <file name="tests/ext/get_memory_limit_unlimited_set_by_percentage.phpt" role="test" />
-            <file name="tests/ext/new_static.phpt" role="test" />
             <file name="tests/ext/read_c_configuration.phpt" role="test" />
-            <file name="tests/ext/reset_function_tracing.phpt" role="test" />
             <file name="tests/ext/segfault_backtrace_disabled.phpt" role="test" />
             <file name="tests/ext/segfault_backtrace_enabled.phpt" role="test" />
             <file name="tests/ext/startup_logging.inc" role="test" />

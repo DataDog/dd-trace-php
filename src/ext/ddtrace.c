@@ -656,7 +656,6 @@ static PHP_FUNCTION(dd_trace) {
     zval *class_name = NULL;
     zval *callable = NULL;
     zval *config_array = NULL;
-    uint32_t options = 0;
 
     if (DDTRACE_G(disable) || DDTRACE_G(disable_in_current_request)) {
         RETURN_BOOL(0);
@@ -678,55 +677,16 @@ static PHP_FUNCTION(dd_trace) {
     }
 
     if (ddtrace_should_warn_legacy()) {
-#if PHP_VERSION_ID < 50500
         char *message =
-            "dd_trace DEPRECATION NOTICE: the function `dd_trace` is deprecated and will become a no-op in the next "
-            "release, and eventually will be removed. Set DD_TRACE_WARN_LEGACY_DD_TRACE=0 to suppress this warning.";
-        ddtrace_log_err(message);
-#else
-        char *message =
-            "dd_trace DEPRECATION NOTICE: the function `dd_trace` (target: %s%s%s) is deprecated and will become a "
-            "no-op in the next release, and eventually will be removed. Please follow "
+            "dd_trace DEPRECATION NOTICE: the function `dd_trace` (target: %s%s%s) is deprecated and has become a "
+            "no-op since 0.48.0, and will eventually be removed. Please follow "
             "https://github.com/DataDog/dd-trace-php/issues/924 for instructions to update your code; set "
             "DD_TRACE_WARN_LEGACY_DD_TRACE=0 to suppress this warning.";
         ddtrace_log_errf(message, class_name ? Z_STRVAL_P(class_name) : "", class_name ? "::" : "",
                          Z_STRVAL_P(function));
-#endif
     }
 
-    if (ddtrace_blacklisted_disable_legacy && !get_dd_trace_ignore_legacy_blacklist()) {
-        ddtrace_log_debugf(
-            "Cannot instrument '%s()' with dd_trace(). This functionality is disabled due to a potentially conflicting "
-            "module. To re-enable dd_trace(), please set the environment variable: DD_TRACE_IGNORE_LEGACY_BLACKLIST=1",
-            Z_STRVAL_P(function));
-        RETURN_BOOL(0);
-    }
-
-    if (!function || Z_TYPE_P(function) != IS_STRING) {
-        if (class_name) {
-            ddtrace_zval_ptr_dtor(class_name);
-        }
-        ddtrace_zval_ptr_dtor(function);
-
-        ddtrace_log_debug("function/method name parameter must be a string");
-
-        RETURN_BOOL(0);
-    }
-
-    if (config_array) {
-        if (_parse_config_array(config_array, &callable, &options TSRMLS_CC) == FALSE) {
-            RETURN_BOOL(0);
-        }
-        if ((options & ~DDTRACE_DISPATCH_INSTRUMENT_WHEN_LIMITED) != DDTRACE_DISPATCH_INNERHOOK) {
-            ddtrace_log_debug("Legacy API only supports 'innerhook'");
-            RETURN_BOOL(0);
-        }
-    } else {
-        options |= DDTRACE_DISPATCH_INNERHOOK;
-    }
-
-    zend_bool rv = ddtrace_trace(class_name, function, callable, options TSRMLS_CC);
-    RETURN_BOOL(rv);
+    RETURN_FALSE
 }
 
 static PHP_FUNCTION(trace_method) {
@@ -1000,17 +960,9 @@ static PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
 // Invoke the function/method from the original context
 static PHP_FUNCTION(dd_trace_forward_call) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-
-    if (DDTRACE_G(disable)) {
-        RETURN_BOOL(0);
-    }
-
-#if PHP_VERSION_ID >= 70000
-    ddtrace_wrapper_forward_call_from_userland(execute_data, return_value TSRMLS_CC);
-#else
-    ddtrace_wrapper_forward_call_from_userland(EG(current_execute_data), return_value TSRMLS_CC);
-#endif
+    PHP5_UNUSED(ht, return_value_ptr, this_ptr, return_value_used TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+    RETURN_FALSE
 }
 
 static PHP_FUNCTION(dd_trace_env_config) {
