@@ -29,12 +29,12 @@ echo format_bool(dd_trace("this_function_exists", function(){}));
 
 echo  "no exception thrown" . PHP_EOL;
 
-
+// dd_trace always returns false now
 ?>
 --EXPECT--
-TRUE
-TRUE
-TRUE
-TRUE
-TRUE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
 no exception thrown
