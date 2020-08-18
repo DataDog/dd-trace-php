@@ -86,11 +86,8 @@ void ddtrace_sampler_rinit(void) {
     }
 }
 
-static void dd_serialize_samples(void) {
-    zval serialized;
+void ddtrace_serialize_samples(HashTable *serialized) {
     size_t entry_num;
-
-    array_init(&serialized);
 
     for (entry_num = 0; entry_num < entries_num; ++entry_num) {
         ddtrace_sample_entry *entry = &entries[entry_num];
@@ -98,11 +95,11 @@ static void dd_serialize_samples(void) {
         uint32_t lineno = entry->lineno;
         zval *lines, *num;
 
-        lines = zend_hash_find(Z_ARR_P(&serialized), filename);
+        lines = zend_hash_find(serialized, filename);
         if (lines == NULL) {
             zval lines_zv;
             array_init(&lines_zv);
-            lines = zend_hash_update(Z_ARR_P(&serialized), filename, &lines_zv);
+            lines = zend_hash_update(serialized, filename, &lines_zv);
         }
 
         num = zend_hash_index_find(Z_ARR_P(lines), lineno);
@@ -114,16 +111,21 @@ static void dd_serialize_samples(void) {
 
         increment_function(num);
     }
+}
+
+void ddtrace_sampler_rshutdown(void) {
+    /*
+    zval serialized;
+    array_init(&serialized);
+    ddtrace_serialize_samples(Z_ARR(serialized));
 
     // For now we'll just dump them to STDOUT
     php_printf("Took %zu samples:", entries_num);
     php_var_dump(&serialized, 1);
 
     zend_array_destroy(Z_ARR(serialized));
-}
+    */
 
-void ddtrace_sampler_rshutdown(void) {
-    dd_serialize_samples();
     pthread_cancel(thread_id);
     efree(entries);
 }

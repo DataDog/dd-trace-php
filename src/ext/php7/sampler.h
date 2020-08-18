@@ -8,6 +8,7 @@ typedef struct _ddtrace_sample_entry {
 } ddtrace_sample_entry;
 
 void ddtrace_sampler_rinit(void);
+void ddtrace_serialize_samples(HashTable *serialized);
 void ddtrace_sampler_rshutdown(void);
 
 #endif  // DD_TRACE_SAMPLER_H

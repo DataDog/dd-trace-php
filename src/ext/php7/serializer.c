@@ -5,12 +5,14 @@
 #include <php.h>
 
 #include <ext/spl/spl_exceptions.h>
+#include <ext/standard/php_var.h>
 
 #include "arrays.h"
 #include "compat_string.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "mpack/mpack.h"
+#include "sampler.h"
 #include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -247,6 +249,55 @@ static void _serialize_exception(zval *el, zval *meta, zend_object *exception_ob
     zval_ptr_dtor(&stack);
 }
 
+#define KEY_MAX_LEN 1024  // Seat of the pants
+
+// The UI currently does funky things with periods in keys, so trying something else...
+static void dd_undot_key(char *buf, zend_string *key) {
+    smart_str undotted = {0};
+    smart_str_alloc(&undotted, ZSTR_LEN(key) + 6, 0);  // Add some headroom
+
+    const char *val = ZSTR_VAL(key);
+    unsigned long pos = 0;
+    unsigned char c;
+    while (pos < ZSTR_LEN(key)) {
+        c = val[pos++];
+        switch (c) {
+            case '.':
+                smart_str_appendc(&undotted, ',');
+                break;
+            default:
+                smart_str_appendc(&undotted, c);
+                break;
+        }
+    }
+    smart_str_0(&undotted);
+    snprintf(buf, KEY_MAX_LEN, "subtrace.%s", ZSTR_VAL(undotted.s));
+    smart_str_free(&undotted);
+}
+
+static void dd_serialize_stack_samples(zval *meta) {
+    zend_string *file_name;
+    zval *samples;
+
+    HashTable *serialized = zend_new_array(8);
+    ddtrace_serialize_samples(serialized);
+
+    ZEND_HASH_FOREACH_STR_KEY_VAL_IND(serialized, file_name, samples) {
+        if (file_name && samples && Z_TYPE_P(samples) == IS_ARRAY) {
+            smart_str buf = {0};
+            php_var_export_ex(samples, 1, &buf);  // TODO Make output pretty
+            smart_str_0(&buf);
+
+            char key[KEY_MAX_LEN + 1];
+            dd_undot_key(key, file_name);
+            add_assoc_str(meta, key, buf.s);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    zend_array_destroy(serialized);
+}
+
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     ddtrace_span_t *span = &span_fci->span;
     zval meta_zv, *meta = ddtrace_spandata_property_meta(span->span_data);
@@ -276,6 +327,8 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
         char pid[MAX_LENGTH_OF_LONG + 1];
         snprintf(pid, sizeof(pid), "%ld", (long)span->pid);
         add_assoc_string(meta, "system.pid", pid);
+        // This isn't where we'd do this in the real world
+        dd_serialize_stack_samples(meta);
     }
 
     if (zend_array_count(Z_ARRVAL_P(meta))) {
