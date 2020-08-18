@@ -7,6 +7,9 @@ use DDTrace\Tests\Integrations\CLI\CLITestCase;
 
 final class NotAutoloadedTestCase extends CLITestCase
 {
+    // this doesn't use the sandbox API, but it doesn't use legacy API either
+    const IS_SANDBOX = true;
+
     /**
      * {@inheritDoc}
      */

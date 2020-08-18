@@ -45,25 +45,26 @@ void ddtrace_integrations_minit(void) {
 
 void ddtrace_integrations_mshutdown(void) { zend_hash_destroy(&_dd_string_to_integration_name_map); }
 
-#if PHP_VERSION_ID >= 70000
 #define DDTRACE_KNOWN_INTEGRATION(class_str, fname_str)                                         \
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class_str), DDTRACE_STRING_LITERAL(fname_str), \
-                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK)
+                          DDTRACE_STRING_LITERAL(NULL), DDTRACE_DISPATCH_POSTHOOK TSRMLS_CC)
 
-static void _dd_register_known_calls(void) {
+/* Due to negative lookup caching, we need to have a list of all things we
+ * might instrument so that if a call is made to something we want to later
+ * instrument but is not currently instrumented, that we don't cache this.
+ *
+ * We should improve how this list is made in the future instead of hard-
+ * coding known integrations (and for now only the problematic ones).
+ */
+static void dd_register_known_calls(TSRMLS_D) {
     DDTRACE_KNOWN_INTEGRATION("wpdb", "query");
     DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire");
 }
 
+#if PHP_VERSION_ID >= 70000
+
 void ddtrace_integrations_rinit(TSRMLS_D) {
-    /* Due to negative lookup caching, we need to have a list of all things we
-     * might instrument so that if a call is made to something we want to later
-     * instrument but is not currently instrumented, that we don't cache this.
-     *
-     * We should improve how this list is made in the future instead of hard-
-     * coding known integrations (and for now only the problematic ones).
-     */
-    _dd_register_known_calls();
+    dd_register_known_calls();
 
     _dd_es_initialize_deferred_integration(TSRMLS_C);
     _dd_load_test_integrations(TSRMLS_C);
@@ -85,6 +86,8 @@ void ddtrace_integrations_rinit(TSRMLS_D) {
      * allocation error to be issued
      */
     _dd_load_test_integrations(TSRMLS_C);
+
+    dd_register_known_calls(TSRMLS_C);
 }
 
 ddtrace_integration *ddtrace_get_integration_from_string(ddtrace_string integration) {

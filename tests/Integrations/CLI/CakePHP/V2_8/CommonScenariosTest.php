@@ -7,6 +7,8 @@ use DDTrace\Tests\Integrations\CLI\CLITestCase;
 
 class CommonScenariosTest extends CLITestCase
 {
+    const IS_SANDBOX = true;
+
     protected function getScriptLocation()
     {
         return __DIR__ . '/../../../../Frameworks/CakePHP/Version_2_8/app/Console/cake.php';

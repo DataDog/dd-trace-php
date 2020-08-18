@@ -1,7 +1,5 @@
 --TEST--
 Keep spans in limited mode (userland functions)
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=5
 --FILE--

@@ -2,20 +2,14 @@
 
 namespace DDTrace\Integrations;
 
-use DDTrace\Integrations\CakePHP\CakePHPIntegration;
 use DDTrace\Integrations\CakePHP\CakePHPSandboxedIntegration;
 use DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration;
-use DDTrace\Integrations\Curl\CurlIntegration;
 use DDTrace\Integrations\Curl\CurlSandboxedIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration;
-use DDTrace\Integrations\Eloquent\EloquentIntegration;
 use DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration;
-use DDTrace\Integrations\Guzzle\GuzzleIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleSandboxedIntegration;
-use DDTrace\Integrations\Laravel\LaravelIntegration;
 use DDTrace\Integrations\Laravel\LaravelSandboxedIntegration;
-use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\Integrations\Lumen\LumenSandboxedIntegration;
 use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration;
@@ -35,7 +29,6 @@ use DDTrace\Integrations\Symfony\SymfonySandboxedIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\WordPress\WordPressSandboxedIntegration;
 use DDTrace\Integrations\Yii\YiiSandboxedIntegration;
-use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkSandboxedIntegration;
 use DDTrace\Log\LoggingTrait;
 
@@ -60,21 +53,7 @@ class IntegrationsLoader
      * @var array
      */
     public static $officiallySupportedIntegrations = [
-        CakePHPIntegration::NAME => '\DDTrace\Integrations\CakePHP\CakePHPIntegration',
-        CurlIntegration::NAME => '\DDTrace\Integrations\Curl\CurlIntegration',
-        EloquentIntegration::NAME => '\DDTrace\Integrations\Eloquent\EloquentIntegration',
-        GuzzleIntegration::NAME => '\DDTrace\Integrations\Guzzle\GuzzleIntegration',
-        LaravelIntegration::NAME => '\DDTrace\Integrations\Laravel\LaravelIntegration',
-        LumenIntegration::NAME => '\DDTrace\Integrations\Lumen\LumenIntegration',
-        MemcachedIntegration::NAME => '\DDTrace\Integrations\Memcached\MemcachedIntegration',
-        MongoIntegration::NAME => '\DDTrace\Integrations\Mongo\MongoIntegration',
-        MysqliIntegration::NAME => '\DDTrace\Integrations\Mysqli\MysqliIntegration',
-        PDOIntegration::NAME => '\DDTrace\Integrations\PDO\PDOIntegration',
-        PredisIntegration::NAME => '\DDTrace\Integrations\Predis\PredisIntegration',
-        SlimIntegration::NAME => '\DDTrace\Integrations\Slim\SlimIntegration',
-        SymfonyIntegration::NAME => '\DDTrace\Integrations\Symfony\SymfonyIntegration',
         WebIntegration::NAME => '\DDTrace\Integrations\Web\WebIntegration',
-        ZendFrameworkIntegration::NAME => '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration',
     ];
 
     /**

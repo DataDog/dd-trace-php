@@ -136,7 +136,9 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup TSRMLS_DC) {
 
 #if PHP_VERSION_ID < 70000
         EG(opline_before_exception) = backup->opline_before_exception;
+#if PHP_VERSION_ID >= 50500
         EG(current_execute_data)->opline = EG(exception_op);
+#endif
 #else
         zend_throw_exception_internal(NULL);
 #endif

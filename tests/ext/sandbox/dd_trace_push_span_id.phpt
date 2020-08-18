@@ -1,7 +1,5 @@
 --TEST--
 dd_trace_push_span_id() Generates a 63-bit unsigned int as a string and stores on a stack
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_DEBUG_PRNG_SEED=42
 --FILE--

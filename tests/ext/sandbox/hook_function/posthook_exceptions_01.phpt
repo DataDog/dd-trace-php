@@ -10,7 +10,7 @@ DDTrace\hook_function('greet',
     null,
     function ($args, $retval) {
         echo "greet hooked.\n";
-        assert($args === ['Datadog']);
+        assert($args == ['Datadog']);
         assert($retval === null);
     }
 );

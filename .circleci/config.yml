@@ -440,6 +440,7 @@ jobs:
             cd /usr/local/src/php
             export DD_TRACE_CLI_ENABLED=true
             export DD_TRACE_STARTUP_LOGS=0
+            export DD_TRACE_WARN_CALL_STACK_DEPTH=0
             export DD_TRACE_WARN_LEGACY_DD_TRACE=0
             export REPORT_EXIT_STATUS=1
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
@@ -1001,7 +1002,7 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 Unit tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          lib_curl_command: circleci step halt
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 56 Unit tests"
@@ -1124,6 +1125,15 @@ workflows:
           name: "PHP 56 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.6.list
           docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 54 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/5.4.list
+          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
+      - base_integration_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 54 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
       - base_integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 56 base integration tests"
@@ -1148,6 +1158,12 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 54 Integration tests"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
+          integration_testsuite: "test-integrations-54"
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 56 Integration tests"
@@ -1188,7 +1204,7 @@ workflows:
           name: "PHP 54 Web integration tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
           integration_testsuite: "test-web-54"
-          lib_curl_command: circleci step halt
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 56 Web integration tests"

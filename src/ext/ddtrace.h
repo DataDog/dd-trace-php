@@ -38,41 +38,53 @@ typedef struct _ddtrace_original_context {
 #endif
 } ddtrace_original_context;
 
+// clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
-char *auto_prepend_file;
-zend_bool disable;
-zend_bool disable_in_current_request;
-char *request_init_hook;
-zend_bool request_init_hook_loaded;
+    char *auto_prepend_file;
+    zend_bool disable;
+    zend_bool disable_in_current_request;
+    char *request_init_hook;
+    zend_bool request_init_hook_loaded;
 
-uint32_t traces_group_id;
-HashTable *class_lookup;
-HashTable *function_lookup;
-zend_bool log_backtrace;
-zend_bool backtrace_handler_already_run;
-dogstatsd_client dogstatsd_client;
-char *dogstatsd_host;
-char *dogstatsd_port;
-char *dogstatsd_buffer;
-ddtrace_original_context original_context;
+    uint32_t traces_group_id;
+    HashTable *class_lookup;
+    HashTable *function_lookup;
+    zend_bool log_backtrace;
+    zend_bool backtrace_handler_already_run;
+    dogstatsd_client dogstatsd_client;
+    char *dogstatsd_host;
+    char *dogstatsd_port;
+    char *dogstatsd_buffer;
+    ddtrace_original_context original_context;
 
-// PHP 7 uses ZEND_TLS for these
+    // PHP 7 uses ZEND_TLS for these
 #if PHP_VERSION_ID < 70000
-// Distributed tracing & curl
-HashTable *dt_http_saved_curl_headers;
-zend_bool back_up_http_headers;
-// ext/curl's list entry resource type
-int le_curl;
+    // Distributed tracing & curl
+    HashTable *dt_http_saved_curl_headers;
+    zend_bool back_up_http_headers;
+
+    /* These ones are used for measuring the call stack depth so that we can
+     * emit a warning prior to encountering a stack overflow.
+     *
+     * A 16-bit call depth would allow us to count to 65,535, which is way more
+     * than necessary. An 8-bit depth would be inadequate (255).
+     */
+    bool should_warn_call_depth;
+    uint16_t call_depth;
+
+    // ext/curl's list entry resource type
+    int le_curl;
 #endif
 
-uint64_t trace_id;
-ddtrace_span_ids_t *span_ids_top;
-ddtrace_span_fci *open_spans_top;
-ddtrace_span_fci *closed_spans_top;
-uint32_t open_spans_count;
-uint32_t closed_spans_count;
-int64_t compile_time_microseconds;
+    uint64_t trace_id;
+    ddtrace_span_ids_t *span_ids_top;
+    ddtrace_span_fci *open_spans_top;
+    ddtrace_span_fci *closed_spans_top;
+    uint32_t open_spans_count;
+    uint32_t closed_spans_count;
+    int64_t compile_time_microseconds;
 ZEND_END_MODULE_GLOBALS(ddtrace)
+// clang-format on
 
 #ifdef ZTS
 #define DDTRACE_G(v) TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)

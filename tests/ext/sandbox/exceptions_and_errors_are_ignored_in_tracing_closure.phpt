@@ -1,7 +1,5 @@
 --TEST--
 Exceptions and errors are ignored when inside a tracing closure
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand,mt_srand

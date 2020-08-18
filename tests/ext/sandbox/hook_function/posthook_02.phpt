@@ -5,8 +5,8 @@ DDTrace\hook_function posthook is passed the correct args (variadic)
 
 var_dump(DDTrace\hook_function('greet',
     null,
-    function (...$args) {
-        var_dump($args);
+    function () {
+        var_dump(func_get_args());
     }
 ));
 

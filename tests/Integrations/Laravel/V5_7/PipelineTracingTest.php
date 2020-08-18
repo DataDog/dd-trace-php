@@ -13,7 +13,7 @@ class PipelineTracingTest extends WebFrameworkTestCase
     use TracerTestTrait;
     use SpanAssertionTrait;
 
-    const IS_SANDBOX = false;
+    const IS_SANDBOX = true;
 
     protected static function getAppIndexScript()
     {

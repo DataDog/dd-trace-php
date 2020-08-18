@@ -129,7 +129,7 @@
     fun:_emalloc
     fun:ZEND_SEND_VAL_SPEC_CONST_HANDLER
     fun:execute_ex
-    fun:dd_do_non_tracing_posthook
+    fun:dd_execute_non_tracing_posthook
     fun:ddtrace_execute_ex
     fun:zend_execute
     fun:zend_do_fcall_common_helper_SPEC
@@ -146,7 +146,7 @@
     fun:_emalloc
     fun:ZEND_SEND_VAL_SPEC_CONST_HANDLER
     fun:execute_ex
-    fun:dd_do_non_tracing_posthook
+    fun:dd_execute_non_tracing_posthook
     fun:ddtrace_execute_ex
     fun:zend_execute
     fun:zend_do_fcall_common_helper_SPEC

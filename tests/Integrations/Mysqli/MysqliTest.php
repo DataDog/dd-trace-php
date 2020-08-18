@@ -8,7 +8,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 
 class MysqliTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = false;
+    const IS_SANDBOX = true;
 
     private static $host = 'mysql_integration';
     private static $db = 'test';

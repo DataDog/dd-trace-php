@@ -3,7 +3,7 @@
 namespace DDTrace\Integrations\ZendFramework\V1;
 
 use DDTrace\GlobalTracer;
-use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
+use DDTrace\Integrations\ZendFramework\ZendFrameworkSandboxedIntegration;
 use DDTrace\Tag;
 use Zend_Controller_Front;
 use Zend_Controller_Plugin_Abstract;
@@ -22,7 +22,7 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
             return;
         }
         $span = $scope->getSpan();
-        $integration = ZendFrameworkIntegration::getInstance();
+        $integration = new ZendFrameworkSandboxedIntegration();
         // Overwriting the default web integration
         $integration->addTraceAnalyticsIfEnabledLegacy($span);
         $controller = $request->getControllerName();

@@ -18,7 +18,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 class GuzzleIntegrationTest extends IntegrationTestCase
 {
 
-    const IS_SANDBOX = false;
+    const IS_SANDBOX = true;
 
     const URL = 'http://httpbin_integration';
 

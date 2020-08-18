@@ -4,8 +4,8 @@ DDTrace\hook_function prehook is passed the correct args (variadic)
 <?php
 
 var_dump(DDTrace\hook_function('greet',
-    function (...$args) {
-        var_dump($args);
+    function () {
+        var_dump(func_get_args());
     }
 ));
 

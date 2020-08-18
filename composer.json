@@ -158,7 +158,6 @@
             "@composer test-pdo",
             "@composer test-elasticsearch1",
             "@composer test-guzzle5",
-            "@composer test-guzzle6",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -445,23 +444,7 @@
 
         "test-curl": [
             "@composer scenario default",
-            "@composer test -- tests/Integrations/Curl --filter='/Sandbox/'"
-        ],
-        "test-memcached": [
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Memcached --filter='/Sandbox/'"
-        ],
-        "test-mysqli": [
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Mysqli --filter='/Sandbox/'"
-        ],
-        "test-mongo": [
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/Mongo --filter='/Sandbox/'"
-        ],
-        "test-pdo": [
-            "@composer scenario default",
-            "@composer test -- tests/Integrations/PDO --filter='/Sandbox/'"
+            "@composer test -- tests/Integrations/Curl"
         ],
         "test-elasticsearch1": [
             "@composer scenario elasticsearch1",
@@ -469,11 +452,27 @@
         ],
         "test-guzzle5": [
             "@composer scenario guzzle5",
-            "@composer test -- tests/Integrations/Guzzle/V5 --filter='/Sandbox/'"
+            "@composer test -- tests/Integrations/Guzzle/V5"
         ],
         "test-guzzle6": [
             "@composer scenario guzzle6",
-            "@composer test -- tests/Integrations/Guzzle/V6 --filter='/Sandbox/'"
+            "@composer test -- tests/Integrations/Guzzle/V6"
+        ],
+        "test-memcached": [
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Memcached"
+        ],
+        "test-mysqli": [
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Mysqli"
+        ],
+        "test-mongo": [
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/Mongo"
+        ],
+        "test-pdo": [
+            "@composer scenario default",
+            "@composer test -- tests/Integrations/PDO"
         ],
         "test-phpredis3": [
             "@composer scenario phpredis3",
@@ -489,7 +488,7 @@
         ],
         "test-predis1": [
             "@composer scenario predis1",
-            "@composer test -- tests/Integrations/Predis --filter='/Sandbox/'"
+            "@composer test -- tests/Integrations/Predis"
         ],
 
         "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",

@@ -1,7 +1,5 @@
 --TEST--
 Set the trace ID from userland
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_DEBUG_PRNG_SEED=42
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum

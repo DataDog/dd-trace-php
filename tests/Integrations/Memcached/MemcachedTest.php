@@ -7,9 +7,9 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Util\Versions;
 
-class MemcachedTest extends IntegrationTestCase
+final class MemcachedTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = false;
+    const IS_SANDBOX = true;
 
     /**
      * @var \Memcached
