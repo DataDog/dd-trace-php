@@ -768,3 +768,15 @@ void ddtrace_execute_internal_mshutdown(void) {
         zend_execute_internal = dd_prev_execute_internal != execute_internal ? dd_prev_execute_internal : NULL;
     }
 }
+
+void ddtrace_engine_hooks_rinit(TSRMLS_D) {
+#if ZTS
+    PHP5_UNUSED(TSRMLS_C);
+#endif
+}
+
+void ddtrace_engine_hooks_rshutdown(TSRMLS_D) {
+#if ZTS
+    PHP5_UNUSED(TSRMLS_C);
+#endif
+}

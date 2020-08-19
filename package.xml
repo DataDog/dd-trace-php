@@ -189,6 +189,7 @@
             <file name="tests/ext/sandbox/default_span_properties_method.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_using_function.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_attempt_loading_once.phpt" role="test" />
+            <file name="tests/ext/sandbox/deferred_loading_helper.php" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing.inc" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl.phpt" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_copy_handle.phpt" role="test" />

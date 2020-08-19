@@ -42,26 +42,16 @@ extern ddtrace_integration ddtrace_integrations[];
 extern size_t ddtrace_integrations_len;
 
 /**
- * DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, loader_function)
- * this makro will assign a loader function for each Class, Method/Function combination
+ * DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)
+ * This macro will assign a fully qualified SandboxedIntegration name for each
+ * Class, Method/Function combination.
  *
- * Purpose of the loader function is to execeture arbitrary PHP code
- * before attempting to search for an integration second time.
- *
- * I.e. we can declare following loader
- * DDTRACE_DEFERRED_INTEGRATION_LOADER("SomeClass", "someMethod", "loader")
- * then if we define following PHP function
- *
- * function loader_fn () {
- *   dd_trace_method("SomeClass", "someMethod", ['prehook' => function(SpanData...) {}])
- * }
- *
- * It will be executed the first time someMethod is called, then an internal lookup will be repeated
- * for the someMethod to get the actual implementation of tracing function
- **/
-#define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, loader_function)              \
+ * The integration_name will be constructed and `init()` method called when the
+ * deferred dispatch loader code is triggered.
+ */
+#define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
-                          DDTRACE_STRING_LITERAL(loader_function), DDTRACE_DISPATCH_DEFERRED_LOADER TSRMLS_CC)
+                          DDTRACE_STRING_LITERAL(integration_name), DDTRACE_DISPATCH_DEFERRED_LOADER TSRMLS_CC)
 
 /**
  * DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)

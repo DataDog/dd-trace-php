@@ -17,6 +17,7 @@
 #include "../env_config.h"
 #include "../logging.h"
 #include "../span.h"
+#include "engine_api.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
@@ -25,6 +26,8 @@ int ddtrace_resource = -1;
 #if PHP_VERSION_ID >= 70400
 int ddtrace_op_array_extension = 0;
 #endif
+
+ZEND_TLS zend_function *dd_integrations_load_deferred_integration = NULL;
 
 // True gloals; only modify in minit/mshutdown
 static user_opcode_handler_t prev_ucall_handler;
@@ -156,7 +159,7 @@ static bool dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, 
     HashTable *function_table = NULL;
     bool found = ddtrace_try_find_dispatch(scope, &fname, &dispatch, &function_table);
     if (found && dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER) {
-        if (Z_TYPE(dispatch->deferred_load_function_name) != IS_NULL) {
+        if (Z_TYPE(dispatch->deferred_load_integration_name) != IS_NULL) {
             ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
             // protect against the free when we remove the dispatch from function_table
@@ -168,9 +171,10 @@ static bool dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, 
                                    scope ? "::" : "", Z_STRVAL(fname));
             }
 
-            zval retval;
-            ZEND_RESULT_CODE status =
-                call_user_function(EG(function_table), NULL, &dispatch->deferred_load_function_name, &retval, 0, NULL);
+            zval retval, *integration = &dispatch->deferred_load_integration_name;
+            zend_function **fn_proxy = &dd_integrations_load_deferred_integration;
+            ddtrace_string loader = DDTRACE_STRING_LITERAL("ddtrace\\integrations\\load_deferred_integration");
+            ZEND_RESULT_CODE status = ddtrace_call_function(fn_proxy, loader.ptr, loader.len, &retval, 1, integration);
 
             ddtrace_dispatch_release(dispatch);
             dispatch = EXPECTED(status == SUCCESS) ? ddtrace_find_dispatch(scope, &fname) : NULL;
@@ -1129,6 +1133,9 @@ void ddtrace_opcode_mshutdown(void) {
 
 void ddtrace_execute_internal_minit(void) {}
 void ddtrace_execute_internal_mshutdown(void) {}
+
+void ddtrace_engine_hooks_rinit(void) { dd_integrations_load_deferred_integration = NULL; }
+void ddtrace_engine_hooks_rshutdown(void) { dd_integrations_load_deferred_integration = NULL; }
 
 PHP_FUNCTION(ddtrace_internal_function_handler) {
     ddtrace_dispatch_t *dispatch;

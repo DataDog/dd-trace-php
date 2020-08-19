@@ -634,6 +634,18 @@ static void ddtrace_execute_internal(zend_execute_data *execute_data_ptr, int re
 void ddtrace_opcode_minit(void) {}
 void ddtrace_opcode_mshutdown(void) {}
 
+void ddtrace_engine_hooks_rinit(TSRMLS_D) {
+#if ZTS
+    PHP5_UNUSED(TSRMLS_C);
+#endif
+}
+
+void ddtrace_engine_hooks_rshutdown(TSRMLS_D) {
+#if ZTS
+    PHP5_UNUSED(TSRMLS_C);
+#endif
+}
+
 void ddtrace_execute_internal_minit(void) {
     dd_prev_execute = zend_execute;
     zend_execute = ddtrace_execute;

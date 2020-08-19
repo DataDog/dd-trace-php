@@ -267,7 +267,8 @@ static void dd_add_headers_to_curl_handle(zval *curl_handle, ddtrace_span_fci *a
         if (dd_tracer_inject_helper(&http_headers, format, active_span ? &active_span->span : NULL) == SUCCESS) {
             zval setopt_args[3] = {*curl_handle, _dd_curl_httpheaders, http_headers};
             zval retval;
-            ddtrace_call_function(ZEND_STRL("curl_setopt"), &retval, 3, setopt_args);
+            // todo: cache curl_setopt lookup
+            ddtrace_call_function(NULL, ZEND_STRL("curl_setopt"), &retval, 3, setopt_args);
             zval_ptr_dtor(&retval);
         }
     }
