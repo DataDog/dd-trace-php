@@ -534,7 +534,8 @@ static void ddtrace_execute(zend_op_array *op_array TSRMLS_DC) {
         DDTRACE_G(should_warn_call_depth) = false;
         php_log_err(
             "ddtrace has detected a call stack depth of 512. If the call stack depth continues to grow the application "
-            "may encounter a segmentation fault; see TODO: URL for details." TSRMLS_CC);
+            "may encounter a segmentation fault; see "
+            "https://docs.datadoghq.com/tracing/troubleshooting/php_5_deep_call_stacks/ for details." TSRMLS_CC);
     }
     execute_hook(op_array TSRMLS_CC);
     --DDTRACE_G(call_depth);
