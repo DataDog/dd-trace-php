@@ -75,17 +75,36 @@ ZEND_RESULT_CODE ddtrace_call_method(zend_object *obj, zend_class_entry *ce, zen
     return result;
 }
 
-ZEND_RESULT_CODE ddtrace_call_function(const char *name, size_t name_len, zval *retval, int argc, zval argv[]) {
-    zval fname = ddtrace_zval_stringl(name, name_len);
-    zend_fcall_info fci;
-    zend_fcall_info_cache fcc;
-    zend_fcall_info_init(&fname, IS_CALLABLE_CHECK_SILENT, &fci, &fcc, NULL, NULL);
+ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *name, size_t name_len, zval *retval,
+                                       int argc, zval argv[]) {
+    zend_fcall_info fci = {
+        .size = sizeof(zend_fcall_info),
+    };
+    zend_fcall_info_cache fcc = {
+        .function_handler = (fn_proxy && *fn_proxy) ? *fn_proxy : NULL,
+    };
+
+    if (!fcc.function_handler) {
+        // This avoids allocating a zend_string if fn_proxy is used
+        zval fname = ddtrace_zval_stringl(name, name_len);
+        zend_bool is_callable = zend_is_callable_ex(&fname, NULL, IS_CALLABLE_CHECK_SILENT, NULL, &fcc, NULL);
+        zend_string_release(Z_STR(fname));
+        if (UNEXPECTED(!is_callable)) {
+            return FAILURE;
+        }
+        if (fn_proxy) {
+            *fn_proxy = fcc.function_handler;
+        }
+    }
+
+    // I don't think we need a name as long as we have a handler
+    // ZVAL_COPY_VALUE(&fci.function_name, fcc.function_handler->common.function_name);
+
     fci.retval = retval;
     fci.params = argv;
     fci.no_separation = 0;  // allow for by-ref args
     fci.param_count = argc;
     ZEND_RESULT_CODE result = zend_call_function(&fci, &fcc);
-    zend_string_release(Z_STR(fname));
     return result;
 }
 

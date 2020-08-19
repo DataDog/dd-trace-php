@@ -166,6 +166,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'phpredis'; // PHP 7 only integration
         } else {
             $excluded[] = 'elasticsearch'; // Deferred loading integration
+            $excluded[] = 'phpredis'; // Deferred loading integration
         }
         foreach ($excluded as $integrationToExclude) {
             $index = array_search($integrationToExclude, $expected, true);

@@ -33,7 +33,7 @@ typedef struct ddtrace_dispatch_t {
     uint32_t acquired;
     union {
         zval callable;  // legacy
-        zval deferred_load_function_name;
+        zval deferred_load_integration_name;
         zval prehook;
         zval posthook;
     };

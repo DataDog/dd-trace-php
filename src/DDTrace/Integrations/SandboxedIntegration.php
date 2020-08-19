@@ -48,3 +48,16 @@ abstract class SandboxedIntegration extends Integration
         }
     }
 }
+
+function load_deferred_integration($integrationName)
+{
+    // it should have already been loaded (in current architecture)
+    if (
+        \class_exists($integrationName, $autoload = false)
+        && \is_subclass_of($integrationName, 'DDTrace\\Integrations\\SandboxedIntegration')
+    ) {
+        /** @var SandboxedIntegration $integration */
+        $integration = new $integrationName();
+        $integration->init();
+    }
+}
