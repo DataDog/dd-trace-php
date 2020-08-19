@@ -959,6 +959,13 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
+          name: "PHP 54 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test-web-54"
+          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
