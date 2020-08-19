@@ -107,6 +107,7 @@ class IntegrationsLoader
         if (\PHP_MAJOR_VERSION >= 7) {
             unset($this->integrations[ElasticSearchSandboxedIntegration::NAME]);
             unset($this->integrations[PHPRedisSandboxedIntegration::NAME]);
+            unset($this->integrations[PredisSandboxedIntegration::NAME]);
         }
     }
 

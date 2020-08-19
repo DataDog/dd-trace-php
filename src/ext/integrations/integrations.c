@@ -63,13 +63,22 @@ static void dd_register_known_calls(TSRMLS_D) {
 
 #if PHP_VERSION_ID >= 70000
 
-static void dd_set_up_deferred_loading_phpredis() {
-    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_PHPREDIS TSRMLS_CC)) {
+static void dd_set_up_deferred_loading_phpredis(void) {
+    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_PHPREDIS)) {
         return;
     }
 
     DDTRACE_DEFERRED_INTEGRATION_LOADER("Redis", "__construct",
                                         "DDTrace\\Integrations\\PHPRedis\\PHPRedisSandboxedIntegration");
+}
+
+static void dd_set_up_deferred_loading_predis(void) {
+    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_PREDIS)) {
+        return;
+    }
+
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("Predis\\Client", "__construct",
+                                        "DDTrace\\Integrations\\Predis\\PredisSandboxedIntegration");
 }
 
 void ddtrace_integrations_rinit(TSRMLS_D) {
@@ -78,6 +87,7 @@ void ddtrace_integrations_rinit(TSRMLS_D) {
     _dd_es_initialize_deferred_integration(TSRMLS_C);
     _dd_load_test_integrations(TSRMLS_C);
     dd_set_up_deferred_loading_phpredis();
+    dd_set_up_deferred_loading_predis();
 }
 
 ddtrace_integration* ddtrace_get_integration_from_string(ddtrace_string integration) {
