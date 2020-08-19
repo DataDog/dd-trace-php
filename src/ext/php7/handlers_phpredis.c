@@ -3,6 +3,7 @@
 void ddtrace_phpredis_handlers_startup(void) {
     // clang-format off
     ddtrace_string methods[] = {
+        DDTRACE_STRING_LITERAL("__construct"),
         DDTRACE_STRING_LITERAL("append"),
         DDTRACE_STRING_LITERAL("auth"),
         DDTRACE_STRING_LITERAL("bgrewriteaof"),

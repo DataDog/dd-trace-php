@@ -5,26 +5,18 @@ namespace DDTrace\Integrations;
 use DDTrace\Integrations\CakePHP\CakePHPSandboxedIntegration;
 use DDTrace\Integrations\CodeIgniter\V2\CodeIgniterSandboxedIntegration;
 use DDTrace\Integrations\Curl\CurlSandboxedIntegration;
-use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration;
 use DDTrace\Integrations\Eloquent\EloquentSandboxedIntegration;
 use DDTrace\Integrations\Guzzle\GuzzleSandboxedIntegration;
 use DDTrace\Integrations\Laravel\LaravelSandboxedIntegration;
 use DDTrace\Integrations\Lumen\LumenSandboxedIntegration;
-use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Memcached\MemcachedSandboxedIntegration;
-use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mongo\MongoSandboxedIntegration;
-use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\Mysqli\MysqliSandboxedIntegration;
-use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Integrations\PDO\PDOSandboxedIntegration;
 use DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration;
-use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Predis\PredisSandboxedIntegration;
-use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Slim\SlimSandboxedIntegration;
-use DDTrace\Integrations\Symfony\SymfonyIntegration;
 use DDTrace\Integrations\Symfony\SymfonySandboxedIntegration;
 use DDTrace\Integrations\Web\WebIntegration;
 use DDTrace\Integrations\WordPress\WordPressSandboxedIntegration;
@@ -114,6 +106,7 @@ class IntegrationsLoader
         // For PHP 7.0+ use C level deferred integration loader
         if (\PHP_MAJOR_VERSION >= 7) {
             unset($this->integrations[ElasticSearchSandboxedIntegration::NAME]);
+            unset($this->integrations[PHPRedisSandboxedIntegration::NAME]);
         }
     }
 
