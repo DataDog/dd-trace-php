@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 BUILD_SUFFIX := extension
-BUILD_DIR := tmp/build_$(BUILD_SUFFIX)
+BUILD_DIR := $(shell pwd)/tmp/build_$(BUILD_SUFFIX)
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
@@ -50,36 +50,48 @@ install_all: install install_ini
 
 test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE)
-	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)"
+	set -xe; \
+	export REPORT_EXIT_STATUS=1; \
+	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
+	\
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
+	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all $(TESTS)
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE)
-	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS)"
+	set -xe; \
+	export REPORT_EXIT_STATUS=1; \
+	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
+	\
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
+	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m $(TESTS)
 
 test_c_asan: export DD_TRACE_CLI_ENABLED=1
 test_c_asan: $(SO_FILE)
 	( \
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
+	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-test.xml; \
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean test  TESTS="-q --asan --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
+	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all --asan $(TESTS); \
 	)
 
 test_extension_ci: $(SO_FILE)
 	( \
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
+	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
-	$(MAKE) -C $(BUILD_DIR) test  TESTS="-q --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
+	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all $(TESTS); \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	# If we don't set CC="" then there is a really weird leak in PHP 5.6 sometimes\
-	# We obviously need a compiler to build though, so we split it into two steps \
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all ; \
-	$(MAKE) -C $(BUILD_DIR) CC="" CFLAGS="-g" test  TESTS="-q -m -s $$TEST_PHP_OUTPUT --show-all $(TESTS)" && grep -e 'errors="0"' $$TEST_PHP_JUNIT  && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
+	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m -s $$TEST_PHP_OUTPUT $(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
 test_integration: install_ini
