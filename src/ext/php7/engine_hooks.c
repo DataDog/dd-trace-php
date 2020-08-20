@@ -1075,14 +1075,18 @@ static int dd_handle_exception_handler(zend_execute_data *execute_data) {
     return prev_handle_exception_handler ? prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
-static int dd_exit_handler(zend_execute_data *execute_data) {
+static void dd_close_all_open_spans(void) {
     ddtrace_span_fci *span_fci;
+    while ((span_fci = DDTRACE_G(open_spans_top))) {
+        zval retval;
+        ZVAL_NULL(&retval);
+        dd_observer_end(NULL, span_fci, &retval);
+    }
+}
+
+static int dd_exit_handler(zend_execute_data *execute_data) {
     if (ZEND_EXIT == EX(opline)->opcode) {
-        while ((span_fci = DDTRACE_G(open_spans_top))) {
-            zval retval;
-            ZVAL_NULL(&retval);
-            dd_observer_end(NULL, span_fci, &retval);
-        }
+        dd_close_all_open_spans();
     }
 
     return prev_exit_handler ? prev_exit_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
@@ -1186,10 +1190,10 @@ static zend_object *dd_make_exception_from_error(int type, const char *format, v
 
 static void _dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
                          va_list args) {
-    ddtrace_span_t *span = DDTRACE_G(open_spans_top);
+    ddtrace_span_fci *span = DDTRACE_G(open_spans_top);
     if (span && (type == E_ERROR || type == E_CORE_ERROR || type == E_USER_ERROR)) {
         span->exception = dd_make_exception_from_error(type, format, args);
-        //_dd_close_all_open_spans(); TODO Make this work
+        dd_close_all_open_spans();
     }
     _prev_error_cb(type, error_filename, error_lineno, format, args);
 }

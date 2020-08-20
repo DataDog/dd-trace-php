@@ -670,3 +670,11 @@ void ddtrace_execute_internal_mshutdown(void) {
         dd_prev_execute_internal = dd_prev_execute_internal == execute_internal ? NULL : dd_prev_execute_internal;
     }
 }
+
+void ddtrace_error_cb_minit(void) {
+    // TODO
+}
+
+void ddtrace_error_cb_mshutdown(void) {
+    // TODO
+}
