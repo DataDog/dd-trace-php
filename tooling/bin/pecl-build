@@ -6,7 +6,7 @@ rm -f ./bridge/_generated.php
 composer compile
 
 # PECL doesn't like the "-nightly" part of the nightly version number so we have to change it
-dd_version=$(php -r "echo (include 'src/DDTrace/version.php') !== '1.0.0-nightly' ?: '0.0.0';")
+dd_version=$(php -r "echo str_replace('1.0.0-nightly', '0.0.0', require 'src/DDTrace/version.php');")
 sed -e "s/\${version}/${dd_version}/g" -e "s/\${date}/$(date +%Y-%m-%d)/g" -i package.xml
 
 pear package-validate package.xml
