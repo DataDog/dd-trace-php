@@ -12,19 +12,58 @@
     </lead>
     <!-- **Automatically updated with pecl-build script** -->
     <!-- Date only needs to be set if it was packaged on a different day from release -->
-    <date>${date}</date>
+    <date>2020-08-25</date>
     <version>
         <!-- **Automatically updated with pecl-build script** -->
         <!-- Version will be set from version.php or 0.0.0 for nightly builds -->
-        <release>${version}</release>
-        <api>${version}</api>
+        <release>0.48.0</release>
+        <api>0.48.0</api>
     </version>
     <stability>
         <release>stable</release>
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+## Important!
+The legacy API for custom instrumentation `dd_trace()` is now a no-op in this release. See the [upgrade guide](https://docs.datadoghq.com/tracing/custom_instrumentation/php/?tab=tracingfunctioncalls#legacy-api-upgrade-guide) for instructions on upgrading.
+
+The way PHP 5.4 and 5.6 hook into the engine has changed. Please read [deep call stacks on PHP 5](https://docs.datadoghq.com/tracing/troubleshooting/php_5_deep_call_stacks/) for more information on potential issues.
+
+All calls to `DDTrace\trace_function` or `DDTrace\trace_method` functions need to happen before the first invocation of the target e.g. `DDTrace\trace_function('foo', ...)` should be done before `foo` is called for the first time. In the future this may need to be done before the target is even defined. This was previously noted in 0.45.0, but is now enforced for all PHP versions.
+
+
+### Added
+
+- Deferred initialization of integrations, and matching integration to a callable at compile time #891 #972
+- Test for non-zero durations #950
+- Add support for PHPRedis 3 extension on PHP 7 #948
+- Add support for PHPRedis 4 extension on PHP 7 #982
+- Add support for PHPRedis 5 extension on PHP 7 #983
+- Add non-tracing API (hook_function/hook_method) #984
+
+### Changed
+
+- Improve CGI usage in test suite #952 (thank you @remicollet!)
+- Remove `ddtrace.strict_mode` INI setting #955
+- Sandbox PHP 5.6 using `zend_execute_ex` + `zend_execute_internal` #970
+- Package `_generated.php` with PECL #980
+- Move startup logs behind debug mode #986
+- Split PHP 7's opcode handlers for previous case #987
+- Sandbox PHP 5.4, cache negative lookups on PHP 5, and delete integrations using dd_trace #988
+- Cleanup PHP 7 curl handlers #989
+- Update dd_trace warning for being a no-op #990
+- Defer loading of PHPRedis #992
+- Defer loading of Predis #994
+
+### Fixed
+
+- Compatibility issues with PECL #845 (thank you @remicollet!)
+- Fix package.xml validation for PECL #954
+- Removed obsolete pre-integrations loading check from dd-doctor.php #956
+- Fix off-by-one error with longest config name for integrations #985
+
+    </notes>
     <contents>
         <dir name="/">
             <!-- Source files -->
