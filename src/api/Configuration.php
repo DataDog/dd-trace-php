@@ -214,7 +214,7 @@ class Configuration extends AbstractConfiguration
      */
     public function isSandboxEnabled()
     {
-        return $this->boolValue('trace.sandbox.enabled', true);
+        return true;
     }
 
     /**
