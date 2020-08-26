@@ -5,9 +5,8 @@ namespace DDTrace\Tests\Integrations\PHPRedis;
 use DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
-use Exception;
 
-// Note: PHPRedis 5 has many deprecated methodsd (comapred to 4) that we still want to test
+// Note: PHPRedis 5 has many deprecated methods (comapared to 4) that we still want to test
 \error_reporting(E_ALL ^ \E_DEPRECATED);
 
 class PHPRedis45SandboxedTest extends IntegrationTestCase

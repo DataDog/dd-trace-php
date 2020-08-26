@@ -5,7 +5,6 @@ namespace DDTrace\Tests\Integrations\PHPRedis;
 use DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
-use Exception;
 
 class PHPRedis3SandboxedTest extends IntegrationTestCase
 {

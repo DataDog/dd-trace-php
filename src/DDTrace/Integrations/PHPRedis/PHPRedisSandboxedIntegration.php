@@ -37,17 +37,17 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         \DDTrace\trace_method('Redis', 'open', $traceConnectOpen);
         \DDTrace\trace_method('Redis', 'popen', $traceConnectOpen);
 
-        self::traceMethodNoArgs('close');
-        self::traceMethodNoArgs('auth');
-        self::traceMethodNoArgs('ping');
-        self::traceMethodNoArgs('echo');
-        self::traceMethodNoArgs('bgRewriteAOF');
-        self::traceMethodNoArgs('bgSave');
-        self::traceMethodNoArgs('flushAll');
-        self::traceMethodNoArgs('flushDb');
-        self::traceMethodNoArgs('save');
+        $this->traceMethodNoArgs('close');
+        $this->traceMethodNoArgs('auth');
+        $this->traceMethodNoArgs('ping');
+        $this->traceMethodNoArgs('echo');
+        $this->traceMethodNoArgs('bgRewriteAOF');
+        $this->traceMethodNoArgs('bgSave');
+        $this->traceMethodNoArgs('flushAll');
+        $this->traceMethodNoArgs('flushDb');
+        $this->traceMethodNoArgs('save');
         // We do not trace arguments of restore as they are binary
-        self::traceMethodNoArgs('restore');
+        $this->traceMethodNoArgs('restore');
 
         \DDTrace\trace_method('Redis', 'select', function (SpanData $span, $args) {
             PHPRedisSandboxedIntegration::enrichSpan($span);
@@ -56,196 +56,196 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
             }
         });
 
-        self::traceMethodAsCommand('swapdb');
+        $this->traceMethodAsCommand('swapdb');
 
-        self::traceMethodAsCommand('append');
-        self::traceMethodAsCommand('decr');
-        self::traceMethodAsCommand('decrBy');
-        self::traceMethodAsCommand('get');
-        self::traceMethodAsCommand('getBit');
-        self::traceMethodAsCommand('getRange');
-        self::traceMethodAsCommand('getSet');
-        self::traceMethodAsCommand('incr');
-        self::traceMethodAsCommand('incrBy');
-        self::traceMethodAsCommand('incrByFloat');
-        self::traceMethodAsCommand('mGet');
-        self::traceMethodAsCommand('getMultiple');
-        self::traceMethodAsCommand('mSet');
-        self::traceMethodAsCommand('mSetNx');
-        self::traceMethodAsCommand('set');
-        self::traceMethodAsCommand('setBit');
-        self::traceMethodAsCommand('setEx');
-        self::traceMethodAsCommand('pSetEx');
-        self::traceMethodAsCommand('setNx');
-        self::traceMethodAsCommand('setRange');
-        self::traceMethodAsCommand('strLen');
+        $this->traceMethodAsCommand('append');
+        $this->traceMethodAsCommand('decr');
+        $this->traceMethodAsCommand('decrBy');
+        $this->traceMethodAsCommand('get');
+        $this->traceMethodAsCommand('getBit');
+        $this->traceMethodAsCommand('getRange');
+        $this->traceMethodAsCommand('getSet');
+        $this->traceMethodAsCommand('incr');
+        $this->traceMethodAsCommand('incrBy');
+        $this->traceMethodAsCommand('incrByFloat');
+        $this->traceMethodAsCommand('mGet');
+        $this->traceMethodAsCommand('getMultiple');
+        $this->traceMethodAsCommand('mSet');
+        $this->traceMethodAsCommand('mSetNx');
+        $this->traceMethodAsCommand('set');
+        $this->traceMethodAsCommand('setBit');
+        $this->traceMethodAsCommand('setEx');
+        $this->traceMethodAsCommand('pSetEx');
+        $this->traceMethodAsCommand('setNx');
+        $this->traceMethodAsCommand('setRange');
+        $this->traceMethodAsCommand('strLen');
 
-        self::traceMethodAsCommand('del');
-        self::traceMethodAsCommand('delete');
-        self::traceMethodAsCommand('dump');
-        self::traceMethodAsCommand('exists');
-        self::traceMethodAsCommand('keys');
-        self::traceMethodAsCommand('getKeys');
-        self::traceMethodAsCommand('scan');
-        self::traceMethodAsCommand('migrate');
-        self::traceMethodAsCommand('move');
-        self::traceMethodAsCommand('persist');
-        self::traceMethodAsCommand('rename');
-        self::traceMethodAsCommand('object');
-        self::traceMethodAsCommand('randomKey');
-        self::traceMethodAsCommand('renameKey');
-        self::traceMethodAsCommand('renameNx');
-        self::traceMethodAsCommand('type');
-        self::traceMethodAsCommand('sort');
-        self::traceMethodAsCommand('expire');
-        self::traceMethodAsCommand('expireAt');
-        self::traceMethodAsCommand('setTimeout');
-        self::traceMethodAsCommand('pexpire');
-        self::traceMethodAsCommand('pexpireAt');
-        self::traceMethodAsCommand('ttl');
-        self::traceMethodAsCommand('pttl');
+        $this->traceMethodAsCommand('del');
+        $this->traceMethodAsCommand('delete');
+        $this->traceMethodAsCommand('dump');
+        $this->traceMethodAsCommand('exists');
+        $this->traceMethodAsCommand('keys');
+        $this->traceMethodAsCommand('getKeys');
+        $this->traceMethodAsCommand('scan');
+        $this->traceMethodAsCommand('migrate');
+        $this->traceMethodAsCommand('move');
+        $this->traceMethodAsCommand('persist');
+        $this->traceMethodAsCommand('rename');
+        $this->traceMethodAsCommand('object');
+        $this->traceMethodAsCommand('randomKey');
+        $this->traceMethodAsCommand('renameKey');
+        $this->traceMethodAsCommand('renameNx');
+        $this->traceMethodAsCommand('type');
+        $this->traceMethodAsCommand('sort');
+        $this->traceMethodAsCommand('expire');
+        $this->traceMethodAsCommand('expireAt');
+        $this->traceMethodAsCommand('setTimeout');
+        $this->traceMethodAsCommand('pexpire');
+        $this->traceMethodAsCommand('pexpireAt');
+        $this->traceMethodAsCommand('ttl');
+        $this->traceMethodAsCommand('pttl');
 
         // Hash functions
-        self::traceMethodAsCommand('hDel');
-        self::traceMethodAsCommand('hExists');
-        self::traceMethodAsCommand('hGet');
-        self::traceMethodAsCommand('hGetAll');
-        self::traceMethodAsCommand('hIncrBy');
-        self::traceMethodAsCommand('hIncrByFloat');
-        self::traceMethodAsCommand('hKeys');
-        self::traceMethodAsCommand('hLen');
-        self::traceMethodAsCommand('hMGet');
-        self::traceMethodAsCommand('hMSet');
-        self::traceMethodAsCommand('hSet');
-        self::traceMethodAsCommand('hSetNx');
-        self::traceMethodAsCommand('hVals');
-        self::traceMethodAsCommand('hScan');
-        self::traceMethodAsCommand('hStrLen');
+        $this->traceMethodAsCommand('hDel');
+        $this->traceMethodAsCommand('hExists');
+        $this->traceMethodAsCommand('hGet');
+        $this->traceMethodAsCommand('hGetAll');
+        $this->traceMethodAsCommand('hIncrBy');
+        $this->traceMethodAsCommand('hIncrByFloat');
+        $this->traceMethodAsCommand('hKeys');
+        $this->traceMethodAsCommand('hLen');
+        $this->traceMethodAsCommand('hMGet');
+        $this->traceMethodAsCommand('hMSet');
+        $this->traceMethodAsCommand('hSet');
+        $this->traceMethodAsCommand('hSetNx');
+        $this->traceMethodAsCommand('hVals');
+        $this->traceMethodAsCommand('hScan');
+        $this->traceMethodAsCommand('hStrLen');
 
         // Lists
-        self::traceMethodAsCommand('blPop');
-        self::traceMethodAsCommand('brPop');
-        self::traceMethodAsCommand('bRPopLPush');
-        self::traceMethodAsCommand('lGet');
-        self::traceMethodAsCommand('lGetRange');
-        self::traceMethodAsCommand('lIndex');
-        self::traceMethodAsCommand('lInsert');
-        self::traceMethodAsCommand('listTrim');
-        self::traceMethodAsCommand('lLen');
-        self::traceMethodAsCommand('lPop');
-        self::traceMethodAsCommand('lPush');
-        self::traceMethodAsCommand('lPushx');
-        self::traceMethodAsCommand('lRange');
-        self::traceMethodAsCommand('lRem');
-        self::traceMethodAsCommand('lRemove');
-        self::traceMethodAsCommand('lSet');
-        self::traceMethodAsCommand('lSize');
-        self::traceMethodAsCommand('lTrim');
-        self::traceMethodAsCommand('rPop');
-        self::traceMethodAsCommand('rPopLPush');
-        self::traceMethodAsCommand('rPush');
-        self::traceMethodAsCommand('rPushX');
+        $this->traceMethodAsCommand('blPop');
+        $this->traceMethodAsCommand('brPop');
+        $this->traceMethodAsCommand('bRPopLPush');
+        $this->traceMethodAsCommand('lGet');
+        $this->traceMethodAsCommand('lGetRange');
+        $this->traceMethodAsCommand('lIndex');
+        $this->traceMethodAsCommand('lInsert');
+        $this->traceMethodAsCommand('listTrim');
+        $this->traceMethodAsCommand('lLen');
+        $this->traceMethodAsCommand('lPop');
+        $this->traceMethodAsCommand('lPush');
+        $this->traceMethodAsCommand('lPushx');
+        $this->traceMethodAsCommand('lRange');
+        $this->traceMethodAsCommand('lRem');
+        $this->traceMethodAsCommand('lRemove');
+        $this->traceMethodAsCommand('lSet');
+        $this->traceMethodAsCommand('lSize');
+        $this->traceMethodAsCommand('lTrim');
+        $this->traceMethodAsCommand('rPop');
+        $this->traceMethodAsCommand('rPopLPush');
+        $this->traceMethodAsCommand('rPush');
+        $this->traceMethodAsCommand('rPushX');
 
         // Sets
-        self::traceMethodAsCommand('sAdd');
-        self::traceMethodAsCommand('sCard');
-        self::traceMethodAsCommand('sContains');
-        self::traceMethodAsCommand('sDiff');
-        self::traceMethodAsCommand('sDiffStore');
-        self::traceMethodAsCommand('sGetMembers');
-        self::traceMethodAsCommand('sInter');
-        self::traceMethodAsCommand('sInterStore');
-        self::traceMethodAsCommand('sIsMember');
-        self::traceMethodAsCommand('sMembers');
-        self::traceMethodAsCommand('sMove');
-        self::traceMethodAsCommand('sPop');
-        self::traceMethodAsCommand('sRandMember');
-        self::traceMethodAsCommand('sRem');
-        self::traceMethodAsCommand('sRemove');
-        self::traceMethodAsCommand('sScan');
-        self::traceMethodAsCommand('sSize');
-        self::traceMethodAsCommand('sUnion');
-        self::traceMethodAsCommand('sUnionStore');
+        $this->traceMethodAsCommand('sAdd');
+        $this->traceMethodAsCommand('sCard');
+        $this->traceMethodAsCommand('sContains');
+        $this->traceMethodAsCommand('sDiff');
+        $this->traceMethodAsCommand('sDiffStore');
+        $this->traceMethodAsCommand('sGetMembers');
+        $this->traceMethodAsCommand('sInter');
+        $this->traceMethodAsCommand('sInterStore');
+        $this->traceMethodAsCommand('sIsMember');
+        $this->traceMethodAsCommand('sMembers');
+        $this->traceMethodAsCommand('sMove');
+        $this->traceMethodAsCommand('sPop');
+        $this->traceMethodAsCommand('sRandMember');
+        $this->traceMethodAsCommand('sRem');
+        $this->traceMethodAsCommand('sRemove');
+        $this->traceMethodAsCommand('sScan');
+        $this->traceMethodAsCommand('sSize');
+        $this->traceMethodAsCommand('sUnion');
+        $this->traceMethodAsCommand('sUnionStore');
 
         // Sorted Sets
-        self::traceMethodAsCommand('zAdd');
-        self::traceMethodAsCommand('zCard');
-        self::traceMethodAsCommand('zSize');
-        self::traceMethodAsCommand('zCount');
-        self::traceMethodAsCommand('zIncrBy');
-        self::traceMethodAsCommand('zInter');
-        self::traceMethodAsCommand('zPopMax');
-        self::traceMethodAsCommand('zPopMin');
-        self::traceMethodAsCommand('zRange');
-        self::traceMethodAsCommand('zRangeByScore');
-        self::traceMethodAsCommand('zRevRangeByScore');
-        self::traceMethodAsCommand('zRangeByLex');
-        self::traceMethodAsCommand('zRank');
-        self::traceMethodAsCommand('zRevRank');
-        self::traceMethodAsCommand('zRem');
-        self::traceMethodAsCommand('zRemove');
-        self::traceMethodAsCommand('zDelete');
-        self::traceMethodAsCommand('zRemRangeByRank');
-        self::traceMethodAsCommand('zDeleteRangeByRank');
-        self::traceMethodAsCommand('zRemRangeByScore');
-        self::traceMethodAsCommand('zDeleteRangeByScore');
-        self::traceMethodAsCommand('zRemoveRangeByScore');
-        self::traceMethodAsCommand('zRevRange');
-        self::traceMethodAsCommand('zScore');
-        self::traceMethodAsCommand('zUnion');
-        self::traceMethodAsCommand('zunionstore');
-        self::traceMethodAsCommand('zScan');
+        $this->traceMethodAsCommand('zAdd');
+        $this->traceMethodAsCommand('zCard');
+        $this->traceMethodAsCommand('zSize');
+        $this->traceMethodAsCommand('zCount');
+        $this->traceMethodAsCommand('zIncrBy');
+        $this->traceMethodAsCommand('zInter');
+        $this->traceMethodAsCommand('zPopMax');
+        $this->traceMethodAsCommand('zPopMin');
+        $this->traceMethodAsCommand('zRange');
+        $this->traceMethodAsCommand('zRangeByScore');
+        $this->traceMethodAsCommand('zRevRangeByScore');
+        $this->traceMethodAsCommand('zRangeByLex');
+        $this->traceMethodAsCommand('zRank');
+        $this->traceMethodAsCommand('zRevRank');
+        $this->traceMethodAsCommand('zRem');
+        $this->traceMethodAsCommand('zRemove');
+        $this->traceMethodAsCommand('zDelete');
+        $this->traceMethodAsCommand('zRemRangeByRank');
+        $this->traceMethodAsCommand('zDeleteRangeByRank');
+        $this->traceMethodAsCommand('zRemRangeByScore');
+        $this->traceMethodAsCommand('zDeleteRangeByScore');
+        $this->traceMethodAsCommand('zRemoveRangeByScore');
+        $this->traceMethodAsCommand('zRevRange');
+        $this->traceMethodAsCommand('zScore');
+        $this->traceMethodAsCommand('zUnion');
+        $this->traceMethodAsCommand('zunionstore');
+        $this->traceMethodAsCommand('zScan');
 
         // Publish: we only trace publish because subscribe is blocking and it will have to be manually traced
         // as in long running processes.
-        self::traceMethodAsCommand('publish');
+        $this->traceMethodAsCommand('publish');
 
         // Transactions: this should be improved to have 1 root span per transaction (see APMPHP-362).
-        self::traceMethodAsCommand('multi');
-        self::traceMethodAsCommand('exec');
+        $this->traceMethodAsCommand('multi');
+        $this->traceMethodAsCommand('exec');
 
         // Raw command
-        self::traceMethodAsCommand('rawCommand');
+        $this->traceMethodAsCommand('rawCommand');
 
         // Scripting
-        self::traceMethodAsCommand('eval');
-        self::traceMethodAsCommand('evalSha');
-        self::traceMethodAsCommand('script');
-        self::traceMethodAsCommand('getLastError');
-        self::traceMethodAsCommand('clearLastError');
-        self::traceMethodAsCommand('_unserialize');
-        self::traceMethodAsCommand('_serialize');
+        $this->traceMethodAsCommand('eval');
+        $this->traceMethodAsCommand('evalSha');
+        $this->traceMethodAsCommand('script');
+        $this->traceMethodAsCommand('getLastError');
+        $this->traceMethodAsCommand('clearLastError');
+        $this->traceMethodAsCommand('_unserialize');
+        $this->traceMethodAsCommand('_serialize');
 
         // Introspection
-        self::traceMethodAsCommand('isConnected');
-        self::traceMethodAsCommand('getHost');
-        self::traceMethodAsCommand('getPort');
-        self::traceMethodAsCommand('getDbNum');
-        self::traceMethodAsCommand('getTimeout');
-        self::traceMethodAsCommand('getReadTimeout');
+        $this->traceMethodAsCommand('isConnected');
+        $this->traceMethodAsCommand('getHost');
+        $this->traceMethodAsCommand('getPort');
+        $this->traceMethodAsCommand('getDbNum');
+        $this->traceMethodAsCommand('getTimeout');
+        $this->traceMethodAsCommand('getReadTimeout');
 
         // Geocoding
-        self::traceMethodAsCommand('geoAdd');
-        self::traceMethodAsCommand('geoHash');
-        self::traceMethodAsCommand('geoPos');
-        self::traceMethodAsCommand('geoDist');
-        self::traceMethodAsCommand('geoRadius');
-        self::traceMethodAsCommand('geoRadiusByMember');
+        $this->traceMethodAsCommand('geoAdd');
+        $this->traceMethodAsCommand('geoHash');
+        $this->traceMethodAsCommand('geoPos');
+        $this->traceMethodAsCommand('geoDist');
+        $this->traceMethodAsCommand('geoRadius');
+        $this->traceMethodAsCommand('geoRadiusByMember');
 
         // Streams
-        self::traceMethodAsCommand('xAck');
-        self::traceMethodAsCommand('xAdd');
-        self::traceMethodAsCommand('xClaim');
-        self::traceMethodAsCommand('xDel');
-        self::traceMethodAsCommand('xGroup');
-        self::traceMethodAsCommand('xInfo');
-        self::traceMethodAsCommand('xLen');
-        self::traceMethodAsCommand('xPending');
-        self::traceMethodAsCommand('xRange');
-        self::traceMethodAsCommand('xRead');
-        self::traceMethodAsCommand('xReadGroup');
-        self::traceMethodAsCommand('xRevRange');
-        self::traceMethodAsCommand('xTrim');
+        $this->traceMethodAsCommand('xAck');
+        $this->traceMethodAsCommand('xAdd');
+        $this->traceMethodAsCommand('xClaim');
+        $this->traceMethodAsCommand('xDel');
+        $this->traceMethodAsCommand('xGroup');
+        $this->traceMethodAsCommand('xInfo');
+        $this->traceMethodAsCommand('xLen');
+        $this->traceMethodAsCommand('xPending');
+        $this->traceMethodAsCommand('xRange');
+        $this->traceMethodAsCommand('xRead');
+        $this->traceMethodAsCommand('xReadGroup');
+        $this->traceMethodAsCommand('xRevRange');
+        $this->traceMethodAsCommand('xTrim');
 
         return SandboxedIntegration::LOADED;
     }
@@ -261,14 +261,14 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         }
     }
 
-    public static function traceMethodNoArgs($method)
+    public function traceMethodNoArgs($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisSandboxedIntegration::enrichSpan($span, $method);
         });
     }
 
-    public static function traceMethodAsCommand($method)
+    public function traceMethodAsCommand($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisSandboxedIntegration::enrichSpan($span, $method);
