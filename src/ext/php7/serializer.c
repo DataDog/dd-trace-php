@@ -257,7 +257,6 @@ static void dd_serialize_exception(zval *el, zval *meta, zend_object *exception_
         _add_assoc_zval_copy(meta, "error.type", &name);
     }
 
-    _add_assoc_zval_copy(meta, "error.type", &name);
     add_assoc_zval(meta, "error.msg", &msg);
 
     /* Note, we use Exception::getTrace() instead of getTraceAsString because
