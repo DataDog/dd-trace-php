@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Curl;
 
 use DDTrace\Http\Urls;
-use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -23,7 +22,7 @@ function addSpanDataTagFromCurlInfo($span, &$info, $tagName, $curlInfoOpt)
     }
 }
 
-final class CurlSandboxedIntegration extends SandboxedIntegration
+final class CurlIntegration extends SandboxedIntegration
 {
 
     const NAME = 'curl';
@@ -39,7 +38,7 @@ final class CurlSandboxedIntegration extends SandboxedIntegration
             return SandboxedIntegration::NOT_AVAILABLE;
         }
 
-        if (!Integration::shouldLoad(self::NAME)) {
+        if (!SandboxedIntegration::shouldLoad(self::NAME)) {
             return SandboxedIntegration::NOT_LOADED;
         }
 

@@ -10,7 +10,7 @@ use DDTrace\Type;
 use DDTrace\Util\Versions;
 use Psr\Http\Message\ServerRequestInterface;
 
-class SlimSandboxedIntegration extends SandboxedIntegration
+class SlimIntegration extends SandboxedIntegration
 {
     const NAME = 'slim';
 

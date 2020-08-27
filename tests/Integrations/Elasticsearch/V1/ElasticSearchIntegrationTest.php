@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\Elasticsearch\V1;
 
-use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchSandboxedIntegration;
+use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Elasticsearch\Client;
@@ -41,14 +41,14 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
 
     public function testNamespaceMethodNotExistsDoesNotCrashApps()
     {
-        $integration = new ElasticSearchSandboxedIntegration();
+        $integration = new ElasticSearchIntegration();
         $integration->traceNamespaceMethod('\Wrong\Namespace', 'wrong_method');
         $this->addToAssertionCount(1);
     }
 
     public function testMethodNotExistsDoesNotCrashApps()
     {
-        $integration = new ElasticSearchSandboxedIntegration();
+        $integration = new ElasticSearchIntegration();
         $integration->traceSimpleMethod('\Wrong\Class', 'wrong_method');
         $this->addToAssertionCount(1);
     }

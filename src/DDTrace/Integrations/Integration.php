@@ -110,13 +110,13 @@ abstract class Integration
      * @param string $method
      * @param \Closure|null $preCallHook
      * @param \Closure|null $postCallHook
-     * @param Integration|null $integration
+     * @param SandboxedIntegration|null $integration
      */
     protected static function traceMethod(
         $method,
         \Closure $preCallHook = null,
         \Closure $postCallHook = null,
-        Integration $integration = null
+        SandboxedIntegration $integration = null
     ) {
         $className = static::CLASS_NAME;
         $integrationClass = get_called_class();

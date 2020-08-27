@@ -9,7 +9,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Versions;
 
-class MongoSandboxedIntegration extends SandboxedIntegration
+class MongoIntegration extends SandboxedIntegration
 {
     const NAME = 'mongo';
 
@@ -40,7 +40,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             $integration->addSpanDefaultMetadata($span, 'MongoClient', '__construct');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_SERVER] = Obfuscation::dsn($args[0]);
-                $dbName = MongoSandboxedIntegration::extractDatabaseNameFromDsn($args[0]);
+                $dbName = MongoIntegration::extractDatabaseNameFromDsn($args[0]);
                 if (null !== $dbName) {
                     $span->meta[Tag::MONGODB_DATABASE] = $dbName;
                 }
@@ -353,7 +353,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
         $span->name = $class . '.' . $method;
         $span->resource = $method;
         $span->type = Type::MONGO;
-        $span->service = MongoSandboxedIntegration::NAME;
+        $span->service = MongoIntegration::NAME;
     }
 
     /**

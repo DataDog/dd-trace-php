@@ -11,7 +11,7 @@ use DDTrace\Tag;
 use DDTrace\Type;
 use GuzzleHttp;
 
-class GuzzleSandboxedIntegration extends SandboxedIntegration
+class GuzzleIntegration extends SandboxedIntegration
 {
 
     const NAME = 'guzzle';

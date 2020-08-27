@@ -1,13 +1,13 @@
 <?php
 
-namespace DDTrace\Integrations\WordPress;
+namespace DDTrace\Integrations\Yii;
 
 use DDTrace\Integrations\SandboxedIntegration;
-use DDTrace\Integrations\WordPress\V4\WordPressIntegrationLoader;
+use DDTrace\Util\Versions;
 
-class WordPressSandboxedIntegration extends SandboxedIntegration
+class YiiIntegration extends SandboxedIntegration
 {
-    const NAME = 'wordpress';
+    const NAME = 'yii';
 
     /**
      * @var self
@@ -52,14 +52,10 @@ class WordPressSandboxedIntegration extends SandboxedIntegration
 
         $integration = self::getInstance();
 
-        // This call happens right after WP registers an autoloader for the first time
-        \DDTrace\trace_method('Requests', 'set_certificate_path', function () use ($integration) {
-            if (!isset($GLOBALS['wp_version']) || !is_string($GLOBALS['wp_version'])) {
-                return false;
-            }
-            $majorVersion = substr($GLOBALS['wp_version'], 0, 2);
-            if ('4.' === $majorVersion) {
-                $loader = new WordPressIntegrationLoader();
+        // This happens somewhat early in the setup, though there may be a better candidate
+        \DDTrace\trace_method('yii\di\Container', '__construct', function () use ($integration) {
+            if (Versions::versionMatches('2.0', \Yii::getVersion())) {
+                $loader = new V2\YiiIntegrationLoader();
                 $loader->load($integration);
             }
             return false; // Drop this span to reduce noise

@@ -3,8 +3,9 @@
 namespace DDTrace\Integrations\Web;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SandboxedIntegration;
 
-class WebIntegration extends Integration
+class WebIntegration extends SandboxedIntegration
 {
     const NAME = 'web';
 
@@ -30,6 +31,13 @@ class WebIntegration extends Integration
     public function getName()
     {
         return self::NAME;
+    }
+
+    public function init()
+    {
+        // For now we do nothing, as this is done in the bootstrap logic at the moment. We may consider doing this
+        // here instead, but leaving this for a future refactoring.
+        return Integration::LOADED;
     }
 
     /**

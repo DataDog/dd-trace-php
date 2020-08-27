@@ -15,7 +15,7 @@ const VALUE_MAX_LEN = 100;
 const VALUE_TOO_LONG_MARK = "...";
 const CMD_MAX_LEN = 1000;
 
-class PredisSandboxedIntegration extends SandboxedIntegration
+class PredisIntegration extends SandboxedIntegration
 {
     const NAME = 'predis';
 
@@ -44,8 +44,8 @@ class PredisSandboxedIntegration extends SandboxedIntegration
             $span->type = Type::CACHE;
             $span->service = 'redis';
             $span->resource = 'Predis.Client.__construct';
-            PredisSandboxedIntegration::storeConnectionParams($this, $args);
-            PredisSandboxedIntegration::setConnectionTags($this, $span);
+            PredisIntegration::storeConnectionParams($this, $args);
+            PredisIntegration::setConnectionTags($this, $span);
         });
 
         \DDTrace\trace_method('Predis\Client', 'connect', function (SpanData $span, $args) {
@@ -53,14 +53,14 @@ class PredisSandboxedIntegration extends SandboxedIntegration
             $span->type = Type::CACHE;
             $span->service = 'redis';
             $span->resource = 'Predis.Client.connect';
-            PredisSandboxedIntegration::setConnectionTags($this, $span);
+            PredisIntegration::setConnectionTags($this, $span);
         });
 
         \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) use ($integration) {
             $span->name = 'Predis.Client.executeCommand';
             $span->type = Type::CACHE;
             $span->service = 'redis';
-            PredisSandboxedIntegration::setConnectionTags($this, $span);
+            PredisIntegration::setConnectionTags($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
 
             // We default resource name to 'Predis.Client.executeCommand', but if we are able below to extract the query
@@ -75,7 +75,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
             $arguments = $command->getArguments();
             array_unshift($arguments, $command->getId());
             $span->meta['redis.args_length'] = count($arguments);
-            $query = PredisSandboxedIntegration::formatArguments($arguments);
+            $query = PredisIntegration::formatArguments($arguments);
             $span->resource = $query;
             $span->meta['redis.raw_command'] = $query;
         });
@@ -84,7 +84,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
             $span->name = 'Predis.Client.executeRaw';
             $span->type = Type::CACHE;
             $span->service = 'redis';
-            PredisSandboxedIntegration::setConnectionTags($this, $span);
+            PredisIntegration::setConnectionTags($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
 
             // We default resource name to 'Predis.Client.executeRaw', but if we are able below to extract the query
@@ -95,7 +95,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
                 return;
             }
             $arguments = $args[0];
-            $query = PredisSandboxedIntegration::formatArguments($arguments);
+            $query = PredisIntegration::formatArguments($arguments);
             $span->resource = $query;
             $span->meta['redis.args_length'] = count($arguments);
             $span->meta['redis.raw_command'] = $query;
@@ -109,7 +109,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
                 $span->resource = $span->name;
                 $span->type = Type::CACHE;
                 $span->service = 'redis';
-                PredisSandboxedIntegration::setConnectionTags($this, $span);
+                PredisIntegration::setConnectionTags($this, $span);
             });
         } else {
             \DDTrace\trace_method(
@@ -121,7 +121,7 @@ class PredisSandboxedIntegration extends SandboxedIntegration
                         $span->resource = $span->name;
                         $span->type = Type::CACHE;
                         $span->service = 'redis';
-                        PredisSandboxedIntegration::setConnectionTags($this, $span);
+                        PredisIntegration::setConnectionTags($this, $span);
                         if (\count($args) < 2) {
                             return;
                         }

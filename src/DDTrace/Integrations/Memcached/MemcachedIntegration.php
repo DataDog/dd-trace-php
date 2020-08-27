@@ -2,7 +2,6 @@
 
 namespace DDTrace\Integrations\Memcached;
 
-use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\Obfuscation;
 use DDTrace\SpanData;
@@ -22,7 +21,7 @@ use DDTrace\Type;
  * might be different for each key. setMultiByKey does, since you're pinning a
  * specific server.
  */
-class MemcachedSandboxedIntegration extends SandboxedIntegration
+class MemcachedIntegration extends SandboxedIntegration
 {
     const NAME = 'memcached';
 
@@ -53,7 +52,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
     public function init()
     {
         if (!extension_loaded('memcached')) {
-            return Integration::NOT_AVAILABLE;
+            return SandboxedIntegration::NOT_AVAILABLE;
         }
         $integration = $this;
 
@@ -122,7 +121,7 @@ class MemcachedSandboxedIntegration extends SandboxedIntegration
             $integration->setServerTags($span, $this);
         });
 
-        return Integration::LOADED;
+        return SandboxedIntegration::LOADED;
     }
 
     public function traceCommand($command)

@@ -12,7 +12,7 @@ use DDTrace\Type;
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
  */
-class LaravelSandboxedIntegration extends SandboxedIntegration
+class LaravelIntegration extends SandboxedIntegration
 {
     const NAME = 'laravel';
 

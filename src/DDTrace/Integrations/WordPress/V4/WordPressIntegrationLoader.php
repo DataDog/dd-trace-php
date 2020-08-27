@@ -5,8 +5,8 @@ namespace DDTrace\Integrations\WordPress\V4;
 use DDTrace\Contracts\Scope;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
-use DDTrace\Integrations\WordPress\WordPressSandboxedIntegration;
-use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\WordPress\WordPressIntegration;
+use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\Contracts\Span;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -19,17 +19,17 @@ class WordPressIntegrationLoader
      */
     public $rootSpan;
 
-    public function load(WordPressSandboxedIntegration $integration)
+    public function load(WordPressIntegration $integration)
     {
         $scope = GlobalTracer::get()->getRootScope();
         if (!$scope instanceof Scope) {
-            return Integration::NOT_LOADED;
+            return SandboxedIntegration::NOT_LOADED;
         }
         $this->rootSpan = $scope->getSpan();
         // Overwrite the default web integration
         $integration->addTraceAnalyticsIfEnabledLegacy($this->rootSpan);
         $this->rootSpan->overwriteOperationName('wordpress.request');
-        $service = \ddtrace_config_app_name(WordPressSandboxedIntegration::NAME);
+        $service = \ddtrace_config_app_name(WordPressIntegration::NAME);
         $this->rootSpan->setTag(Tag::SERVICE_NAME, $service);
         if ('cli' !== PHP_SAPI) {
             $normalizedPath = \DDtrace\Private_\util_uri_normalize_incoming_path($_SERVER['REQUEST_URI']);
@@ -219,6 +219,6 @@ class WordPressIntegrationLoader
             $span->service = $service;
         });
 
-        return Integration::LOADED;
+        return SandboxedIntegration::LOADED;
     }
 }

@@ -9,7 +9,7 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class CodeIgniterSandboxedIntegration extends SandboxedIntegration
+class CodeIgniterIntegration extends SandboxedIntegration
 {
     const NAME = 'codeigniter';
 
@@ -160,7 +160,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
                 if (!$ex && \is_object($retval)) {
                     $class = \get_class($retval);
                     if (!isset($registered_cache_adapters[$class])) {
-                        CodeIgniterSandboxedIntegration::registerCacheAdapter($class, $service);
+                        CodeIgniterIntegration::registerCacheAdapter($class, $service);
                         $registered_cache_adapters[$class] = true;
                     }
                 }

@@ -2,7 +2,7 @@
 
 namespace DDTrace\Util;
 
-use DDTrace\Integrations\Integration;
+use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\GlobalTracer;
 
 final class CodeTracer
@@ -29,7 +29,7 @@ final class CodeTracer
      * @param string $method
      * @param \Closure|null $preCallHook
      * @param \Closure|null $postCallHook
-     * @param Integration|null $integration
+     * @param SandboxedIntegration|null $integration
      * @param bool $isTraceAnalyticsCandidate
      */
     public function tracePublicMethod(
@@ -38,7 +38,7 @@ final class CodeTracer
         \Closure $limitedTracerCallHook = null,
         \Closure $preCallHook = null,
         \Closure $postCallHook = null,
-        Integration $integration = null,
+        SandboxedIntegration $integration = null,
         $isTraceAnalyticsCandidate = false
     ) {
         dd_trace($className, $method, [

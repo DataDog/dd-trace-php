@@ -10,7 +10,7 @@ use DDTrace\Tag;
 /**
  * Lumen Sandboxed integration
  */
-class LumenSandboxedIntegration extends SandboxedIntegration
+class LumenIntegration extends SandboxedIntegration
 {
     const NAME = 'lumen';
 

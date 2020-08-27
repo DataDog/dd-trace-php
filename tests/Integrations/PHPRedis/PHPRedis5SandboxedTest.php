@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\PHPRedis;
 
-use DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration;
+use DDTrace\Integrations\PHPRedis\PHPRedisIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
@@ -2131,7 +2131,7 @@ class PHPRedis45SandboxedTest extends IntegrationTestCase
      */
     public function testNormalizeArgs($args, $expected)
     {
-        $actual = PHPRedisSandboxedIntegration::normalizeArgs($args);
+        $actual = PHPRedisIntegration::normalizeArgs($args);
         $this->assertSame($expected, $actual);
     }
 
@@ -2153,7 +2153,7 @@ class PHPRedis45SandboxedTest extends IntegrationTestCase
     {
         // Based on redis docs, key and values can be 'binary-safe' strings, so we need to make sure they are
         // correctly converted to a placeholder.
-        $this->assertSame(106, strlen(PHPRedisSandboxedIntegration::normalizeArgs([$this->getBinarySafeString(), 'v1'])));
+        $this->assertSame(106, strlen(PHPRedisIntegration::normalizeArgs([$this->getBinarySafeString(), 'v1'])));
     }
 
     public function getBinarySafeString()

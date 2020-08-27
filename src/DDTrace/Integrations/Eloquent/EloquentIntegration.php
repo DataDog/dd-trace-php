@@ -2,13 +2,12 @@
 
 namespace DDTrace\Integrations\Eloquent;
 
-use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class EloquentSandboxedIntegration extends SandboxedIntegration
+class EloquentIntegration extends SandboxedIntegration
 {
     const NAME = 'eloquent';
 
@@ -94,7 +93,7 @@ class EloquentSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        return Integration::LOADED;
+        return SandboxedIntegration::LOADED;
     }
 
     /**
