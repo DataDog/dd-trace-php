@@ -1167,7 +1167,11 @@ void ddtrace_error_cb_minit(void) {
     zend_error_cb = dd_error_cb;
 }
 
-void ddtrace_error_cb_mshutdown(void) { zend_error_cb = dd_prev_error_cb; }
+void ddtrace_error_cb_mshutdown(void) {
+    if (zend_error_cb == dd_error_cb) {
+        zend_error_cb = dd_prev_error_cb;
+    }
+}
 
 static zend_object *dd_make_exception_from_error(int type, const char *format, va_list args) {
     zval ex, tmp;
