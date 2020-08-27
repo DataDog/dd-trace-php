@@ -16,14 +16,10 @@ register_shutdown_function(function () {
     }
 });
 
-function makeFatalError() {
-    escapeshellcmd("\0");
-    return 42;
-}
 
 function main() {
     var_dump(array_sum([1, 99]));
-    makeFatalError();
+    DDTrace\Testing\trigger_error("generated for testing", E_ERROR);
     echo 'You should not see this.' . PHP_EOL;
 }
 
@@ -40,13 +36,12 @@ main();
 --EXPECTF--
 int(100)
 
-%s escapeshellcmd(): Input string contains NULL bytes in %s on line %d
+Fatal error: generated for testing in %s on line %d
 Shutdown
 main()
 E_ERROR
-escapeshellcmd(): Input string contains NULL bytes
-#0 %s(%d): escapeshellcmd(...)
-#1 %s(%d): makeFatalError()
-#2 %s(%d): main()
-#3 {main}
+generated for testing
+#0 %s(%d): DDTrace\Testing\trigger_error(...)
+#1 %s(%d): main()
+#2 {main}
 array_sum()

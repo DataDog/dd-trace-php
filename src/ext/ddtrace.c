@@ -188,6 +188,11 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_trace_enabled, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_testing_trigger_error, 0, 0, 2)
+ZEND_ARG_INFO(0, level)
+ZEND_ARG_INFO(0, message)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_init, 0, 0, 1)
 ZEND_ARG_INFO(0, dir)
 ZEND_END_ARG_INFO()
@@ -1237,6 +1242,39 @@ static PHP_FUNCTION(integration_analytics_sample_rate) {
     RETVAL_DOUBLE(ddtrace_config_integration_analytics_sample_rate(integration TSRMLS_CC));
 }
 
+static PHP_FUNCTION(trigger_error) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    ddtrace_string message;
+    ddtrace_zpplong_t error_type;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl", &message.ptr, &message.len, &error_type) != SUCCESS) {
+        RETURN_NULL()
+    }
+
+    int level = (int)error_type;
+    switch (level) {
+        case E_ERROR:
+        case E_WARNING:
+        case E_PARSE:
+        case E_NOTICE:
+        case E_CORE_ERROR:
+        case E_CORE_WARNING:
+        case E_COMPILE_ERROR:
+        case E_USER_ERROR:
+        case E_USER_WARNING:
+        case E_USER_NOTICE:
+        case E_STRICT:
+        case E_RECOVERABLE_ERROR:
+        case E_DEPRECATED:
+        case E_USER_DEPRECATED:
+            zend_error(level, "%s", message.ptr);
+            break;
+
+        default:
+            ddtrace_log_debugf("Invalid error type specified: %i", level);
+            break;
+    }
+}
+
 static PHP_FUNCTION(ddtrace_init) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     if (DDTRACE_G(request_init_hook_loaded) == 1) {
@@ -1538,6 +1576,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_sample_rate,
                       arginfo_ddtrace_config_integration_analytics_sample_rate),
+    DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,

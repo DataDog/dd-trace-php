@@ -16,15 +16,9 @@ register_shutdown_function(function () {
     }
 });
 
-function makeFatalError() {
-    // Trigger a fatal error from userland
-    trigger_error('My foo error', E_USER_ERROR);
-    return 42;
-}
-
 function main() {
     var_dump(array_sum([1, 99]));
-    makeFatalError();
+    DDTrace\Testing\trigger_error('My foo error', E_USER_ERROR);
     echo 'You should not see this.' . PHP_EOL;
 }
 
@@ -46,8 +40,7 @@ Shutdown
 main()
 E_USER_ERROR
 My foo error
-#0 %s(%d): trigger_error(...)
-#1 %s(%d): makeFatalError()
-#2 %s(%d): main()
-#3 {main}
+#0 %s(%d): DDTrace\Testing\trigger_error(...)
+#1 %s(%d): main()
+#2 {main}
 array_sum()
