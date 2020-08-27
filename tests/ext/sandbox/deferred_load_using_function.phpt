@@ -11,9 +11,9 @@ ddtrace.request_init_hook={PWD}/deferred_loading_helper.php
 
 namespace DDTrace\Test
 {
-    use DDTrace\Integrations\SandboxedIntegration;
+    use DDTrace\Integrations\Integration;
 
-    class TestSandboxedIntegration extends SandboxedIntegration
+    class TestSandboxedIntegration extends Integration
     {
         function init()
         {
@@ -22,7 +22,7 @@ namespace DDTrace\Test
                     echo "test_access hook" . PHP_EOL;
                 }
             ]);
-            return SandboxedIntegration::LOADED;
+            return Integration::LOADED;
         }
     }
 }

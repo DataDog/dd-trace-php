@@ -2,12 +2,12 @@
 
 namespace DDTrace\Tests\Common\Model;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 
 /**
  * Dummy integration class that can be easily configured.
  */
-final class DummyIntegration extends SandboxedIntegration
+final class DummyIntegration extends Integration
 {
     /**
      * @var string

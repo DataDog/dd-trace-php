@@ -5,14 +5,14 @@ namespace DDTrace\Integrations\Laravel;
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
 use DDTrace\SpanData;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
 
 /**
  * The base Laravel integration which delegates loading to the appropriate integration version.
  */
-class LaravelIntegration extends SandboxedIntegration
+class LaravelIntegration extends Integration
 {
     const NAME = 'laravel';
 
@@ -43,14 +43,14 @@ class LaravelIntegration extends SandboxedIntegration
     public function init()
     {
         if (!self::shouldLoad(self::NAME)) {
-            return SandboxedIntegration::NOT_LOADED;
+            return Integration::NOT_LOADED;
         }
 
         $rootScope = GlobalTracer::get()->getRootScope();
         $rootSpan = null;
 
         if (null === $rootScope || null === ($rootSpan = $rootScope->getSpan())) {
-            return SandboxedIntegration::NOT_LOADED;
+            return Integration::NOT_LOADED;
         }
 
         $integration = $this;
@@ -188,7 +188,7 @@ class LaravelIntegration extends SandboxedIntegration
             }
         );
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     public function getServiceName()

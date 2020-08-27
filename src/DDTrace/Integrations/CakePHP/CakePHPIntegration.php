@@ -4,13 +4,13 @@ namespace DDTrace\Integrations\CakePHP;
 
 use CakeRequest;
 use DDTrace\GlobalTracer;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use Router;
 
-class CakePHPIntegration extends SandboxedIntegration
+class CakePHPIntegration extends Integration
 {
     const NAME = 'cakephp';
 
@@ -130,6 +130,6 @@ class CakePHPIntegration extends SandboxedIntegration
             \DDTrace\trace_method('Dispatcher', '__construct', $initCakeV2);
         }
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 }

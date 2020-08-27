@@ -4,12 +4,12 @@ namespace DDTrace\Integrations\CodeIgniter\V2;
 
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class CodeIgniterIntegration extends SandboxedIntegration
+class CodeIgniterIntegration extends Integration
 {
     const NAME = 'codeigniter';
 
@@ -32,7 +32,7 @@ class CodeIgniterIntegration extends SandboxedIntegration
         $integration = $this;
         $rootScope = $tracer->getRootScope();
         if (!$rootScope) {
-            return SandboxedIntegration::NOT_LOADED;
+            return Integration::NOT_LOADED;
         }
         $service = \ddtrace_config_app_name(self::NAME);
 

@@ -2,14 +2,14 @@
 
 namespace DDTrace\Integrations\Mongo;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Obfuscation;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Versions;
 
-class MongoIntegration extends SandboxedIntegration
+class MongoIntegration extends Integration
 {
     const NAME = 'mongo';
 
@@ -24,7 +24,7 @@ class MongoIntegration extends SandboxedIntegration
     public function init()
     {
         if (!extension_loaded('mongo') || Versions::phpVersionMatches('5.4')) {
-            return SandboxedIntegration::NOT_AVAILABLE;
+            return Integration::NOT_AVAILABLE;
         }
 
         $integration = $this;
@@ -288,7 +288,7 @@ class MongoIntegration extends SandboxedIntegration
         $this->traceMongoMethod('MongoDB', 'repair');
         $this->traceMongoMethod('MongoDB', 'setWriteConcern');
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     /**

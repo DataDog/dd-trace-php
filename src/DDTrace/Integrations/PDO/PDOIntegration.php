@@ -2,12 +2,12 @@
 
 namespace DDTrace\Integrations\PDO;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class PDOIntegration extends SandboxedIntegration
+class PDOIntegration extends Integration
 {
     const NAME = 'pdo';
 
@@ -36,7 +36,7 @@ class PDOIntegration extends SandboxedIntegration
     {
         if (!extension_loaded('PDO')) {
             // PDO is provided through an extension and not through a class loader.
-            return SandboxedIntegration::NOT_AVAILABLE;
+            return Integration::NOT_AVAILABLE;
         }
 
         $integration = $this;
@@ -142,7 +142,7 @@ class PDOIntegration extends SandboxedIntegration
             }
         );
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     /**

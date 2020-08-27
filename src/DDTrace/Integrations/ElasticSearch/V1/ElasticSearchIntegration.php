@@ -2,12 +2,12 @@
 
 namespace DDTrace\Integrations\ElasticSearch\V1;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class ElasticSearchIntegration extends SandboxedIntegration
+class ElasticSearchIntegration extends Integration
 {
     const NAME = 'elasticsearch';
 
@@ -142,7 +142,7 @@ class ElasticSearchIntegration extends SandboxedIntegration
             }
         });
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
     /**
      * @param string $name

@@ -3,7 +3,7 @@
 require __DIR__ . '/../../../autoload.php';
 
 use DDTrace\GlobalTracer;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\ZendFramework\V1\TraceRequest;
 use DDTrace\Tag;
 use DDTrace\Tracer;
@@ -19,7 +19,7 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
 
     public function init()
     {
-        if (!SandboxedIntegration::shouldLoad(self::NAME)) {
+        if (!Integration::shouldLoad(self::NAME)) {
             return false;
         }
         $front = Zend_Controller_Front::getInstance();

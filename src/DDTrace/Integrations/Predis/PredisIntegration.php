@@ -2,7 +2,7 @@
 
 namespace DDTrace\Integrations\Predis;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -15,7 +15,7 @@ const VALUE_MAX_LEN = 100;
 const VALUE_TOO_LONG_MARK = "...";
 const CMD_MAX_LEN = 1000;
 
-class PredisIntegration extends SandboxedIntegration
+class PredisIntegration extends Integration
 {
     const NAME = 'predis';
 
@@ -132,7 +132,7 @@ class PredisIntegration extends SandboxedIntegration
             );
         }
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     /**

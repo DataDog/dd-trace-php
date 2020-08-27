@@ -4,7 +4,7 @@ namespace DDTrace\Integrations\Symfony;
 
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -12,7 +12,7 @@ use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
 
-class SymfonyIntegration extends SandboxedIntegration
+class SymfonyIntegration extends Integration
 {
     const NAME = 'symfony';
 
@@ -66,7 +66,7 @@ class SymfonyIntegration extends SandboxedIntegration
             }
         );
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     public function loadSymfony($integration)

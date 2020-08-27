@@ -2,9 +2,9 @@
 
 namespace DDTrace\Integrations\Web;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 
-class WebIntegration extends SandboxedIntegration
+class WebIntegration extends Integration
 {
     const NAME = 'web';
 
@@ -36,7 +36,7 @@ class WebIntegration extends SandboxedIntegration
     {
         // For now we do nothing, as this is done in the bootstrap logic at the moment. We may consider doing this
         // here instead, but leaving this for a future refactoring.
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     /**
@@ -56,6 +56,6 @@ class WebIntegration extends SandboxedIntegration
     {
         // For now we do nothing, as this is done in the bootstrap logic at the moment. We may consider doing this
         // here instead, but leaving this for a future refactoring.
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 }

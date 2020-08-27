@@ -2,12 +2,12 @@
 
 namespace DDTrace\Integrations\PHPRedis;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class PHPRedisIntegration extends SandboxedIntegration
+class PHPRedisIntegration extends Integration
 {
     const NAME = 'phpredis';
 
@@ -247,7 +247,7 @@ class PHPRedisIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('xRevRange');
         self::traceMethodAsCommand('xTrim');
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     public static function enrichSpan(SpanData $span, $method = null)

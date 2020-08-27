@@ -6,7 +6,7 @@ use DDTrace\Contracts\Scope;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\WordPress\WordPressIntegration;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Contracts\Span;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -23,7 +23,7 @@ class WordPressIntegrationLoader
     {
         $scope = GlobalTracer::get()->getRootScope();
         if (!$scope instanceof Scope) {
-            return SandboxedIntegration::NOT_LOADED;
+            return Integration::NOT_LOADED;
         }
         $this->rootSpan = $scope->getSpan();
         // Overwrite the default web integration
@@ -219,6 +219,6 @@ class WordPressIntegrationLoader
             $span->service = $service;
         });
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 }

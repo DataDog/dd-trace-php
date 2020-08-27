@@ -57,7 +57,6 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/AbstractIntegrationConfiguration.php',
     __DIR__ . '/../src/DDTrace/Integrations/DefaultIntegrationConfiguration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Integration.php',
-    __DIR__ . '/../src/DDTrace/Integrations/SandboxedIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/CakePHP/CakePHPIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/CodeIgniter/V2/CodeIgniterIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Web/WebIntegration.php',

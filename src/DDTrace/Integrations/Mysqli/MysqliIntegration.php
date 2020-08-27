@@ -2,12 +2,12 @@
 
 namespace DDTrace\Integrations\Mysqli;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 
-class MysqliIntegration extends SandboxedIntegration
+class MysqliIntegration extends Integration
 {
     const NAME = 'mysqli';
 
@@ -30,7 +30,7 @@ class MysqliIntegration extends SandboxedIntegration
     public function init()
     {
         if (!extension_loaded('mysqli')) {
-            return SandboxedIntegration::NOT_AVAILABLE;
+            return Integration::NOT_AVAILABLE;
         }
 
         $integration = $this;
@@ -225,7 +225,7 @@ class MysqliIntegration extends SandboxedIntegration
             ObjectKVStore::put($result, 'query', $resource);
         });
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     /**

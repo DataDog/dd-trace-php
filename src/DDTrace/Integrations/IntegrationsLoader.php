@@ -149,7 +149,7 @@ class IntegrationsLoader
             if (
                 in_array(
                     $integrationLoadingStatus,
-                    [SandboxedIntegration::LOADED, SandboxedIntegration::NOT_AVAILABLE]
+                    [Integration::LOADED, Integration::NOT_AVAILABLE]
                 )
             ) {
                 continue;
@@ -173,13 +173,13 @@ class IntegrationsLoader
      */
     private function logResult($name, $result)
     {
-        if ($result === SandboxedIntegration::LOADED) {
+        if ($result === Integration::LOADED) {
             self::logDebug('Loaded integration {name}', ['name' => $name]);
-        } elseif ($result === SandboxedIntegration::NOT_AVAILABLE) {
+        } elseif ($result === Integration::NOT_AVAILABLE) {
             self::logDebug('Integration {name} not available. New attempts WILL NOT be performed.', [
                 'name' => $name,
             ]);
-        } elseif ($result === SandboxedIntegration::NOT_LOADED) {
+        } elseif ($result === Integration::NOT_LOADED) {
             self::logDebug('Integration {name} not loaded. New attempts might be performed.', [
                 'name' => $name,
             ]);
@@ -211,7 +211,7 @@ class IntegrationsLoader
     {
         return isset($this->loadings[$integrationName])
             ? $this->loadings[$integrationName]
-            : SandboxedIntegration::NOT_LOADED;
+            : Integration::NOT_LOADED;
     }
 
     /**

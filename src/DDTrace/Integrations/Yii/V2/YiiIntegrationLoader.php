@@ -5,7 +5,7 @@ namespace DDTrace\Integrations\Yii\V2;
 use DDTrace\Contracts\Scope;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Yii\YiiIntegration;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -18,7 +18,7 @@ class YiiIntegrationLoader
     {
         $scope = GlobalTracer::get()->getRootScope();
         if (!$scope instanceof Scope) {
-            return SandboxedIntegration::NOT_LOADED;
+            return Integration::NOT_LOADED;
         }
         $root = $scope->getSpan();
         $integration->addTraceAnalyticsIfEnabledLegacy($root);
@@ -115,6 +115,6 @@ class YiiIntegrationLoader
             }
         );
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 }
