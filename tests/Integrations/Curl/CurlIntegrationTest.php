@@ -284,7 +284,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testKVStoreIsCleanedOnCurlClose()
     {
-        if (\PHP_MAJOR_VERSION === 5 && self::isSandboxed()) {
+        if (\PHP_MAJOR_VERSION === 5) {
             $this->markTestSkipped("PHP 5 does not use ArrayKVStore");
         }
         $ch = curl_init(self::URL . '/status/200');

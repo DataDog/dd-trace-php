@@ -53,12 +53,10 @@ abstract class IntegrationTestCase extends TestCase
      *
      * @param array[] $traces
      * @param SpanAssertion[] $expectedSpans
-     * @param bool $isSandbox
      */
-    public function assertSpans($traces, $expectedSpans, $isSandbox = null)
+    public function assertSpans($traces, $expectedSpans)
     {
-        $isSandbox = null === $isSandbox ? self::isSandboxed() : $isSandbox;
-        $this->assertExpectedSpans($traces, $expectedSpans, $isSandbox);
+        $this->assertExpectedSpans($traces, $expectedSpans);
     }
 
     /**
