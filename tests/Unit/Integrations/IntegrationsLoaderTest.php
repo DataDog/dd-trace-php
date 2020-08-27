@@ -208,7 +208,7 @@ class DummyIntegration1
 {
     public static $value = null;
 
-    public static function load()
+    public function init()
     {
         return self::$value;
     }
@@ -218,7 +218,7 @@ class DummyIntegration2
 {
     public static $value = null;
 
-    public static function load()
+    public function init()
     {
         return self::$value;
     }
