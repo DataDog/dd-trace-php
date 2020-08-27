@@ -12,8 +12,6 @@ use Exception;
 
 class PHPRedis5Test extends IntegrationTestCase
 {
-    const IS_SANDBOX = true;
-
     const A_STRING = 'A_STRING';
     const A_FLOAT = 'A_FLOAT';
     const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';

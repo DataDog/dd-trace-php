@@ -8,9 +8,6 @@ use DDTrace\Tests\WebServer;
 
 class SigSegVTest extends WebFrameworkTestCase
 {
-    // this doesn't use the sandbox API, but it doesn't use legacy API either
-    const IS_SANDBOX = true;
-
     protected static function getEnvs()
     {
         return \array_merge(parent::getEnvs(), ['DD_TRACE_HEALTH_METRICS_ENABLED' => 1]);

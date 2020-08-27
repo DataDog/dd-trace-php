@@ -7,8 +7,6 @@ use DDTrace\Tests\Integrations\CLI\CLITestCase;
 
 class CommonScenariosTest extends CLITestCase
 {
-    const IS_SANDBOX = true;
-
     protected function getScriptLocation()
     {
         return __DIR__ . '/../../../../Frameworks/Laravel/Version_5_8/artisan';
@@ -36,7 +34,7 @@ class CommonScenariosTest extends CLITestCase
                 SpanAssertion::exists(
                     'laravel.provider.load',
                     'Illuminate\Foundation\ProviderRepository::load'
-                )->onlyIf(static::IS_SANDBOX),
+                ),
             ]),
         ]);
     }
@@ -56,7 +54,7 @@ class CommonScenariosTest extends CLITestCase
                 SpanAssertion::exists(
                     'laravel.provider.load',
                     'Illuminate\Foundation\ProviderRepository::load'
-                )->onlyIf(static::IS_SANDBOX),
+                ),
             ]),
         ]);
     }
@@ -79,7 +77,7 @@ class CommonScenariosTest extends CLITestCase
                 SpanAssertion::exists(
                     'laravel.provider.load',
                     'Illuminate\Foundation\ProviderRepository::load'
-                )->onlyIf(static::IS_SANDBOX),
+                ),
             ])->setError(),
         ]);
     }

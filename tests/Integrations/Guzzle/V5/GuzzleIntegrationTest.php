@@ -27,8 +27,6 @@ function find_span_name(array $trace, $name)
 
 class GuzzleIntegrationTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = true;
-
     const URL = 'http://httpbin_integration';
 
     /** @var Client */
@@ -266,7 +264,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             __DIR__ . '/guzzle_in_web_request.php',
             [
                 'DD_SERVICE' => 'top_level_app',
-                'DD_TRACE_SANDBOX_ENABLED' => static::IS_SANDBOX,
                 'DD_TRACE_NO_AUTOLOADER' => true,
             ]
         );

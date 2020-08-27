@@ -10,8 +10,6 @@ use Predis\Configuration\Options;
 
 final class PredisTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = true;
-
     private $host = 'redis_integration';
     private $port = '6379';
 
@@ -170,7 +168,7 @@ final class PredisTest extends IntegrationTestCase
             $this->assertInstanceOf('Predis\Response\Status', $responseFlush);
         });
 
-        if (Versions::phpVersionMatches('5') && static::IS_SANDBOX) {
+        if (Versions::phpVersionMatches('5')) {
             $exactTags = [];
         } else {
             $exactTags = [

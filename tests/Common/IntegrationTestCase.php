@@ -16,37 +16,22 @@ abstract class IntegrationTestCase extends TestCase
 
     private $errorReportingBefore;
 
-    const IS_SANDBOX = false;
-
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
-        if (!static::isSandboxed()) {
-            \putenv('DD_TRACE_SANDBOX_ENABLED=false');
-            \dd_trace_internal_fn('ddtrace_reload_config');
-        }
         IntegrationsLoader::reload();
     }
 
     public static function tearDownAfterClass()
     {
         parent::tearDownAfterClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED');
         \dd_trace_internal_fn('ddtrace_reload_config');
-    }
-
-    protected static function isSandboxed()
-    {
-        return static::IS_SANDBOX === true;
     }
 
     protected function setUp()
     {
         $this->errorReportingBefore = error_reporting();
         parent::setUp();
-        if (!self::isSandboxed()) {
-            $this->fail('Legacy API is dead; long live the sandboxed APIs!');
-        }
     }
 
     protected function tearDown()

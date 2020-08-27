@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
@@ -61,16 +59,15 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
-                        )->onlyIf(static::IS_SANDBOX)
-                            ->withChildren([
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                                SpanAssertion::exists('laravel.event.handle'),
-                            ]),
+                        )->withChildren([
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                        ]),
                         SpanAssertion::exists('laravel.event.handle'),
                         SpanAssertion::exists('laravel.event.handle'),
                         SpanAssertion::exists('laravel.event.handle'),

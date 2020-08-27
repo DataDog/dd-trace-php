@@ -9,8 +9,6 @@ use Exception;
 
 class PHPRedis3Test extends IntegrationTestCase
 {
-    const IS_SANDBOX = true;
-
     const A_STRING = 'A_STRING';
     const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';
     const ARRAY_COUNT_2 = 'ARRAY_COUNT_2';

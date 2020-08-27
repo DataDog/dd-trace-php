@@ -36,7 +36,6 @@ function array_filter_recursive(callable $keep_fn, array $input)
  */
 class ElasticSearchIntegrationTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = true;
     const HOST = 'elasticsearch2_integration';
 
     public function testNamespaceMethodNotExistsDoesNotCrashApps()

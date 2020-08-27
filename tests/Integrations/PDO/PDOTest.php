@@ -7,8 +7,6 @@ use DDTrace\Tests\Common\SpanAssertion;
 
 final class PDOTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = true;
-
     const MYSQL_DATABASE = 'test';
     const MYSQL_USER = 'test';
     const MYSQL_PASSWORD = 'test';
@@ -143,7 +141,7 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'pdo', 'sql', 'PDO.__construct')
                 ->withExactTags($this->baseTags()),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOConstructError()
@@ -246,7 +244,7 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '1',
                 ])),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOQueryError()

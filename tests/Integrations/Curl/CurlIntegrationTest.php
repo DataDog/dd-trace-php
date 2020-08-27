@@ -33,9 +33,6 @@ class PrivateCallbackRequest
 
 final class CurlIntegrationTest extends IntegrationTestCase
 {
-
-    const IS_SANDBOX = true;
-
     const URL = 'http://httpbin_integration';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
 
@@ -152,7 +149,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
             __DIR__ . '/curl_in_web_request.php',
             [
                 'DD_SERVICE' => 'top_level_app',
-                'DD_TRACE_SANDBOX_ENABLED' => static::IS_SANDBOX,
                 'DD_TRACE_NO_AUTOLOADER' => true,
             ]
         );

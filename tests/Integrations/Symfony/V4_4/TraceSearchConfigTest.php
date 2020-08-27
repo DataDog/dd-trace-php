@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_4_4/public/index.php';
@@ -61,9 +59,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                                 SpanAssertion::exists('symfony.kernel.response'),
                                 SpanAssertion::exists('symfony.kernel.finish_request'),
                             ]),
-                        SpanAssertion::exists('symfony.kernel.terminate')->skipIf(!static::IS_SANDBOX),
                     ]),
-                SpanAssertion::exists('symfony.kernel.terminate')->skipIf(static::IS_SANDBOX),
             ]
         );
     }

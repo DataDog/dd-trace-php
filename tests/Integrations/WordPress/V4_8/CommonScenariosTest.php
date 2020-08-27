@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 final class CommonScenariosTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/WordPress/Version_4_8/index.php';
