@@ -284,6 +284,12 @@ static void dd_set_default_properties(ddtrace_span_fci *span_fci, zend_function 
 
 static void dd_tracing_posthook_impl(zend_function *fbc, ddtrace_span_fci *span_fci, zval *return_value TSRMLS_DC) {
     bool keep_span = dd_tracing_posthook_impl_impl(fbc, span_fci, return_value TSRMLS_CC);
+
+    if (span_fci != DDTRACE_G(open_spans_top)) {
+        // This can happen if the tracer flushes while an internal span is active
+        return;
+    }
+
     if (keep_span) {
         dd_set_default_properties(span_fci, fbc TSRMLS_CC);
         ddtrace_close_span(TSRMLS_C);
