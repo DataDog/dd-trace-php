@@ -146,7 +146,12 @@ class IntegrationsLoader
             // auto-instrumentation this method may be called many times as the hook is the autoloader callback.
             // So we want to make sure that we do not load the same integration twice if not required.
             $integrationLoadingStatus = $this->getLoadingStatus($name);
-            if (in_array($integrationLoadingStatus, [SandboxedIntegration::LOADED, SandboxedIntegration::NOT_AVAILABLE])) {
+            if (
+                in_array(
+                    $integrationLoadingStatus,
+                    [SandboxedIntegration::LOADED, SandboxedIntegration::NOT_AVAILABLE]
+                )
+            ) {
                 continue;
             }
 
@@ -204,7 +209,9 @@ class IntegrationsLoader
      */
     public function getLoadingStatus($integrationName)
     {
-        return isset($this->loadings[$integrationName]) ? $this->loadings[$integrationName] : SandboxedIntegration::NOT_LOADED;
+        return isset($this->loadings[$integrationName])
+            ? $this->loadings[$integrationName]
+            : SandboxedIntegration::NOT_LOADED;
     }
 
     /**
