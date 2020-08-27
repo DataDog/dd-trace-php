@@ -29,10 +29,10 @@ int ddtrace_op_array_extension = 0;
 
 ZEND_TLS zend_function *dd_integrations_load_deferred_integration = NULL;
 
-static void (*_prev_error_cb)(int type, const char *error_filename, const uint error_lineno, const char *format,
-                              va_list args);
-static void _dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
-                         va_list args);
+static void (*dd_prev_error_cb)(int type, const char *error_filename, const uint error_lineno, const char *format,
+                                va_list args);
+static void dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
+                        va_list args);
 
 // True gloals; only modify in minit/mshutdown
 static user_opcode_handler_t prev_ucall_handler;
@@ -1163,11 +1163,11 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
 }
 
 void ddtrace_error_cb_minit(void) {
-    _prev_error_cb = zend_error_cb;
-    zend_error_cb = _dd_error_cb;
+    dd_prev_error_cb = zend_error_cb;
+    zend_error_cb = dd_error_cb;
 }
 
-void ddtrace_error_cb_mshutdown(void) { zend_error_cb = _prev_error_cb; }
+void ddtrace_error_cb_mshutdown(void) { zend_error_cb = dd_prev_error_cb; }
 
 static zend_object *dd_make_exception_from_error(int type, const char *format, va_list args) {
     zval ex, tmp;
@@ -1188,12 +1188,12 @@ static zend_object *dd_make_exception_from_error(int type, const char *format, v
     return Z_OBJ(ex);
 }
 
-static void _dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
-                         va_list args) {
+static void dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
+                        va_list args) {
     ddtrace_span_fci *span = DDTRACE_G(open_spans_top);
     if (span && (type == E_ERROR || type == E_CORE_ERROR || type == E_USER_ERROR)) {
         span->exception = dd_make_exception_from_error(type, format, args);
         dd_close_all_open_spans();
     }
-    _prev_error_cb(type, error_filename, error_lineno, format, args);
+    dd_prev_error_cb(type, error_filename, error_lineno, format, args);
 }

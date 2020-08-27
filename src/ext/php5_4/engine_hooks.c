@@ -18,6 +18,11 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #define DDTRACE_NOT_TRACED ((void *)1)
 int ddtrace_resource = -1;
 
+static void (*dd_prev_error_cb)(int type, const char *error_filename, const uint error_lineno, const char *format,
+                                va_list args);
+static void dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
+                        va_list args);
+
 static zend_class_entry *dd_get_called_scope(zend_function *fbc TSRMLS_DC) {
     /* For internal functions the globals can only be trusted if it's a method.
      * This is why we look at the function being called at all.
