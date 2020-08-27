@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-class CommonScenariosSandboxedTest extends WebFrameworkTestCase
+class CommonScenariosTest extends WebFrameworkTestCase
 {
     const IS_SANDBOX = true;
 

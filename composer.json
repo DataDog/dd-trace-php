@@ -476,15 +476,15 @@
         ],
         "test-phpredis3": [
             "@composer scenario phpredis3",
-            "@composer test -- tests/Integrations/PHPRedis/PHPRedis3SandboxedTest.php"
+            "@composer test -- tests/Integrations/PHPRedis/PHPRedis3Test.php"
         ],
         "test-phpredis4": [
             "@composer scenario phpredis4",
-            "@composer test -- tests/Integrations/PHPRedis/PHPRedis4SandboxedTest.php"
+            "@composer test -- tests/Integrations/PHPRedis/PHPRedis4Test.php"
         ],
         "test-phpredis5": [
             "@composer scenario phpredis5",
-            "@composer test -- tests/Integrations/PHPRedis/PHPRedis5SandboxedTest.php"
+            "@composer test -- tests/Integrations/PHPRedis/PHPRedis5Test.php"
         ],
         "test-predis1": [
             "@composer scenario predis1",

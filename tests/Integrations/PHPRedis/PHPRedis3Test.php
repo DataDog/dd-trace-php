@@ -7,7 +7,7 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
 
-class PHPRedis3SandboxedTest extends IntegrationTestCase
+class PHPRedis3Test extends IntegrationTestCase
 {
     const IS_SANDBOX = true;
 
