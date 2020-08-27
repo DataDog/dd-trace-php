@@ -69,7 +69,7 @@ static void dd_set_up_deferred_loading_phpredis(void) {
     }
 
     DDTRACE_DEFERRED_INTEGRATION_LOADER("Redis", "__construct",
-                                        "DDTrace\\Integrations\\PHPRedis\\PHPRedisSandboxedIntegration");
+                                        "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
 }
 
 static void dd_set_up_deferred_loading_predis(void) {
@@ -78,7 +78,7 @@ static void dd_set_up_deferred_loading_predis(void) {
     }
 
     DDTRACE_DEFERRED_INTEGRATION_LOADER("Predis\\Client", "__construct",
-                                        "DDTrace\\Integrations\\Predis\\PredisSandboxedIntegration");
+                                        "DDTrace\\Integrations\\Predis\\PredisIntegration");
 }
 
 void ddtrace_integrations_rinit(TSRMLS_D) {
