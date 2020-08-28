@@ -34,7 +34,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $this->assertExpectedSpans($traces, $spanExpectations);
+        $this->assertFlameGraph($traces, $spanExpectations);
     }
 
     public function provideSpecs()
@@ -52,13 +52,14 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_URL => 'http://localhost:9999/simple',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple::index',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'Simple.index',
+                            'codeigniter_test_app',
+                            Type::WEB_SERVLET,
+                            'Simple.index'
+                        ),
                     ]),
-                    SpanAssertion::build(
-                        'Simple.index',
-                        'codeigniter_test_app',
-                        Type::WEB_SERVLET,
-                        'Simple.index'
-                    ),
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
@@ -71,19 +72,21 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_URL => 'http://localhost:9999/simple_view',
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Simple_View::index',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'Simple_View.index',
+                            'codeigniter_test_app',
+                            Type::WEB_SERVLET,
+                            'Simple_View.index'
+                        )->withChildren([
+                            SpanAssertion::build(
+                                'CI_Loader.view',
+                                'codeigniter_test_app',
+                                Type::WEB_SERVLET,
+                                'simple_view'
+                            ),
+                        ]),
                     ]),
-                    SpanAssertion::build(
-                        'Simple_View.index',
-                        'codeigniter_test_app',
-                        Type::WEB_SERVLET,
-                        'Simple_View.index'
-                    ),
-                    SpanAssertion::build(
-                        'CI_Loader.view',
-                        'codeigniter_test_app',
-                        Type::WEB_SERVLET,
-                        'simple_view'
-                    ),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
@@ -97,13 +100,14 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         // CodeIgniter's error handler does not adjust the status code
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Error_::index',
+                    ])->withChildren([
+                        SpanAssertion::build(
+                            'Error_.index',
+                            'codeigniter_test_app',
+                            Type::WEB_SERVLET,
+                            'Error_.index'
+                        )->setError('Exception', 'datadog', true),
                     ]),
-                    SpanAssertion::build(
-                        'Error_.index',
-                        'codeigniter_test_app',
-                        Type::WEB_SERVLET,
-                        'Error_.index'
-                    )->setError('Exception', 'datadog', true),
                 ],
             ]
         );

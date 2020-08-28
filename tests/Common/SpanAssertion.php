@@ -119,7 +119,7 @@ final class SpanAssertion
         if (null !== $errorMessage) {
             $this->exactTags[Tag::ERROR_MSG] = $errorMessage;
         }
-        if ($exceptionThrown && Configuration::get()->isSandboxEnabled()) {
+        if ($exceptionThrown) {
             $this->existingTags[] = Tag::ERROR_STACK;
         }
         return $this;
