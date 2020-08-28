@@ -316,11 +316,16 @@ static void dd_exit_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
         keep_span = dd_execute_tracing_closure(span_fci, user_args, user_retval TSRMLS_CC);
     }
 
-    if (keep_span) {
-        dd_set_default_properties(TSRMLS_C);
-        ddtrace_close_span(TSRMLS_C);
-    } else {
-        ddtrace_drop_top_open_span(TSRMLS_C);
+    /* If a closure calls dd_trace_serialize_closed_spans then it will free the
+     * open span stack, and the span_fci can go away.
+     */
+    if (span_fci == DDTRACE_G(open_spans_top)) {
+        if (keep_span) {
+            dd_set_default_properties(TSRMLS_C);
+            ddtrace_close_span(TSRMLS_C);
+        } else {
+            ddtrace_drop_top_open_span(TSRMLS_C);
+        }
     }
 
     zval_ptr_dtor(&user_args);
@@ -394,11 +399,17 @@ static void dd_execute_end_span(ddtrace_span_fci *span_fci, zval *user_retval TS
         keep_span = dd_execute_tracing_closure(span_fci, user_args, user_retval TSRMLS_CC);
     }
 
-    if (keep_span) {
-        dd_set_default_properties(TSRMLS_C);
-        ddtrace_close_span(TSRMLS_C);
-    } else {
-        ddtrace_drop_top_open_span(TSRMLS_C);
+    /* The span_fci can be freed during the closure if it calls
+     * dd_trace_serialize_closed_spans; pointer comparison is the only valid
+     * operation we can do here in such cases.
+     */
+    if (span_fci == DDTRACE_G(open_spans_top)) {
+        if (keep_span) {
+            dd_set_default_properties(TSRMLS_C);
+            ddtrace_close_span(TSRMLS_C);
+        } else {
+            ddtrace_drop_top_open_span(TSRMLS_C);
+        }
     }
 
     zval_ptr_dtor(&user_args);
@@ -495,7 +506,17 @@ static void dd_execute_tracing_posthook(zend_execute_data *execute_data TSRMLS_D
      */
     zval *actual_retval =
         (EG(return_value_ptr_ptr) && *EG(return_value_ptr_ptr)) ? *EG(return_value_ptr_ptr) : &zval_used_for_init;
-    dd_execute_end_span(span_fci, actual_retval TSRMLS_CC);
+
+    /* The span_fci can be freed by the function this traces if it calls
+     * dd_trace_serialize_closed_spans; pointer comparison is the only valid
+     * operation we can do here in such cases.
+     */
+    if (span_fci == DDTRACE_G(open_spans_top)) {
+        dd_execute_end_span(span_fci, actual_retval TSRMLS_CC);
+    } else if (get_dd_trace_debug()) {
+        const char *fname = Z_STRVAL(dispatch->function_name);
+        ddtrace_log_errf("Cannot run tracing closure for %s(); spans out of sync", fname);
+    }
 
     if (free_retval && *EG(return_value_ptr_ptr)) {
         zval_ptr_dtor(EG(return_value_ptr_ptr));
