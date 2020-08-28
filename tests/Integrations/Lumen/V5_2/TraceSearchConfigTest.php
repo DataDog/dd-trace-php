@@ -50,6 +50,14 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         '_dd1.sr.eausr' => 0.3,
                         '_sampling_priority_v1' => 1,
                     ])
+                    ->withChildren([
+                        SpanAssertion::build(
+                            'Laravel\Lumen\Application.handleFoundRoute',
+                            'lumen',
+                            'web',
+                            'Laravel\Lumen\Application.handleFoundRoute'
+                        ),
+                    ])
             ]
         );
     }

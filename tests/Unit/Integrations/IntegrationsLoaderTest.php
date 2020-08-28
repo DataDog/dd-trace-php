@@ -30,7 +30,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
         putenv('DD_TRACE_ENABLED=0');
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
         ]));
 
         DummyIntegration1::$value = Integration::LOADED;
@@ -47,7 +46,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
         putenv('DD_INTEGRATIONS_DISABLED=pdo');
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
         ]));
 
         DummyIntegration1::$value = Integration::LOADED;
@@ -65,7 +63,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -84,7 +81,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -109,7 +105,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
@@ -134,7 +129,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
         Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
             'isIntegrationEnabled' => true,
             'isDebugModeEnabled' => false,
-            'isSandboxEnabled' => false,
         ]));
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 

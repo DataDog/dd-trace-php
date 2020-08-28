@@ -138,6 +138,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost:9999/simple',
                 'http.status_code' => '200',
+            ])->withChildren([
+                SpanAssertion::build(
+                    'Laravel\Lumen\Application.handleFoundRoute',
+                    'lumen_test_app',
+                    'web',
+                    'Laravel\Lumen\Application.handleFoundRoute'
+                ),
             ]),
         ];
     }
@@ -155,7 +162,17 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost:9999/error',
                 'http.status_code' => '500',
-            ])->setError(),
+            ])->setError()
+                ->withChildren([
+                    SpanAssertion::build(
+                        'Laravel\Lumen\Application.handleFoundRoute',
+                        'lumen_test_app',
+                        '',
+                        'Laravel\Lumen\Application.handleFoundRoute'
+                    )->withExistingTagsNames([
+                        'error.stack'
+                    ])->setError('Exception', 'Controller error'),
+                ]),
         ];
     }
 }

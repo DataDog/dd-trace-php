@@ -64,6 +64,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
+                            SpanAssertion::exists('symfony.kernel.terminate'),
                         ]),
                 ],
                 'A simple GET request with a view' => [
@@ -97,6 +98,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
+                            SpanAssertion::exists('symfony.kernel.terminate'),
                         ]),
                 ],
                 'A GET request with an exception' => [
@@ -129,8 +131,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             ]),
                                             SpanAssertion::exists('symfony.kernel.finish_request'),
                                         ]),
+                                    SpanAssertion::exists('symfony.kernel.terminate'),
                                 ]),
-                            SpanAssertion::exists('symfony.kernel.terminate'),
                         ]),
                 ],
             ]

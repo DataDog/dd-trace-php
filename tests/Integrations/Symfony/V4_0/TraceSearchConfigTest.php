@@ -58,7 +58,8 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                                 SpanAssertion::exists('symfony.kernel.controller_arguments'),
                                 SpanAssertion::exists('symfony.kernel.response'),
                                 SpanAssertion::exists('symfony.kernel.finish_request'),
-                                ]),
+                            ]),
+                        SpanAssertion::exists('symfony.kernel.terminate'),
                     ]),
             ]
         );
