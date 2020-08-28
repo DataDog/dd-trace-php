@@ -147,7 +147,9 @@ class SymfonySandboxedIntegration extends SandboxedIntegration
         $exceptionHandlingTracer = function (SpanData $span, $args) use ($integration) {
             $span->name = $span->resource = 'symfony.kernel.handleException';
             $span->service = $integration->appName;
-            $integration->symfonyRequestSpan->setError($args[0]);
+            if (!($args[0] instanceof Symfony\Component\HttpKernel\Exception\HttpExceptionInterface && $args[0] < 500)) {
+                $integration->symfonyRequestSpan->setError($args[0]);
+            }
         };
         // Symfony 4.3-
         \DDTrace\trace_method('Symfony\Component\HttpKernel\HttpKernel', 'handleException', $exceptionHandlingTracer);
