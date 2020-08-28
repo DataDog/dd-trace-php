@@ -65,8 +65,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration';
         $this->integrations[CurlIntegration::NAME] =
             '\DDTrace\Integrations\Curl\CurlIntegration';
-        $this->integrations[ElasticSearchIntegration::NAME] =
-            '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration';
         $this->integrations[EloquentIntegration::NAME] =
             '\DDTrace\Integrations\Eloquent\EloquentIntegration';
         $this->integrations[GuzzleIntegration::NAME] =
@@ -83,8 +81,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
         $this->integrations[PDOIntegration::NAME] =
             '\DDTrace\Integrations\PDO\PDOIntegration';
-        $this->integrations[PredisIntegration::NAME] =
-            '\DDTrace\Integrations\Predis\PredisIntegration';
         $this->integrations[SlimIntegration::NAME] =
             '\DDTrace\Integrations\Slim\SlimIntegration';
         $this->integrations[SymfonyIntegration::NAME] =
@@ -97,9 +93,11 @@ class IntegrationsLoader
             '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
 
         // For PHP 7.0+ use C level deferred integration loader
-        if (\PHP_MAJOR_VERSION >= 7) {
-            unset($this->integrations[ElasticSearchIntegration::NAME]);
-            unset($this->integrations[PredisIntegration::NAME]);
+        if (\PHP_MAJOR_VERSION < 7) {
+            $this->integrations[PredisIntegration::NAME] =
+                '\DDTrace\Integrations\Predis\PredisIntegration';
+            $this->integrations[ElasticSearchIntegration::NAME] =
+                '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration';
         }
     }
 
@@ -155,12 +153,8 @@ class IntegrationsLoader
                 continue;
             }
 
-            if (strpos($class, 'Integration') !== false) {
-                $integration = new $class();
-                $this->loadings[$name] = $integration->init();
-            } else {
-                $this->loadings[$name] = $class::load();
-            }
+            $integration = new $class();
+            $this->loadings[$name] = $integration->init();
             $this->logResult($name, $this->loadings[$name]);
         }
     }
