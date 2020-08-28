@@ -131,8 +131,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             ]),
                                             SpanAssertion::exists('symfony.kernel.finish_request'),
                                         ]),
-                                    SpanAssertion::exists('symfony.kernel.terminate'),
                                 ]),
+                                SpanAssertion::exists('symfony.kernel.terminate'),
                         ]),
                 ],
             ]
