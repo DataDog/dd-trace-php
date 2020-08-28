@@ -3,6 +3,7 @@
 #include <curl/curl.h>
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -783,8 +784,28 @@ static void _dd_signal_data_processed(struct _writer_loop_data_t *writer) {
     }
 }
 
+#ifdef __CYGWIN__
+#define TIMEOUT_SIG SIGALRM
+#else
+#define TIMEOUT_SIG SIGPROF
+#endif
+
 static void *_dd_writer_loop(void *_) {
     UNUSED(_);
+    /* This thread must not handle signals intended for the PHP threads.
+     * See Zend/zend_signal.c for which signals it registers.
+     */
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, TIMEOUT_SIG);
+    sigaddset(&sigset, SIGHUP);
+    sigaddset(&sigset, SIGINT);
+    sigaddset(&sigset, SIGQUIT);
+    sigaddset(&sigset, SIGTERM);
+    sigaddset(&sigset, SIGUSR1);
+    sigaddset(&sigset, SIGUSR2);
+    pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+
     struct _writer_loop_data_t *writer = _dd_get_writer();
 
     bool running = true;
