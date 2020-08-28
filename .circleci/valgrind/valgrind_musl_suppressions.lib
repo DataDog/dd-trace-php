@@ -154,3 +154,17 @@
     fun:execute_ex
     fun:ddtrace_execute_ex
 }
+{
+    <PHP 5.4 leaks at request timeout>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:_emalloc
+    fun:compile_file
+    fun:phar_compile_file
+    fun:_dd_compile_file
+    fun:zend_execute_scripts
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}
