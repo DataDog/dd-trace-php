@@ -440,6 +440,7 @@ All calls to `DDTrace\trace_function` or `DDTrace\trace_method` functions need t
             <file name="tests/ext/get_memory_limit_unlimited_set_by_absolute.phpt" role="test" />
             <file name="tests/ext/get_memory_limit_unlimited_set_by_percentage.phpt" role="test" />
             <file name="tests/ext/read_c_configuration.phpt" role="test" />
+            <file name="tests/ext/request_timeout_01.phpt" role="test" />
             <file name="tests/ext/segfault_backtrace_disabled.phpt" role="test" />
             <file name="tests/ext/segfault_backtrace_enabled.phpt" role="test" />
             <file name="tests/ext/startup_logging.inc" role="test" />
