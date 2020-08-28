@@ -35,7 +35,7 @@ trait CommonScenariosDataProviderTrait
 
         // We expect that all the scenarios that we defined have a corresponding expectation to serve
         $unexpectedRequest = array_diff($allRequestNames, $allExpectationNames);
-        // TODO Add 404 checks to all frameworks
+        // Note to team for later: Add 404 checks to all frameworks
         $i = array_search('A GET request to a missing route', $unexpectedRequest, true);
         if ($i !== false) {
             unset($unexpectedRequest[$i]);
