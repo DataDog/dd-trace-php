@@ -1,7 +1,9 @@
 --TEST--
-Gracefully handle out-of-sync spans from traced function [user][default properties]
+Gracefully handle out-of-sync spans from traced function [user]
 --ENV--
 DD_TRACE_DEBUG=1
+--SKIPIF--
+<?php if (PHP_MAJOR_VERSION !== 5) die('skip: php 5 required'); ?>
 --FILE--
 <?php
 
@@ -9,6 +11,7 @@ DD_TRACE_DEBUG=1
 // when this closure runs, DDTrace\SpanData will have been freed already.
 DDTrace\trace_function('shutdown_and_flush', function (DDTrace\SpanData $span) {
     echo 'You should not see this.' . PHP_EOL;
+    $span->name = 'shutdown_and_flush';
 });
 
 function shutdown_and_flush() {

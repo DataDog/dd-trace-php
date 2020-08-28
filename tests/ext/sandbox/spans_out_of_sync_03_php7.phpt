@@ -2,6 +2,8 @@
 Gracefully handle out-of-sync spans from traced function [user]
 --ENV--
 DD_TRACE_DEBUG=1
+--SKIPIF--
+<?php if (PHP_MAJOR_VERSION !== 7) die('skip: php 7 required'); ?>
 --FILE--
 <?php
 
@@ -22,5 +24,4 @@ echo 'Done.' . PHP_EOL;
 --EXPECT--
 array(0) {
 }
-Cannot run tracing closure for shutdown_and_flush(); spans out of sync
 Done.
