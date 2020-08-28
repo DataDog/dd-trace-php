@@ -12,6 +12,7 @@ class TestScenarios
             GetSpec::create('A simple GET request returning a string', '/simple'),
             GetSpec::create('A simple GET request with a view', '/simple_view'),
             GetSpec::create('A GET request with an exception', '/error')->expectStatusCode(500),
+            GetSpec::create('A GET request to a missing route', '/does_not_exist'),
         ];
     }
 }
