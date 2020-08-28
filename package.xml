@@ -344,7 +344,14 @@ All calls to `DDTrace\trace_function` or `DDTrace\trace_method` functions need t
             <file name="tests/ext/sandbox/safe_to_string_metadata.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
             <file name="tests/ext/sandbox/safe_to_string_properties.phpt" role="test" />
-            <file name="tests/ext/sandbox/spans_out_of_sync.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_03_php5.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_03_php7.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_04_php5.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_04_php7.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_05.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_06.phpt" role="test" />
             <file name="tests/ext/sandbox/static_tracing_closures_will_not_bind_this.phpt" role="test" />
             <file name="tests/ext/sandbox/variadic_args_internal.phpt" role="test" />
             <file name="tests/ext/sandbox/variadic_no_args.phpt" role="test" />
