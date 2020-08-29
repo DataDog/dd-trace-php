@@ -2,4 +2,4 @@
 
 // Must begin with a number for Debian packaging requirements
 // Must use single-quotes for packaging script to work
-return '0.48.0'; // Update Tracer::VERSION too
+return '0.48.1'; // Update Tracer::VERSION too
