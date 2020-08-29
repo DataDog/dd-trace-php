@@ -35,9 +35,6 @@ abstract class CLITestCase extends IntegrationTestCase
             'DD_TEST_INTEGRATION' => 'true',
             'DD_TRACE_ENCODER' => 'json',
         ];
-        if (!self::isSandboxed()) {
-            $envs['DD_TRACE_SANDBOX_ENABLED'] = 'false';
-        }
         return $envs;
     }
 

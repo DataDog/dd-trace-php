@@ -64,10 +64,6 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
         ];
 
-        if (!self::isSandboxed()) {
-            $envs['DD_TRACE_SANDBOX_ENABLED'] = 'false';
-        }
-
         return $envs;
     }
 

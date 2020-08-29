@@ -5,13 +5,13 @@ namespace DDTrace\Integrations\Guzzle;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use GuzzleHttp;
 
-class GuzzleSandboxedIntegration extends SandboxedIntegration
+class GuzzleIntegration extends Integration
 {
 
     const NAME = 'guzzle';
@@ -24,13 +24,13 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
     public function init()
     {
         if (!self::shouldLoad(self::NAME)) {
-            return SandboxedIntegration::NOT_LOADED;
+            return Integration::NOT_LOADED;
         }
 
         $tracer = GlobalTracer::get();
         $rootScope = $tracer->getRootScope();
         if (!$rootScope) {
-            return SandboxedIntegration::NOT_LOADED;
+            return Integration::NOT_LOADED;
         }
 
         $integration = $this;
@@ -122,7 +122,7 @@ class GuzzleSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     public function addRequestInfo(SpanData $span, $request)

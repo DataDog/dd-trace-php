@@ -3,12 +3,11 @@
 namespace DDTrace\Integrations\ElasticSearch\V1;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class ElasticSearchSandboxedIntegration extends SandboxedIntegration
+class ElasticSearchIntegration extends Integration
 {
     const NAME = 'elasticsearch';
 
@@ -127,7 +126,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
         \DDTrace\trace_method('Elasticsearch\Endpoints\AbstractEndpoint', 'performRequest', function (SpanData $span) {
             $span->name = "Elasticsearch.Endpoint.performRequest";
             $span->resource = 'performRequest';
-            $span->service = ElasticSearchSandboxedIntegration::NAME;
+            $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
 
             try {
@@ -173,7 +172,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
                         $integration->addTraceAnalyticsIfEnabled($span);
                     }
 
-                    $span->service = ElasticSearchSandboxedIntegration::NAME;
+                    $span->service = ElasticSearchIntegration::NAME;
                     $span->type = Type::ELASTICSEARCH;
                     $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);
                 }
@@ -191,7 +190,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
             $operationName = str_replace('\\', '.', "$class.$name");
             $span->name = $operationName;
             $span->resource = $operationName;
-            $span->service = ElasticSearchSandboxedIntegration::NAME;
+            $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
         });
     }
@@ -212,7 +211,7 @@ class ElasticSearchSandboxedIntegration extends SandboxedIntegration
 
             $span->name = "Elasticsearch.$namespace.$name";
             $span->resource = ElasticSearchCommon::buildResourceName($name, $params);
-            $span->service = ElasticSearchSandboxedIntegration::NAME;
+            $span->service = ElasticSearchIntegration::NAME;
             $span->type = Type::ELASTICSEARCH;
         });
     }

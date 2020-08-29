@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 final class CommonScenariosTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Custom/Version_Autoloaded/public/index.php';

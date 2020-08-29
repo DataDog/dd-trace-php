@@ -2,10 +2,10 @@
 
 namespace DDTrace\Integrations\Yii;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Util\Versions;
 
-class YiiSandboxedIntegration extends SandboxedIntegration
+class YiiIntegration extends Integration
 {
     const NAME = 'yii';
 

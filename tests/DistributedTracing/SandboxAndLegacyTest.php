@@ -7,8 +7,6 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class SandboxAndLegacyTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = true;
-
     protected function setUp()
     {
         parent::setUp();

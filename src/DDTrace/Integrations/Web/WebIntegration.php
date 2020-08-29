@@ -32,6 +32,13 @@ class WebIntegration extends Integration
         return self::NAME;
     }
 
+    public function init()
+    {
+        // For now we do nothing, as this is done in the bootstrap logic at the moment. We may consider doing this
+        // here instead, but leaving this for a future refactoring.
+        return Integration::LOADED;
+    }
+
     /**
      * {@inheritdoc}
      */

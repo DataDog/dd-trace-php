@@ -4,13 +4,13 @@ namespace DDTrace\Integrations\CakePHP;
 
 use CakeRequest;
 use DDTrace\GlobalTracer;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use Router;
 
-class CakePHPSandboxedIntegration extends SandboxedIntegration
+class CakePHPIntegration extends Integration
 {
     const NAME = 'cakephp';
 
@@ -44,7 +44,7 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
             if (!$scope) {
                 return false;
             }
-            $integration->appName = \ddtrace_config_app_name(CakePHPSandboxedIntegration::NAME);
+            $integration->appName = \ddtrace_config_app_name(CakePHPIntegration::NAME);
             $integration->rootSpan = $scope->getSpan();
             $integration->addTraceAnalyticsIfEnabledLegacy($integration->rootSpan);
             $integration->rootSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
@@ -130,6 +130,6 @@ class CakePHPSandboxedIntegration extends SandboxedIntegration
             \DDTrace\trace_method('Dispatcher', '__construct', $initCakeV2);
         }
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 }

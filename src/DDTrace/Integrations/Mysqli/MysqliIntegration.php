@@ -3,12 +3,11 @@
 namespace DDTrace\Integrations\Mysqli;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 
-class MysqliSandboxedIntegration extends SandboxedIntegration
+class MysqliIntegration extends Integration
 {
     const NAME = 'mysqli';
 

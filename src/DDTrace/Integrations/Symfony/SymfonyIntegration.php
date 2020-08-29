@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\Symfony;
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -13,7 +12,7 @@ use DDTrace\Util\Versions;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
 
-class SymfonySandboxedIntegration extends SandboxedIntegration
+class SymfonyIntegration extends Integration
 {
     const NAME = 'symfony';
 

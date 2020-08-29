@@ -10,8 +10,6 @@ use DDTrace\Type;
 
 class ExitTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/CodeIgniter/Version_2_2/ddshim.php';

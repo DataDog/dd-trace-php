@@ -8,9 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class ResponseStatusCodeTest extends WebFrameworkTestCase
 {
-    // this doesn't use the sandbox API, but it doesn't use legacy API either
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/ResponseStatusCodeTest_files/index.php';

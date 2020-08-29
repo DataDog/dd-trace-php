@@ -43,7 +43,7 @@ extern size_t ddtrace_integrations_len;
 
 /**
  * DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)
- * This macro will assign a fully qualified SandboxedIntegration name for each
+ * This macro will assign a fully qualified Integration name for each
  * Class, Method/Function combination.
  *
  * The integration_name will be constructed and `init()` method called when the

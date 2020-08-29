@@ -40,7 +40,7 @@ final class Bootstrap
             }
         };
 
-        // Sandbox API is not supported on PHP 5.4
+        // TO BE REMOVED as part of APMPHP-381
         if (PHP_VERSION_ID < 50500) {
             if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
                 self::initRootSpan($tracer);
@@ -48,6 +48,7 @@ final class Bootstrap
             }
             return;
         }
+
         \DDTrace\trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', [
             'instrument_when_limited' => 1,
             'posthook' => $flushTracer,

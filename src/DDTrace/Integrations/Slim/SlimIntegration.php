@@ -3,14 +3,14 @@
 namespace DDTrace\Integrations\Slim;
 
 use DDTrace\GlobalTracer;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Versions;
 use Psr\Http\Message\ServerRequestInterface;
 
-class SlimSandboxedIntegration extends SandboxedIntegration
+class SlimIntegration extends Integration
 {
     const NAME = 'slim';
 
@@ -29,7 +29,7 @@ class SlimSandboxedIntegration extends SandboxedIntegration
     {
         // http://www.slimframework.com/docs/v3/start/installation.html
         if (\PHP_VERSION_ID < 50500) {
-            return SandboxedIntegration::NOT_AVAILABLE;
+            return Integration::NOT_AVAILABLE;
         }
 
         $integration = $this;
@@ -105,6 +105,6 @@ class SlimSandboxedIntegration extends SandboxedIntegration
             }
         );
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 }

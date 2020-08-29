@@ -2,12 +2,12 @@
 
 namespace DDTrace\Integrations\PHPRedis;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class PHPRedisSandboxedIntegration extends SandboxedIntegration
+class PHPRedisIntegration extends Integration
 {
     const NAME = 'phpredis';
 
@@ -28,7 +28,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
     public function init()
     {
         $traceConnectOpen = function (SpanData $span, $args) {
-            PHPRedisSandboxedIntegration::enrichSpan($span);
+            PHPRedisIntegration::enrichSpan($span);
             $span->meta[Tag::TARGET_HOST] = (isset($args[0]) && \is_string($args[0])) ? $args[0] : '127.0.0.1';
             $span->meta[Tag::TARGET_PORT] = (isset($args[1]) && \is_numeric($args[1])) ? $args[1] : 6379;
         };
@@ -50,7 +50,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodNoArgs('restore');
 
         \DDTrace\trace_method('Redis', 'select', function (SpanData $span, $args) {
-            PHPRedisSandboxedIntegration::enrichSpan($span);
+            PHPRedisIntegration::enrichSpan($span);
             if (isset($args[0]) && \is_numeric($args[0])) {
                 $span->meta['db.index'] = $args[0];
             }
@@ -247,7 +247,7 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
         self::traceMethodAsCommand('xRevRange');
         self::traceMethodAsCommand('xTrim');
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     public static function enrichSpan(SpanData $span, $method = null)
@@ -264,15 +264,15 @@ class PHPRedisSandboxedIntegration extends SandboxedIntegration
     public static function traceMethodNoArgs($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
-            PHPRedisSandboxedIntegration::enrichSpan($span, $method);
+            PHPRedisIntegration::enrichSpan($span, $method);
         });
     }
 
     public static function traceMethodAsCommand($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
-            PHPRedisSandboxedIntegration::enrichSpan($span, $method);
-            $normalizedArgs = PHPRedisSandboxedIntegration::normalizeArgs($args);
+            PHPRedisIntegration::enrichSpan($span, $method);
+            $normalizedArgs = PHPRedisIntegration::normalizeArgs($args);
             // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
             $span->meta[Tag::REDIS_RAW_COMMAND]
                 = empty($normalizedArgs) ? $method : ($method . ' ' . $normalizedArgs);
