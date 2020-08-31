@@ -263,7 +263,7 @@ static void dd_serialize_exception(zval *el, zval *meta, ddtrace_exception_t *ex
     add_assoc_zval(meta, "error.msg", msg);
 
     bool use_class_name_for_error_type = true;
-    if (instanceof_function(Z_OBJCE_P(exception), ddtrace_ce_fatal_error)) {
+    if (instanceof_function(Z_OBJCE_P(exception), ddtrace_ce_fatal_error TSRMLS_CC)) {
         zval *code;
         zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "getcode", &code);
         if (Z_TYPE_P(code) == IS_LONG) {
