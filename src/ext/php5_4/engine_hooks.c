@@ -18,11 +18,6 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 #define DDTRACE_NOT_TRACED ((void *)1)
 int ddtrace_resource = -1;
 
-static void (*dd_prev_error_cb)(int type, const char *error_filename, const uint error_lineno, const char *format,
-                                va_list args);
-static void dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
-                        va_list args);
-
 static zend_class_entry *dd_get_called_scope(zend_function *fbc TSRMLS_DC) {
     /* For internal functions the globals can only be trusted if it's a method.
      * This is why we look at the function being called at all.
@@ -676,10 +671,16 @@ void ddtrace_execute_internal_mshutdown(void) {
     }
 }
 
-void ddtrace_error_cb_minit(void) {
-    // TODO
+// TODO: can we support close-at-exit and by extension fatal errors on PHP 5.4?
+zval *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC) {
+    PHP5_UNUSED(DDTRACE_ERROR_CB_PARAM_PASSTHRU TSRMLS_CC);
+
+    return NULL;
 }
 
-void ddtrace_error_cb_mshutdown(void) {
-    // TODO
+void ddtrace_close_all_open_spans(TSRMLS_DC) {
+#if ZTS
+    PHP5_UNUSED(TSRMLS_C);
+#endif
+    ddtrace_log_debug("Request to close all open spans ignored; not supported on PHP 5.4 (yet, anyway)");
 }

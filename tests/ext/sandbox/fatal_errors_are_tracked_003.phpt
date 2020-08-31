@@ -4,6 +4,8 @@ E_ERROR fatal errors are tracked from hitting the max execution time
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
 max_execution_time=1
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not support close-at-exit functionality"); ?>
 --FILE--
 <?php
 register_shutdown_function(function () {

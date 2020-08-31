@@ -29,11 +29,6 @@ int ddtrace_op_array_extension = 0;
 
 ZEND_TLS zend_function *dd_integrations_load_deferred_integration = NULL;
 
-static void (*dd_prev_error_cb)(int type, const char *error_filename, const uint error_lineno, const char *format,
-                                va_list args);
-static void dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
-                        va_list args);
-
 // True gloals; only modify in minit/mshutdown
 static user_opcode_handler_t prev_ucall_handler;
 static user_opcode_handler_t prev_fcall_handler;
@@ -1075,7 +1070,7 @@ static int dd_handle_exception_handler(zend_execute_data *execute_data) {
     return prev_handle_exception_handler ? prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
-static void dd_close_all_open_spans(void) {
+void ddtrace_close_all_open_spans(void) {
     ddtrace_span_fci *span_fci;
     while ((span_fci = DDTRACE_G(open_spans_top))) {
         zval retval;
@@ -1086,7 +1081,7 @@ static void dd_close_all_open_spans(void) {
 
 static int dd_exit_handler(zend_execute_data *execute_data) {
     if (ZEND_EXIT == EX(opline)->opcode) {
-        dd_close_all_open_spans();
+        ddtrace_close_all_open_spans();
     }
 
     return prev_exit_handler ? prev_exit_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
@@ -1162,18 +1157,9 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
     }
 }
 
-void ddtrace_error_cb_minit(void) {
-    dd_prev_error_cb = zend_error_cb;
-    zend_error_cb = dd_error_cb;
-}
+zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
+    PHP7_UNUSED(error_filename, error_lineno);
 
-void ddtrace_error_cb_mshutdown(void) {
-    if (zend_error_cb == dd_error_cb) {
-        zend_error_cb = dd_prev_error_cb;
-    }
-}
-
-static zend_object *dd_make_exception_from_error(int type, const char *format, va_list args) {
     zval ex, tmp;
     va_list args2;
     char message[1024];
@@ -1190,14 +1176,4 @@ static zend_object *dd_make_exception_from_error(int type, const char *format, v
     zend_update_property(ddtrace_ce_fatal_error, &ex, "code", sizeof("code") - 1, &tmp);
 
     return Z_OBJ(ex);
-}
-
-static void dd_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format,
-                        va_list args) {
-    ddtrace_span_fci *span = DDTRACE_G(open_spans_top);
-    if (span && (type == E_ERROR || type == E_CORE_ERROR || type == E_USER_ERROR)) {
-        span->exception = dd_make_exception_from_error(type, format, args);
-        dd_close_all_open_spans();
-    }
-    dd_prev_error_cb(type, error_filename, error_lineno, format, args);
 }
