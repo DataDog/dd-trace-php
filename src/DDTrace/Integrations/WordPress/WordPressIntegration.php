@@ -2,10 +2,10 @@
 
 namespace DDTrace\Integrations\WordPress;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\WordPress\V4\WordPressIntegrationLoader;
 
-class WordPressSandboxedIntegration extends SandboxedIntegration
+class WordPressIntegration extends Integration
 {
     const NAME = 'wordpress';
 

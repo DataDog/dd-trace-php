@@ -4,12 +4,12 @@ namespace DDTrace\Integrations\CodeIgniter\V2;
 
 use DDTrace\Contracts\Span;
 use DDTrace\GlobalTracer;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class CodeIgniterSandboxedIntegration extends SandboxedIntegration
+class CodeIgniterIntegration extends Integration
 {
     const NAME = 'codeigniter';
 
@@ -32,7 +32,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
         $integration = $this;
         $rootScope = $tracer->getRootScope();
         if (!$rootScope) {
-            return SandboxedIntegration::NOT_LOADED;
+            return Integration::NOT_LOADED;
         }
         $service = \ddtrace_config_app_name(self::NAME);
 
@@ -160,7 +160,7 @@ class CodeIgniterSandboxedIntegration extends SandboxedIntegration
                 if (!$ex && \is_object($retval)) {
                     $class = \get_class($retval);
                     if (!isset($registered_cache_adapters[$class])) {
-                        CodeIgniterSandboxedIntegration::registerCacheAdapter($class, $service);
+                        CodeIgniterIntegration::registerCacheAdapter($class, $service);
                         $registered_cache_adapters[$class] = true;
                     }
                 }

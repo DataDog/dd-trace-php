@@ -2,14 +2,14 @@
 
 namespace DDTrace\Integrations\Mongo;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Obfuscation;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Versions;
 
-class MongoSandboxedIntegration extends SandboxedIntegration
+class MongoIntegration extends Integration
 {
     const NAME = 'mongo';
 
@@ -24,7 +24,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
     public function init()
     {
         if (!extension_loaded('mongo') || Versions::phpVersionMatches('5.4')) {
-            return SandboxedIntegration::NOT_AVAILABLE;
+            return Integration::NOT_AVAILABLE;
         }
 
         $integration = $this;
@@ -40,7 +40,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
             $integration->addSpanDefaultMetadata($span, 'MongoClient', '__construct');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_SERVER] = Obfuscation::dsn($args[0]);
-                $dbName = MongoSandboxedIntegration::extractDatabaseNameFromDsn($args[0]);
+                $dbName = MongoIntegration::extractDatabaseNameFromDsn($args[0]);
                 if (null !== $dbName) {
                     $span->meta[Tag::MONGODB_DATABASE] = $dbName;
                 }
@@ -288,7 +288,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
         $this->traceMongoMethod('MongoDB', 'repair');
         $this->traceMongoMethod('MongoDB', 'setWriteConcern');
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     /**
@@ -353,7 +353,7 @@ class MongoSandboxedIntegration extends SandboxedIntegration
         $span->name = $class . '.' . $method;
         $span->resource = $method;
         $span->type = Type::MONGO;
-        $span->service = MongoSandboxedIntegration::NAME;
+        $span->service = MongoIntegration::NAME;
     }
 
     /**

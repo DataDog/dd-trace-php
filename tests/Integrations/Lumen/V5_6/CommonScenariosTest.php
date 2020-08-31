@@ -4,9 +4,9 @@ namespace DDTrace\Tests\Integrations\Lumen\V5_6;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
-use DDTrace\Tests\Integrations\Lumen\V5_2\CommonScenariosSandboxedTest as V5_2_CommonScenariosSandboxedTest;
+use DDTrace\Tests\Integrations\Lumen\V5_2\CommonScenariosTest as V5_2_CommonScenariosTest;
 
-class CommonScenariosSandboxedTest extends V5_2_CommonScenariosSandboxedTest
+class CommonScenariosTest extends V5_2_CommonScenariosTest
 {
     protected static function getAppIndexScript()
     {

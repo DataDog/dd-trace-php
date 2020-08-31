@@ -11,8 +11,6 @@ class EloquentTest extends WebFrameworkTestCase
 {
     use SpanAssertionTrait;
 
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';

@@ -2,7 +2,7 @@
 
 namespace DDTrace\Integrations
 {
-    abstract class SandboxedIntegration
+    abstract class Integration
     {
         const LOADED = 1;
 
@@ -11,9 +11,9 @@ namespace DDTrace\Integrations
 
     function load_deferred_integration($integrationName)
     {
-        assert(\is_subclass_of($integrationName, 'DDTrace\\Integrations\\SandboxedIntegration'));
+        assert(\is_subclass_of($integrationName, 'DDTrace\\Integrations\\Integration'));
         $integration = new $integrationName();
-        assert($integration->init() == SandboxedIntegration::LOADED);
+        assert($integration->init() == Integration::LOADED);
     }
 }
 

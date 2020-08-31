@@ -6,9 +6,8 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-class CommonScenariosSandboxedTest extends WebFrameworkTestCase
+class CommonScenariosTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = true;
 
     protected static function getAppIndexScript()
     {
@@ -65,9 +64,8 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
-                            SpanAssertion::exists('symfony.kernel.terminate')->skipIf(!static::IS_SANDBOX),
+                            SpanAssertion::exists('symfony.kernel.terminate'),
                         ]),
-                    SpanAssertion::exists('symfony.kernel.terminate')->skipIf(static::IS_SANDBOX),
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
@@ -100,9 +98,8 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
-                            SpanAssertion::exists('symfony.kernel.terminate')->skipIf(!static::IS_SANDBOX),
+                            SpanAssertion::exists('symfony.kernel.terminate'),
                         ]),
-                    SpanAssertion::exists('symfony.kernel.terminate')->skipIf(static::IS_SANDBOX),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
@@ -135,7 +132,7 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                                             SpanAssertion::exists('symfony.kernel.finish_request'),
                                         ]),
                                 ]),
-                            SpanAssertion::exists('symfony.kernel.terminate'),
+                                SpanAssertion::exists('symfony.kernel.terminate'),
                         ]),
                 ],
                 'A GET request to a missing route' => [

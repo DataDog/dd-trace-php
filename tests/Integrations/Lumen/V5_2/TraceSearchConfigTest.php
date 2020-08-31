@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_2/public/index.php';
@@ -58,7 +56,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                             'lumen',
                             'web',
                             'Laravel\Lumen\Application.handleFoundRoute'
-                        )->skipIf(!static::IS_SANDBOX),
+                        ),
                     ])
             ]
         );

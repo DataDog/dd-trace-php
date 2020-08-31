@@ -3,7 +3,6 @@
 namespace DDTrace\Integrations\Memcached;
 
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\Obfuscation;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -22,7 +21,7 @@ use DDTrace\Type;
  * might be different for each key. setMultiByKey does, since you're pinning a
  * specific server.
  */
-class MemcachedSandboxedIntegration extends SandboxedIntegration
+class MemcachedIntegration extends Integration
 {
     const NAME = 'memcached';
 

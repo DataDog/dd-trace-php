@@ -6,10 +6,8 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
-class CommonScenariosSandboxedTest extends WebFrameworkTestCase
+class CommonScenariosTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_2/public/index.php';
@@ -146,8 +144,7 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                     'lumen_test_app',
                     'web',
                     'Laravel\Lumen\Application.handleFoundRoute'
-                )->withExactTags([])
-                    ->skipIf(!static::IS_SANDBOX),
+                ),
             ]),
         ];
     }
@@ -174,8 +171,7 @@ class CommonScenariosSandboxedTest extends WebFrameworkTestCase
                         'Laravel\Lumen\Application.handleFoundRoute'
                     )->withExistingTagsNames([
                         'error.stack'
-                    ])->setError('Exception', 'Controller error')
-                        ->skipIf(!static::IS_SANDBOX),
+                    ])->setError('Exception', 'Controller error'),
                 ]),
         ];
     }

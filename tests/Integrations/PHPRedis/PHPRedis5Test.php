@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Integrations\PHPRedis;
 
-use DDTrace\Integrations\PHPRedis\PHPRedisSandboxedIntegration;
+use DDTrace\Integrations\PHPRedis\PHPRedisIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
@@ -10,10 +10,8 @@ use Exception;
 // Note: PHPRedis 5 has many deprecated methodsd (comapred to 4) that we still want to test
 \error_reporting(E_ALL ^ \E_DEPRECATED);
 
-class PHPRedis45SandboxedTest extends IntegrationTestCase
+class PHPRedis5Test extends IntegrationTestCase
 {
-    const IS_SANDBOX = true;
-
     const A_STRING = 'A_STRING';
     const A_FLOAT = 'A_FLOAT';
     const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';
@@ -2131,7 +2129,7 @@ class PHPRedis45SandboxedTest extends IntegrationTestCase
      */
     public function testNormalizeArgs($args, $expected)
     {
-        $actual = PHPRedisSandboxedIntegration::normalizeArgs($args);
+        $actual = PHPRedisIntegration::normalizeArgs($args);
         $this->assertSame($expected, $actual);
     }
 
@@ -2153,7 +2151,7 @@ class PHPRedis45SandboxedTest extends IntegrationTestCase
     {
         // Based on redis docs, key and values can be 'binary-safe' strings, so we need to make sure they are
         // correctly converted to a placeholder.
-        $this->assertSame(106, strlen(PHPRedisSandboxedIntegration::normalizeArgs([$this->getBinarySafeString(), 'v1'])));
+        $this->assertSame(106, strlen(PHPRedisIntegration::normalizeArgs([$this->getBinarySafeString(), 'v1'])));
     }
 
     public function getBinarySafeString()

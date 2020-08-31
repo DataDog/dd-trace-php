@@ -8,9 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class SyntheticsTest extends WebFrameworkTestCase
 {
-    // this doesn't use the sandbox API, but it doesn't use legacy API either
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../Frameworks/Custom/Version_Not_Autoloaded/index.php';

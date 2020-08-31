@@ -5,7 +5,6 @@ namespace DDTrace\Integrations\ZendFramework;
 use DDTrace\GlobalTracer;
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
-use DDTrace\Integrations\SandboxedIntegration;
 use DDTrace\SpanData;
 use DDTrace\Util\Runtime;
 use Zend_Controller_Front;
@@ -13,7 +12,7 @@ use Zend_Controller_Front;
 /**
  * Zend framework integration loader.
  */
-class ZendFrameworkSandboxedIntegration extends SandboxedIntegration
+class ZendFrameworkIntegration extends Integration
 {
     const NAME = 'zendframework';
 

@@ -2,12 +2,12 @@
 
 namespace DDTrace\Integrations\PDO;
 
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 
-class PDOSandboxedIntegration extends SandboxedIntegration
+class PDOIntegration extends Integration
 {
     const NAME = 'pdo';
 
@@ -36,7 +36,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
     {
         if (!extension_loaded('PDO')) {
             // PDO is provided through an extension and not through a class loader.
-            return SandboxedIntegration::NOT_AVAILABLE;
+            return Integration::NOT_AVAILABLE;
         }
 
         $integration = $this;
@@ -49,7 +49,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             $span->name = $span->resource = 'PDO.__construct';
             $span->service = 'pdo';
             $span->type = Type::SQL;
-            $span->meta = PDOSandboxedIntegration::storeConnectionParams($this, $args);
+            $span->meta = PDOIntegration::storeConnectionParams($this, $args);
         });
 
         // public int PDO::exec(string $query)
@@ -66,9 +66,9 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                     'db.rowcount' => $retval,
                 ];
             }
-            PDOSandboxedIntegration::setConnectionTags($this, $span);
+            PDOIntegration::setConnectionTags($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
-            PDOSandboxedIntegration::detectError($this, $span);
+            PDOIntegration::detectError($this, $span);
         });
 
         // public PDOStatement PDO::query(string $query)
@@ -88,11 +88,11 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                 $span->meta = [
                     'db.rowcount' => $retval->rowCount(),
                 ];
-                PDOSandboxedIntegration::storeStatementFromConnection($this, $retval);
+                PDOIntegration::storeStatementFromConnection($this, $retval);
             }
-            PDOSandboxedIntegration::setConnectionTags($this, $span);
+            PDOIntegration::setConnectionTags($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
-            PDOSandboxedIntegration::detectError($this, $span);
+            PDOIntegration::detectError($this, $span);
         });
 
         // public bool PDO::commit ( void )
@@ -103,7 +103,7 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             $span->name = $span->resource = 'PDO.commit';
             $span->service = 'pdo';
             $span->type = Type::SQL;
-            PDOSandboxedIntegration::setConnectionTags($this, $span);
+            PDOIntegration::setConnectionTags($this, $span);
         });
 
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
@@ -115,8 +115,8 @@ class PDOSandboxedIntegration extends SandboxedIntegration
             $span->service = 'pdo';
             $span->type = Type::SQL;
             $span->resource = $args[0];
-            PDOSandboxedIntegration::setConnectionTags($this, $span);
-            PDOSandboxedIntegration::storeStatementFromConnection($this, $retval);
+            PDOIntegration::setConnectionTags($this, $span);
+            PDOIntegration::storeStatementFromConnection($this, $retval);
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
@@ -136,13 +136,13 @@ class PDOSandboxedIntegration extends SandboxedIntegration
                         'db.rowcount' => $this->rowCount(),
                     ];
                 }
-                PDOSandboxedIntegration::setStatementTags($this, $span);
+                PDOIntegration::setStatementTags($this, $span);
                 $integration->addTraceAnalyticsIfEnabled($span);
-                PDOSandboxedIntegration::detectError($this, $span);
+                PDOIntegration::detectError($this, $span);
             }
         );
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 
     /**

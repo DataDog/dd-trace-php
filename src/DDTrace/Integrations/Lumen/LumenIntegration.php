@@ -4,13 +4,13 @@ namespace DDTrace\Integrations\Lumen;
 
 use DDTrace\GlobalTracer;
 use DDTrace\SpanData;
-use DDTrace\Integrations\SandboxedIntegration;
+use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 
 /**
  * Lumen Sandboxed integration
  */
-class LumenSandboxedIntegration extends SandboxedIntegration
+class LumenIntegration extends Integration
 {
     const NAME = 'lumen';
 
@@ -36,14 +36,14 @@ class LumenSandboxedIntegration extends SandboxedIntegration
     public function init()
     {
         if (!self::shouldLoad(self::NAME)) {
-            return SandboxedIntegration::NOT_LOADED;
+            return Integration::NOT_LOADED;
         }
 
         $rootScope = GlobalTracer::get()->getRootScope();
         $rootSpan = null;
 
         if (null === $rootScope || null === ($rootSpan = $rootScope->getSpan())) {
-            return SandboxedIntegration::NOT_LOADED;
+            return Integration::NOT_LOADED;
         }
 
         $integration = $this;
@@ -112,6 +112,6 @@ class LumenSandboxedIntegration extends SandboxedIntegration
 
         // View is rendered in laravel as the method name overlaps
 
-        return SandboxedIntegration::LOADED;
+        return Integration::LOADED;
     }
 }

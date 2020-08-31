@@ -33,9 +33,6 @@ class PrivateCallbackRequest
 
 final class CurlIntegrationTest extends IntegrationTestCase
 {
-
-    const IS_SANDBOX = true;
-
     const URL = 'http://httpbin_integration';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
 
@@ -152,7 +149,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
             __DIR__ . '/curl_in_web_request.php',
             [
                 'DD_SERVICE' => 'top_level_app',
-                'DD_TRACE_SANDBOX_ENABLED' => static::IS_SANDBOX,
                 'DD_TRACE_NO_AUTOLOADER' => true,
             ]
         );
@@ -288,7 +284,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testKVStoreIsCleanedOnCurlClose()
     {
-        if (\PHP_MAJOR_VERSION === 5 && self::isSandboxed()) {
+        if (\PHP_MAJOR_VERSION === 5) {
             $this->markTestSkipped("PHP 5 does not use ArrayKVStore");
         }
         $ch = curl_init(self::URL . '/status/200');

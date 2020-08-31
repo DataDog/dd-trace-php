@@ -9,8 +9,6 @@ use DDTrace\Util\Versions;
 
 final class MemcachedTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = true;
-
     /**
      * @var \Memcached
      */

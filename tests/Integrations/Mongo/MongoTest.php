@@ -12,8 +12,6 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 
 class MongoTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = true;
-
     const HOST = 'mongodb_integration';
     const PORT = '27017';
     const USER = 'test';
