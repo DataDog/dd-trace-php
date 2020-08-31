@@ -50,10 +50,12 @@ install_all: install install_ini
 
 test_c: export DD_TRACE_CLI_ENABLED=1
 test_c: $(SO_FILE)
+	export USE_TRACKED_ALLOC=1; \
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all $(TESTS)"
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
 test_c_mem: $(SO_FILE)
+	export USE_TRACKED_ALLOC=1; \
 	$(MAKE) -C $(BUILD_DIR) test TESTS="-q --show-all -m $(TESTS)"
 
 test_c_asan: export DD_TRACE_CLI_ENABLED=1
