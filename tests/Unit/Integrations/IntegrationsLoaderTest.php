@@ -161,6 +161,8 @@ final class IntegrationsLoaderTest extends BaseTestCase
         } else {
             // Deferred loading integrations
             $excluded[] = 'elasticsearch';
+            $excluded[] = 'memcached';
+            $excluded[] = 'pdo';
             $excluded[] = 'phpredis';
             $excluded[] = 'predis';
         }
