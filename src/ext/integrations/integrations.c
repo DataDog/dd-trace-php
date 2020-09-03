@@ -80,6 +80,23 @@ static void dd_set_up_deferred_loading_predis(void) {
                                         "DDTrace\\Integrations\\Predis\\PredisIntegration");
 }
 
+static void dd_set_up_deferred_loading_pdo(void) {
+    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_PDO)) {
+        return;
+    }
+
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("PDO", "__construct", "DDTrace\\Integrations\\PDO\\PDOIntegration");
+}
+
+static void dd_set_up_deferred_loading_memcached(void) {
+    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_MEMCACHED)) {
+        return;
+    }
+
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("Memcached", "__construct",
+                                        "DDTrace\\Integrations\\Memcached\\MemcachedIntegration");
+}
+
 void ddtrace_integrations_rinit(TSRMLS_D) {
     dd_register_known_calls();
 
@@ -87,6 +104,8 @@ void ddtrace_integrations_rinit(TSRMLS_D) {
     _dd_load_test_integrations(TSRMLS_C);
     dd_set_up_deferred_loading_phpredis();
     dd_set_up_deferred_loading_predis();
+    dd_set_up_deferred_loading_pdo();
+    dd_set_up_deferred_loading_memcached();
 }
 
 ddtrace_integration* ddtrace_get_integration_from_string(ddtrace_string integration) {

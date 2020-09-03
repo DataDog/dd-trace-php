@@ -65,6 +65,8 @@ class IntegrationsLoader
             '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration';
         $this->integrations[CurlIntegration::NAME] =
             '\DDTrace\Integrations\Curl\CurlIntegration';
+        $this->integrations[ElasticSearchIntegration::NAME] =
+            '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration';
         $this->integrations[EloquentIntegration::NAME] =
             '\DDTrace\Integrations\Eloquent\EloquentIntegration';
         $this->integrations[GuzzleIntegration::NAME] =
@@ -73,14 +75,10 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[LumenIntegration::NAME] =
             '\DDTrace\Integrations\Lumen\LumenIntegration';
-        $this->integrations[MemcachedIntegration::NAME] =
-            '\DDTrace\Integrations\Memcached\MemcachedIntegration';
         $this->integrations[MongoIntegration::NAME] =
             '\DDTrace\Integrations\Mongo\MongoIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-        $this->integrations[PDOIntegration::NAME] =
-            '\DDTrace\Integrations\PDO\PDOIntegration';
         $this->integrations[SlimIntegration::NAME] =
             '\DDTrace\Integrations\Slim\SlimIntegration';
         $this->integrations[SymfonyIntegration::NAME] =
@@ -94,10 +92,14 @@ class IntegrationsLoader
 
         // For PHP 7.0+ use C level deferred integration loader
         if (\PHP_MAJOR_VERSION < 7) {
-            $this->integrations[PredisIntegration::NAME] =
-                '\DDTrace\Integrations\Predis\PredisIntegration';
             $this->integrations[ElasticSearchIntegration::NAME] =
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration';
+            $this->integrations[MemcachedIntegration::NAME] =
+                '\DDTrace\Integrations\Memcached\MemcachedIntegration';
+            $this->integrations[PDOIntegration::NAME] =
+                '\DDTrace\Integrations\PDO\PDOIntegration';
+            $this->integrations[PredisIntegration::NAME] =
+                '\DDTrace\Integrations\Predis\PredisIntegration';
         }
     }
 
