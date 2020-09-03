@@ -35,6 +35,17 @@ class IntegrationsLoader
      * An associative array of integration names to integrations it should load.
      */
     public static $deferredIntegrationClasses = [
+        LaravelIntegration::NAME => [
+            'DDTrace\Integrations\Laravel\LaravelIntegration',
+            'DDTrace\Integrations\Eloquent\EloquentIntegration',
+        ],
+        LumenIntegration::NAME => [
+            'DDTrace\Integrations\Lumen\LumenIntegration',
+            'DDTrace\Integrations\Eloquent\EloquentIntegration',
+        ],
+        MemcachedIntegration::NAME => [
+            'DDTrace\Integrations\Memcached\MemcachedIntegration',
+        ],
         PDOIntegration::NAME => [
             'DDTrace\Integrations\PDO\PDOIntegration',
         ],
@@ -43,9 +54,6 @@ class IntegrationsLoader
         ],
         PredisIntegration::NAME => [
             'DDTrace\Integrations\Predis\PredisIntegration',
-        ],
-        MemcachedIntegration::NAME => [
-            'DDTrace\Integrations\Memcached\MemcachedIntegration',
         ],
     ];
 
@@ -89,14 +97,8 @@ class IntegrationsLoader
             '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration';
         $this->integrations[CurlIntegration::NAME] =
             '\DDTrace\Integrations\Curl\CurlIntegration';
-        $this->integrations[EloquentIntegration::NAME] =
-            '\DDTrace\Integrations\Eloquent\EloquentIntegration';
         $this->integrations[GuzzleIntegration::NAME] =
             '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
-        $this->integrations[LaravelIntegration::NAME] =
-            '\DDTrace\Integrations\Laravel\LaravelIntegration';
-        $this->integrations[LumenIntegration::NAME] =
-            '\DDTrace\Integrations\Lumen\LumenIntegration';
         $this->integrations[MongoIntegration::NAME] =
             '\DDTrace\Integrations\Mongo\MongoIntegration';
         $this->integrations[MysqliIntegration::NAME] =
@@ -116,6 +118,12 @@ class IntegrationsLoader
         if (\PHP_MAJOR_VERSION < 7) {
             $this->integrations[ElasticSearchIntegration::NAME] =
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration';
+            $this->integrations[EloquentIntegration::NAME] =
+                '\DDTrace\Integrations\Eloquent\EloquentIntegration';
+            $this->integrations[LaravelIntegration::NAME] =
+                '\DDTrace\Integrations\Laravel\LaravelIntegration';
+            $this->integrations[LumenIntegration::NAME] =
+                '\DDTrace\Integrations\Lumen\LumenIntegration';
             $this->integrations[MemcachedIntegration::NAME] =
                 '\DDTrace\Integrations\Memcached\MemcachedIntegration';
             $this->integrations[PDOIntegration::NAME] =

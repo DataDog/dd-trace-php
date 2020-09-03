@@ -95,15 +95,33 @@ static void dd_set_up_deferred_loading_memcached(void) {
     DDTRACE_DEFERRED_INTEGRATION_LOADER("Memcached", "__construct", "memcached");
 }
 
+static void dd_set_up_deferred_loading_laravel(void) {
+    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_LARAVEL)) {
+        return;
+    }
+
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("Illuminate\\Foundation\\Application", "__construct", "laravel");
+}
+
+static void dd_set_up_deferred_loading_lumen(void) {
+    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_LUMEN)) {
+        return;
+    }
+
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("Laravel\\Lumen\\Application", "__construct", "lumen");
+}
+
 void ddtrace_integrations_rinit(TSRMLS_D) {
     dd_register_known_calls();
 
     _dd_es_initialize_deferred_integration(TSRMLS_C);
     _dd_load_test_integrations(TSRMLS_C);
+    dd_set_up_deferred_loading_laravel();
+    dd_set_up_deferred_loading_lumen();
+    dd_set_up_deferred_loading_memcached();
+    dd_set_up_deferred_loading_pdo();
     dd_set_up_deferred_loading_phpredis();
     dd_set_up_deferred_loading_predis();
-    dd_set_up_deferred_loading_pdo();
-    dd_set_up_deferred_loading_memcached();
 }
 
 ddtrace_integration* ddtrace_get_integration_from_string(ddtrace_string integration) {
