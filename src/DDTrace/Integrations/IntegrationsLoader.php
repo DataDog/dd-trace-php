@@ -14,6 +14,7 @@ use DDTrace\Integrations\Memcached\MemcachedIntegration;
 use DDTrace\Integrations\Mongo\MongoIntegration;
 use DDTrace\Integrations\Mysqli\MysqliIntegration;
 use DDTrace\Integrations\PDO\PDOIntegration;
+use DDTrace\Integrations\PHPRedis\PHPRedisIntegration;
 use DDTrace\Integrations\Predis\PredisIntegration;
 use DDTrace\Integrations\Slim\SlimIntegration;
 use DDTrace\Integrations\Symfony\SymfonyIntegration;
@@ -29,6 +30,29 @@ use DDTrace\Log\LoggingTrait;
 class IntegrationsLoader
 {
     use LoggingTrait;
+
+    /**
+     * An associative array of integration names to integrations it should load.
+     */
+    public static $deferredIntegrationClasses = [
+        PDOIntegration::NAME => [
+            'DDTrace\Integrations\PDO\PDOIntegration',
+        ],
+        PHPRedisIntegration::NAME => [
+            'DDTrace\Integrations\PHPRedis\PHPRedisIntegration',
+        ],
+        PredisIntegration::NAME => [
+            'DDTrace\Integrations\Predis\PredisIntegration',
+        ],
+        MemcachedIntegration::NAME => [
+            'DDTrace\Integrations\Memcached\MemcachedIntegration',
+        ],
+    ];
+
+    /**
+     * An array to keep track of integrations loaded as part of the deferred integrations loading mechanism.
+     */
+    public static $loadedIntegrationClasses = [];
 
     /**
      * @var IntegrationsLoader
@@ -226,5 +250,21 @@ class IntegrationsLoader
     public function reset()
     {
         $this->integrations = [];
+    }
+}
+
+function load_deferred_integration($integrationName)
+{
+    if (isset(IntegrationsLoader::$deferredIntegrationClasses[$integrationName])) {
+        foreach (IntegrationsLoader::$deferredIntegrationClasses[$integrationName] as $integrationClass) {
+            if (isset(IntegrationsLoader::$loadedIntegrationClasses[$integrationClass])) {
+                continue;
+            }
+            IntegrationsLoader::$loadedIntegrationClasses[$integrationClass] = true;
+
+            /** @var Integration $integration */
+            $integration = new $integrationClass();
+            $integration->init();
+        }
     }
 }

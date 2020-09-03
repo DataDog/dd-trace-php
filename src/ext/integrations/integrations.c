@@ -68,7 +68,7 @@ static void dd_set_up_deferred_loading_phpredis(void) {
         return;
     }
 
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("Redis", "__construct", "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("Redis", "__construct", "phpredis");
 }
 
 static void dd_set_up_deferred_loading_predis(void) {
@@ -76,8 +76,7 @@ static void dd_set_up_deferred_loading_predis(void) {
         return;
     }
 
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("Predis\\Client", "__construct",
-                                        "DDTrace\\Integrations\\Predis\\PredisIntegration");
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("Predis\\Client", "__construct", "predis");
 }
 
 static void dd_set_up_deferred_loading_pdo(void) {
@@ -85,7 +84,7 @@ static void dd_set_up_deferred_loading_pdo(void) {
         return;
     }
 
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("PDO", "__construct", "DDTrace\\Integrations\\PDO\\PDOIntegration");
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("PDO", "__construct", "pdo");
 }
 
 static void dd_set_up_deferred_loading_memcached(void) {
@@ -93,8 +92,7 @@ static void dd_set_up_deferred_loading_memcached(void) {
         return;
     }
 
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("Memcached", "__construct",
-                                        "DDTrace\\Integrations\\Memcached\\MemcachedIntegration");
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("Memcached", "__construct", "memcached");
 }
 
 void ddtrace_integrations_rinit(TSRMLS_D) {
