@@ -16,3 +16,11 @@ Route::get('/exception', ['as' => 'example_route_exception', 'uses' => 'ExampleC
 Route::get('/fatal', ['as' => 'example_route_fatal', 'uses' => 'ExampleController@fatal']);
 Route::get('/trigger_error', ['as' => 'example_route_trigger_error', 'uses' => 'ExampleController@trigger_error']);
 Route::get('/caught', ['as' => 'example_route_trigger_error', 'uses' => 'ExampleController@caught']);
+
+Route::get('/anonymous-exception', function () {
+    throw new \Exception('anonymous exception');
+});
+
+Route::resources([
+    'resources' => 'ResourceController',
+]);
