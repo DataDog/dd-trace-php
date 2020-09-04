@@ -27,4 +27,13 @@ class ExampleController extends BaseController
     {
         trigger_error("Some fatal error", E_USER_ERROR);
     }
+
+    public function caught()
+    {
+        try {
+            throw new \Exception('fake exceptino generated!');
+        } catch (\Exception $ex) {
+            // do nothing.
+        }
+    }
 }
