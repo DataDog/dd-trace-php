@@ -12,3 +12,6 @@
 */
 
 Route::get('/', ['as' => 'example_route', 'uses' => 'ExampleController@example']);
+Route::get('/exception', ['as' => 'example_route_exception', 'uses' => 'ExampleController@exception']);
+Route::get('/fatal', ['as' => 'example_route_fatal', 'uses' => 'ExampleController@fatal']);
+Route::get('/trigger_error', ['as' => 'example_route_trigger_error', 'uses' => 'ExampleController@trigger_error']);

@@ -110,14 +110,14 @@ class LaravelIntegration extends Integration
             }
         );
 
-        \DDTrace\trace_method(
-            'Symfony\Component\HttpFoundation\Response',
-            'setStatusCode',
-            function (SpanData $span, $args) use ($rootSpan) {
-                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
-                return false;
-            }
-        );
+        // \DDTrace\trace_method(
+        //     'Symfony\Component\HttpFoundation\Response',
+        //     'setStatusCode',
+        //     function (SpanData $span, $args) use ($rootSpan) {
+        //         $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $args[0]);
+        //         return false;
+        //     }
+        // );
 
         \DDTrace\trace_method(
             'Illuminate\Events\Dispatcher',
@@ -179,14 +179,14 @@ class LaravelIntegration extends Integration
             }
         );
 
-        \DDTrace\trace_method(
-            'Symfony\Component\Console\Application',
-            'renderException',
-            function (SpanData $span, $args) use ($rootSpan) {
-                $rootSpan->setError($args[0]);
-                return false;
-            }
-        );
+        // \DDTrace\trace_method(
+        //     'Symfony\Component\Console\Application',
+        //     'renderException',
+        //     function (SpanData $span, $args) use ($rootSpan) {
+        //         $rootSpan->setError($args[0]);
+        //         return false;
+        //     }
+        // );
 
         return Integration::LOADED;
     }

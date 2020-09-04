@@ -142,18 +142,18 @@ class SymfonyIntegration extends Integration
             ]
         );
 
-        // Handling exceptions
-        $exceptionHandlingTracer = function (SpanData $span, $args, $retval) use ($integration) {
-            $span->name = $span->resource = 'symfony.kernel.handleException';
-            $span->service = $integration->appName;
-            if (!(isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500)) {
-                $integration->symfonyRequestSpan->setError($args[0]);
-            }
-        };
-        // Symfony 4.3-
-        \DDTrace\trace_method('Symfony\Component\HttpKernel\HttpKernel', 'handleException', $exceptionHandlingTracer);
-        // Symfony 4.4+
-        \DDTrace\trace_method('Symfony\Component\HttpKernel\HttpKernel', 'handleThrowable', $exceptionHandlingTracer);
+        // // Handling exceptions
+        // $exceptionHandlingTracer = function (SpanData $span, $args, $retval) use ($integration) {
+        //     $span->name = $span->resource = 'symfony.kernel.handleException';
+        //     $span->service = $integration->appName;
+        //     if (!(isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500)) {
+        //         $integration->symfonyRequestSpan->setError($args[0]);
+        //     }
+        // };
+        // // Symfony 4.3-
+        // \DDTrace\trace_method('Symfony\Component\HttpKernel\HttpKernel', 'handleException', $exceptionHandlingTracer);
+        // // Symfony 4.4+
+        // \DDTrace\trace_method('Symfony\Component\HttpKernel\HttpKernel', 'handleThrowable', $exceptionHandlingTracer);
 
         // Tracing templating engines
         $traceRender = function (SpanData $span, $args) use ($integration) {
