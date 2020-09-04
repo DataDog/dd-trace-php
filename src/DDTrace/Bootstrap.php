@@ -29,21 +29,14 @@ final class Bootstrap
 
         $tracer = self::resetTracer();
 
-        $flushTracer = function () {
-            dd_trace_disable_in_request(); //disable function tracing to speedup shutdown
-
+        \DDTrace\hook_method('DDTrace\\Bootstrap', 'flushTracerShutdown', null, function () {
             $tracer = GlobalTracer::get();
             $scopeManager = $tracer->getScopeManager();
             $scopeManager->close();
             if (!\dd_trace_env_config('DD_TRACE_AUTO_FLUSH_ENABLED')) {
                 $tracer->flush();
             }
-        };
-
-        \DDTrace\trace_method('DDTrace\\Bootstrap', 'flushTracerShutdown', [
-            'instrument_when_limited' => 1,
-            'posthook' => $flushTracer,
-        ]);
+        });
 
         if (\dd_trace_env_config('DD_TRACE_GENERATE_ROOT_SPAN')) {
             self::initRootSpan($tracer);
