@@ -20,7 +20,7 @@
         }
     ],
     "require": {
-        "php": "~5.4.0 || ~5.6.0 || ^7.0",
+        "php": "^5.4 || ^7.0",
         "ext-curl": "*",
         "ext-json": "*"
     },
@@ -91,6 +91,15 @@
             "@test-integrations-54",
             "@test-web-54"
         ],
+        "test-all-55": [
+            "@test-unit",
+            "@test-auto-instrumentation",
+            "@test-distributed-tracing",
+            "@test-composer",
+            "@test-integration",
+            "@test-integrations-55",
+            "@test-web-55"
+        ],
         "test-all-56": [
             "@test-unit",
             "@test-auto-instrumentation",
@@ -158,6 +167,20 @@
             "@composer test-pdo",
             "@composer test-elasticsearch1",
             "@composer test-guzzle5",
+            "@composer test-predis1",
+            "@composer scenario default"
+        ],
+        "test-integrations-55": [
+            "sh clean-composer-scenario-locks.sh",
+            "@composer scenario:update",
+            "@composer test-curl",
+            "@composer test-memcached",
+            "@composer test-mysqli",
+            "@composer test-mongo",
+            "@composer test-pdo",
+            "@composer test-elasticsearch1",
+            "@composer test-guzzle5",
+            "@composer test-guzzle6",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -260,6 +283,25 @@
             "@laravel-42-update",
             "@laravel-42-test",
             "@yii-2-suite",
+            "@zend-framework-1-test",
+            "@custom-framework-autoloaded-suite"
+        ],
+        "test-web-55": [
+            "@test-metrics",
+            "@cakephp-28-update",
+            "@cakephp-28-test",
+            "@codeigniter-22-test",
+            "@laravel-42-update",
+            "@laravel-42-test",
+            "@lumen-52-update",
+            "@lumen-52-test",
+            "@symfony-23-suite",
+            "@symfony-28-suite",
+            "@symfony-30-suite",
+            "@symfony-33-suite",
+            "@symfony-34-suite",
+            "@yii-2-suite",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
