@@ -935,6 +935,10 @@ workflows:
           package_type: deb
       - pecl_tests:
           requires: [ "Build PECL" ]
+          name: "PHP 55 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-5.5-debug-buster"
+      - pecl_tests:
+          requires: [ "Build PECL" ]
           name: "PHP 56 PECL tests"
           docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
       - pecl_tests:
@@ -985,6 +989,13 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test-web-74"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 55 custom autoloaded web tests with nginx + PHP-FPM"
+          resource_class: medium+
+          sapi: fpm-fcgi
+          integration_testsuite: "custom-framework-autoloaded-suite"
+          docker_image: "datadog/dd-trace-ci:php-5.5-debug-buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
