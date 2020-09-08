@@ -35,7 +35,6 @@
             <file name="src/ext/arrays.c" role="src" />
             <file name="src/ext/arrays.h" role="src" />
             <file name="src/ext/auto_flush.h" role="src" />
-            <file name="src/ext/blacklist.h" role="src" />
             <file name="src/ext/comms_php.c" role="src" />
             <file name="src/ext/comms_php.h" role="src" />
             <file name="src/ext/compat_string.c" role="src" />
@@ -47,6 +46,7 @@
             <file name="src/ext/configuration_php_iface.c" role="src" />
             <file name="src/ext/coms.c" role="src" />
             <file name="src/ext/coms.h" role="src" />
+            <file name="src/ext/excluded_modules.h" role="src" />
             <file name="src/ext/handlers_internal.h" role="src" />
             <file name="src/ext/macros.h" role="src" />
             <file name="src/ext/ddtrace.c" role="src">
@@ -99,22 +99,22 @@
             <file name="src/ext/php5_4/dispatch.c" role="src" />
             <file name="src/ext/php5_4/engine_hooks.c" role="src" />
             <file name="src/ext/php5/auto_flush.c" role="src" />
-            <file name="src/ext/php5/blacklist.c" role="src" />
             <file name="src/ext/php5/dispatch.c" role="src" />
             <file name="src/ext/php5/distributed_tracing.c" role="src" />
             <file name="src/ext/php5/engine_api.c" role="src" />
             <file name="src/ext/php5/engine_api.h" role="src" />
             <file name="src/ext/php5/engine_hooks.c" role="src" />
+            <file name="src/ext/php5/excluded_modules.c" role="src" />
             <file name="src/ext/php5/handlers_curl.c" role="src" />
             <file name="src/ext/php5/handlers_internal.c" role="src" />
             <file name="src/ext/php5/serializer.c" role="src" />
             <file name="src/ext/php5/startup_logging.c" role="src" />
             <file name="src/ext/php7/auto_flush.c" role="src" />
-            <file name="src/ext/php7/blacklist.c" role="src" />
             <file name="src/ext/php7/dispatch.c" role="src" />
             <file name="src/ext/php7/distributed_tracing.c" role="src" />
             <file name="src/ext/php7/engine_api.c" role="src" />
             <file name="src/ext/php7/engine_api.h" role="src" />
+            <file name="src/ext/php7/excluded_modules.c" role="src" />
             <file name="src/ext/php7/engine_hooks.c" role="src" />
             <file name="src/ext/php7/handlers_curl.c" role="src" />
             <file name="src/ext/php7/handlers_internal.c" role="src" />

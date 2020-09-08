@@ -1,4 +1,4 @@
-#include "blacklist.h"
+#include "excluded_modules.h"
 
 #include <php.h>
 #include <stdbool.h>
@@ -7,9 +7,9 @@
 
 #include "logging.h"
 
-static bool _dd_is_blacklisted_module(zend_module_entry *module) {
+static bool _dd_is_excluded_module(zend_module_entry *module) {
     if (strcmp("ionCube Loader", module->name) == 0) {
-        ddtrace_log_debugf("Found blacklisted module: %s, disabling conflicting functionality", module->name);
+        ddtrace_log_debugf("Found incompatible module: %s, disabling conflicting functionality", module->name);
         return true;
     }
     if (strcmp("xdebug", module->name) == 0) {
@@ -46,21 +46,17 @@ static bool _dd_is_blacklisted_module(zend_module_entry *module) {
             return true;
         }
     }
-    if (strcmp("newrelic", module->name) == 0) {
-        ddtrace_blacklisted_disable_legacy = true;
-    }
     return false;
 }
 
-void ddtrace_blacklist_startup() {
+void ddtrace_excluded_modules_startup() {
     zend_module_entry *module;
 
-    ddtrace_blacklisted_disable_legacy = false;
-    ddtrace_has_blacklisted_module = false;
+    ddtrace_has_excluded_module = false;
 
     ZEND_HASH_FOREACH_PTR(&module_registry, module) {
-        if (module && module->name && module->version && _dd_is_blacklisted_module(module)) {
-            ddtrace_has_blacklisted_module = true;
+        if (module && module->name && module->version && _dd_is_excluded_module(module)) {
+            ddtrace_has_excluded_module = true;
             return;
         }
     }
