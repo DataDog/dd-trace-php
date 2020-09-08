@@ -12,7 +12,6 @@
 
 #include "../compatibility.h"
 #include "../ddtrace.h"
-#include "../debug.h"
 #include "../dispatch.h"
 #include "../env_config.h"
 #include "../logging.h"

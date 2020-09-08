@@ -32,7 +32,6 @@
 #include "configuration_php_iface.h"
 #include "ddtrace.h"
 #include "ddtrace_string.h"
-#include "debug.h"
 #include "dispatch.h"
 #include "distributed_tracing.h"
 #include "dogstatsd_client.h"
@@ -1003,7 +1002,6 @@ static PHP_FUNCTION(dd_untrace) {
         RETURN_BOOL(0);
     }
 
-    DD_PRINTF("Untracing function: %s", Z_STRVAL_P(function));
     if (DDTRACE_G(function_lookup)) {
 #if PHP_VERSION_ID < 70000
         zend_hash_del(DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
