@@ -7,9 +7,10 @@
 
 #include "logging.h"
 
-static bool _dd_is_excluded_module(zend_module_entry *module) {
+bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
     if (strcmp("ionCube Loader", module->name) == 0) {
-        ddtrace_log_debugf("Found incompatible module: %s, disabling conflicting functionality", module->name);
+        snprintf(error, DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN,
+                 "Found incompatible module: %s, disabling conflicting functionality", module->name);
         return true;
     }
     if (strcmp("xdebug", module->name) == 0) {
@@ -18,7 +19,8 @@ static bool _dd_is_excluded_module(zend_module_entry *module) {
         @see: https://xdebug.org/docs/compat
         */
 #if PHP_VERSION_ID < 70100
-        ddtrace_log_errf("Found incompatible Xdebug version %s; disabling conflicting functionality", module->version);
+        snprintf(error, DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN,
+                 "Found incompatible Xdebug version %s; disabling conflicting functionality", module->version);
         return true;
 #endif
         /*
@@ -39,10 +41,10 @@ static bool _dd_is_excluded_module(zend_module_entry *module) {
         */
         int compare = php_version_compare(module->version, "2.9.5");
         if (compare == -1) {
-            ddtrace_log_errf(
-                "Found incompatible Xdebug version %s; ddtrace requires Xdebug 2.9.5 or greater; disabling conflicting "
-                "functionality",
-                module->version);
+            snprintf(error, DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN,
+                     "Found incompatible Xdebug version %s; ddtrace requires Xdebug 2.9.5 or greater; disabling "
+                     "conflicting functionality",
+                     module->version);
             return true;
         }
     }
@@ -55,8 +57,14 @@ void ddtrace_excluded_modules_startup() {
     ddtrace_has_excluded_module = false;
 
     ZEND_HASH_FOREACH_PTR(&module_registry, module) {
-        if (module && module->name && module->version && _dd_is_excluded_module(module)) {
+        char error[DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN + 1];
+        if (module && module->name && module->version && ddtrace_is_excluded_module(module, error)) {
             ddtrace_has_excluded_module = true;
+            if (strcmp("xdebug", module->name) == 0) {
+                ddtrace_log_err(error);
+            } else {
+                ddtrace_log_debug(error);
+            }
             return;
         }
     }

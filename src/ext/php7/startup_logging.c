@@ -12,6 +12,7 @@
 
 #include "coms.h"
 #include "configuration.h"
+#include "excluded_modules.h"
 #include "integrations/integrations.h"
 #include "logging.h"
 #include "version.h"
@@ -228,6 +229,18 @@ static void _dd_check_for_deprecated_integration_envs(HashTable *ht, ddtrace_int
     _dd_check_for_deprecated_env(ht, old, old_len, new, new_len);
 }
 
+static void dd_check_for_excluded_module(HashTable *ht, zend_module_entry *module) {
+    char error[DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN + 1];
+
+    if (module && module->name && module->version && ddtrace_is_excluded_module(module, error)) {
+        char key[64];
+        size_t key_len;
+
+        key_len = snprintf(key, sizeof(key) - 1, "incompatible module %s", module->name);
+        _dd_add_assoc_string(ht, key, key_len, error);
+    }
+}
+
 /* Supported zval types for diagnostics: string, bool, null
  * To support other types, update:
  *     - ddtrace.c:_dd_info_diagnostics_table(); PHP info output
@@ -286,6 +299,12 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
 
     for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
         _dd_check_for_deprecated_integration_envs(ht, &ddtrace_integrations[i]);
+    }
+
+    if (ddtrace_has_excluded_module == true) {
+        zend_module_entry *module;
+        ZEND_HASH_FOREACH_PTR(&module_registry, module) { dd_check_for_excluded_module(ht, module); }
+        ZEND_HASH_FOREACH_END();
     }
 }
 
