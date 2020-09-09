@@ -1,0 +1,18 @@
+{
+    "autoload": {
+        "psr-4": {
+            "DDTrace\\": "../../src/api/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DDTrace\\Tests\\Api\\": "../tests",
+            "DDTrace\\Tests\\": "../"
+        }
+    },
+    "require-dev": {
+        "mockery/mockery": "*",
+        "phpunit/phpunit": "^4",
+        "symfony/process": "<5"
+    }
+}
