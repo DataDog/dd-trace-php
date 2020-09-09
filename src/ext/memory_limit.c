@@ -14,7 +14,6 @@
 #include "compatibility.h"
 #include "configuration.h"
 #include "ddtrace.h"
-#include "debug.h"
 #include "memory_limit.h"
 #include "serializer.h"
 

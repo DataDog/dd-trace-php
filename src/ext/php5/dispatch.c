@@ -6,7 +6,6 @@
 #include <ext/spl/spl_exceptions.h>
 
 #include "ddtrace.h"
-#include "debug.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
