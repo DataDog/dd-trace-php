@@ -293,6 +293,21 @@ jobs:
           name: Running phpstan
           command: composer scenario opentracing1 ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
+  "Composer Update 55":
+    working_directory: ~/datadog
+    # killed in medium+ due to OOM in Symfony 2.3
+    resource_class: large
+    docker:
+      - image: "datadog/dd-trace-ci:php-5.5-debug-buster"
+    environment:
+      COMPOSER_PROCESS_TIMEOUT: 0
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run: php -d memory_limit=-1 $(which composer) update-web-55
+      - persist_to_workspace:
+          root: .
+          paths: [.]
+
   "Post-Install Hook":
     working_directory: ~/datadog
     docker:
@@ -719,6 +734,27 @@ jobs:
           root: '.'
           paths: ['./']
 
+  "Prepare Code 55":
+    working_directory: ~/datadog
+    docker: [ image: 'datadog/dd-trace-ci:php-5.5-debug-buster' ]
+    steps:
+      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      #- <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_COMPILE
+      - <<: *STEP_COMPOSER_COMPILE_VERIFY
+      - run:
+          name: "Build the extension"
+          command: |
+              make CFLAGS="-O2 -g"
+              mkdir -p modules
+              cp tmp/build_extension/modules/ddtrace.so modules/ddtrace.so
+              rm -fr tmp/build_extension
+      - persist_to_workspace:
+          root: '.'
+          paths: [.]
+
   "package extension":
     working_directory: ~/datadog
     docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
@@ -754,6 +790,7 @@ jobs:
 
 workflows:
   version: 2
+
   build_packages:
     jobs:
       - "Prepare Code":
@@ -1003,9 +1040,11 @@ workflows:
           sapi: fpm-fcgi
           integration_testsuite: "custom-framework-autoloaded-suite"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+
   build:
     jobs:
       - "Prepare Code"
+      - "Prepare Code 55"
       - compile_extension:
           requires: [ 'Prepare Code' ]
           name: "PHP 55 Compilation test"
@@ -1300,3 +1339,9 @@ workflows:
           requires: [ 'Prepare Code' ]
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
+
+  build_55:
+    jobs:
+      - "Prepare Code 55"
+      - "Composer Update 55":
+          requires: [ 'Prepare Code 55' ]
