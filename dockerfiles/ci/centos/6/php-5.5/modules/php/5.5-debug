@@ -1,0 +1,4 @@
+#%Module1.0
+
+conflict php
+prepend-path PATH /opt/php/5.5-debug/bin

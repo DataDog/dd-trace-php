@@ -544,12 +544,14 @@
 
         "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",
         "cakephp-28-test": "@composer test -- --testsuite=cakephp-28-test",
+        "cakephp-28-suite": ["@cakephp-28-update", "@cakephp-28-test" ],
 
         "codeigniter-22-test": "@composer test -- --testsuite=codeigniter-22-test",
 
         "laravel-42-update": "@composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
         "laravel-42-optimize": "@php tests/Frameworks/Laravel/Version_4_2/artisan optimize",
         "laravel-42-test": "@composer test -- tests/Integrations/Laravel/V4",
+        "laravel-42-suite": ["@laravel-42-update", "@laravel-42-test" ],
 
         "laravel-57-update": "@composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",
         "laravel-57-test": "@composer test -- tests/Integrations/Laravel/V5_7",
@@ -559,6 +561,8 @@
 
         "lumen-52-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_2 update",
         "lumen-52-test": "@composer test -- tests/Integrations/Lumen/V5_2/",
+        "lumen-52-suite": ["@lumen-52-update", "@lumen-52-test" ],
+
         "lumen-56-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_6 update",
         "lumen-56-test": "@composer test -- tests/Integrations/Lumen/V5_6/",
         "lumen-58-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_8 update",
