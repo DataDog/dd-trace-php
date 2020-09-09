@@ -69,8 +69,8 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
             ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
 
             zend_try { zend_execute(new_op_array TSRMLS_CC); }
-#if PHP_VERSION_ID < 50500
-            // Cannot gracefully recover from fatal errors in PHP 5.4 without crashing
+#if PHP_VERSION_ID < 50600
+            // Cannot gracefully recover from fatal errors without crashing until PHP 5.6
             zend_catch {
                 if (get_dd_trace_debug() && PG(last_error_message)) {
                     ddtrace_log_errf("Unrecoverable error raised in request init hook: %s in %s on line %d",
