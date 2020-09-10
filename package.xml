@@ -27,8 +27,11 @@
     <notes>
         ### Changed
         - Update excluded modules #1011
-        - Call ddtrace_engine_hooks_{rinit,rshutdown} #1013
         - Deprecate dd-doctor.php #1014
+
+        ### Fixed
+        - PHP 5.4 build in ZTS mode #1011
+        - Call ddtrace_engine_hooks_{rinit,rshutdown} #1013
     </notes>
     <contents>
         <dir name="/">
