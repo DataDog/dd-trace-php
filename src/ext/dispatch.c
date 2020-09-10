@@ -10,7 +10,6 @@
 #include "compat_string.h"
 #include "ddtrace.h"
 #include "ddtrace_string.h"
-#include "debug.h"
 
 // avoid Older GCC being overly cautious over {0} struct initializer
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"

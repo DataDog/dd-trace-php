@@ -180,6 +180,23 @@ render('PHP version and SAPI', PHP_VERSION . ' - ' . PHP_SAPI);
 renderSuccessOrFailure('ddtrace extension installed', extension_loaded('ddtrace') || extension_loaded('dd_trace'));
 $versionInstalled = phpversion('ddtrace') ?: false;
 render('ddtrace version (installed)', $versionInstalled);
+
+if (extension_loaded('ddtrace') && version_compare(phpversion('ddtrace'), '0.47.0', '>=')) {
+    echo PHP_EOL . PHP_EOL;
+    echo '******************************************************' . PHP_EOL;
+    echo '** WARNING: The dd-doctor.php script is deprecated. **' . PHP_EOL;
+    echo '******************************************************' . PHP_EOL;
+    echo 'Please refer to the "ddtrace" section of a phpinfo() page:' . PHP_EOL;
+    echo PHP_EOL;
+    echo escape('    <?php phpinfo(); ?>') . PHP_EOL;
+    echo PHP_EOL;
+    echo 'For the CLI SAPI, please refer to the extension information from:' . PHP_EOL;
+    echo PHP_EOL;
+    echo '    $ php --ri=ddtrace' . PHP_EOL;
+    echo PHP_EOL;
+    exit(0);
+}
+
 $versionConst = defined('DD_TRACE_VERSION') ? DD_TRACE_VERSION : false;
 render('ddtrace version (const)', $versionConst);
 $initHook = ini_get('ddtrace.request_init_hook');

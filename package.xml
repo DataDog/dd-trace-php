@@ -12,12 +12,12 @@
     </lead>
     <!-- **Automatically updated with pecl-build script** -->
     <!-- Date only needs to be set if it was packaged on a different day from release -->
-    <date>2020-08-31</date>
+    <date>2020-09-10</date>
     <version>
         <!-- **Automatically updated with pecl-build script** -->
         <!-- Version will be set from version.php or 0.0.0 for nightly builds -->
-        <release>0.48.1</release>
-        <api>0.48.1</api>
+        <release>0.48.2</release>
+        <api>0.48.2</api>
     </version>
     <stability>
         <release>stable</release>
@@ -25,10 +25,13 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-### Fixed
-- Symfony HttpException with status less than 500 should not be considered an error #995, #1002 (thanks, @franek!)
-- Block Zend signals from background sender thread #1000
-- Fix out-of-sync issue if span stack is closed while a closure is running #1001
+        ### Changed
+        - Update excluded modules #1011
+        - Deprecate dd-doctor.php #1014
+
+        ### Fixed
+        - PHP 5.4 build in ZTS mode #1011
+        - Call ddtrace_engine_hooks_{rinit,rshutdown} #1013
     </notes>
     <contents>
         <dir name="/">
@@ -40,7 +43,6 @@
             <file name="src/ext/arrays.c" role="src" />
             <file name="src/ext/arrays.h" role="src" />
             <file name="src/ext/auto_flush.h" role="src" />
-            <file name="src/ext/blacklist.h" role="src" />
             <file name="src/ext/comms_php.c" role="src" />
             <file name="src/ext/comms_php.h" role="src" />
             <file name="src/ext/compat_string.c" role="src" />
@@ -52,6 +54,7 @@
             <file name="src/ext/configuration_php_iface.c" role="src" />
             <file name="src/ext/coms.c" role="src" />
             <file name="src/ext/coms.h" role="src" />
+            <file name="src/ext/excluded_modules.h" role="src" />
             <file name="src/ext/handlers_internal.h" role="src" />
             <file name="src/ext/macros.h" role="src" />
             <file name="src/ext/ddtrace.c" role="src">
@@ -61,7 +64,6 @@
             <file name="src/ext/ddtrace.h" role="src" />
             <file name="src/ext/ddtrace_string.c" role="src" />
             <file name="src/ext/ddtrace_string.h" role="src" />
-            <file name="src/ext/debug.h" role="src" />
             <file name="src/ext/distributed_tracing.h" role="src" />
             <file name="src/ext/memory_limit.c" role="src" />
             <file name="src/ext/memory_limit.h" role="src" />
@@ -104,22 +106,22 @@
             <file name="src/ext/php5_4/dispatch.c" role="src" />
             <file name="src/ext/php5_4/engine_hooks.c" role="src" />
             <file name="src/ext/php5/auto_flush.c" role="src" />
-            <file name="src/ext/php5/blacklist.c" role="src" />
             <file name="src/ext/php5/dispatch.c" role="src" />
             <file name="src/ext/php5/distributed_tracing.c" role="src" />
             <file name="src/ext/php5/engine_api.c" role="src" />
             <file name="src/ext/php5/engine_api.h" role="src" />
             <file name="src/ext/php5/engine_hooks.c" role="src" />
+            <file name="src/ext/php5/excluded_modules.c" role="src" />
             <file name="src/ext/php5/handlers_curl.c" role="src" />
             <file name="src/ext/php5/handlers_internal.c" role="src" />
             <file name="src/ext/php5/serializer.c" role="src" />
             <file name="src/ext/php5/startup_logging.c" role="src" />
             <file name="src/ext/php7/auto_flush.c" role="src" />
-            <file name="src/ext/php7/blacklist.c" role="src" />
             <file name="src/ext/php7/dispatch.c" role="src" />
             <file name="src/ext/php7/distributed_tracing.c" role="src" />
             <file name="src/ext/php7/engine_api.c" role="src" />
             <file name="src/ext/php7/engine_api.h" role="src" />
+            <file name="src/ext/php7/excluded_modules.c" role="src" />
             <file name="src/ext/php7/engine_hooks.c" role="src" />
             <file name="src/ext/php7/handlers_curl.c" role="src" />
             <file name="src/ext/php7/handlers_internal.c" role="src" />

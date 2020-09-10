@@ -23,7 +23,6 @@
 
 #include "arrays.h"
 #include "auto_flush.h"
-#include "blacklist.h"
 #include "circuit_breaker.h"
 #include "comms_php.h"
 #include "compat_string.h"
@@ -33,11 +32,11 @@
 #include "configuration_php_iface.h"
 #include "ddtrace.h"
 #include "ddtrace_string.h"
-#include "debug.h"
 #include "dispatch.h"
 #include "distributed_tracing.h"
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
+#include "excluded_modules.h"
 #include "handlers_internal.h"
 #include "integrations/integrations.h"
 #include "logging.h"
@@ -49,8 +48,7 @@
 #include "span.h"
 #include "startup_logging.h"
 
-bool ddtrace_blacklisted_disable_legacy;
-bool ddtrace_has_blacklisted_module;
+bool ddtrace_has_excluded_module;
 
 atomic_int ddtrace_first_rinit;
 atomic_int ddtrace_warn_legacy_api;
@@ -76,7 +74,7 @@ static int ddtrace_startup(struct _zend_extension *extension) {
     ddtrace_op_array_extension = zend_get_op_array_extension_handle();
 #endif
 
-    ddtrace_blacklist_startup();
+    ddtrace_excluded_modules_startup();
     ddtrace_internal_handlers_startup();
     return SUCCESS;
 }
@@ -327,7 +325,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 static PHP_RINIT_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
-    if (ddtrace_has_blacklisted_module == true) {
+    if (ddtrace_has_excluded_module == true) {
         DDTRACE_G(disable) = 1;
     }
 
@@ -356,6 +354,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         dd_request_init_hook_rinit(TSRMLS_C);
     }
 
+    ddtrace_engine_hooks_rinit(TSRMLS_C);
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_distributed_tracing_rinit(TSRMLS_C);
@@ -390,6 +389,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_engine_hooks_rshutdown(TSRMLS_C);
     ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
 
@@ -1004,7 +1004,6 @@ static PHP_FUNCTION(dd_untrace) {
         RETURN_BOOL(0);
     }
 
-    DD_PRINTF("Untracing function: %s", Z_STRVAL_P(function));
     if (DDTRACE_G(function_lookup)) {
 #if PHP_VERSION_ID < 70000
         zend_hash_del(DDTRACE_G(function_lookup), Z_STRVAL_P(function), Z_STRLEN_P(function));
