@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Configuration;
 use DDTrace\Tag;
 
 final class SpanAssertion

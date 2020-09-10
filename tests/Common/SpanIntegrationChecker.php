@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Configuration;
 use DDTrace\Contracts\Span;
 use PHPUnit\Framework\TestCase;
 

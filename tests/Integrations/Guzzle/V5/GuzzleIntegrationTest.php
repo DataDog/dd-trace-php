@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Guzzle\V5;
 
-use DDTrace\Configuration;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;

@@ -58,6 +58,5 @@ abstract class BaseTestCase extends Framework\TestCase
             \putenv($putenv);
         }
         \dd_trace_internal_fn('ddtrace_reload_config');
-        Configuration::clear();
     }
 }
