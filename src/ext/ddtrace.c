@@ -354,6 +354,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         dd_request_init_hook_rinit(TSRMLS_C);
     }
 
+    ddtrace_engine_hooks_rinit(TSRMLS_C);
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_distributed_tracing_rinit(TSRMLS_C);
@@ -388,6 +389,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    ddtrace_engine_hooks_rshutdown(TSRMLS_C);
     ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
 
