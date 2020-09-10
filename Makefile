@@ -1,3 +1,4 @@
+PROJECT_ROOT := $(shell pwd)
 SHELL := /bin/bash
 BUILD_SUFFIX := extension
 BUILD_DIR := $(shell pwd)/tmp/build_$(BUILD_SUFFIX)
@@ -185,3 +186,21 @@ verify_all: verify_pecl_file_definitions verify_version
 
 .PHONY: dist_clean clean all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test test_integration install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
+
+########################################################################################################################
+# TESTS
+########################################################################################################################
+REQUEST_INIT_HOOK := $(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
+ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=1
+PHP_INI_OVERRIDE := -d ddtrace.request_init_hook=$(REQUEST_INIT_HOOK)
+
+API_TESTS_ROOT := ./tests/api
+
+api/clean:
+	$(Q) rm -rf $(API_TESTS_ROOT)/composer.lock $(API_TESTS_ROOT)/vendor
+
+$(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
+	$(Q) cd $(API_TESTS_ROOT); composer update
+
+api/tests: $(API_TESTS_ROOT)/composer.lock
+	$(Q) cd $(API_TESTS_ROOT); $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) ./vendor/bin/phpunit --color=always tests
