@@ -316,6 +316,8 @@ jobs:
       - run:
           name: Run web tests
           command: |
+              # todo: use --split-by=timings to make it better distributed
+              # https://circleci.com/docs/2.0/parallelism-faster-jobs/#splitting-by-timing-data
               circleci tests split <.circleci/php-5.5_web.txt >/tmp/jobs.txt
               echo "Jobs assigned to this node:"
               cat /tmp/jobs.txt
@@ -736,11 +738,13 @@ jobs:
     docker: [ image: << parameters.docker_image >> ]
     environment:
       - CFLAGS=-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>
+      # This BASH_ENV sets up the newer GCC toolchain and the module system for
+      # non-login, non-interactive bash commands. I haven't found a way yet to
+      # make it automatic for these types (it is already automatic for login).
       - BASH_ENV=/etc/profile.d/zzz-ddtrace.sh
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: mkdir -p extensions
-      - run: gcc --version
       - run:
           name: Build ndebug, nts configuration
           command: |
