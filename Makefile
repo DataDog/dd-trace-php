@@ -190,18 +190,6 @@ verify_all: verify_pecl_file_definitions verify_version
 REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
 ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=1
 
-### Api tests ###
-API_TESTS_ROOT := ./tests_api
-
-clean_api:
-	$(Q) rm -rf $(API_TESTS_ROOT)/composer.lock
-
-test_api_unit: $(API_TESTS_ROOT)/composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(API_TESTS_ROOT)/vendor/bin/phpunit  --config=$(API_TESTS_ROOT)/phpunit.xml ./tests_api/Unit $(TESTS)
-
-$(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
-	$(Q) composer --working-dir=$(API_TESTS_ROOT) update
-
 ### DDTrace tests ###
 TESTS_ROOT := ./tests
 COMPOSER := composer --working-dir=$(TESTS_ROOT)
@@ -239,3 +227,15 @@ test_scenario_%: $(TESTS_ROOT)/composer.lock
 
 $(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json
 	$(Q) $(COMPOSER) update
+
+### Api tests ###
+API_TESTS_ROOT := ./tests_api
+
+clean_api:
+	$(Q) rm -rf $(API_TESTS_ROOT)/composer.lock
+
+test_api_unit: $(API_TESTS_ROOT)/composer.lock
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(API_TESTS_ROOT)/vendor/bin/phpunit  --config=$(API_TESTS_ROOT)/phpunit.xml ./tests_api/Unit $(TESTS)
+
+$(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
+	$(Q) composer --working-dir=$(API_TESTS_ROOT) update
