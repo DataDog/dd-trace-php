@@ -97,9 +97,6 @@ test_extension_ci: $(SO_FILE)
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m -s $$TEST_PHP_OUTPUT $(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
-test_integration: install_ini
-	composer test -- $(PHPUNIT)
-
 dist_clean:
 	rm -rf $(BUILD_DIR)
 
@@ -205,3 +202,16 @@ test_api_unit: $(API_TESTS_ROOT)/composer.lock
 
 $(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
 	$(Q) composer --working-dir=$(API_TESTS_ROOT) update
+
+### Unit tests ###
+TESTS_ROOT := ./tests
+PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit
+
+clean_test:
+	$(Q) rm -rf $(TESTS_ROOT)/composer.lock
+
+$(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json
+	$(Q) composer --working-dir=$(TESTS_ROOT) update
+
+test_unit: $(TESTS_ROOT)/composer.lock
+	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=unit $(TESTS)

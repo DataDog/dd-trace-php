@@ -1,0 +1,12 @@
+{
+    "autoload-dev": {
+        "psr-4": {
+            "DDTrace\\Tests\\": "./"
+        }
+    },
+    "require-dev": {
+        "mockery/mockery": "*",
+        "phpunit/phpunit": "^4",
+        "symfony/process": "<5"
+    }
+}
