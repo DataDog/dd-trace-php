@@ -205,10 +205,12 @@ $(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
 
 ### DDTrace tests ###
 TESTS_ROOT := ./tests
+COMPOSER := composer --working-dir=$(TESTS_ROOT)
 PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit --config=$(TESTS_ROOT)/phpunit.xml
 
 clean_test:
-	$(Q) rm -rf $(TESTS_ROOT)/composer.lock
+	$(Q) rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock
+	$(Q) $(TESTS_ROOT)/clean-composer-scenario-locks.sh
 
 test_unit: $(TESTS_ROOT)/composer.lock
 	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=unit $(TESTS)
@@ -230,5 +232,11 @@ test_distributed_tracing: $(TESTS_ROOT)/composer.lock
 test_metrics: $(TESTS_ROOT)/composer.lock
 	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=metrics $(TESTS)
 
+test:
+	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) $(TESTS)
+
+test_scenario_%: $(TESTS_ROOT)/composer.lock
+	$(Q) $(COMPOSER) scenario $*
+
 $(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json
-	$(Q) composer --working-dir=$(TESTS_ROOT) update
+	$(Q) $(COMPOSER) update
