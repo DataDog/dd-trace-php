@@ -1,3 +1,4 @@
+Q := @
 PROJECT_ROOT := $(shell pwd)
 SHELL := /bin/bash
 BUILD_SUFFIX := extension
@@ -26,7 +27,6 @@ $(BUILD_DIR)/%: %
 JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
-Q := @
 
 $(BUILD_DIR)/config.m4: $(M4_FILES)
 
@@ -195,13 +195,13 @@ ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=1
 PHP_INI_OVERRIDE := -d ddtrace.request_init_hook=$(REQUEST_INIT_HOOK)
 
 ### Api tests ###
-API_TESTS_ROOT := ./tests/api
+API_TESTS_ROOT := ./tests_api
 
-api/clean:
-	$(Q) rm -rf $(API_TESTS_ROOT)/composer.lock $(API_TESTS_ROOT)/vendor
+clean_api:
+	$(Q) rm -rf $(API_TESTS_ROOT)/composer.lock
 
-api/tests: $(API_TESTS_ROOT)/composer.lock
-	$(Q) cd $(API_TESTS_ROOT); $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) ./vendor/bin/phpunit --color=always tests
+test_api_unit: $(API_TESTS_ROOT)/composer.lock
+	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(API_TESTS_ROOT)/vendor/bin/phpunit  --config=$(API_TESTS_ROOT)/phpunit.xml ./tests_api/Unit
 
 $(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
-	$(Q) cd $(API_TESTS_ROOT); composer update
+	$(Q) composer --working-dir=$(API_TESTS_ROOT) update

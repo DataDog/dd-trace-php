@@ -1,13 +1,13 @@
 {
     "autoload": {
         "psr-4": {
-            "DDTrace\\": "../../src/api/"
+            "DDTrace\\": "../src/api/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "DDTrace\\Tests\\Api\\": "../tests",
-            "DDTrace\\Tests\\": "../"
+            "DDTrace\\Tests\\Api\\": "./",
+            "DDTrace\\Tests\\": "../tests/"
         }
     },
     "require-dev": {
