@@ -205,7 +205,7 @@ $(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
 
 ### DDTrace tests ###
 TESTS_ROOT := ./tests
-PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit
+PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit --config=$(TESTS_ROOT)/phpunit.xml
 
 clean_test:
 	$(Q) rm -rf $(TESTS_ROOT)/composer.lock

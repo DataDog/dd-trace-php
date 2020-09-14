@@ -7,47 +7,47 @@
     beStrictAboutResourceUsageDuringSmallTests="true"
     beStrictAboutTestsThatDoNotTestAnything="true"
     beStrictAboutTodoAnnotatedTests="true"
-    bootstrap="tests/bootstrap.php"
+    bootstrap="./bootstrap.php"
     colors="true"
     columns="max"
     verbose="true"
 >
     <testsuites>
         <testsuite name="metrics">
-            <directory>tests/Metrics</directory>
+            <directory>./Metrics</directory>
         </testsuite>
         <testsuite name="auto-instrumentation">
-            <directory>tests/AutoInstrumentation/</directory>
+            <directory>./AutoInstrumentation/</directory>
         </testsuite>
         <testsuite name="distributed-tracing">
-            <directory>tests/DistributedTracing/</directory>
+            <directory>./DistributedTracing/</directory>
         </testsuite>
         <testsuite name="integration">
-            <directory>tests/Integration/</directory>
+            <directory>./Integration/</directory>
         </testsuite>
         <testsuite name="cakephp-28-test">
-            <directory>tests/Integrations/CakePHP/V2_8</directory>
-            <directory>tests/Integrations/CLI/CakePHP/V2_8</directory>
+            <directory>./Integrations/CakePHP/V2_8</directory>
+            <directory>./Integrations/CLI/CakePHP/V2_8</directory>
         </testsuite>
         <testsuite name="codeigniter-22-test">
-            <directory>tests/Integrations/CodeIgniter/V2_2</directory>
+            <directory>./Integrations/CodeIgniter/V2_2</directory>
         </testsuite>
         <testsuite name="composer-tests">
-            <directory>tests/Composer</directory>
+            <directory>./Composer</directory>
         </testsuite>
         <testsuite name="laravel-58-test">
-            <directory>tests/Integrations/Laravel/V5_8</directory>
-            <directory>tests/Integrations/CLI/Laravel/V5_8</directory>
+            <directory>./Integrations/Laravel/V5_8</directory>
+            <directory>./Integrations/CLI/Laravel/V5_8</directory>
         </testsuite>
         <testsuite name="slim-312-test">
-            <directory>tests/Integrations/Slim/V3_12</directory>
+            <directory>./Integrations/Slim/V3_12</directory>
         </testsuite>
         <testsuite name="custom-framework-autoloaded-test">
-            <directory>tests/Integrations/Custom/Autoloaded</directory>
-            <directory>tests/Integrations/CLI/Custom/Autoloaded</directory>
+            <directory>./Integrations/Custom/Autoloaded</directory>
+            <directory>./Integrations/CLI/Custom/Autoloaded</directory>
         </testsuite>
         <testsuite name="unit">
-            <directory>tests/Unit/</directory>
+            <directory>./Unit/</directory>
         </testsuite>
     </testsuites>
     <filter>
