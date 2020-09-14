@@ -203,7 +203,7 @@ test_api_unit: $(API_TESTS_ROOT)/composer.lock
 $(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
 	$(Q) composer --working-dir=$(API_TESTS_ROOT) update
 
-### Unit tests ###
+### DDTrace tests ###
 TESTS_ROOT := ./tests
 PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit
 
@@ -212,6 +212,9 @@ clean_test:
 
 test_unit: $(TESTS_ROOT)/composer.lock
 	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=unit $(TESTS)
+
+test_integration: $(TESTS_ROOT)/composer.lock
+	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=integration $(TESTS)
 
 $(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json
 	$(Q) composer --working-dir=$(TESTS_ROOT) update
