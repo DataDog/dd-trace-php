@@ -187,9 +187,8 @@ verify_all: verify_pecl_file_definitions verify_version
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
-REQUEST_INIT_HOOK := $(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
+REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
 ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=1
-PHP_INI_OVERRIDE := -d ddtrace.request_init_hook=$(REQUEST_INIT_HOOK)
 
 ### Api tests ###
 API_TESTS_ROOT := ./tests_api
@@ -198,7 +197,7 @@ clean_api:
 	$(Q) rm -rf $(API_TESTS_ROOT)/composer.lock
 
 test_api_unit: $(API_TESTS_ROOT)/composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(API_TESTS_ROOT)/vendor/bin/phpunit  --config=$(API_TESTS_ROOT)/phpunit.xml ./tests_api/Unit $(TESTS)
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(API_TESTS_ROOT)/vendor/bin/phpunit  --config=$(API_TESTS_ROOT)/phpunit.xml ./tests_api/Unit $(TESTS)
 
 $(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
 	$(Q) composer --working-dir=$(API_TESTS_ROOT) update
@@ -213,27 +212,27 @@ clean_test:
 	$(Q) $(TESTS_ROOT)/clean-composer-scenario-locks.sh
 
 test_unit: $(TESTS_ROOT)/composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=unit $(TESTS)
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=unit $(TESTS)
 
 test_integration: $(TESTS_ROOT)/composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=integration $(TESTS)
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=integration $(TESTS)
 
 test_auto_instrumentation: $(TESTS_ROOT)/composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=auto-instrumentation $(TESTS)
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=auto-instrumentation $(TESTS)
 	$(Q) # Cleaning up composer.json files in tests/AutoInstrumentation modified for TLS during tests
 	$(Q) git checkout $(TESTS_ROOT)/AutoInstrumentation/**/composer.json
 
 test_composer: $(TESTS_ROOT)/composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=composer-tests $(TESTS)
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=composer-tests $(TESTS)
 
 test_distributed_tracing: $(TESTS_ROOT)/composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=distributed-tracing $(TESTS)
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=distributed-tracing $(TESTS)
 
 test_metrics: $(TESTS_ROOT)/composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=metrics $(TESTS)
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=metrics $(TESTS)
 
 test:
-	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) $(TESTS)
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(TESTS)
 
 test_scenario_%: $(TESTS_ROOT)/composer.lock
 	$(Q) $(COMPOSER) scenario $*
