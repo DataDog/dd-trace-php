@@ -210,8 +210,8 @@ PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit
 clean_test:
 	$(Q) rm -rf $(TESTS_ROOT)/composer.lock
 
-$(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json
-	$(Q) composer --working-dir=$(TESTS_ROOT) update
-
 test_unit: $(TESTS_ROOT)/composer.lock
 	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=unit $(TESTS)
+
+$(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json
+	$(Q) composer --working-dir=$(TESTS_ROOT) update
