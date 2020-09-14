@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Configuration;
 use DDTrace\Format;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext;

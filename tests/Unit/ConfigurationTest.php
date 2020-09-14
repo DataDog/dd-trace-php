@@ -2,8 +2,6 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Configuration;
-
 final class ConfigurationTest extends BaseTestCase
 {
     const INTEGRATION_ERROR = <<<'EOD'
@@ -50,68 +48,56 @@ EOD;
 
     public function testTracerEnabledByDefault()
     {
-        $this->assertTrue(Configuration::get()->isEnabled());
         $this->assertTrue(\ddtrace_config_trace_enabled());
     }
 
     public function testTracerDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_ENABLED=false']);
-        $this->assertFalse(Configuration::get()->isEnabled());
         $this->assertFalse(\ddtrace_config_trace_enabled());
     }
 
     public function testDebugModeDisabledByDefault()
     {
-        $this->assertFalse(Configuration::get()->isDebugModeEnabled());
         $this->assertFalse(\ddtrace_config_debug_enabled());
     }
 
     public function testDebugModeCanBeEnabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_DEBUG=true']);
-        $this->assertTrue(Configuration::get()->isDebugModeEnabled());
         $this->assertTrue(\ddtrace_config_debug_enabled());
     }
 
     public function testDistributedTracingEnabledByDefault()
     {
-        $this->assertTrue(Configuration::get()->isDistributedTracingEnabled());
         $this->assertTrue(\ddtrace_config_distributed_tracing_enabled());
     }
 
     public function testDistributedTracingDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_DISTRIBUTED_TRACING=false']);
-        $this->assertFalse(Configuration::get()->isDistributedTracingEnabled());
         $this->assertFalse(\ddtrace_config_distributed_tracing_enabled());
     }
 
     public function testPrioritySamplingEnabledByDefault()
     {
-        $this->assertTrue(Configuration::get()->isPrioritySamplingEnabled());
         $this->assertTrue(\ddtrace_config_priority_sampling_enabled());
     }
 
     public function testPrioritySamplingDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_PRIORITY_SAMPLING=false']);
-        $this->assertFalse(Configuration::get()->isPrioritySamplingEnabled());
         $this->assertFalse(\ddtrace_config_priority_sampling_enabled());
     }
 
     public function testAllIntegrationsEnabledByDefault()
     {
-        $this->assertTrue(Configuration::get()->isIntegrationEnabled('pdo'));
         $this->assertTrue(\ddtrace_config_integration_enabled('pdo'));
     }
 
     public function testIntegrationsDisabledDeprecatedEnv()
     {
         $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=pdo,slim']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
-        $this->assertTrue(Configuration::get()->isIntegrationEnabled('mysqli'));
         $this->assertFalse(\ddtrace_config_integration_enabled('pdo'));
         $this->assertFalse(\ddtrace_config_integration_enabled('slim'));
         $this->assertTrue(\ddtrace_config_integration_enabled('mysqli'));
@@ -120,8 +106,6 @@ EOD;
     public function testIntegrationsDisabledIfGlobalDisabledDeprecatedEnv()
     {
         $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=pdo', 'DD_TRACE_ENABLED=false']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('mysqli'));
         $this->assertFalse(\ddtrace_config_integration_enabled('pdo'));
         $this->assertFalse(\ddtrace_config_integration_enabled('mysqli'));
     }
@@ -129,9 +113,6 @@ EOD;
     public function testIntegrationsDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=false', 'DD_TRACE_SLIM_ENABLED=false']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
-        $this->assertTrue(Configuration::get()->isIntegrationEnabled('mysqli'));
         $this->assertFalse(\ddtrace_config_integration_enabled('pdo'));
         $this->assertFalse(\ddtrace_config_integration_enabled('slim'));
         $this->assertTrue(\ddtrace_config_integration_enabled('mysqli'));
@@ -140,8 +121,6 @@ EOD;
     public function testIntegrationsDisabledIfGlobalDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=false', 'DD_TRACE_ENABLED=false']);
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('mysqli'));
         $this->assertFalse(\ddtrace_config_integration_enabled('pdo'));
         $this->assertFalse(\ddtrace_config_integration_enabled('mysqli'));
     }
@@ -149,8 +128,6 @@ EOD;
     public function testIntegrationsDisabledPrecedenceWithDeprecatedEnv()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_PDO_ENABLED=true', 'DD_INTEGRATIONS_DISABLED=pdo,slim']);
-        $this->assertTrue(Configuration::get()->isIntegrationEnabled('pdo'));
-        $this->assertFalse(Configuration::get()->isIntegrationEnabled('slim'));
         $this->assertTrue(\ddtrace_config_integration_enabled('pdo'));
         $this->assertFalse(\ddtrace_config_integration_enabled('slim'));
     }
@@ -163,7 +140,6 @@ EOD;
 
             $lower = strtolower($integration);
             $error = "'{$lower}' was expected to be disabled." . self::INTEGRATION_ERROR;
-            self::assertFalse(Configuration::get()->isIntegrationEnabled($lower), $error);
             self::assertFalse(\ddtrace_config_integration_enabled($lower), $error);
 
             // Reset
@@ -171,7 +147,6 @@ EOD;
         }
 
         // Make sure we're not testing the default fallback
-        self::assertTrue(Configuration::get()->isIntegrationEnabled('foo_invalid'));
         self::assertTrue(\ddtrace_config_integration_enabled('foo_invalid'));
     }
 
@@ -230,19 +205,13 @@ EOD;
         $this->putEnvAndReloadConfig(['ddtrace_app_name', 'DD_TRACE_APP_NAME']);
         $this->assertSame(
             'fallback_name',
-            Configuration::get()->appName('fallback_name')
-        );
-        $this->assertSame(
-            'fallback_name',
             \ddtrace_config_app_name('fallback_name')
         );
 
         $this->putEnvAndReloadConfig(['ddtrace_app_name=foo_app']);
-        $this->assertSame('fallback_name', Configuration::get()->appName('fallback_name'));
         $this->assertSame('fallback_name', \ddtrace_config_app_name('fallback_name'));
 
         $this->putEnvAndReloadConfig(['ddtrace_app_name=foo_app', 'DD_TRACE_APP_NAME=bar_app']);
-        $this->assertSame('fallback_name', Configuration::get()->appName('fallback_name'));
         $this->assertSame('fallback_name', \ddtrace_config_app_name('fallback_name'));
     }
 
@@ -250,25 +219,21 @@ EOD;
     {
         $this->putEnvAndReloadConfig(['DD_SERVICE', 'DD_TRACE_APP_NAME', 'ddtrace_app_name']);
 
-        $this->assertSame('__default__', Configuration::get()->appName('__default__'));
         $this->assertSame('__default__', \ddtrace_config_app_name('__default__'));
 
         $this->putEnvAndReloadConfig(['DD_SERVICE=my_app']);
-        $this->assertSame('my_app', Configuration::get()->appName('__default__'));
         $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
     }
 
     public function testServiceNameViaDDServiceWinsOverDDServiceName()
     {
         $this->putEnvAndReloadConfig(['DD_SERVICE=my_app', 'DD_SERVICE_NAME=legacy']);
-        $this->assertSame('my_app', Configuration::get()->appName('__default__'));
         $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
     }
 
     public function testServiceNameViaDDServiceNameForBackwardCompatibility()
     {
         $this->putEnvAndReloadConfig(['DD_SERVICE_NAME=my_app']);
-        $this->assertSame('my_app', Configuration::get()->appName('__default__'));
         $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
     }
 
@@ -279,20 +244,17 @@ EOD;
             'DD_TRACE_APP_NAME=wrong_app',
             'ddtrace_app_name=wrong_app',
         ]);
-        $this->assertSame('my_app', Configuration::get()->appName('my_app'));
         $this->assertSame('my_app', \ddtrace_config_app_name('my_app'));
     }
 
     public function testAnalyticsDisabledByDefault()
     {
-        $this->assertFalse(Configuration::get()->isAnalyticsEnabled());
         $this->assertFalse(\ddtrace_config_analytics_enabled());
     }
 
     public function testAnalyticsCanBeGloballyEnabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_ANALYTICS_ENABLED=true']);
-        $this->assertTrue(Configuration::get()->isAnalyticsEnabled());
         $this->assertTrue(\ddtrace_config_analytics_enabled());
     }
 
@@ -307,7 +269,6 @@ EOD;
             $this->putEnvAndReloadConfig(['DD_TRACE_SAMPLING_RULES=' . $rules]);
         }
 
-        $this->assertSame($expected, Configuration::get()->getSamplingRules());
         $this->assertSame($expected, \ddtrace_config_sampling_rules());
     }
 
@@ -413,7 +374,6 @@ EOD;
             $this->putEnvAndReloadConfig([$env]);
         }
 
-        $this->assertSame($expected, Configuration::get()->getSamplingRate());
         $this->assertSame($expected, \ddtrace_config_sampling_rate());
     }
 
@@ -469,7 +429,6 @@ EOD;
             $this->putEnvAndReloadConfig(["DD_SERVICE_MAPPING=$env"]);
         }
 
-        $this->assertSame($expected, Configuration::get()->getServiceMapping());
         $this->assertSame($expected, \ddtrace_config_service_mapping());
     }
 
@@ -502,55 +461,47 @@ EOD;
     public function testEnv()
     {
         $this->putEnvAndReloadConfig(['DD_ENV=my-env']);
-        $this->assertSame('my-env', Configuration::get()->getEnv());
         $this->assertSame('my-env', \ddtrace_config_env());
     }
 
     public function testEnvNotSet()
     {
         $this->putEnvAndReloadConfig(['DD_ENV']);
-        $this->assertNull(Configuration::get()->getEnv());
         $this->assertNull(\ddtrace_config_env());
     }
 
     public function testVersion()
     {
         $this->putEnvAndReloadConfig(['DD_VERSION=1.2.3']);
-        $this->assertSame('1.2.3', Configuration::get()->getServiceVersion());
         $this->assertSame('1.2.3', \ddtrace_config_service_version());
     }
 
     public function testVersionNotSet()
     {
         $this->putEnvAndReloadConfig(['DD_VERSION']);
-        $this->assertNull(Configuration::get()->getServiceVersion());
         $this->assertNull(\ddtrace_config_service_version());
     }
 
     public function testUriAsResourceNameEnabledDefault()
     {
-        $this->assertTrue(Configuration::get()->isURLAsResourceNameEnabled());
         $this->assertTrue(\ddtrace_config_url_resource_name_enabled());
     }
 
     public function testUriAsResourceNameCanBeDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=false']);
-        $this->assertFalse(Configuration::get()->isURLAsResourceNameEnabled());
         $this->assertFalse(\ddtrace_config_url_resource_name_enabled());
     }
 
     public function testGlobalTags()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1,key2:value2']);
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
     }
 
     public function testGlobalTagsLegacyEnv()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_GLOBAL_TAGS=key1:value1,key2:value2']);
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
     }
 
@@ -560,14 +511,12 @@ EOD;
             'DD_TRACE_GLOBAL_TAGS=key10:value10,key20:value20',
             'DD_TAGS=key1:value1,key2:value2',
         ]);
-        $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], Configuration::get()->getGlobalTags());
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \ddtrace_config_global_tags());
     }
 
     public function testGlobalTagsWrongValueJustResultsInNoTags()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=wrong_key_value']);
-        $this->assertEquals([], Configuration::get()->getGlobalTags());
         $this->assertEquals([], \ddtrace_config_global_tags());
     }
 

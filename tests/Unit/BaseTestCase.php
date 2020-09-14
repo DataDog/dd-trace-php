@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Configuration;
 use DDTrace\Log\Logger;
 use DDTrace\Tests\DebugLogger;
 use DDTrace\Util\Versions;
