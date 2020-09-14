@@ -181,14 +181,15 @@ verify_version:
 
 verify_all: verify_pecl_file_definitions verify_version
 
-.PHONY: dist_clean clean all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test test_integration install_ini install_all \
-	.apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
-
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
 REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
-ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=1
+ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=true
+
+dev:
+	$(Q):
+	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=true)
 
 ### DDTrace tests ###
 TESTS_ROOT := ./tests
@@ -239,3 +240,6 @@ test_api_unit: $(API_TESTS_ROOT)/composer.lock
 
 $(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
 	$(Q) composer --working-dir=$(API_TESTS_ROOT) update
+
+.PHONY: dev dist_clean clean all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test test_integration install_ini install_all \
+	.apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
