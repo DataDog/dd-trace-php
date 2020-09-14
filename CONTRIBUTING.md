@@ -57,16 +57,11 @@ ddtrace
 
 Datadog PHP tracer extension
 For help, check out the documentation at https://docs.datadoghq.com/tracing/languages/php/
-(c) Datadog 2019
+(c) Datadog 2020
 
 Datadog tracing support => enabled
 Version => 1.0.0-nightly
-
-Directive => Local Value => Master Value
-ddtrace.disable => Off => Off
-ddtrace.internal_blacklisted_modules_list => ... => ...,
-ddtrace.request_init_hook => no value => no value
-ddtrace.strict_mode => Off => Off
+DATADOG TRACER CONFIGURATION => ...
 ```
 
 When you're done with development, you can stop and remove the containers with the following:

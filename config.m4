@@ -67,9 +67,9 @@ if test "$PHP_DDTRACE" != "no"; then
       src/ext/php5_4/auto_flush.c \
       src/ext/php5_4/dispatch.c \
       src/ext/php5_4/engine_hooks.c \
-      src/ext/php5/blacklist.c \
       src/ext/php5/distributed_tracing.c \
       src/ext/php5/engine_api.c \
+      src/ext/php5/excluded_modules.c \
       src/ext/php5/handlers_curl.c \
       src/ext/php5/handlers_internal.c \
       src/ext/php5/serializer.c \
@@ -78,11 +78,11 @@ if test "$PHP_DDTRACE" != "no"; then
   elif test $PHP_VERSION -lt 70000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
       src/ext/php5/auto_flush.c \
-      src/ext/php5/blacklist.c \
       src/ext/php5/dispatch.c \
       src/ext/php5/distributed_tracing.c \
       src/ext/php5/engine_api.c \
       src/ext/php5/engine_hooks.c \
+      src/ext/php5/excluded_modules.c \
       src/ext/php5/handlers_curl.c \
       src/ext/php5/handlers_internal.c \
       src/ext/php5/serializer.c \
@@ -91,11 +91,11 @@ if test "$PHP_DDTRACE" != "no"; then
   elif test $PHP_VERSION -lt 80000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
       src/ext/php7/auto_flush.c \
-      src/ext/php7/blacklist.c \
       src/ext/php7/dispatch.c \
       src/ext/php7/distributed_tracing.c \
       src/ext/php7/engine_api.c \
       src/ext/php7/engine_hooks.c \
+      src/ext/php7/excluded_modules.c \
       src/ext/php7/handlers_curl.c \
       src/ext/php7/handlers_internal.c \
       src/ext/php7/handlers_memcached.c \

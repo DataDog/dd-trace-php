@@ -6,7 +6,6 @@
 #include <ext/spl/spl_exceptions.h>
 
 #include "ddtrace.h"
-#include "debug.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
@@ -25,11 +24,6 @@ zend_function *ddtrace_ftable_get(const HashTable *table, zval *name) {
     zend_function *fptr = NULL;
 
     zend_hash_find(table, key, Z_STRLEN_P(name) + 1, (void **)&fptr);
-
-    DD_PRINTF("Looking for key %s (length: %d, h: 0x%lX) in table", key, Z_STRLEN_P(name),
-              zend_inline_hash_func(key, Z_STRLEN_P(name) + 1));
-    DD_PRINT_HASH(table);
-    DD_PRINTF("Found: %s", fptr != NULL ? "true" : "false");
 
     efree(key);
     return fptr;
