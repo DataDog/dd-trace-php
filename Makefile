@@ -201,7 +201,7 @@ clean_api:
 	$(Q) rm -rf $(API_TESTS_ROOT)/composer.lock
 
 test_api_unit: $(API_TESTS_ROOT)/composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(API_TESTS_ROOT)/vendor/bin/phpunit  --config=$(API_TESTS_ROOT)/phpunit.xml ./tests_api/Unit
+	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(API_TESTS_ROOT)/vendor/bin/phpunit  --config=$(API_TESTS_ROOT)/phpunit.xml ./tests_api/Unit $(TESTS)
 
 $(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
 	$(Q) composer --working-dir=$(API_TESTS_ROOT) update
