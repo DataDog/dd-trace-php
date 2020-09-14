@@ -187,6 +187,7 @@ verify_all: verify_pecl_file_definitions verify_version
 REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
 ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=true
 
+# use this as the first target if you want to use uncompiled files instead of the _generated.php compiled file.
 dev:
 	$(Q):
 	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=true)
@@ -199,6 +200,9 @@ PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit --config=$(TESTS_ROOT)/phpunit.xml
 clean_test:
 	$(Q) rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock
 	$(Q) $(TESTS_ROOT)/clean-composer-scenario-locks.sh
+
+test:
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(TESTS)
 
 test_unit: $(TESTS_ROOT)/composer.lock
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=unit $(TESTS)
@@ -219,9 +223,6 @@ test_distributed_tracing: $(TESTS_ROOT)/composer.lock
 
 test_metrics: $(TESTS_ROOT)/composer.lock
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=metrics $(TESTS)
-
-test:
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(TESTS)
 
 test_scenario_%: $(TESTS_ROOT)/composer.lock
 	$(Q) $(COMPOSER) scenario $*
