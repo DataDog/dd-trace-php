@@ -224,5 +224,8 @@ test_auto_instrumentation: $(TESTS_ROOT)/composer.lock
 test_composer: $(TESTS_ROOT)/composer.lock
 	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=composer-tests $(TESTS)
 
+test_distributed_tracing: $(TESTS_ROOT)/composer.lock
+	$(Q) $(ENV_OVERRIDE) php $(PHP_INI_OVERRIDE) $(PHPUNIT) --testsuite=distributed-tracing $(TESTS)
+
 $(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json
 	$(Q) composer --working-dir=$(TESTS_ROOT) update
