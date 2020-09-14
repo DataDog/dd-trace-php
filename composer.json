@@ -43,6 +43,7 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "DDTrace\\Tests\\Api\\": "./tests_api/",
             "DDTrace\\Tests\\": "./tests/"
         }
     },

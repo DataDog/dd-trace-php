@@ -102,6 +102,7 @@ dist_clean:
 
 clean:
 	$(MAKE) -C $(BUILD_DIR) clean
+	$(Q) rm -f composer.lock
 
 sudo:
 	$(eval SUDO:=sudo)
@@ -233,14 +234,11 @@ $(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json
 ### Api tests ###
 API_TESTS_ROOT := ./tests_api
 
-clean_api:
-	$(Q) rm -rf $(API_TESTS_ROOT)/composer.lock
+test_api_unit: composer.lock
+	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
 
-test_api_unit: $(API_TESTS_ROOT)/composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(API_TESTS_ROOT)/vendor/bin/phpunit  --config=$(API_TESTS_ROOT)/phpunit.xml ./tests_api/Unit $(TESTS)
-
-$(API_TESTS_ROOT)/composer.lock: $(API_TESTS_ROOT)/composer.json
-	$(Q) composer --working-dir=$(API_TESTS_ROOT) update
+composer.lock: composer.json
+	$(Q) composer update
 
 .PHONY: dev dist_clean clean all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test test_integration install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
