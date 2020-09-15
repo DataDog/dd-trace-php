@@ -3,6 +3,7 @@ cakephp-28-suite
 codeigniter-22-test
 laravel-42-suite
 lumen-52-suite
+slim-312-suite
 symfony-23-suite
 symfony-28-suite
 symfony-30-suite
