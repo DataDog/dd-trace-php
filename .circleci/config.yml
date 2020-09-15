@@ -737,7 +737,6 @@ jobs:
         default: true
     docker: [ image: << parameters.docker_image >> ]
     environment:
-      - CFLAGS=-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>
       # This BASH_ENV sets up the newer GCC toolchain and the module system for
       # non-login, non-interactive bash commands. I haven't found a way yet to
       # make it automatic for these types (it is already automatic for login).
@@ -749,19 +748,19 @@ jobs:
           name: Build ndebug, nts configuration
           command: |
               module load php/5.5
-              make all ECHO_ARG="-e"
+              make all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
               cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           name: Build debug, nts configuration
           command: |
               module load php/5.5-debug
-              make clean all ECHO_ARG="-e"
+              make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
               cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
       - run:
           name: Build debug, zts configuration
           command: |
               module load php/5.5-debug-zts
-              make clean all ECHO_ARG="-e"
+              make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
               cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug-zts.so
       - persist_to_workspace:
           root: '.'
