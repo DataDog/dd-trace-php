@@ -256,7 +256,7 @@ static char *dd_generate_default_span_name(zend_function *fbc TSRMLS_DC) {
     return name;
 }
 
-static void dd_set_default_properties(ddtrace_span_fci *span_fci, zend_function *fbc TSRMLS_CC) {
+static void dd_set_default_properties(ddtrace_span_fci *span_fci, zend_function *fbc TSRMLS_DC) {
     if (!span_fci || !span_fci->span.span_data || !fbc) {
         return;
     }
