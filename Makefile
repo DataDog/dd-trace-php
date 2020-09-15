@@ -2,7 +2,7 @@ Q := @
 PROJECT_ROOT := $(shell pwd)
 SHELL := /bin/bash
 BUILD_SUFFIX := extension
-BUILD_DIR := $(shell pwd)/tmp/build_$(BUILD_SUFFIX)
+BUILD_DIR := $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
@@ -188,13 +188,9 @@ verify_all: verify_pecl_file_definitions verify_version
 REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
 ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=true
 
-define generate_file
-    sed 's/{NAME}/$(1)/' greetings.tmpl >$(2).txt
-endef
-
 # use this as the first target if you want to use uncompiled files instead of the _generated.php compiled file.
 dev:
-	$(Q):
+	$(Q) :
 	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=true)
 
 ### DDTrace tests ###
@@ -424,7 +420,20 @@ test_opentracing_10:
 	$(Q) $(MAKE) test_scenario_opentracing1
 	$(Q) $(MAKE) test TESTS=tests/OpenTracerUnit
 
+test_integrations_54: $(TEST_INTEGRATIONS_54)
+test_integrations_56: $(TEST_INTEGRATIONS_56)
+test_integrations_70: $(TEST_INTEGRATIONS_70)
+test_integrations_71: $(TEST_INTEGRATIONS_71)
+test_integrations_72: $(TEST_INTEGRATIONS_72)
 test_integrations_73: $(TEST_INTEGRATIONS_73)
+test_integrations_74: $(TEST_INTEGRATIONS_74)
+test_web_54: $(TEST_WEB_54)
+test_web_56: $(TEST_WEB_56)
+test_web_70: $(TEST_WEB_70)
+test_web_71: $(TEST_WEB_71)
+test_web_72: $(TEST_WEB_72)
+test_web_73: $(TEST_WEB_73)
+test_web_74: $(TEST_WEB_74)
 
 test_integrations_curl:
 	$(Q) $(MAKE) test TESTS=tests/Integrations/Curl
