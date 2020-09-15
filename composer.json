@@ -77,84 +77,7 @@
             "@composer compile",
             "@composer compile-verify"
         ],
-        "test-cache": "./tooling/bin/composer-cache cache",
-        "test-cache-link": "./tooling/bin/composer-cache link-cache",
-        "test-cache-unlink": "./tooling/bin/composer-cache unlink-cache",
         "test-ext": "make test_c TESTS=tests/ext",
-        "test": "phpunit --colors=always --configuration=phpunit.xml",
-        "test-no-compile": "DD_AUTOLOAD_NO_COMPILE=true phpunit --colors=always --configuration=phpunit.xml",
-        "test-all-54": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-composer",
-            "@test-distributed-tracing",
-            "@test-integration",
-            "@test-integrations-54",
-            "@test-web-54"
-        ],
-        "test-all-55": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-distributed-tracing",
-            "@test-composer",
-            "@test-integration",
-            "@test-integrations-55",
-            "@test-web-55"
-        ],
-        "test-all-56": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-distributed-tracing",
-            "@test-composer",
-            "@test-integration",
-            "@test-integrations-56",
-            "@test-web-56"
-        ],
-        "test-all-70": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-composer",
-            "@test-distributed-tracing",
-            "@test-integration",
-            "@test-integrations-70",
-            "@test-web-70"
-        ],
-        "test-all-71": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-composer",
-            "@test-distributed-tracing",
-            "@test-integration",
-            "@test-integrations-71",
-            "@test-web-71"
-        ],
-        "test-all-72": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-composer",
-            "@test-distributed-tracing",
-            "@test-integration",
-            "@test-integrations-72",
-            "@test-web-72"
-        ],
-        "test-all-73": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-composer",
-            "@test-distributed-tracing",
-            "@test-integration",
-            "@test-integrations-73",
-            "@test-web-73"
-        ],
-        "test-all-74": [
-            "@test-unit",
-            "@test-auto-instrumentation",
-            "@test-composer",
-            "@test-distributed-tracing",
-            "@test-integration",
-            "@test-integrations-74",
-            "@test-web-74"
-        ],
 
         "increase-memory-limit": "export COMPOSER_MEMORY_LIMIT=-1",
         "memory_test": "echo $COMPOSER_MEMORY_LIMIT",
@@ -162,16 +85,6 @@
         "opentracing-10-test": [
             "@composer scenario opentracing1",
             "@composer test -- tests/OpenTracerUnit"
-        ],
-
-        "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
-
-        "test-metrics": "@composer test -- --testsuite=metrics",
-
-        "test-auto-instrumentation": "phpunit --colors=always --configuration=phpunit.xml --testsuite=auto-instrumentation",
-
-        "test-composer": "phpunit --colors=always --configuration=phpunit.xml --testsuite=composer-tests",
-
-        "test-distributed-tracing": "phpunit --colors=always --configuration=phpunit.xml --testsuite=distributed-tracing"
+        ]
     }
 }
