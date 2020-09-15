@@ -678,7 +678,7 @@ zval *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC) {
     return NULL;
 }
 
-void ddtrace_close_all_open_spans(TSRMLS_DC) {
+void ddtrace_close_all_open_spans(TSRMLS_D) {
 #if ZTS
     PHP5_UNUSED(TSRMLS_C);
 #endif

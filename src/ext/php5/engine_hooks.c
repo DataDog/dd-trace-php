@@ -821,7 +821,7 @@ zval *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC) {
     return exception;
 }
 
-void ddtrace_close_all_open_spans(TSRMLS_DC) {
+void ddtrace_close_all_open_spans(TSRMLS_D) {
     ddtrace_span_fci *span_fci;
     while ((span_fci = DDTRACE_G(open_spans_top))) {
         if (span_fci->dd_execute_data.free_retval && span_fci->dd_execute_data.retval) {
