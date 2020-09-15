@@ -5,7 +5,7 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
 max_execution_time=1
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not support close-at-exit functionality"); ?>
+<?php if (PHP_VERSION_ID < 70000) die("skip: PHP 5 has its own test"); ?>
 --FILE--
 <?php
 register_shutdown_function(function () {
@@ -20,15 +20,16 @@ register_shutdown_function(function () {
     }
 });
 
-function makeFatalError() {
+// make sure args are elided
+function makeFatalError($return) {
     // Trigger a fatal error (hit the max execution time)
     while(1) {}
-    return 42;
+    return $return;
 }
 
 function main() {
     var_dump(array_sum([1, 99]));
-    makeFatalError();
+    makeFatalError(42);
     echo 'You should not see this.' . PHP_EOL;
 }
 
@@ -50,7 +51,7 @@ Shutdown
 main()
 E_ERROR
 Maximum execution time of 1 second exceeded
-#0 %s(%d): makeFatalError()
+#0 %s(%d): makeFatalError(...)
 #1 %s(%d): main()
 #2 {main}
 array_sum()
