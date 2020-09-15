@@ -666,6 +666,9 @@ jobs:
     parameters:
       docker_image:
         type: string
+      showdiff:
+        type: boolean
+        default: true
     working_directory: ~/datadog
     executor:
       name: with_agent
@@ -682,7 +685,7 @@ jobs:
       - run:
           name: Run phpt tests with PECL
           command: |
-            sudo pecl run-tests --showdiff --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
+            sudo pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
 
   compile_extension:
     working_directory: ~/datadog
@@ -1016,6 +1019,12 @@ workflows:
           name: "php:7.3"
           docker_image: php:7.3
           package_type: deb
+      - pecl_tests:
+          requires: [ "Build PECL" ]
+          name: "PHP 54 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
+          # PHP 5.4's pecl doesn't support showdiff
+          showdiff: false
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 55 PECL tests"
