@@ -9,7 +9,7 @@ ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 .PHONY: $(JESSIE_PHP_VERSIONS) $(STRETCH_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) $(CENTOS7_MANUAL_PHP_VERSIONS) all all_centos all_alpine docker_compose_pull
 
-ALL_VERSIONS_TO_TEST := $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) $(CENTOS6_PHP_VERSIONS) $(JESSIE_PHP_VERSIONS)
+ALL_VERSIONS_TO_TEST := $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) $(CENTOS6_PHP_VERSIONS) $(JESSIE_PHP_VERSIONS) 5.5_centos-6
 
 all: $(ALL_VERSIONS_TO_TEST)
 
@@ -27,6 +27,10 @@ $(JESSIE_PHP_VERSIONS): %.jessie:
 $(STRETCH_PHP_VERSIONS): %.stretch:
 	@echo Building Debian Stretch - PHP $*
 	@docker build --no-cache -t deb_stretch:$* --build-arg php_version=$* -f dockerfiles/verify_packages/debian_stretch/Dockerfile .
+
+5.5_centos-6:
+	@echo Verifying Centos 6 - PHP 5.5
+	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run -T --rm 5.5-centos6 bash /build_src/dockerfiles/verify_packages/verify_rpm_5.5.sh
 
 $(CENTOS6_PHP_VERSIONS): %.centos6:
 	@echo Verifying Centos 6 - PHP $*
