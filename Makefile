@@ -432,29 +432,34 @@ TEST_WEB_74 := \
 
 clean_test:
 	$(Q) rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock
+
+clean_test_scenarios:
 	$(Q) $(TESTS_ROOT)/clean-composer-scenario-locks.sh
+
+composer_tests_update:
+	$(Q) $(COMPOSER) update
 
 test:
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(TESTS)
 
-test_unit: $(TESTS_ROOT)/composer.lock
+test_unit:
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=unit $(TESTS)
 
-test_integration: $(TESTS_ROOT)/composer.lock
+test_integration:
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=integration $(TESTS)
 
-test_auto_instrumentation: $(TESTS_ROOT)/composer.lock
+test_auto_instrumentation:
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=auto-instrumentation $(TESTS)
 	$(Q) # Cleaning up composer.json files in tests/AutoInstrumentation modified for TLS during tests
 	$(Q) git checkout $(TESTS_ROOT)/AutoInstrumentation/**/composer.json
 
-test_composer: $(TESTS_ROOT)/composer.lock
+test_composer:
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=composer-tests $(TESTS)
 
-test_distributed_tracing: $(TESTS_ROOT)/composer.lock
+test_distributed_tracing:
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=distributed-tracing $(TESTS)
 
-test_metrics: $(TESTS_ROOT)/composer.lock
+test_metrics:
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=metrics $(TESTS)
 
 test_opentracing_10:
@@ -584,11 +589,8 @@ test_web_custom:
 	$(Q) $(MAKE) test TESTS=--testsuite=custom-framework-autoloaded-test
 
 
-test_scenario_%: $(TESTS_ROOT)/composer.lock
+test_scenario_%:
 	$(Q) $(COMPOSER) --working-dir=$(TESTS_ROOT) scenario $*
-
-$(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json
-	$(Q) $(COMPOSER) update
 
 ### Api tests ###
 API_TESTS_ROOT := ./tests/api
