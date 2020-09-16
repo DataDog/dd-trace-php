@@ -1194,9 +1194,9 @@ workflows:
       #     docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
       #     xdebug_version_one: "2.9.2"
       #     xdebug_version_two: "2.9.5"
-      # - placeholder:
-      #     requires: [ 'Prepare Code' ]
-      #     name: Language tests
+      - placeholder:
+          requires: [ 'Prepare Code' ]
+          name: Language tests
       # - php_language_tests:
       #     requires: [ 'Language tests' ]
       #     name: "PHP 74 language tests"
