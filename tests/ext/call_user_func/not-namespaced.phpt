@@ -1,7 +1,5 @@
 --TEST--
 Test that call_user_func can trace in global scope
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die("skip: not supported on PHP 5.4"); ?>
 --FILE--
 <?php
 

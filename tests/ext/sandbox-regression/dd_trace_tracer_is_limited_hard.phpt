@@ -1,7 +1,5 @@
 --TEST--
 [Sandbox regression] dd_trace_tracer_is_limited() limits the tracer with a hard span limit
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=1000
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
