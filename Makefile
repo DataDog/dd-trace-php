@@ -548,7 +548,7 @@ $(TESTS_ROOT)/composer.lock: $(TESTS_ROOT)/composer.json
 	$(Q) $(COMPOSER) update
 
 ### Api tests ###
-API_TESTS_ROOT := ./tests_api
+API_TESTS_ROOT := ./tests/api
 
 test_api_unit: composer.lock
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
