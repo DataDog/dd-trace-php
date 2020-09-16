@@ -462,6 +462,7 @@ test_opentracing_10:
 	$(Q) $(MAKE) test TESTS=tests/OpenTracerUnit
 
 test_integrations_54: $(TEST_INTEGRATIONS_54)
+test_integrations_55: $(TEST_INTEGRATIONS_55)
 test_integrations_56: $(TEST_INTEGRATIONS_56)
 test_integrations_70: $(TEST_INTEGRATIONS_70)
 test_integrations_71: $(TEST_INTEGRATIONS_71)
@@ -469,6 +470,7 @@ test_integrations_72: $(TEST_INTEGRATIONS_72)
 test_integrations_73: $(TEST_INTEGRATIONS_73)
 test_integrations_74: $(TEST_INTEGRATIONS_74)
 test_web_54: $(TEST_WEB_54)
+test_web_55: $(TEST_WEB_55)
 test_web_56: $(TEST_WEB_56)
 test_web_70: $(TEST_WEB_70)
 test_web_71: $(TEST_WEB_71)
