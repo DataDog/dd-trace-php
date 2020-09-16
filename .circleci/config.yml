@@ -97,6 +97,11 @@ aliases:
       name: Verifying dd-tace-php files compiled into single file
       command: composer compile-verify
 
+  - &STEP_COMPOSER_TESTS_UPDATE
+    run:
+      name: Updating tests' composer
+      command: make composer_tests_update
+
   - &STEP_PREPARE_TEST_RESULTS_DIR
     run:
       name: testresults dir
@@ -784,6 +789,7 @@ jobs:
       - <<: *STEP_COMPOSER_INSTALL
       - <<: *STEP_COMPOSER_COMPILE
       - <<: *STEP_COMPOSER_COMPILE_VERIFY
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - run:
           name: Showing folder containing generated files
           command: ls -al ~/datadog/bridge
