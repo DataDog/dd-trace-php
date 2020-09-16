@@ -196,6 +196,7 @@ dev:
 ### DDTrace tests ###
 TESTS_ROOT := ./tests
 COMPOSER := COMPOSER_MEMORY_LIMIT=-1 composer
+COMPOSER_TESTS := $(COMPOSER) --working-dir=$(TESTS_ROOT)
 PHPUNIT_OPTS := $(PHPUNIT_OPTS)
 PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 
@@ -437,7 +438,7 @@ clean_test_scenarios:
 	$(Q) $(TESTS_ROOT)/clean-composer-scenario-locks.sh
 
 composer_tests_update:
-	$(Q) $(COMPOSER) update
+	$(Q) $(COMPOSER_TESTS) update
 
 test:
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(TESTS)
@@ -590,7 +591,7 @@ test_web_custom:
 
 
 test_scenario_%:
-	$(Q) $(COMPOSER) --working-dir=$(TESTS_ROOT) scenario $*
+	$(Q) $(COMPOSER_TESTS) scenario $*
 
 ### Api tests ###
 API_TESTS_ROOT := ./tests/api
