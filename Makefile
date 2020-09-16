@@ -214,6 +214,16 @@ TEST_WEB_54 := \
 	test_web_zend_1 \
 	test_web_custom
 
+TEST_INTEGRATIONS_55 := \
+	test_integrations_curl \
+	test_integrations_memcached \
+	test_integrations_mysqli \
+	test_integrations_pdo \
+	test_integrations_elasticsearch1 \
+	test_integrations_guzzle5 \
+	test_integrations_guzzle6 \
+	test_integrations_predis1
+
 TEST_INTEGRATIONS_56 := \
 	test_integrations_curl \
 	test_integrations_memcached \
@@ -224,6 +234,22 @@ TEST_INTEGRATIONS_56 := \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_predis1
+
+TEST_WEB_55 := \
+	test_web_cakephp_28 \
+	test_web_codeigniter_22 \
+	test_web_laravel_42 \
+	test_web_lumen_52 \
+	test_web_slim_312 \
+	test_web_symfony_23 \
+	test_web_symfony_28 \
+	test_web_symfony_30 \
+	test_web_symfony_33 \
+	test_web_symfony_34 \
+	test_web_yii_2 \
+	test_web_wordpress_48 \
+	test_web_zend_1 \
+	test_web_custom
 
 TEST_WEB_56 := \
 	test_web_cakephp_28 \
