@@ -203,7 +203,6 @@ ext/spl/tests/bug44144.phpt
 ext/spl/tests/bug44615.phpt
 ext/spl/tests/bug48493.phpt
 ext/spl/tests/bug49263.phpt
-ext/spl/tests/bug61697.phpt
 ext/spl/tests/bug64782.phpt
 ext/spl/tests/bug68479.phpt
 ext/spl/tests/bug70155.phpt

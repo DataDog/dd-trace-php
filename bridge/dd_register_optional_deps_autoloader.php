@@ -44,4 +44,4 @@ class OptionalDepsAutoloader
 }
 
 // Registering it
-spl_autoload_register(['\DDTrace\Bridge\OptionalDepsAutoloader', 'load'], true, true);
+spl_autoload_register('DDTrace\Bridge\OptionalDepsAutoloader::load', true, true);
