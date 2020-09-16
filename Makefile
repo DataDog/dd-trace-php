@@ -196,7 +196,8 @@ dev:
 ### DDTrace tests ###
 TESTS_ROOT := ./tests
 COMPOSER := COMPOSER_MEMORY_LIMIT=-1 composer
-PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit --config=$(TESTS_ROOT)/phpunit.xml
+PHPUNIT_OPTS := $(PHPUNIT_OPTS)
+PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 
 TEST_INTEGRATIONS_54 := \
 	test_integrations_curl \
