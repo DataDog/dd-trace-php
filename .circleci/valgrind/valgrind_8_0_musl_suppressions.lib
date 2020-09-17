@@ -1,0 +1,112 @@
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Free
+    fun:free
+    obj:/lib/ld-musl-x86_64.so.1
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:strlcpy
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:strlcpy
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    fun:zend_hash_find_bucket
+    obj:*
+    obj:*
+}
+{
+    php_zend_string_equal_val false positive due to handcrafted assembly
+    Memcheck:Cond
+    fun:zend_string_equal_val
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:memcmp
+    fun:__putenv
+    obj:*
+    obj:*
+    obj:*
+    fun:vgMemCheck_new_block
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    fun:do_cli
+    obj:*
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:memcmp
+    fun:unsetenv
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    fun:do_cli
+    obj:*
+    obj:*
+    fun:unsetenv
+    obj:*
+    obj:*
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:strlcpy
+    obj:*
+    obj:*
+}
+{
+    <leaks on exit opcode>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:zend_compile
+    fun:compile_file
+    fun:phar_compile_file
+    fun:_dd_compile_file
+    fun:zend_execute_scripts
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}
+{
+    <leaks on exit opcode>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    obj:*
+    fun:_emalloc
+    obj:*
+    fun:compile_file
+    obj:*
+    fun:_dd_compile_file
+    fun:zend_execute_scripts
+    fun:php_execute_script
+    obj:*
+    obj:*
+}
