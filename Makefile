@@ -432,41 +432,41 @@ dev:
 	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=true)
 
 clean_test: clean_test_scenarios
-	$(Q) rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock $(TESTS_ROOT)/vendor
-	$(Q) find $(TESTS_ROOT)/Frameworks/ -path "*/vendor/*" -prune -o -wholename "*/cache/*.php" -print -exec rm -rf {} \;
+	rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock $(TESTS_ROOT)/vendor
+	find $(TESTS_ROOT)/Frameworks/ -path "*/vendor/*" -prune -o -wholename "*/cache/*.php" -print -exec rm -rf {} \;
 
 clean_test_scenarios:
-	$(Q) $(TESTS_ROOT)/clean-composer-scenario-locks.sh
+	$(TESTS_ROOT)/clean-composer-scenario-locks.sh
 
 composer_tests_update:
-	$(Q) $(COMPOSER_TESTS) update
+	$(COMPOSER_TESTS) update
 
 test:
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(TESTS)
+	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(TESTS)
 
 test_unit:
-	$(Q) $(MAKE) -s test TESTS="--testsuite=unit $(TESTS)"
+	$(MAKE) -s test TESTS="--testsuite=unit $(TESTS)"
 
 test_integration:
-	$(Q) $(MAKE) -s test TESTS="--testsuite=integration $(TESTS)"
+	$(MAKE) -s test TESTS="--testsuite=integration $(TESTS)"
 
 test_auto_instrumentation:
-	$(Q) $(MAKE) -s test TESTS="--testsuite=auto-instrumentation $(TESTS)"
-	$(Q) # Cleaning up composer.json files in tests/AutoInstrumentation modified for TLS during tests
-	$(Q) git checkout $(TESTS_ROOT)/AutoInstrumentation/**/composer.json
+	$(MAKE) -s test TESTS="--testsuite=auto-instrumentation $(TESTS)"
+	# Cleaning up composer.json files in tests/AutoInstrumentation modified for TLS during tests
+	git checkout $(TESTS_ROOT)/AutoInstrumentation/**/composer.json
 
 test_composer:
-	$(Q) $(MAKE) -s test TESTS="--testsuite=composer-tests $(TESTS)"
+	$(MAKE) -s test TESTS="--testsuite=composer-tests $(TESTS)"
 
 test_distributed_tracing:
-	$(Q) $(MAKE) -s test TESTS="--testsuite=distributed-tracing $(TESTS)"
+	$(MAKE) -s test TESTS="--testsuite=distributed-tracing $(TESTS)"
 
 test_metrics:
-	$(Q) $(MAKE) -s test TESTS="--testsuite=metrics $(TESTS)"
+	$(MAKE) -s test TESTS="--testsuite=metrics $(TESTS)"
 
 test_opentracing_10:
-	$(Q) $(MAKE) test_scenario_opentracing1
-	$(Q) $(MAKE) test TESTS=tests/OpenTracerUnit
+	$(MAKE) test_scenario_opentracing1
+	$(MAKE) test TESTS=tests/OpenTracerUnit
 
 test_integrations_54: $(TEST_INTEGRATIONS_54)
 test_integrations_55: $(TEST_INTEGRATIONS_55)
@@ -486,107 +486,107 @@ test_web_73: $(TEST_WEB_73)
 test_web_74: $(TEST_WEB_74)
 
 test_integrations_curl:
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Curl
+	$(MAKE) test TESTS=tests/Integrations/Curl
 test_integrations_elasticsearch1:
-	$(Q) $(MAKE) test_scenario_elasticsearch1
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Elasticsearch
+	$(MAKE) test_scenario_elasticsearch1
+	$(MAKE) test TESTS=tests/Integrations/Elasticsearch
 test_integrations_guzzle5:
-	$(Q) $(MAKE) test_scenario_guzzle5
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Guzzle/V5
+	$(MAKE) test_scenario_guzzle5
+	$(MAKE) test TESTS=tests/Integrations/Guzzle/V5
 test_integrations_guzzle6:
-	$(Q) $(MAKE) test_scenario_guzzle6
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Guzzle/V6
+	$(MAKE) test_scenario_guzzle6
+	$(MAKE) test TESTS=tests/Integrations/Guzzle/V6
 test_integrations_memcached:
-	$(Q) $(MAKE) test_scenario_default
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Memcached
+	$(MAKE) test_scenario_default
+	$(MAKE) test TESTS=tests/Integrations/Memcached
 test_integrations_mysqli:
-	$(Q) $(MAKE) test_scenario_default
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Mysqli
+	$(MAKE) test_scenario_default
+	$(MAKE) test TESTS=tests/Integrations/Mysqli
 test_integrations_mongo:
-	$(Q) $(MAKE) test_scenario_default
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Mongo
+	$(MAKE) test_scenario_default
+	$(MAKE) test TESTS=tests/Integrations/Mongo
 test_integrations_pdo:
-	$(Q) $(MAKE) test_scenario_default
-	$(Q) $(MAKE) test TESTS=tests/Integrations/PDO
+	$(MAKE) test_scenario_default
+	$(MAKE) test TESTS=tests/Integrations/PDO
 test_integrations_phpredis3:
-	$(Q) $(MAKE) test_scenario_phpredis3
-	$(Q) $(MAKE) test TESTS=tests/Integrations/PHPRedis/PHPRedis3Test.php
+	$(MAKE) test_scenario_phpredis3
+	$(MAKE) test TESTS=tests/Integrations/PHPRedis/PHPRedis3Test.php
 test_integrations_phpredis4:
-	$(Q) $(MAKE) test_scenario_phpredis4
-	$(Q) $(MAKE) test TESTS=tests/Integrations/PHPRedis/PHPRedis4Test.php
+	$(MAKE) test_scenario_phpredis4
+	$(MAKE) test TESTS=tests/Integrations/PHPRedis/PHPRedis4Test.php
 test_integrations_phpredis5:
-	$(Q) $(MAKE) test_scenario_phpredis5
-	$(Q) $(MAKE) test TESTS=tests/Integrations/PHPRedis/PHPRedis5Test.php
+	$(MAKE) test_scenario_phpredis5
+	$(MAKE) test TESTS=tests/Integrations/PHPRedis/PHPRedis5Test.php
 test_integrations_predis1:
-	$(Q) $(MAKE) test_scenario_predis1
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Predis
+	$(MAKE) test_scenario_predis1
+	$(MAKE) test TESTS=tests/Integrations/Predis
 test_web_cakephp_28:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/CakePHP/Version_2_8 update
-	$(Q) $(MAKE) test TESTS=--testsuite=cakephp-28-test
+	$(COMPOSER) --working-dir=tests/Frameworks/CakePHP/Version_2_8 update
+	$(MAKE) test TESTS=--testsuite=cakephp-28-test
 test_web_codeigniter_22:
-	$(Q) $(MAKE) test TESTS=--testsuite=codeigniter-22-test
+	$(MAKE) test TESTS=--testsuite=codeigniter-22-test
 test_web_laravel_42:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_4_2 update
-	$(Q) php tests/Frameworks/Laravel/Version_4_2/artisan optimize
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Laravel/V4
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_4_2 update
+	php tests/Frameworks/Laravel/Version_4_2/artisan optimize
+	$(MAKE) test TESTS=tests/Integrations/Laravel/V4
 test_web_laravel_57:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_7 update
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Laravel/V5_7
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_7 update
+	$(MAKE) test TESTS=tests/Integrations/Laravel/V5_7
 test_web_laravel_58:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_8 update
-	$(Q) $(MAKE) test TESTS=--testsuite=laravel-58-test
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_8 update
+	$(MAKE) test TESTS=--testsuite=laravel-58-test
 test_web_lumen_52:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 update
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Lumen/V5_2
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 update
+	$(MAKE) test TESTS=tests/Integrations/Lumen/V5_2
 test_web_lumen_56:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_6 update
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Lumen/V5_6
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_6 update
+	$(MAKE) test TESTS=tests/Integrations/Lumen/V5_6
 test_web_lumen_58:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_8 update
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Lumen/V5_8
+	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_8 update
+	$(MAKE) test TESTS=tests/Integrations/Lumen/V5_8
 test_web_slim_312:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_3_12 update
-	$(Q) $(MAKE) test TESTS=--testsuite=slim-312-test
+	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_3_12 update
+	$(MAKE) test TESTS=--testsuite=slim-312-test
 test_web_symfony_23:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_3 update
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Symfony/V2_3
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_3 update
+	$(MAKE) test TESTS=tests/Integrations/Symfony/V2_3
 test_web_symfony_28:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_8 update
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Symfony/V2_8
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_8 update
+	$(MAKE) test TESTS=tests/Integrations/Symfony/V2_8
 test_web_symfony_30:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_0 update
-	$(Q) php tests/Frameworks/Symfony/Version_3_0/bin/console cache:clear --no-warmup --env=prod
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Symfony/V3_0
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_0 update
+	php tests/Frameworks/Symfony/Version_3_0/bin/console cache:clear --no-warmup --env=prod
+	$(MAKE) test TESTS=tests/Integrations/Symfony/V3_0
 test_web_symfony_33:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_3 update
-	$(Q) php tests/Frameworks/Symfony/Version_3_3/bin/console cache:clear --no-warmup --env=prod
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Symfony/V3_3
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_3 update
+	php tests/Frameworks/Symfony/Version_3_3/bin/console cache:clear --no-warmup --env=prod
+	$(MAKE) test TESTS=tests/Integrations/Symfony/V3_3
 test_web_symfony_34:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_4 update
-	$(Q) php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Symfony/V3_4
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_3_4 update
+	php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod
+	$(MAKE) test TESTS=tests/Integrations/Symfony/V3_4
 test_web_symfony_40:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 update
-	$(Q) php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Symfony/V4_0
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 update
+	php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod
+	$(MAKE) test TESTS=tests/Integrations/Symfony/V4_0
 test_web_symfony_42:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_2 update
-	$(Q) php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Symfony/V4_2
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_2 update
+	php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod
+	$(MAKE) test TESTS=tests/Integrations/Symfony/V4_2
 test_web_symfony_44:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_4 update
-	$(Q) php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Symfony/V4_4
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_4 update
+	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
+	$(MAKE) test TESTS=tests/Integrations/Symfony/V4_4
 test_web_wordpress_48:
-	$(Q) $(MAKE) test TESTS=tests/Integrations/WordPress/V4_8
+	$(MAKE) test TESTS=tests/Integrations/WordPress/V4_8
 test_web_yii_2:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0_26 update
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Yii/V2_0_26
+	$(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0_26 update
+	$(MAKE) test TESTS=tests/Integrations/Yii/V2_0_26
 test_web_zend_1:
-	$(Q) $(MAKE) test TESTS=tests/Integrations/ZendFramework/V1
+	$(MAKE) test TESTS=tests/Integrations/ZendFramework/V1
 test_web_custom:
-	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Custom/Version_Autoloaded update
-	$(Q) $(MAKE) test TESTS=--testsuite=custom-framework-autoloaded-test
+	$(COMPOSER) --working-dir=tests/Frameworks/Custom/Version_Autoloaded update
+	$(MAKE) test TESTS=--testsuite=custom-framework-autoloaded-test
 
 
 test_scenario_%:
@@ -596,7 +596,7 @@ test_scenario_%:
 API_TESTS_ROOT := ./tests/api
 
 test_api_unit: composer.lock
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
+	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) vendor/bin/phpunit --config=phpunit.xml $(API_TESTS_ROOT)/Unit $(TESTS)
 
 composer.lock: composer.json
 	$(Q) composer update
