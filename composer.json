@@ -26,12 +26,12 @@
     },
     "require-dev": {
         "ext-posix": "*",
+        "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
         "symfony/process": "<5",
-        "classpreloader/classpreloader": "1.4.*",
-        "g1a/composer-test-scenarios": "~3.0"
+        "classpreloader/classpreloader": "1.4.*"
     },
     "config": {
         "sort-packages": true
