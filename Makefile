@@ -188,11 +188,6 @@ verify_all: verify_pecl_file_definitions verify_version
 REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
 ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=true
 
-# use this as the first target if you want to use uncompiled files instead of the _generated.php compiled file.
-dev:
-	$(Q) :
-	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=true)
-
 ### DDTrace tests ###
 TESTS_ROOT := ./tests
 COMPOSER := COMPOSER_MEMORY_LIMIT=-1 composer
@@ -430,6 +425,11 @@ TEST_WEB_74 := \
 	test_web_zend_1 \
 	test_web_custom \
 	test_opentracing_10
+
+# use this as the first target if you want to use uncompiled files instead of the _generated.php compiled file.
+dev:
+	$(Q) :
+	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=true)
 
 clean_test:
 	$(Q) rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock
