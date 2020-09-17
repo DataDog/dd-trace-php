@@ -190,7 +190,7 @@ ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=true
 
 ### DDTrace tests ###
 TESTS_ROOT := ./tests
-COMPOSER := COMPOSER_MEMORY_LIMIT=-1 composer
+COMPOSER := COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
 COMPOSER_TESTS := $(COMPOSER) --working-dir=$(TESTS_ROOT)
 PHPUNIT_OPTS := $(PHPUNIT_OPTS)
 PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
