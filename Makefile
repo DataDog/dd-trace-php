@@ -534,7 +534,7 @@ test_web_laravel_57:
 	$(Q) $(MAKE) test TESTS=tests/Integrations/Laravel/V5_7
 test_web_laravel_58:
 	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_8 update
-	$(Q) $(MAKE) test TESTS=tests/Integrations/Laravel/V5_8
+	$(Q) $(MAKE) test TESTS=--testsuite=laravel-58-test
 test_web_lumen_52:
 	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 update
 	$(Q) $(MAKE) test TESTS=tests/Integrations/Lumen/V5_2
