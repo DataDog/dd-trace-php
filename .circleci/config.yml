@@ -796,20 +796,6 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
-  "Compile _generated":
-    working_directory: ~/datadog
-    docker: [ image: 'circleci/php:7.3-cli' ]
-    steps:
-      - checkout
-      - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_COMPOSER_UPDATE
-      - <<: *STEP_COMPOSER_COMPILE
-      - <<: *STEP_COMPOSER_COMPILE_VERIFY
-      - persist_to_workspace:
-          root: '.'
-          paths:
-            - './bridge/_generated.php'
-
   "Checkout Test Files":
     working_directory: ~/datadog
     docker: [ image: 'circleci/php:7.3-cli' ]
@@ -894,15 +880,9 @@ jobs:
 workflows:
   version: 2
 
-  # build_packages:
-  #   jobs:
-  #     - "Prepare Code":
-  #         filters:
-  #           tags:
-  #             only: /(^build$)|(^[v]?[0-9]+(\.[0-9]+)*$)/
-  #           branches:
-  #             # Always build on master and on release branches
-  #             only: /^.*(master|build|[0-9]+.[0-9]+.[0-9]+|ddtrace-[0-9]+.[0-9]+).*$/
+  build:
+    jobs:
+      - "Prepare Code"
   #     - compile_extension:
   #         name: "Compile PHP 54"
   #         docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
@@ -940,11 +920,11 @@ workflows:
   #         lib_curl_command: yum -y install libcurl-devel
   #         docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
   #         so_suffix: "20170718"
-  #     - compile_extension:
-  #         requires: [ 'Prepare Code' ]
-  #         name: "Compile PHP 73"
-  #         docker_image: "datadog/dd-trace-ci:php-7.3-centos-7"
-  #         so_suffix: "20180731"
+      - compile_extension:
+          requires: [ 'Prepare Code' ]
+          name: "Compile PHP 73"
+          docker_image: "datadog/dd-trace-ci:php-7.3-centos-7"
+          so_suffix: "20180731"
   #     - compile_extension:
   #         requires: [ 'Prepare Code' ]
   #         name: "Compile PHP 74"
@@ -989,15 +969,15 @@ workflows:
   #     - pecl_build:
   #         requires: [ 'Prepare Code' ]
   #         name: "Build PECL"
-  #     - "package extension":
-  #         requires:
+      - "package extension":
+          requires:
   #           - "Compile PHP 54"
   #           - "Compile PHP 55"
   #           - "Compile PHP 56"
   #           - "Compile PHP 70"
   #           - "Compile PHP 71"
   #           - "Compile PHP 72"
-  #           - "Compile PHP 73"
+            - "Compile PHP 73"
   #           - "Compile PHP 74"
   #           - "Compile PHP 56-zts"
   #           - "Compile PHP 70-zts"
@@ -1151,12 +1131,12 @@ workflows:
   #         integration_testsuite: "custom-framework-autoloaded-suite"
   #         docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
 
-  build:
-    jobs:
-      - "Checkout Test Files"
-      - "List Workspaces":
-          requires:
-            - "Checkout Test Files"
+  # build:
+  #   jobs:
+  #     - "Checkout Test Files"
+  #     - "List Workspaces":
+  #         requires:
+  #           - "Checkout Test Files"
       # - "Prepare Code"
       # - compile_extension:
       #     requires: [ 'Prepare Code' ]
