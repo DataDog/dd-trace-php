@@ -530,11 +530,9 @@ test_web_laravel_42:
 	$(Q) $(MAKE) test TESTS=tests/Integrations/Laravel/V4
 test_web_laravel_57:
 	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_7 update
-	$(Q) php tests/Frameworks/Laravel/Version_5_7/artisan optimize
 	$(Q) $(MAKE) test TESTS=tests/Integrations/Laravel/V5_7
 test_web_laravel_58:
 	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_8 update
-	$(Q) php tests/Frameworks/Laravel/Version_5_8/artisan optimize
 	$(Q) $(MAKE) test TESTS=tests/Integrations/Laravel/V5_8
 test_web_lumen_52:
 	$(Q) $(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 update
