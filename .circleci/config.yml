@@ -807,7 +807,20 @@ jobs:
       - <<: *STEP_COMPOSER_COMPILE_VERIFY
       - persist_to_workspace:
           root: '.'
-          paths: ['./bridge/_generated.php']
+          paths:
+            - './bridge/_generated.php'
+
+  "Checkout Test Files":
+    working_directory: ~/datadog
+    docker: [ image: 'circleci/php:7.3-cli' ]
+    steps:
+      - checkout
+      - <<: *STEP_ATTACH_WORKSPACE
+      - persist_to_workspace:
+          root: '.'
+          paths:
+            - 'Makefile'
+            - './tests'
 
   "List Workspace":
     working_directory: ~/datadog
@@ -815,7 +828,7 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: pwd
-      - run: ls -al
+      - run: ls -alr
 
   "Prepare Code":
     working_directory: ~/datadog
