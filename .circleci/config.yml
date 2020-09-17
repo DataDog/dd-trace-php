@@ -189,7 +189,6 @@ commands:
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
-      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
 
 executors:
@@ -424,6 +423,7 @@ jobs:
       - lib_curl_workaround:
           command: << parameters.lib_curl_command >>
       - prepare_extension_and_composer_with_cache
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - copy_valgrind_rc:
@@ -516,7 +516,8 @@ jobs:
       - install_extension
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-base-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
-      - run: composer update --no-interaction --prefer-dist
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_AGENT
@@ -570,7 +571,8 @@ jobs:
           lib_curl_command: << parameters.lib_curl_command >>
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
-      - run: composer update --no-interaction --prefer-dist
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
       - <<: *STEP_WAIT_AGENT
@@ -609,6 +611,7 @@ jobs:
       - lib_curl_workaround:
           command: << parameters.lib_curl_command >>
       - prepare_extension_and_composer_with_cache
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_AGENT
