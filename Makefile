@@ -431,8 +431,8 @@ dev:
 	$(Q) :
 	$(Q) $(eval ENV_OVERRIDE:=$(ENV_OVERRIDE) DD_AUTOLOAD_NO_COMPILE=true)
 
-clean_test:
-	$(Q) rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock
+clean_test: clean_test_scenarios
+	$(Q) rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock $(TESTS_ROOT)/vendor
 	$(Q) find $(TESTS_ROOT)/Frameworks/ -path "*/vendor/*" -prune -o -wholename "*/cache/*.php" -print -exec rm -rf {} \;
 
 clean_test_scenarios:
