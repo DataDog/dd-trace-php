@@ -97,11 +97,6 @@ aliases:
       name: Verifying dd-tace-php files compiled into single file
       command: composer compile-verify
 
-  - &STEP_TESTS_CLEAN
-    run:
-      name: Clearing tests temporarily files
-      command: make clean_test
-
   - &STEP_COMPOSER_TESTS_UPDATE
     run:
       name: Updating tests' composer
@@ -259,7 +254,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!dockerfiles/testing-environment/**/*' '!tests/ext/sandbox/**' '!tests/ext/sandbox-prehook/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.*.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!dockerfiles/**/*.patch' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!src/ext/mpack/**' '!src/ext/third-party/**' '!LICENSE.*' '!tooling/*' '!tests/.scenarios.lock/**' || touch .failure
+          command: node_modules/.bin/eclint check '**/*' '!dockerfiles/testing-environment/**/*' '!tests/ext/sandbox/**' '!tests/ext/sandbox-prehook/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!src/ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.*.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!dockerfiles/**/*.patch' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!src/ext/mpack/**' '!src/ext/third-party/**' '!LICENSE.*' '!tooling/*' || touch .failure
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
