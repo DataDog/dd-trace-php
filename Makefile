@@ -433,6 +433,7 @@ TEST_WEB_74 := \
 
 clean_test:
 	$(Q) rm -rf $(TESTS_ROOT)/composer.lock $(TESTS_ROOT)/.scenarios.lock
+	$(Q) find $(TESTS_ROOT)/Frameworks/ -path "*/vendor/*" -prune -o -wholename "*/cache/*.php" -print -exec rm -rf {} \;
 
 clean_test_scenarios:
 	$(Q) $(TESTS_ROOT)/clean-composer-scenario-locks.sh
