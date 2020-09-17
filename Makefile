@@ -445,24 +445,24 @@ test:
 	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(TESTS)
 
 test_unit:
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=unit $(TESTS)
+	$(Q) $(MAKE) -s test TESTS="--testsuite=unit $(TESTS)"
 
 test_integration:
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=integration $(TESTS)
+	$(Q) $(MAKE) -s test TESTS="--testsuite=integration $(TESTS)"
 
 test_auto_instrumentation:
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=auto-instrumentation $(TESTS)
+	$(Q) $(MAKE) -s test TESTS="--testsuite=auto-instrumentation $(TESTS)"
 	$(Q) # Cleaning up composer.json files in tests/AutoInstrumentation modified for TLS during tests
 	$(Q) git checkout $(TESTS_ROOT)/AutoInstrumentation/**/composer.json
 
 test_composer:
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=composer-tests $(TESTS)
+	$(Q) $(MAKE) -s test TESTS="--testsuite=composer-tests $(TESTS)"
 
 test_distributed_tracing:
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=distributed-tracing $(TESTS)
+	$(Q) $(MAKE) -s test TESTS="--testsuite=distributed-tracing $(TESTS)"
 
 test_metrics:
-	$(Q) $(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) --testsuite=metrics $(TESTS)
+	$(Q) $(MAKE) -s test TESTS="--testsuite=metrics $(TESTS)"
 
 test_opentracing_10:
 	$(Q) $(MAKE) test_scenario_opentracing1
