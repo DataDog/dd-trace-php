@@ -822,7 +822,7 @@ jobs:
             - 'Makefile'
             - './tests'
 
-  "List Workspace":
+  "List Workspaces":
     working_directory: ~/datadog
     docker: [ image: 'circleci/php:7.3-cli' ]
     steps:
@@ -1153,10 +1153,10 @@ workflows:
 
   build:
     jobs:
-      - "Compile _generated"
-      - "List Workspace":
+      - "Checkout Test Files"
+      - "List Workspaces":
           requires:
-            - "Compile _generated"
+            - "Checkout Test Files"
       # - "Prepare Code"
       # - compile_extension:
       #     requires: [ 'Prepare Code' ]
