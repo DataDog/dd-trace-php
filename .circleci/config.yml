@@ -814,7 +814,7 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: pwd
-      - run: ls -alr
+      - run: ls -alr .
 
   "Prepare Code":
     working_directory: ~/datadog
@@ -986,6 +986,9 @@ workflows:
   #           - "Compile PHP 73-zts"
   #           - "Compile PHP 74-zts"
   #           - "Build PECL"
+      - "List Workspaces":
+          requires:
+            - "package extension"
   #     - "package verification":
   #         requires:
   #           - "package extension"
