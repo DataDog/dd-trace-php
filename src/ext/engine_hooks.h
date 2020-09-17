@@ -30,7 +30,11 @@ int64_t ddtrace_compile_time_get(TSRMLS_D);
 struct ddtrace_error_handling {
     int type;
     int lineno;
+#if PHP_VERSION_ID < 80000
     char *message;
+#else
+    zend_string *message;
+#endif
     char *file;
     int error_reporting;
     zend_error_handling error_handling;

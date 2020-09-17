@@ -25,7 +25,7 @@ zval ddtrace_zval_stringl(const char *str, size_t len);
 
 inline zval ddtrace_zval_long(zend_long num) {
     zval zv;
-    ZVAL_LONG(&zv, num)
+    ZVAL_LONG(&zv, num);
     return zv;
 }
 

@@ -20,7 +20,7 @@
         }
     ],
     "require": {
-        "php": "^5.4 || ^7.0",
+        "php": "^5.4 || ^7.0 || ^8.0.0",
         "ext-curl": "*",
         "ext-json": "*"
     },
@@ -72,7 +72,7 @@
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
         ],
         "install-ext": [
-            "make sudo install_ini install $*",
+            "make sudo install install_ini $*",
             "@composer compile",
             "@composer compile-verify"
         ],

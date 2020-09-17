@@ -72,8 +72,11 @@ static zend_class_entry *dd_get_exception_base(zval *object) {
 #elif PHP_VERSION_ID < 70200
 #define GET_PROPERTY(object, id) \
     zend_read_property_ex(dd_get_exception_base(object), (object), CG(known_strings)[id], 1, &rv)
-#else
+#elif PHP_VERSION_ID < 80000
 #define GET_PROPERTY(object, id) zend_read_property_ex(dd_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
+#else
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(dd_get_exception_base(object), Z_OBJ_P(object), ZSTR_KNOWN(id), 1, &rv)
 #endif
 
 static void dd_try_fetch_executing_function_name(zend_execute_data *call, const char **scope, const char **colon,
@@ -97,11 +100,14 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
     va_list argv;
 
     va_start(argv, argc);
+#if PHP_VERSION_ID < 80000
     ret = zend_fcall_info_argv(fci, argc, &argv);
-    va_end(argv);
-
     // The only way we mess this up is by passing in argc < 0
     ZEND_ASSERT(ret == SUCCESS);
+#else
+    zend_fcall_info_argv(fci, (uint32_t)argc, &argv);
+#endif
+    va_end(argv);
 
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
     ret = zend_call_function(fci, fcc);
@@ -953,14 +959,14 @@ static int dd_yield_from_handler(zend_execute_data *execute_data) {
 }
 #endif
 
-#if PHP_MINOR_VERSION == 0
+#if PHP_VERSION_ID < 70100
 static zend_op *dd_get_next_catch_block(zend_execute_data *execute_data, zend_op *opline) {
     if (opline->result.num) {
         return NULL;
     }
     return &EX(func)->op_array.opcodes[opline->extended_value];
 }
-#elif PHP_MINOR_VERSION < 3
+#elif PHP_VERSION_ID < 70300
 static zend_op *dd_get_next_catch_block(zend_op *opline) {
     if (opline->result.num) {
         return NULL;
@@ -978,13 +984,13 @@ static zend_op *dd_get_next_catch_block(zend_op *opline) {
 
 static zend_class_entry *dd_get_catching_ce(zend_execute_data *execute_data, const zend_op *opline) {
     zend_class_entry *catch_ce = NULL;
-#if PHP_MINOR_VERSION < 3
+#if PHP_VERSION_ID < 70300
     catch_ce = CACHED_PTR(Z_CACHE_SLOT_P(EX_CONSTANT(opline->op1)));
     if (catch_ce == NULL) {
         catch_ce = zend_fetch_class_by_name(Z_STR_P(EX_CONSTANT(opline->op1)), EX_CONSTANT(opline->op1) + 1,
                                             ZEND_FETCH_CLASS_NO_AUTOLOAD);
     }
-#elif PHP_MINOR_VERSION == 3
+#elif PHP_VERSION_ID < 70400
     catch_ce = CACHED_PTR(opline->extended_value & ~ZEND_LAST_CATCH);
     if (catch_ce == NULL) {
         catch_ce = zend_fetch_class_by_name(Z_STR_P(RT_CONSTANT(opline, opline->op1)),
@@ -1040,7 +1046,7 @@ static bool dd_is_catching_frame(zend_execute_data *execute_data) {
                         return true;
                     }
                 }
-#if PHP_MINOR_VERSION == 0
+#if PHP_VERSION_ID < 70100
                 opline = dd_get_next_catch_block(execute_data, opline);
 #else
                 opline = dd_get_next_catch_block(opline);

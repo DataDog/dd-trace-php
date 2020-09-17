@@ -4,6 +4,8 @@
 #include <php.h>
 #include <php_version.h>
 
+#include "compatibility.h"
+
 #if PHP_VERSION_ID < 70000
 int ddtrace_spprintf(char **message, size_t max_len, char *format, ...) {
     va_list arg;
@@ -150,6 +152,11 @@ try_again:
 
         case IS_OBJECT: {
             zval tmp;
+#if PHP_VERSION_ID >= 80000
+            if (Z_OBJ_HT_P(op)->cast_object(Z_OBJ_P(op), &tmp, IS_STRING) == SUCCESS) {
+                return Z_STR(tmp);
+            }
+#else
             if (Z_OBJ_HT_P(op)->cast_object) {
                 if (Z_OBJ_HT_P(op)->cast_object(op, &tmp, IS_STRING) == SUCCESS) {
                     return Z_STR(tmp);
@@ -162,6 +169,7 @@ try_again:
                     return str;
                 }
             }
+#endif
             zend_string *class_name = Z_OBJ_HANDLER_P(op, get_class_name)(Z_OBJ_P(op));
             zend_string *message = strpprintf(0, "object(%s)#%d", ZSTR_VAL(class_name), Z_OBJ_HANDLE_P(op));
             zend_string_release(class_name);
