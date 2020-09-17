@@ -194,7 +194,7 @@ commands:
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
-
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
 
 executors:
@@ -794,7 +794,6 @@ jobs:
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_COMPILE
       - <<: *STEP_COMPOSER_COMPILE_VERIFY
-      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - run:
           name: Showing folder containing generated files
           command: ls -al ~/datadog/bridge
