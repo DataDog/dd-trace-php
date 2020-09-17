@@ -313,7 +313,8 @@ jobs:
       - run:
           name: Set php.ini defaults
           command: printf "date.timezone=UTC\nmemory_limit=-1\n" | sudo tee -a /usr/local/etc/php/php.ini
-      - run: composer update
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - run:
           name: Install extension
           command: make debug all sudo install install_ini
@@ -327,7 +328,7 @@ jobs:
               cat /tmp/jobs.txt
               for job in $(cat /tmp/jobs.txt) ; do
                   echo "Running ${job}"
-                  composer "${job}"
+                  make "${job}"
               done
 
   "Post-Install Hook":
