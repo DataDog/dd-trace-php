@@ -5,7 +5,6 @@ namespace DDTrace\Tests\Integrations\Slim\V3_12;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
-use DDTrace\Util\Versions;
 
 final class CommonScenariosTest extends WebFrameworkTestCase
 {
@@ -38,9 +37,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
 
     public function provideSpecs()
     {
-        if (Versions::phpVersionMatches('5.6')) {
+        if (\PHP_MAJOR_VERSION < 7) {
             // Controller's __invoke method is not traced until we support tracing prehook
-            // zend_execute_internals so some metadata is missing in 5.6, e.g. controller name.
+            // zend_execute_internals so some metadata is missing in 5, e.g. controller name.
             return $this->buildDataProvider(
                 [
                     'A simple GET request returning a string' => [

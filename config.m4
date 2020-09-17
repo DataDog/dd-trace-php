@@ -136,7 +136,10 @@ if test "$PHP_DDTRACE" != "no"; then
 
   if test $PHP_VERSION -lt 50500; then
     PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5_4])
-  elif test $PHP_VERSION -lt 70000; then
+  fi
+
+  dnl PHP 5.4 uses things from the php5 folder too
+  if test $PHP_VERSION -lt 70000; then
     PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5])
   elif test $PHP_VERSION -lt 80000; then
     PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php7])

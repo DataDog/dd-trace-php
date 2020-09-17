@@ -20,7 +20,7 @@
         }
     ],
     "require": {
-        "php": "~5.4.0 || ~5.6.0 || ^7.0",
+        "php": "^5.4 || ^7.0",
         "ext-curl": "*",
         "ext-json": "*"
     },
@@ -91,6 +91,15 @@
             "@test-integrations-54",
             "@test-web-54"
         ],
+        "test-all-55": [
+            "@test-unit",
+            "@test-auto-instrumentation",
+            "@test-distributed-tracing",
+            "@test-composer",
+            "@test-integration",
+            "@test-integrations-55",
+            "@test-web-55"
+        ],
         "test-all-56": [
             "@test-unit",
             "@test-auto-instrumentation",
@@ -158,6 +167,20 @@
             "@composer test-pdo",
             "@composer test-elasticsearch1",
             "@composer test-guzzle5",
+            "@composer test-predis1",
+            "@composer scenario default"
+        ],
+        "test-integrations-55": [
+            "sh clean-composer-scenario-locks.sh",
+            "@composer scenario:update",
+            "@composer test-curl",
+            "@composer test-memcached",
+            "@composer test-mysqli",
+            "@composer test-mongo",
+            "@composer test-pdo",
+            "@composer test-elasticsearch1",
+            "@composer test-guzzle5",
+            "@composer test-guzzle6",
             "@composer test-predis1",
             "@composer scenario default"
         ],
@@ -260,6 +283,36 @@
             "@laravel-42-update",
             "@laravel-42-test",
             "@yii-2-suite",
+            "@zend-framework-1-test",
+            "@custom-framework-autoloaded-suite"
+        ],
+        "update-web-55": [
+            "@cakephp-28-update",
+            "@laravel-42-update",
+            "@lumen-52-update",
+            "@slim-312-update",
+            "@symfony-23-update",
+            "@symfony-28-update",
+            "@symfony-30-update",
+            "@symfony-33-update",
+            "@symfony-34-update",
+            "@yii-2-update"
+        ],
+        "test-web-55": [
+            "@test-metrics",
+            "@update-web-55",
+            "@cakephp-28-test",
+            "@codeigniter-22-test",
+            "@laravel-42-test",
+            "@lumen-52-test",
+            "@slim-312-test",
+            "@symfony-23-test",
+            "@symfony-28-test",
+            "@symfony-30-test",
+            "@symfony-33-test",
+            "@symfony-34-test",
+            "@yii-2-test",
+            "@wordpress-48-test",
             "@zend-framework-1-test",
             "@custom-framework-autoloaded-suite"
         ],
@@ -493,12 +546,14 @@
 
         "cakephp-28-update": "@composer --working-dir=tests/Frameworks/CakePHP/Version_2_8 update",
         "cakephp-28-test": "@composer test -- --testsuite=cakephp-28-test",
+        "cakephp-28-suite": ["@cakephp-28-update", "@cakephp-28-test" ],
 
         "codeigniter-22-test": "@composer test -- --testsuite=codeigniter-22-test",
 
         "laravel-42-update": "@composer --working-dir=tests/Frameworks/Laravel/Version_4_2 update",
         "laravel-42-optimize": "@php tests/Frameworks/Laravel/Version_4_2/artisan optimize",
         "laravel-42-test": "@composer test -- tests/Integrations/Laravel/V4",
+        "laravel-42-suite": ["@laravel-42-update", "@laravel-42-test" ],
 
         "laravel-57-update": "@composer --working-dir=tests/Frameworks/Laravel/Version_5_7 update",
         "laravel-57-test": "@composer test -- tests/Integrations/Laravel/V5_7",
@@ -508,6 +563,8 @@
 
         "lumen-52-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_2 update",
         "lumen-52-test": "@composer test -- tests/Integrations/Lumen/V5_2/",
+        "lumen-52-suite": ["@lumen-52-update", "@lumen-52-test" ],
+
         "lumen-56-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_6 update",
         "lumen-56-test": "@composer test -- tests/Integrations/Lumen/V5_6/",
         "lumen-58-update": "@composer --working-dir=tests/Frameworks/Lumen/Version_5_8 update",
@@ -515,6 +572,7 @@
 
         "slim-312-update": "@composer --working-dir=tests/Frameworks/Slim/Version_3_12 update",
         "slim-312-test": "@composer test -- --testsuite=slim-312-test",
+        "slim-312-suite": ["@slim-312-update", "@slim-312-test"],
 
         "symfony-23-update": [
             "@composer --working-dir=tests/Frameworks/Symfony/Version_2_3 update"
