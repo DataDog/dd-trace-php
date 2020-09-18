@@ -1235,7 +1235,7 @@ workflows:
       #     xdebug_version_one: "2.9.2"
       #     xdebug_version_two: "2.9.5"
       - unit_tests:
-          requires: [ 'Checkout test files', 'Compile _generated.php' ]
+          requires: [ 'Checkout test files', 'package extension' ]
           name: "PHP 73 Unit tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           valgrind_config: 7_3_musl
