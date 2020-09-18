@@ -862,6 +862,7 @@ jobs:
     working_directory: ~/datadog
     docker: [ image: 'datadog/docker-library:ddtrace_php_fpm_packaging' ]
     steps:
+      - checkout
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Build packages
