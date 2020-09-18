@@ -1237,7 +1237,7 @@ workflows:
       - unit_tests:
           requires: [ 'Checkout test files', 'package extension' ]
           name: "PHP 73 Unit tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3"
           valgrind_config: 7_3_musl
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       # - opcache_tests:
