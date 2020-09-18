@@ -144,56 +144,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
         $loader->loadAll();
         $this->assertSame(Integration::LOADED, $loader->getLoadingStatus('integration_1'));
     }
-
-    public function testWeDidNotForgetToRegisterALibraryForAutoLoading()
-    {
-        if (Versions::phpVersionMatches('5.4')) {
-            $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4 so we cannot check for all integrations.');
-        }
-
-        $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
-
-        $excluded = [];
-        if (\PHP_MAJOR_VERSION < 7) {
-            $excluded[] = 'phpredis'; // PHP 7 only integration
-        } else {
-            // Deferred loading integrations
-            $excluded[] = 'elasticsearch';
-            $excluded[] = 'phpredis';
-            $excluded[] = 'predis';
-        }
-        foreach ($excluded as $integrationToExclude) {
-            $index = array_search($integrationToExclude, $expected, true);
-            unset($expected[$index]);
-        }
-
-        \ksort($expected);
-
-        $integrations = IntegrationsLoader::get()->getIntegrations();
-        \ksort($integrations);
-        $loaded = $this->normalize(array_keys($integrations));
-
-        // If this test fails you need to add an entry to IntegrationsLoader::LIBRARIES array.
-        $this->assertEquals(array_values($expected), array_values($loaded));
-    }
-
-    /**
-     * Normalizes integrations folders/names to a simplified format suitable for easy comparison.
-     *
-     * @param array $array_map
-     * @return array
-     */
-    private function normalize(array $array_map)
-    {
-        return array_map(function ($entry) {
-            if (strrpos($entry, '/')) {
-                $name = substr($entry, strrpos($entry, '/') + 1);
-            } else {
-                $name = $entry;
-            }
-            return strtolower($name);
-        }, $array_map);
-    }
 }
 
 class DummyIntegration1
