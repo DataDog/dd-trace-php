@@ -7,6 +7,7 @@ SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
 VERSION:=$(shell cat src/DDTrace/version.php | grep return | awk '{print $$2}' | cut -d\' -f2)
 VERSION_WITHOUT_SUFFIX:=$(shell cat src/DDTrace/version.php | grep return | awk '{print $$2}' | cut -d\' -f2 | cut -d- -f1)
@@ -444,6 +445,15 @@ composer_tests_update:
 test:
 	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(TESTS)
 
+test_all: \
+	test_unit \
+	test_integration \
+	test_auto_instrumentation \
+	test_composer \
+	test_distributed_tracing
+	test_integrations \
+	test_web
+
 test_unit:
 	$(MAKE) -s test TESTS="--testsuite=unit $(TESTS)"
 
@@ -468,22 +478,8 @@ test_opentracing_10:
 	$(MAKE) test_scenario_opentracing1
 	$(MAKE) test TESTS=tests/OpenTracerUnit
 
-test_integrations_54: $(TEST_INTEGRATIONS_54)
-test_integrations_55: $(TEST_INTEGRATIONS_55)
-test_integrations_56: $(TEST_INTEGRATIONS_56)
-test_integrations_70: $(TEST_INTEGRATIONS_70)
-test_integrations_71: $(TEST_INTEGRATIONS_71)
-test_integrations_72: $(TEST_INTEGRATIONS_72)
-test_integrations_73: $(TEST_INTEGRATIONS_73)
-test_integrations_74: $(TEST_INTEGRATIONS_74)
-test_web_54: $(TEST_WEB_54)
-test_web_55: $(TEST_WEB_55)
-test_web_56: $(TEST_WEB_56)
-test_web_70: $(TEST_WEB_70)
-test_web_71: $(TEST_WEB_71)
-test_web_72: $(TEST_WEB_72)
-test_web_73: $(TEST_WEB_73)
-test_web_74: $(TEST_WEB_74)
+test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
+test_web: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
 
 test_integrations_curl:
 	$(MAKE) test TESTS=tests/Integrations/Curl
