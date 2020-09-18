@@ -100,7 +100,7 @@ EOD;
         $this->putEnvAndReloadConfig(['DD_INTEGRATIONS_DISABLED=pdo,slim']);
         $this->assertFalse(\ddtrace_config_integration_enabled('pdo'));
         $this->assertFalse(\ddtrace_config_integration_enabled('slim'));
-        $this->assertTrue(\ddtrace_config_integration_enabled('mysqli'));
+        $this->assertFalse(\ddtrace_config_integration_enabled('mysqli'));
     }
 
     public function testIntegrationsDisabledIfGlobalDisabledDeprecatedEnv()
