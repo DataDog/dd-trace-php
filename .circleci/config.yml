@@ -435,6 +435,9 @@ jobs:
       - run:
           name: Run unit tests
           command: make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
+      - run:
+          name: Run API tests
+          command: make test_api_unit
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
