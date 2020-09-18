@@ -441,22 +441,21 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
           command: << parameters.lib_curl_command >>
-      - prepare_extension_and_composer_with_cache
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      - copy_valgrind_rc:
-          valgrind_config: << parameters.valgrind_config >>
-      - run:
-          name: Run extension tests with leak detection
-          command: make << parameters.unit_test_target >> BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
+      # - copy_valgrind_rc:
+      #     valgrind_config: << parameters.valgrind_config >>
+      # - run:
+      #     name: Run extension tests with leak detection
+      #     command: make << parameters.unit_test_target >> BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
       - run:
           name: Run unit tests
           command: make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
-      - run:
-          name: Run API tests
-          command: make test_api_unit
-      - <<: *STEP_PERSIST_TO_WORKSPACE
+      # - run:
+      #     name: Run API tests
+      #     command: make test_api_unit
+      # - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
@@ -810,6 +809,17 @@ jobs:
           paths:
             - './bridge/_generated.php'
 
+  add_test_files_into_workspace:
+    working_directory: ~/datadog
+    docker: [ image: 'cimg/base:2020.01' ]
+    steps:
+      - checkout
+      - persist_to_workspace:
+          root: '.'
+          paths:
+            - Makefile
+            - ./tests
+
   "Checkout Test Files":
     working_directory: ~/datadog
     docker: [ image: 'circleci/php:7.3-cli' ]
@@ -897,6 +907,8 @@ workflows:
 
   build:
     jobs:
+      - add_test_files_into_workspace:
+          name: Checkout test files
       - compile_generated_file:
           name: Compile _generated.php
       # - compile_extension:
@@ -1222,12 +1234,12 @@ workflows:
       #     docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
       #     xdebug_version_one: "2.9.2"
       #     xdebug_version_two: "2.9.5"
-      # - unit_tests:
-      #     requires: [ 'Prepare Code' ]
-      #     name: "PHP 73 Unit tests"
-      #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
-      #     valgrind_config: 7_3_musl
-      #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - unit_tests:
+          requires: [ 'Checkout test files', 'Compile _generated.php' ]
+          name: "PHP 73 Unit tests"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
+          valgrind_config: 7_3_musl
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       # - opcache_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 73 opcache tests"
