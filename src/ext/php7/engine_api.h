@@ -35,6 +35,12 @@ inline zval ddtrace_zval_null(void) {
     return zv;
 }
 
+inline zval ddtrace_zval_undef(void) {
+    zval zv;
+    ZVAL_UNDEF(&zv);
+    return zv;
+}
+
 ZEND_RESULT_CODE ddtrace_call_method(zend_object *obj, zend_class_entry *ce, zend_function **fn_proxy,
                                      const char *fname, size_t fname_len, zval *retval, int argc, zval *argv);
 ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *name, size_t name_len, zval *retval,
