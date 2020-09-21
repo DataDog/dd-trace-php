@@ -1121,28 +1121,28 @@ workflows:
   #         name: "PHP 54 web tests with nginx + FastCGI"
   #         resource_class: medium+
   #         sapi: cgi-fcgi
-  #         integration_testsuite: "test_web_54"
+  #         integration_testsuite: "test_web"
   #         docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
   #     - integration_tests:
   #         requires: [ 'Prepare Code' ]
   #         name: "PHP 72 web tests with nginx + FastCGI"
   #         resource_class: medium+
   #         sapi: cgi-fcgi
-  #         integration_testsuite: "test_web_72"
+  #         integration_testsuite: "test_web"
   #         docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
   #     - integration_tests:
   #         requires: [ 'Prepare Code' ]
   #         name: "PHP 73 web tests with nginx + FastCGI"
   #         resource_class: medium+
   #         sapi: cgi-fcgi
-  #         integration_testsuite: "test_web_73"
+  #         integration_testsuite: "test_web"
   #         docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
   #     - integration_tests:
   #         requires: [ 'Prepare Code' ]
   #         name: "PHP 74 web tests with nginx + FastCGI"
   #         resource_class: medium+
   #         sapi: cgi-fcgi
-  #         integration_testsuite: "test_web_74"
+  #         integration_testsuite: "test_web"
   #         docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
   #     - integration_tests:
   #         requires: [ 'Prepare Code' ]
@@ -1340,48 +1340,48 @@ workflows:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 54 Integration tests"
       #     docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-      #     integration_testsuite: "test_integrations_54"
+      #     integration_testsuite: "test_integrations"
       #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 56 Integration tests"
-      #     integration_testsuite: "test_integrations_56"
+      #     integration_testsuite: "test_integrations"
       #     docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug"
       #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 70 Integration tests"
-      #     integration_testsuite: "test_integrations_70"
+      #     integration_testsuite: "test_integrations"
       #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
       #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 71 Integration tests"
-      #     integration_testsuite: "test_integrations_71"
+      #     integration_testsuite: "test_integrations"
       #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
       #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 72 Integration tests"
-      #     integration_testsuite: "test_integrations_72"
+      #     integration_testsuite: "test_integrations"
       #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
       #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Checkout test files', 'package extension' ]
           name: "PHP 73 Integration tests"
-          integration_testsuite: "test_integrations_73"
+          integration_testsuite: "test_integrations"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 Integration tests"
-      #     integration_testsuite: "test_integrations_74"
+      #     integration_testsuite: "test_integrations"
       #     docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 54 Web integration tests"
       #     docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-      #     integration_testsuite: "test_web_54"
+      #     integration_testsuite: "test_web"
       #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
       # - "Composer Tests 55":
       #     requires: [ 'Prepare Code' ]
@@ -1389,38 +1389,38 @@ workflows:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 56 Web integration tests"
       #     resource_class: medium+
-      #     integration_testsuite: "test_web_56"
+      #     integration_testsuite: "test_web"
       #     # docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
       #     docker_image: "datadog/docker-library:ddtrace_php_5_6"
       #     lib_curl_command: sudo apt update ; sudo apt-get -y install libcurl4-nss-dev
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 70 Web integration tests"
-      #     integration_testsuite: "test_web_70"
+      #     integration_testsuite: "test_web"
       #     docker_image: "datadog/dd-trace-ci:php-dev-7.0"
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 71 Web integration tests"
       #     resource_class: medium+
-      #     integration_testsuite: "test_web_71"
+      #     integration_testsuite: "test_web"
       #     docker_image: "datadog/dd-trace-ci:php-dev-7.1"
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 72 Web integration tests"
       #     resource_class: medium+
-      #     integration_testsuite: "test_web_72"
+      #     integration_testsuite: "test_web"
       #     docker_image: "datadog/dd-trace-ci:php-dev-7.2"
       - integration_tests:
           requires: [ 'Checkout test files', 'package extension' ]
           name: "PHP 73 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test_web_73"
+          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.3"
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 Web integration tests"
       #     resource_class: medium+
-      #     integration_testsuite: "test_web_74"
+      #     integration_testsuite: "test_web"
       #     docker_image: "datadog/dd-trace-ci:php-dev-7.4"
       # - hyperfine_tests:
       #     requires: [ 'Prepare Code' ]
