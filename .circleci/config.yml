@@ -476,7 +476,6 @@ jobs:
       # - run:
       #     name: Run API tests
       #     command: make test_api_unit
-      - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
