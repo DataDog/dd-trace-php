@@ -1345,7 +1345,7 @@ workflows:
       - base_integration_tests:
           requires: [ 'Checkout test files', 'package extension' ]
           name: "PHP 73 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.3"
+          docker_image: "datadog/dd-trace-ci:php-7.3-buster"
       # - base_integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 base integration tests"
@@ -1384,7 +1384,7 @@ workflows:
           requires: [ 'Checkout test files', 'package extension' ]
           name: "PHP 73 Integration tests"
           integration_testsuite: "test_integrations"
-          docker_image: "datadog/dd-trace-ci:php-7.3"
+          docker_image: "datadog/dd-trace-ci:php-7.3-buster"
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 Integration tests"
