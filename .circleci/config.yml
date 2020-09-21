@@ -1433,12 +1433,12 @@ workflows:
       #     resource_class: medium+
       #     integration_testsuite: "test_web"
       #     docker_image: "datadog/dd-trace-ci:php-dev-7.2"
-      # - integration_tests:
-      #     requires: [ 'Checkout test files', 'package extension' ]
-      #     name: "PHP 73 Web integration tests"
-      #     resource_class: medium+
-      #     integration_testsuite: "test_web"
-      #     docker_image: "datadog/dd-trace-ci:php-dev-7.3"
+      - integration_tests:
+          requires: [ 'Checkout test files', 'package extension' ]
+          name: "PHP 73 Web integration tests"
+          resource_class: medium+
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-7.3-buster"
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 Web integration tests"
