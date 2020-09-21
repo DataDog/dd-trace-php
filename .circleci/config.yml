@@ -1017,11 +1017,11 @@ workflows:
           name: "Compile PHP 73"
           docker_image: "datadog/dd-trace-ci:php-7.3-centos-7"
           so_suffix: "20180731"
-      # - compile_extension:
-      #     requires: [ 'Compile _generated.php' ]
-      #     name: "Compile PHP 74"
-      #     docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
-      #     so_suffix: "20190902"
+      - compile_extension:
+          requires: [ 'Compile _generated.php' ]
+          name: "Compile PHP 74"
+          docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
+          so_suffix: "20190902"
       # - compile_extension:
       #     requires: [ 'Compile _generated.php' ]
       #     name: "Compile PHP 56-zts"
@@ -1070,7 +1070,7 @@ workflows:
             # - "Compile PHP 71"
             # - "Compile PHP 72"
             - "Compile PHP 73"
-            # - "Compile PHP 74"
+            - "Compile PHP 74"
             # - "Compile PHP 56-zts"
             # - "Compile PHP 70-zts"
             # - "Compile PHP 71-zts"
@@ -1300,7 +1300,9 @@ workflows:
       #     xdebug_version_two: "2.9.5"
       - unit_tests_v1:
           requires: [ 'Checkout test files', 'package extension' ]
-          php_version: "7.3"
+          php_version:
+            - "7.3"
+            - "7.4"
       # - opcache_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 73 opcache tests"
