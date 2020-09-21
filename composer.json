@@ -51,7 +51,9 @@
     "scripts": {
         "compile": [
             "classpreloader.php compile --config=./bridge/_files.php --output=./bridge/_generated.php --strip_comments=1",
-            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g\" ./bridge/_generated.php"
+            "classpreloader.php compile --config=./bridge/_files_opentracing.php --output=./bridge/_generated_opentracing.php --strip_comments=1",
+            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g\" ./bridge/_generated.php",
+            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g\" ./bridge/_generated_opentracing.php"
         ],
         "compile-verify": "php ./bridge/autoload.php",
         "fix-lint": "phpcbf",

@@ -59,13 +59,58 @@ if (!dd_tracing_enabled()) {
 }
 
 // Required classes and functions
-require __DIR__ . '/autoload.php';
+if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true' || !file_exists(__DIR__ . '/_generated.php')) {
+    // Development
+    $files = include __DIR__ . '/_files.php';
+    foreach ($files as $file) {
+        require $file;
+    }
+} else {
+    // Production
+    require_once __DIR__ . '/_generated.php';
+}
+
 if (\PHP_MAJOR_VERSION === 5) {
     require __DIR__ . '/php5.php';
 }
 
+/**
+ * Autoloader for optional opent racing dependencing.
+ *
+ * @package DDTrace\Bridge
+ */
+class OpentracingAutoloader
+{
+    private $loaded = false;
+
+    public function load($class)
+    {
+        if ($this->loaded) {
+            return;
+        }
+        $this->loaded = true;
+
+        $prefix = 'DDTrace\\OpenTracer\\';
+        $len = strlen($prefix);
+        if (strncmp('', $class, $len) !== 0) {
+            return;
+        }
+
+        if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
+            // Development
+            $files = include __DIR__ . '/_files_opentracing.php';
+            foreach ($files as $file) {
+                require $file;
+            }
+        } else {
+            // Production
+            require_once __DIR__ . '/_generated_opentracing.php';
+        }
+    }
+}
+
 // Optional classes and functions
-require __DIR__ . '/dd_register_optional_deps_autoloader.php';
+spl_autoload_register([new OpentracingAutoloader(), 'load']);
 
 Bootstrap::tracerOnce();
 IntegrationsLoader::load();
