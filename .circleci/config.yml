@@ -1311,12 +1311,7 @@ workflows:
           # name: "Unit Tests"
           matrix:
             parameters:
-              php_version:
-                - "7.0"
-                - "7.1"
-                - "7.2"
-                - "7.3"
-                - "7.4"
+              php_version: *ALL_PHP_VERSIONS
       - placeholder:
           requires: [ unit_tests_v1 ]
       # - opcache_tests:
