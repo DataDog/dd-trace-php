@@ -461,7 +461,6 @@ jobs:
       docker_image: << parameters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - install_composer
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
@@ -1266,9 +1265,8 @@ workflows:
       - unit_tests:
           requires: [ 'Checkout test files', 'package extension' ]
           name: "PHP 73 Unit tests"
-          docker_image: "php:7.3-cli"
+          docker_image: "datadog/dd-trace-ci:php-7.3-buster"
           valgrind_config: 7_3_musl
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       # - opcache_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 73 opcache tests"
