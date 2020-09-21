@@ -479,7 +479,7 @@ test_opentracing_10:
 	$(MAKE) test TESTS=tests/OpenTracerUnit
 
 test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
-test_web: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
+test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))
 
 test_integrations_curl:
 	$(MAKE) test TESTS=tests/Integrations/Curl
