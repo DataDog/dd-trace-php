@@ -94,7 +94,7 @@ static bool _dd_load_curl_integration(void) {
 }
 
 static void _dd_ArrayKVStore_deleteResource(zval *ch) {
-    zval retval;
+    zval retval = ddtrace_zval_undef();
     zend_call_method_with_1_params(NULL, _dd_ArrayKVStore_ce, &_dd_ArrayKVStore_deleteResource_fe, "deleteresource",
                                    &retval, ch);
 }
@@ -107,7 +107,7 @@ static zval dd_ArrayKVStore_getForResource(zval *ch, zval *format, zval *value) 
 }
 
 static void _dd_ArrayKVStore_putForResource(zval *ch, zval *format, zval *value) {
-    zval retval = {.u1.type_info = IS_UNDEF}, args[3] = {*ch, *format, *value};
+    zval retval = ddtrace_zval_undef(), args[3] = {*ch, *format, *value};
     zend_function **fn_proxy = &_dd_ArrayKVStore_putForResource_fe;
     ddtrace_call_method(NULL, _dd_ArrayKVStore_ce, fn_proxy, ZEND_STRL("putForResource"), &retval, 3, args);
     zval_ptr_dtor(&retval);
@@ -156,7 +156,7 @@ static ZEND_RESULT_CODE dd_span_context_new(zval *context, zval trace_id, zval s
 
     zval construct_args[3] = {trace_id, span_id, parent_id};
 
-    zval retval = {.u1.type_info = IS_UNDEF};
+    zval retval = ddtrace_zval_undef();
     ZEND_RESULT_CODE result = ddtrace_call_method(Z_OBJ_P(context), _dd_SpanContext_ce, &_dd_SpanContext_ctor,
                                                   ZEND_STRL("__construct"), &retval, 3, construct_args);
     zval_ptr_dtor(&retval);
@@ -170,7 +170,7 @@ static ZEND_RESULT_CODE dd_span_context_new(zval *context, zval trace_id, zval s
 
 // headers will get modified!
 static ZEND_RESULT_CODE dd_tracer_inject_helper(zval *headers, zval *format, ddtrace_span_t *span) {
-    zval tracer;
+    zval tracer = ddtrace_zval_undef();
     // $tracer = \DDTrace\GlobalTracer::get();
     if (ddtrace_call_method(NULL, _dd_GlobalTracer_ce, &_dd_GlobalTracer_get_fe, ZEND_STRL("get"), &tracer, 0, NULL) ==
         FAILURE) {
@@ -184,7 +184,7 @@ static ZEND_RESULT_CODE dd_tracer_inject_helper(zval *headers, zval *format, ddt
      * which exists only on userland span contexts. For both these reasons we
      * fetch the Tracer's active span.
      */
-    zval active_span, active_context = ddtrace_zval_null();
+    zval active_span = ddtrace_zval_undef(), active_context = ddtrace_zval_null();
     zval origin = ddtrace_zval_null();
     if (ddtrace_call_method(Z_OBJ(tracer), Z_OBJ(tracer)->ce, NULL, ZEND_STRL("getActiveSpan"), &active_span, 0,
                             NULL) != SUCCESS) {
@@ -224,13 +224,13 @@ static ZEND_RESULT_CODE dd_tracer_inject_helper(zval *headers, zval *format, ddt
         goto cleanup_active_context;
     }
 
-    zval context;
+    zval context = ddtrace_zval_undef();
     if (UNEXPECTED(dd_span_context_new(&context, trace_id, span_id, parent_id, origin) != SUCCESS)) {
         goto cleanup_origin;
     }
 
     zval inject_args[3] = {context, *format, *headers};
-    zval retval;
+    zval retval = ddtrace_zval_undef();
     // $tracer->inject($context, Format::CURL_HTTP_HEADERS, $httpHeaders);
     result = ddtrace_call_method(Z_OBJ(tracer), Z_OBJ(tracer)->ce, NULL, ZEND_STRL("inject"), &retval, 3, inject_args);
     if (EXPECTED(result == SUCCESS)) {
@@ -266,7 +266,7 @@ static void dd_add_headers_to_curl_handle(zval *curl_handle, ddtrace_span_fci *a
         zval *format = &_dd_format_curl_http_headers;
         if (dd_tracer_inject_helper(&http_headers, format, active_span ? &active_span->span : NULL) == SUCCESS) {
             zval setopt_args[3] = {*curl_handle, _dd_curl_httpheaders, http_headers};
-            zval retval;
+            zval retval = ddtrace_zval_undef();
             // todo: cache curl_setopt lookup
             ddtrace_call_function(NULL, ZEND_STRL("curl_setopt"), &retval, 3, setopt_args);
             zval_ptr_dtor(&retval);

@@ -2,8 +2,6 @@
 [Sandbox regression] Recursive calls will trace only outermost invocation
 --DESCRIPTION--
 This differs from the original dd_trace() test in that the original call is always forwarded before the tracing closure is called
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 function test($c, $end){
