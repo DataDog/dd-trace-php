@@ -1308,7 +1308,7 @@ workflows:
       #     xdebug_version_two: "2.9.5"
       - unit_tests_v1:
           requires: [ 'Checkout test files', 'package extension' ]
-          name: "Unit Tests"
+          # name: "Unit Tests"
           matrix:
             parameters:
               php_version:
