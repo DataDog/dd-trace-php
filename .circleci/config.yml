@@ -578,7 +578,6 @@ jobs:
       - save_cache:
           <<: *INTEGRATION_COMPOSER_CACHE_KEY
           paths:
-            - vendor/
             - ~/.composer/cache
       - <<: *STEP_STORE_TEST_RESULTS
 
@@ -1353,10 +1352,10 @@ workflows:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 72 base integration tests"
       #     docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
-      # - base_integration_tests:
-      #     requires: [ 'Checkout test files', 'package extension' ]
-      #     name: "PHP 73 base integration tests"
-      #     docker_image: "datadog/dd-trace-ci:php-7.3-buster"
+      - base_integration_tests:
+          requires: [ 'Checkout test files', 'package extension' ]
+          name: "PHP 73 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-7.3-buster"
       # - base_integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 base integration tests"
