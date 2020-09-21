@@ -3,11 +3,11 @@ version: "2.1"
 aliases:
 
   - &ALL_PHP_VERSIONS
-    # - "7.0"
-    # - "7.1"
-    # - "7.2"
+    - "7.0"
+    - "7.1"
+    - "7.2"
     - "7.3"
-    # - "7.4"
+    - "7.4"
 
   - &CACHE_COMPOSER_KEY
     key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
@@ -1002,34 +1002,34 @@ workflows:
       #     lib_curl_command: yum -y install libcurl-devel
       #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_6"
       #     so_suffix: "20131106"
-      # - compile_extension:
-      #     requires: [ 'Compile _generated.php' ]
-      #     name: "Compile PHP 70"
-      #     lib_curl_command: yum -y install libcurl-devel
-      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_0"
-      #     so_suffix: "20151012"
-      # - compile_extension:
-      #     requires: [ 'Compile _generated.php' ]
-      #     name: "Compile PHP 71"
-      #     lib_curl_command: yum -y install libcurl-devel
-      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_1"
-      #     so_suffix: "20160303"
-      # - compile_extension:
-      #     requires: [ 'Compile _generated.php' ]
-      #     name: "Compile PHP 72"
-      #     lib_curl_command: yum -y install libcurl-devel
-      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
-      #     so_suffix: "20170718"
+      - compile_extension:
+          requires: [ 'Compile _generated.php' ]
+          name: "Compile PHP 70"
+          lib_curl_command: yum -y install libcurl-devel
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_0"
+          so_suffix: "20151012"
+      - compile_extension:
+          requires: [ 'Compile _generated.php' ]
+          name: "Compile PHP 71"
+          lib_curl_command: yum -y install libcurl-devel
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_1"
+          so_suffix: "20160303"
+      - compile_extension:
+          requires: [ 'Compile _generated.php' ]
+          name: "Compile PHP 72"
+          lib_curl_command: yum -y install libcurl-devel
+          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
+          so_suffix: "20170718"
       - compile_extension:
           requires: [ 'Compile _generated.php' ]
           name: "Compile PHP 73"
           docker_image: "datadog/dd-trace-ci:php-7.3-centos-7"
           so_suffix: "20180731"
-      # - compile_extension:
-      #     requires: [ 'Compile _generated.php' ]
-      #     name: "Compile PHP 74"
-      #     docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
-      #     so_suffix: "20190902"
+      - compile_extension:
+          requires: [ 'Compile _generated.php' ]
+          name: "Compile PHP 74"
+          docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
+          so_suffix: "20190902"
       # - compile_extension:
       #     requires: [ 'Compile _generated.php' ]
       #     name: "Compile PHP 56-zts"
@@ -1074,11 +1074,11 @@ workflows:
             # - "Compile PHP 54"
             # - "Compile PHP 55"
             # - "Compile PHP 56"
-            # - "Compile PHP 70"
-            # - "Compile PHP 71"
-            # - "Compile PHP 72"
+            - "Compile PHP 70"
+            - "Compile PHP 71"
+            - "Compile PHP 72"
             - "Compile PHP 73"
-            # - "Compile PHP 74"
+            - "Compile PHP 74"
             # - "Compile PHP 56-zts"
             # - "Compile PHP 70-zts"
             # - "Compile PHP 71-zts"
@@ -1313,8 +1313,7 @@ workflows:
             parameters:
               php_version: *ALL_PHP_VERSIONS
       - placeholder:
-          requires: [ 'Unit Tests' ]
-
+          requires: [ unit_tests_v1 ]
       # - opcache_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 73 opcache tests"
