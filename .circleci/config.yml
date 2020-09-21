@@ -580,7 +580,6 @@ jobs:
           paths:
             - vendor/
             - ~/.composer/cache
-      - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
 
   integration_tests:
