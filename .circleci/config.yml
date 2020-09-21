@@ -808,6 +808,7 @@ jobs:
           root: '.'
           paths:
             - './bridge/_generated.php'
+            - './bridge/_generated_opentracing.php'
 
   add_test_files_into_workspace:
     working_directory: ~/datadog
