@@ -96,6 +96,15 @@ static void dd_set_up_deferred_loading_predis(void) {
                                         "DDTrace\\Integrations\\Predis\\PredisIntegration");
 }
 
+static void dd_set_up_deferred_loading_wordpress(void) {
+    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_WORDPRESS)) {
+        return;
+    }
+
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("Requests", "set_certificate_path",
+                                        "DDTrace\\Integrations\\WordPress\\WordPressIntegration");
+}
+
 static void dd_set_up_deferred_loading_yii(void) {
     if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_YII)) {
         return;
@@ -114,6 +123,7 @@ void ddtrace_integrations_rinit(TSRMLS_D) {
     dd_set_up_deferred_loading_pdo();
     dd_set_up_deferred_loading_phpredis();
     dd_set_up_deferred_loading_predis();
+    dd_set_up_deferred_loading_wordpress();
     dd_set_up_deferred_loading_yii();
 }
 

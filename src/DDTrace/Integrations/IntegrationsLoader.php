@@ -81,8 +81,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Slim\SlimIntegration';
         $this->integrations[SymfonyIntegration::NAME] =
             '\DDTrace\Integrations\Symfony\SymfonyIntegration';
-        $this->integrations[WordPressIntegration::NAME] =
-            '\DDTrace\Integrations\WordPress\WordPressIntegration';
         $this->integrations[ZendFrameworkIntegration::NAME] =
             '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
 
@@ -98,6 +96,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Predis\PredisIntegration';
             $this->integrations[YiiIntegration::NAME] =
                 '\DDTrace\Integrations\Yii\YiiIntegration';
+            $this->integrations[WordPressIntegration::NAME] =
+                '\DDTrace\Integrations\WordPress\WordPressIntegration';
         }
     }
 

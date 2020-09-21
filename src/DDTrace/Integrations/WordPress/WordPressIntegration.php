@@ -10,22 +10,6 @@ class WordPressIntegration extends Integration
     const NAME = 'wordpress';
 
     /**
-     * @var self
-     */
-    private static $instance;
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
-    /**
      * @return string The integration name.
      */
     public function getName()
@@ -50,10 +34,10 @@ class WordPressIntegration extends Integration
             return self::NOT_AVAILABLE;
         }
 
-        $integration = self::getInstance();
+        $integration = $this;
 
         // This call happens right after WP registers an autoloader for the first time
-        \DDTrace\trace_method('Requests', 'set_certificate_path', function () use ($integration) {
+        \DDTrace\hook_method('Requests', 'set_certificate_path', null, function () use ($integration) {
             if (!isset($GLOBALS['wp_version']) || !is_string($GLOBALS['wp_version'])) {
                 return false;
             }
@@ -62,7 +46,6 @@ class WordPressIntegration extends Integration
                 $loader = new WordPressIntegrationLoader();
                 $loader->load($integration);
             }
-            return false; // Drop this span to reduce noise
         });
 
         return self::LOADED;
