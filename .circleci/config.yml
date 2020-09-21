@@ -703,6 +703,9 @@ jobs:
     parameters:
       docker_image:
         type: string
+      showdiff:
+        type: boolean
+        default: true
     working_directory: ~/datadog
     executor:
       name: with_agent
@@ -719,7 +722,14 @@ jobs:
       - run:
           name: Run phpt tests with PECL
           command: |
-            sudo pecl run-tests --showdiff --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
+            TERM=dumb sudo pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
+      - run:
+          name: Gather .diff files for artifacts
+          command: |
+            mkdir -p /tmp/artifacts
+            find $(pecl config-get test_dir) -type f -name '*.diff' -exec cp --parents '{}' /tmp/artifacts \;
+          when: on_fail
+      - store_artifacts: { path: '/tmp/artifacts' }
 
   compile_extension:
     working_directory: ~/datadog
