@@ -77,8 +77,6 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Mongo\MongoIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-        $this->integrations[SlimIntegration::NAME] =
-            '\DDTrace\Integrations\Slim\SlimIntegration';
         $this->integrations[SymfonyIntegration::NAME] =
             '\DDTrace\Integrations\Symfony\SymfonyIntegration';
         $this->integrations[ZendFrameworkIntegration::NAME] =
@@ -94,6 +92,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\PDO\PDOIntegration';
             $this->integrations[PredisIntegration::NAME] =
                 '\DDTrace\Integrations\Predis\PredisIntegration';
+            $this->integrations[SlimIntegration::NAME] =
+                '\DDTrace\Integrations\Slim\SlimIntegration';
             $this->integrations[YiiIntegration::NAME] =
                 '\DDTrace\Integrations\Yii\YiiIntegration';
             $this->integrations[WordPressIntegration::NAME] =
