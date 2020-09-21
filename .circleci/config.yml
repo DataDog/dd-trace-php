@@ -548,7 +548,6 @@ jobs:
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-base-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
       - <<: *STEP_INSTALL_PACKAGE_DEBIAN
-      - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
@@ -602,7 +601,6 @@ jobs:
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
       - <<: *STEP_INSTALL_PACKAGE_DEBIAN
-      - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
