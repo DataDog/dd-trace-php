@@ -450,18 +450,18 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      # - copy_valgrind_rc:
-      #     valgrind_config: << parameters.valgrind_config >>
-      # - run:
-      #     name: Run extension tests with leak detection
-      #     command: make << parameters.unit_test_target >> BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
+      - copy_valgrind_rc:
+          valgrind_config: << parameters.valgrind_config >>
+      - run:
+          name: Run extension tests with leak detection
+          command: make << parameters.unit_test_target >> BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
       - run:
           name: Run unit tests
           command: make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
-      # - run:
-      #     name: Run API tests
-      #     command: make test_api_unit
-      # - <<: *STEP_PERSIST_TO_WORKSPACE
+      - run:
+          name: Run API tests
+          command: make test_api_unit
+      - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
           command: |
