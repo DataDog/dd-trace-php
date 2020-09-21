@@ -75,7 +75,7 @@ if (\PHP_MAJOR_VERSION === 5) {
 }
 
 /**
- * Autoloader for optional opent racing dependencing.
+ * Autoloader for optional opentracing dependencing.
  *
  * @package DDTrace\Bridge
  */
