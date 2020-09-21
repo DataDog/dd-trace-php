@@ -62,6 +62,22 @@ static void dd_register_known_calls(TSRMLS_D) {
 }
 
 #if PHP_VERSION_ID >= 70000
+static void dd_set_up_deferred_loading_memcached(void) {
+    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_MEMCACHED)) {
+        return;
+    }
+
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("Memcached", "__construct",
+                                        "DDTrace\\Integrations\\Memcached\\MemcachedIntegration");
+}
+
+static void dd_set_up_deferred_loading_pdo(void) {
+    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_PDO)) {
+        return;
+    }
+
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("PDO", "__construct", "DDTrace\\Integrations\\PDO\\PDOIntegration");
+}
 
 static void dd_set_up_deferred_loading_phpredis(void) {
     if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_PHPREDIS)) {
@@ -80,21 +96,13 @@ static void dd_set_up_deferred_loading_predis(void) {
                                         "DDTrace\\Integrations\\Predis\\PredisIntegration");
 }
 
-static void dd_set_up_deferred_loading_pdo(void) {
-    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_PDO)) {
+static void dd_set_up_deferred_loading_yii(void) {
+    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_YII)) {
         return;
     }
 
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("PDO", "__construct", "DDTrace\\Integrations\\PDO\\PDOIntegration");
-}
-
-static void dd_set_up_deferred_loading_memcached(void) {
-    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_MEMCACHED)) {
-        return;
-    }
-
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("Memcached", "__construct",
-                                        "DDTrace\\Integrations\\Memcached\\MemcachedIntegration");
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("yii\\di\\Container", "__construct",
+                                        "DDTrace\\Integrations\\Yii\\YiiIntegration");
 }
 
 void ddtrace_integrations_rinit(TSRMLS_D) {
@@ -102,10 +110,11 @@ void ddtrace_integrations_rinit(TSRMLS_D) {
 
     _dd_es_initialize_deferred_integration(TSRMLS_C);
     _dd_load_test_integrations(TSRMLS_C);
+    dd_set_up_deferred_loading_memcached();
+    dd_set_up_deferred_loading_pdo();
     dd_set_up_deferred_loading_phpredis();
     dd_set_up_deferred_loading_predis();
-    dd_set_up_deferred_loading_pdo();
-    dd_set_up_deferred_loading_memcached();
+    dd_set_up_deferred_loading_yii();
 }
 
 ddtrace_integration* ddtrace_get_integration_from_string(ddtrace_string integration) {

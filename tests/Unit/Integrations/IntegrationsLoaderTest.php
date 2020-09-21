@@ -165,6 +165,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'pdo';
             $excluded[] = 'phpredis';
             $excluded[] = 'predis';
+            $excluded[] = 'yii';
         }
         foreach ($excluded as $integrationToExclude) {
             $index = array_search($integrationToExclude, $expected, true);
