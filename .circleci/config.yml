@@ -64,9 +64,8 @@ aliases:
 
   - &STEP_INSTALL_PACKAGE_ALPINE
     run:
-      name: Installing actual alpine packages from
+      name: Installing actual alpine packages
       command: sudo apk add --allow-untrusted ./build/packages/*.apk
-
 
   - &STEP_COMPOSER_SELF_UPDATE
     run:
