@@ -1300,9 +1300,11 @@ workflows:
       #     xdebug_version_two: "2.9.5"
       - unit_tests_v1:
           requires: [ 'Checkout test files', 'package extension' ]
-          php_version:
-            - "7.3"
-            - "7.4"
+          matrix:
+            parameters:
+              php_version:
+                - "7.3"
+                - "7.4"
       # - opcache_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 73 opcache tests"
