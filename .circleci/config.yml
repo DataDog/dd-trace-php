@@ -64,8 +64,13 @@ aliases:
 
   - &STEP_INSTALL_PACKAGE_ALPINE
     run:
-      name: Installing actual alpine packages
+      name: Installing actual alpine package
       command: sudo apk add --allow-untrusted ./build/packages/*.apk
+
+  - &STEP_INSTALL_PACKAGE_DEBIAN
+    run:
+      name: Installing actual debian package
+      command: sudo dpkg -i ./build/packages/*.deb
 
   - &STEP_COMPOSER_SELF_UPDATE
     run:
@@ -543,6 +548,7 @@ jobs:
       - install_extension
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-base-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+      - <<: *STEP_INSTALL_PACKAGE_DEBIAN
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
@@ -598,6 +604,7 @@ jobs:
           lib_curl_command: << parameters.lib_curl_command >>
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+      - <<: *STEP_INSTALL_PACKAGE_DEBIAN
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
@@ -1335,10 +1342,10 @@ workflows:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 72 base integration tests"
       #     docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
-      # - base_integration_tests:
-      #     requires: [ 'Checkout test files', 'package extension' ]
-      #     name: "PHP 73 base integration tests"
-      #     docker_image: "datadog/dd-trace-ci:php-7.3"
+      - base_integration_tests:
+          requires: [ 'Checkout test files', 'package extension' ]
+          name: "PHP 73 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-7.3"
       # - base_integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 base integration tests"
@@ -1373,12 +1380,11 @@ workflows:
       #     integration_testsuite: "test_integrations"
       #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
       #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      # - integration_tests:
-      #     requires: [ 'Checkout test files', 'package extension' ]
-      #     name: "PHP 73 Integration tests"
-      #     integration_testsuite: "test_integrations"
-      #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3"
-      #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - integration_tests:
+          requires: [ 'Checkout test files', 'package extension' ]
+          name: "PHP 73 Integration tests"
+          integration_testsuite: "test_integrations"
+          docker_image: "datadog/dd-trace-ci:php-7.3"
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 Integration tests"
@@ -1417,12 +1423,12 @@ workflows:
       #     resource_class: medium+
       #     integration_testsuite: "test_web"
       #     docker_image: "datadog/dd-trace-ci:php-dev-7.2"
-      # - integration_tests:
-      #     requires: [ 'Checkout test files', 'package extension' ]
-      #     name: "PHP 73 Web integration tests"
-      #     resource_class: medium+
-      #     integration_testsuite: "test_web"
-      #     docker_image: "datadog/dd-trace-ci:php-dev-7.3"
+      - integration_tests:
+          requires: [ 'Checkout test files', 'package extension' ]
+          name: "PHP 73 Web integration tests"
+          resource_class: medium+
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-7.3"
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 Web integration tests"
