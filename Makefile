@@ -186,7 +186,11 @@ verify_all: verify_pecl_file_definitions verify_version
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
+ifeq "$(CIRCLECI)" "true"
+REQUEST_INIT_HOOK :=
+else
 REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
+endif
 ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=true
 
 ### DDTrace tests ###

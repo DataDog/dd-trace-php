@@ -93,4 +93,16 @@ return [
     __DIR__ . '/../src/DDTrace/Obfuscation.php',
     __DIR__ . '/../src/DDTrace/Format.php',
     __DIR__ . '/../src/api/StartSpanOptions.php',
+
+    __DIR__ . '/../src/api/Log/PsrLogger.php',
+    __DIR__ . '/../src/api/Log/NullLogger.php',
+    __DIR__ . '/../src/api/NoopTracer.php',
+    __DIR__ . '/../src/api/NoopSpan.php',
+    __DIR__ . '/../src/api/NoopScope.php',
+    __DIR__ . '/../src/DDTrace/Encoders/Json.php',
+    __DIR__ . '/../src/DDTrace/Encoders/Noop.php',
+    __DIR__ . '/../src/DDTrace/Propagators/Noop.php',
+    __DIR__ . '/../src/DDTrace/Transport/Noop.php',
+    __DIR__ . '/../src/api/NoopScopeManager.php',
+    __DIR__ . '/../src/api/NoopSpanContext.php',
 ];
