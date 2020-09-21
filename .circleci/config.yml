@@ -201,6 +201,18 @@ commands:
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
 
+  install_composer:
+    steps:
+      - run:
+          name: Downloading composer
+          command: https://getcomposer.org/installer
+      - run:
+          name: Verifying composer installer
+          command: php -r "if (hash_file('sha384', '/tmp/composer-setup.php') === '795f976fe0ebd8b75f26a6dd68f78fd3453ce79f32ecb33e7fd087d39bfeb978342fb73ac986cd4f54edd0dc902601dc') { echo 'Installer verified'; } else { echo 'Installer corrupt'; exit(1); } echo PHP_EOL;"
+      - run:
+          name: Installing composer
+          command: php /tmp/composer-setup.php --install-dir=bin --filename=composer
+
   hide_bridge_ddtrace_folders:
     steps:
       - run:
@@ -449,23 +461,21 @@ jobs:
       docker_image: << parameters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - lib_curl_workaround:
-          command: << parameters.lib_curl_command >>
-      - <<: *STEP_INSTALL_PACKAGE_ALPINE
+      - install_composer
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      - copy_valgrind_rc:
-          valgrind_config: << parameters.valgrind_config >>
-      - run:
-          name: Run extension tests with leak detection
-          command: make << parameters.unit_test_target >> BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
+      # - copy_valgrind_rc:
+      #     valgrind_config: << parameters.valgrind_config >>
+      # - run:
+      #     name: Run extension tests with leak detection
+      #     command: make << parameters.unit_test_target >> BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
       - run:
           name: Run unit tests
           command: make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
-      - run:
-          name: Run API tests
-          command: make test_api_unit
+      # - run:
+      #     name: Run API tests
+      #     command: make test_api_unit
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
@@ -1253,12 +1263,12 @@ workflows:
       #     docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
       #     xdebug_version_one: "2.9.2"
       #     xdebug_version_two: "2.9.5"
-      # - unit_tests:
-      #     requires: [ 'Checkout test files', 'package extension' ]
-      #     name: "PHP 73 Unit tests"
-      #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3"
-      #     valgrind_config: 7_3_musl
-      #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
+      - unit_tests:
+          requires: [ 'Checkout test files', 'package extension' ]
+          name: "PHP 73 Unit tests"
+          docker_image: "php:7.3-cli"
+          valgrind_config: 7_3_musl
+          lib_curl_command: sudo apk update ; sudo apk add curl-dev
       # - opcache_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 73 opcache tests"
@@ -1347,10 +1357,10 @@ workflows:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 72 base integration tests"
       #     docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Checkout test files', 'package extension' ]
-          name: "PHP 73 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.3-buster"
+      # - base_integration_tests:
+      #     requires: [ 'Checkout test files', 'package extension' ]
+      #     name: "PHP 73 base integration tests"
+      #     docker_image: "datadog/dd-trace-ci:php-7.3-buster"
       # - base_integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 base integration tests"
