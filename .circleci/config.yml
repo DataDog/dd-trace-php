@@ -630,7 +630,6 @@ jobs:
           paths:
             - vendor/
             - ~/.composer/cache
-      - <<: *STEP_PERSIST_TO_WORKSPACE
 
   hyperfine_tests:
     working_directory: ~/datadog
