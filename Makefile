@@ -470,8 +470,6 @@ test_integration:
 
 test_auto_instrumentation:
 	$(call run_tests,--testsuite=auto-instrumentation $(TESTS))
-	# Cleaning up composer.json files in tests/AutoInstrumentation modified for TLS during tests
-	git checkout $(TESTS_ROOT)/AutoInstrumentation/**/composer.json
 
 test_composer:
 	$(call run_tests,--testsuite=composer-tests $(TESTS))
