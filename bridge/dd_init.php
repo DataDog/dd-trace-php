@@ -88,13 +88,14 @@ class OpentracingAutoloader
         if ($this->loaded) {
             return;
         }
-        $this->loaded = true;
 
         $prefix = 'DDTrace\\OpenTracer\\';
         $len = strlen($prefix);
-        if (strncmp('', $class, $len) !== 0) {
+        if (strncmp($prefix, $class, $len) !== 0) {
             return;
         }
+
+        $this->loaded = true;
 
         if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
             // Development
