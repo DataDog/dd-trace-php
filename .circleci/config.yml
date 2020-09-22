@@ -2,13 +2,6 @@ version: "2.1"
 
 aliases:
 
-  - &ALL_PHP_VERSIONS
-    - "7.0"
-    - "7.1"
-    - "7.2"
-    - "7.3"
-    - "7.4"
-
   - &CACHE_COMPOSER_KEY
     key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
 
@@ -445,45 +438,6 @@ jobs:
               php run-tests.php -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so ../../tests/xdebug/<< parameters.xdebug_version_two >>
             fi;
 
-  unit_tests_v1:
-    parameters:
-      php_version:
-        type: string
-    working_directory: ~/datadog
-    environment:
-      DDAGENT_HOSTNAME: 127.0.0.1
-      DD_AGENT_HOST: 127.0.0.1
-      HTTPBIN_HOSTNAME: httpbin_integration
-    executor:
-      name: with_httpbin
-      docker_image: datadog/dd-trace-ci:php-<< parameters.php_version >>-buster
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_INSTALL_PACKAGE_DEBIAN
-      - <<: *STEP_COMPOSER_TESTS_UPDATE
-      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-      - <<: *STEP_EXPORT_CI_ENV
-      # - copy_valgrind_rc:
-      #     valgrind_config: << parameters.valgrind_config >>
-      # - run:
-      #     name: Run extension tests with leak detection
-      #     command: make << parameters.unit_test_target >> BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
-      - run:
-          name: Run unit tests
-          command: make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
-      # - run:
-      #     name: Run API tests
-      #     command: make test_api_unit
-      - <<: *STEP_STORE_TEST_RESULTS
-      - run:
-          command: |
-            mkdir -p /tmp/artifacts/core_dumps
-            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
-            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
-          when: on_fail
-      - store_artifacts:
-          path: /tmp/artifacts
-
   unit_tests:
     parameters:
       docker_image:
@@ -612,9 +566,9 @@ jobs:
       - run:
           name: Run auto-instrumentation tests
           command: make test_auto_instrumentation PHPUNIT_OPTS="--log-junit test-results/php-auto-instrumentation/results.xml"
-      - run:
-          name: Run composer interoperability tests
-          command: make test_composer PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+      # - run:
+      #     name: Run composer interoperability tests
+      #     command: make test_composer PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - run:
           name: Run distributed-tracing tests
           command: DD_TRACE_AGENT_TIMEOUT=1000 make test_distributed_tracing PHPUNIT_OPTS="--log-junit test-results/php-distributed-tracing/results.xml"
@@ -1002,34 +956,34 @@ workflows:
       #     lib_curl_command: yum -y install libcurl-devel
       #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_6"
       #     so_suffix: "20131106"
-      - compile_extension:
-          requires: [ 'Compile _generated.php' ]
-          name: "Compile PHP 70"
-          lib_curl_command: yum -y install libcurl-devel
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_0"
-          so_suffix: "20151012"
-      - compile_extension:
-          requires: [ 'Compile _generated.php' ]
-          name: "Compile PHP 71"
-          lib_curl_command: yum -y install libcurl-devel
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_1"
-          so_suffix: "20160303"
-      - compile_extension:
-          requires: [ 'Compile _generated.php' ]
-          name: "Compile PHP 72"
-          lib_curl_command: yum -y install libcurl-devel
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
-          so_suffix: "20170718"
+      # - compile_extension:
+      #     requires: [ 'Compile _generated.php' ]
+      #     name: "Compile PHP 70"
+      #     lib_curl_command: yum -y install libcurl-devel
+      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_0"
+      #     so_suffix: "20151012"
+      # - compile_extension:
+      #     requires: [ 'Compile _generated.php' ]
+      #     name: "Compile PHP 71"
+      #     lib_curl_command: yum -y install libcurl-devel
+      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_1"
+      #     so_suffix: "20160303"
+      # - compile_extension:
+      #     requires: [ 'Compile _generated.php' ]
+      #     name: "Compile PHP 72"
+      #     lib_curl_command: yum -y install libcurl-devel
+      #     docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
+      #     so_suffix: "20170718"
       - compile_extension:
           requires: [ 'Compile _generated.php' ]
           name: "Compile PHP 73"
           docker_image: "datadog/dd-trace-ci:php-7.3-centos-7"
           so_suffix: "20180731"
-      - compile_extension:
-          requires: [ 'Compile _generated.php' ]
-          name: "Compile PHP 74"
-          docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
-          so_suffix: "20190902"
+      # - compile_extension:
+      #     requires: [ 'Compile _generated.php' ]
+      #     name: "Compile PHP 74"
+      #     docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
+      #     so_suffix: "20190902"
       # - compile_extension:
       #     requires: [ 'Compile _generated.php' ]
       #     name: "Compile PHP 56-zts"
@@ -1074,11 +1028,11 @@ workflows:
             # - "Compile PHP 54"
             # - "Compile PHP 55"
             # - "Compile PHP 56"
-            - "Compile PHP 70"
-            - "Compile PHP 71"
-            - "Compile PHP 72"
+            # - "Compile PHP 70"
+            # - "Compile PHP 71"
+            # - "Compile PHP 72"
             - "Compile PHP 73"
-            - "Compile PHP 74"
+            # - "Compile PHP 74"
             # - "Compile PHP 56-zts"
             # - "Compile PHP 70-zts"
             # - "Compile PHP 71-zts"
@@ -1306,14 +1260,10 @@ workflows:
       #     docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
       #     xdebug_version_one: "2.9.2"
       #     xdebug_version_two: "2.9.5"
-      - unit_tests_v1:
-          requires: [ 'Checkout test files', 'package extension' ]
-          # name: "Unit Tests"
-          matrix:
-            parameters:
-              php_version: *ALL_PHP_VERSIONS
-      - placeholder:
-          requires: [ unit_tests_v1 ]
+      - unit_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 73 Unit tests"
+          docker_image: "datadog/dd-trace-ci:php-7.3-buster"
       # - opcache_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 73 opcache tests"
@@ -1402,10 +1352,10 @@ workflows:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 72 base integration tests"
       #     docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
-      # - base_integration_tests:
-      #     requires: [ 'Checkout test files', 'package extension' ]
-      #     name: "PHP 73 base integration tests"
-      #     docker_image: "datadog/dd-trace-ci:php-7.3-buster"
+      - base_integration_tests:
+          requires: [ 'Checkout test files', 'package extension' ]
+          name: "PHP 73 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-7.3-buster"
       # - base_integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 base integration tests"
@@ -1440,11 +1390,11 @@ workflows:
       #     integration_testsuite: "test_integrations"
       #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
       #     lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      # - integration_tests:
-      #     requires: [ 'Checkout test files', 'package extension' ]
-      #     name: "PHP 73 Integration tests"
-      #     integration_testsuite: "test_integrations"
-      #     docker_image: "datadog/dd-trace-ci:php-7.3-buster"
+      - integration_tests:
+          requires: [ 'Checkout test files', 'package extension' ]
+          name: "PHP 73 Integration tests"
+          integration_testsuite: "test_integrations"
+          docker_image: "datadog/dd-trace-ci:php-7.3-buster"
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 Integration tests"
@@ -1483,12 +1433,12 @@ workflows:
       #     resource_class: medium+
       #     integration_testsuite: "test_web"
       #     docker_image: "datadog/dd-trace-ci:php-dev-7.2"
-      # - integration_tests:
-      #     requires: [ 'Checkout test files', 'package extension' ]
-      #     name: "PHP 73 Web integration tests"
-      #     resource_class: medium+
-      #     integration_testsuite: "test_web"
-      #     docker_image: "datadog/dd-trace-ci:php-7.3-buster"
+      - integration_tests:
+          requires: [ 'Checkout test files', 'package extension' ]
+          name: "PHP 73 Web integration tests"
+          resource_class: medium+
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-7.3-buster"
       # - integration_tests:
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 74 Web integration tests"
