@@ -533,7 +533,7 @@ final class Tracer implements TracerInterface
     public static function version()
     {
         if (empty(self::$version)) {
-            self::$version = include __DIR__ . '/version.php';
+            self::$version = \ddtrace_src_version();
         }
         return self::$version;
     }

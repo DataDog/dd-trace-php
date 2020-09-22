@@ -203,7 +203,12 @@ $initHook = ini_get('ddtrace.request_init_hook');
 $versionUserland = false;
 if (!empty($initHook)) {
     $userlandVersionFile = dirname(dirname($initHook)) . '/src/DDTrace/version.php';
-    $versionUserland = quiet_file_exists($userlandVersionFile) ? include $userlandVersionFile : false;
+    if (quiet_file_exists($userlandVersionFile)) {
+        include $userlandVersionFile;
+        $versionUserland = \ddtrace_src_version();
+    } else {
+        $versionUserland = false;
+    }
 }
 render('ddtrace version (userland)', $versionUserland);
 renderSuccessOrFailure('ddtrace versions in sync', $versionInstalled === $versionConst && $versionConst === $versionUserland);
