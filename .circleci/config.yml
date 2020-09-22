@@ -1261,7 +1261,7 @@ workflows:
       #     xdebug_version_one: "2.9.2"
       #     xdebug_version_two: "2.9.5"
       - unit_tests:
-          requires: [ 'Prepare Code' ]
+          requires: [ 'Checkout test files', 'package extension' ]
           name: "PHP 73 Unit tests"
           docker_image: "datadog/dd-trace-ci:php-7.3-buster"
       # - opcache_tests:
