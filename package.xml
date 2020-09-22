@@ -10,6 +10,18 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
+    <lead>
+        <name>Levi Morrison</name>
+        <user>levim</user>
+        <email>levim@php.net</email>
+        <active>yes</active>
+    </lead>
+    <lead>
+        <name>Luca Abbati</name>
+        <user>labbati</user>
+        <email>luca.abbati@gmail.com</email>
+        <active>yes</active>
+    </lead>
     <!-- **Automatically updated with pecl-build script** -->
     <!-- Date only needs to be set if it was packaged on a different day from release -->
     <date>${date}</date>
