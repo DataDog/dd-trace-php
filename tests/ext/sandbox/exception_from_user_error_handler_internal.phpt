@@ -4,7 +4,7 @@ Exceptions from user error handler are tracked for instrumented internal functio
 <?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not supported'); ?>
 <?php if (PHP_VERSION_ID < 70000) die('skip: Unaltered VM dispatch required for handling return value on PHP 5'); ?>
 --ENV--
-DD_TRACE_TRACED_INTERNAL_FUNCTIONS=scandir
+DD_TRACE_TRACED_INTERNAL_FUNCTIONS=chmod
 --FILE--
 <?php
 class FooErrorHandler
@@ -17,10 +17,10 @@ class FooErrorHandler
 
 set_error_handler('FooErrorHandler::handleError');
 
-DDTrace\trace_function('scandir', function() {});
+DDTrace\trace_function('chmod', function() {});
 
 try {
-    var_dump(scandir(''));
+    var_dump(chmod('php://foo', 0644));
 } catch (Exception $e) {
     $spans = dd_trace_serialize_closed_spans();
     echo 'Spans count: ' . count($spans) . PHP_EOL;
@@ -36,5 +36,5 @@ try {
 Spans count: 1
 error: 1
 error.type: Exception
-error.msg: scandir(): Directory name cannot be empty
+error.msg: chmod(): Can not call chmod() for a non-standard stream
 Has error.stack: 1

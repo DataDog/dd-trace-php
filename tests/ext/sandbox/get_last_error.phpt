@@ -7,9 +7,10 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 
 @$i = $i_do_not_exist;
 $last_error = error_get_last();
+$type = PHP_VERSION_ID < 80000 ? E_NOTICE : E_WARNING;
 if (
     is_array($last_error)
-    && $last_error['type'] == E_NOTICE
+    && $last_error['type'] === $type
     && strpos($last_error['message'], 'Undefined variable') === 0
 ) {
     DDTrace\trace_function('array_sum', function () {
@@ -23,5 +24,5 @@ if (
 }
 
 ?>
---EXPECTF--
+--EXPECT--
 bool(true)

@@ -11,7 +11,7 @@ DDTrace\hook_method('Greeter', 'greet',
     null,
     function ($args, $retval) {
         echo "Greeter::greet hooked.\n";
-        $i = $this_normally_raises_a_notice; // E_NOTICE
+        $i = $this_normally_raises_an_error;
     }
 );
 
@@ -29,4 +29,4 @@ Greeter::greet('Datadog');
 --EXPECTF--
 Hello, Datadog.
 Greeter::greet hooked.
-Error raised in ddtrace's closure for Greeter::greet(): Undefined variable: this_normally_raises_a_notice in %s on line %d
+%s in ddtrace's closure for Greeter::greet(): Undefined variable%sthis_normally_raises_an_%s

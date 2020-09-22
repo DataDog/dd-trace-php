@@ -65,6 +65,7 @@ inline void ddtrace_backup_error_handling(ddtrace_error_handling *eh, zend_error
     zend_replace_error_handling(mode, NULL, &eh->error_handling TSRMLS_CC);
 }
 
+#if PHP_VERSION_ID < 80000
 inline void ddtrace_restore_error_handling(ddtrace_error_handling *eh TSRMLS_DC) {
     if (PG(last_error_message)) {
         if (PG(last_error_message) != eh->message) {
@@ -81,6 +82,9 @@ inline void ddtrace_restore_error_handling(ddtrace_error_handling *eh TSRMLS_DC)
     PG(last_error_lineno) = eh->lineno;
     EG(error_reporting) = eh->error_reporting;
 }
+#else
+void ddtrace_restore_error_handling(ddtrace_error_handling *eh);
+#endif
 
 #if PHP_VERSION_ID < 70000
 inline void ddtrace_maybe_clear_exception(TSRMLS_D) {
@@ -167,6 +171,31 @@ ddtrace_exception_t *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETE
 void ddtrace_close_all_open_spans(TSRMLS_D);
 #else
 void ddtrace_close_all_open_spans(void);
+#endif
+
+#if PHP_VERSION_ID >= 80000
+inline zend_class_entry *ddtrace_get_exception_base(zval *object) {
+    return (Z_OBJCE_P(object) == zend_ce_exception || instanceof_function_slow(Z_OBJCE_P(object), zend_ce_exception))
+               ? zend_ce_exception
+               : zend_ce_error;
+}
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(ddtrace_get_exception_base(object), Z_OBJ_P(object), ZSTR_KNOWN(id), 1, &rv)
+#elif PHP_VERSION_ID >= 70000
+inline zend_class_entry *ddtrace_get_exception_base(zval *object) {
+    return instanceof_function(Z_OBJCE_P(object), zend_ce_exception) ? zend_ce_exception : zend_ce_error;
+}
+#if PHP_VERSION_ID < 70100
+#define ZEND_STR_MESSAGE "message"
+#define GET_PROPERTY(object, name) \
+    zend_read_property(ddtrace_get_exception_base(object), (object), name, sizeof(name) - 1, 1, &rv)
+#elif PHP_VERSION_ID < 70200
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(ddtrace_get_exception_base(object), (object), CG(known_strings)[id], 1, &rv)
+#else
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(ddtrace_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
+#endif
 #endif
 
 #endif  // DD_ENGINE_HOOKS_H

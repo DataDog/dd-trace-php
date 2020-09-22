@@ -61,24 +61,6 @@ static zend_class_entry *dd_get_called_scope(zend_execute_data *call) {
     return call->func->common.scope ? zend_get_called_scope(call) : NULL;
 }
 
-static zend_class_entry *dd_get_exception_base(zval *object) {
-    return instanceof_function(Z_OBJCE_P(object), zend_ce_exception) ? zend_ce_exception : zend_ce_error;
-}
-
-#if PHP_VERSION_ID < 70100
-#define ZEND_STR_MESSAGE "message"
-#define GET_PROPERTY(object, name) \
-    zend_read_property(dd_get_exception_base(object), (object), name, sizeof(name) - 1, 1, &rv)
-#elif PHP_VERSION_ID < 70200
-#define GET_PROPERTY(object, id) \
-    zend_read_property_ex(dd_get_exception_base(object), (object), CG(known_strings)[id], 1, &rv)
-#elif PHP_VERSION_ID < 80000
-#define GET_PROPERTY(object, id) zend_read_property_ex(dd_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
-#else
-#define GET_PROPERTY(object, id) \
-    zend_read_property_ex(dd_get_exception_base(object), Z_OBJ_P(object), ZSTR_KNOWN(id), 1, &rv)
-#endif
-
 static void dd_try_fetch_executing_function_name(zend_execute_data *call, const char **scope, const char **colon,
                                                  const char **name) {
     *scope = "";
@@ -117,8 +99,14 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
         dd_try_fetch_executing_function_name(call, &scope, &colon, &name);
 
         if (PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
+            char *error;
+#if PHP_VERSION_ID < 80000
+            error = PG(last_error_message);
+#else
+            error = ZSTR_VAL(PG(last_error_message));
+#endif
             ddtrace_log_errf("Error raised in ddtrace's closure for %s%s%s(): %s in %s on line %d", scope, colon, name,
-                             PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
+                             error, PG(last_error_file), PG(last_error_lineno));
         }
 
         if (UNEXPECTED(EG(exception))) {

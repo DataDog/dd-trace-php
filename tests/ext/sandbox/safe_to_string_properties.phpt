@@ -32,7 +32,7 @@ $allTheTypes = [
     new DateTime('2019-09-10'),
     new MyDt('2019-09-10'),
     ['foo' => 0],
-    curl_init(), // resource
+    fopen('php://memory', 'rb'), // resource
 ];
 foreach ($allTheTypes as $value) {
     prop_to_string($value);
@@ -56,7 +56,7 @@ foreach (dd_trace_serialize_closed_spans() as $span) {
 }
 ?>
 --EXPECTF--
-resource(%d) of type (curl)
+resource(%d) of type (stream)
 string(%d) "Resource id #%d"
 string(%d) "Resource id #%d"
 string(%d) "Resource id #%d"
