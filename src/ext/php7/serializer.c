@@ -251,7 +251,10 @@ static void dd_serialize_exception(zval *el, zval *meta, zend_object *exception_
                     add_assoc_string(meta, "error.type", "{unknown error}");
                     break;
             }
+        } else {
+            ddtrace_log_debug("Exception was a DDTrace\\FatalError but exception code was not an int");
         }
+        zval_ptr_dtor(&code);
     } else {
         _add_assoc_zval_copy(meta, "error.type", &name);
     }
