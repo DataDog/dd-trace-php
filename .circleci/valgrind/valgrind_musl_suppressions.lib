@@ -227,20 +227,3 @@
     fun:dd_execute_tracing_posthook
     fun:ddtrace_execute_ex
 }
-{
-    <PHP 5 leaks an arg on fatal error>
-    Memcheck:Leak
-    match-leak-kinds: definite
-    fun:malloc
-    fun:__zend_malloc
-    fun:_emalloc
-    fun:debug_backtrace_get_args
-    fun:zend_fetch_debug_backtrace
-    fun:zend_default_exception_new_ex
-    fun:zend_default_exception_new
-    fun:_object_and_properties_init
-    fun:_object_init_ex
-    fun:ddtrace_make_exception_from_error
-    fun:ddtrace_error_cb
-    fun:zend_error
-}
