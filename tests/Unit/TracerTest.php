@@ -277,10 +277,6 @@ final class TracerTest extends BaseTestCase
 
     public function testInternalAndUserlandSpansAreMergedIntoSameTraceOnSerialization()
     {
-        if (PHP_VERSION_ID < 50600) {
-            $this->markTestSkipped('Sandbox API not available on < PHP 5.6');
-            return;
-        }
         // Clear existing internal spans
         dd_trace_serialize_closed_spans();
 

@@ -746,8 +746,7 @@ static void dd_execute_internal(zend_execute_data *execute_data, zend_fcall_info
         fci->object_ptr = EX(object);
 #if PHP_VERSION_ID < 50600
         fci->param_count = EX(opline)->extended_value;
-        fci->retval_ptr_ptr =
-            (EX(function_state).function->common.fn_flags & ZEND_ACC_RETURN_REFERENCE) ? retval_ptr_ptr : NULL;
+        fci->retval_ptr_ptr = retval_ptr_ptr;
 #else
         fci->param_count = EX(opline)->extended_value + EX(call)->num_additional_args;
         fci->retval_ptr_ptr = retval_ptr_ptr;

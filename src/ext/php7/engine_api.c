@@ -2,6 +2,7 @@
 
 extern inline zval ddtrace_zval_long(zend_long num);
 extern inline zval ddtrace_zval_null(void);
+extern inline zval ddtrace_zval_undef(void);
 
 zval ddtrace_zval_stringl(const char *str, size_t len) {
     zval zv;
@@ -89,9 +90,16 @@ ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *nam
         zval fname = ddtrace_zval_stringl(name, name_len);
         zend_bool is_callable = zend_is_callable_ex(&fname, NULL, IS_CALLABLE_CHECK_SILENT, NULL, &fcc, NULL);
         zend_string_release(Z_STR(fname));
+
         if (UNEXPECTED(!is_callable)) {
+            /* zend_call_function undef's the retval; as a wrapper for it, this
+             * func should have the same invariant; a sigsegv occurred because
+             * of this.
+             */
+            ZVAL_UNDEF(retval);
             return FAILURE;
         }
+
         if (fn_proxy) {
             *fn_proxy = fcc.function_handler;
         }

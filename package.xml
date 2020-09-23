@@ -10,6 +10,18 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
+    <lead>
+        <name>Levi Morrison</name>
+        <user>levim</user>
+        <email>levim@php.net</email>
+        <active>yes</active>
+    </lead>
+    <lead>
+        <name>Luca Abbati</name>
+        <user>labbati</user>
+        <email>luca.abbati@gmail.com</email>
+        <active>yes</active>
+    </lead>
     <!-- **Automatically updated with pecl-build script** -->
     <!-- Date only needs to be set if it was packaged on a different day from release -->
     <date>${date}</date>
@@ -186,8 +198,9 @@
             <file name="tests/ext/sandbox/dd_trace_set_trace_id.phpt" role="test" />
             <file name="tests/ext/sandbox/default_span_properties.phpt" role="test" />
             <file name="tests/ext/sandbox/default_span_properties_method.phpt" role="test" />
-            <file name="tests/ext/sandbox/deferred_load_using_function.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_attempt_loading_once.phpt" role="test" />
+            <file name="tests/ext/sandbox/deferred_load_missing_load_fn.phpt" role="test" />
+            <file name="tests/ext/sandbox/deferred_load_using_function.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_loading_helper.php" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing.inc" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl.phpt" role="test" />
@@ -196,6 +209,7 @@
             <file name="tests/ext/sandbox/distributed_tracing_curl_existing_headers_002.phpt" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_inject.inc" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_inject_exception.inc" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_missing_fn.phpt" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_sandboxed.phpt" role="test" />
             <file name="tests/ext/sandbox/drop_spans.phpt" role="test" />
             <file name="tests/ext/sandbox/errors_are_flagged_from_userland.phpt" role="test" />
@@ -450,7 +464,7 @@
     <dependencies>
         <required>
             <php>
-                <min>5.6</min>
+                <min>5.4</min>
                 <max>7.4.99</max>
             </php>
             <pearinstaller>

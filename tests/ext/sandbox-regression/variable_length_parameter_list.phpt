@@ -2,8 +2,6 @@
 [Sandbox regression] Trace variadic functions and methods
 --DESCRIPTION--
 This differs from the original dd_trace() test in that it does not modify the original call arguments
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 function test($a, $b, $c){
