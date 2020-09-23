@@ -264,7 +264,7 @@ static void dd_serialize_exception(zval *el, zval *meta, ddtrace_exception_t *ex
 
     bool use_class_name_for_error_type = true;
     if (instanceof_function(Z_OBJCE_P(exception), ddtrace_ce_fatal_error TSRMLS_CC)) {
-        zval *code;
+        zval *code = NULL;
         zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "getcode", &code);
         if (Z_TYPE_P(code) == IS_LONG) {
             ddtrace_string error_type;
@@ -316,8 +316,10 @@ static void dd_serialize_exception(zval *el, zval *meta, ddtrace_exception_t *ex
             }
             add_assoc_stringl(meta, "error.type", error_type.ptr, error_type.len, 1);
             use_class_name_for_error_type = false;
+        } else {
+            ddtrace_log_debug("Exception was a DDTrace\\FatalError but exception code was not an int");
         }
-        ddtrace_log_debug("Exception was a DDTrace\\FatalError but exception code was not an int");
+        zval_ptr_dtor(&code);
     }
 
     if (use_class_name_for_error_type) {
