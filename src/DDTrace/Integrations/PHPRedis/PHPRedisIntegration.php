@@ -285,12 +285,22 @@ class PHPRedisIntegration extends Integration
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisIntegration::enrichSpan($span, $this, $method);
         });
+        \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
+            PHPRedisIntegration::enrichSpan($span, $method);
+        });
     }
 
     public static function traceMethodAsCommand($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
             PHPRedisIntegration::enrichSpan($span, $this, $method);
+            $normalizedArgs = PHPRedisIntegration::normalizeArgs($args);
+            // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
+            $span->meta[Tag::REDIS_RAW_COMMAND]
+                = empty($normalizedArgs) ? $method : ($method . ' ' . $normalizedArgs);
+        });
+        \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
+            PHPRedisIntegration::enrichSpan($span, $method);
             $normalizedArgs = PHPRedisIntegration::normalizeArgs($args);
             // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
             $span->meta[Tag::REDIS_RAW_COMMAND]
