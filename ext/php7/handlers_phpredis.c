@@ -210,6 +210,8 @@ void ddtrace_phpredis_handlers_startup(void) {
     // clang-format on
 
     ddtrace_string phpredis = DDTRACE_STRING_LITERAL("redis");
+    ddtrace_string phpredis_cluster = DDTRACE_STRING_LITERAL("rediscluster");
     size_t methods_len = sizeof methods / sizeof methods[0];
     ddtrace_replace_internal_methods(phpredis, methods_len, methods);
+    ddtrace_replace_internal_methods(phpredis_cluster, methods_len, methods);
 }
