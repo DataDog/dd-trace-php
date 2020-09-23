@@ -184,14 +184,13 @@ static void _trace_string(smart_str *str, HashTable *ht, uint32_t num) /* {{{ */
     _DD_TRACE_APPEND_KEY("class");
     _DD_TRACE_APPEND_KEY("type");
     _DD_TRACE_APPEND_KEY("function");
-    tmp = zend_hash_str_find(ht, "args", sizeof("args") - 1);
 
-    /* If there were arguments, show an ellipsis, otherwise nothing */
-    if (tmp && Z_TYPE_P(tmp) == IS_ARRAY && zend_hash_num_elements(Z_ARRVAL_P(tmp))) {
-        smart_str_appends(str, "(...)\n");
-    } else {
-        smart_str_appends(str, "()\n");
-    }
+    /* We intentionally do not show any arguments, not even an ellipsis if there
+     * are arguments. This is because in PHP 7.4 there is an INI setting called
+     * zend.exception_ignore_args that prevents them from being generated, so we
+     * can't even know if there are args reliably.
+     */
+    smart_str_appends(str, "()\n");
 }
 
 /* Modelled after getTraceAsString from PHP 5.4:

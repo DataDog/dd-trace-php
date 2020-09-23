@@ -43,7 +43,7 @@ Shutdown
 main()
 E_ERROR
 generated for testing
-#0 %s(%d): DDTrace\Testing\trigger_error(...)
+#0 %s(%d): DDTrace\Testing\trigger_error()
 #1 %s(%d): main()
 #2 {main}
 array_sum()

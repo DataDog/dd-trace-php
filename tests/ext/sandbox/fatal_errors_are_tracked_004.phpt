@@ -42,7 +42,7 @@ Shutdown
 main()
 E_USER_ERROR
 My foo error
-#0 %s(%d): DDTrace\Testing\trigger_error(...)
+#0 %s(%d): DDTrace\Testing\trigger_error()
 #1 %s(%d): main()
 #2 {main}
 array_sum()

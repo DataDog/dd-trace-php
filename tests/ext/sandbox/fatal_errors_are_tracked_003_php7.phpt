@@ -51,7 +51,7 @@ Shutdown
 main()
 E_ERROR
 Maximum execution time of 1 second exceeded
-#0 %s(%d): makeFatalError(...)
+#0 %s(%d): makeFatalError()
 #1 %s(%d): main()
 #2 {main}
 array_sum()

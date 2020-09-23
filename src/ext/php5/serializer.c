@@ -216,12 +216,12 @@ static int _trace_string(zval **frame TSRMLS_DC, int num_args, va_list args, zen
     _DD_TRACE_APPEND_KEY("type");
     _DD_TRACE_APPEND_KEY("function");
 
-    if (zend_hash_find(ht, "args", sizeof("args"), (void **)&tmp) == SUCCESS && Z_TYPE_PP(tmp) == IS_ARRAY &&
-        zend_hash_num_elements(Z_ARRVAL_PP(tmp))) {
-        _DD_TRACE_APPEND_STR("(...)\n");
-    } else {
-        _DD_TRACE_APPEND_STR("()\n");
-    }
+    /* We intentionally do not show any arguments, not even an ellipsis if there
+     * are arguments; this is for consistency with PHP 7 where there is an INI
+     * setting called zend.exception_ignore_args that prevents "args" from being
+     * generated.
+     */
+    _DD_TRACE_APPEND_STR("()\n");
 
     return ZEND_HASH_APPLY_KEEP;
 }

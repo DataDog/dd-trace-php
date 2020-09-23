@@ -51,7 +51,7 @@ Shutdown
 main()
 E_ERROR
 Allowed memory size of 2097152 bytes exhausted%s(tried to allocate %d bytes)
-#0 %s(%d): str_repeat(...)
+#0 %s(%d): str_repeat()
 #1 %s(%d): makeFatalError()
 #2 %s(%d): main()
 #3 {main}
