@@ -39,7 +39,7 @@ class PHPRedisCluster5Test extends IntegrationTestCase
         $connection4 = $this->host . ':7004';
         $connection5 = $this->host . ':7005';
         $connection6 = $this->host . ':7006';
-        $this->redis = new \RedisCluster(NULL, [$connection1, $connection2, $connection3, $connection4, $connection5, $connection6 ]);
+        $this->redis = new \RedisCluster(null, [$connection1, $connection2, $connection3, $connection4, $connection5, $connection6 ]);
         // $this->redis->flushAll([$this->host, 7001]);
         // $this->redisSecondInstance = new \Redis();
         // $this->redisSecondInstance->connect($this->host, $this->portSecondInstance);
