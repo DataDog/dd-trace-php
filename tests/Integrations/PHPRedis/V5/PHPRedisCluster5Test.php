@@ -12,6 +12,8 @@ use Exception;
 
 class PHPRedisCluster5Test extends IntegrationTestCase
 {
+    const CONNECTION_1 = 'CONNECTION_1';
+    const CONNECTION_1_AS_ARG = 'CONNECTION_1_AS_ARG';
     const A_STRING = 'A_STRING';
     const A_FLOAT = 'A_FLOAT';
     const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';
@@ -24,8 +26,9 @@ class PHPRedisCluster5Test extends IntegrationTestCase
 
     private $host = 'redis_integration';
     private $clusterIp;
-    private $port = '6379';
-    private $portSecondInstance = '6380';
+    private $connection1;
+    private $connection2;
+    private $connection3;
 
     /** Redis */
     private $redis;
@@ -35,19 +38,17 @@ class PHPRedisCluster5Test extends IntegrationTestCase
     {
         parent::setUp();
         $this->clusterIp = gethostbyname($this->host);
-        $connection1 = $this->clusterIp . ':7001';
-        $connection2 = $this->clusterIp . ':7002';
-        $connection3 = $this->clusterIp . ':7003';
-        $this->redis = new \RedisCluster(null, [$connection1, $connection2, $connection3]);
-        $this->redis->flushAll([$this->clusterIp, 7001]);
-        $this->redis->flushAll([$this->clusterIp, 7002]);
-        $this->redis->flushAll([$this->clusterIp, 7003]);
-        // $this->redis->flushAll(['192.168.16.5', 7004]);
-        // $this->redis->flushAll(['192.168.16.5', 7005]);
-        // $this->redis->flushAll(['192.168.16.5', 7006]);
-        // $this->redisSecondInstance = new \Redis();
-        // $this->redisSecondInstance->connect($this->host, $this->portSecondInstance);
-        // $this->redisSecondInstance->flushAll();
+        $this->connection1 = [$this->clusterIp, 7001];
+        $this->connection2 = [$this->clusterIp, 7002];
+        $this->connection3 = [$this->clusterIp, 7003];
+        $this->redis = new \RedisCluster(null, [
+            \implode(':', $this->connection1),
+            \implode(':', $this->connection2),
+            \implode(':', $this->connection3),
+        ]);
+        $this->redis->flushAll($this->connection1);
+        $this->redis->flushAll($this->connection2);
+        $this->redis->flushAll($this->connection3);
     }
 
     public function tearDown()
@@ -86,26 +87,15 @@ class PHPRedisCluster5Test extends IntegrationTestCase
     public function testMethodsSpansOnly($method, $args, $rawCommand)
     {
         $this->redis->set('k1', 'v1');
-        $traces = $this->isolateTracer(function () use ($method, $args) {
-            if (count($args) === 0) {
-                $this->redis->$method();
-            } elseif (count($args) === 1) {
-                $this->redis->$method($args[0]);
-            } elseif (count($args) === 2) {
-                $this->redis->$method($args[0], $args[1]);
-            } else {
-                throw new \Exception('number of args not supported');
-            }
-        });
+        $traces = $this->invokeInIsolatedTracerWithArgs($method, $args);
 
-        $rawCommand = empty($rawCommand) ? $method : "$method $rawCommand";
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
                 "RedisCluster.$method",
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand]),
+            )->withExactTags(['redis.raw_command' => $this->normalizeRawCommand($method, $rawCommand)]),
         ]);
     }
 
@@ -119,10 +109,10 @@ class PHPRedisCluster5Test extends IntegrationTestCase
             ['pexpire', ['k1', 2], 'k1 2'],
             ['expireAt', ['k1', 2], 'k1 2'],
             ['keys', ['*'], '*'],
-            ['scan', [null], '0'], // the argument is the LONG (reference), initialized to NULL
+            ['scan', [null, self::CONNECTION_1], '0 ' . self::CONNECTION_1_AS_ARG], // the argument is the LONG (reference), initialized to NULL
             ['object', ['encoding', 'k1'], 'encoding k1'],
             ['persist', ['k1'], 'k1'],
-            ['randomKey', [], ''],
+            ['randomKey', [self::CONNECTION_1], self::CONNECTION_1_AS_ARG],
             ['rename', ['k1', 'k3'], 'k1 k3'],
             ['renameNx', ['k1', 'k3'], 'k1 k3'],
             ['type', ['k1'], 'k1'],
@@ -1840,5 +1830,36 @@ class PHPRedisCluster5Test extends IntegrationTestCase
             $binarySafeString .= pack('H*', dechex(bindec($binary)));
         }
         return $binarySafeString;
+    }
+
+    private function invokeInIsolatedTracerWithArgs($method, $args)
+    {
+        // Replacing args with connections, as dataproviders run before anything else, including setup
+        foreach ($args as &$arg) {
+            if (self::CONNECTION_1 === $arg) {
+                $arg = $this->connection1;
+            }
+        }
+        return $this->isolateTracer(function () use ($method, $args) {
+            if (count($args) === 0) {
+                $this->redis->$method();
+            } elseif (count($args) === 1) {
+                $this->redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $this->redis->$method($args[0], $args[1]);
+            } else {
+                throw new \Exception('number of args not supported');
+            }
+        });
+    }
+
+    private function normalizeRawCommand($method, $rawCommand)
+    {
+        // Connections are replaced here because:
+        //  - we need actual IPs to identify nodes in the cluster
+        //  - cluster IPs are resolved from DNS during setup
+        //  - data provider runs before setup
+        $rawCommand = \str_replace(self::CONNECTION_1_AS_ARG, \implode(' ', $this->connection1), $rawCommand);
+        return empty($rawCommand) ? $method : "$method $rawCommand";
     }
 }
