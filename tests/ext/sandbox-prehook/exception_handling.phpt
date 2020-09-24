@@ -1,5 +1,8 @@
 --TEST--
 [Prehook Regression] Exceptions get attached to spans
+--INI--
+; for PHP 7.4+ we want to ensure that even if args are present that we don't print them
+zend.exception_ignore_args=Off
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70000) die('skip: Prehook not supported on PHP 5'); ?>
 --FILE--
@@ -41,13 +44,13 @@ error: 1
 Exception type: Exception
 Exception msg: datadog
 Exception stack:
-#0 %s: inner(...)
+#0 %s: inner()
 #1 %s: outer()
 #2 {main}
 error: 1
 Exception type: Exception
 Exception msg: datadog
 Exception stack:
-#0 %s: inner(...)
+#0 %s: inner()
 #1 %s: outer()
 #2 {main}

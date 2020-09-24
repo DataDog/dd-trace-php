@@ -2,6 +2,7 @@
 E_ERROR fatal errors are tracked from hitting the memory limit
 --SKIPIF--
 <?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
+<?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not support close-at-exit functionality"); ?>
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
@@ -50,7 +51,7 @@ Shutdown
 main()
 E_ERROR
 Allowed memory size of 2097152 bytes exhausted%s(tried to allocate %d bytes)
-#0 %s(%d): str_repeat(...)
+#0 %s(%d): str_repeat()
 #1 %s(%d): makeFatalError()
 #2 %s(%d): main()
 #3 {main}

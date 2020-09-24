@@ -2,6 +2,8 @@
 E_USER_ERROR fatal errors are tracked from userland
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not support close-at-exit functionality"); ?>
 --FILE--
 <?php
 register_shutdown_function(function () {
@@ -16,15 +18,9 @@ register_shutdown_function(function () {
     }
 });
 
-function makeFatalError() {
-    // Trigger a fatal error from userland
-    trigger_error('My foo error', E_USER_ERROR);
-    return 42;
-}
-
 function main() {
     var_dump(array_sum([1, 99]));
-    makeFatalError();
+    DDTrace\Testing\trigger_error('My foo error', E_USER_ERROR);
     echo 'You should not see this.' . PHP_EOL;
 }
 
@@ -46,8 +42,7 @@ Shutdown
 main()
 E_USER_ERROR
 My foo error
-#0 %s(%d): trigger_error(...)
-#1 %s(%d): makeFatalError()
-#2 %s(%d): main()
-#3 {main}
+#0 %s(%d): DDTrace\Testing\trigger_error()
+#1 %s(%d): main()
+#2 {main}
 array_sum()

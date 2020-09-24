@@ -332,15 +332,7 @@ static void dd_exit_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
 }
 
 static int dd_exit_handler(zend_execute_data *execute_data TSRMLS_DC) {
-    ddtrace_span_fci *span_fci;
-    while ((span_fci = DDTRACE_G(open_spans_top))) {
-        if (span_fci->dd_execute_data.free_retval && span_fci->dd_execute_data.retval) {
-            zval_ptr_dtor(&span_fci->dd_execute_data.retval);
-            span_fci->dd_execute_data.retval = NULL;
-        }
-        dd_exit_span(span_fci TSRMLS_CC);
-    }
-
+    ddtrace_close_all_open_spans(TSRMLS_C);
     return dd_prev_exit_handler ? dd_prev_exit_handler(execute_data TSRMLS_CC) : ZEND_USER_OPCODE_DISPATCH;
 }
 
@@ -802,10 +794,39 @@ void ddtrace_engine_hooks_rshutdown(TSRMLS_D) {
 #endif
 }
 
-void ddtrace_error_cb_minit(void) {
-    // TODO
+zval *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC) {
+    PHP5_UNUSED(error_filename, error_lineno);
+
+    zval *exception, *message_zv, *code_zv;
+    MAKE_STD_ZVAL(exception);
+    MAKE_STD_ZVAL(message_zv);
+    MAKE_STD_ZVAL(code_zv);
+
+    va_list args2;
+    char message[1024];
+    object_init_ex(exception, ddtrace_ce_fatal_error);
+
+    va_copy(args2, args);
+    vsnprintf(message, sizeof(message), format, args2);
+    va_end(args2);
+    ZVAL_STRING(message_zv, message, 1);
+    zend_update_property(ddtrace_ce_fatal_error, exception, "message", sizeof("message") - 1, message_zv TSRMLS_CC);
+    zval_ptr_dtor(&message_zv);
+
+    ZVAL_LONG(code_zv, type);
+    zend_update_property(ddtrace_ce_fatal_error, exception, "code", sizeof("code") - 1, code_zv TSRMLS_CC);
+    zval_ptr_dtor(&code_zv);
+
+    return exception;
 }
 
-void ddtrace_error_cb_mshutdown(void) {
-    // TODO
+void ddtrace_close_all_open_spans(TSRMLS_D) {
+    ddtrace_span_fci *span_fci;
+    while ((span_fci = DDTRACE_G(open_spans_top))) {
+        if (span_fci->dd_execute_data.free_retval && span_fci->dd_execute_data.retval) {
+            zval_ptr_dtor(&span_fci->dd_execute_data.retval);
+            span_fci->dd_execute_data.retval = NULL;
+        }
+        dd_exit_span(span_fci TSRMLS_CC);
+    }
 }

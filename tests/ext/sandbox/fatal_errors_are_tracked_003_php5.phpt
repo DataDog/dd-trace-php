@@ -1,9 +1,12 @@
 --TEST--
-E_ERROR fatal errors are tracked from internal function
+E_ERROR fatal errors are tracked from hitting the max execution time
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+--INI--
+max_execution_time=1
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not support close-at-exit functionality"); ?>
+<?php if (PHP_MAJOR_VERSION !== 5) die("skip: This test is only for PHP 5"); ?>
 --FILE--
 <?php
 register_shutdown_function(function () {
@@ -18,10 +21,16 @@ register_shutdown_function(function () {
     }
 });
 
+// make sure args are elided
+function makeFatalError($return) {
+    // Trigger a fatal error (hit the max execution time)
+    while(1) {}
+    return $return;
+}
 
 function main() {
     var_dump(array_sum([1, 99]));
-    DDTrace\Testing\trigger_error("generated for testing", E_ERROR);
+    makeFatalError(42);
     echo 'You should not see this.' . PHP_EOL;
 }
 
@@ -38,12 +47,13 @@ main();
 --EXPECTF--
 int(100)
 
-Fatal error: generated for testing in %s on line %d
+%s Maximum execution time of 1 second exceeded in %s on line %d
 Shutdown
 main()
 E_ERROR
-generated for testing
-#0 %s(%d): DDTrace\Testing\trigger_error()
-#1 %s(%d): main()
-#2 {main}
+Maximum execution time of 1 second exceeded
+#0 %s(%d): makeFatalError()
+#1 %s(%d): makeFatalError()
+#2 %s(%d): main()
+#3 {main}
 array_sum()

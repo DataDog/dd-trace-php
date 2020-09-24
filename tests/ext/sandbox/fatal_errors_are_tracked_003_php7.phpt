@@ -4,6 +4,8 @@ E_ERROR fatal errors are tracked from hitting the max execution time
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
 max_execution_time=1
+--SKIPIF--
+<?php if (PHP_VERSION_ID < 70000) die("skip: PHP 5 has its own test"); ?>
 --FILE--
 <?php
 register_shutdown_function(function () {
@@ -18,15 +20,16 @@ register_shutdown_function(function () {
     }
 });
 
-function makeFatalError() {
+// make sure args are elided
+function makeFatalError($return) {
     // Trigger a fatal error (hit the max execution time)
     while(1) {}
-    return 42;
+    return $return;
 }
 
 function main() {
     var_dump(array_sum([1, 99]));
-    makeFatalError();
+    makeFatalError(42);
     echo 'You should not see this.' . PHP_EOL;
 }
 

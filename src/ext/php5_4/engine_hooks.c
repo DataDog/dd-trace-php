@@ -671,10 +671,16 @@ void ddtrace_execute_internal_mshutdown(void) {
     }
 }
 
-void ddtrace_error_cb_minit(void) {
-    // TODO
+// TODO: can we support close-at-exit and by extension fatal errors on PHP 5.4?
+zval *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC) {
+    PHP5_UNUSED(DDTRACE_ERROR_CB_PARAM_PASSTHRU TSRMLS_CC);
+
+    return NULL;
 }
 
-void ddtrace_error_cb_mshutdown(void) {
-    // TODO
+void ddtrace_close_all_open_spans(TSRMLS_D) {
+#if ZTS
+    PHP5_UNUSED(TSRMLS_C);
+#endif
+    ddtrace_log_debug("Request to close all open spans ignored; not supported on PHP 5.4 (yet, anyway)");
 }

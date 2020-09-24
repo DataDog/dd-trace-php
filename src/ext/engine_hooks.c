@@ -5,13 +5,12 @@
 
 #include "configuration.h"
 #include "ddtrace.h"
+#include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static zend_op_array *(*_prev_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
-
-void ddtrace_error_cb_minit(void);
-void ddtrace_error_cb_mshutdown(void);
+static void (*dd_prev_error_cb)(DDTRACE_ERROR_CB_PARAMETERS);
 
 void ddtrace_execute_internal_minit(void);
 void ddtrace_execute_internal_mshutdown(void);
@@ -23,17 +22,22 @@ void ddtrace_opcode_minit(void);
 void ddtrace_opcode_mshutdown(void);
 
 void ddtrace_engine_hooks_minit(void) {
-    ddtrace_error_cb_minit();
     ddtrace_execute_internal_minit();
     ddtrace_opcode_minit();
     _compile_minit();
+
+    dd_prev_error_cb = zend_error_cb;
+    zend_error_cb = ddtrace_error_cb;
 }
 
 void ddtrace_engine_hooks_mshutdown(void) {
+    if (dd_prev_error_cb == ddtrace_error_cb) {
+        zend_error_cb = dd_prev_error_cb;
+    }
+
     _compile_mshutdown();
     ddtrace_opcode_mshutdown();
     ddtrace_execute_internal_mshutdown();
-    ddtrace_error_cb_mshutdown();
 }
 
 static uint64_t _get_microseconds() {
@@ -79,3 +83,14 @@ extern inline void ddtrace_maybe_clear_exception(TSRMLS_D);
 extern inline ddtrace_sandbox_backup ddtrace_sandbox_begin(void);
 extern inline void ddtrace_maybe_clear_exception(void);
 #endif
+
+void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
+    TSRMLS_FETCH();
+
+    ddtrace_span_fci *span = DDTRACE_G(open_spans_top);
+    if (span && (type == E_ERROR || type == E_CORE_ERROR || type == E_USER_ERROR)) {
+        span->exception = ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAM_PASSTHRU TSRMLS_CC);
+        ddtrace_close_all_open_spans(TSRMLS_C);
+    }
+    dd_prev_error_cb(DDTRACE_ERROR_CB_PARAM_PASSTHRU);
+}
