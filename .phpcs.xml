@@ -29,7 +29,7 @@
         <exclude-pattern>tests/Integration/CurrentContextAccess/</exclude-pattern>
         <exclude-pattern>tests/Integration/LongRunning/long_running_script_manual.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/PHPRedis5Test.php</exclude-pattern>
-        <exclude-pattern>tests/Integrations/PHPRedis/PHPRedisCluster5Test.php</exclude-pattern>
+        <exclude-pattern>tests/Integrations/PHPRedis/V5/*Test.php</exclude-pattern>
     </rule>
 
     <!-- PHP compatibility checks -->
