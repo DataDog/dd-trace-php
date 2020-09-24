@@ -532,10 +532,7 @@ final class Tracer implements TracerInterface
      */
     public static function version()
     {
-        if (empty(self::$version)) {
-            self::$version = \ddtrace_src_version();
-        }
-        return self::$version;
+        return \DDTrace\VERSION;
     }
 
     /**

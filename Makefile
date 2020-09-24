@@ -6,7 +6,7 @@ WALL_FLAGS := -Wall -Wextra
 CFLAGS := -O2 $(WALL_FLAGS)
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-VERSION:=$(shell cat src/DDTrace/version.php | grep ' return' | awk '{print $$2}' | cut -d\' -f2)
+VERSION:=$(shell cat src/DDTrace/version.php | grep 'const VERSION' | awk '{print $$4}' | cut -d\' -f2)
 
 INI_FILE := /usr/local/etc/php/conf.d/ddtrace.ini
 
