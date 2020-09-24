@@ -19,7 +19,7 @@ do
 done
 sleep 1
 # We need the actual IP to be exposed as the cluster IP, otherwise it is not possible to connect from
-# other containers ue to redirects to 127.0.0.1 (or maybe we just don't know how).
+# other containers due to redirects to 127.0.0.1 (or maybe we just don't know how).
 DOCKER_IP=$(ip a | grep inet | grep eth0 | awk '{print $2}' | awk -F  "/" '{print $1}')
 redis-cli --cluster create \
     ${DOCKER_IP}:7001 \
