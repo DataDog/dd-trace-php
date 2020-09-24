@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\PHPRedis;
+namespace DDTrace\Tests\Integrations\PHPRedis\V5;
 
 use DDTrace\Integrations\PHPRedis\PHPRedisIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;

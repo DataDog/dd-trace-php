@@ -618,13 +618,13 @@ test_integrations_pdo:
 	$(call run_tests,tests/Integrations/PDO)
 test_integrations_phpredis3:
 	$(MAKE) test_scenario_phpredis3
-	$(call run_tests,tests/Integrations/PHPRedis/PHPRedis3Test.php)
+	$(call run_tests,tests/Integrations/PHPRedis/V3)
 test_integrations_phpredis4:
 	$(MAKE) test_scenario_phpredis4
-	$(call run_tests,tests/Integrations/PHPRedis/PHPRedis4Test.php)
+	$(call run_tests,tests/Integrations/PHPRedis/V4)
 test_integrations_phpredis5:
 	$(MAKE) test_scenario_phpredis5
-	$(call run_tests,tests/Integrations/PHPRedis/PHPRedis5Test.php)
+	$(call run_tests,tests/Integrations/PHPRedis/V5)
 test_integrations_predis1:
 	$(MAKE) test_scenario_predis1
 	$(call run_tests,tests/Integrations/Predis)
