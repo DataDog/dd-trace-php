@@ -1254,11 +1254,13 @@ static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
 
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "las", &num_traces, &curl_headers,
                                  &payload, &payload_len) == FAILURE) {
-        ddtrace_log_debug("dd_trace_send_traces_via_thread() expects url, http headers, and http body");
+        ddtrace_log_debug("dd_trace_send_traces_via_thread() expects trace count, http headers, and http body");
         RETURN_FALSE
     }
 
-    RETURN_BOOL(ddtrace_send_traces_via_thread(num_traces, curl_headers, payload, payload_len TSRMLS_CC));
+    bool result = ddtrace_send_traces_via_thread(num_traces, curl_headers, payload, payload_len TSRMLS_CC);
+    DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
+    RETURN_BOOL(result);
 }
 
 static PHP_FUNCTION(dd_trace_buffer_span) {
