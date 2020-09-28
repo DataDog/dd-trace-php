@@ -1554,6 +1554,4 @@ ZEND_TSRMLS_CACHE_DEFINE();
 
 // the following operations are performed in order to put the tracer in a state when a new trace can be started:
 //   - set a new trace (group) id
-void _ddtrace_prepare_for_new_trace() {
-    DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
-}
+void _ddtrace_prepare_for_new_trace() { DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id(); }
