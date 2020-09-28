@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\CLI;
+namespace DDTrace\Tests\Common;
 
 /**
  * Serialize an associative array into env var string for CLI commands

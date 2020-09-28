@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\CLI;
+namespace DDTrace\Tests\Common;
 
 /**
  * Serialize an associative array into INI string for CLI SAPI

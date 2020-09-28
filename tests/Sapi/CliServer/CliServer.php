@@ -2,8 +2,8 @@
 
 namespace DDTrace\Tests\Sapi\CliServer;
 
-use DDTrace\Tests\Integrations\CLI\EnvSerializer;
-use DDTrace\Tests\Integrations\CLI\IniSerializer;
+use DDTrace\Tests\Common\EnvSerializer;
+use DDTrace\Tests\Common\IniSerializer;
 use DDTrace\Tests\Sapi\Sapi;
 use Symfony\Component\Process\Process;
 
