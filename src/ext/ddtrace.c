@@ -89,6 +89,9 @@ static void ddtrace_shutdown(struct _zend_extension *extension) {
 static void ddtrace_activate(void) {}
 static void ddtrace_deactivate(void) {}
 
+// prepare the tracer state to start handling a new trace
+void _ddtrace_prepare_for_new_trace();
+
 static zend_extension _dd_zend_extension_entry = {"ddtrace",
                                                   PHP_DDTRACE_VERSION,
                                                   "Datadog",
@@ -377,7 +380,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset(TSRMLS_C);
 
-    DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
+    _ddtrace_prepare_for_new_trace();
 
     return SUCCESS;
 }
@@ -1259,7 +1262,7 @@ static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     }
 
     bool result = ddtrace_send_traces_via_thread(num_traces, curl_headers, payload, payload_len TSRMLS_CC);
-    DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
+    _ddtrace_prepare_for_new_trace();
     RETURN_BOOL(result);
 }
 
@@ -1548,3 +1551,9 @@ ZEND_GET_MODULE(ddtrace)
 ZEND_TSRMLS_CACHE_DEFINE();
 #endif
 #endif
+
+// the following operations are performed in order to put the tracer in a state when a new trace can be started:
+//   - set a new trace (group) id
+void _ddtrace_prepare_for_new_trace() {
+    DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
+}
