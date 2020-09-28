@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\CLI;
+namespace DDTrace\Tests\Common;
 
 use DDTrace\Tests\Common\AgentReplayerTrait;
 use DDTrace\Tests\Common\IntegrationTestCase;

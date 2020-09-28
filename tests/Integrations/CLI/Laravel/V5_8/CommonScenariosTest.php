@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Integrations\CLI\Laravel\V5_8;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Integrations\CLI\CLITestCase;
+use DDTrace\Tests\Common\CLITestCase;
 
 class CommonScenariosTest extends CLITestCase
 {
