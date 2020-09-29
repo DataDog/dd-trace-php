@@ -1262,7 +1262,7 @@ static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     }
 
     bool result = ddtrace_send_traces_via_thread(num_traces, curl_headers, payload, payload_len TSRMLS_CC);
-    _ddtrace_prepare_for_new_trace();
+    _ddtrace_prepare_for_new_trace(TSRMLS_C);
     RETURN_BOOL(result);
 }
 
