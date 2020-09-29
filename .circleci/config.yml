@@ -1264,6 +1264,10 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
       - base_integration_tests:
           requires: [ 'Prepare Code' ]
+          name: "PHP 55 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-5.5-debug-buster"
+      - base_integration_tests:
+          requires: [ 'Prepare Code' ]
           name: "PHP 56 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
       - base_integration_tests:
