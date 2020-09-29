@@ -11,7 +11,7 @@ ddtrace.request_init_hook={PWD}/raises_fatal_error.php
 echo "Request start" . PHP_EOL;
 
 ?>
---EXPECT--
+--EXPECTF--
 Calling a function that does not exist...
-Error thrown in request init hook: Call to undefined function this_function_does_not_exist()
+Error %s in request init hook: Call to undefined function this_function_does_not_%s
 Request start

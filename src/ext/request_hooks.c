@@ -95,6 +95,15 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
                     zval_ptr_dtor(EG(return_value_ptr_ptr));
                 }
             } else {
+                if (get_dd_trace_debug()) {
+                    zval *ex = EG(exception), *message = NULL;
+                    const char *type = Z_OBJCE_P(ex)->name;
+                    message = ddtrace_exception_get_entry(ex, ZEND_STRL("message") TSRMLS_CC);
+                    const char *msg = message && Z_TYPE_P(message) == IS_STRING
+                                          ? Z_STRVAL_P(message)
+                                          : "(internal error reading exception message)";
+                    ddtrace_log_errf("%s thrown in request init hook: %s", type, msg);
+                }
                 // Cannot use ddtrace_maybe_clear_exception() because it updates the opline to a dangling pointer
                 zval_ptr_dtor(&EG(exception));
                 EG(exception) = NULL;

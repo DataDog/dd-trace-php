@@ -198,4 +198,11 @@ inline zend_class_entry *ddtrace_get_exception_base(zval *object) {
 #endif
 #endif
 
+#if PHP_VERSION_ID < 70000
+inline zval *ddtrace_exception_get_entry(zval *object, char *name, int name_len TSRMLS_DC) {
+    zend_class_entry *exception_ce = zend_exception_get_default(TSRMLS_C);
+    return zend_read_property(exception_ce, object, name, name_len, 1 TSRMLS_CC);
+}
+#endif
+
 #endif  // DD_ENGINE_HOOKS_H

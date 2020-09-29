@@ -98,6 +98,7 @@ extern inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup TSRMLS_DC)
 #if PHP_VERSION_ID < 70000
 extern inline ddtrace_sandbox_backup ddtrace_sandbox_begin(zend_op *opline_before_exception TSRMLS_DC);
 extern inline void ddtrace_maybe_clear_exception(TSRMLS_D);
+extern inline zval *ddtrace_exception_get_entry(zval *object, char *name, int name_len TSRMLS_DC);
 #else
 extern inline ddtrace_sandbox_backup ddtrace_sandbox_begin(void);
 extern inline void ddtrace_maybe_clear_exception(void);
