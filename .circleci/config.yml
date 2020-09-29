@@ -1298,6 +1298,18 @@ workflows:
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
+          name: "PHP 55 Integration tests"
+          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
+          integration_testsuite: "test-integrations-55"
+          lib_curl_command: |
+              sudo apk update
+              sudo apk add curl-dev cyrus-sasl-dev libmemcached-dev
+              echo "/usr" | sudo pecl install memcached-2.2.0
+              echo "extension=memcached.so" | sudo tee /usr/local/etc/php/conf.d/memcached.ini
+              echo "yes" | sudo pecl install mongo
+              echo "extension=mongo.so" | sudo tee /usr/local/etc/php/conf.d/mongo.ini
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
           name: "PHP 56 Integration tests"
           integration_testsuite: "test-integrations-56"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug"
