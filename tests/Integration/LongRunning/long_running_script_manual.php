@@ -14,9 +14,15 @@ function do_manual_instrumentation()
     $rootSpan->setTag(Tag::RESOURCE_NAME, "sub-resource");
     $subSpan->finish();
     $rootSpan->finish();
+
+    if (PHP_MAJOR_VERSION === 5) {
+        $tracer->flush();
+    }
 }
 
 // Sending multiple traces
 do_manual_instrumentation();
 do_manual_instrumentation();
 do_manual_instrumentation();
+
+error_log('Script is done');
