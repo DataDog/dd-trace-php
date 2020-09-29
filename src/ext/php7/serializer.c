@@ -251,6 +251,7 @@ static void dd_serialize_exception(zval *el, zval *meta, zend_object *exception_
                     add_assoc_string(meta, "error.type", "E_USER_ERROR");
                     break;
                 default:
+                    ZEND_ASSERT(0 && "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
                     add_assoc_string(meta, "error.type", "{unknown error}");
                     break;
             }

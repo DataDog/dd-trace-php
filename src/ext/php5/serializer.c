@@ -285,6 +285,7 @@ static void dd_serialize_exception(zval *el, zval *meta, ddtrace_exception_t *ex
                         error_type = DDTRACE_STRING_LITERAL("E_USER_ERROR");
                         break;
                     default:
+                        ZEND_ASSERT(0 && "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
                         error_type = DDTRACE_STRING_LITERAL("{unknown error}");
                 }
                 add_assoc_stringl(meta, "error.type", error_type.ptr, error_type.len, 1);
