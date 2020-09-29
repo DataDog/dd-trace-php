@@ -16,6 +16,7 @@ function do_manual_instrumentation()
     $rootSpan->finish();
 
     if (PHP_MAJOR_VERSION === 5) {
+        // Auto flushing is not yet supported on PHP 5.
         $tracer->flush();
     }
 }
