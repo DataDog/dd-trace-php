@@ -244,6 +244,9 @@ static void dd_serialize_exception(zval *el, zval *meta, zend_object *exception_
                 case E_CORE_ERROR:
                     add_assoc_string(meta, "error.type", "E_CORE_ERROR");
                     break;
+                case E_COMPILE_ERROR:
+                    add_assoc_string(meta, "error.type", "E_COMPILE_ERROR");
+                    break;
                 case E_USER_ERROR:
                     add_assoc_string(meta, "error.type", "E_USER_ERROR");
                     break;
