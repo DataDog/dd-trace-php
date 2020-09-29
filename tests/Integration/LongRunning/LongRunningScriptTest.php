@@ -6,7 +6,6 @@ use DDTrace\Tests\Common\CLITestCase;
 
 final class LongRunningScriptTest extends CLITestCase
 {
-
     protected function getScriptLocation()
     {
         return __DIR__ . '/long_running_script_manual.php';
