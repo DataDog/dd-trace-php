@@ -1293,7 +1293,7 @@ static PHP_FUNCTION(trigger_error) {
     ddtrace_string message;
     ddtrace_zpplong_t error_type;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl", &message.ptr, &message.len, &error_type) != SUCCESS) {
-        RETURN_NULL()
+        RETURN_NULL();
     }
 
     int level = (int)error_type;

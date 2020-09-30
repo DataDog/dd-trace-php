@@ -1151,6 +1151,7 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
     }
 }
 
+#if PHP_VERSION_ID < 80000
 zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
     PHP7_UNUSED(error_filename, error_lineno);
 
@@ -1171,3 +1172,4 @@ zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
 
     return Z_OBJ(ex);
 }
+#endif

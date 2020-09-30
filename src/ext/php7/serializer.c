@@ -239,7 +239,11 @@ static void dd_serialize_exception(zval *el, zval *meta, zend_object *exception_
 #endif
 
     if (instanceof_function(Z_OBJCE(exception), ddtrace_ce_fatal_error)) {
+#if PHP_VERSION_ID < 80000
         zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "getcode", &code);
+#else
+        zend_call_method_with_0_params(exception_obj, Z_OBJCE(exception), NULL, "getcode", &code);
+#endif
         if (Z_TYPE_INFO(code) == IS_LONG) {
             switch (Z_LVAL(code)) {
                 case E_ERROR:

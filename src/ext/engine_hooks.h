@@ -159,6 +159,7 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup TSRMLS_DC) {
 PHP_FUNCTION(ddtrace_internal_function_handler);
 #endif
 
+#if PHP_VERSION_ID < 80000
 #define DDTRACE_ERROR_CB_PARAMETERS \
     int type, const char *error_filename, const uint error_lineno, const char *format, va_list args
 
@@ -166,6 +167,9 @@ PHP_FUNCTION(ddtrace_internal_function_handler);
 
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS);
 ddtrace_exception_t *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC);
+#else
+void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t error_lineno, zend_string *message);
+#endif
 
 #if PHP_VERSION_ID < 70000
 void ddtrace_close_all_open_spans(TSRMLS_D);
