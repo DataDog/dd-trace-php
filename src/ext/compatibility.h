@@ -5,6 +5,16 @@
 #include <Zend/zend.h>
 #include <php_version.h>
 
+#if !defined(ZEND_ASSERT)
+#if ZEND_DEBUG
+#include <assert.h>
+#define ZEND_ASSERT(c) assert(c)
+#else
+// the void cast is there to avoid warnings about empty statements from linters
+#define ZEND_ASSERT(c) ((void)0)
+#endif
+#endif
+
 #define UNUSED_1(x) (void)(x)
 #define UNUSED_2(x, y) \
     do {               \

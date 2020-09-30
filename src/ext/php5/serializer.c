@@ -7,6 +7,7 @@
 
 #include "arrays.h"
 #include "compat_string.h"
+#include "compatibility.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "mpack/mpack.h"
@@ -216,12 +217,12 @@ static int _trace_string(zval **frame TSRMLS_DC, int num_args, va_list args, zen
     _DD_TRACE_APPEND_KEY("type");
     _DD_TRACE_APPEND_KEY("function");
 
-    if (zend_hash_find(ht, "args", sizeof("args"), (void **)&tmp) == SUCCESS && Z_TYPE_PP(tmp) == IS_ARRAY &&
-        zend_hash_num_elements(Z_ARRVAL_PP(tmp))) {
-        _DD_TRACE_APPEND_STR("(...)\n");
-    } else {
-        _DD_TRACE_APPEND_STR("()\n");
-    }
+    /* We intentionally do not show any arguments, not even an ellipsis if there
+     * are arguments; this is for consistency with PHP 7 where there is an INI
+     * setting called zend.exception_ignore_args that prevents "args" from being
+     * generated.
+     */
+    _DD_TRACE_APPEND_STR("()\n");
 
     return ZEND_HASH_APPLY_KEEP;
 }
@@ -248,7 +249,7 @@ static void _serialize_stack_trace(zval *meta, zval *trace TSRMLS_DC) {
     add_assoc_string(meta, "error.stack", res, 0);
 }
 
-static void _serialize_exception(zval *el, zval *meta, ddtrace_exception_t *exception TSRMLS_DC) {
+static void dd_serialize_exception(zval *el, zval *meta, ddtrace_exception_t *exception TSRMLS_DC) {
     zend_uint class_name_len;
     const char *class_name;
     zval *msg = NULL, *stack = NULL;
@@ -257,25 +258,65 @@ static void _serialize_exception(zval *el, zval *meta, ddtrace_exception_t *exce
         return;
     }
 
-    int needs_copied = zend_get_object_classname(exception, &class_name, &class_name_len TSRMLS_CC);
-
     add_assoc_long(el, "error", 1);
 
     zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "getmessage", &msg);
+    if (msg) {
+        add_assoc_zval(meta, "error.msg", msg);
+    }
 
-    /* add_assoc_stringl does not actually mutate the string, but we've either
-     * already made a copy, or it will when it duplicates with dup param, so
-     * if it did it should still be safe. */
-    add_assoc_stringl(meta, "error.type", (char *)class_name, class_name_len, needs_copied);
-    add_assoc_zval(meta, "error.msg", msg);
+    bool use_class_name_for_error_type = true;
+    if (instanceof_function(Z_OBJCE_P(exception), ddtrace_ce_fatal_error TSRMLS_CC)) {
+        zval *code = NULL;
+        zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "getcode", &code);
+        if (code) {
+            if (Z_TYPE_P(code) == IS_LONG) {
+                ddtrace_string error_type;
+                switch (Z_LVAL_P(code)) {
+                    case E_ERROR:
+                        error_type = DDTRACE_STRING_LITERAL("E_ERROR");
+                        break;
+                    case E_CORE_ERROR:
+                        error_type = DDTRACE_STRING_LITERAL("E_CORE_ERROR");
+                        break;
+                    case E_COMPILE_ERROR:
+                        error_type = DDTRACE_STRING_LITERAL("E_COMPILE_ERROR");
+                        break;
+                    case E_USER_ERROR:
+                        error_type = DDTRACE_STRING_LITERAL("E_USER_ERROR");
+                        break;
+                    default:
+                        ZEND_ASSERT(0 && "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
+                        error_type = DDTRACE_STRING_LITERAL("{unknown error}");
+                }
+                add_assoc_stringl(meta, "error.type", error_type.ptr, error_type.len, 1);
+                use_class_name_for_error_type = false;
+            } else {
+                ddtrace_log_debug("Exception was a DDTrace\\FatalError but exception code was not an int");
+            }
+            zval_ptr_dtor(&code);
+        } else {
+            ddtrace_log_debug("Failed to fetch exception code of DDTrace\\FatalError");
+        }
+    }
+
+    if (use_class_name_for_error_type) {
+        int needs_copied = zend_get_object_classname(exception, &class_name, &class_name_len TSRMLS_CC);
+        /* add_assoc_stringl does not actually mutate the string, but we've either
+         * already made a copy, or it will when it duplicates with dup param, so
+         * if it did it should still be safe. */
+        add_assoc_stringl(meta, "error.type", (char *)class_name, class_name_len, needs_copied);
+    }
 
     /* Note, we use Exception::getTrace() instead of getTraceAsString because
      * function arguments can contain sensitive information. Since we do not
      * have a comprehensive way to know which function arguments are sensitive
      * we will just hide all of them. */
     zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "gettrace", &stack);
-    _serialize_stack_trace(meta, stack TSRMLS_CC);
-    zval_ptr_dtor(&stack);
+    if (stack) {
+        _serialize_stack_trace(meta, stack TSRMLS_CC);
+        zval_ptr_dtor(&stack);
+    }
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
@@ -303,7 +344,7 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci TSRMLS_DC) {
         }
     }
 
-    _serialize_exception(el, meta, span_fci->exception TSRMLS_CC);
+    dd_serialize_exception(el, meta, span_fci->exception TSRMLS_CC);
     // zend_hash_exists on PHP 5 needs `sizeof(string)`, not `sizeof(string) - 1`
     if (!span_fci->exception && zend_hash_exists(Z_ARRVAL_P(meta), "error.msg", sizeof("error.msg"))) {
         add_assoc_long(el, "error", 1);
