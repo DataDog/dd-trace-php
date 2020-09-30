@@ -42,13 +42,16 @@ final class CurlIntegration extends Integration
             return Integration::NOT_LOADED;
         }
 
+        $integration = $this;
+
         \DDTrace\trace_function('curl_exec', [
             // the ddtrace extension will handle distributed headers
             'instrument_when_limited' => 0,
-            'posthook' => function (SpanData $span, $args, $retval) {
+            'posthook' => function (SpanData $span, $args, $retval) use ($integration) {
                 $span->name = $span->resource = 'curl_exec';
                 $span->type = Type::HTTP_CLIENT;
                 $span->service = 'curl';
+                $integration->addTraceAnalyticsIfEnabled($span);
 
                 if (!isset($args[0])) {
                     return;
