@@ -1,7 +1,6 @@
 <?php
 
 return [
-    __DIR__ . '/../src/DDTrace/version.php',
     __DIR__ . '/configuration.php',
     __DIR__ . '/../src/private/functions.php',
     __DIR__ . '/../src/api/Contracts/Tracer.php',

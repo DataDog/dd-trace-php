@@ -26,7 +26,7 @@ final class Tracer implements TracerInterface
     /**
      * @deprecated Use Tracer::version() instead
      */
-    const VERSION = '1.0.0-nightly'; // Update ./version.php too
+    const VERSION = '1.0.0-nightly';
 
     /**
      * @var Span[][]
@@ -532,7 +532,7 @@ final class Tracer implements TracerInterface
      */
     public static function version()
     {
-        return \DDTrace\VERSION;
+        return self::VERSION;
     }
 
     /**
