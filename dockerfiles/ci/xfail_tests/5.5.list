@@ -77,6 +77,7 @@ ext/date/tests/date_interval_create_from_date_string_nullparam.phpt
 ext/date/tests/date_time_set_variation3.phpt
 ext/date/tests/date_timestamp_set_nullparam2.phpt
 ext/date/tests/test-parse-from-format.phpt
+ext/fileinfo/tests/bug68819_002.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
 ext/json/tests/bug45791.phpt
 ext/json/tests/pass001.phpt

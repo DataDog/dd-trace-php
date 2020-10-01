@@ -8,6 +8,8 @@
 #include <Zend/zend_extensions.h>
 #if PHP_VERSION_ID >= 70000
 #include <Zend/zend_smart_str.h>
+#else
+#include <Zend/zend_builtin_functions.h>
 #endif
 #include <Zend/zend_vm.h>
 #include <inttypes.h>
@@ -186,6 +188,11 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_trace_enabled, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_testing_trigger_error, 0, 0, 2)
+ZEND_ARG_INFO(0, level)
+ZEND_ARG_INFO(0, message)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_init, 0, 0, 1)
 ZEND_ARG_INFO(0, dir)
 ZEND_END_ARG_INFO()
@@ -208,7 +215,7 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 /* DDTrace\SpanData */
 zend_class_entry *ddtrace_ce_span_data;
 
-static void register_span_data_ce(TSRMLS_D) {
+static void dd_register_span_data_ce(TSRMLS_D) {
     zend_class_entry ce_span_data;
     INIT_NS_CLASS_ENTRY(ce_span_data, "DDTrace", "SpanData", NULL);
     ddtrace_ce_span_data = zend_register_internal_class(&ce_span_data TSRMLS_CC);
@@ -241,6 +248,57 @@ zval *ddtrace_spandata_property_meta(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ
 // SpanData::$metrics
 zval *ddtrace_spandata_property_metrics(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 5); }
 #endif
+
+#if PHP_VERSION_ID < 70000
+static zend_object_handlers ddtrace_fatal_error_handlers;
+/* The goal is to mimic zend_default_exception_new_ex except for adding
+ * DEBUG_BACKTRACE_IGNORE_ARGS to zend_fetch_debug_backtrace. We don't want the
+ * args as they could leak info, and the serializer will throw them away anyway.
+ * Additionally, the tests leaked an argument in zend_fetch_debug_backtrace,
+ * which was the straw to break the camel's back.
+ */
+static zend_object_value ddtrace_fatal_error_new(zend_class_entry *class_type TSRMLS_DC) {
+    zval obj;
+    zend_object *object;
+    zval *trace;
+
+    Z_OBJVAL(obj) = zend_objects_new(&object, class_type TSRMLS_CC);
+    Z_OBJ_HT(obj) = &ddtrace_fatal_error_handlers;
+
+    object_properties_init(object, class_type);
+
+    ALLOC_ZVAL(trace);
+    Z_UNSET_ISREF_P(trace);
+    Z_SET_REFCOUNT_P(trace, 0);
+    zend_fetch_debug_backtrace(trace, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0 TSRMLS_CC);
+
+    zend_class_entry *exception_ce = zend_exception_get_default(TSRMLS_C);
+    zend_update_property_string(exception_ce, &obj, "file", sizeof("file") - 1,
+                                zend_get_executed_filename(TSRMLS_C) TSRMLS_CC);
+    zend_update_property_long(exception_ce, &obj, "line", sizeof("line") - 1,
+                              zend_get_executed_lineno(TSRMLS_C) TSRMLS_CC);
+    zend_update_property(exception_ce, &obj, "trace", sizeof("trace") - 1, trace TSRMLS_CC);
+
+    return Z_OBJVAL(obj);
+}
+#endif
+
+/* DDTrace\FatalError */
+zend_class_entry *ddtrace_ce_fatal_error;
+
+static void dd_register_fatal_error_ce(TSRMLS_D) {
+    zend_class_entry ce;
+    INIT_NS_CLASS_ENTRY(ce, "DDTrace", "FatalError", NULL);
+#if PHP_VERSION_ID < 70000
+    ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+    ddtrace_ce_fatal_error->create_object = ddtrace_fatal_error_new;
+    // these mimic zend_register_default_exception
+    memcpy(&ddtrace_fatal_error_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+    ddtrace_fatal_error_handlers.clone_obj = NULL;
+#else
+    ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_ce_exception TSRMLS_CC);
+#endif
+}
 
 static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     if (strcmp("fpm-fcgi", sapi_module.name) == 0 || strcmp("apache2handler", sapi_module.name) == 0 ||
@@ -282,7 +340,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_dogstatsd_client_minit(TSRMLS_C);
     ddtrace_signals_minit(TSRMLS_C);
 
-    register_span_data_ce(TSRMLS_C);
+    dd_register_span_data_ce(TSRMLS_C);
+    dd_register_fatal_error_ce(TSRMLS_C);
 
     ddtrace_engine_hooks_minit();
 
@@ -1222,6 +1281,39 @@ static PHP_FUNCTION(integration_analytics_sample_rate) {
     RETVAL_DOUBLE(ddtrace_config_integration_analytics_sample_rate(integration TSRMLS_CC));
 }
 
+static PHP_FUNCTION(trigger_error) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
+    ddtrace_string message;
+    ddtrace_zpplong_t error_type;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl", &message.ptr, &message.len, &error_type) != SUCCESS) {
+        RETURN_NULL()
+    }
+
+    int level = (int)error_type;
+    switch (level) {
+        case E_ERROR:
+        case E_WARNING:
+        case E_PARSE:
+        case E_NOTICE:
+        case E_CORE_ERROR:
+        case E_CORE_WARNING:
+        case E_COMPILE_ERROR:
+        case E_USER_ERROR:
+        case E_USER_WARNING:
+        case E_USER_NOTICE:
+        case E_STRICT:
+        case E_RECOVERABLE_ERROR:
+        case E_DEPRECATED:
+        case E_USER_DEPRECATED:
+            zend_error(level, "%s", message.ptr);
+            break;
+
+        default:
+            ddtrace_log_debugf("Invalid error type specified: %i", level);
+            break;
+    }
+}
+
 static PHP_FUNCTION(ddtrace_init) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     if (DDTRACE_G(request_init_hook_loaded) == 1) {
@@ -1523,6 +1615,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_sample_rate,
                       arginfo_ddtrace_config_integration_analytics_sample_rate),
+    DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
     DDTRACE_FE_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,
