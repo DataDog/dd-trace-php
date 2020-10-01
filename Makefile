@@ -591,7 +591,7 @@ test_web_zend_1:
 	$(call run_tests,tests/Integrations/ZendFramework/V1)
 test_web_custom:
 	$(COMPOSER) --working-dir=tests/Frameworks/Custom/Version_Autoloaded update
-	$(call run_tests,--testsuite=custom-framework-autoloaded-test)
+	$(call run_tests,--testsuite=custom-framework-autoloading-test)
 
 
 test_scenario_%:

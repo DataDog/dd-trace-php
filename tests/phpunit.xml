@@ -42,9 +42,11 @@
         <testsuite name="slim-312-test">
             <directory>./Integrations/Slim/V3_12</directory>
         </testsuite>
-        <testsuite name="custom-framework-autoloaded-test">
+        <testsuite name="custom-framework-autoloading-test">
             <directory>./Integrations/Custom/Autoloaded</directory>
+            <directory>./Integrations/Custom/NotAutoloaded</directory>
             <directory>./Integrations/CLI/Custom/Autoloaded</directory>
+            <directory>./Integrations/CLI/Custom/NotAutoloaded</directory>
         </testsuite>
         <testsuite name="unit">
             <directory>./Unit/</directory>
