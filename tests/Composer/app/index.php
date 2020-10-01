@@ -40,9 +40,7 @@ Configuration::get()->appName('default');
 Logger::set(new ErrorLogLogger('debug'));
 Logger::get()->debug('some-debug-message');
 
-/*
- * Accessing tracer version, which was loaded from a physical file until 0.48.3.
- */
+// Accessing tracer version, which was loaded from a physical file until 0.48.3.
 if (\class_exists('\DDTrace\Tracer')) {
     Tracer::version();
 }
