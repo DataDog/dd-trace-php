@@ -88,11 +88,6 @@ final class Tracer implements TracerInterface
     private $prioritySampling = Sampling\PrioritySampling::UNKNOWN;
 
     /**
-     * @var string|null
-     */
-    private static $version;
-
-    /**
      * @var string|null The user's service version, e.g. '1.2.3'
      */
     private $serviceVersion;
