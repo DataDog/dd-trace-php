@@ -1312,7 +1312,7 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 55 Integration tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
-          integration_testsuite: "test-integrations-55"
+          integration_testsuite: "test_integrations"
           lib_curl_command: |
               sudo apk update
               sudo apk add curl-dev cyrus-sasl-dev libmemcached-dev
