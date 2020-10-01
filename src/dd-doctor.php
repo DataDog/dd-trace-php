@@ -205,7 +205,7 @@ if (class_exists('\DDTrace\Tracer')) {
     $versionUserland = \DDTrace\Tracer::version();
 } else if (
     !empty($initHook)
-        && version_compare(phpversion('ddtrace'), '0.48.4', '<')
+        && version_compare(phpversion('ddtrace'), '0.48.3', '<=')
         && quiet_file_exists($userlandVersionFile = dirname(dirname($initHook)) . '/src/DDTrace/version.php')
 ) {
     $versionUserland = include $userlandVersionFile ? : false;

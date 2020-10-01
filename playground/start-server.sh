@@ -15,7 +15,7 @@ composer --working-dir="${PROJECT_ROOT}" install-ext
 echo "Done installing the extension"
 
 DD_AGENT_HOST=agent \
-    DD_TRACE_DEBUG=false \
+    DD_TRACE_DEBUG=true \
     php \
     -d error_log=/dev/stderr \
     -d ddtrace.request_init_hook=${REQUEST_INIT_HOOK} \
