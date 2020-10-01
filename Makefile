@@ -217,6 +217,7 @@ TEST_INTEGRATIONS_55 := \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
+	test_integrations_mongo \
 	test_integrations_pdo \
 	test_integrations_elasticsearch1 \
 	test_integrations_guzzle5 \
