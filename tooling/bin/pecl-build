@@ -6,7 +6,7 @@ rm -f ./bridge/_generated.php
 composer compile
 
 # PECL doesn't like the "-nightly" part of the nightly version number so we have to change it
-dd_version=$(cat src/DDTrace/Tracer.php | grep 'const VERSION' | awk '{print $$4}' | cut -d\' -f2 | sed 's/-nightly//g')
+dd_version=$(awk -F\' '/const VERSION/ {sub(/-nightly/, "", $2); print $2}' < src/DDTrace/Tracer.php)
 
 sed -e "s/\${version}/${dd_version}/g" -e "s/\${date}/$(date +%Y-%m-%d)/g" -i package.xml
 
