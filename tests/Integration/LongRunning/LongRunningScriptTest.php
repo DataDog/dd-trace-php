@@ -13,6 +13,10 @@ final class LongRunningScriptTest extends CLITestCase
 
     public function testMultipleTracesFromLongRunningScriptSetCorrectTraceCountHeader()
     {
+        if (5 === \PHP_MAJOR_VERSION) {
+            $this->markTestSkipped('We do not officially support and test long running scripts on PHP 5');
+            return;
+        }
         $agentRequest = $this->getAgentRequestFromCommand('', [
             'DD_TRACE_AUTO_FLUSH_ENABLED' => 'true',
             'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
