@@ -1070,14 +1070,18 @@ static int dd_handle_exception_handler(zend_execute_data *execute_data) {
     return prev_handle_exception_handler ? prev_handle_exception_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
-static int dd_exit_handler(zend_execute_data *execute_data) {
+void ddtrace_close_all_open_spans(void) {
     ddtrace_span_fci *span_fci;
+    while ((span_fci = DDTRACE_G(open_spans_top))) {
+        zval retval;
+        ZVAL_NULL(&retval);
+        dd_observer_end(NULL, span_fci, &retval);
+    }
+}
+
+static int dd_exit_handler(zend_execute_data *execute_data) {
     if (ZEND_EXIT == EX(opline)->opcode) {
-        while ((span_fci = DDTRACE_G(open_spans_top))) {
-            zval retval;
-            ZVAL_NULL(&retval);
-            dd_observer_end(NULL, span_fci, &retval);
-        }
+        ddtrace_close_all_open_spans();
     }
 
     return prev_exit_handler ? prev_exit_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
@@ -1151,4 +1155,25 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
     if (span_fci) {
         dd_observer_end(EX(func), span_fci, return_value);
     }
+}
+
+zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
+    PHP7_UNUSED(error_filename, error_lineno);
+
+    zval ex, tmp;
+    va_list args2;
+    char message[1024];
+    object_init_ex(&ex, ddtrace_ce_fatal_error);
+
+    va_copy(args2, args);
+    vsnprintf(message, sizeof(message), format, args2);
+    va_end(args2);
+    ZVAL_STRING(&tmp, message);
+    zend_update_property(ddtrace_ce_fatal_error, &ex, "message", sizeof("message") - 1, &tmp);
+    zval_ptr_dtor(&tmp);
+
+    ZVAL_LONG(&tmp, (zend_long)type);
+    zend_update_property(ddtrace_ce_fatal_error, &ex, "code", sizeof("code") - 1, &tmp);
+
+    return Z_OBJ(ex);
 }
