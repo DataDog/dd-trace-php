@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Integrations\CLI\Custom\NotAutoloaded;
 
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Integrations\CLI\CLITestCase;
+use DDTrace\Tests\Common\CLITestCase;
 
 final class NotAutoloadedTestCase extends CLITestCase
 {

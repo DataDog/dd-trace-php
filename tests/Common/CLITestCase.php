@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\CLI;
+namespace DDTrace\Tests\Common;
 
 use DDTrace\Tests\Common\AgentReplayerTrait;
 use DDTrace\Tests\Common\IntegrationTestCase;
@@ -33,7 +33,6 @@ abstract class CLITestCase extends IntegrationTestCase
             // Uncomment to see debug-level messages
             //'DD_TRACE_DEBUG' => 'true',
             'DD_TEST_INTEGRATION' => 'true',
-            'DD_TRACE_ENCODER' => 'json',
         ];
         return $envs;
     }
@@ -46,14 +45,14 @@ abstract class CLITestCase extends IntegrationTestCase
     protected static function getInis()
     {
         return [
-            'ddtrace.request_init_hook' => __DIR__ . '/../../../bridge/dd_wrap_autoloader.php',
+            'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
             // Enabling `strict_mode` disables debug mode
             //'ddtrace.strict_mode' => '1',
         ];
     }
 
     /**
-     * Run a command from the CLI
+     * Run a command from the CLI and return the generated traces.
      *
      * @param string $arguments
      * @param array $overrideEnvs
@@ -61,12 +60,25 @@ abstract class CLITestCase extends IntegrationTestCase
      */
     public function getTracesFromCommand($arguments = '', $overrideEnvs = [])
     {
+        return $this->loadTraces($this->getAgentRequestFromCommand($arguments, $overrideEnvs));
+    }
+
+    /**
+     * Run a command from the CLI and return the raw response.
+     *
+     * @param string $arguments
+     * @param array $overrideEnvs
+     * @return array | null
+     */
+    public function getAgentRequestFromCommand($arguments = '', $overrideEnvs = [])
+    {
         $envs = (string) new EnvSerializer(array_merge([], static::getEnvs(), $overrideEnvs));
         $inis = (string) new IniSerializer(static::getInis());
         $script = escapeshellarg($this->getScriptLocation());
         $arguments = escapeshellarg($arguments);
-        `$envs php $inis $script $arguments`;
-        return $this->loadTrace();
+        $commandToExecute = "$envs php $inis $script $arguments";
+        `$commandToExecute`;
+        return $this->getLastAgentRequest();
     }
 
     /**
@@ -74,9 +86,8 @@ abstract class CLITestCase extends IntegrationTestCase
      *
      * @return array
      */
-    private function loadTrace()
+    private function loadTraces($request)
     {
-        $request = $this->getLastAgentRequest();
         if (!isset($request['body'])) {
             return [];
         }
