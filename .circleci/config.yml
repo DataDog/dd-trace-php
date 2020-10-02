@@ -82,10 +82,10 @@ aliases:
       name: Disabling tls for php < 5.6 (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
       command: composer config disable-tls true
 
-  - &STEP_COMPOSER_INSTALL
+  - &STEP_COMPOSER_UPDATE
     run:
       name: Installing dependencies with composer
-      command: composer install --no-interaction
+      command: composer update --no-interaction
 
   - &STEP_COMPOSER_COMPILE
     run:
@@ -96,6 +96,11 @@ aliases:
     run:
       name: Verifying dd-tace-php files compiled into single file
       command: composer compile-verify
+
+  - &STEP_COMPOSER_TESTS_UPDATE
+    run:
+      name: Updating tests' composer
+      command: make composer_tests_update
 
   - &STEP_PREPARE_TEST_RESULTS_DIR
     run:
@@ -183,8 +188,7 @@ commands:
           command: composer config disable-tls true
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_INSTALL
-
+      - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
 
 executors:
@@ -309,7 +313,8 @@ jobs:
       - run:
           name: Set php.ini defaults
           command: printf "date.timezone=UTC\nmemory_limit=-1\n" | sudo tee -a /usr/local/etc/php/php.ini
-      - run: composer update
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - run:
           name: Install extension
           command: make debug all sudo install install_ini
@@ -323,7 +328,7 @@ jobs:
               cat /tmp/jobs.txt
               for job in $(cat /tmp/jobs.txt) ; do
                   echo "Running ${job}"
-                  composer "${job}"
+                  make "${job}"
               done
 
   "Post-Install Hook":
@@ -419,6 +424,7 @@ jobs:
       - lib_curl_workaround:
           command: << parameters.lib_curl_command >>
       - prepare_extension_and_composer_with_cache
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - copy_valgrind_rc:
@@ -428,7 +434,10 @@ jobs:
           command: make << parameters.unit_test_target >> BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
       - run:
           name: Run unit tests
-          command: composer test-unit -- --log-junit test-results/php-unit/results.xml
+          command: make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
+      - run:
+          name: Run API tests
+          command: make test_api_unit
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
@@ -511,7 +520,8 @@ jobs:
       - install_extension
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-base-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
-      - run: composer install --no-interaction --prefer-dist
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_AGENT
@@ -519,16 +529,16 @@ jobs:
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
           name: Run auto-instrumentation tests
-          command: composer test-auto-instrumentation -- --log-junit test-results/php-auto-instrumentation/results.xml
+          command: make test_auto_instrumentation PHPUNIT_OPTS="--log-junit test-results/php-auto-instrumentation/results.xml"
       - run:
           name: Run composer interoperability tests
-          command: composer test-composer -- --log-junit test-results/php-composer/results.xml
+          command: make test_composer PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
       - run:
           name: Run distributed-tracing tests
-          command: DD_TRACE_AGENT_TIMEOUT=1000 composer test-distributed-tracing -- --log-junit test-results/php-distributed-tracing/results.xml
+          command: DD_TRACE_AGENT_TIMEOUT=1000 make test_distributed_tracing PHPUNIT_OPTS="--log-junit test-results/php-distributed-tracing/results.xml"
       - run:
           name: Run integration tests
-          command: composer test-integration -- --log-junit test-results/php-integration/results.xml
+          command: make test_integration PHPUNIT_OPTS="--log-junit test-results/php-integration/results.xml"
       - save_cache:
           <<: *INTEGRATION_COMPOSER_CACHE_KEY
           paths:
@@ -565,7 +575,8 @@ jobs:
           lib_curl_command: << parameters.lib_curl_command >>
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
-      - run: composer install --no-interaction --prefer-dist
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
       - <<: *STEP_WAIT_AGENT
@@ -573,7 +584,7 @@ jobs:
       - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
           name: Run << parameters.integration_testsuite >> integration test
-          command: DD_TRACE_AGENT_TIMEOUT=1000 DD_TRACE_TEST_SAPI=<< parameters.sapi >> composer << parameters.integration_testsuite >>
+          command: DD_TRACE_AGENT_TIMEOUT=1000 DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.integration_testsuite >>
       - run:
           command: |
             mkdir -p /tmp/artifacts
@@ -604,6 +615,7 @@ jobs:
       - lib_curl_workaround:
           command: << parameters.lib_curl_command >>
       - prepare_extension_and_composer_with_cache
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_AGENT
@@ -650,7 +662,7 @@ jobs:
       docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_UPDATE
       - run:
           name: Make PECL build
           command: |
@@ -791,7 +803,7 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_COMPOSER_INSTALL
+      - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_COMPILE
       - <<: *STEP_COMPOSER_COMPILE_VERIFY
       - run:
@@ -1065,28 +1077,28 @@ workflows:
           name: "PHP 54 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test-web-54"
+          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test-web-72"
+          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test-web-73"
+          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test-web-74"
+          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
@@ -1294,13 +1306,13 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 Integration tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          integration_testsuite: "test-integrations-54"
+          integration_testsuite: "test_integrations"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 55 Integration tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
-          integration_testsuite: "test-integrations-55"
+          integration_testsuite: "test_integrations"
           lib_curl_command: |
               sudo apk update
               sudo apk add curl-dev cyrus-sasl-dev libmemcached-dev
@@ -1311,43 +1323,43 @@ workflows:
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 56 Integration tests"
-          integration_testsuite: "test-integrations-56"
+          integration_testsuite: "test_integrations"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 70 Integration tests"
-          integration_testsuite: "test-integrations-70"
+          integration_testsuite: "test_integrations"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 71 Integration tests"
-          integration_testsuite: "test-integrations-71"
+          integration_testsuite: "test_integrations"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 Integration tests"
-          integration_testsuite: "test-integrations-72"
+          integration_testsuite: "test_integrations"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 Integration tests"
-          integration_testsuite: "test-integrations-73"
+          integration_testsuite: "test_integrations"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 Integration tests"
-          integration_testsuite: "test-integrations-74"
+          integration_testsuite: "test_integrations"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 Web integration tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          integration_testsuite: "test-web-54"
+          integration_testsuite: "test_web"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
       - "Composer Tests 55":
           requires: [ 'Prepare Code' ]
@@ -1355,38 +1367,38 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 56 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test-web-56"
+          integration_testsuite: "test_web"
           # docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
           docker_image: "datadog/docker-library:ddtrace_php_5_6"
           lib_curl_command: sudo apt update ; sudo apt-get -y install libcurl4-nss-dev
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 70 Web integration tests"
-          integration_testsuite: "test-web-70"
+          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.0"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 71 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test-web-71"
+          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.1"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test-web-72"
+          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.2"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test-web-73"
+          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.3"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test-web-74"
+          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.4"
       - hyperfine_tests:
           requires: [ 'Prepare Code' ]

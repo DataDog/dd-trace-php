@@ -10,7 +10,7 @@ final class FrameworkNoAutoloadedTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Custom/Version_No_Autoloaded/index.php';
+        return __DIR__ . '/../../../Frameworks/Custom/Version_Not_Autoloaded/index.php';
     }
 
     protected static function getEnvs()

@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Unit\Configuration;
+namespace DDTrace\Tests\Api\Unit\Configuration;
 
 use DDTrace\Configuration\EnvVariableRegistry;
 use DDTrace\Tests\Unit\BaseTestCase;

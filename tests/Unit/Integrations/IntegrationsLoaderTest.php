@@ -27,49 +27,47 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testGlobalConfigCanDisableLoading()
     {
-        putenv('DD_TRACE_ENABLED=0');
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isDebugModeEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig(['DD_TRACE_ENABLED=0']);
 
         DummyIntegration1::$value = Integration::LOADED;
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
         $loader->loadAll();
-        putenv('DD_TRACE_ENABLED');
+        $this->putEnvAndReloadConfig(['DD_TRACE_ENABLED']);
 
         $this->assertSame(Integration::NOT_LOADED, $loader->getLoadingStatus('integration_1'));
     }
 
     public function testSingleIntegrationLoadingCanBeDisabled()
     {
-        putenv('DD_TRACE_ENABLED=1');
-        putenv('DD_INTEGRATIONS_DISABLED=pdo');
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isDebugModeEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED=1',
+            'DD_INTEGRATIONS_DISABLED=pdo',
+        ]);
 
         DummyIntegration1::$value = Integration::LOADED;
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
         $loader->loadAll();
-        putenv('DD_INTEGRATIONS_DISABLED');
-        putenv('DD_TRACE_ENABLED');
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED',
+            'DD_INTEGRATIONS_DISABLED',
+        ]);
 
         $this->assertSame(Integration::NOT_LOADED, $loader->getLoadingStatus('pdo'));
     }
 
     public function testIntegrationsAreLoaded()
     {
-        putenv('DD_TRACE_ENABLED=true');
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isIntegrationEnabled' => true,
-            'isDebugModeEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED=1',
+        ]);
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
         DummyIntegration1::$value = Integration::LOADED;
         DummyIntegration2::$value = Integration::NOT_AVAILABLE;
         $loader->loadAll();
-        putenv('DD_TRACE_ENABLED');
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED',
+        ]);
 
         $this->assertSame(Integration::LOADED, $loader->getLoadingStatus('integration_1'));
         $this->assertSame(Integration::NOT_AVAILABLE, $loader->getLoadingStatus('integration_2'));
@@ -77,11 +75,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testIntegrationAlreadyLoadedIsNotReloaded()
     {
-        putenv('DD_TRACE_ENABLED=1');
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isIntegrationEnabled' => true,
-            'isDebugModeEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED=1',
+        ]);
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
         // Initially the integration is not loaded
@@ -90,7 +86,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
         // We load it
         DummyIntegration1::$value = Integration::LOADED;
         $loader->loadAll();
-        putenv('DD_TRACE_ENABLED');
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED',
+        ]);
         $this->assertSame(Integration::LOADED, $loader->getLoadingStatus('integration_1'));
 
         // If now we change the returned value, it won't be reflected in the loadings statuses as it is not reloaded
@@ -101,11 +99,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testIntegrationNotAvailableIsNotReloaded()
     {
-        putenv('DD_TRACE_ENABLED=1');
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isIntegrationEnabled' => true,
-            'isDebugModeEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED=1',
+        ]);
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
         // Initially the integration is not loaded
@@ -114,7 +110,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
         // We load it
         DummyIntegration1::$value = Integration::NOT_AVAILABLE;
         $loader->loadAll();
-        putenv('DD_TRACE_ENABLED');
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED',
+        ]);
         $this->assertSame(Integration::NOT_AVAILABLE, $loader->getLoadingStatus('integration_1'));
 
         // If now we change the returned value, it won't be reflected in the loadings statuses as it is not reloaded
@@ -125,11 +123,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testIntegrationNotLoadedIsReloaded()
     {
-        putenv('DD_TRACE_ENABLED=1');
-        Configuration::replace(\Mockery::mock('\DDTrace\Configuration', [
-            'isIntegrationEnabled' => true,
-            'isDebugModeEnabled' => false,
-        ]));
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED=1',
+        ]);
         $loader = new IntegrationsLoader(self::$dummyIntegrations);
 
         // Initially the integration is not loaded
@@ -138,7 +134,9 @@ final class IntegrationsLoaderTest extends BaseTestCase
         // We load it, but the integration returned Integration::NOT_LOADED
         DummyIntegration1::$value = Integration::NOT_LOADED;
         $loader->loadAll();
-        putenv('DD_TRACE_ENABLED');
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_ENABLED',
+        ]);
         $this->assertSame(Integration::NOT_LOADED, $loader->getLoadingStatus('integration_1'));
 
         // If now we change the returned value, it won't be reflected in the loadings statuses as it is not reloaded

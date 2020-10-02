@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\OpenTracerUnit;
 
-use DDTrace\Configuration;
 use DDTrace\OpenTracer\SpanContext;
 use DDTrace\OpenTracer\Tracer;
 use DDTrace\Sampling\PrioritySampling;
