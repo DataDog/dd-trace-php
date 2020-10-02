@@ -107,10 +107,10 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
  */
 #if PHP_VERSION_ID < 70000
 #define DDTRACE_ARG_INFO_SIZE(arg_info) ((zend_uint)(sizeof(arg_info) / sizeof(struct _zend_arg_info) - 1))
-#elif PHP_VERSION_ID < 90000
+#elif PHP_VERSION_ID < 80100
 #define DDTRACE_ARG_INFO_SIZE(arg_info) ((uint32_t)(sizeof(arg_info) / sizeof(struct _zend_internal_arg_info) - 1))
 #else
-#error Check if ZEND_FENTRY has changed in PHP 9 and if we need to update the macros
+#error Check if ZEND_FENTRY has changed in PHP 8.1 and if we need to update the macros
 #endif
 
 #define DDTRACE_FENTRY(zend_name, name, arg_info, flags) \
