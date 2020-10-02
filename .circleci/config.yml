@@ -706,6 +706,26 @@ jobs:
           when: on_fail
       - store_artifacts: { path: '/tmp/artifacts' }
 
+  compile_extension_alpine:
+    working_directory: ~/datadog
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 5.6
+        type: string
+    machine:
+      image: ubuntu-1604:202007-01
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Pull latest image
+          command: make -C dockerfiles/compile-extension pull_alpine_<< parameters.php_major_minor >>
+      - run:
+          name: Build extension
+          command: make -C dockerfiles/compile-extension build_extension_alpine_<< parameters.php_major_minor >>
+      - persist_to_workspace:
+          root: '.'
+          paths: ['./extensions']
+
   compile_extension:
     working_directory: ~/datadog
     parameters:
@@ -855,6 +875,9 @@ workflows:
   build_packages:
     jobs:
       - "Prepare Code"
+      - compile_extension_alpine:
+          php_major_minor: '5.6'
+          requires: [ 'Prepare Code' ]
       - compile_extension:
           name: "Compile PHP 54"
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
@@ -943,6 +966,7 @@ workflows:
           name: "Build PECL"
       - "package extension":
           requires:
+            - compile_extension_alpine
             - "Compile PHP 54"
             - "Compile PHP 55"
             - "Compile PHP 56"

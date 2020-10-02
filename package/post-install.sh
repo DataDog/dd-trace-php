@@ -15,13 +15,11 @@ if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
     DD_TRACE_PHP_BIN=$(command -v php)
 fi
 
-function invoke_php(){
-    # In case of .apk post-install hooks the script has no access the set of exported ENVS.
-    # In case when 1) users import large ini files (e.g. browsercap.ini) and 2) they set memory_limit using an env
-    # variable we would fail because of the memory limit reached. In order to avoid this we set a sane memory limit
-    # that should cause no problem in any machine when our tracer is installed.
-    $DD_TRACE_PHP_BIN -d memory_limit=128M $*
-}
+# In case of .apk post-install hooks the script has no access the set of exported ENVS.
+# When 1) users import large ini files (e.g. browsercap.ini) and 2) they set memory_limit using an env
+# variable we would fail because of the memory limit reached. In order to avoid this we set a sane memory limit
+# that should cause no problem in any machine when our tracer is installed.
+RUN_PHP="$DD_TRACE_PHP_BIN -d memory_limit=128M"
 
 function println(){
     echo -e '###' "$@"
@@ -133,7 +131,7 @@ function fail_print_and_exit() {
 }
 
 function verify_installation() {
-    invoke_php -m | grep ddtrace && \
+    $RUN_PHP -m | grep ddtrace && \
         println "Extension enabled successfully" || \
         fail_print_and_exit
 }
@@ -147,19 +145,25 @@ println
 println "Logging $DD_TRACE_PHP_BIN -i to a file"
 println
 
-invoke_php -i > "$EXTENSION_LOGS_DIR/php-info.log"
+$RUN_PHP -i > "$EXTENSION_LOGS_DIR/php-info.log"
 
-PHP_VERSION=$(invoke_php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
-PHP_CFG_DIR=$(invoke_php -i | grep 'Scan this dir for additional .ini files =>' | sed -e 's/Scan this dir for additional .ini files =>//g' | head -n 1 | awk '{print $1}')
+PHP_VERSION=$($RUN_PHP -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
+PHP_MAJOR_MINOR=$($RUN_PHP -r "echo PHP_MAJOR_VERSION;").$($RUN_PHP -r "echo PHP_MINOR_VERSION;")
+PHP_CFG_DIR=$($RUN_PHP -i | grep 'Scan this dir for additional .ini files =>' | sed -e 's/Scan this dir for additional .ini files =>//g' | head -n 1 | awk '{print $1}')
 
-PHP_THREAD_SAFETY=$(invoke_php -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
+PHP_THREAD_SAFETY=$($RUN_PHP -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
 
 VERSION_SUFFIX=""
 if [[ -n $PHP_THREAD_SAFETY ]]; then
     VERSION_SUFFIX="-zts"
 fi
 
-EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}.so"
+OS_SPECIFIER=""
+if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release") && [ "${PHP_MAJOR_MINOR}" != "5.4" ] && [ "${VERSION_SUFFIX}" != "-zts" ]; then
+    OS_SPECIFIER="-alpine"
+fi
+
+EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}${OS_SPECIFIER}.so"
 EXTENSION_FILE_PATH="${EXTENSION_DIR}/${EXTENSION_NAME}"
 INI_FILE_CONTENTS=$(cat <<EOF
 [datadog]
@@ -171,7 +175,7 @@ EOF
 if [[ ! -e $PHP_CFG_DIR ]]; then
     println
     println 'conf.d folder not found falling back to appending extension config to main "php.ini"'
-    PHP_CFG_FILE_PATH=$(invoke_php -i | grep 'Configuration File (php.ini) Path =>' | sed -e 's/Configuration File (php.ini) Path =>//g' | head -n 1 | awk '{print $1}')
+    PHP_CFG_FILE_PATH=$($RUN_PHP -i | grep 'Configuration File (php.ini) Path =>' | sed -e 's/Configuration File (php.ini) Path =>//g' | head -n 1 | awk '{print $1}')
     PHP_CFG_FILE="${PHP_CFG_FILE_PATH}/php.ini"
     if [[ ! -e $PHP_CFG_FILE_PATH ]]; then
         fail_print_and_exit
