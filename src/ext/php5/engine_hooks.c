@@ -41,11 +41,6 @@ static ddtrace_execute_data dd_execute_data_init(zend_execute_data *execute_data
     return dd_execute_data;
 }
 
-static zval *ddtrace_exception_get_entry(zval *object, char *name, int name_len TSRMLS_DC) {
-    zend_class_entry *exception_ce = zend_exception_get_default(TSRMLS_C);
-    return zend_read_property(exception_ce, object, name, name_len, 1 TSRMLS_CC);
-}
-
 static void dd_try_fetch_executing_function_name(ddtrace_execute_data *dd_execute_data, const char **scope,
                                                  const char **colon, const char **name) {
     *scope = "";

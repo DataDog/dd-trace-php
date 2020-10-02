@@ -54,12 +54,14 @@ ZEND_RESULT_CODE ddtrace_call_method(zend_object *obj, zend_class_entry *ce, zen
         .retval = retval,
         .params = argv,
         .object = obj,
-        /* Must be 0 to allow for by-ref args
-         * BUT if you use by-ref args, you need to free the ref if it gets separated!
-         */
-        .no_separation = 0,
         .param_count = argc,
     };
+#if PHP_VERSION_ID < 80000
+    /* Must be 0 to allow for by-ref args
+     * BUT if you use by-ref args, you need to free the ref if it gets separated!
+     */
+    fci.no_separation = 0;
+#endif
     ZVAL_STR(&fci.function_name, method->common.function_name);
 
     zend_fcall_info_cache fcc = {
@@ -110,17 +112,26 @@ ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *nam
 
     fci.retval = retval;
     fci.params = argv;
+#if PHP_VERSION_ID < 80000
     fci.no_separation = 0;  // allow for by-ref args
+#endif
     fci.param_count = argc;
     ZEND_RESULT_CODE result = zend_call_function(&fci, &fcc);
     return result;
 }
 
 void ddtrace_write_property(zval *obj, const char *prop, size_t prop_len, zval *value) {
+#if PHP_VERSION_ID < 80000
     zval member = ddtrace_zval_stringl(prop, prop_len);
     // the underlying API doesn't tell you if it worked _shrug_
     Z_OBJ_P(obj)->handlers->write_property(obj, &member, value, NULL);
     zend_string_release(Z_STR(member));
+#else
+    zend_string *member = zend_string_init(prop, prop_len, 0);
+    // the underlying API doesn't tell you if it worked _shrug_
+    Z_OBJ_P(obj)->handlers->write_property(Z_OBJ_P(obj), member, value, NULL);
+    zend_string_release(member);
+#endif
 }
 
 // Modeled after PHP's property_exists for the Z_TYPE_P(object) == IS_OBJECT case
@@ -141,12 +152,20 @@ bool ddtrace_property_exists(zval *object, zval *property) {
     if (Z_OBJ_HANDLER_P(object, has_property) && Z_OBJ_HANDLER_P(object, has_property)(object, property, 2, NULL)) {
         return true;
     }
-#else
+#elif PHP_VERSION_ID < 80000
     if (property_info && (!(property_info->flags & ZEND_ACC_PRIVATE) || property_info->ce == ce)) {
         return true;
     }
 
     if (Z_OBJ_HANDLER_P(object, has_property)(object, property, 2, NULL)) {
+        return true;
+    }
+#else
+    if (property_info && (!(property_info->flags & ZEND_ACC_PRIVATE) || property_info->ce == ce)) {
+        return true;
+    }
+
+    if (Z_OBJ_HANDLER_P(object, has_property)(Z_OBJ_P(object), Z_STR_P(property), 2, NULL)) {
         return true;
     }
 #endif
@@ -156,7 +175,11 @@ bool ddtrace_property_exists(zval *object, zval *property) {
 ZEND_RESULT_CODE ddtrace_read_property(zval *dest, zval *obj, const char *prop, size_t prop_len) {
     zval rv, member = ddtrace_zval_stringl(prop, prop_len);
     if (ddtrace_property_exists(obj, &member)) {
+#if PHP_VERSION_ID < 80000
         zval *result = Z_OBJ_P(obj)->handlers->read_property(obj, &member, BP_VAR_R, NULL, &rv);
+#else
+        zval *result = Z_OBJ_P(obj)->handlers->read_property(Z_OBJ_P(obj), Z_STR(member), BP_VAR_R, NULL, &rv);
+#endif
         zend_string_release(Z_STR(member));
         if (result) {
             ZVAL_COPY(dest, result);

@@ -137,9 +137,6 @@ ZEND_ARG_INFO(0, function_name)
 ZEND_ARG_INFO(0, tracing_closure)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_closed_spans, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_serialize_msgpack, 0, 0, 1)
 ZEND_ARG_INFO(0, trace_array)
 ZEND_END_ARG_INFO()
@@ -160,20 +157,23 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_push_span_id, 0, 0, 0)
 ZEND_ARG_INFO(0, existing_id)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_internal_fn, 0, 0, 1)
+ZEND_ARG_INFO(0, function_name)
+ZEND_ARG_VARIADIC_INFO(0, vars)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_send_traces_via_thread, 0, 0, 3)
 ZEND_ARG_INFO(0, url)
 ZEND_ARG_INFO(0, http_headers)
 ZEND_ARG_INFO(0, body)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace_compile_time_microseconds, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_untrace, 0, 0, 1)
+ZEND_ARG_INFO(0, function_name)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, 0)
 ZEND_ARG_INFO(0, default_name)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_distributed_tracing_enabled, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_integration_enabled, 0, 0, 1)
@@ -188,9 +188,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_integration_analytics_sample_rate,
 ZEND_ARG_INFO(0, integration_name)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_config_trace_enabled, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_testing_trigger_error, 0, 0, 2)
 ZEND_ARG_INFO(0, level)
 ZEND_ARG_INFO(0, message)
@@ -201,6 +198,13 @@ ZEND_ARG_INFO(0, dir)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ddtrace_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+/* Legacy API */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_dd_trace, 0, 0, 2)
+ZEND_ARG_INFO(0, class_or_function_name)
+ZEND_ARG_INFO(0, method_name_or_tracing_closure)
+ZEND_ARG_INFO(0, tracing_closure)
 ZEND_END_ARG_INFO()
 
 static void php_ddtrace_init_globals(zend_ddtrace_globals *ng) { memset(ng, 0, sizeof(zend_ddtrace_globals)); }
@@ -748,7 +752,7 @@ static PHP_FUNCTION(dd_trace) {
                          Z_STRVAL_P(function));
     }
 
-    RETURN_FALSE
+    RETURN_FALSE;
 }
 
 static PHP_FUNCTION(trace_method) {
@@ -814,19 +818,19 @@ static PHP_FUNCTION(hook_method) {
         ddtrace_log_debug(
             "Unable to parse parameters for DDTrace\\hook_method; expected "
             "(string $class_name, string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     if (prehook && posthook) {
         // both callbacks given; not yet supported
         ddtrace_log_debug(
             "DDTrace\\hook_method was given both prehook and posthook. This is not yet supported; ignoring call.");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     if (!prehook && !posthook) {
         ddtrace_log_debug("DDTrace\\hook_method was given neither prehook nor posthook.");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     // at this point we know we have a posthook XOR posthook
@@ -845,7 +849,7 @@ static PHP_FUNCTION(hook_method) {
     zval_ptr_dtor(&method_name_zv);
     zval_ptr_dtor(&class_name_zv);
 
-    RETURN_BOOL(rv)
+    RETURN_BOOL(rv);
 }
 
 static PHP_FUNCTION(hook_function) {
@@ -858,19 +862,19 @@ static PHP_FUNCTION(hook_function) {
         ddtrace_log_debug(
             "Unable to parse parameters for DDTrace\\hook_function; expected "
             "(string $method_name, ?Closure $prehook = NULL, ?Closure $posthook = NULL)");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     if (prehook && posthook) {
         // both callbacks given; not yet supported
         ddtrace_log_debug(
             "DDTrace\\hook_function was given both prehook and posthook. This is not yet supported; ignoring call.");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     if (!prehook && !posthook) {
         ddtrace_log_debug("DDTrace\\hook_function was given neither prehook nor posthook.");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     // at this point we know we have a posthook XOR posthook
@@ -884,7 +888,7 @@ static PHP_FUNCTION(hook_function) {
     zend_bool rv = ddtrace_trace(NULL, function_name_zv, callable, options TSRMLS_CC);
 
     zval_ptr_dtor(&function_name_zv);
-    RETURN_BOOL(rv)
+    RETURN_BOOL(rv);
 }
 #else
 /*
@@ -913,12 +917,12 @@ static PHP_FUNCTION(hook_method) {
         // both callbacks given; not yet supported
         ddtrace_log_debug(
             "DDTrace\\hook_method was given both prehook and posthook. This is not yet supported; ignoring call.");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     if (!prehook && !posthook) {
         ddtrace_log_debug("DDTrace\\hook_method was given neither prehook nor posthook.");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     // at this point we know we have a posthook XOR posthook
@@ -930,7 +934,7 @@ static PHP_FUNCTION(hook_method) {
     ZVAL_STR(&class_name_zv, class_name);
     ZVAL_STR(&method_name_zv, method_name);
 
-    RETURN_BOOL(ddtrace_trace(&class_name_zv, &method_name_zv, callable, options TSRMLS_CC))
+    RETURN_BOOL(ddtrace_trace(&class_name_zv, &method_name_zv, callable, options TSRMLS_CC));
 }
 
 static PHP_FUNCTION(hook_function) {
@@ -954,12 +958,12 @@ static PHP_FUNCTION(hook_function) {
         // both callbacks given; not yet supported
         ddtrace_log_debug(
             "DDTrace\\hook_function was given both prehook and posthook. This is not yet supported; ignoring call.");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     if (!prehook && !posthook) {
         ddtrace_log_debug("DDTrace\\hook_function was given neither prehook nor posthook.");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     // at this point we know we have a posthook XOR posthook
@@ -970,7 +974,7 @@ static PHP_FUNCTION(hook_function) {
     zval function_name_zv;
     ZVAL_STR(&function_name_zv, function_name);
 
-    RETURN_BOOL(ddtrace_trace(NULL, &function_name_zv, callable, options TSRMLS_CC))
+    RETURN_BOOL(ddtrace_trace(NULL, &function_name_zv, callable, options TSRMLS_CC));
 }
 #endif
 
@@ -1024,7 +1028,7 @@ static PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 static PHP_FUNCTION(dd_trace_forward_call) {
     PHP5_UNUSED(ht, return_value_ptr, this_ptr, return_value_used TSRMLS_CC);
     PHP7_UNUSED(execute_data);
-    RETURN_FALSE
+    RETURN_FALSE;
 }
 
 static PHP_FUNCTION(dd_trace_env_config) {
@@ -1199,12 +1203,12 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
     };
 #if PHP_VERSION_ID < 70000
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &default_str.ptr, &default_str.len) != SUCCESS) {
-        RETURN_NULL()
+        RETURN_NULL();
     }
 #else
     zend_string *default_zstr = NULL;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|S", &default_zstr) != SUCCESS) {
-        RETURN_NULL()
+        RETURN_NULL();
     }
     if (default_zstr) {
         default_str.ptr = ZSTR_VAL(default_zstr);
@@ -1220,7 +1224,7 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
             efree(app_name.ptr);
         }
         if (!default_str.len) {
-            RETURN_NULL()
+            RETURN_NULL();
         }
         should_free_app_name = false;
         app_name = default_str;
@@ -1245,7 +1249,7 @@ static PHP_FUNCTION(ddtrace_config_app_name) {
 static PHP_FUNCTION(ddtrace_config_distributed_tracing_enabled) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     PHP7_UNUSED(execute_data);
-    RETURN_BOOL(ddtrace_config_distributed_tracing_enabled(TSRMLS_C))
+    RETURN_BOOL(ddtrace_config_distributed_tracing_enabled(TSRMLS_C));
 }
 
 static PHP_FUNCTION(ddtrace_config_trace_enabled) {
@@ -1257,11 +1261,11 @@ static PHP_FUNCTION(ddtrace_config_trace_enabled) {
 static PHP_FUNCTION(ddtrace_config_integration_enabled) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     if (!ddtrace_config_trace_enabled(TSRMLS_C)) {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
     ddtrace_string integration;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
-        RETURN_NULL()
+        RETURN_NULL();
     }
     RETVAL_BOOL(ddtrace_config_integration_enabled(integration TSRMLS_CC));
 }
@@ -1270,7 +1274,7 @@ static PHP_FUNCTION(integration_analytics_enabled) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     ddtrace_string integration;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
-        RETURN_NULL()
+        RETURN_NULL();
     }
     RETVAL_BOOL(ddtrace_config_integration_analytics_enabled(integration TSRMLS_CC));
 }
@@ -1279,7 +1283,7 @@ static PHP_FUNCTION(integration_analytics_sample_rate) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     ddtrace_string integration;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &integration.ptr, &integration.len) != SUCCESS) {
-        RETURN_NULL()
+        RETURN_NULL();
     }
     RETVAL_DOUBLE(ddtrace_config_integration_analytics_sample_rate(integration TSRMLS_CC));
 }
@@ -1289,7 +1293,7 @@ static PHP_FUNCTION(trigger_error) {
     ddtrace_string message;
     ddtrace_zpplong_t error_type;
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl", &message.ptr, &message.len, &error_type) != SUCCESS) {
-        RETURN_NULL()
+        RETURN_NULL();
     }
 
     int level = (int)error_type;
@@ -1320,7 +1324,7 @@ static PHP_FUNCTION(trigger_error) {
 static PHP_FUNCTION(ddtrace_init) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     if (DDTRACE_G(request_init_hook_loaded) == 1) {
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     ddtrace_string dir;
@@ -1350,7 +1354,7 @@ static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "las", &num_traces, &curl_headers,
                                  &payload, &payload_len) == FAILURE) {
         ddtrace_log_debug("dd_trace_send_traces_via_thread() expects trace count, http headers, and http body");
-        RETURN_FALSE
+        RETURN_FALSE;
     }
 
     bool result = ddtrace_send_traces_via_thread(num_traces, curl_headers, payload, payload_len TSRMLS_CC);
@@ -1578,37 +1582,37 @@ static PHP_FUNCTION(startup_logs) {
 }
 
 static const zend_function_entry ddtrace_functions[] = {
-    DDTRACE_FE(dd_trace, NULL),
+    DDTRACE_FE(dd_trace, arginfo_dd_trace),  // Noop legacy API
     DDTRACE_FE(dd_trace_buffer_span, arginfo_dd_trace_buffer_span),
-    DDTRACE_FE(dd_trace_check_memory_under_limit, NULL),
-    DDTRACE_FE(dd_trace_closed_spans_count, NULL),
-    DDTRACE_FE(dd_trace_coms_trigger_writer_flush, NULL),
-    DDTRACE_FE(dd_trace_dd_get_memory_limit, NULL),
-    DDTRACE_FE(dd_trace_disable_in_request, NULL),
+    DDTRACE_FE(dd_trace_check_memory_under_limit, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_trace_closed_spans_count, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_trace_coms_trigger_writer_flush, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_trace_dd_get_memory_limit, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_trace_disable_in_request, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_env_config, arginfo_dd_trace_env_config),
-    DDTRACE_FE(dd_trace_forward_call, NULL),
-    DDTRACE_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, NULL),
-    DDTRACE_FE(dd_trace_internal_fn, NULL),
-    DDTRACE_FE(dd_trace_noop, NULL),
-    DDTRACE_FE(dd_trace_peek_span_id, NULL),
-    DDTRACE_FE(dd_trace_pop_span_id, NULL),
+    DDTRACE_FE(dd_trace_forward_call, arginfo_ddtrace_void),  // Noop legacy API
+    DDTRACE_FALIAS(dd_trace_generate_id, dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
+    DDTRACE_FE(dd_trace_internal_fn, arginfo_dd_trace_internal_fn),
+    DDTRACE_FE(dd_trace_noop, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_trace_peek_span_id, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
-    DDTRACE_FE(dd_trace_reset, NULL),
+    DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
-    DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_dd_trace_serialize_closed_spans),
+    DDTRACE_FE(dd_trace_serialize_closed_spans, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_serialize_msgpack, arginfo_dd_trace_serialize_msgpack),
     DDTRACE_FE(dd_trace_set_trace_id, arginfo_dd_trace_set_trace_id),
-    DDTRACE_FE(dd_trace_tracer_is_limited, NULL),
-    DDTRACE_FE(dd_tracer_circuit_breaker_can_try, NULL),
-    DDTRACE_FE(dd_tracer_circuit_breaker_info, NULL),
-    DDTRACE_FE(dd_tracer_circuit_breaker_register_error, NULL),
-    DDTRACE_FE(dd_tracer_circuit_breaker_register_success, NULL),
-    DDTRACE_FE(dd_untrace, NULL),
-    DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_dd_trace_compile_time_microseconds),
+    DDTRACE_FE(dd_trace_tracer_is_limited, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_tracer_circuit_breaker_can_try, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_tracer_circuit_breaker_info, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_tracer_circuit_breaker_register_error, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_tracer_circuit_breaker_register_success, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_untrace, arginfo_dd_untrace),
+    DDTRACE_FE(dd_trace_compile_time_microseconds, arginfo_ddtrace_void),
     DDTRACE_FE(ddtrace_config_app_name, arginfo_ddtrace_config_app_name),
-    DDTRACE_FE(ddtrace_config_distributed_tracing_enabled, arginfo_ddtrace_config_distributed_tracing_enabled),
+    DDTRACE_FE(ddtrace_config_distributed_tracing_enabled, arginfo_ddtrace_void),
     DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
-    DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_config_trace_enabled),
+    DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_void),
     DDTRACE_FE(ddtrace_init, arginfo_ddtrace_init),
     DDTRACE_NS_FE(trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_FALIAS(dd_trace_function, trace_function, arginfo_ddtrace_trace_function),

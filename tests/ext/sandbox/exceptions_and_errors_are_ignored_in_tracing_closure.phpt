@@ -23,7 +23,7 @@ class Test
 
 DDTrace\trace_method('Test', 'testFoo', function (SpanData $span) {
     $span->name = 'TestFoo';
-    $span->service = $this_normally_raises_a_notice; // E_NOTICE
+    $span->service = $this_normally_raises_an_error;
 });
 
 DDTrace\trace_function('mt_srand', function (SpanData $span) {
@@ -48,7 +48,7 @@ var_dump(error_get_last());
 Exception thrown in ddtrace's closure for mt_srand(): This should be ignored
 Error raised in ddtrace's closure for mt_rand(): htmlentities(): Only basic entities substitution is supported for multi-byte encodings other than UTF-8; functionality is equivalent to htmlspecialchars in %s on line %d
 Test::testFoo() fav num: %d
-Error raised in ddtrace's closure for Test::testFoo(): Undefined variable: this_normally_raises_a_notice in %s on line %d
+%s in ddtrace's closure for Test::testFoo(): Undefined variable%sthis_normally_raises_an_%s
 TestFoo
 MTRand
 MTSeed

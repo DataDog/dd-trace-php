@@ -61,21 +61,6 @@ static zend_class_entry *dd_get_called_scope(zend_execute_data *call) {
     return call->func->common.scope ? zend_get_called_scope(call) : NULL;
 }
 
-static zend_class_entry *dd_get_exception_base(zval *object) {
-    return instanceof_function(Z_OBJCE_P(object), zend_ce_exception) ? zend_ce_exception : zend_ce_error;
-}
-
-#if PHP_VERSION_ID < 70100
-#define ZEND_STR_MESSAGE "message"
-#define GET_PROPERTY(object, name) \
-    zend_read_property(dd_get_exception_base(object), (object), name, sizeof(name) - 1, 1, &rv)
-#elif PHP_VERSION_ID < 70200
-#define GET_PROPERTY(object, id) \
-    zend_read_property_ex(dd_get_exception_base(object), (object), CG(known_strings)[id], 1, &rv)
-#else
-#define GET_PROPERTY(object, id) zend_read_property_ex(dd_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
-#endif
-
 static void dd_try_fetch_executing_function_name(zend_execute_data *call, const char **scope, const char **colon,
                                                  const char **name) {
     *scope = "";
@@ -97,11 +82,14 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
     va_list argv;
 
     va_start(argv, argc);
+#if PHP_VERSION_ID < 80000
     ret = zend_fcall_info_argv(fci, argc, &argv);
-    va_end(argv);
-
     // The only way we mess this up is by passing in argc < 0
     ZEND_ASSERT(ret == SUCCESS);
+#else
+    zend_fcall_info_argv(fci, (uint32_t)argc, &argv);
+#endif
+    va_end(argv);
 
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
     ret = zend_call_function(fci, fcc);
@@ -111,8 +99,14 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
         dd_try_fetch_executing_function_name(call, &scope, &colon, &name);
 
         if (PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
+            char *error;
+#if PHP_VERSION_ID < 80000
+            error = PG(last_error_message);
+#else
+            error = ZSTR_VAL(PG(last_error_message));
+#endif
             ddtrace_log_errf("Error raised in ddtrace's closure for %s%s%s(): %s in %s on line %d", scope, colon, name,
-                             PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
+                             error, PG(last_error_file), PG(last_error_lineno));
         }
 
         if (UNEXPECTED(EG(exception))) {
@@ -953,14 +947,14 @@ static int dd_yield_from_handler(zend_execute_data *execute_data) {
 }
 #endif
 
-#if PHP_MINOR_VERSION == 0
+#if PHP_VERSION_ID < 70100
 static zend_op *dd_get_next_catch_block(zend_execute_data *execute_data, zend_op *opline) {
     if (opline->result.num) {
         return NULL;
     }
     return &EX(func)->op_array.opcodes[opline->extended_value];
 }
-#elif PHP_MINOR_VERSION < 3
+#elif PHP_VERSION_ID < 70300
 static zend_op *dd_get_next_catch_block(zend_op *opline) {
     if (opline->result.num) {
         return NULL;
@@ -978,13 +972,13 @@ static zend_op *dd_get_next_catch_block(zend_op *opline) {
 
 static zend_class_entry *dd_get_catching_ce(zend_execute_data *execute_data, const zend_op *opline) {
     zend_class_entry *catch_ce = NULL;
-#if PHP_MINOR_VERSION < 3
+#if PHP_VERSION_ID < 70300
     catch_ce = CACHED_PTR(Z_CACHE_SLOT_P(EX_CONSTANT(opline->op1)));
     if (catch_ce == NULL) {
         catch_ce = zend_fetch_class_by_name(Z_STR_P(EX_CONSTANT(opline->op1)), EX_CONSTANT(opline->op1) + 1,
                                             ZEND_FETCH_CLASS_NO_AUTOLOAD);
     }
-#elif PHP_MINOR_VERSION == 3
+#elif PHP_VERSION_ID < 70400
     catch_ce = CACHED_PTR(opline->extended_value & ~ZEND_LAST_CATCH);
     if (catch_ce == NULL) {
         catch_ce = zend_fetch_class_by_name(Z_STR_P(RT_CONSTANT(opline, opline->op1)),
@@ -1040,7 +1034,7 @@ static bool dd_is_catching_frame(zend_execute_data *execute_data) {
                         return true;
                     }
                 }
-#if PHP_MINOR_VERSION == 0
+#if PHP_VERSION_ID < 70100
                 opline = dd_get_next_catch_block(execute_data, opline);
 #else
                 opline = dd_get_next_catch_block(opline);
@@ -1157,6 +1151,7 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
     }
 }
 
+#if PHP_VERSION_ID < 80000
 zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
     PHP7_UNUSED(error_filename, error_lineno);
 
@@ -1177,3 +1172,4 @@ zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
 
     return Z_OBJ(ex);
 }
+#endif

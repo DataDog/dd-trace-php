@@ -77,7 +77,9 @@ void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data,
     fci.param_count = ZEND_CALL_NUM_ARGS(DDTRACE_G(original_context).execute_data);
     fci.params = ZEND_CALL_ARG(DDTRACE_G(original_context).execute_data, 1);
     fci.object = DDTRACE_G(original_context).this;
+#if PHP_VERSION_ID < 80000
     fci.no_separation = 1;
+#endif
 
 #if PHP_VERSION_ID < 70300
     fcc.initialized = 1;

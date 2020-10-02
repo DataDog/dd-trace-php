@@ -1,0 +1,3 @@
+--suppressions=/home/circleci/valgrind_8_0_musl_suppressions.lib
+--gen-suppressions=all
+--leak-check=full

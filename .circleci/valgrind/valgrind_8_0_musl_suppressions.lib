@@ -1,0 +1,64 @@
+{
+    <PHP leaks the file name on fatal errors>
+    Memcheck:Leak
+    match-leak-kinds: possible
+    fun:malloc
+    fun:__zend_malloc
+    fun:_malloc_custom
+    fun:_emalloc
+    fun:zend_string_alloc
+    fun:zend_string_init
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}
+{
+    <PHP leaks the last_error_message on fatal errors>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_malloc_custom
+    fun:_emalloc
+    fun:zend_string_alloc
+    fun:smart_str_erealloc
+    fun:smart_str_alloc
+    fun:smart_str_appendc_ex
+    fun:xbuf_format_converter
+    fun:php_printf_to_smart_str
+    fun:zend_vstrpprintf
+    fun:zend_error_va_list
+}
+{
+    <PHP leaks op_array on fatal errors>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_malloc_custom
+    fun:_emalloc
+    fun:zend_compile
+    fun:compile_file
+    fun:phar_compile_file
+    fun:_dd_compile_file
+    fun:zend_execute_scripts
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}
+{
+    <PHP leaks op_array on fatal errors>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_malloc_custom
+    fun:_emalloc
+    fun:zend_compile
+    fun:compile_file
+    fun:phar_compile_file
+    fun:zend_execute_scripts
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}

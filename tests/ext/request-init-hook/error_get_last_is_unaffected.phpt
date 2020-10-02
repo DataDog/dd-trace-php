@@ -10,5 +10,5 @@ ddtrace.request_init_hook={PWD}/raises_e_notice.php
 var_dump(error_get_last());
 ?>
 --EXPECTF--
-Error raised in request init hook: Undefined variable: this_does_not_exist in %s on line %d
+%s in request init hook: Undefined variable%sthis_does_not_%s
 NULL

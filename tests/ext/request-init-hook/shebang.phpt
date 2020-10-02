@@ -17,4 +17,4 @@ echo $foo; // Should be line 6 in error message
 Calling ddtrace_init()...
 Called dd_init.php
 
-Notice: Undefined variable: foo in %s on line 6
+%s: Undefined variable%sfoo in %s on line 6

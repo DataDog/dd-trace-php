@@ -105,6 +105,23 @@ if test "$PHP_DDTRACE" != "no"; then
       src/ext/php7/serializer.c \
       src/ext/php7/startup_logging.c \
     "
+  elif test $PHP_VERSION -lt 90000; then
+    DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
+      src/ext/php7/auto_flush.c \
+      src/ext/php7/dispatch.c \
+      src/ext/php7/distributed_tracing.c \
+      src/ext/php7/engine_api.c \
+      src/ext/php7/engine_hooks.c \
+      src/ext/php7/excluded_modules.c \
+      src/ext/php7/handlers_curl.c \
+      src/ext/php7/handlers_internal.c \
+      src/ext/php7/handlers_memcached.c \
+      src/ext/php7/handlers_mysqli.c \
+      src/ext/php7/handlers_pdo.c \
+      src/ext/php7/handlers_phpredis.c \
+      src/ext/php7/serializer.c \
+      src/ext/php7/startup_logging.c \
+    "
   else
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES=""
   fi
@@ -143,6 +160,10 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5])
   elif test $PHP_VERSION -lt 80000; then
     PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php7])
+  elif test $PHP_VERSION -lt 90000; then
+    dnl PHP 8.0 uses things from the php7 folder too
+    PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php7])
+    PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php8])
   fi
   PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/third-party])
 fi
