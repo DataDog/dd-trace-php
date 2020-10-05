@@ -17,6 +17,7 @@ apk add --no-cache --virtual .php-deps \
     curl-dev \
     libedit-dev \
     libmcrypt-dev \
+    oniguruma-dev\
     libsodium-dev \
     libxml2-dev
 mkdir -p $PHP_SRC_DIR
@@ -42,6 +43,7 @@ PHP_CONFIG_ARGS=""
     --with-sodium=shared \
     --with-curl \
     --with-libedit \
+    --without-sqlite3 \
     $([ -n "$SSL_DEV_DEP" ] && echo --with-openssl || echo --without-openssl ) \
     --with-zlib \
     --enable-fpm \
