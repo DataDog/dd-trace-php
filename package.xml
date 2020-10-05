@@ -237,6 +237,7 @@
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_003_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_003_php7.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_are_tracked_004.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_005.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt" role="test" />
             <file name="tests/ext/sandbox/fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
             <file name="tests/ext/sandbox/generator.phpt" role="test" />

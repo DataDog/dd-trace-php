@@ -31,10 +31,12 @@ void ddtrace_engine_hooks_minit(void) {
     ddtrace_opcode_minit();
     _compile_minit();
 
-#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID >= 50500 && PHP_VERSION_ID < 80000
     dd_prev_error_cb = zend_error_cb;
     zend_error_cb = ddtrace_error_cb;
-#else
+#endif
+
+#if PHP_VERSION_ID >= 80000
     zend_observer_error_register(ddtrace_observer_error_cb);
 #endif
 }
@@ -120,11 +122,29 @@ extern inline zend_class_entry *ddtrace_get_exception_base(zval *object);
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
     TSRMLS_FETCH();
 
-    ddtrace_span_fci *span = DDTRACE_G(open_spans_top);
-    if (span && (type == E_ERROR || type == E_CORE_ERROR || type == E_USER_ERROR)) {
-        span->exception = ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAM_PASSTHRU TSRMLS_CC);
+    /* We need the error handling to place nicely with the sandbox. The best
+     * idea so far is to execute fatal error handling code iff the error handling
+     * mode is set to EH_NORMAL. If it's something else, such as EH_SUPPRESS or
+     * EH_THROW, then they are likely to be handled and accordingly they
+     * shouldn't be treated as fatal.
+     */
+
+    bool is_fatal_error = type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
+    if (EXPECTED(EG(active)) && EG(error_handling) == EH_NORMAL && UNEXPECTED(is_fatal_error)) {
+        ddtrace_exception_t *error = ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAM_PASSTHRU TSRMLS_CC);
+        ddtrace_span_fci *span = DDTRACE_G(open_spans_top);
+        while (span) {
+            ddtrace_span_attach_exception(span, error);
+            span = span->next;
+        }
+#if PHP_VERSION_ID < 70000
+        zval_ptr_dtor(&error);
+#else
+        zend_object_release(error);
+#endif
         ddtrace_close_all_open_spans(TSRMLS_C);
     }
+
     dd_prev_error_cb(DDTRACE_ERROR_CB_PARAM_PASSTHRU);
 }
 #else

@@ -182,8 +182,8 @@ static ZEND_RESULT_CODE ddtrace_copy_function_args(zval *args, void **p) {
     return SUCCESS;
 }
 
-static void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
-    if (exception) {
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
+    if (exception && !span_fci->exception) {
         MAKE_STD_ZVAL(span_fci->exception);
         ZVAL_COPY_VALUE(span_fci->exception, exception);
         zval_copy_ctor(span_fci->exception);
