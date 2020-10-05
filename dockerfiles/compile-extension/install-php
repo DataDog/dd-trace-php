@@ -43,6 +43,7 @@ PHP_CONFIG_ARGS=""
     --with-sodium=shared \
     --with-curl \
     --with-libedit \
+    --without-pdo-sqlite \
     --without-sqlite3 \
     $([ -n "$SSL_DEV_DEP" ] && echo --with-openssl || echo --without-openssl ) \
     --with-zlib \
