@@ -1105,14 +1105,14 @@ workflows:
           name: "PHP 55 custom autoloaded web tests with nginx + PHP-FPM"
           resource_class: medium+
           sapi: fpm-fcgi
-          integration_testsuite: "custom-framework-autoloaded-suite"
+          integration_testsuite: "test_web_custom"
           docker_image: "datadog/dd-trace-ci:php-5.5-debug-buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
           resource_class: medium+
           sapi: fpm-fcgi
-          integration_testsuite: "custom-framework-autoloaded-suite"
+          integration_testsuite: "test_web_custom"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
 
   build:
