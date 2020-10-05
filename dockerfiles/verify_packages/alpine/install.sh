@@ -2,8 +2,6 @@
 
 set -xe
 
-PHP_PACKAGE=$1
-
 # Installing php
 if [[ ! -z "${PHP_PACKAGE}" ]]; then
     apk add --no-cache ${PHP_PACKAGE}

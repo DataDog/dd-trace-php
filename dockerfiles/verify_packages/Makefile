@@ -51,4 +51,4 @@ $(ALPINE_PHP_VERSIONS): %.alpine:
 	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run -T --rm ${*}-alpine sh /build_src/dockerfiles/verify_packages/verify_apk.sh
 
 verify_alpine:
-	docker run --rm -ti -v $$(pwd)/datadog-php-tracer_1.0.0-nightly_noarch.apk:/dd-trace-php.apk $(ALPINE_DOCKER_VOLUMES) $(ALPINE_IMAGE) /verify.sh $(PHP_PACKAGE)
+	docker-compose run -e PHP_PACKAGE="$(PHP_PACKAGE)" --rm alpine /verify.sh
