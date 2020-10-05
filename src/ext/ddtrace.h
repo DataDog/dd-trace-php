@@ -26,19 +26,6 @@ zval *ddtrace_spandata_property_metrics(zval *spandata);
 
 BOOL_T ddtrace_tracer_is_limited(TSRMLS_D);
 
-typedef struct _ddtrace_original_context {
-    zend_function *fbc;
-    zend_function *calling_fbc;
-    zend_class_entry *calling_ce;
-    zend_execute_data *execute_data;
-#if PHP_VERSION_ID < 70000
-    zval *function_name;
-    zval *this;
-#else
-    zend_object *this;
-#endif
-} ddtrace_original_context;
-
 // clang-format off
 ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *auto_prepend_file;
@@ -56,7 +43,6 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *dogstatsd_host;
     char *dogstatsd_port;
     char *dogstatsd_buffer;
-    ddtrace_original_context original_context;
 
     // PHP 7 uses ZEND_TLS for these
 #if PHP_VERSION_ID < 70000
