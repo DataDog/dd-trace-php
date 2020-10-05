@@ -5,6 +5,8 @@ CENTOS7_PHP_VERSIONS:=5.4.centos7 5.6.centos7 7.0.centos7 7.1.centos7 7.2.centos
 CENTOS7_MANUAL_PHP_VERSIONS:=71.centos7-compiled
 ALPINE_PHP_VERSIONS:=5.6.alpine 7.0.alpine 7.1.alpine 7.2.alpine  #7.3.alpine # No ZTS tests - it fails on alpine due to relying on pthread and libc 5.6-zts.alpine 7.0-zts.alpine 7.1-zts.alpine 7.2-zts.alpine 7.3-zts.alpine
 
+ALPINE_DOCKER_VOLUMES := -v $$(pwd)/alpine/install.sh:/install.sh -v $$(pwd)/index.php:/index.php -v $$(pwd)/verify.sh:/verify.sh
+
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 .PHONY: $(JESSIE_PHP_VERSIONS) $(STRETCH_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) $(CENTOS7_MANUAL_PHP_VERSIONS) all all_centos all_alpine docker_compose_pull
@@ -47,3 +49,6 @@ $(CENTOS7_MANUAL_PHP_VERSIONS): %.centos7-compiled:
 $(ALPINE_PHP_VERSIONS): %.alpine:
 	@echo Verifying Alpine - PHP $*
 	@docker-compose -f $(ROOT_DIR)/docker-compose.yml run -T --rm ${*}-alpine sh /build_src/dockerfiles/verify_packages/verify_apk.sh
+
+verify_alpine:
+	docker run --rm -ti -v $$(pwd)/datadog-php-tracer_1.0.0-nightly_noarch.apk:/dd-trace-php.apk $(ALPINE_DOCKER_VOLUMES) $(ALPINE_IMAGE) /verify.sh $(PHP_PACKAGE)
