@@ -70,10 +70,15 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
 PHP_INI_END()
 
 static int ddtrace_startup(struct _zend_extension *extension) {
+#if PHP_VERSION_ID < 80000
     ddtrace_resource = zend_get_resource_handle(extension);
-
 #if PHP_VERSION_ID >= 70400
     ddtrace_op_array_extension = zend_get_op_array_extension_handle();
+#endif
+#else
+    UNUSED(extension);
+    ddtrace_resource = zend_get_resource_handle(PHP_DDTRACE_EXTNAME);
+    ddtrace_op_array_extension = zend_get_op_array_extension_handle(PHP_DDTRACE_EXTNAME);
 #endif
 
     ddtrace_excluded_modules_startup();
@@ -82,8 +87,7 @@ static int ddtrace_startup(struct _zend_extension *extension) {
 }
 
 static void ddtrace_shutdown(struct _zend_extension *extension) {
-    PHP5_UNUSED(extension);
-    PHP7_UNUSED(extension);
+    UNUSED(extension);
 
     ddtrace_internal_handlers_shutdown();
 }
