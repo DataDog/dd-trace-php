@@ -96,6 +96,5 @@ void ddtrace_class_lookup_release_compat(zval *zv);
 
 HashTable *ddtrace_new_class_lookup(zval *clazz TSRMLS_DC);
 zend_bool ddtrace_dispatch_store(HashTable *class_lookup, ddtrace_dispatch_t *dispatch);
-void ddtrace_wrapper_forward_call_from_userland(zend_execute_data *execute_data, zval *return_value TSRMLS_DC);
 
 #endif  // DISPATCH_H
