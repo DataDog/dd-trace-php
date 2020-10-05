@@ -353,7 +353,7 @@ static void dd_copy_posthook_args(zval *args, zend_execute_data *call) {
     }
 }
 
-static void dd_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
     if (exception && span_fci->exception == NULL) {
         GC_ADDREF(exception);
         span_fci->exception = exception;
@@ -730,7 +730,7 @@ static ZEND_RESULT_CODE dd_do_hook_function_posthook(zend_execute_data *call, dd
 
 static void dd_fcall_end_tracing_posthook(ddtrace_span_fci *span_fci, zval *user_retval) {
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
-    dd_span_attach_exception(span_fci, EG(exception));
+    ddtrace_span_attach_exception(span_fci, EG(exception));
 
     dd_trace_stop_span_time(&span_fci->span);
 
@@ -1054,9 +1054,7 @@ static int dd_handle_exception_handler(zend_execute_data *execute_data) {
         ZVAL_NULL(&retval);
         // The catching frame's span will get closed by the return handler so we leave it open
         if (dd_is_catching_frame(execute_data) == false) {
-            if (EG(exception)) {
-                dd_span_attach_exception(span_fci, EG(exception));
-            }
+            ddtrace_span_attach_exception(span_fci, EG(exception));
             dd_observer_end(NULL, span_fci, &retval);
         }
     }

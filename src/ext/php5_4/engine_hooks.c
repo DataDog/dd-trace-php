@@ -142,8 +142,8 @@ typedef void (*dd_execute_hook)(zend_op_array *op_array TSRMLS_DC);
 
 static void (*dd_prev_execute)(zend_op_array *op_array TSRMLS_DC);
 
-static void dd_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
-    if (exception) {
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
+    if (exception && !span_fci->exception) {
         MAKE_STD_ZVAL(span_fci->exception);
         ZVAL_COPY_VALUE(span_fci->exception, exception);
         zval_copy_ctor(span_fci->exception);
@@ -158,7 +158,7 @@ static bool dd_tracing_posthook_impl_impl(zend_function *fbc, ddtrace_span_fci *
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
 
     dd_trace_stop_span_time(span);
-    dd_span_attach_exception(span_fci, EG(exception));
+    ddtrace_span_attach_exception(span_fci, EG(exception));
 
     if (UNEXPECTED(!span_data || !return_value)) {
         if (get_dd_trace_debug()) {

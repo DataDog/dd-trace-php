@@ -171,6 +171,8 @@ ddtrace_exception_t *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETE
 void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t error_lineno, zend_string *message);
 #endif
 
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception);
+
 #if PHP_VERSION_ID < 70000
 void ddtrace_close_all_open_spans(TSRMLS_D);
 #else
