@@ -17,7 +17,7 @@ apk add --no-cache --virtual .php-deps \
     curl-dev \
     libedit-dev \
     libmcrypt-dev \
-    oniguruma-dev\
+    oniguruma-dev \
     libsodium-dev \
     libxml2-dev
 mkdir -p $PHP_SRC_DIR

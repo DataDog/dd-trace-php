@@ -876,8 +876,16 @@ workflows:
     jobs:
       - "Prepare Code"
       - compile_extension_alpine:
-          php_major_minor: '5.6'
           requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - '5.5'
+                - '5.6'
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
       - compile_extension:
           name: "Compile PHP 54"
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
