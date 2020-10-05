@@ -11,8 +11,18 @@ CUSTOM_INI_FILE_NAME='ddtrace-custom.ini'
 
 PATH="${PATH}:/usr/local/bin"
 
+# We attempt in this order the following binary names:
+#    1. php
+#    2. php7 (some alpine versions install php 7.x from main repo to this binary)
+#    3. php5 (some alpine versions install php 5.x from main repo to this binary)
 if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
     DD_TRACE_PHP_BIN=$(command -v php)
+fi
+if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
+    DD_TRACE_PHP_BIN=$(command -v php7)
+fi
+if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
+    DD_TRACE_PHP_BIN=$(command -v php5)
 fi
 
 # In case of .apk post-install hooks the script has no access the set of exported ENVS.
