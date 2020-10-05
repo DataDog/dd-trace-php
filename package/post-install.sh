@@ -25,8 +25,6 @@ if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
     DD_TRACE_PHP_BIN=$(command -v php5)
 fi
 
-env
-
 # In case of .apk post-install hooks the script has no access the set of exported ENVS.
 # When 1) users import large ini files (e.g. browsercap.ini) and 2) they set memory_limit using an env
 # variable we would fail because of the memory limit reached. In order to avoid this we set a sane memory limit
@@ -147,6 +145,9 @@ function verify_installation() {
         println "Extension enabled successfully" || \
         fail_print_and_exit
 }
+
+println "PHP version"
+$DD_TRACE_PHP_BIN -v
 
 mkdir -p $EXTENSION_DIR
 mkdir -p $EXTENSION_CFG_DIR
