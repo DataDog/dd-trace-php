@@ -3,7 +3,7 @@
 set -xe
 
 # Downloading PHP
-PHP_TAR_FILE=php.tar.xz
+PHP_TAR_FILE=php.tar.gz
 apk add --no-cache --virtual .php-build-deps \
     autoconf \
     ca-certificates \
@@ -24,7 +24,7 @@ mkdir -p $PHP_SRC_DIR
 cd $SRC_DIR
 wget -O "${PHP_TAR_FILE}" "$PHP_URL"
 sha256sum "${PHP_TAR_FILE}"
-echo "$PHP_SHA256 *php.tar.xz" | sha256sum -c -
+echo "$PHP_SHA256 *${PHP_TAR_FILE}" | sha256sum -c -
 docker-php-source extract
 cd $PHP_SRC_DIR
 

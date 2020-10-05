@@ -13,7 +13,7 @@ ARG php_api
 ENV SRC_DIR=/usr/src
 ENV PHP_VERSION=${php_version}
 ENV PHP_API=${php_api}
-ENV PHP_URL=https://www.php.net/distributions/php-${php_version}.tar.xz
+ENV PHP_URL=https://www.php.net/distributions/php-${php_version}.tar.gz
 ENV PHP_SHA256=${php_sha}
 ENV PHP_SRC_DIR=${SRC_DIR}/php
 ENV PHP_INI_DIR /usr/local/etc/php-${php_version}
