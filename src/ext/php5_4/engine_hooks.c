@@ -566,7 +566,7 @@ typedef void (*dd_execute_internal_hook)(zend_execute_data *execute_data_ptr, in
 static void dd_internal_tracing_prehook(zend_execute_data *execute_data_ptr, int return_value_used TSRMLS_DC,
                                         ddtrace_dispatch_t *dispatch) {
     // todo: add support for tracing prehook for PHP 5.4
-    PHP5_UNUSED(dispatch);
+    UNUSED(dispatch);
     dd_prev_execute_internal(execute_data_ptr, return_value_used TSRMLS_CC);
 }
 
@@ -643,13 +643,13 @@ void ddtrace_opcode_mshutdown(void) {}
 
 void ddtrace_engine_hooks_rinit(TSRMLS_D) {
 #if ZTS
-    PHP5_UNUSED(TSRMLS_C);
+    UNUSED(TSRMLS_C);
 #endif
 }
 
 void ddtrace_engine_hooks_rshutdown(TSRMLS_D) {
 #if ZTS
-    PHP5_UNUSED(TSRMLS_C);
+    UNUSED(TSRMLS_C);
 #endif
 }
 
@@ -673,14 +673,17 @@ void ddtrace_execute_internal_mshutdown(void) {
 
 // TODO: can we support close-at-exit and by extension fatal errors on PHP 5.4?
 zval *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC) {
-    PHP5_UNUSED(DDTRACE_ERROR_CB_PARAM_PASSTHRU TSRMLS_CC);
+    UNUSED(DDTRACE_ERROR_CB_PARAM_PASSTHRU);
+#if ZTS
+    UNUSED(TSRMLS_C);
+#endif
 
     return NULL;
 }
 
 void ddtrace_close_all_open_spans(TSRMLS_D) {
 #if ZTS
-    PHP5_UNUSED(TSRMLS_C);
+    UNUSED(TSRMLS_C);
 #endif
     ddtrace_log_debug("Request to close all open spans ignored; not supported on PHP 5.4 (yet, anyway)");
 }

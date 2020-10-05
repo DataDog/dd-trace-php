@@ -16,7 +16,7 @@ services:
         #   phpVersion: 8.0-custom
         #   phpTarGzUrl: https://github.com/<org>/<repo>/archive/<branch-or-tag-name>.tar.gz
         phpVersion: 8.0
-        phpTarGzUrl: https://github.com/php/php-src/archive/php-8.0.0beta4.tar.gz
+        phpTarGzUrl: https://github.com/php/php-src/archive/php-8.0.0rc1.tar.gz
 
   php-master:
     image: datadog/dd-trace-ci:php-master_buster

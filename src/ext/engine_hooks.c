@@ -129,6 +129,8 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
 }
 #else
 void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t error_lineno, zend_string *message) {
+    UNUSED(error_filename, error_lineno);
+
     ddtrace_span_fci *span = DDTRACE_G(open_spans_top);
     if (span && (type == E_ERROR || type == E_CORE_ERROR || type == E_USER_ERROR)) {
         zval ex, tmp;
