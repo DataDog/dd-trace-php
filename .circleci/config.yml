@@ -655,7 +655,7 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: sh dockerfiles/verify_packages/verify_<< parameters.package_type >>.sh
 
-  verify_package_alpine:
+  verify_alpine:
     working_directory: ~/datadog
     parameters:
       docker_image:
@@ -664,10 +664,14 @@ jobs:
         type: string
     docker:
       - image: << parameters.docker_image >>
+        environment:
+          PHP_PACKAGE: << parameters.php_package >>
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - run: make -C dockerfiles/verify_packages verify_alpine PHP_PACKAGE=<< parameters.php_package >>
+      - run:
+          name: Validate alpine package
+          command: /verify.sh
 
   pecl_build:
     working_directory: ~/datadog
@@ -1077,7 +1081,7 @@ workflows:
           name: "php:7.3"
           docker_image: php:7.3
           package_type: deb
-      - verify_package_alpine:
+      - verify_alpine:
           requires: [ "package extension" ]
           php_package: php
           matrix:
@@ -1090,7 +1094,7 @@ workflows:
                 - alpine:3.11
                 - alpine:3.12
                 - alpine:latest
-      - verify_package_alpine:
+      - verify_alpine:
           requires: [ "package extension" ]
           php_package: php7
           matrix:
@@ -1103,7 +1107,7 @@ workflows:
                 - alpine:3.11
                 - alpine:3.12
                 - alpine:latest
-      - verify_package_alpine:
+      - verify_alpine:
           requires: [ "package extension" ]
           php_package: php5
           matrix:
@@ -1113,7 +1117,7 @@ workflows:
                 - alpine:3.6
                 - alpine:3.7
                 - alpine:3.8
-      - verify_package_alpine:
+      - verify_alpine:
           requires: [ "package extension" ]
           php_package: ''
           matrix:
