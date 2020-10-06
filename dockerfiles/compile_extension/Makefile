@@ -15,7 +15,7 @@ build_image_alpine_%:
 push_alpine_%: build_image_alpine_%
 	docker-compose push $(*)-alpine
 
-# You can use this target to locally build a specifiv php version on alpine
+# You can use this target to locally build a specific php version on alpine
 #   E.g.:
 #     - make build_extension_alpine_7.3
 build_extension_alpine_%:

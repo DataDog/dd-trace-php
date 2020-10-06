@@ -11,6 +11,3 @@ fi
 apk add --no-cache /build/packages/*.apk --allow-untrusted
 
 echo "Tracer installation completed successfully"
-
-# Installinh bash for verification scripts AFTER tracer (so we do not interfere with packages)
-apk add --no-cache bash

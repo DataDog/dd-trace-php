@@ -170,7 +170,7 @@ if [[ -n $PHP_THREAD_SAFETY ]]; then
 fi
 
 OS_SPECIFIER=""
-if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release") && [ "${PHP_MAJOR_MINOR}" != "5.4" ] && [ "${VERSION_SUFFIX}" != "-zts" ]; then
+if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release") && [ "${VERSION_SUFFIX}" != "-zts" ]; then
     OS_SPECIFIER="-alpine"
 fi
 
