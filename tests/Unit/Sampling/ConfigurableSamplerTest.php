@@ -13,12 +13,14 @@ final class ConfigurableSamplerTest extends BaseTestCase
 
     protected function afterSetup()
     {
+        parent::afterSetUp();
         \putenv('DD_TRACE_SAMPLING_RULES');
         \putenv('DD_TRACE_SAMPLE_RATE');
     }
 
     protected function beforeTearDown()
     {
+        parent::beforeTearDown();
         \putenv('DD_TRACE_SAMPLING_RULES');
         \putenv('DD_TRACE_SAMPLE_RATE');
     }
