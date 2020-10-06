@@ -2,18 +2,23 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Tests\Common\MultiPHPUnitVersionAdapter;
 use DDTrace\Log\Logger;
 use DDTrace\Tests\DebugLogger;
 use DDTrace\Util\Versions;
 use PHPUnit\Framework;
 
-abstract class BaseTestCase extends Framework\TestCase
+abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 {
-    protected function tearDown()
+    protected function afterSetUp()
+    {
+    }
+
+    protected function beforeTearDown()
     {
         \Mockery::close();
         Logger::reset();
-        parent::tearDown();
+        \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
     protected function matchesPhpVersion($version)

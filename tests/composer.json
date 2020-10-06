@@ -8,7 +8,7 @@
     },
     "require-dev": {
         "mockery/mockery": "*",
-        "phpunit/phpunit": "^4",
+        "phpunit/phpunit": "*",
         "symfony/process": "<5",
         "g1a/composer-test-scenarios": "~3.0"
     },
