@@ -2,8 +2,8 @@
 
 set -e
 
-# Installing
-sh /install.sh
+# Installing (note this is not portable and should be parametrized once we also add centos and debian verification)
+sh ./alpine/install.sh
 
 # We attempt in this order the following binary names:
 #    1. php
