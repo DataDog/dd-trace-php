@@ -666,6 +666,7 @@ jobs:
       - image: << parameters.docker_image >>
         environment:
           PHP_PACKAGE: << parameters.php_package >>
+          OS_NAME: alpine
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
