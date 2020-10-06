@@ -671,7 +671,7 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Validate alpine package
-          command: /verify.sh
+          command: ./dockerfiles/verify_packages/verify.sh
 
   pecl_build:
     working_directory: ~/datadog
