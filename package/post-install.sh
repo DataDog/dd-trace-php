@@ -16,13 +16,13 @@ PATH="${PATH}:/usr/local/bin"
 #    2. php7 (some alpine versions install php 7.x from main repo to this binary)
 #    3. php5 (some alpine versions install php 5.x from main repo to this binary)
 if [ -z "$DD_TRACE_PHP_BIN" ]; then
-    DD_TRACE_PHP_BIN=$(which php || true)
+    DD_TRACE_PHP_BIN=$(command -v php || true)
 fi
 if [ -z "$DD_TRACE_PHP_BIN" ]; then
-    DD_TRACE_PHP_BIN=$(which php7 || true)
+    DD_TRACE_PHP_BIN=$(command -v php7 || true)
 fi
 if [ -z "$DD_TRACE_PHP_BIN" ]; then
-    DD_TRACE_PHP_BIN=$(which php5 || true)
+    DD_TRACE_PHP_BIN=$(command -v php5 || true)
 fi
 
 # In case of .apk post-install hooks the script has no access the set of exported ENVS.
