@@ -15,7 +15,9 @@ PATH="${PATH}:/usr/local/bin"
 #    1. php
 #    2. php7 (some alpine versions install php 7.x from main repo to this binary)
 #    3. php5 (some alpine versions install php 5.x from main repo to this binary)
-DD_TRACE_PHP_BIN=$(which php || true)
+if [ -z "$DD_TRACE_PHP_BIN" ]; then
+    DD_TRACE_PHP_BIN=$(which php || true)
+fi
 if [ -z "$DD_TRACE_PHP_BIN" ]; then
     DD_TRACE_PHP_BIN=$(which php7 || true)
 fi
