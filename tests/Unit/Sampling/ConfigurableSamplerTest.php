@@ -20,9 +20,9 @@ final class ConfigurableSamplerTest extends BaseTestCase
 
     protected function beforeTearDown()
     {
-        parent::beforeTearDown();
         \putenv('DD_TRACE_SAMPLING_RULES');
         \putenv('DD_TRACE_SAMPLE_RATE');
+        parent::beforeTearDown();
     }
 
     /**
