@@ -1083,9 +1083,10 @@ workflows:
           package_type: deb
       - verify_alpine:
           requires: [ "package extension" ]
-          php_package: php
           matrix:
             parameters:
+              php_package:
+                - php
               docker_image:
                 - alpine:3.7
                 - alpine:3.8
@@ -1096,9 +1097,10 @@ workflows:
                 - alpine:latest
       - verify_alpine:
           requires: [ "package extension" ]
-          php_package: php7
           matrix:
             parameters:
+              php_package:
+                - php7
               docker_image:
                 - alpine:3.8
                 - alpine:3.9
@@ -1109,9 +1111,10 @@ workflows:
                 - alpine:latest
       - verify_alpine:
           requires: [ "package extension" ]
-          php_package: php5
           matrix:
             parameters:
+              php_package:
+                - php5
               docker_image:
                 - alpine:3.5
                 - alpine:3.6
