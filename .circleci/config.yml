@@ -898,7 +898,7 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
-                # - '7.4'
+                - '7.4'
       - compile_extension:
           name: "Compile PHP 54"
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
@@ -1126,7 +1126,7 @@ workflows:
                 - php:7.1-fpm-alpine
                 - php:7.2-fpm-alpine
                 - php:7.3-fpm-alpine
-                # - php:7.4-fpm-alpine
+                - php:7.4-fpm-alpine
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 54 PECL tests"
