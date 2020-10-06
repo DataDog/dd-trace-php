@@ -732,10 +732,10 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Pull latest image
-          command: make -C dockerfiles/compile-extension pull_alpine_<< parameters.php_major_minor >>
+          command: make -C dockerfiles/compile_extension pull_alpine_<< parameters.php_major_minor >>
       - run:
           name: Build extension
-          command: make -C dockerfiles/compile-extension build_extension_alpine_<< parameters.php_major_minor >>
+          command: make -C dockerfiles/compile_extension build_extension_alpine_<< parameters.php_major_minor >>
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions']
