@@ -1,6 +1,5 @@
-build_extension_alpine_%:
-	docker-compose run --rm $(*)-alpine
-
+# In order to have compilation properly working in CI, this target has to be
+# executed so all relevant images are pushed to Datadog/dd-trace-ci.
 publish: \
 	push_alpine_5.5 \
 	push_alpine_5.6 \
@@ -16,5 +15,8 @@ build_image_alpine_%:
 push_alpine_%: build_image_alpine_%
 	docker-compose push $(*)-alpine
 
-pull_alpine_%:
-	docker-compose pull $(*)-alpine
+# You can use this target to locally build a specifiv php version on alpine
+#   E.g.:
+#     - make build_extension_alpine_7.3
+build_extension_alpine_%:
+	docker-compose run --rm $(*)-alpine

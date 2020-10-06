@@ -726,16 +726,13 @@ jobs:
       php_major_minor:
         # Expected in the format: <major>.<minor>, e.g. 5.6
         type: string
-    machine:
-      image: ubuntu-1604:202007-01
+    docker:
+      - image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
-          name: Pull latest image
-          command: make -C dockerfiles/compile_extension pull_alpine_<< parameters.php_major_minor >>
-      - run:
           name: Build extension
-          command: make -C dockerfiles/compile_extension build_extension_alpine_<< parameters.php_major_minor >>
+          command: build-dd-trace-php
       - persist_to_workspace:
           root: '.'
           paths: ['./extensions']
