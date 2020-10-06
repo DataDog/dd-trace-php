@@ -50,4 +50,4 @@ $(CENTOS7_MANUAL_PHP_VERSIONS): %.centos7-compiled:
 #         - make verify_alpine ALPINE_IMAGE=alpine:3.10 PHP_PACKAGE=php7
 #         - make verify_alpine ALPINE_IMAGE=php:7.3-fpm-alpine
 verify_alpine:
-	docker-compose run --rm -e PHP_PACKAGE="$(PHP_PACKAGE)" -e ALPINE_IMAGE="$(ALPINE_IMAGE)" alpine /verify.sh
+	docker-compose run --rm -e PHP_PACKAGE="$(PHP_PACKAGE)" -e ALPINE_IMAGE="$(ALPINE_IMAGE)" -e OS_NAME=alpine alpine dockerfiles/verify_packages/verify.sh

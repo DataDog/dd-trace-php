@@ -2,8 +2,8 @@
 
 set -e
 
-# Installing (note this is not portable and should be parametrized once we also add centos and debian verification)
-sh ./alpine/install.sh
+# Installing
+sh $(pwd)/dockerfiles/verify_packages/${OS_NAME}/install.sh
 
 # We attempt in this order the following binary names:
 #    1. php
@@ -17,7 +17,9 @@ if [ -z "$DD_TRACE_PHP_BIN" ]; then
     DD_TRACE_PHP_BIN=$(which php5 || true)
 fi
 
-DD_AGENT_HOST=request-replayer DD_TRACE_AGENT_PORT=80 DD_TRACE_DEBUG=true DD_TRACE_CLI_ENABLED=true ${DD_TRACE_PHP_BIN} /index.php
+PHP_INDEX=$(pwd)/dockerfiles/verify_packages/index.php
+
+DD_AGENT_HOST=request-replayer DD_TRACE_AGENT_PORT=80 DD_TRACE_DEBUG=true DD_TRACE_CLI_ENABLED=true ${DD_TRACE_PHP_BIN} ${PHP_INDEX}
 sleep 1
 
 TRACES=$(curl -s -L request-replayer/replay)

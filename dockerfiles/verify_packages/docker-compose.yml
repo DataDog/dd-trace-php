@@ -27,13 +27,12 @@ services:
 
   alpine:
     image: ${ALPINE_IMAGE}
+    working_dir: /datadog
     volumes:
-      - ./verify.sh:/verify.sh
-      - ./index.php:/index.php
-      - ./alpine/install.sh:/install.sh
-      - ../../build/packages:/build/packages
+      - ../../:/datadog
     environment:
       PHP_PACKAGE: ${PHP_PACKAGE}
+      PACKAGE_TYPE: ${PACKAGE_TYPE}
     depends_on:
       - request-replayer
 
