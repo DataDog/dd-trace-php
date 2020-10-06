@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -xe
+set -e
 
 # Installing
 sh /install.sh
@@ -22,8 +22,8 @@ sleep 1
 
 TRACES=$(curl -s -L request-replayer/replay)
 # sh compatible way to do string contains
-test "${TRACES#*trace_id}" != "$TRACES" && exit 0
+test "${TRACES#*trace_id}" != "$TRACES" && echo "SUCCESS: TRACE SUCCESSFULLY RECEIVED BY THE AGENT" && exit 0
 
-echo "Error: response does not contains the work trace_id"
+echo "ERROR: response does not contains the work trace_id"
 echo "${TRACES}"
 exit 1
