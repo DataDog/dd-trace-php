@@ -43,7 +43,7 @@ services:
       - ./verify.sh:/verify.sh
       - ./index.php:/index.php
       - ./alpine/install.sh:/install.sh
-      - ./datadog-php-tracer_1.0.0-nightly_noarch.apk:/dd-trace-php.apk
+      - ../../build/packages:/build/packages
     environment:
       PHP_PACKAGE: ${PHP_PACKAGE}
     depends_on:

@@ -5,7 +5,19 @@ set -xe
 # Installing
 sh /install.sh
 
-DD_AGENT_HOST=request-replayer DD_TRACE_AGENT_PORT=80 DD_TRACE_DEBUG=true DD_TRACE_CLI_ENABLED=true php /index.php
+# We attempt in this order the following binary names:
+#    1. php
+#    2. php7 (some alpine versions install php 7.x from main repo to this binary)
+#    3. php5 (some alpine versions install php 5.x from main repo to this binary)
+DD_TRACE_PHP_BIN=$(which php || true)
+if [ -z "$DD_TRACE_PHP_BIN" ]; then
+    DD_TRACE_PHP_BIN=$(which php7 || true)
+fi
+if [ -z "$DD_TRACE_PHP_BIN" ]; then
+    DD_TRACE_PHP_BIN=$(which php5 || true)
+fi
+
+DD_AGENT_HOST=request-replayer DD_TRACE_AGENT_PORT=80 DD_TRACE_DEBUG=true DD_TRACE_CLI_ENABLED=true ${DD_TRACE_PHP_BIN} /index.php
 sleep 1
 
 TRACES=$(curl -s -L request-replayer/replay)

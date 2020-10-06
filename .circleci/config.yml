@@ -655,6 +655,20 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: sh dockerfiles/verify_packages/verify_<< parameters.package_type >>.sh
 
+  verify_package_alpine:
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      php_package:
+        type: string
+    docker:
+      - image: << parameters.docker_image >>
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run: make -C dockerfiles/verify_packages verify_alpine PHP_PACKAGE=<< parameters.php_package >>
+
   pecl_build:
     working_directory: ~/datadog
     executor:
@@ -887,6 +901,7 @@ workflows:
                 - '7.1'
                 - '7.2'
                 - '7.3'
+                # - '7.4'
       - compile_extension:
           name: "Compile PHP 54"
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
@@ -1065,6 +1080,56 @@ workflows:
           name: "php:7.3"
           docker_image: php:7.3
           package_type: deb
+      - verify_package_alpine:
+          requires: [ "package extension" ]
+          php_package: php
+          matrix:
+            parameters:
+              docker_image:
+                - alpine:3.7
+                - alpine:3.8
+                - alpine:3.9
+                - alpine:3.10
+                - alpine:3.11
+                - alpine:3.12
+                - alpine:latest
+      - verify_package_alpine:
+          requires: [ "package extension" ]
+          php_package: php7
+          matrix:
+            parameters:
+              docker_image:
+                - alpine:3.8
+                - alpine:3.9
+                - alpine:3.9
+                - alpine:3.10
+                - alpine:3.11
+                - alpine:3.12
+                - alpine:latest
+      - verify_package_alpine:
+          requires: [ "package extension" ]
+          php_package: php5
+          matrix:
+            parameters:
+              docker_image:
+                - alpine:3.5
+                - alpine:3.6
+                - alpine:3.7
+                - alpine:3.8
+      - verify_package_alpine:
+          requires: [ "package extension" ]
+          php_package: ''
+          matrix:
+            parameters:
+              docker_image:
+                # 5.4 and 5.6 requires extra effort and are outside the scope of this testing, which targets default
+                # setups.
+                - php:5.6-fpm-alpine
+                - php:7.0-fpm-alpine
+                - php:7.1-fpm-alpine
+                - php:7.2-fpm-alpine
+                - php:7.3-fpm-alpine
+                # - php:7.4-fpm-alpine
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 54 PECL tests"
