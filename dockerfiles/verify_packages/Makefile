@@ -4,8 +4,6 @@ CENTOS6_PHP_VERSIONS:=5.4.centos6 5.6.centos6 7.0.centos6 7.1.centos6 7.2.centos
 CENTOS7_PHP_VERSIONS:=5.4.centos7 5.6.centos7 7.0.centos7 7.1.centos7 7.2.centos7 #7.3.centos7
 CENTOS7_MANUAL_PHP_VERSIONS:=71.centos7-compiled
 
-ALPINE_DOCKER_VOLUMES := -v $$(pwd)/alpine/install.sh:/install.sh -v $$(pwd)/index.php:/index.php -v $$(pwd)/verify.sh:/verify.sh
-
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 .PHONY: $(JESSIE_PHP_VERSIONS) $(STRETCH_PHP_VERSIONS) $(CENTOS7_PHP_VERSIONS) $(ALPINE_PHP_VERSIONS) $(CENTOS7_MANUAL_PHP_VERSIONS) all all_centos all_alpine docker_compose_pull
@@ -45,7 +43,7 @@ $(CENTOS7_MANUAL_PHP_VERSIONS): %.centos7-compiled:
 	@docker build --no-cache -t centos_7_compiled:$* -f dockerfiles/verify_packages/centos7-compiled/Dockerfile .
 
 # The list of validated alpine images are in CI config. In case a package has to be validated locally, you can:
-#  1. download the .apk to '<root>/build/packages'
+#  1. copy the .apk into '<root>/build/packages' (it must be the only .apk in that directory)
 #  2. from this folder: make verify_alpine ALPINE_IMAGE=<alpine image> PHP_PACKAGE=<optional apk php package to install>
 #         - make verify_alpine ALPINE_IMAGE=alpine:3.10 PHP_PACKAGE=php7
 #         - make verify_alpine ALPINE_IMAGE=php:7.3-fpm-alpine

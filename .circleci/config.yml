@@ -1131,8 +1131,6 @@ workflows:
           matrix:
             parameters:
               docker_image:
-                # 5.4 and 5.6 requires extra effort and are outside the scope of this testing, which targets default
-                # setups.
                 - php:5.6-fpm-alpine
                 - php:7.0-fpm-alpine
                 - php:7.1-fpm-alpine
