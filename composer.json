@@ -31,7 +31,7 @@
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
         "symfony/process": "<5",
-        "classpreloader/classpreloader": "1.4.*"
+        "classpreloader/classpreloader": "dev-master#b76f3f4f603ebbe7e64351a7ef973431ddaf7b27"
     },
     "config": {
         "sort-packages": true
