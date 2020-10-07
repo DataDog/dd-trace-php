@@ -30,8 +30,7 @@
         "mockery/mockery": "*",
         "phpunit/phpunit": "^4",
         "squizlabs/php_codesniffer": "^3.3.0",
-        "symfony/process": "<5",
-        "classpreloader/classpreloader": "dev-master#b76f3f4f603ebbe7e64351a7ef973431ddaf7b27"
+        "symfony/process": "<5"
     },
     "config": {
         "sort-packages": true
@@ -72,11 +71,7 @@
             "docker run -p 8126:8126 -e \"DD_APM_ENABLED=true\" -e \"DD_BIND_HOST=0.0.0.0\" -e \"DD_API_KEY=invalid_key_but_this_is_fine\" --rm datadog/docker-dd-agent",
             "while ! echo exit | nc localhost 8126; do sleep 1; done"
         ],
-        "install-ext": [
-            "make sudo install install_ini $*",
-            "@composer compile",
-            "@composer compile-verify"
-        ],
+        "install-ext": "make sudo install install_ini $*",
         "test-ext": "make test_c TESTS=tests/ext"
     },
     "extra": {
