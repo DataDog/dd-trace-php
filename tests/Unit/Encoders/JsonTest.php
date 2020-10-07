@@ -18,9 +18,9 @@ final class JsonTest extends BaseTestCase
      */
     private $tracer;
 
-    protected function setUp()
+    protected function afterSetUp()
     {
-        parent::setUp();
+        parent::afterSetUp();
         putenv('DD_AUTOFINISH_SPANS=true');
         $this->tracer = new Tracer(
             new DebugTransport(),
@@ -33,9 +33,9 @@ final class JsonTest extends BaseTestCase
         GlobalTracer::set($this->tracer);
     }
 
-    protected function tearDown()
+    protected function afterTearDown()
     {
-        parent::tearDown();
+        parent::afterTearDown();
         putenv('DD_AUTOFINISH_SPANS=');
     }
 

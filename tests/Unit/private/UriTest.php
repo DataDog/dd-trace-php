@@ -6,7 +6,7 @@ use DDTrace\Tests\Unit\BaseTestCase;
 
 class UriTest extends BaseTestCase
 {
-    protected function setUp()
+    protected function afterSetUp()
     {
         $this->putEnvAndReloadConfig([
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
@@ -14,12 +14,12 @@ class UriTest extends BaseTestCase
             'DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING',
             'DD_TRACE_RESOURCE_URI_MAPPING',
         ]);
-        parent::setUp();
+        parent::afterSetUp();
     }
 
-    protected function tearDown()
+    protected function afterTearDown()
     {
-        parent::tearDown();
+        parent::afterTearDown();
         $this->putEnvAndReloadConfig([
             'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX',
             'DD_TRACE_RESOURCE_URI_MAPPING_INCOMING',

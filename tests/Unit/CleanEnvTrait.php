@@ -22,9 +22,9 @@ trait CleanEnvTrait
     }
 
     /** @inheritdoc */
-    protected function setUp()
+    protected function afterSetUp()
     {
-        parent::setUp();
+        parent::afterSetUp();
 
         // Cleaning up envs that MUST be null
         foreach ($this->getCleanEnvs() as $env) {
@@ -34,7 +34,7 @@ trait CleanEnvTrait
     }
 
     /** @inheritdoc */
-    protected function tearDown()
+    protected function afterTearDown()
     {
         // Restoring envs to their previous value
         foreach ($this->getCleanEnvs() as $env) {
@@ -46,6 +46,6 @@ trait CleanEnvTrait
             }
         }
 
-        parent::tearDown();
+        parent::afterTearDown();
     }
 }

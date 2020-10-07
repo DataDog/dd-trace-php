@@ -15,10 +15,10 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
      */
     private $tracer;
 
-    protected function setUp()
+    protected function afterSetUp()
     {
         putenv('DD_DISTRIBUTED_TRACING');
-        parent::setUp();
+        parent::afterSetUp();
         $this->tracer = \Mockery::mock('DDTrace\Contracts\Tracer');
     }
 

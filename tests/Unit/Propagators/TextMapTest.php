@@ -21,9 +21,9 @@ final class TextMapTest extends Framework\TestCase
      */
     private $tracer;
 
-    protected function setUp()
+    protected function afterSetUp()
     {
-        parent::setUp();
+        parent::afterSetUp();
         $this->tracer = new Tracer(new DebugTransport());
         GlobalTracer::set($this->tracer);
     }

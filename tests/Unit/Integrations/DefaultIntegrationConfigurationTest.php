@@ -7,9 +7,9 @@ use DDTrace\Tests\Unit\BaseTestCase;
 
 final class DefaultIntegrationConfigurationTest extends BaseTestCase
 {
-    protected function setUp()
+    protected function afterSetUp()
     {
-        parent::setUp();
+        parent::afterSetUp();
         putenv('DD_TRACE_ANALYTICS_ENABLED');
         putenv('DD_TRACE_PDO_ANALYTICS_ENABLED');
         putenv('DD_TRACE_PDO_ANALYTICS_SAMPLE_RATE');
