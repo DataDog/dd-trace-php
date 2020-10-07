@@ -23,6 +23,9 @@ DD_AGENT_HOST=request-replayer DD_TRACE_AGENT_PORT=80 DD_TRACE_DEBUG=true DD_TRA
 sleep 1
 
 TRACES=$(curl -s -L request-replayer/replay)
+
+echo "Received traces: ${TRACES}"
+
 # sh compatible way to do string contains
 test "${TRACES#*trace_id}" != "$TRACES" && echo "SUCCESS: TRACE SUCCESSFULLY RECEIVED BY THE AGENT" && exit 0
 
