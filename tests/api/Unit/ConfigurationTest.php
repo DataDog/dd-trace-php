@@ -15,18 +15,18 @@ found in integrations.{h,c}. Integration-specific config for this integration wi
 fall back to the defaults if they have not been added at the extension level.
 EOD;
 
-    protected function setUp()
+    protected function afterSetUp()
     {
-        parent::setUp();
+        parent::afterSetUp();
         Configuration::clear();
         $this->cleanUpEnvs();
     }
 
-    protected function tearDown()
+    protected function afterTearDown()
     {
         $this->cleanUpEnvs();
         Configuration::clear();
-        parent::tearDown();
+        parent::afterTearDown();
     }
 
     private function cleanUpEnvs()
