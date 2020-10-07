@@ -669,6 +669,10 @@ jobs:
           OS_NAME: alpine
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
+      - run:
+          # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
+          name: Install ca-certificates
+          command: apk add --no-cache ca-certificates
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: Validate alpine package
