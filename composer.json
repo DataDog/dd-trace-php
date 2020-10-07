@@ -28,7 +28,7 @@
         "ext-posix": "*",
         "g1a/composer-test-scenarios": "~3.0",
         "mockery/mockery": "*",
-        "phpunit/phpunit": "^4",
+        "phpunit/phpunit": "*",
         "squizlabs/php_codesniffer": "^3.3.0",
         "symfony/process": "<5"
     },
