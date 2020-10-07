@@ -3,9 +3,9 @@
 namespace DDTrace\Tests\Unit\Http;
 
 use DDTrace\Http\Urls;
-use PHPUnit\Framework;
+use DDTrace\Tests\Unit\BaseTestCase;
 
-final class UrlsTest extends Framework\TestCase
+final class UrlsTest extends BaseTestCase
 {
     public function testSimpleUrlsAreReturned()
     {

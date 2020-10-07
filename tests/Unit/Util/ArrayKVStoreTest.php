@@ -2,10 +2,10 @@
 
 namespace DDTrace\Tests\Unit\Util;
 
+use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Util\ArrayKVStore;
-use PHPUnit\Framework\TestCase;
 
-final class ArrayKVStoreTest extends TestCase
+final class ArrayKVStoreTest extends BaseTestCase
 {
     private $resource1;
     private $resource2;

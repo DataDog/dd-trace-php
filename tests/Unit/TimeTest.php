@@ -2,10 +2,10 @@
 
 namespace DDTrace\Tests;
 
+use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Time;
-use PHPUnit\Framework;
 
-final class TimeTest extends Framework\TestCase
+final class TimeTest extends BaseTestCase
 {
     public function testNowHasTheExpectedLength()
     {

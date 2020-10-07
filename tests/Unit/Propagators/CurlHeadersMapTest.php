@@ -7,9 +7,9 @@ use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
 use DDTrace\GlobalTracer;
-use PHPUnit\Framework;
+use DDTrace\Tests\Unit\BaseTestCase;
 
-final class CurlHeadersMapTest extends Framework\TestCase
+final class CurlHeadersMapTest extends BaseTestCase
 {
     const BAGGAGE_ITEM_KEY = 'test_key';
     const BAGGAGE_ITEM_VALUE = 'test_value';

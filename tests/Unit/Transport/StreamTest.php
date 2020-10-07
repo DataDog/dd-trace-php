@@ -3,11 +3,11 @@
 namespace DDTrace\Tests\Unit\Transport;
 
 use DDTrace\Encoders\Json;
+use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Transport\Stream;
-use PHPUnit\Framework;
 
-final class StreamTest extends Framework\TestCase
+final class StreamTest extends BaseTestCase
 {
     public function testOutputTraces()
     {

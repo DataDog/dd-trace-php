@@ -2,10 +2,10 @@
 
 namespace DDTrace\Tests\Unit\Util;
 
+use DDTrace\Tests\Unit\BaseTestCase;
 use DDTrace\Util\ObjectKVStore;
-use PHPUnit\Framework\TestCase;
 
-final class ObjectKVStoreTest extends TestCase
+final class ObjectKVStoreTest extends BaseTestCase
 {
     public function testPutGet()
     {

@@ -3,9 +3,9 @@
 namespace DDTrace\Tests\Unit\Http;
 
 use DDTrace\Http\Request;
-use PHPUnit\Framework;
+use DDTrace\Tests\Unit\BaseTestCase;
 
-final class RequestTest extends Framework\TestCase
+final class RequestTest extends BaseTestCase
 {
     public function testRequestHeadersCanBeExtracted()
     {

@@ -6,12 +6,10 @@ use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tag;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\GlobalTracer;
 use DDTrace\Tracer;
 use Exception;
-use PHPUnit\Framework;
 
-final class SpanTest extends Framework\TestCase
+final class SpanTest extends BaseTestCase
 {
     const OPERATION_NAME = 'test_span';
     const SERVICE = 'test_service';
