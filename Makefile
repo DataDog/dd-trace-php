@@ -181,6 +181,12 @@ verify_version:
 
 verify_all: verify_pecl_file_definitions verify_version
 
+# Generates the bridge/_generated.php file. Note it only works on PHP < 8.0 because:
+#  - we need classpreloader: 1.4.* because otherwise the generated file is not compatible with 5.4
+#  - classpreloader: 1.4.* does not work on PHP 8 (even from a dedicated composer.json file), showing an incompatibility
+#    with nikic/php-parser lexer's.
+#  - even if we leave classpreloader: 1.4.* and not use it for PHP 8, this is not enough because it would force
+#    phpunit version down to 5 (nikic common dependency) which is not compatible with PHP 8.
 generate:
 	@composer -dtooling/generation update
 	@composer -dtooling/generation generate
