@@ -31,9 +31,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     /** @var Client */
     private $client;
 
-    public static function setUpBeforeClass()
+    public static function ddSetUpBeforeClass()
     {
-        parent::setUpBeforeClass();
+        parent::ddSetUpBeforeClass();
         IntegrationsLoader::load();
     }
 

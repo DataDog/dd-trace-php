@@ -13,9 +13,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/WordPress/Version_4_8/index.php';
     }
 
-    public static function setUpBeforeClass()
+    public static function ddSetUpBeforeClass()
     {
-        parent::setUpBeforeClass();
+        parent::ddSetUpBeforeClass();
         $pdo = new \PDO('mysql:host=mysql_integration;dbname=test', 'test', 'test');
         $pdo->exec(file_get_contents(__DIR__ . '/../../../Frameworks/WordPress/Version_4_8/wp_2019-10-01.sql'));
     }

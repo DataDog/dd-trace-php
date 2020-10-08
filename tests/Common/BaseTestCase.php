@@ -10,6 +10,14 @@ use PHPUnit\Framework;
 
 abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 {
+    public static function ddSetUpBeforeClass()
+    {
+    }
+
+    public static function ddTearDownAfterClass()
+    {
+    }
+
     protected function ddSetUp()
     {
     }
@@ -36,7 +44,6 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
         Logger::set($logger);
         return $logger;
     }
-
 
     public function composerUpdateScenario($workingDir)
     {

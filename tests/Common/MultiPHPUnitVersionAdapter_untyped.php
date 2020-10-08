@@ -10,6 +10,18 @@ abstract class MultiPHPUnitVersionAdapter extends TestCase
 
     abstract protected function ddTearDown();
 
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+        static::ddSetUpBeforeClass();
+    }
+
+    public static function tearDownAfterClass()
+    {
+        static::ddTearDownAfterClass();
+        parent::tearDownAfterClass();
+    }
+
     protected function setUp()
     {
         parent::setUp();

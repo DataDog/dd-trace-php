@@ -15,15 +15,15 @@ abstract class IntegrationTestCase extends BaseTestCase
 
     private $errorReportingBefore;
 
-    public static function setUpBeforeClass()
+    public static function ddSetUpBeforeClass()
     {
-        parent::setUpBeforeClass();
+        parent::ddSetUpBeforeClass();
         IntegrationsLoader::reload();
     }
 
-    public static function tearDownAfterClass()
+    public static function ddTearDownAfterClass()
     {
-        parent::tearDownAfterClass();
+        parent::ddTearDownAfterClass();
         \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
@@ -36,14 +36,18 @@ abstract class IntegrationTestCase extends BaseTestCase
     protected function ddTearDown()
     {
         error_reporting($this->errorReportingBefore);
-        \PHPUnit_Framework_Error_Warning::$enabled = true;
+        if (PHPUNIT_MAJOR <= 5) {
+            \PHPUnit_Framework_Error_Warning::$enabled = true;
+        }
         \dd_trace_internal_fn('ddtrace_reload_config');
         parent::ddTearDown();
     }
 
     protected function disableTranslateWarningsIntoErrors()
     {
-        \PHPUnit_Framework_Error_Warning::$enabled = false;
+        if (PHPUNIT_MAJOR <= 5) {
+            \PHPUnit_Framework_Error_Warning::$enabled = false;
+        }
         error_reporting(E_ERROR | E_PARSE);
     }
 
