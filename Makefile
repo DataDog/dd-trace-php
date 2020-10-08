@@ -181,6 +181,11 @@ verify_version:
 
 verify_all: verify_pecl_file_definitions verify_version
 
+generate:
+	@composer -dtooling/generation update
+	@composer -dtooling/generation generate
+	@composer -dtooling/generation verify
+
 ########################################################################################################################
 # TESTS
 ########################################################################################################################

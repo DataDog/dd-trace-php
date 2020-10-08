@@ -1,0 +1,12 @@
+{
+    "require-dev": {
+        "classpreloader/classpreloader": "1.4.0"
+    },
+    "scripts": {
+        "generate": [
+            "classpreloader.php compile --config=../../bridge/_files.php --output=../../bridge/_generated.php --strip_comments=1",
+            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g\" ../../bridge/_generated.php"
+        ],
+        "verify": "php ../../bridge/autoload.php"
+    }
+}
