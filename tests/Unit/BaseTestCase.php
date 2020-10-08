@@ -63,4 +63,13 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
         }
         \dd_trace_internal_fn('ddtrace_reload_config');
     }
+
+    protected function assertStringContains($needle, $haystack, $message = '')
+    {
+        if (PHPUNIT_MAJOR >= 9) {
+            parent::assertStringContainsString($needle, $haystack, $message);
+        } else {
+            parent::assertStringContains($needle, $haystack, $message);
+        }
+    }
 }

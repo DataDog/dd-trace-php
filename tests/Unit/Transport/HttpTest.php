@@ -78,7 +78,7 @@ final class HttpTest extends BaseTestCase
         $tenMBString = str_repeat('a', Http::AGENT_REQUEST_BODY_LIMIT);
         $httpTransport = new Http(new FooEncoder([$tenMBString]));
         $httpTransport->send(Tracer::noop());
-        $this->assertContains('dropping request', $logger->lastLog);
+        $this->assertStringContains('dropping request', $logger->lastLog);
     }
 
     public function testPayloadsExactly10MBPass()
