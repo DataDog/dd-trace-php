@@ -8,6 +8,7 @@ use DDTrace\Tag;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;
 use Exception;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class SpanTest extends BaseTestCase
 {

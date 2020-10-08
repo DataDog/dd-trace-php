@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Unit;
 
 use DDTrace\Scope;
 use DDTrace\ScopeManager;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class ScopeTest extends BaseTestCase
 {

@@ -7,7 +7,7 @@ use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
 use DDTrace\GlobalTracer;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class TextMapTest extends BaseTestCase
 {

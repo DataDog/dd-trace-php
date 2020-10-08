@@ -6,7 +6,7 @@ use DDTrace\Encoders\Json;
 use DDTrace\Log\Logger;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\DebugTransport;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\GlobalTracer;
 use Prophecy\Argument;

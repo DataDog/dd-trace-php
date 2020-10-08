@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Unit;
+namespace DDTrace\Tests\Common;
 
 use DDTrace\Tests\Common\MultiPHPUnitVersionAdapter;
 use DDTrace\Log\Logger;

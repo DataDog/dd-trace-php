@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests;
 
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Time;
 
 final class TimeTest extends BaseTestCase

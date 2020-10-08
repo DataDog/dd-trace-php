@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Api\Unit\Configuration;
 
 use DDTrace\Configuration\EnvVariableRegistry;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class EnvVariableRegistryTest extends BaseTestCase
 {

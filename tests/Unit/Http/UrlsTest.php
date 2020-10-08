@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Unit\Http;
 
 use DDTrace\Http\Urls;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class UrlsTest extends BaseTestCase
 {

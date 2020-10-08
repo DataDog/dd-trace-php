@@ -8,7 +8,7 @@ use DDTrace\Sampling\PrioritySampling;
 use DDTrace\SpanContext as DDSpanContext;
 use DDTrace\Tag;
 use DDTrace\Tests\DebugTransport;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Time;
 use DDTrace\Transport\Noop as NoopTransport;
 use OpenTracing\GlobalTracer;

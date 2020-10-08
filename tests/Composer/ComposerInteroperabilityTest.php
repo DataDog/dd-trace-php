@@ -4,7 +4,7 @@ namespace DDTrace\Tests\Composer;
 
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use PHPUnit\Framework\TestCase;
 
 class ComposerInteroperabilityTest extends BaseTestCase

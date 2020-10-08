@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Integration;
 
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\SpanData;

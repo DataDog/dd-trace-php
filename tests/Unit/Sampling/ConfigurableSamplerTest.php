@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Unit\Sampling;
 use DDTrace\Sampling\ConfigurableSampler;
 use DDTrace\Span;
 use DDTrace\SpanContext;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class ConfigurableSamplerTest extends BaseTestCase
 {

@@ -4,7 +4,7 @@ namespace DDTrace\Tests\Integration\Transport;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Tests\Common\AgentReplayerTrait;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
 use DDTrace\GlobalTracer;

@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Unit\Util;
 
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Util\ArrayKVStore;
 
 final class ArrayKVStoreTest extends BaseTestCase

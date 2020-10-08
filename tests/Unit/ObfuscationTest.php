@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Unit;
 
 use DDTrace\Obfuscation;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class ObfuscationTest extends BaseTestCase
 {

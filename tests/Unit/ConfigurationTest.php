@@ -2,6 +2,8 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Tests\Common\BaseTestCase;
+
 final class ConfigurationTest extends BaseTestCase
 {
     const INTEGRATION_ERROR = <<<'EOD'

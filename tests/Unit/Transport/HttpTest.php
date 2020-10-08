@@ -7,7 +7,7 @@ use DDTrace\Encoder;
 use DDTrace\Encoders\Json;
 use DDTrace\Log\Logger;
 use DDTrace\Tests\Common\TestLogger;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Unit\CleanEnvTrait;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;

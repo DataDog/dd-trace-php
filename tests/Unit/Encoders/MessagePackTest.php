@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Unit\Encoders;
 use DDTrace\Encoders\MessagePack;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\DebugTransport;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\GlobalTracer;
 

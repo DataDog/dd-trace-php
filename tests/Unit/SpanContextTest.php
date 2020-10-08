@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Unit;
 
 use DDTrace\SpanContext;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class SpanContextTest extends BaseTestCase
 {

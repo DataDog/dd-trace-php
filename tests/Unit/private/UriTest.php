@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Unit\Private_;
 
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 class UriTest extends BaseTestCase
 {

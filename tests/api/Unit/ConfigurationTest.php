@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Api\Unit;
 
 use DDTrace\Configuration;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class ConfigurationTest extends BaseTestCase
 {

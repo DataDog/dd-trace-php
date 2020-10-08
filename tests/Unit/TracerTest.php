@@ -10,6 +10,7 @@ use DDTrace\Tests\DebugTransport;
 use DDTrace\Time;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop as NoopTransport;
+use DDTrace\Tests\Common\BaseTestCase;
 
 function baz()
 {

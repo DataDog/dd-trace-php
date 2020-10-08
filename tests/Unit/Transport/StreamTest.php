@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Unit\Transport;
 
 use DDTrace\Encoders\Json;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Transport\Stream;
 
