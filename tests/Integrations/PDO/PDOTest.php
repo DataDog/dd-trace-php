@@ -25,9 +25,9 @@ final class PDOTest extends IntegrationTestCase
         parent::ddSetUpBeforeClass();
     }
 
-    public static function tearDownAfterClass()
+    public static function ddTearDownAfterClass()
     {
-        parent::tearDownAfterClass();
+        parent::ddTearDownAfterClass();
         putenv('DD_PDO_ANALYTICS_ENABLED');
     }
 
