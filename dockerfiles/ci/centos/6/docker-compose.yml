@@ -7,3 +7,12 @@ services:
     image: 'datadog/dd-trace-ci:php-5.5_centos-6'
     environment:
       - BASH_ENV=/etc/profile.d/zzz-ddtrace.sh
+
+  php-8.0:
+    build:
+      context: ./php-8.0
+      args:
+        phpVersion: 8.0
+        phpTarGzUrl: https://downloads.php.net/~carusogabriel/php-8.0.0rc1.tar.gz
+        phpSha256Hash: 19f859109540f6bc7f5bf4de71c1f363cd4f171a7c1f0e5f4f0abe5d40f271de
+    image: 'datadog/dd-trace-ci:php-8.0_centos-6'

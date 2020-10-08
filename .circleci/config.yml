@@ -828,6 +828,45 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
+  compile_extension_ex:
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      so_suffix:
+        type: string
+        default: unknown
+      catch_warnings:
+        type: boolean
+        default: true
+      php_version:
+        type: string
+    docker: [ image: << parameters.docker_image >> ]
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p extensions
+      - run:
+          name: Build ndebug, nts configuration
+          command: |
+            switch-php << parameters.php_version >>
+            make all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
+      - run:
+          name: Build debug, nts configuration
+          command: |
+            switch-php << parameters.php_version >>-debug
+            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
+      - run:
+          name: Build zts configuration
+          command: |
+            switch-php << parameters.php_version >>-zts
+            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-zts.so
+      - persist_to_workspace:
+          root: '.'
+          paths: [ './extensions' ]
+
   "Prepare Code":
     working_directory: ~/datadog
     docker: [ image: 'circleci/php:7.3-cli' ]
@@ -955,6 +994,12 @@ workflows:
           name: "Compile PHP 74"
           docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
           so_suffix: "20190902"
+      - compile_extension_ex:
+          name: "Compile PHP 80"
+          docker_image: "datadog/dd-trace-ci:php-8.0_centos-6"
+          php_version: "8.0"
+          so_suffix: "20200930"
+          requires: [ 'Prepare Code' ]
       - compile_extension:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 56-zts"
@@ -1005,6 +1050,7 @@ workflows:
             - "Compile PHP 72"
             - "Compile PHP 73"
             - "Compile PHP 74"
+            - "Compile PHP 80"
             - "Compile PHP 56-zts"
             - "Compile PHP 70-zts"
             - "Compile PHP 71-zts"
