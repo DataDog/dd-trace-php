@@ -23,6 +23,8 @@
     </rule>
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
         <exclude-pattern>bridge/dd_init.php</exclude-pattern>
+        <exclude-pattern>tests/bootstrap.php</exclude-pattern>
+        <exclude-pattern>tests/api/bootstrap.php</exclude-pattern>
         <exclude-pattern>tests/Integration/LongRunning/long_running_script_manual.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/PHPRedis5Test.php</exclude-pattern>
     </rule>
