@@ -191,12 +191,12 @@ final class SpanTest extends BaseTestCase
         $this->assertSame('modified_test_resource', $span->getResource());
     }
 
-    /**
-     * @expectedException \DDTrace\Exceptions\InvalidSpanArgument
-     * @expectedExceptionMessage Error should be either Exception or Throwable, got integer.
-     */
     public function testSpanErrorFailsForInvalidError()
     {
+        $this->setExpectedException(
+            '\DDTrace\Exceptions\InvalidSpanArgument',
+            'Error should be either Exception or Throwable, got integer.'
+        );
         $span = $this->createSpan();
         $span->setError(1);
     }
@@ -213,12 +213,12 @@ final class SpanTest extends BaseTestCase
         $this->assertEquals(self::ANOTHER_TYPE, $span->getType());
     }
 
-    /**
-     * @expectedException \DDTrace\Exceptions\InvalidSpanArgument
-     * @expectedExceptionMessage Invalid key type in given span tags. Expected string, got integer.
-     */
     public function testAddTagsFailsForInvalidTagKey()
     {
+        $this->setExpectedException(
+            '\DDTrace\Exceptions\InvalidSpanArgument',
+            'Invalid key type in given span tags. Expected string, got integer.'
+        );
         $span = $this->createSpan();
         $span->setTag(1, self::TAG_VALUE);
     }

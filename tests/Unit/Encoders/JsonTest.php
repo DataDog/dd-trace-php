@@ -96,7 +96,7 @@ JSON;
         $this->tracer->setPrioritySampling(null);
 
         $jsonEncoder = new Json();
-        $this->assertNotContains('_sampling_priority_v1', $jsonEncoder->encodeTraces($this->tracer));
+        $this->assertStringNotContains('_sampling_priority_v1', $jsonEncoder->encodeTraces($this->tracer));
     }
 
     public function testEncodeWithPrioritySampling()
@@ -105,7 +105,7 @@ JSON;
         $this->tracer->setPrioritySampling(PrioritySampling::USER_KEEP);
 
         $jsonEncoder = new Json();
-        $this->assertContains('"_sampling_priority_v1":2', $jsonEncoder->encodeTraces($this->tracer));
+        $this->assertStringContains('"_sampling_priority_v1":2', $jsonEncoder->encodeTraces($this->tracer));
     }
 
     public function testEncodeMetricsWhenPresent()
@@ -115,7 +115,7 @@ JSON;
 
         $jsonEncoder = new Json();
         $encoded = $jsonEncoder->encodeTraces($this->tracer);
-        $this->assertContains('"_a":0.1', $encoded);
+        $this->assertStringContains('"_a":0.1', $encoded);
     }
 
     public function testAlwaysContainsDefaultMetrics()
@@ -125,6 +125,6 @@ JSON;
 
         $jsonEncoder = new Json();
         $encoded = $jsonEncoder->encodeTraces($this->tracer);
-        $this->assertContains('"php.compilation.total_time_ms"', $encoded);
+        $this->assertStringContains('"php.compilation.total_time_ms"', $encoded);
     }
 }

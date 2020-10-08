@@ -90,7 +90,7 @@ final class HttpTest extends BaseTestCase
         $encoder = new FooEncoder([$tenMBString]);
         $httpTransport = new Http($encoder);
         $httpTransport->send(Tracer::noop());
-        $this->assertNotContains('dropping request', $logger->lastLog);
+        $this->assertStringNotContains('dropping request', $logger->lastLog);
         $this->assertSame(Http::AGENT_REQUEST_BODY_LIMIT, strlen($encoder->payload));
     }
 }

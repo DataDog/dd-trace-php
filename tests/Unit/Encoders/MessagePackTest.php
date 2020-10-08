@@ -56,7 +56,7 @@ MPACK;
         $this->tracer->setPrioritySampling(null);
 
         $encoder = new MessagePack();
-        $this->assertNotContains('_sampling_priority_v1', $encoder->encodeTraces($this->tracer));
+        $this->assertStringNotContains('_sampling_priority_v1', $encoder->encodeTraces($this->tracer));
     }
 
     public function testEncodeWithPrioritySampling()
@@ -65,7 +65,7 @@ MPACK;
         $this->tracer->setPrioritySampling(PrioritySampling::USER_KEEP);
 
         $encoder = new MessagePack();
-        $this->assertContains("\xb5_sampling_priority_v1\x02", $encoder->encodeTraces($this->tracer));
+        $this->assertStringContains("\xb5_sampling_priority_v1\x02", $encoder->encodeTraces($this->tracer));
     }
 
     public function testEncodeMetricsWhenPresent()
@@ -75,8 +75,8 @@ MPACK;
 
         $encoder = new MessagePack();
         $encoded = $encoder->encodeTraces($this->tracer);
-        $this->assertContains("\xa7metrics", $encoded);
-        $this->assertContains("\xa2_a\xcb\x3f\xb9\x99\x99\x99\x99\x99\x9a", $encoded);
+        $this->assertStringContains("\xa7metrics", $encoded);
+        $this->assertStringContains("\xa2_a\xcb\x3f\xb9\x99\x99\x99\x99\x99\x9a", $encoded);
     }
 
     public function testAlwaysContainsDefaultMetrics()
@@ -86,6 +86,6 @@ MPACK;
 
         $encoder = new MessagePack();
         $encoded = $encoder->encodeTraces($this->tracer);
-        $this->assertContains('php.compilation.total_time_ms', $encoded);
+        $this->assertStringContains('php.compilation.total_time_ms', $encoded);
     }
 }

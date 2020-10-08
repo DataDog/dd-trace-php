@@ -69,7 +69,25 @@ abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
         if (PHPUNIT_MAJOR >= 9) {
             parent::assertStringContainsString($needle, $haystack, $message);
         } else {
-            parent::assertStringContains($needle, $haystack, $message);
+            parent::assertContains($needle, $haystack, $message);
+        }
+    }
+
+    protected function assertStringNotContains($needle, $haystack, $message = '')
+    {
+        if (PHPUNIT_MAJOR >= 9) {
+            parent::assertStringNotContainsString($needle, $haystack, $message);
+        } else {
+            parent::assertNotContains($needle, $haystack, $message);
+        }
+    }
+
+    public function setExpectedException($class, $exceptionMessage = '', $exceptionCode = null)
+    {
+        if (PHPUNIT_MAJOR >= 5) {
+            parent::expectException($class, $exceptionMessage);
+        } else {
+            parent::setExpectedException($class, $exceptionMessage, $exceptionCode);
         }
     }
 }

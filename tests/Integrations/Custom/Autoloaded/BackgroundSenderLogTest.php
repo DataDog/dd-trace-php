@@ -66,6 +66,6 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
         self::assertStringContains('[bgs] uploaded', $contents);
 
         // if this fails, our test may not be reliably clearing the log file
-        self::assertNotContains('[bgs] curl_easy_perform() failed', $contents);
+        self::assertStringNotContains('[bgs] curl_easy_perform() failed', $contents);
     }
 }

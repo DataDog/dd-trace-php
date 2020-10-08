@@ -51,6 +51,6 @@ final class StartupLoggingDisabledTest extends WebFrameworkTestCase
 
         $contents = \file_get_contents(self::getAppErrorLog());
 
-        self::assertNotContains('DATADOG TRACER CONFIGURATION', $contents);
+        self::assertStringNotContains('DATADOG TRACER CONFIGURATION', $contents);
     }
 }
