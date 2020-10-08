@@ -14,16 +14,16 @@ found in integrations.{h,c}. Integration-specific config for this integration wi
 fall back to the defaults if they have not been added at the extension level.
 EOD;
 
-    protected function afterSetUp()
+    protected function ddSetUp()
     {
-        parent::afterSetUp();
+        parent::ddSetUp();
         $this->cleanUpEnvs();
     }
 
-    protected function afterTearDown()
+    protected function ddTearDown()
     {
         $this->cleanUpEnvs();
-        parent::afterTearDown();
+        parent::ddTearDown();
     }
 
     private function cleanUpEnvs()

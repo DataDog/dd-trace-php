@@ -31,16 +31,16 @@ final class PDOTest extends IntegrationTestCase
         putenv('DD_PDO_ANALYTICS_ENABLED');
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->setUpDatabase();
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
         $this->clearDatabase();
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     public function testCustomPDOPrepareWithStringableStatement()

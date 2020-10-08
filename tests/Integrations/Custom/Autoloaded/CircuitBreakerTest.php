@@ -26,9 +26,9 @@ final class CircuitBreakerTest extends WebFrameworkTestCase
         ]);
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
-        parent::tearDown();
+        parent::ddTearDown();
         \dd_tracer_circuit_breaker_register_success();
     }
 

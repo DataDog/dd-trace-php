@@ -24,17 +24,17 @@ final class TracerTest extends BaseTestCase
     const TAG_VALUE = 'test_value';
     const FORMAT = 'test_format';
 
-    protected function afterSetUp()
+    protected function ddSetUp()
     {
         \putenv('DD_AUTOFINISH_SPANS');
         \putenv('DD_TRACE_REPORT_HOSTNAME');
         \putenv('DD_TAGS');
-        parent::afterSetUp();
+        parent::ddSetUp();
     }
 
-    protected function afterTearDown()
+    protected function ddTearDown()
     {
-        parent::afterTearDown();
+        parent::ddTearDown();
         \putenv('DD_TRACE_REPORT_HOSTNAME');
         \putenv('DD_AUTOFINISH_SPANS');
         \putenv('DD_TAGS');

@@ -32,9 +32,9 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
         ]);
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
 
         // clear out any previous logs
         $log = self::getAppErrorLog();

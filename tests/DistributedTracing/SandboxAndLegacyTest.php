@@ -7,9 +7,9 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class SandboxAndLegacyTest extends WebFrameworkTestCase
 {
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         /* Here we are disabling ddtrace for the test harness so that it doesn't
          * instrument the curl call and alter the x-datadog headers. */
         \dd_trace_disable_in_request();

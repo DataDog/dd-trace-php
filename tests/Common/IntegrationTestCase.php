@@ -8,7 +8,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * A basic class to be extended when testing integrations.
  */
-abstract class IntegrationTestCase extends TestCase
+abstract class IntegrationTestCase extends BaseTestCase
 {
     use TracerTestTrait;
     use SpanAssertionTrait;
@@ -27,18 +27,18 @@ abstract class IntegrationTestCase extends TestCase
         \dd_trace_internal_fn('ddtrace_reload_config');
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
         $this->errorReportingBefore = error_reporting();
-        parent::setUp();
+        parent::ddSetUp();
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
-        parent::tearDown();
         error_reporting($this->errorReportingBefore);
         \PHPUnit_Framework_Error_Warning::$enabled = true;
         \dd_trace_internal_fn('ddtrace_reload_config');
+        parent::ddTearDown();
     }
 
     protected function disableTranslateWarningsIntoErrors()

@@ -35,14 +35,14 @@ final class SpanTest extends BaseTestCase
      */
     private $oldTracer;
 
-    protected function afterSetUp()
+    protected function ddSetUp()
     {
-        parent::afterSetUp();
+        parent::ddSetUp();
         $this->tracer = new Tracer();
         $this->oldTracer = \DDTrace\GlobalTracer::get();
         \DDTrace\GlobalTracer::set($this->tracer);
     }
-    protected function afterTearDown()
+    protected function ddTearDown()
     {
         \DDTrace\GlobalTracer::set($this->oldTracer);
     }

@@ -13,13 +13,13 @@ final class HttpTest extends BaseTestCase
 {
     use AgentReplayerTrait;
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
         // reset the circuit breker consecutive failures count and close it
         \dd_tracer_circuit_breaker_register_success();
         putenv('DD_TRACE_AGENT_ATTEMPT_RETRY_TIME_MSEC=default');
 
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     public function agentUrl()

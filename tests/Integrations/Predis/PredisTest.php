@@ -19,11 +19,6 @@ final class PredisTest extends IntegrationTestCase
         IntegrationsLoader::load();
     }
 
-    protected function setUp()
-    {
-        parent::setUp();
-    }
-
     public function testPredisIntegrationCreatesSpans()
     {
         $traces = $this->inTestScope('custom_redis.test', function () {

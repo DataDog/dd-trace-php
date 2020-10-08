@@ -18,14 +18,14 @@ class SigSegVTest extends WebFrameworkTestCase
         return __DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/sigsegv.php';
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
         if (!extension_loaded('posix')) {
             $this->markTestSkipped(
                 'The posix extension is not available.'
             );
         }
-        parent::setUp();
+        parent::ddSetUp();
         @unlink(__DIR__ . '/../../Frameworks/Custom/Version_Not_Autoloaded/' . WebServer::ERROR_LOG_NAME);
     }
 

@@ -21,9 +21,9 @@ final class CurlHeadersMapTest extends BaseTestCase
      */
     private $tracer;
 
-    protected function afterSetUp()
+    protected function ddSetUp()
     {
-        parent::afterSetUp();
+        parent::ddSetUp();
         $this->tracer = new Tracer(new DebugTransport());
         GlobalTracer::set($this->tracer);
     }

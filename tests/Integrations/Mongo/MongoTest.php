@@ -24,10 +24,10 @@ class MongoTest extends IntegrationTestCase
         IntegrationsLoader::load();
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
         $this->clearDatabase();
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     // MongoClient tests

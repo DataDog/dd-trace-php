@@ -14,9 +14,9 @@ final class ContainerInfoTest extends BaseTestCase
      */
     private $containerInfo;
 
-    protected function afterSetUp()
+    protected function ddSetUp()
     {
-        parent::afterSetUp();
+        parent::ddSetUp();
         $this->containerInfo = new ContainerInfo($this->mockCgroupProcFilePath);
     }
 

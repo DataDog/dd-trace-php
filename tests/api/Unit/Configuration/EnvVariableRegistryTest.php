@@ -7,9 +7,9 @@ use DDTrace\Tests\Common\BaseTestCase;
 
 final class EnvVariableRegistryTest extends BaseTestCase
 {
-    protected function afterSetUp()
+    protected function ddSetUp()
     {
-        parent::afterSetUp();
+        parent::ddSetUp();
         putenv('DD_SOME_TEST_PARAMETER');
         putenv('DD_CUSTOM_PREFIX_SOME_TEST_PARAMETER');
     }

@@ -10,11 +10,11 @@ use PHPUnit\Framework;
 
 abstract class BaseTestCase extends MultiPHPUnitVersionAdapter
 {
-    protected function afterSetUp()
+    protected function ddSetUp()
     {
     }
 
-    protected function beforeTearDown()
+    protected function ddTearDown()
     {
         \Mockery::close();
         Logger::reset();

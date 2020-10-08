@@ -10,18 +10,18 @@ final class ArrayKVStoreTest extends BaseTestCase
     private $resource1;
     private $resource2;
 
-    protected function afterSetUp()
+    protected function ddSetUp()
     {
-        parent::afterSetUp();
+        parent::ddSetUp();
         $this->resource1 = fopen('php://memory', 'r');
         $this->resource2 = fopen('php://memory', 'r');
     }
 
-    protected function afterTearDown()
+    protected function ddTearDown()
     {
         fclose($this->resource1);
         fclose($this->resource2);
-        parent::afterTearDown();
+        parent::ddTearDown();
     }
 
     public function testPutForResourceNull()

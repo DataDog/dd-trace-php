@@ -11,18 +11,18 @@ final class ConfigurableSamplerTest extends BaseTestCase
 {
     const REPETITIONS = 5000;
 
-    protected function afterSetup()
+    protected function ddSetUp()
     {
-        parent::afterSetUp();
+        parent::ddSetUp();
         \putenv('DD_TRACE_SAMPLING_RULES');
         \putenv('DD_TRACE_SAMPLE_RATE');
     }
 
-    protected function beforeTearDown()
+    protected function ddTearDown()
     {
         \putenv('DD_TRACE_SAMPLING_RULES');
         \putenv('DD_TRACE_SAMPLE_RATE');
-        parent::beforeTearDown();
+        parent::ddTearDown();
     }
 
     /**

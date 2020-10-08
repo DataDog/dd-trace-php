@@ -20,9 +20,9 @@ class MysqliTest extends IntegrationTestCase
         IntegrationsLoader::load();
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->clearDatabase();
         $this->setUpDatabase();
     }

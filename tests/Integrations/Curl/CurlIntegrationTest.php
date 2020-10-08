@@ -36,16 +36,16 @@ final class CurlIntegrationTest extends IntegrationTestCase
     const URL = 'http://httpbin_integration';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
 
-    public function setUp()
+    public function ddSetUp()
     {
         $this->cleanUp();
-        parent::setUp();
+        parent::ddSetUp();
         IntegrationsLoader::load();
     }
 
-    public function tearDown()
+    public function ddTearDown()
     {
-        parent::tearDown();
+        parent::ddTearDown();
         $this->cleanUp();
     }
 

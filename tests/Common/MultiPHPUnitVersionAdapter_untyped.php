@@ -6,19 +6,19 @@ use PHPUnit\Framework\TestCase;
 
 abstract class MultiPHPUnitVersionAdapter extends TestCase
 {
-    abstract protected function afterSetUp();
+    abstract protected function ddSetUp();
 
-    abstract protected function beforeTearDown();
+    abstract protected function ddTearDown();
 
     protected function setUp()
     {
         parent::setUp();
-        $this->afterSetUp();
+        $this->ddSetUp();
     }
 
     protected function tearDown()
     {
-        $this->beforeTearDown();
+        $this->ddTearDown();
         parent::tearDown();
     }
 }

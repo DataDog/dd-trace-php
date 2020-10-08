@@ -27,9 +27,9 @@ class PHPRedis4Test extends IntegrationTestCase
     private $redis;
     private $redisSecondInstance;
 
-    public function setUp()
+    public function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->redis = new \Redis();
         $this->redis->connect($this->host, $this->port);
         $this->redis->flushAll();
@@ -38,11 +38,11 @@ class PHPRedis4Test extends IntegrationTestCase
         $this->redisSecondInstance->flushAll();
     }
 
-    public function tearDown()
+    public function ddTearDown()
     {
         $this->redis->close();
         $this->redisSecondInstance->close();
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     /**

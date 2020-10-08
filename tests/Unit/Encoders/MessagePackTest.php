@@ -16,9 +16,9 @@ final class MessagePackTest extends BaseTestCase
      */
     private $tracer;
 
-    protected function afterSetUp()
+    protected function ddSetUp()
     {
-        parent::afterSetUp();
+        parent::ddSetUp();
         putenv('DD_AUTOFINISH_SPANS=true');
         $this->tracer = new Tracer(
             new DebugTransport(),
@@ -31,9 +31,9 @@ final class MessagePackTest extends BaseTestCase
         GlobalTracer::set($this->tracer);
     }
 
-    protected function afterTearDown()
+    protected function ddTearDown()
     {
-        parent::afterTearDown();
+        parent::ddTearDown();
         putenv('DD_AUTOFINISH_SPANS=');
     }
 
