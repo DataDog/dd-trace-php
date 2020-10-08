@@ -3,7 +3,8 @@
 set -e
 
 rm -f ./bridge/_generated.php
-composer compile
+composer -dtooling/generation generate
+composer -dtooling/generation verify
 
 # PECL doesn't like the "-nightly" part of the nightly version number so we have to change it
 dd_version=$(awk -F\' '/const VERSION/ {sub(/-nightly/, "", $2); print $2}' < src/DDTrace/Tracer.php)
