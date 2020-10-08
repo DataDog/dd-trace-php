@@ -3,7 +3,6 @@
 namespace DDTrace\Tests\Common;
 
 use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Util\Versions;
 use PHPUnit\Framework\TestCase;
 
 /**
