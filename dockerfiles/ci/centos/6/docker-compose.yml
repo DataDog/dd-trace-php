@@ -5,8 +5,6 @@ services:
     build:
       context: ./php-5.5
     image: 'datadog/dd-trace-ci:php-5.5_centos-6'
-    environment:
-      - BASH_ENV=/etc/profile.d/zzz-ddtrace.sh
 
   php-8.0:
     build:
