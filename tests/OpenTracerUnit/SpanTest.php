@@ -6,10 +6,10 @@ use DDTrace\OpenTracer\Span;
 use DDTrace\Span as DDSpan;
 use DDTrace\SpanContext as DDSpanContext;
 use DDTrace\Tag;
+use DDTrace\Tests\Common\BaseTestCase;
 use Exception;
-use PHPUnit\Framework\TestCase;
 
-final class SpanTest extends TestCase
+final class SpanTest extends BaseTestCase
 {
     const OPERATION_NAME = 'test_span';
     const SERVICE = 'test_service';
@@ -148,7 +148,7 @@ final class SpanTest extends TestCase
         $this->setExpectedException(
             '\DDTrace\Exceptions\InvalidSpanArgument',
             'Invalid key type in given span tags. Expected string, got integer.'
-        )
+        );
         $span = $this->createSpan();
         $span->setTag(1, self::TAG_VALUE);
     }

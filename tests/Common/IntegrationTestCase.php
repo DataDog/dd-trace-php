@@ -3,7 +3,6 @@
 namespace DDTrace\Tests\Common;
 
 use DDTrace\Integrations\IntegrationsLoader;
-use PHPUnit\Framework\TestCase;
 
 /**
  * A basic class to be extended when testing integrations.
