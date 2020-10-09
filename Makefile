@@ -119,6 +119,7 @@ clang_find_files_to_lint:
 	-path ./tests -prune -o \
 	-path ./src/ext/mpack -prune -o \
 	-path ./src/ext/third-party -prune -o \
+	-path ./tooling/generation -prune -o \
 	-iname "*.h" -o -iname "*.c" \
 	-type f
 
