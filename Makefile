@@ -569,6 +569,8 @@ test_web_symfony_34:
 	php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V3_4)
 test_web_symfony_40:
+	# Trick to have symfony 4.0 update process not to fail because of an error related to monolog dependencies.
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 update --no-scripts
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 update
 	php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V4_0)
@@ -590,7 +592,6 @@ test_web_zend_1:
 test_web_custom:
 	$(COMPOSER) --working-dir=tests/Frameworks/Custom/Version_Autoloaded update
 	$(call run_tests,--testsuite=custom-framework-autoloading-test)
-
 
 test_scenario_%:
 	$(Q) $(COMPOSER_TESTS) scenario $*
