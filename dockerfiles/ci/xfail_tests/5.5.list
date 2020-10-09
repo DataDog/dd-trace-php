@@ -259,6 +259,7 @@ tests/classes/autoload_020.phpt
 tests/classes/clone_001.phpt
 tests/classes/clone_002.phpt
 tests/classes/clone_004.phpt
+tests/lang/045.phpt
 tests/lang/type_hints_002.phpt
 tests/output/ob_start_basic_002.phpt
 tests/run-test/test005.phpt
