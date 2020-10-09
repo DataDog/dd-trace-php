@@ -13,6 +13,9 @@ assignees: ''
 ### PHP version
 <!-- Output of `php -v` -->
 
+### Tracer version
+<!-- Output of `php --ri ddtrace` -->
+
 ### Installed extensions
 <!-- Output of `php -m` -->
 
