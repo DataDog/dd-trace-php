@@ -51,6 +51,9 @@ Zend/tests/bug78182.phpt
 Zend/tests/bug78644.phpt
 Zend/tests/bug78999.phpt
 Zend/tests/bug79155.phpt
+Zend/tests/bug79778.phpt
+Zend/tests/bug79862.phpt
+Zend/tests/bug80037.phpt
 Zend/tests/class_alias_020.phpt
 Zend/tests/class_name_as_scalar.phpt
 Zend/tests/closure_058.phpt
@@ -223,6 +226,7 @@ ext/reflection/tests/ReflectionReference_bug78263.phpt
 ext/reflection/tests/bug39884.phpt
 ext/reflection/tests/bug46103.phpt
 ext/reflection/tests/bug69802.phpt
+ext/reflection/tests/bug79683.phpt
 ext/reflection/tests/traits004.phpt
 ext/session/tests/003.phpt
 ext/session/tests/004.phpt
@@ -334,6 +338,7 @@ ext/standard/tests/array/array_unique_variation3.phpt
 ext/standard/tests/array/array_walk_closure.phpt
 ext/standard/tests/array/arsort_object1.phpt
 ext/standard/tests/array/arsort_object2.phpt
+ext/standard/tests/array/bug79839.phpt
 ext/standard/tests/array/compact_this.phpt
 ext/standard/tests/array/uasort_object1.phpt
 ext/standard/tests/assert/assert_variation.phpt
