@@ -150,7 +150,7 @@ function verify_installation() {
 }
 
 println "PHP version"
-$DD_TRACE_PHP_BIN -v
+invoke_php -v
 
 mkdir -p $EXTENSION_DIR
 mkdir -p $EXTENSION_CFG_DIR
