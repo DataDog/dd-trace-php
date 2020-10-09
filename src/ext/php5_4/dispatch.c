@@ -58,30 +58,3 @@ zend_bool ddtrace_dispatch_store(HashTable *lookup, ddtrace_dispatch_t *dispatch
     return zend_hash_update(lookup, Z_STRVAL(dispatch->function_name), Z_STRLEN(dispatch->function_name), &dispatch,
                             sizeof(ddtrace_dispatch_t *), NULL) == SUCCESS;
 }
-
-// A modified version of func_get_args()
-// https://github.com/php/php-src/blob/PHP-5.6/Zend/zend_builtin_functions.c#L445
-static int get_args(zval *args, zend_execute_data *ex) {
-    if (!ex || !ex->function_state.arguments) {
-        return 0;
-    }
-    void **p = ex->function_state.arguments;
-    int param_count = (int)(zend_uintptr_t)*p;
-
-    array_init_size(args, param_count);
-    for (int i = 0; i < param_count; i++) {
-        zval *element, *arg;
-
-        arg = *((zval **)(p - (param_count - i)));
-        if (!Z_ISREF_P(arg)) {
-            element = arg;
-            Z_ADDREF_P(element);
-        } else {
-            ALLOC_ZVAL(element);
-            INIT_PZVAL_COPY(element, arg);
-            zval_copy_ctor(element);
-        }
-        zend_hash_next_index_insert(args->value.ht, &element, sizeof(zval *), NULL);
-    }
-    return 1;
-}
