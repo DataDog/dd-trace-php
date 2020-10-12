@@ -20,6 +20,8 @@ extern int ddtrace_op_array_extension;
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 void ddtrace_engine_hooks_minit(void);
+void ddtrace_engine_hooks_rinit(TSRMLS_D);
+void ddtrace_engine_hooks_rshutdown(TSRMLS_D);
 void ddtrace_engine_hooks_mshutdown(void);
 
 void ddtrace_compile_time_reset(TSRMLS_D);
@@ -28,7 +30,11 @@ int64_t ddtrace_compile_time_get(TSRMLS_D);
 struct ddtrace_error_handling {
     int type;
     int lineno;
+#if PHP_VERSION_ID < 80000
     char *message;
+#else
+    zend_string *message;
+#endif
     char *file;
     int error_reporting;
     zend_error_handling error_handling;
@@ -59,6 +65,7 @@ inline void ddtrace_backup_error_handling(ddtrace_error_handling *eh, zend_error
     zend_replace_error_handling(mode, NULL, &eh->error_handling TSRMLS_CC);
 }
 
+#if PHP_VERSION_ID < 80000
 inline void ddtrace_restore_error_handling(ddtrace_error_handling *eh TSRMLS_DC) {
     if (PG(last_error_message)) {
         if (PG(last_error_message) != eh->message) {
@@ -75,10 +82,13 @@ inline void ddtrace_restore_error_handling(ddtrace_error_handling *eh TSRMLS_DC)
     PG(last_error_lineno) = eh->lineno;
     EG(error_reporting) = eh->error_reporting;
 }
+#else
+void ddtrace_restore_error_handling(ddtrace_error_handling *eh);
+#endif
 
 #if PHP_VERSION_ID < 70000
 inline void ddtrace_maybe_clear_exception(TSRMLS_D) {
-    if (EG(exception) && !DDTRACE_G(strict_mode)) {
+    if (EG(exception)) {
         // Cannot use zend_clear_exception() in PHP 5 since there is no NULL check on the opline
         zval_ptr_dtor(&EG(exception));
         EG(exception) = NULL;
@@ -93,7 +103,7 @@ inline void ddtrace_maybe_clear_exception(TSRMLS_D) {
 }
 #else
 inline void ddtrace_maybe_clear_exception(void) {
-    if (EG(exception) && !DDTRACE_G(strict_mode)) {
+    if (EG(exception)) {
         zend_clear_exception();
     }
 }
@@ -136,7 +146,9 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup TSRMLS_DC) {
 
 #if PHP_VERSION_ID < 70000
         EG(opline_before_exception) = backup->opline_before_exception;
+#if PHP_VERSION_ID >= 50500
         EG(current_execute_data)->opline = EG(exception_op);
+#endif
 #else
         zend_throw_exception_internal(NULL);
 #endif
@@ -145,6 +157,58 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup TSRMLS_DC) {
 
 #if PHP_VERSION_ID >= 70000
 PHP_FUNCTION(ddtrace_internal_function_handler);
+#endif
+
+#if PHP_VERSION_ID < 80000
+#define DDTRACE_ERROR_CB_PARAMETERS \
+    int type, const char *error_filename, const uint error_lineno, const char *format, va_list args
+
+#define DDTRACE_ERROR_CB_PARAM_PASSTHRU type, error_filename, error_lineno, format, args
+
+void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS);
+ddtrace_exception_t *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC);
+#else
+void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t error_lineno, zend_string *message);
+#endif
+
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception);
+
+#if PHP_VERSION_ID < 70000
+void ddtrace_close_all_open_spans(TSRMLS_D);
+#else
+void ddtrace_close_all_open_spans(void);
+#endif
+
+#if PHP_VERSION_ID >= 80000
+inline zend_class_entry *ddtrace_get_exception_base(zval *object) {
+    return (Z_OBJCE_P(object) == zend_ce_exception || instanceof_function_slow(Z_OBJCE_P(object), zend_ce_exception))
+               ? zend_ce_exception
+               : zend_ce_error;
+}
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(ddtrace_get_exception_base(object), Z_OBJ_P(object), ZSTR_KNOWN(id), 1, &rv)
+#elif PHP_VERSION_ID >= 70000
+inline zend_class_entry *ddtrace_get_exception_base(zval *object) {
+    return instanceof_function(Z_OBJCE_P(object), zend_ce_exception) ? zend_ce_exception : zend_ce_error;
+}
+#if PHP_VERSION_ID < 70100
+#define ZEND_STR_MESSAGE "message"
+#define GET_PROPERTY(object, name) \
+    zend_read_property(ddtrace_get_exception_base(object), (object), name, sizeof(name) - 1, 1, &rv)
+#elif PHP_VERSION_ID < 70200
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(ddtrace_get_exception_base(object), (object), CG(known_strings)[id], 1, &rv)
+#else
+#define GET_PROPERTY(object, id) \
+    zend_read_property_ex(ddtrace_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
+#endif
+#endif
+
+#if PHP_VERSION_ID < 70000
+inline zval *ddtrace_exception_get_entry(zval *object, char *name, int name_len TSRMLS_DC) {
+    zend_class_entry *exception_ce = zend_exception_get_default(TSRMLS_C);
+    return zend_read_property(exception_ce, object, name, name_len, 1 TSRMLS_CC);
+}
 #endif
 
 #endif  // DD_ENGINE_HOOKS_H

@@ -36,18 +36,19 @@ function array_filter_recursive(callable $keep_fn, array $input)
  */
 class ElasticSearchIntegrationTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = false;
     const HOST = 'elasticsearch2_integration';
 
     public function testNamespaceMethodNotExistsDoesNotCrashApps()
     {
-        ElasticSearchIntegration::traceNamespaceMethod('\Wrong\Namespace', 'wrong_method');
+        $integration = new ElasticSearchIntegration();
+        $integration->traceNamespaceMethod('\Wrong\Namespace', 'wrong_method');
         $this->addToAssertionCount(1);
     }
 
     public function testMethodNotExistsDoesNotCrashApps()
     {
-        ElasticSearchIntegration::traceSimpleMethod('\Wrong\Class', 'wrong_method');
+        $integration = new ElasticSearchIntegration();
+        $integration->traceSimpleMethod('\Wrong\Class', 'wrong_method');
         $this->addToAssertionCount(1);
     }
 
@@ -332,6 +333,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         $this->assertEmpty($traces);
     }
 
+
     public function testScroll()
     {
         $client = $this->client();
@@ -380,22 +382,22 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
+            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.scroll',
                 'elasticsearch',
                 'elasticsearch',
                 'scroll'
             ),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
+            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
             SpanAssertion::build(
                 'Elasticsearch.Client.scroll',
                 'elasticsearch',
                 'elasticsearch',
                 'scroll'
             ),
-            SpanAssertion::exists('Elasticsearch.Endpoint.performRequest'),
-            SpanAssertion::exists('Elasticsearch.Serializers.SmartSerializer.deserialize'),
         ]);
     }
 

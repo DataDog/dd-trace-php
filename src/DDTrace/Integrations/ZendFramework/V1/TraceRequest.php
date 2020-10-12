@@ -22,7 +22,7 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
             return;
         }
         $span = $scope->getSpan();
-        $integration = ZendFrameworkIntegration::getInstance();
+        $integration = new ZendFrameworkIntegration();
         // Overwriting the default web integration
         $integration->addTraceAnalyticsIfEnabledLegacy($span);
         $controller = $request->getControllerName();

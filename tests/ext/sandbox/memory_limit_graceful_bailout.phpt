@@ -3,7 +3,6 @@ The tracer bails out gracefully when memory_limit INI is reached in shutdown hoo
 --DESCRIPTION--
 This test ensures that when the span stack is left in a "dirty" state from a zend_bailout() while serializing, they will be cleaned up properly in RSHUTDOWN.
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 <?php if (getenv('USE_ZEND_ALLOC') === '0') die('skip Zend memory manager required'); ?>
 --ENV--
 DD_TRACE_SPANS_LIMIT=-1

@@ -14,5 +14,5 @@ $sum = array_sum([1, 3, 5]);
 var_dump($sum);
 ?>
 --EXPECT--
-RuntimeException thrown in tracing closure for array_sum: This exception is expected
+RuntimeException thrown in ddtrace's closure for array_sum(): This exception is expected
 int(9)

@@ -1,6 +1,7 @@
 **/vendor
 tmp/build_extension/
 composer.lock
+core
 .scenarios.lock/
 .vscode/
 .libs
@@ -19,10 +20,9 @@ configure
 *.o
 *.so
 install-sh
-error.log
-dd_php_error.log
+*.log
 nginx.pid
-nginx_*.log
+tests/Frameworks/**/*.log
 libtool
 ltmain.sh
 missing

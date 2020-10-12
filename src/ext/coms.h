@@ -1,6 +1,7 @@
 #ifndef DD_COMS_H
 #define DD_COMS_H
 
+#include <curl/curl.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -54,6 +55,13 @@ bool ddtrace_coms_on_pid_change(void);
 uint32_t ddtrace_coms_test_writers(void);
 uint32_t ddtrace_coms_test_consumer(void);
 uint32_t ddtrace_coms_test_msgpack_consumer(void);
+/* }}} */
+
+/* exposed for diagnostics {{{ */
+char *ddtrace_agent_url(void);
+void ddtrace_curl_set_hostname(CURL *curl);
+void ddtrace_curl_set_timeout(CURL *curl);
+void ddtrace_curl_set_connect_timeout(CURL *curl);
 /* }}} */
 
 #endif  // DD_COMS_H

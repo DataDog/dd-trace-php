@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Integrations\Guzzle\V6;
 
-use DDTrace\Configuration;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;
@@ -17,8 +16,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class GuzzleIntegrationTest extends IntegrationTestCase
 {
-
-    const IS_SANDBOX = false;
 
     const URL = 'http://httpbin_integration';
 
@@ -254,7 +251,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             __DIR__ . '/guzzle_in_web_request.php',
             [
                 'DD_SERVICE' => 'top_level_app',
-                'DD_TRACE_SANDBOX_ENABLED' => static::IS_SANDBOX,
                 'DD_TRACE_NO_AUTOLOADER' => true,
             ]
         );

@@ -3,12 +3,12 @@
 namespace DDTrace\Integrations\Predis;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\GlobalTracer;
+use DDTrace\Util\Versions;
 use Predis\Configuration\OptionsInterface;
 use Predis\Connection\AbstractConnection;
-use Predis\Pipeline\Pipeline;
 
 const VALUE_PLACEHOLDER = "?";
 const VALUE_MAX_LEN = 100;
@@ -25,22 +25,6 @@ class PredisIntegration extends Integration
     private static $connections = [];
 
     /**
-     * @var self
-     */
-    private static $instance;
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
-    /**
      * @return string The integration name.
      */
     public function getName()
@@ -49,172 +33,116 @@ class PredisIntegration extends Integration
     }
 
     /**
-     * Static method to add instrumentation to the Predis library
+     * Add instrumentation to PDO requests
      */
-    public static function load()
+    public function init()
     {
-        $integration = PredisIntegration::getInstance();
+        $integration = $this;
 
-        // public Predis\Client::__construct ([ mixed $dsn [, mixed $options ]] )
-        dd_trace('Predis\Client', '__construct', function () {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                return dd_trace_forward_call();
-            }
-
-            $scope = $tracer->startActiveSpan(
-                'Predis.Client.__construct'
-            );
-            $span = $scope->getSpan();
-
-            $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
-            $span->setTag(Tag::SERVICE_NAME, 'redis');
-            $span->setTag(Tag::RESOURCE_NAME, 'Predis.Client.__construct');
-
-            $thrown = null;
-            try {
-                dd_trace_forward_call();
-                PredisIntegration::storeConnectionParams($this, func_get_args());
-                PredisIntegration::setConnectionTags($this, $span);
-            } catch (\Exception $e) {
-                $thrown = $e;
-                $span->setError($e);
-            }
-
-            $scope->close();
-            if ($thrown) {
-                throw $thrown;
-            }
-
-            return $this;
-        });
-
-        // public void Predis\Client::connect()
-        dd_trace('Predis\Client', 'connect', function () {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                return dd_trace_forward_call();
-            }
-
-            $scope = $tracer->startActiveSpan(
-                'Predis.Client.connect'
-            );
-            $span = $scope->getSpan();
-            $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
-            $span->setTag(Tag::SERVICE_NAME, 'redis');
-            $span->setTag(Tag::RESOURCE_NAME, 'Predis.Client.connect');
+        \DDTrace\trace_method('Predis\Client', '__construct', function (SpanData $span, $args) {
+            $span->name = 'Predis.Client.__construct';
+            $span->type = Type::CACHE;
+            $span->service = 'redis';
+            $span->resource = 'Predis.Client.__construct';
+            PredisIntegration::storeConnectionParams($this, $args);
             PredisIntegration::setConnectionTags($this, $span);
-
-            return include __DIR__ . '/../../try_catch_finally.php';
         });
 
-        // public mixed Predis\Client::executeCommand(CommandInterface $command)
-        dd_trace('Predis\Client', 'executeCommand', function ($command) use ($integration) {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                return dd_trace_forward_call();
+        \DDTrace\trace_method('Predis\Client', 'connect', function (SpanData $span, $args) {
+            $span->name = 'Predis.Client.connect';
+            $span->type = Type::CACHE;
+            $span->service = 'redis';
+            $span->resource = 'Predis.Client.connect';
+            PredisIntegration::setConnectionTags($this, $span);
+        });
+
+        \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) use ($integration) {
+            $span->name = 'Predis.Client.executeCommand';
+            $span->type = Type::CACHE;
+            $span->service = 'redis';
+            PredisIntegration::setConnectionTags($this, $span);
+            $integration->addTraceAnalyticsIfEnabled($span);
+
+            // We default resource name to 'Predis.Client.executeCommand', but if we are able below to extract the query
+            // then we replace it with the query
+            $span->resource = 'Predis.Client.executeCommand';
+
+            if (\count($args) == 0) {
+                return;
             }
 
+            $command = $args[0];
             $arguments = $command->getArguments();
             array_unshift($arguments, $command->getId());
+            $span->meta['redis.args_length'] = count($arguments);
             $query = PredisIntegration::formatArguments($arguments);
-
-            $scope = $tracer->startActiveSpan(
-                'Predis.Client.executeCommand'
-            );
-            $span = $scope->getSpan();
-            $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
-            $span->setTag(Tag::SERVICE_NAME, 'redis');
-            $span->setTag('redis.raw_command', $query);
-            $span->setTag('redis.args_length', count($arguments));
-            $span->setTag(Tag::RESOURCE_NAME, $query);
-            $integration->addTraceAnalyticsIfEnabledLegacy($span);
-            PredisIntegration::setConnectionTags($this, $span);
-
-            return include __DIR__ . '/../../try_catch_finally.php';
+            $span->resource = $query;
+            $span->meta['redis.raw_command'] = $query;
         });
 
-        // public mixed Predis\Client::executeRaw(array $arguments, bool &$error)
-        dd_trace('Predis\Client', 'executeRaw', function ($arguments, &$error = null) use ($integration) {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                return dd_trace_forward_call();
-            }
+        \DDTrace\trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) use ($integration) {
+            $span->name = 'Predis.Client.executeRaw';
+            $span->type = Type::CACHE;
+            $span->service = 'redis';
+            PredisIntegration::setConnectionTags($this, $span);
+            $integration->addTraceAnalyticsIfEnabled($span);
 
+            // We default resource name to 'Predis.Client.executeRaw', but if we are able below to extract the query
+            // then we replace it with the query
+            $span->resource = 'Predis.Client.executeRaw';
+
+            if (\count($args) == 0) {
+                return;
+            }
+            $arguments = $args[0];
             $query = PredisIntegration::formatArguments($arguments);
-
-            $scope = $tracer->startActiveSpan(
-                'Predis.Client.executeRaw'
-            );
-            $span = $scope->getSpan();
-            $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
-            $span->setTag(Tag::SERVICE_NAME, 'redis');
-            $span->setTag('redis.raw_command', $query);
-            $span->setTag('redis.args_length', count($arguments));
-            $span->setTag(Tag::RESOURCE_NAME, $query);
-            $integration->addTraceAnalyticsIfEnabledLegacy($span);
-            PredisIntegration::setConnectionTags($this, $span);
-
-            // PHP 5.4 compatible try-catch-finally block.
-            // Note that we do not use the TryCatchFinally helper class because $error is a reference here which
-            // causes problems with call_user_func_array, used internally.
-            $thrown = null;
-            $result = null;
-            try {
-                $result = dd_trace_forward_call();
-            } catch (\Exception $ex) {
-                $thrown = $ex;
-                $span->setError($ex);
-            }
-
-            $scope->close();
-            if ($thrown) {
-                throw $thrown;
-            }
-
-            return $result;
+            $span->resource = $query;
+            $span->meta['redis.args_length'] = count($arguments);
+            $span->meta['redis.raw_command'] = $query;
         });
 
-        // protected array Predis\Pipeline::executePipeline(ConnectionInterface $connection, \SplQueue $commands)
-        dd_trace('Predis\Pipeline\Pipeline', 'executePipeline', function ($connection, $commands) {
-            $tracer = GlobalTracer::get();
-            if ($tracer->limited()) {
-                return dd_trace_forward_call();
-            }
-
-            $scope = $tracer->startActiveSpan(
-                'Predis.Pipeline.executePipeline'
+        // PHP 5 does not support prehook, which is required to get the pipeline count before
+        // tasks are dequeued.
+        if (Versions::phpVersionMatches('5')) {
+            \DDTrace\trace_method('Predis\Pipeline\Pipeline', 'executePipeline', function (SpanData $span, $args) {
+                $span->name = 'Predis.Pipeline.executePipeline';
+                $span->resource = $span->name;
+                $span->type = Type::CACHE;
+                $span->service = 'redis';
+                PredisIntegration::setConnectionTags($this, $span);
+            });
+        } else {
+            \DDTrace\trace_method(
+                'Predis\Pipeline\Pipeline',
+                'executePipeline',
+                [
+                    'prehook' => function (SpanData $span, $args) {
+                        $span->name = 'Predis.Pipeline.executePipeline';
+                        $span->resource = $span->name;
+                        $span->type = Type::CACHE;
+                        $span->service = 'redis';
+                        PredisIntegration::setConnectionTags($this, $span);
+                        if (\count($args) < 2) {
+                            return;
+                        }
+                        $commands = $args[1];
+                        $span->meta['redis.pipeline_length'] = count($commands);
+                    },
+                ]
             );
-            $span = $scope->getSpan();
-            $span->setTag(Tag::SPAN_TYPE, Type::CACHE);
-            $span->setTag(Tag::SERVICE_NAME, 'redis');
-            $span->setTag('redis.pipeline_length', count($commands));
-            PredisIntegration::setConnectionTags($this, $span);
-
-            // PHP 5.4 compatible try-catch-finally block.
-            // Note that we are not using the TryCatchFinally::executePublicMethod because this method
-            // is protected.
-            $thrown = null;
-            $result = null;
-            $span = $scope->getSpan();
-            try {
-                $result = dd_trace_forward_call();
-            } catch (\Exception $ex) {
-                $thrown = $ex;
-                $span->setError($ex);
-            }
-
-            $scope->close();
-            if ($thrown) {
-                throw $thrown;
-            }
-
-            return $result;
-        });
+        }
 
         return Integration::LOADED;
     }
 
+    /**
+     * This function is a clone of PredisIntegration::storeConnectionParams.
+     * Store connection params to be reused to tags following predids queries.
+     *
+     * @param Predis\Client $predis
+     * @param array $args
+     * @return void
+     */
     public static function storeConnectionParams($predis, $args)
     {
         $tags = [];
@@ -245,7 +173,15 @@ class PredisIntegration extends Integration
         self::$connections[spl_object_hash($predis)] = $tags;
     }
 
-    public static function setConnectionTags($predis, $span)
+    /**
+     * This function is almost a clone of PredisIntegration::setConnectionTags.
+     * Store connection tags into a successive span not having direct access to those values.
+     *
+     * @param Predis\Client $predis
+     * @param DDTrace\SpanData $span
+     * @return void
+     */
+    public static function setConnectionTags($predis, SpanData $span)
     {
         $hash = spl_object_hash($predis);
         if (!isset(self::$connections[$hash])) {
@@ -253,11 +189,12 @@ class PredisIntegration extends Integration
         }
 
         foreach (self::$connections[$hash] as $tag => $value) {
-            $span->setTag($tag, $value);
+            $span->meta[$tag] = $value;
         }
     }
 
     /**
+     * This function is a clone of PredisIntegration::formatArguments.
      * Format a command by removing unwanted values
      *
      * Restrict what we keep from the values sent (with a SET, HGET, LPUSH, ...):

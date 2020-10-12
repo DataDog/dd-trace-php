@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = false;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
@@ -54,36 +52,72 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'some.key2' => 'value2',
                         ])
                         ->withChildren([
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple')
-                                ->withExactTags([
-                                    'some.key1' => 'value',
-                                    'some.key2' => 'value2',
+                            SpanAssertion::exists('laravel.application.handle')
+                                ->withChildren([
+                                    SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple')
+                                        ->withExactTags([
+                                            'some.key1' => 'value',
+                                            'some.key2' => 'value2',
+                                        ]),
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle'),
                                 ]),
+                            SpanAssertion::exists(
+                                'laravel.provider.load',
+                                'Illuminate\Foundation\ProviderRepository::load'
+                            )->withChildren([
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                            ]),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
                             SpanAssertion::exists('laravel.event.handle'),
                         ]),
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::exists('laravel.request')
                         ->withChildren([
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.action')
+                            SpanAssertion::exists('laravel.application.handle')
                                 ->withChildren([
                                     SpanAssertion::exists('laravel.event.handle'),
-                                ]),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::build('laravel.view.render', 'laravel', 'web', 'simple_view')
-                                ->withExactTags([
-                                    'some.key1' => 'value',
-                                    'some.key2' => 'value2',
-                                ])
-                                ->withChildren([
                                     SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.action')
+                                        ->withChildren([
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                        ]),
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::build('laravel.view.render', 'laravel', 'web', 'simple_view')
+                                        ->withExactTags([
+                                            'some.key1' => 'value',
+                                            'some.key2' => 'value2',
+                                        ])
+                                        ->withChildren([
+                                            SpanAssertion::exists('laravel.event.handle'),
+                                        ]),
                                 ]),
+                            SpanAssertion::exists(
+                                'laravel.provider.load',
+                                'Illuminate\Foundation\ProviderRepository::load'
+                            )->withChildren([
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                            ]),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
                         ]),
                 ],
                 'A GET request with an exception' => [
@@ -97,17 +131,35 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'some.key1' => 'value',
                             'some.key2' => 'value2',
                         ])->setError()->withChildren([
+                            SpanAssertion::exists('laravel.application.handle')
+                                ->withChildren([
+                                    SpanAssertion::build('laravel.action', 'laravel', 'web', 'error')
+                                        ->withExactTags([
+                                            'some.key1' => 'value',
+                                            'some.key2' => 'value2',
+                                        ])
+                                        ->withExistingTagsNames(['error.stack'])
+                                        ->setError('Exception', 'Controller error'),
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                    SpanAssertion::exists('laravel.event.handle'),
+                                ]),
+                            SpanAssertion::exists(
+                                'laravel.provider.load',
+                                'Illuminate\Foundation\ProviderRepository::load'
+                            )->withChildren([
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                            ]),
                             SpanAssertion::exists('laravel.event.handle'),
                             SpanAssertion::exists('laravel.event.handle'),
                             SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::exists('laravel.event.handle'),
-                            SpanAssertion::build('laravel.action', 'laravel', 'web', 'error')
-                                ->withExactTags([
-                                    'some.key1' => 'value',
-                                    'some.key2' => 'value2',
-                                ])
-                                ->withExistingTagsNames(['error.stack'])
-                                ->setError('Exception', 'Controller error'),
                         ]),
                 ],
             ]

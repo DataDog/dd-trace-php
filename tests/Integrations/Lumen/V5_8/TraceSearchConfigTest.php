@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = false;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Lumen/Version_5_8/public/index.php';
@@ -51,6 +49,14 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
                         '_sampling_priority_v1' => 1,
+                    ])
+                    ->withChildren([
+                        SpanAssertion::build(
+                            'Laravel\Lumen\Application.handleFoundRoute',
+                            'lumen',
+                            'web',
+                            'Laravel\Lumen\Application.handleFoundRoute'
+                        ),
                     ]),
             ]
         );

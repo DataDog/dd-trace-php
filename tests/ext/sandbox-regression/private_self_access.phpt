@@ -1,7 +1,5 @@
 --TEST--
 [Sandbox regression] Tracing closure accesses private static method
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 
@@ -23,8 +21,10 @@ class Test
 
 }
 
-DDTrace\trace_method("Test", "test_access", function(){
-    echo "test_access hook start" . PHP_EOL . self::public_static_method() . self::private_static_method() . "test_access hook end" . PHP_EOL;
+DDTrace\trace_method("Test", "test_access", function() {
+    echo "test_access hook start" . PHP_EOL,
+        self::public_static_method() . self::private_static_method(),
+        "test_access hook end" . PHP_EOL;
 });
 
 echo (new Test)->test_access();

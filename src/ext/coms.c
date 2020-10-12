@@ -3,6 +3,7 @@
 #include <curl/curl.h>
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -607,7 +608,8 @@ static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
     return stack;
 }
 
-#define HOST_FORMAT_STR "http://%s:%u/v0.4/traces"
+#define TRACE_PATH_STR "/v0.4/traces"
+#define HOST_FORMAT_STR "http://%s:%u"
 
 atomic_uintptr_t memoized_agent_curl_headers;
 
@@ -622,35 +624,51 @@ void ddtrace_coms_curl_shutdown(void) {
 
 static long _dd_max_long(long a, long b) { return a >= b ? a : b; }
 
-static void _dd_curl_set_timeout(CURL *curl) {
+void ddtrace_curl_set_timeout(CURL *curl) {
     long timeout = _dd_max_long(get_dd_trace_bgs_timeout(), get_dd_trace_agent_timeout());
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout);
 }
 
-static void _dd_curl_set_connect_timeout(CURL *curl) {
+void ddtrace_curl_set_connect_timeout(CURL *curl) {
     long timeout = _dd_max_long(get_dd_trace_bgs_connect_timeout(), get_dd_trace_agent_connect_timeout());
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
 }
 
-static void _dd_curl_set_hostname(CURL *curl) {
-    char *hostname = get_dd_agent_host();
-    int64_t port = get_dd_trace_agent_port();
-    if (port <= 0 || port > 65535) {
-        port = 8126;
+char *ddtrace_agent_url(void) {
+    char *url = get_dd_trace_agent_url();
+    if (url && url[0]) {
+        return url;
     }
+    free(url);
+    url = NULL;
 
+    char *hostname = get_dd_agent_host();
     if (hostname) {
         size_t agent_url_len =
             strlen(hostname) + sizeof(HOST_FORMAT_STR) + 10;  // port digit allocation + some headroom
-        char *agent_url = malloc(agent_url_len);
-        snprintf(agent_url, agent_url_len, HOST_FORMAT_STR, hostname, (uint32_t)port);
-
-        curl_easy_setopt(curl, CURLOPT_URL, agent_url);
-        free(hostname);
-        free(agent_url);
+        url = malloc(agent_url_len);
+        int64_t port = get_dd_trace_agent_port();
+        if (port <= 0 || port > 65535) {
+            port = 8126;
+        }
+        snprintf(url, agent_url_len, HOST_FORMAT_STR, hostname, (uint32_t)port);
     } else {
-        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8126/v0.4/traces");
+        url = ddtrace_strdup("http://localhost:8126");
     }
+    free(hostname);
+    return url;
+}
+
+void ddtrace_curl_set_hostname(CURL *curl) {
+    char *url = ddtrace_agent_url();
+    if (url && url[0]) {
+        size_t agent_url_len = strlen(url) + sizeof(TRACE_PATH_STR);
+        char *agent_url = malloc(agent_url_len);
+        sprintf(agent_url, "%s%s", url, TRACE_PATH_STR);
+        curl_easy_setopt(curl, CURLOPT_URL, agent_url);
+        free(agent_url);
+    }
+    free(url);
 }
 
 static struct timespec _dd_deadline_in_ms(uint32_t ms) {
@@ -716,9 +734,9 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
         struct _grouped_stack_t *kData = read_data;
         _dd_curl_set_headers(writer, kData->total_groups);
         curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
-        _dd_curl_set_hostname(writer->curl);
-        _dd_curl_set_timeout(writer->curl);
-        _dd_curl_set_connect_timeout(writer->curl);
+        ddtrace_curl_set_hostname(writer->curl);
+        ddtrace_curl_set_timeout(writer->curl);
+        ddtrace_curl_set_connect_timeout(writer->curl);
 
         curl_easy_setopt(writer->curl, CURLOPT_UPLOAD, 1);
         curl_easy_setopt(writer->curl, CURLOPT_INFILESIZE, 10);
@@ -766,8 +784,28 @@ static void _dd_signal_data_processed(struct _writer_loop_data_t *writer) {
     }
 }
 
+#ifdef __CYGWIN__
+#define TIMEOUT_SIG SIGALRM
+#else
+#define TIMEOUT_SIG SIGPROF
+#endif
+
 static void *_dd_writer_loop(void *_) {
     UNUSED(_);
+    /* This thread must not handle signals intended for the PHP threads.
+     * See Zend/zend_signal.c for which signals it registers.
+     */
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, TIMEOUT_SIG);
+    sigaddset(&sigset, SIGHUP);
+    sigaddset(&sigset, SIGINT);
+    sigaddset(&sigset, SIGQUIT);
+    sigaddset(&sigset, SIGTERM);
+    sigaddset(&sigset, SIGUSR1);
+    sigaddset(&sigset, SIGUSR2);
+    pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+
     struct _writer_loop_data_t *writer = _dd_get_writer();
 
     bool running = true;

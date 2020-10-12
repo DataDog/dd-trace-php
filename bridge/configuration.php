@@ -5,6 +5,8 @@
 // \ddtrace_config_distributed_tracing_enabled()
 // \ddtrace_config_integration_enabled()
 // \ddtrace_config_trace_enabled()
+// \DDTrace\Config\integration_analytics_enabled()
+// \DDTrace\Config\integration_analytics_sample_rate()
 
 /**
  * Reads and normalizes a string configuration param, applying default value if appropriate.
@@ -262,16 +264,6 @@ function ddtrace_config_http_client_split_by_domain_enabled()
 }
 
 /**
- * Whether or not sandboxed tracing closures are enabled.
- *
- * @return bool
- */
-function ddtrace_config_sandbox_enabled()
-{
-    return \dd_trace_env_config("DD_TRACE_SANDBOX_ENABLED");
-}
-
-/**
  * Whether or not also unfinished spans should be finished (and thus sent) when tracer is flushed.
  * Motivation: We had users reporting that in some cases they have manual end-points that `echo` some content and
  * then just `exit(0)` at the end of action's method. While the shutdown hook that flushes traces would still be
@@ -331,18 +323,6 @@ function ddtrace_config_sampling_rules()
         ];
     }
     return $normalized;
-}
-
-function ddtrace_config_integration_analytics_enabled($name)
-{
-    $integrationNameForEnv = strtoupper(str_replace('-', '_', trim($name)));
-    return \_ddtrace_config_bool(\getenv("DD_${integrationNameForEnv}_ANALYTICS_ENABLED"), false);
-}
-
-function ddtrace_config_integration_analytics_sample_rate($name)
-{
-    $integrationNameForEnv = strtoupper(str_replace('-', '_', trim($name)));
-    return \_ddtrace_config_float(\getenv("DD_${integrationNameForEnv}_ANALYTICS_SAMPLE_RATE"), 1.0);
 }
 
 /**

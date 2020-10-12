@@ -16,37 +16,22 @@ abstract class IntegrationTestCase extends TestCase
 
     private $errorReportingBefore;
 
-    const IS_SANDBOX = false;
-
     public static function setUpBeforeClass()
     {
         parent::setUpBeforeClass();
-        if (!static::isSandboxed()) {
-            \putenv('DD_TRACE_SANDBOX_ENABLED=false');
-            \dd_trace_internal_fn('ddtrace_reload_config');
-        }
         IntegrationsLoader::reload();
     }
 
     public static function tearDownAfterClass()
     {
         parent::tearDownAfterClass();
-        putenv('DD_TRACE_SANDBOX_ENABLED');
         \dd_trace_internal_fn('ddtrace_reload_config');
-    }
-
-    protected static function isSandboxed()
-    {
-        return static::IS_SANDBOX === true;
     }
 
     protected function setUp()
     {
         $this->errorReportingBefore = error_reporting();
         parent::setUp();
-        if (Versions::phpVersionMatches('5.4') && self::isSandboxed()) {
-            $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4.');
-        }
     }
 
     protected function tearDown()
@@ -68,12 +53,10 @@ abstract class IntegrationTestCase extends TestCase
      *
      * @param array[] $traces
      * @param SpanAssertion[] $expectedSpans
-     * @param bool $isSandbox
      */
-    public function assertSpans($traces, $expectedSpans, $isSandbox = null)
+    public function assertSpans($traces, $expectedSpans)
     {
-        $isSandbox = null === $isSandbox ? self::isSandboxed() : $isSandbox;
-        $this->assertExpectedSpans($traces, $expectedSpans, $isSandbox);
+        $this->assertExpectedSpans($traces, $expectedSpans);
     }
 
     /**

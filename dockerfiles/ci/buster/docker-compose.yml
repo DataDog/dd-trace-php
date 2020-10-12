@@ -1,0 +1,24 @@
+version: '3.7'
+
+services:
+
+  base:
+    image: datadog/dd-trace-ci:buster
+    build:
+      context: .
+
+  php-8.0:
+    image: datadog/dd-trace-ci:php-8.0_buster
+    build:
+      context: ./php-8.0
+      args:
+        # Example custom build:
+        #   phpVersion: 8.0-custom
+        #   phpTarGzUrl: https://github.com/<org>/<repo>/archive/<branch-or-tag-name>.tar.gz
+        phpVersion: 8.0
+        phpTarGzUrl: https://github.com/php/php-src/archive/php-8.0.0rc1.tar.gz
+
+  php-master:
+    image: datadog/dd-trace-ci:php-master_buster
+    build:
+      context: ./php-master

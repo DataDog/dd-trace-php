@@ -1,7 +1,5 @@
 --TEST--
 Span properties are safely converted to strings without errors or exceptions
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -34,7 +32,7 @@ $allTheTypes = [
     new DateTime('2019-09-10'),
     new MyDt('2019-09-10'),
     ['foo' => 0],
-    curl_init(), // resource
+    fopen('php://memory', 'rb'), // resource
 ];
 foreach ($allTheTypes as $value) {
     prop_to_string($value);
@@ -44,7 +42,7 @@ foreach ($allTheTypes as $value) {
 $allTheTypes = array_reverse($allTheTypes);
 
 $i = 0;
-array_map(function($span) use (&$i, $allTheTypes) {
+foreach (dd_trace_serialize_closed_spans() as $span) {
     var_dump($allTheTypes[$i]);
     foreach (['name', 'resource', 'service', 'type'] as $prop) {
         if (isset($span[$prop])) {
@@ -55,10 +53,10 @@ array_map(function($span) use (&$i, $allTheTypes) {
     }
     echo PHP_EOL;
     $i++;
-}, dd_trace_serialize_closed_spans());
+}
 ?>
 --EXPECTF--
-resource(%d) of type (curl)
+resource(%d) of type (stream)
 string(%d) "Resource id #%d"
 string(%d) "Resource id #%d"
 string(%d) "Resource id #%d"

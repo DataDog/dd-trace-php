@@ -1,5 +1,7 @@
 --TEST--
 Do not throw exceptions when veryfying if class/method and function exists.
+--ENV--
+DD_TRACE_WARN_LEGACY_DD_TRACE=0
 --FILE--
 <?php
 
@@ -27,12 +29,12 @@ echo format_bool(dd_trace("this_function_exists", function(){}));
 
 echo  "no exception thrown" . PHP_EOL;
 
-
+// dd_trace always returns false now
 ?>
 --EXPECT--
-TRUE
-TRUE
-TRUE
-TRUE
-TRUE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
 no exception thrown

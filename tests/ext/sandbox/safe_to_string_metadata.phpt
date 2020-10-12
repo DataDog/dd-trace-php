@@ -1,7 +1,5 @@
 --TEST--
 Span metadata is safely converted to strings without errors or exceptions
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -40,7 +38,7 @@ $allTheTypes = [
     new DateTime('2019-09-10'),
     new MyDt('2019-09-10'),
     ['foo' => 0],
-    curl_init(), // resource
+    fopen('php://memory', 'rb'), // resource
     MY_STRING,
     MY_INT,
     MY_BOOL,
@@ -124,7 +122,7 @@ array(1) {
 }
 string(5) "Array"
 
-resource(%d) of type (curl)
+resource(%d) of type (stream)
 string(%d) "Resource id #%d"
 
 string(17) "string from const"

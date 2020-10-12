@@ -1,7 +1,6 @@
 --TEST--
 [Prehook] Not supported on PHP 5
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not supported'); ?>
 <?php if (PHP_VERSION_ID >= 70000) die('skip: PHP 5 only test'); ?>
 --ENV--
 DD_TRACE_DEBUG=1

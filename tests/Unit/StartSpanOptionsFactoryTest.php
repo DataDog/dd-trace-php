@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Configuration;
 use DDTrace\SpanContext;
 use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tracer;

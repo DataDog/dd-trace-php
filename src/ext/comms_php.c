@@ -2,6 +2,7 @@
 
 #include "arrays.h"
 #include "compat_string.h"
+#include "compatibility.h"
 #include "coms.h"
 #include "ddtrace.h"
 #include "logging.h"

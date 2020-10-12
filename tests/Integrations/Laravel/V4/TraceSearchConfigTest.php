@@ -2,14 +2,12 @@
 
 namespace DDTrace\Tests\Integrations\Laravel\V4;
 
-use DDTrace\Tests\Common\SpanAssertion;
+use  DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = false;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_4_2/public/index.php';
@@ -48,10 +46,30 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         '_sampling_priority_v1' => 1,
                     ])
                     ->withChildren([
+                        SpanAssertion::exists('laravel.application.handle')
+                            ->withChildren([
+                                SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple')
+                                    ->withExactTags([
+                                    ]),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                                SpanAssertion::exists('laravel.event.handle'),
+                            ]),
+                        SpanAssertion::exists(
+                            'laravel.provider.load',
+                            'Illuminate\Foundation\ProviderRepository::load'
+                        )->withChildren([
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                            SpanAssertion::exists('laravel.event.handle'),
+                        ]),
                         SpanAssertion::exists('laravel.event.handle'),
                         SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.event.handle'),
-                        SpanAssertion::exists('laravel.action'),
                         SpanAssertion::exists('laravel.event.handle'),
                     ]),
             ]

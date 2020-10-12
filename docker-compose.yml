@@ -55,6 +55,7 @@ services:
   '5.4-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.4-debug' }
   '5.5': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.5' }
   '5.5-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-5.5-debug' }
+  '5.5-debug-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.5-debug-buster' }
   '5.6':
     <<: *base_php_service
     image: datadog/dd-trace-ci:php-dev-5.6
@@ -124,6 +125,8 @@ services:
   '7.4-debug-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-buster' }
   '7.4-debug': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
   '7.4-debug-asan': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-asan-buster' }
+  '8.0': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
+  'php-master': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }
   'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }
   'fpm': { <<: *base_php_service, image: 'circleci/ruby:2.5', depends_on: [] }
@@ -150,7 +153,7 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=test
 
   redis_integration:
-    image: "circleci/redis:4.0-alpine"
+    image: "datadog/dd-trace-ci:php-redis-5.0"
 
   memcached_integration:
     image: "memcached:1.5-alpine"
@@ -207,87 +210,3 @@ services:
       - ./tests/Frameworks:/var/www
       - ./tests/dockerfiles/symfony_34_virtualhost.conf:/etc/apache2/sites-available/000-default.conf
       - ./:/var/dd-trace-php
-
-################################################################
-# Images used for performance overhead calculation
-################################################################
-
-  overhead-nginx:
-    build:
-      context: .
-      dockerfile: ./tests/overhead/dockerfiles/Dockerfile_nginx
-    ports:
-      # no tracer
-      - 8886:8886
-      # current master on GitHub
-      - 8887:8887
-      # current local head
-      - 8888:8888
-      # a specific release, set DD_TRACER_LIBRARY_VERSION=X.Y.Z in service
-      # 'overhead-php-fpm-release'
-      - 8889:8889
-    depends_on:
-      - overhead-php-fpm-notracer
-      - overhead-php-fpm-master
-      - overhead-php-fpm-release
-      - overhead-php-fpm-head
-
-  overhead-php-fpm-notracer:
-    build:
-      context: .
-      dockerfile: ./tests/overhead/dockerfiles/Dockerfile_72_fpm_Laravel57
-      target: notracer
-    depends_on:
-      - agent
-    volumes:
-      - ./tests/overhead/callgrind-files:/var/www/callgrind-files
-
-  overhead-php-fpm-release:
-    build:
-      context: .
-      dockerfile: ./tests/overhead/dockerfiles/Dockerfile_72_fpm_Laravel57
-      target: release
-      args:
-        - DD_TRACE_LIBRARY_VERSION=${DD_TRACE_LIBRARY_VERSION:-0.37.1}
-    depends_on:
-      - agent
-    volumes:
-      - ./tests/overhead/callgrind-files:/var/www/callgrind-files
-
-  overhead-php-fpm-master:
-    build:
-      context: .
-      dockerfile: ./tests/overhead/dockerfiles/Dockerfile_72_fpm_Laravel57
-      target: master
-    depends_on:
-      - agent
-    volumes:
-      - ./tests/overhead/callgrind-files:/var/www/callgrind-files
-
-  overhead-php-fpm-head:
-    build:
-      context: .
-      dockerfile: ./tests/overhead/dockerfiles/Dockerfile_72_fpm_Laravel57
-      target: head
-    depends_on:
-      - agent
-    volumes:
-      - ./tests/overhead/callgrind-files:/var/www/callgrind-files
-      - ./:/dd-trace-php
-
-  overhead-agent:
-    image: datadog/agent:latest
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /proc/:/host/proc/:ro
-      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
-      - ./tests/overhead/dockerfiles/php-fpm-agent-integration.yaml:/etc/datadog-agent/conf.d/php_fpm.d/conf.yaml
-    environment:
-      - DD_API_KEY=${DATADOG_API_KEY}
-      - DD_APM_ENABLED=true
-      - DD_APM_NON_LOCAL_TRAFFIC=true
-      - DD_LOG_LEVEL=debug
-
-################################################################
-# End of images used for performance overhead calculation
-################################################################

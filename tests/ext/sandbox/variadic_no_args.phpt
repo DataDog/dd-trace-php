@@ -1,7 +1,5 @@
 --TEST--
 Variadic arguments are passed to tracing closure when no arguments exist in function signature
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip: PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 function bar($a, $b, $c) {
@@ -15,6 +13,7 @@ function foo() {
 }
 
 DDTrace\trace_function('foo', function ($span, array $args) {
+    $span->name = $span->resource = 'foo';
     var_dump($args);
 });
 

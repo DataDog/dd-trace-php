@@ -53,9 +53,13 @@ final class ConfigurableSamplerTest extends BaseTestCase
         return [
             // Edges
             [0.0, 0.0, 0.0],
+            // 0% provided as int.
+            [0, 0.0, 0.0],
             [1.0, 1.0, 1.0],
             [100, 1.0, 1.0],
             [-20, 0.0, 0.0],
+            // 100% provided as int.
+            [1, 1.00, 1.00],
 
             // Common cases
             [0.5, 0.47, 0.53],

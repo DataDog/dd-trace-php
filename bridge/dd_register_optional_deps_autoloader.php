@@ -20,12 +20,6 @@ class OptionalDepsAutoloader
         "DDTrace\\OpenTracer\\Scope" => 'DDTrace/OpenTracer/Scope.php',
         "DDTrace\\OpenTracer\\ScopeManager" => 'DDTrace/OpenTracer/ScopeManager.php',
         "DDTrace\\OpenTracer\\SpanContext" => 'DDTrace/OpenTracer/SpanContext.php',
-        "DDTrace\\Integrations\\CakePHP\\V2\\CakePHPIntegrationLoader" => 'DDTrace/Integrations/CakePHP/V2/CakePHPIntegrationLoader.php',
-        "DDTrace\\Integrations\\Slim\\V3\\SlimIntegrationLoader" => 'DDTrace/Integrations/Slim/V3/SlimIntegrationLoader.php',
-        "DDTrace\\Integrations\\Symfony\\V4\\SymfonyBundle" => 'DDTrace/Integrations/Symfony/V4/SymfonyBundle.php',
-        "DDTrace\\Integrations\\Symfony\\V3\\SymfonyBundle" => 'DDTrace/Integrations/Symfony/V3/SymfonyBundle.php',
-        "DDTrace\\Integrations\\Laravel\\V5\\LaravelIntegrationLoader" => 'DDTrace/Integrations/Laravel/V5/LaravelIntegrationLoader.php',
-        "DDTrace\\Integrations\\Laravel\\V4\\LaravelProvider" => 'DDTrace/Integrations/Laravel/V4/LaravelProvider.php',
         "DDTrace\\Log\\NullLogger" => 'api/Log/NullLogger.php',
         "DDTrace\\NoopTracer" => 'api/NoopTracer.php',
         "DDTrace\\NoopSpan" => 'api/NoopSpan.php',
@@ -50,4 +44,4 @@ class OptionalDepsAutoloader
 }
 
 // Registering it
-spl_autoload_register(['\DDTrace\Bridge\OptionalDepsAutoloader', 'load'], true, true);
+spl_autoload_register('DDTrace\Bridge\OptionalDepsAutoloader::load', true, true);

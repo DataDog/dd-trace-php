@@ -31,7 +31,7 @@ class PrivateCallbackRequest
     }
 }
 
-class CurlIntegrationTest extends IntegrationTestCase
+final class CurlIntegrationTest extends IntegrationTestCase
 {
     const URL = 'http://httpbin_integration';
     const URL_NOT_EXISTS = 'http://__i_am_not_real__.invalid/';
@@ -149,7 +149,6 @@ class CurlIntegrationTest extends IntegrationTestCase
             __DIR__ . '/curl_in_web_request.php',
             [
                 'DD_SERVICE' => 'top_level_app',
-                'DD_TRACE_SANDBOX_ENABLED' => static::IS_SANDBOX,
                 'DD_TRACE_NO_AUTOLOADER' => true,
             ]
         );
@@ -285,7 +284,7 @@ class CurlIntegrationTest extends IntegrationTestCase
 
     public function testKVStoreIsCleanedOnCurlClose()
     {
-        if (\PHP_MAJOR_VERSION === 5 && self::isSandboxed()) {
+        if (\PHP_MAJOR_VERSION === 5) {
             $this->markTestSkipped("PHP 5 does not use ArrayKVStore");
         }
         $ch = curl_init(self::URL . '/status/200');
@@ -321,7 +320,11 @@ class CurlIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        $this->assertTrue(function_exists('DDTrace\\Bridge\\curl_inject_distributed_headers'));
+        $this->assertEquals(
+            PHP_MAJOR_VERSION === 5,
+            function_exists('DDTrace\\Bridge\\curl_inject_distributed_headers')
+        );
+
         // trace is: custom
         $this->assertSame($traces[0][0]['trace_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec
@@ -536,5 +539,104 @@ class CurlIntegrationTest extends IntegrationTestCase
             $this->assertSame('application/json', $found['headers']['Accept']);
             $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         });
+    }
+
+    /**
+     * @dataProvider dataProviderTestTraceAnalytics
+     */
+    public function testTraceAnalytics($envsOverride, $expectedSampleRate)
+    {
+        $env = array_merge(['DD_SERVICE' => 'top_level_app'], $envsOverride);
+
+        $traces = $this->inWebServer(
+            function ($execute) {
+                $execute(GetSpec::create('GET', '/curl_in_web_request.php'));
+            },
+            __DIR__ . '/curl_in_web_request.php',
+            $env
+        );
+
+        $metrics = [ '_sampling_priority_v1' => 1 ];
+        if (null !== $expectedSampleRate) {
+            $metrics = array_merge($metrics, [ '_dd1.sr.eausr' => $expectedSampleRate ]);
+        }
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withChildren([
+                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://httpbin_integration/status/?')
+                        ->setTraceAnalyticsCandidate()
+                        ->withExactTags([
+                            'http.url' => self::URL . '/status/200',
+                            'http.status_code' => '200',
+                        ])
+                        ->withExistingTagsNames(self::commonCurlInfoTags())
+                        ->withExactMetrics($metrics)
+                        ->skipTagsLike('/^curl\..*/'),
+                ]),
+        ]);
+    }
+
+    public function dataProviderTestTraceAnalytics()
+    {
+        return [
+            'not set' => [
+                [],
+                null,
+            ],
+            'off no rate' => [
+                [
+                    'DD_TRACE_CURL_ANALYTICS_ENABLED' => false,
+                ],
+                null,
+            ],
+            'off legacy name no rate' => [
+                [
+                    'DD_CURL_ANALYTICS_ENABLED' => false,
+                ],
+                null,
+            ],
+            'off with rate' => [
+                [
+                    'DD_TRACE_CURL_ANALYTICS_ENABLED' => false,
+                    'DD_TRACE_CURL_ANALYTICS_SAMPLE_RATE' => 0.7,
+                ],
+                null,
+            ],
+            'off legacy name with rate' => [
+                [
+                    'DD_CURL_ANALYTICS_ENABLED' => false,
+                    'DD_CURL_ANALYTICS_SAMPLE_RATE' => 0.7,
+                ],
+                null,
+            ],
+            'enabled default rate' => [
+                [
+                    'DD_TRACE_CURL_ANALYTICS_ENABLED' => true,
+                ],
+                1.0,
+            ],
+            'enabled legacy name default rate' => [
+                [
+                    'DD_CURL_ANALYTICS_ENABLED' => true,
+                ],
+                1.0,
+            ],
+            'enabled specific rate' => [
+                [
+                    'DD_TRACE_CURL_ANALYTICS_ENABLED' => true,
+                    'DD_TRACE_CURL_ANALYTICS_SAMPLE_RATE' => 0.7,
+                ],
+                0.7,
+            ],
+            'enabled legacy name specific rate' => [
+                [
+                    'DD_CURL_ANALYTICS_ENABLED' => true,
+                    'DD_CURL_ANALYTICS_SAMPLE_RATE' => 0.7,
+                ],
+                0.7,
+            ],
+        ];
     }
 }

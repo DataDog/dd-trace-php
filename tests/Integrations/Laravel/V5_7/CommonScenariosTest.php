@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = false;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_7/public/index.php';
@@ -56,12 +54,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple')
                             ->withExactTags([
-                            ])
-                            ->onlyIf(static::IS_SANDBOX),
+                            ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
-                        )->onlyIf(static::IS_SANDBOX),
+                        ),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -80,19 +77,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
                             ->withExactTags([
-                            ])
-                            ->onlyIf(static::IS_SANDBOX),
+                            ]),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
-                        )->onlyIf(static::IS_SANDBOX),
-                        SpanAssertion::build(
-                            'laravel.view',
-                            'laravel_test_app',
-                            'web',
-                            'laravel.view'
-                        )->withExactTags([
-                        ])->skipIf(static::IS_SANDBOX),
+                        ),
                         SpanAssertion::build(
                             'laravel.view.render',
                             'laravel_test_app',
@@ -107,7 +96,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 '*/resources/views/simple_view.blade.php'
                             )->withExactTags([
                             ]),
-                        ])->onlyIf(static::IS_SANDBOX),
+                        ]),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -123,12 +112,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
                     ])->setError()->withChildren([
-                        SpanAssertion::exists('laravel.action')
-                            ->onlyIf(static::IS_SANDBOX),
+                        SpanAssertion::exists('laravel.action'),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
-                        )->onlyIf(static::IS_SANDBOX),
+                        ),
                     ]),
                 ],
             ]

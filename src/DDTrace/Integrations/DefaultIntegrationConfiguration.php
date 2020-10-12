@@ -13,7 +13,7 @@ class DefaultIntegrationConfiguration extends AbstractIntegrationConfiguration
      */
     public function isTraceAnalyticsEnabled()
     {
-        if (\ddtrace_config_integration_analytics_enabled($this->integrationName)) {
+        if (\DDTrace\Config\integration_analytics_enabled($this->integrationName)) {
             return true;
         }
 
@@ -25,6 +25,6 @@ class DefaultIntegrationConfiguration extends AbstractIntegrationConfiguration
      */
     public function getTraceAnalyticsSampleRate()
     {
-        return \ddtrace_config_integration_analytics_sample_rate($this->integrationName);
+        return \DDTrace\Config\integration_analytics_sample_rate($this->integrationName);
     }
 }

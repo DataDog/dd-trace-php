@@ -16,17 +16,21 @@ Execute one the following commands from your command line, this will bring up al
 
 ```bash
 # For 5.4
-$ docker-compose run --rm 5.4
+$ docker-compose run --rm 5.4-debug-buster bash
+# For 5.5
+$ docker-compose run --rm 5.5-debug-buster bash
 # For 5.6
-$ docker-compose run --rm 5.6
+$ docker-compose run --rm 5.6-debug-buster bash
 # For 7.0
-$ docker-compose run --rm 7.0
+$ docker-compose run --rm 7.0-debug-buster bash
 # For 7.1
-$ docker-compose run --rm 7.1
+$ docker-compose run --rm 7.1-debug-buster bash
 # For 7.2
-$ docker-compose run --rm 7.2
+$ docker-compose run --rm 7.2-debug-buster bash
 # For 7.3
-$ docker-compose run --rm 7.3
+$ docker-compose run --rm 7.3-debug-buster bash
+# For 7.4
+$ docker-compose run --rm 7.4-debug-buster bash
 ```
 
 Once inside the container, update dependencies with Composer.
@@ -57,16 +61,11 @@ ddtrace
 
 Datadog PHP tracer extension
 For help, check out the documentation at https://docs.datadoghq.com/tracing/languages/php/
-(c) Datadog 2019
+(c) Datadog 2020
 
 Datadog tracing support => enabled
 Version => 1.0.0-nightly
-
-Directive => Local Value => Master Value
-ddtrace.disable => Off => Off
-ddtrace.internal_blacklisted_modules_list => ... => ...,
-ddtrace.request_init_hook => no value => no value
-ddtrace.strict_mode => Off => Off
+DATADOG TRACER CONFIGURATION => ...
 ```
 
 When you're done with development, you can stop and remove the containers with the following:
@@ -77,68 +76,35 @@ $ docker-compose down -v
 
 ### Running the tests
 
-In order to run all the tracer tests:
+First you need to update composer's dependecies in `./tests` folder:
 
-    # Run all tests for for php 5.4
-    $ composer test-all-54
+    $ make composer_tests_update
 
-    # Run all tests for for php 5.6
-    $ composer test-all-56
+Then you can run tests:
 
-    # Run all tests for for php 7.0
-    $ composer test-all-70
+    # Run all tests
+    $ make test_all
 
-    # Run all tests for for php 7.1
-    $ composer test-all-71
+    # Run unit tests
+    $ make test_unit
 
-    # Run all tests for for php 7.2
-    $ composer test-all-72
+    # Run integration tests
+    $ make test_integration
 
-    # Run all tests for for php 7.3
-    $ composer test-all-73
+    # Run auto-instrumentation tests
+    $ make test_auto_instrumentation
 
-    # Run all tests for for php 7.4
-    $ composer test-all-74
+    # Run composer integration tests
+    $ make test_composer
 
-> **Note:** The `composer test` command is a wrapper around `phpunit`, so you can use all the common [options](https://phpunit.de/manual/5.7/en/textui.html#textui.clioptions) that you would with `phpunit`. However you need to prepend the options list with the additional `--` dashes that `composer` requires:
+    # Run distributed tracing tests
+    $ make test_distributed_tracing
 
-    # Run only unit tests
-    $ composer test -- --testsuite=unit
+    # Run library integrations tests
+    $ make test_integrations
 
-    # Run only integration tests
-    $ composer test -- --testsuite=integration
-
-    # Run only library integrations tests for php 5.6
-    $ composer test-integrations-56
-
-    # Run only library integrations tests for php 7.0
-    $ composer test-integrations-70
-
-    # Run only library integrations tests for php 7.1
-    $ composer test-integrations-71
-
-    # Run only library integrations tests for php 7.2
-    $ composer test-integrations-72
-
-    # Run only library integrations tests for php 7.3
-    $ composer test-integrations-73
-
-    # Run only library integrations tests for php 7.4
-    $ composer test-integrations-74
-
-Testing individual integrations with libraries requires an additional step, as there are different scenarios where you want to test
-a specific integration. You can find available scenarios in `composer.json` at key `extras.scenarios`.
-
-As an example, in order to run Guzzle tests with Guzzle v5 library, run:
-
-    # Only the first time, to create all the different scenarios
-    $ composer scenario:update
-
-    # Activate the specific scenario
-    $ composer scenario guzzle5
-
-    # Run only guzzle tests
-    $ composer test -- tests/Integrations/Guzzle/
+    # Run web frameworks integrations tests
+    $ make test_web
 
 In order to run the `phpt` tests for the php extension:
 

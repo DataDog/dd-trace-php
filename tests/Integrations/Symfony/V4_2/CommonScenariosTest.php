@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
 class CommonScenariosTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = false;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Symfony/Version_4_2/public/index.php';
@@ -65,9 +63,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
-                            SpanAssertion::exists('symfony.kernel.terminate')->skipIf(!static::IS_SANDBOX),
+                            SpanAssertion::exists('symfony.kernel.terminate'),
                         ]),
-                    SpanAssertion::exists('symfony.kernel.terminate')->skipIf(static::IS_SANDBOX),
                 ],
                 'A simple GET request with a view' => [
                     SpanAssertion::build(
@@ -100,9 +97,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     SpanAssertion::exists('symfony.kernel.response'),
                                     SpanAssertion::exists('symfony.kernel.finish_request'),
                                 ]),
-                            SpanAssertion::exists('symfony.kernel.terminate')->skipIf(!static::IS_SANDBOX),
+                            SpanAssertion::exists('symfony.kernel.terminate'),
                         ]),
-                    SpanAssertion::exists('symfony.kernel.terminate')->skipIf(static::IS_SANDBOX),
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build(
@@ -136,9 +132,39 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             SpanAssertion::exists('symfony.kernel.finish_request'),
                                         ]),
                                 ]),
-                            SpanAssertion::exists('symfony.kernel.terminate')->skipIf(!static::IS_SANDBOX),
+                            SpanAssertion::exists('symfony.kernel.terminate'),
                         ]),
-                    SpanAssertion::exists('symfony.kernel.terminate')->skipIf(static::IS_SANDBOX),
+                ],
+                'A GET request to a missing route' => [
+                    SpanAssertion::build(
+                        'symfony.request',
+                        'test_symfony_42',
+                        'web',
+                        'GET /does_not_exist'
+                    )
+                        ->withExactTags([
+                            'http.method' => 'GET',
+                            'http.url' => 'http://localhost:9999/does_not_exist',
+                            'http.status_code' => '404',
+                        ])
+                        ->withChildren([
+                            SpanAssertion::exists('symfony.kernel.terminate'),
+                            SpanAssertion::exists('symfony.kernel.handle')->withChildren([
+                                SpanAssertion::exists('symfony.kernel.handleException')->withChildren([
+                                    SpanAssertion::exists('symfony.kernel.finish_request'),
+                                    SpanAssertion::exists('symfony.kernel.response'),
+                                    SpanAssertion::exists('symfony.kernel.exception')->withChildren([
+                                        SpanAssertion::exists('symfony.templating.render'),
+                                    ]),
+                                ]),
+                                SpanAssertion::exists('symfony.kernel.request')
+                                    ->setError(
+                                        'Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException',
+                                        'No route found for "GET /does_not_exist"'
+                                    )
+                                    ->withExistingTagsNames(['error.stack']),
+                            ]),
+                        ]),
                 ],
             ]
         );

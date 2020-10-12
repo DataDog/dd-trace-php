@@ -20,18 +20,9 @@ RUN apt update \
     && rm -rf /var/lib/apt/lists/*
 
 # Install composer
-RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
-    && php composer-setup.php  --install-dir="/usr/bin" --filename=composer \
-    && php -r "unlink('composer-setup.php');" \
-    && composer self-update
-
-RUN mkdir -p /var/www/public
-ADD ./tests/overhead/Laravel57 /var/www
-WORKDIR /var/www
-RUN composer update
-
-RUN mkdir -p /dd-trace-php
-WORKDIR /dd-trace-php
+ADD ./tests/overhead/dockerfiles/composer-installer.php composer-installer.php
+RUN php composer-installer.php  --install-dir="/usr/bin" --filename=composer \
+    && php -r "unlink('composer-installer.php');"
 
 RUN mkdir -p /var/log/php-fpm
 RUN chmod -R a+w /var/log/php-fpm
@@ -49,3 +40,11 @@ CMD [ "/start_app.sh" ]
 
 RUN mkdir -p /tmp/php-cache
 RUN chmod -R 777 /tmp/php-cache
+
+RUN mkdir -p /var/www/public
+WORKDIR /var/www
+ADD ./tests/overhead/Laravel57 /var/www
+RUN composer update
+
+RUN mkdir -p /dd-trace-php
+WORKDIR /dd-trace-php

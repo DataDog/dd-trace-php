@@ -69,8 +69,8 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
             ddtrace_backup_error_handling(&eh, EH_SUPPRESS TSRMLS_CC);
 
             zend_try { zend_execute(new_op_array TSRMLS_CC); }
-#if PHP_VERSION_ID < 50500
-            // Cannot gracefully recover from fatal errors in PHP 5.4 without crashing
+#if PHP_VERSION_ID < 50600
+            // Cannot gracefully recover from fatal errors without crashing until PHP 5.6
             zend_catch {
                 if (get_dd_trace_debug() && PG(last_error_message)) {
                     ddtrace_log_errf("Unrecoverable error raised in request init hook: %s in %s on line %d",
@@ -95,6 +95,15 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
                     zval_ptr_dtor(EG(return_value_ptr_ptr));
                 }
             } else {
+                if (get_dd_trace_debug()) {
+                    zval *ex = EG(exception), *message = NULL;
+                    const char *type = Z_OBJCE_P(ex)->name;
+                    message = ddtrace_exception_get_entry(ex, ZEND_STRL("message") TSRMLS_CC);
+                    const char *msg = message && Z_TYPE_P(message) == IS_STRING
+                                          ? Z_STRVAL_P(message)
+                                          : "(internal error reading exception message)";
+                    ddtrace_log_errf("%s thrown in request init hook: %s", type, msg);
+                }
                 // Cannot use ddtrace_maybe_clear_exception() because it updates the opline to a dangling pointer
                 zval_ptr_dtor(&EG(exception));
                 EG(exception) = NULL;
@@ -137,8 +146,14 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
     ret = php_stream_open_for_zend_ex(filename, &file_handle, USE_PATH | STREAM_OPEN_FOR_INCLUDE);
 
     if (get_dd_trace_debug() && PG(last_error_message) && eh_stream.message != PG(last_error_message)) {
-        ddtrace_log_errf("Error raised while opening request-init-hook stream: %s in %s on line %d",
-                         PG(last_error_message), PG(last_error_file), PG(last_error_lineno));
+        char *error;
+#if PHP_VERSION_ID < 80000
+        error = PG(last_error_message);
+#else
+        error = ZSTR_VAL(PG(last_error_message));
+#endif
+        ddtrace_log_errf("Error raised while opening request-init-hook stream: %s in %s on line %d", error,
+                         PG(last_error_file), PG(last_error_lineno));
     }
 
     ddtrace_restore_error_handling(&eh_stream);
@@ -169,8 +184,14 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
             zend_execute(new_op_array, &result);
 
             if (get_dd_trace_debug() && PG(last_error_message) && eh.message != PG(last_error_message)) {
-                ddtrace_log_errf("Error raised in request init hook: %s in %s on line %d", PG(last_error_message),
-                                 PG(last_error_file), PG(last_error_lineno));
+                char *error;
+#if PHP_VERSION_ID < 80000
+                error = PG(last_error_message);
+#else
+                error = ZSTR_VAL(PG(last_error_message));
+#endif
+                ddtrace_log_errf("Error raised in request init hook: %s in %s on line %d", error, PG(last_error_file),
+                                 PG(last_error_lineno));
             }
 
             ddtrace_restore_error_handling(&eh);
@@ -179,6 +200,19 @@ int dd_execute_php_file(const char *filename TSRMLS_DC) {
             efree(new_op_array);
             if (!EG(exception)) {
                 zval_ptr_dtor(&result);
+            } else if (get_dd_trace_debug()) {
+                zend_object *ex = EG(exception);
+
+                const char *type = ex->ce->name->val;
+                zval rv, obj;
+                ZVAL_OBJ(&obj, ex);
+                zval *message = GET_PROPERTY(&obj, ZEND_STR_MESSAGE);
+                const char *msg = Z_TYPE_P(message) == IS_STRING ? Z_STR_P(message)->val
+                                                                 : "(internal error reading exception message)";
+                ddtrace_log_errf("%s thrown in request init hook: %s", type, msg);
+                if (message == &rv) {
+                    zval_dtor(message);
+                }
             }
             ddtrace_maybe_clear_exception();
             rv = TRUE;

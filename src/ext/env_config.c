@@ -35,27 +35,22 @@ char *ddtrace_getenv_multi(char *primary, size_t primary_len, char *secondary, s
 }
 
 char *get_local_env_or_sapi_env(char *name TSRMLS_DC) {
-    char *env = NULL, *tmp = getenv(name);
-    if (tmp) {
-        env = ddtrace_strdup(tmp);
-    } else {
-        // reading sapi_getenv from within writer thread can and will lead to undefined behaviour
-        if (ddtrace_in_writer_thread()) {
-            return NULL;
-        }
-
+    char *env = NULL;
+    // reading sapi_getenv from within writer thread can and will lead to undefined behaviour
+    if (!ddtrace_in_writer_thread()) {
         env = sapi_getenv(name, strlen(name) TSRMLS_CC);
         if (env) {
             // convert PHP memory to pure C memory since this could be used in non request contexts too
             // currently we're not using permanent C memory anywhere, while this could be applied here
             // it seems more practical to simply use "C memory" instead of having 3rd way to free and allocate memory
-            char *oldenv = env;
-            env = ddtrace_strdup(env);
-            efree(oldenv);
+            char *tmp = ddtrace_strdup(env);
+            efree(env);
+            return tmp;
         }
     }
 
-    return env;
+    env = getenv(name);
+    return env ? ddtrace_strdup(env) : NULL;
 }
 
 BOOL_T ddtrace_get_bool_config(char *name, BOOL_T def TSRMLS_DC) {
@@ -116,8 +111,13 @@ double ddtrace_get_double_config(char *name, double def TSRMLS_DC) {
     if (!env) {
         return def;
     }
+    double result = ddtrace_char_to_double(env, def);
+    free(env);
+    return result;
+}
 
-    char *endptr = env;
+double ddtrace_char_to_double(char *subject, double default_value) {
+    char *endptr = subject;
 
     // The strtod function is a bit tricky, so I've quoted docs to explain code
 
@@ -127,18 +127,16 @@ double ddtrace_get_double_config(char *name, double def TSRMLS_DC) {
      * value after the call.
      */
     errno = 0;
-    double result = strtod(env, &endptr);
+    double result = strtod(subject, &endptr);
 
     /* If endptr is not NULL, a pointer to the character after the last
      * character used in the conversion is stored in the location referenced
      * by endptr. If no conversion is performed, zero is returned and the value
      * of nptr is stored in the location referenced by endptr.
      */
-    int conversion_performed = endptr != env && errno == 0;
+    int conversion_performed = endptr != subject && errno == 0;
 
-    free(env);
-
-    return conversion_performed ? result : def;
+    return conversion_performed ? result : default_value;
 }
 
 char *ddtrace_get_c_string_config(char *name TSRMLS_DC) {

@@ -1,7 +1,5 @@
 --TEST--
 [Sandbox regression] Tracing closure safely uses variables from outside scope
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 // variable present in outside scope

@@ -180,13 +180,35 @@ render('PHP version and SAPI', PHP_VERSION . ' - ' . PHP_SAPI);
 renderSuccessOrFailure('ddtrace extension installed', extension_loaded('ddtrace') || extension_loaded('dd_trace'));
 $versionInstalled = phpversion('ddtrace') ?: false;
 render('ddtrace version (installed)', $versionInstalled);
+
+if (extension_loaded('ddtrace') && version_compare(phpversion('ddtrace'), '0.47.0', '>=')) {
+    echo PHP_EOL . PHP_EOL;
+    echo '******************************************************' . PHP_EOL;
+    echo '** WARNING: The dd-doctor.php script is deprecated. **' . PHP_EOL;
+    echo '******************************************************' . PHP_EOL;
+    echo 'Please refer to the "ddtrace" section of a phpinfo() page:' . PHP_EOL;
+    echo PHP_EOL;
+    echo escape('    <?php phpinfo(); ?>') . PHP_EOL;
+    echo PHP_EOL;
+    echo 'For the CLI SAPI, please refer to the extension information from:' . PHP_EOL;
+    echo PHP_EOL;
+    echo '    $ php --ri=ddtrace' . PHP_EOL;
+    echo PHP_EOL;
+    exit(0);
+}
+
 $versionConst = defined('DD_TRACE_VERSION') ? DD_TRACE_VERSION : false;
 render('ddtrace version (const)', $versionConst);
 $initHook = ini_get('ddtrace.request_init_hook');
 $versionUserland = false;
-if (!empty($initHook)) {
-    $userlandVersionFile = dirname(dirname($initHook)) . '/src/DDTrace/version.php';
-    $versionUserland = quiet_file_exists($userlandVersionFile) ? include $userlandVersionFile : false;
+if (class_exists('\DDTrace\Tracer')) {
+    $versionUserland = \DDTrace\Tracer::version();
+} else if (
+    !empty($initHook)
+        && version_compare(phpversion('ddtrace'), '0.48.3', '<=')
+        && quiet_file_exists($userlandVersionFile = dirname(dirname($initHook)) . '/src/DDTrace/version.php')
+) {
+    $versionUserland = include $userlandVersionFile ? : false;
 }
 render('ddtrace version (userland)', $versionUserland);
 renderSuccessOrFailure('ddtrace versions in sync', $versionInstalled === $versionConst && $versionConst === $versionUserland);
@@ -242,12 +264,6 @@ class AutoloadTest
 $integrationsLoaderExists = class_exists('\\DDTrace\\Integrations\\IntegrationsLoader');
 renderSuccessOrFailure('IntegrationsLoader exists', $integrationsLoaderExists);
 if ($integrationsLoaderExists) {
-    $notLoaded = \DDTrace\Integrations\IntegrationsLoader::get()->getLoadingStatus('web');
-    renderSuccessOrFailure('Integrations not loaded yet', 0 === $notLoaded);
-
-    echo '- Registering an autoloader...' . PHP_EOL;
-    spl_autoload_register('AutoloadTest::load');
-
     $loaded = \DDTrace\Integrations\IntegrationsLoader::get()->getLoadingStatus('web');
     renderSuccessOrFailure('Integrations loaded', 0 !== $loaded);
 }

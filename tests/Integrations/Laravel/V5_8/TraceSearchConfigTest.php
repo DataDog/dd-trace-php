@@ -8,8 +8,6 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class TraceSearchConfigTest extends WebFrameworkTestCase
 {
-    const IS_SANDBOX = false;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_8/public/index.php';
@@ -53,12 +51,11 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         '_sampling_priority_v1' => 1,
                     ])
                     ->withChildren([
-                        SpanAssertion::exists('laravel.action')
-                            ->onlyIf(static::IS_SANDBOX),
+                        SpanAssertion::exists('laravel.action'),
                         SpanAssertion::exists(
                             'laravel.provider.load',
                             'Illuminate\Foundation\ProviderRepository::load'
-                        )->onlyIf(static::IS_SANDBOX),
+                        ),
                     ]),
             ]
         );

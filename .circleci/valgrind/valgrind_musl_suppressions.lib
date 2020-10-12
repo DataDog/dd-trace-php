@@ -113,9 +113,140 @@
     fun:_emalloc
     fun:ZEND_SEND_VAL_SPEC_TMP_HANDLER
     fun:execute_ex
+    fun:ddtrace_execute_ex
     fun:zend_execute
     fun:zend_execute_scripts
     fun:php_execute_script
     fun:do_cli
     fun:main
+}
+{
+    <PHP 5.5 hook_function exit>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:_emalloc
+    fun:ZEND_SEND_VAL_SPEC_CONST_HANDLER
+    fun:execute_ex
+    fun:dd_execute_non_tracing_posthook
+    fun:ddtrace_execute_ex
+    fun:zend_execute
+    fun:zend_do_fcall_common_helper_SPEC
+    fun:ZEND_DO_FCALL_SPEC_CONST_HANDLER
+    fun:execute_ex
+    fun:ddtrace_execute_ex
+    fun:zend_execute
+}
+{
+    <PHP 5.5 hook_method exit>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:_emalloc
+    fun:ZEND_SEND_VAL_SPEC_CONST_HANDLER
+    fun:execute_ex
+    fun:dd_execute_non_tracing_posthook
+    fun:ddtrace_execute_ex
+    fun:zend_execute
+    fun:zend_do_fcall_common_helper_SPEC
+    fun:ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER
+    fun:execute_ex
+    fun:ddtrace_execute_ex
+    fun:zend_execute
+}
+{
+    <PHP 5.6 zend_bailout leak>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:ZEND_SEND_VAL_SPEC_CONST_HANDLER
+    fun:execute_ex
+    fun:dd_execute_non_tracing_posthook
+    fun:ddtrace_execute_ex
+    fun:zend_execute
+    fun:zend_do_fcall_common_helper_SPEC
+    fun:ZEND_DO_FCALL_SPEC_CONST_HANDLER
+    fun:execute_ex
+    fun:ddtrace_execute_ex
+}
+{
+    <PHP 5.6 zend_bailout leak>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:ZEND_SEND_VAL_SPEC_CONST_HANDLER
+    fun:execute_ex
+    fun:dd_execute_non_tracing_posthook
+    fun:ddtrace_execute_ex
+    fun:zend_execute
+    fun:zend_do_fcall_common_helper_SPEC
+    fun:ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER
+    fun:execute_ex
+    fun:ddtrace_execute_ex
+}
+{
+    <PHP 5.4 leaks at request timeout>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:_emalloc
+    fun:compile_file
+    fun:phar_compile_file
+    fun:_dd_compile_file
+    fun:zend_execute_scripts
+    fun:php_execute_script
+    fun:do_cli
+    fun:main
+}
+{
+    <PHP 5.6 leaks an arg on fatal error>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:ZEND_SEND_VAL_SPEC_CONST_HANDLER
+    fun:execute_ex
+    fun:dd_execute_tracing_posthook
+    fun:ddtrace_execute_ex
+}
+{
+    <PHP 5.6 leaks an arg on fatal errors>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    fun:_emalloc
+    fun:zend_do_fcall_common_helper_SPEC
+    fun:ZEND_DO_FCALL_SPEC_CONST_HANDLER
+    fun:execute_ex
+    fun:dd_execute_tracing_posthook
+    fun:ddtrace_execute_ex
+}
+{
+    <PHP 5.5 leaks an arg on fatal errors>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:_emalloc
+    fun:ZEND_SEND_VAL_SPEC_CONST_HANDLER
+    fun:execute_ex
+    fun:dd_execute_tracing_posthook
+    fun:ddtrace_execute_ex
+}
+{
+    <PHP 5.5 leaks an arg on fatal errors>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:_emalloc
+    fun:zend_do_fcall_common_helper_SPEC
+    fun:ZEND_DO_FCALL_SPEC_CONST_HANDLER
+    fun:execute_ex
+    fun:dd_execute_tracing_posthook
+    fun:ddtrace_execute_ex
 }

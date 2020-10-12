@@ -12,9 +12,9 @@
 
 // We keep a separate stack for span ID generation since spans are
 // generated from userland as well
-typedef struct _ddtrace_span_ids_t {
+typedef struct ddtrace_span_ids_t {
     uint64_t id;
-    struct _ddtrace_span_ids_t *next;
+    struct ddtrace_span_ids_t *next;
 } ddtrace_span_ids_t;
 
 void ddtrace_seed_prng(TSRMLS_D);

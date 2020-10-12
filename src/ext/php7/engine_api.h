@@ -25,7 +25,7 @@ zval ddtrace_zval_stringl(const char *str, size_t len);
 
 inline zval ddtrace_zval_long(zend_long num) {
     zval zv;
-    ZVAL_LONG(&zv, num)
+    ZVAL_LONG(&zv, num);
     return zv;
 }
 
@@ -35,9 +35,16 @@ inline zval ddtrace_zval_null(void) {
     return zv;
 }
 
+inline zval ddtrace_zval_undef(void) {
+    zval zv;
+    ZVAL_UNDEF(&zv);
+    return zv;
+}
+
 ZEND_RESULT_CODE ddtrace_call_method(zend_object *obj, zend_class_entry *ce, zend_function **fn_proxy,
                                      const char *fname, size_t fname_len, zval *retval, int argc, zval *argv);
-ZEND_RESULT_CODE ddtrace_call_function(const char *name, size_t name_len, zval *retval, int argc, zval argv[]);
+ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *name, size_t name_len, zval *retval,
+                                       int argc, zval argv[]);
 
 void ddtrace_write_property(zval *obj, const char *prop, size_t prop_len, zval *value);
 bool ddtrace_property_exists(zval *object, zval *property);

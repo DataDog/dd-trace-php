@@ -17,7 +17,7 @@ var_dump($queue);
 --EXPECT--
 array(4) {
   [0]=>
-  array(2) {
+  &array(2) {
     [0]=>
     string(3) "Foo"
     [1]=>

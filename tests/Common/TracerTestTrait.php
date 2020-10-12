@@ -195,7 +195,13 @@ trait TracerTestTrait
             // Retrieving data
             $response = curl_exec($curl);
             if (!$response) {
-                \usleep(50 * 1000); // Waiting for 50 ms
+                // PHP-FPM requests are much slower in the container
+                // Temporary workaround until we get a proper test runner
+                \usleep(
+                    'fpm-fcgi' === \getenv('DD_TRACE_TEST_SAPI')
+                        ? 500 * 1000 // 500 ms for PHP-FPM
+                        : 50 * 1000 // 50 ms for other SAPIs
+                );
                 continue;
             } else {
                 break;

@@ -9,12 +9,9 @@ use MongoCollection;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\IntegrationTestCase;
-use DDTrace\Configuration;
 
 class MongoTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = false;
-
     const HOST = 'mongodb_integration';
     const PORT = '27017';
     const USER = 'test';

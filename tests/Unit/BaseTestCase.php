@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Unit;
 
-use DDTrace\Configuration;
 use DDTrace\Log\Logger;
 use DDTrace\Tests\DebugLogger;
 use DDTrace\Util\Versions;
@@ -58,6 +57,5 @@ abstract class BaseTestCase extends Framework\TestCase
             \putenv($putenv);
         }
         \dd_trace_internal_fn('ddtrace_reload_config');
-        Configuration::clear();
     }
 }

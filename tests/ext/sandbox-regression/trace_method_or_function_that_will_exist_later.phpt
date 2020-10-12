@@ -1,7 +1,5 @@
 --TEST--
-[Sandbox regression] Methods and functions are traced before defined
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
+[Sandbox regression] Methods and functions are traced before definedx
 --FILE--
 <?php
 

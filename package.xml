@@ -10,8 +10,24 @@
         <email>sammyk@php.net</email>
         <active>yes</active>
     </lead>
+    <lead>
+        <name>Levi Morrison</name>
+        <user>levim</user>
+        <email>levim@php.net</email>
+        <active>yes</active>
+    </lead>
+    <lead>
+        <name>Luca Abbati</name>
+        <user>labbati</user>
+        <email>luca.abbati@gmail.com</email>
+        <active>yes</active>
+    </lead>
+    <!-- **Automatically updated with pecl-build script** -->
+    <!-- Date only needs to be set if it was packaged on a different day from release -->
     <date>${date}</date>
     <version>
+        <!-- **Automatically updated with pecl-build script** -->
+        <!-- Version will be set from version.php or 0.0.0 for nightly builds (see 'tooling/bin/pecl-build') -->
         <release>${version}</release>
         <api>${version}</api>
     </version>
@@ -23,391 +39,433 @@
     <notes>${notes}</notes>
     <contents>
         <dir name="/">
-            <dir name="src">
-                <dir name="dogstatsd">
-                    <file name="client.c" role="src" />
-                    <file name="dogstatsd_client/client.h" role="src" />
-                </dir>
-                <dir name="ext">
-                    <file name="arrays.c" role="src" />
-                    <file name="arrays.h" role="src" />
-                    <file name="auto_flush.h" role="src" />
-                    <file name="blacklist.h" role="src" />
-                    <file name="comms_php.c" role="src" />
-                    <file name="comms_php.h" role="src" />
-                    <file name="compat_string.c" role="src" />
-                    <file name="compat_string.h" role="src" />
-                    <file name="configuration.h" role="src" />
-                    <file name="configuration.c" role="src" />
-                    <file name="configuration_render.h" role="src" />
-                    <file name="configuration_php_iface.h" role="src" />
-                    <file name="configuration_php_iface.c" role="src" />
-                    <file name="coms.c" role="src" />
-                    <file name="coms.h" role="src" />
-                    <file name="handlers_internal.h" role="src" />
-                    <file name="macros.h" role="src" />
-                    <file name="ddtrace.c" role="src" />
-                    <file name="ddtrace.h" role="src" />
-                    <file name="ddtrace_string.c" role="src" />
-                    <file name="ddtrace_string.h" role="src" />
-                    <file name="debug.h" role="src" />
-                    <file name="distributed_tracing.h" role="src" />
-                    <file name="memory_limit.c" role="src" />
-                    <file name="memory_limit.h" role="src" />
-                    <file name="circuit_breaker.c" role="src" />
-                    <file name="circuit_breaker.h" role="src" />
-                    <file name="vendor_stdatomic.h" role="src" />
-                    <file name="dispatch.c" role="src" />
-                    <file name="dispatch.h" role="src" />
-                    <file name="dogstatsd_client.c" role="src" />
-                    <file name="dogstatsd_client.h" role="src" />
-                    <file name="engine_hooks.c" role="src" />
-                    <file name="engine_hooks.h" role="src" />
-                    <file name="env_config.c" role="src" />
-                    <file name="env_config.h" role="src" />
-                    <file name="logging.c" role="src" />
-                    <file name="logging.h" role="src" />
-                    <file name="random.c" role="src" />
-                    <file name="random.h" role="src" />
-                    <file name="request_hooks.c" role="src" />
-                    <file name="request_hooks.h" role="src" />
-                    <file name="serializer.h" role="src" />
-                    <file name="signals.c" role="src" />
-                    <file name="signals.h" role="src" />
-                    <file name="span.c" role="src" />
-                    <file name="span.h" role="src" />
-                    <file name="version.h" role="src" />
-                    <file name="compatibility.h" role="src" />
-                    <dir name="mpack">
-                        <file name="AUTHORS.md" role="doc" />
-                        <file name="CHANGELOG.md" role="doc" />
-                        <file name="README.md" role="doc" />
-                        <file name="LICENSE" role="doc" />
-                        <file name="mpack.c" role="src" />
-                        <file name="mpack.h" role="src" />
-                    </dir>
-                    <dir name="php5_4">
-                        <file name="auto_flush.c" role="src" />
-                        <file name="blacklist.c" role="src" />
-                        <file name="dispatch.c" role="src" />
-                        <file name="distributed_tracing.c" role="src" />
-                        <file name="engine_hooks.c" role="src" />
-                        <file name="handlers_internal.c" role="src" />
-                        <file name="serializer.c" role="src" />
-                    </dir>
-                    <dir name="php5">
-                        <file name="auto_flush.c" role="src" />
-                        <file name="blacklist.c" role="src" />
-                        <file name="dispatch.c" role="src" />
-                        <file name="distributed_tracing.c" role="src" />
-                        <file name="engine_hooks.c" role="src" />
-                        <file name="handlers_internal.c" role="src" />
-                        <file name="serializer.c" role="src" />
-                    </dir>
-                    <dir name="php7">
-                        <file name="auto_flush.c" role="src" />
-                        <file name="blacklist.c" role="src" />
-                        <file name="dispatch.c" role="src" />
-                        <file name="distributed_tracing.c" role="src" />
-                        <file name="engine_api.c" role="src" />
-                        <file name="engine_api.h" role="src" />
-                        <file name="engine_hooks.c" role="src" />
-                        <file name="handlers_curl.c" role="src" />
-                        <file name="handlers_internal.c" role="src" />
-                        <file name="handlers_memcached.c" role="src" />
-                        <file name="handlers_mysqli.c" role="src" />
-                        <file name="handlers_pdo.c" role="src" />
-                        <file name="serializer.c" role="src" />
-                    </dir>
-                    <dir name="third-party">
-                        <file name="mt19937-64.c" role="src" />
-                        <file name="mt19937-64.h" role="src" />
-                    </dir>
-                </dir>
-            </dir>
-            <dir name="tests">
-                <dir name="ext">
-                    <dir name="includes">
-                        <file name="dd_init.php" role="test" />
-                        <file name="request_init_hook.inc" role="test" />
-                        <file name="sanity_check.php" role="test" />
-                        <file name="try_catch_finally.php" role="test" />
-                    </dir>
-                    <dir name="request-init-hook">
-                        <dir name="contains-binary-character">
-                            <file name="dd_init.php" role="test" />
-                        </dir>
-                        <dir name="raises-e-notice">
-                            <file name="dd_init.php" role="test" />
-                        </dir>
-                        <dir name="raises-fatal-error">
-                            <file name="dd_init.php" role="test" />
-                        </dir>
-                        <dir name="throws-exception">
-                            <file name="dd_init.php" role="test" />
-                        </dir>
-                        <file name="auto_prepend_file.inc" role="test" />
-                        <file name="auto_prepend_file_none.phpt" role="test" />
-                        <file name="auto_prepend_file_once.phpt" role="test" />
-                        <file name="auto_prepend_file_original.phpt" role="test" />
-                        <file name="auto_prepend_file_original_disabled.phpt" role="test" />
-                        <file name="auto_prepend_file_original_disabled_ini.phpt" role="test" />
-                        <file name="dd_init_open_basedir.inc" role="test" />
-                        <file name="dd_init_open_basedir.phpt" role="test" />
-                        <file name="error_get_last_is_unaffected.phpt" role="test" />
-                        <file name="raises_e_notice.php" role="test" />
-                        <file name="contains_binary_character.php" role="test" />
-                        <file name="request_init_hook_contains_non_printable_character.phpt" role="test" />
-                        <file name="raises_fatal_error.php" role="test" />
-                        <file name="request_init_hook_confined_to_open_basedir.phpt" role="test" />
-                        <file name="request_init_hook_file_not_found.phpt" role="test" />
-                        <file name="request_init_hook_ignores_exceptions.phpt" role="test" />
-                        <file name="request_init_hook_ignores_fatal_errors.phpt" role="test" />
-                        <file name="request_init_hook_ignores_fatal_errors_php_54.phpt" role="test" />
-                        <file name="run_file_before_request_handling.phpt" role="test" />
-                        <file name="shebang.phpt" role="test" />
-                        <file name="throws_exception.php" role="test" />
-                    </dir>
-                    <file name="access_modifier_method_access_hook.phpt" role="test" />
-                    <file name="access_modifier_property_access_hook.phpt" role="test" />
-                    <file name="allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
-                    <file name="case_insensitive_class_hook.phpt" role="test" />
-                    <file name="case_insensitive_method_hook.phpt" role="test" />
-                    <file name="closure_accessing_outside_variables.phpt" role="test" />
-                    <file name="closure_set_inside_object_methods.phpt" role="test" />
-                    <file name="circuit_breaker_info.phpt" role="test" />
-                    <file name="circuit_breaker_retry_time.phpt" role="test" />
-                    <file name="circuit_breaker_max_failures.phpt" role="test" />
-                    <file name="dd_trace_api_error.phpt" role="test" />
-                    <file name="dd_trace_can_skip_original_call.phpt" role="test" />
-                    <file name="dd_trace_send_traces_via_thread_001.phpt" role="test" />
-                    <file name="dd_trace_send_traces_via_thread_002.phpt" role="test" />
-                    <file name="dd_trace_serialize_msgpack.phpt" role="test" />
-                    <file name="dd_trace_serialize_msgpack_error.phpt" role="test" />
-                    <file name="dd_trace_serialize_msgpack_reference.phpt" role="test" />
-                    <file name="dd_trace_coms_empty_stacks_correctly_recycled.phpt" role="test" />
-                    <file name="disable_tracing_disables_tracing.phpt" role="test" />
-                    <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
-                    <file name="dd_trace_forward_call_error.phpt" role="test" />
-                    <file name="dd_trace_forward_call_for_functions.phpt" role="test" />
-                    <file name="dd_trace_forward_call_from_include.phpt" role="test" />
-                    <file name="dd_trace_forward_call_with_inheritance.phpt" role="test" />
-                    <file name="dd_trace_forward_call_with_private_callback.phpt" role="test" />
-                    <file name="dd_trace_push_span_id_from_userland.phpt" role="test" />
-                    <file name="dd_trace_tracer_is_limited_hard.phpt" role="test" />
-                    <file name="dd_trace_tracer_is_limited_memory.phpt" role="test" />
-                    <dir name="sandbox">
-                        <file name="auto_flush.phpt" role="test" />
-                        <file name="auto_flush_attach_exception.phpt" role="test" />
-                        <file name="auto_flush_disables_tracing.phpt" role="test" />
-                        <file name="auto_flush_sandbox_exception.phpt" role="test" />
-                        <file name="auto_flush_userland_root_span.phpt" role="test" />
-                        <file name="close-on-exit.phpt" role="test" />
-                        <file name="close-on-exit-retval.phpt" role="test" />
-                        <file name="dd_dumper.inc" role="test" />
-                        <file name="dd_trace_closed_spans_count.phpt" role="test" />
-                        <file name="dd_trace_api_error.phpt" role="test" />
-                        <file name="dd_trace_function_alias.phpt" role="test" />
-                        <file name="dd_trace_function_complex.phpt" role="test" />
-                        <file name="dd_trace_function_internal.phpt" role="test" />
-                        <file name="dd_trace_function_userland.phpt" role="test" />
-                        <file name="dd_trace_method.phpt" role="test" />
-                        <file name="dd_trace_method_alias.phpt" role="test" />
-                        <file name="dd_trace_method_binds_called_object.phpt" role="test" />
-                        <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
-                        <file name="dd_trace_push_span_id.phpt" role="test" />
-                        <file name="dd_trace_set_trace_id.phpt" role="test" />
-                        <file name="default_span_properties.phpt" role="test" />
-                        <file name="default_span_properties_method.phpt" role="test" />
-                        <file name="distributed_tracing.inc" role="test" />
-                        <file name="distributed_tracing_curl.phpt" role="test" />
-                        <file name="distributed_tracing_curl_copy_handle.phpt" role="test" />
-                        <file name="distributed_tracing_curl_existing_headers_001.phpt" role="test" />
-                        <file name="distributed_tracing_curl_existing_headers_002.phpt" role="test" />
-                        <file name="distributed_tracing_curl_inject.inc" role="test" />
-                        <file name="distributed_tracing_curl_inject_exception.inc" role="test" />
-                        <file name="distributed_tracing_curl_sandboxed.phpt" role="test" />
-                        <file name="drop_spans.phpt" role="test" />
-                        <file name="errors_are_flagged_from_userland.phpt" role="test" />
-                        <file name="exception_does_not_close_span_that_catches.phpt" role="test" />
-                        <file name="exception_error_log.phpt" role="test" />
-                        <file name="exception_from_user_error_handler_internal.phpt" role="test" />
-                        <file name="exception_handled_for_correct_catch_block.phpt" role="test" />
-                        <file name="exception_handled_in_correct_catch_frame.phpt" role="test" />
-                        <file name="exception_handled_in_multicatch.phpt" role="test" />
-                        <file name="exception_handled_with_finally.phpt" role="test" />
-                        <file name="exception_handling_php5.phpt" role="test" />
-                        <file name="exception_handling.phpt" role="test" />
-                        <file name="exception_is_defined.phpt" role="test" />
-                        <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
-                        <file name="exceptions_are_passed_to_the_tracing_closure.phpt" role="test" />
-                        <file name="exceptions_are_passed_to_the_tracing_closure_php5.phpt" role="test" />
-                        <file name="exceptions_in_original_call_rethrown_in_tracing_closure.phpt" role="test" />
-                        <file name="exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
-                        <file name="exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
-                        <file name="exit_and_drop_span.phpt" role="test" />
-                        <file name="fake_global_tracer.inc" role="test" />
-                        <file name="fake_tracer.inc" role="test" />
-                        <file name="fake_tracer_exception.inc" role="test" />
-                        <file name="fatal_errors_ignored_in_shutdown.phpt" role="test" />
-                        <file name="fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
-                        <file name="generator.phpt" role="test" />
-                        <file name="generator_not_supported.phpt" role="test" />
-                        <file name="generator_with_exception.phpt" role="test" />
-                        <file name="generator_with_return.phpt" role="test" />
-                        <file name="generator_yield_from.phpt" role="test" />
-                        <file name="get_last_error.phpt" role="test" />
-                        <file name="keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
-                        <file name="keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
-                        <file name="keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
-                        <file name="keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
-                        <file name="memory_limit_graceful_bailout.phpt" role="test" />
-                        <file name="new_static.phpt" role="test" />
-                        <file name="return_by_ref.phpt" role="test" />
-                        <file name="retval_is_null_with_exception.phpt" role="test" />
-                        <file name="safe_to_string_metadata.phpt" role="test" />
-                        <file name="safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
-                        <file name="safe_to_string_properties.phpt" role="test" />
-                        <file name="sandbox_api_not_available_on_unsupported_versions.phpt" role="test" />
-                        <file name="spans_out_of_sync.phpt" role="test" />
-                        <file name="static_tracing_closures_will_not_bind_this.phpt" role="test" />
-                        <file name="variadic_args_internal.phpt" role="test" />
-                        <file name="variadic_no_args.phpt" role="test" />
-                        <file name="vm_var_types_return.phpt" role="test" />
-                    </dir>
-                    <dir name="sandbox-prehook">
-                        <file name="access_modifier_method_access_hook.phpt" role="test" />
-                        <file name="access_modifier_property_access_hook.phpt" role="test" />
-                        <file name="args_copy_before_mutation.phpt" role="test" />
-                        <file name="close_on_exit.phpt" role="test" />
-                        <file name="closure_arg_exception.phpt" role="test" />
-                        <file name="closure_arg_retval.phpt" role="test" />
-                        <file name="dd_trace_api_error.phpt" role="test" />
-                        <file name="dd_trace_function_internal.phpt" role="test" />
-                        <file name="dd_trace_function_userland.phpt" role="test" />
-                        <file name="dd_trace_method.phpt" role="test" />
-                        <file name="dd_trace_method_binds_called_object.phpt" role="test" />
-                        <file name="dd_trace_method_works_with_dd_trace.phpt" role="test" />
-                        <file name="drop_spans.phpt" role="test" />
-                        <file name="exception_error_log.phpt" role="test" />
-                        <file name="exception_handling.phpt" role="test" />
-                        <file name="exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
-                        <file name="exit_and_drop_span.phpt" role="test" />
-                        <file name="keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
-                        <file name="new_static.phpt" role="test" />
-                        <file name="php5_unsupported.phpt" role="test" />
-                        <file name="trace_static_method.phpt" role="test" />
-                        <file name="variable_length_parameter_list.phpt" role="test" />
-                        <file name="variadic_args_internal.phpt" role="test" />
-                    </dir>
-                    <dir name="sandbox-regression">
-                        <file name="access_modifier_method_access_hook.phpt" role="test" />
-                        <file name="access_modifier_property_access_hook.phpt" role="test" />
-                        <file name="allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
-                        <file name="case_insensitive_method_hook.phpt" role="test" />
-                        <file name="closure_accessing_outside_variables.phpt" role="test" />
-                        <file name="closure_set_inside_object_methods.phpt" role="test" />
-                        <file name="dd_trace_tracer_is_limited_hard.phpt" role="test" />
-                        <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
-                        <file name="do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
-                        <file name="disable_tracing_disables_tracing.phpt" role="test" />
-                        <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
-                        <file name="extension_disabled.phpt" role="test" />
-                        <file name="method_invoked_via_reflection.phpt" role="test" />
-                        <file name="method_returning_array.phpt" role="test" />
-                        <file name="multiple_instrumentations.phpt" role="test" />
-                        <file name="namespaces.phpt" role="test" />
-                        <file name="overriding_construct.phpt" role="test" />
-                        <file name="overriding_method_defined_in_parent.phpt" role="test" />
-                        <file name="private_method_hook.phpt" role="test" />
-                        <file name="private_self_access.phpt" role="test" />
-                        <file name="protected_method_hook.phpt" role="test" />
-                        <file name="recursion.phpt" role="test" />
-                        <file name="reset_configured_overrides.phpt" role="test" />
-                        <file name="reset_function_tracing.phpt" role="test" />
-                        <file name="return_value_passed.phpt" role="test" />
-                        <file name="simple_function_hook.phpt" role="test" />
-                        <file name="simple_method_hook.phpt" role="test" />
-                        <file name="throw_exception.phpt" role="test" />
-                        <file name="trace_method_or_function_that_will_exist_later.phpt" role="test" />
-                        <file name="trace_static_method.phpt" role="test" />
-                        <file name="used_dispatch_shouldn_t_be_freed.phpt" role="test" />
-                        <file name="variable_length_parameter_list.phpt" role="test" />
-                        <file name="very_nested_functions.phpt" role="test" />
-                        <file name="with_params_function_hook.phpt" role="test" />
-                        <file name="with_params_method_hook.phpt" role="test" />
-                    </dir>
-                    <file name="destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
-                    <file name="enable_throw_exception_if_overridable_doesnt_exist.phpt" role="test" />
-                    <file name="from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
-                    <file name="from_php_7_3_bug61728.phpt" role="test" />
-                    <file name="method_invoked_via_reflection.phpt" role="test" />
-                    <file name="method_returning_array.phpt" role="test" />
-                    <file name="multiple_instrumentations.phpt" role="test" />
-                    <file name="namespaces.phpt" role="test" />
-                    <file name="new_static.phpt" role="test" />
-                    <file name="overriding_construct.phpt" role="test" />
-                    <file name="overriding_method_defined_in_parent.phpt" role="test" />
-                    <file name="private_method_hook.phpt" role="test" />
-                    <file name="private_self_access.phpt" role="test" />
-                    <file name="protected_method_hook.phpt" role="test" />
-                    <file name="recursion.phpt" role="test" />
-                    <file name="read_c_configuration.phpt" role="test" />
-                    <file name="reset_configured_overrides.phpt" role="test" />
-                    <file name="reset_function_tracing.phpt" role="test" />
-                    <file name="return_value_passed.phpt" role="test" />
-                    <file name="segfault_backtrace_disabled.phpt" role="test" />
-                    <file name="segfault_backtrace_enabled.phpt" role="test" />
-                    <file name="get_memory_limit_set_by_percentage.phpt" role="test" />
-                    <file name="get_memory_limit_unlimited_set_by_percentage.phpt" role="test" />
-                    <file name="check_memory_under_limit_high_user_limit.phpt" role="test" />
-                    <file name="get_memory_limit_unlimited_set_by_absolute.phpt" role="test" />
-                    <file name="get_memory_limit_0.phpt" role="test" />
-                    <file name="check_memory_under_limit_high_limit.phpt" role="test" />
-                    <file name="check_memory_under_limit_low_user_limit.phpt" role="test" />
-                    <file name="get_memory_limit_unlimited_default.phpt" role="test" />
-                    <file name="check_memory_under_limit_default.phpt" role="test" />
-                    <file name="get_memory_limit_set_by_absolute.phpt" role="test" />
-                    <file name="get_memory_limit_default.phpt" role="test" />
-                    <file name="check_memory_under_limit_low_limit.phpt" role="test" />
-                    <file name="extension_disabled.phpt" role="test" />
-                    <file name="get_memory_limit_0_percent.phpt" role="test" />
-                    <file name="keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
-                    <file name="keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
-                    <file name="keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
-                    <file name="keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
-                    <file name="simple_function_hook.phpt" role="test" />
-                    <file name="simple_method_hook.phpt" role="test" />
-                    <file name="throw_exception.phpt" role="test" />
-                    <file name="trace_method_or_function_that_will_exist_later.phpt" role="test" />
-                    <file name="trace_static_method.phpt" role="test" />
-                    <file name="traced_internal_functions_override_01.phpt" role="test" />
-                    <file name="traced_internal_functions_override_02.phpt" role="test" />
-                    <file name="used_dispatch_shouldn_t_be_freed.phpt" role="test" />
-                    <file name="variable_length_parameter_list.phpt" role="test" />
-                    <file name="very_nested_functions.phpt" role="test" />
-                    <file name="with_params_function_hook.phpt" role="test" />
-                    <file name="with_params_method_hook.phpt" role="test" />
-                </dir>
-            </dir>
+            <!-- Source files -->
+            <file name="m4/ax_execinfo.m4" role="src" />
+            <file name="m4/polyfill.m4" role="src" />
+            <file name="src/dogstatsd/client.c" role="src" />
+            <file name="src/dogstatsd/dogstatsd_client/client.h" role="src" />
+            <file name="src/ext/arrays.c" role="src" />
+            <file name="src/ext/arrays.h" role="src" />
+            <file name="src/ext/auto_flush.h" role="src" />
+            <file name="src/ext/comms_php.c" role="src" />
+            <file name="src/ext/comms_php.h" role="src" />
+            <file name="src/ext/compat_string.c" role="src" />
+            <file name="src/ext/compat_string.h" role="src" />
+            <file name="src/ext/configuration.h" role="src" />
+            <file name="src/ext/configuration.c" role="src" />
+            <file name="src/ext/configuration_render.h" role="src" />
+            <file name="src/ext/configuration_php_iface.h" role="src" />
+            <file name="src/ext/configuration_php_iface.c" role="src" />
+            <file name="src/ext/coms.c" role="src" />
+            <file name="src/ext/coms.h" role="src" />
+            <file name="src/ext/excluded_modules.h" role="src" />
+            <file name="src/ext/handlers_internal.h" role="src" />
+            <file name="src/ext/macros.h" role="src" />
+            <file name="src/ext/ddtrace.c" role="src">
+                <tasks:replace from="@php_dir@" to="php_dir" type="pear-config" />
+                <tasks:replace from="_BUILD_FROM_PECL_" to="PHP_VERSION_ID" type="php-const" />
+            </file>
+            <file name="src/ext/ddtrace.h" role="src" />
+            <file name="src/ext/ddtrace_string.c" role="src" />
+            <file name="src/ext/ddtrace_string.h" role="src" />
+            <file name="src/ext/distributed_tracing.h" role="src" />
+            <file name="src/ext/memory_limit.c" role="src" />
+            <file name="src/ext/memory_limit.h" role="src" />
+            <file name="src/ext/circuit_breaker.c" role="src" />
+            <file name="src/ext/circuit_breaker.h" role="src" />
+            <file name="src/ext/vendor_stdatomic.h" role="src" />
+            <file name="src/ext/dispatch.c" role="src" />
+            <file name="src/ext/dispatch.h" role="src" />
+            <file name="src/ext/dogstatsd_client.c" role="src" />
+            <file name="src/ext/dogstatsd_client.h" role="src" />
+            <file name="src/ext/engine_hooks.c" role="src" />
+            <file name="src/ext/engine_hooks.h" role="src" />
+            <file name="src/ext/env_config.c" role="src" />
+            <file name="src/ext/env_config.h" role="src" />
+            <file name="src/ext/logging.c" role="src" />
+            <file name="src/ext/logging.h" role="src" />
+            <file name="src/ext/random.c" role="src" />
+            <file name="src/ext/random.h" role="src" />
+            <file name="src/ext/request_hooks.c" role="src" />
+            <file name="src/ext/request_hooks.h" role="src" />
+            <file name="src/ext/serializer.h" role="src" />
+            <file name="src/ext/signals.c" role="src" />
+            <file name="src/ext/signals.h" role="src" />
+            <file name="src/ext/span.c" role="src" />
+            <file name="src/ext/span.h" role="src" />
+            <file name="src/ext/startup_logging.h" role="src" />
+            <file name="src/ext/version.h" role="src" />
+            <file name="src/ext/compatibility.h" role="src" />
+            <file name="src/ext/integrations/integrations.c" role="src" />
+            <file name="src/ext/integrations/integrations.h" role="src" />
+            <file name="src/ext/integrations/elasticsearch.h" role="src" />
+            <file name="src/ext/integrations/test_integration.h" role="src" />
+            <file name="src/ext/mpack/AUTHORS.md" role="doc" />
+            <file name="src/ext/mpack/CHANGELOG.md" role="doc" />
+            <file name="src/ext/mpack/README.md" role="doc" />
+            <file name="src/ext/mpack/LICENSE" role="doc" />
+            <file name="src/ext/mpack/mpack.c" role="src" />
+            <file name="src/ext/mpack/mpack.h" role="src" />
+            <file name="src/ext/php5_4/auto_flush.c" role="src" />
+            <file name="src/ext/php5_4/dispatch.c" role="src" />
+            <file name="src/ext/php5_4/engine_hooks.c" role="src" />
+            <file name="src/ext/php5/auto_flush.c" role="src" />
+            <file name="src/ext/php5/dispatch.c" role="src" />
+            <file name="src/ext/php5/distributed_tracing.c" role="src" />
+            <file name="src/ext/php5/engine_api.c" role="src" />
+            <file name="src/ext/php5/engine_api.h" role="src" />
+            <file name="src/ext/php5/engine_hooks.c" role="src" />
+            <file name="src/ext/php5/excluded_modules.c" role="src" />
+            <file name="src/ext/php5/handlers_curl.c" role="src" />
+            <file name="src/ext/php5/handlers_internal.c" role="src" />
+            <file name="src/ext/php5/serializer.c" role="src" />
+            <file name="src/ext/php5/startup_logging.c" role="src" />
+            <file name="src/ext/php7/auto_flush.c" role="src" />
+            <file name="src/ext/php7/dispatch.c" role="src" />
+            <file name="src/ext/php7/distributed_tracing.c" role="src" />
+            <file name="src/ext/php7/engine_api.c" role="src" />
+            <file name="src/ext/php7/engine_api.h" role="src" />
+            <file name="src/ext/php7/excluded_modules.c" role="src" />
+            <file name="src/ext/php7/engine_hooks.c" role="src" />
+            <file name="src/ext/php7/handlers_curl.c" role="src" />
+            <file name="src/ext/php7/handlers_internal.c" role="src" />
+            <file name="src/ext/php7/handlers_memcached.c" role="src" />
+            <file name="src/ext/php7/handlers_mysqli.c" role="src" />
+            <file name="src/ext/php7/handlers_pdo.c" role="src" />
+            <file name="src/ext/php7/handlers_phpredis.c" role="src" />
+            <file name="src/ext/php7/serializer.c" role="src" />
+            <file name="src/ext/php7/startup_logging.c" role="src" />
+            <file name="src/ext/third-party/mt19937-64.c" role="src" />
+            <file name="src/ext/third-party/mt19937-64.h" role="src" />
+
+            <!-- Tests -->
+            <file name="tests/ext/call_user_func/namespaced-array.phpt" role="test" />
+            <file name="tests/ext/call_user_func/namespaced.phpt" role="test" />
+            <file name="tests/ext/call_user_func/not-namespaced-array.phpt" role="test" />
+            <file name="tests/ext/call_user_func/not-namespaced.phpt" role="test" />
+
+            <file name="tests/ext/includes/dd_init.php" role="test" />
+            <file name="tests/ext/includes/request_init_hook.inc" role="test" />
+            <file name="tests/ext/includes/sanity_check.php" role="test" />
+            <file name="tests/ext/includes/try_catch_finally.php" role="test" />
+
+            <file name="tests/ext/request-init-hook/contains-binary-character/dd_init.php" role="test" />
+            <file name="tests/ext/request-init-hook/raises-e-notice/dd_init.php" role="test" />
+            <file name="tests/ext/request-init-hook/raises-fatal-error/dd_init.php" role="test" />
+            <file name="tests/ext/request-init-hook/throws-exception/dd_init.php" role="test" />
+            <file name="tests/ext/request-init-hook/auto_prepend_file.inc" role="test" />
+            <file name="tests/ext/request-init-hook/auto_prepend_file_none.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/auto_prepend_file_once.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/auto_prepend_file_original.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/auto_prepend_file_original_disabled.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/auto_prepend_file_original_disabled_ini.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/dd_init_open_basedir.inc" role="test" />
+            <file name="tests/ext/request-init-hook/dd_init_open_basedir.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/error_get_last_is_unaffected.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/raises_e_notice.php" role="test" />
+            <file name="tests/ext/request-init-hook/contains_binary_character.php" role="test" />
+            <file name="tests/ext/request-init-hook/request_init_hook_contains_non_printable_character.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/raises_fatal_error.php" role="test" />
+            <file name="tests/ext/request-init-hook/request_init_hook_confined_to_open_basedir.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/request_init_hook_file_not_found.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/request_init_hook_ignores_exceptions.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/request_init_hook_ignores_fatal_errors.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/request_init_hook_ignores_fatal_errors_php_54.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/run_file_before_request_handling.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/shebang.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/throws_exception.php" role="test" />
+
+            <file name="tests/ext/sandbox/auto_flush.phpt" role="test" />
+            <file name="tests/ext/sandbox/auto_flush_attach_exception.phpt" role="test" />
+            <file name="tests/ext/sandbox/auto_flush_disables_tracing.phpt" role="test" />
+            <file name="tests/ext/sandbox/auto_flush_sandbox_exception.phpt" role="test" />
+            <file name="tests/ext/sandbox/auto_flush_userland_root_span.phpt" role="test" />
+            <file name="tests/ext/sandbox/cake_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/cake_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/close-on-exit.phpt" role="test" />
+            <file name="tests/ext/sandbox/close-on-exit-retval.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_dumper.inc" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_closed_spans_count.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_api_error.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_function_alias.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_function_complex.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_function_internal.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_function_userland.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_method.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_method_alias.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_method_binds_called_object.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_push_span_id.phpt" role="test" />
+            <file name="tests/ext/sandbox/dd_trace_set_trace_id.phpt" role="test" />
+            <file name="tests/ext/sandbox/default_span_properties.phpt" role="test" />
+            <file name="tests/ext/sandbox/default_span_properties_method.phpt" role="test" />
+            <file name="tests/ext/sandbox/deferred_load_attempt_loading_once.phpt" role="test" />
+            <file name="tests/ext/sandbox/deferred_load_missing_load_fn.phpt" role="test" />
+            <file name="tests/ext/sandbox/deferred_load_using_function.phpt" role="test" />
+            <file name="tests/ext/sandbox/deferred_loading_helper.php" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing.inc" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_copy_handle.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_existing_headers_001.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_existing_headers_002.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_inject.inc" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_inject_exception.inc" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_missing_fn.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_sandboxed.phpt" role="test" />
+            <file name="tests/ext/sandbox/drop_spans.phpt" role="test" />
+            <file name="tests/ext/sandbox/errors_are_flagged_from_userland.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_does_not_close_span_that_catches.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_error_log.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_from_user_error_handler_internal.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_handled_for_correct_catch_block.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_handled_in_correct_catch_frame.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_handled_in_multicatch.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_handled_with_finally.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_handling.phpt" role="test" />
+            <file name="tests/ext/sandbox/exception_is_defined.phpt" role="test" />
+            <file name="tests/ext/sandbox/exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
+            <file name="tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure.phpt" role="test" />
+            <file name="tests/ext/sandbox/exceptions_are_passed_to_the_tracing_closure_php5.phpt" role="test" />
+            <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure.phpt" role="test" />
+            <file name="tests/ext/sandbox/exceptions_in_original_call_rethrown_in_tracing_closure_php5.phpt" role="test" />
+            <file name="tests/ext/sandbox/exceptions_in_tracing_closure_and_original_call.phpt" role="test" />
+            <file name="tests/ext/sandbox/exit_and_drop_span.phpt" role="test" />
+            <file name="tests/ext/sandbox/fake_global_tracer.inc" role="test" />
+            <file name="tests/ext/sandbox/fake_tracer.inc" role="test" />
+            <file name="tests/ext/sandbox/fake_tracer_exception.inc" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_001.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_002.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_003_php5.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_003_php7.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_004.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_are_tracked_005.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_ignored_in_shutdown.phpt" role="test" />
+            <file name="tests/ext/sandbox/fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator_not_supported.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator_with_exception.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator_with_return.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator_yield_from.phpt" role="test" />
+            <file name="tests/ext/sandbox/get_last_error.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_access_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_error_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_error_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exceptions_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exceptions_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exceptions_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exceptions_04.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exit_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_exit_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_limited_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/posthook_variadic.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_access_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_error_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_error_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_exceptions_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_exceptions_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_exceptions_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_exceptions_04.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_function/prehook_variadic.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_04.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_05.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_06.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_07.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_access_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_error_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_error_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_exceptions_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_exceptions_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_exit_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_exit_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_scope_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_scope_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_scope_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_span_ids_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/posthook_span_ids_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_04.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_05.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_access_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_error_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_error_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_exceptions_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_exceptions_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_scope_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_scope_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_scope_03.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_span_ids_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_span_ids_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_internal_functions.phpt" role="test" />
+            <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_internal_methods.phpt" role="test" />
+            <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
+            <file name="tests/ext/sandbox/keep_spans_in_limited_tracing_userland_methods.phpt" role="test" />
+            <file name="tests/ext/sandbox/memory_limit_graceful_bailout.phpt" role="test" />
+            <file name="tests/ext/sandbox/new_static.phpt" role="test" />
+            <file name="tests/ext/sandbox/non-zero_duration.phpt" role="test" />
+            <file name="tests/ext/sandbox/preinitialized_tracing_of_method.phpt" role="test" />
+            <file name="tests/ext/sandbox/return_by_ref.phpt" role="test" />
+            <file name="tests/ext/sandbox/retval_is_null_with_exception.phpt" role="test" />
+            <file name="tests/ext/sandbox/safe_to_string_metadata.phpt" role="test" />
+            <file name="tests/ext/sandbox/safe_to_string_metadata_drops_invalid_keys.phpt" role="test" />
+            <file name="tests/ext/sandbox/safe_to_string_properties.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_01.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_02.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_03_php5.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_03_php7.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_04_php5.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_04_php7.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_05.phpt" role="test" />
+            <file name="tests/ext/sandbox/spans_out_of_sync_06.phpt" role="test" />
+            <file name="tests/ext/sandbox/static_tracing_closures_will_not_bind_this.phpt" role="test" />
+            <file name="tests/ext/sandbox/variadic_args_internal.phpt" role="test" />
+            <file name="tests/ext/sandbox/variadic_no_args.phpt" role="test" />
+            <file name="tests/ext/sandbox/vm_var_types_return.phpt" role="test" />
+
+            <file name="tests/ext/sandbox-prehook/access_modifier_method_access_hook.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/access_modifier_property_access_hook.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/args_copy_before_mutation.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/close_on_exit.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/closure_arg_exception.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/closure_arg_retval.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/dd_trace_api_error.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/dd_trace_function_internal.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/dd_trace_function_userland.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/dd_trace_method.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/dd_trace_method_binds_called_object.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/drop_spans.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/exception_error_log.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/exception_handling.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/exceptions_and_errors_are_ignored_in_tracing_closure.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/exit_and_drop_span.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/keep_spans_in_limited_tracing_userland_functions.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/new_static.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/php5_unsupported.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/trace_static_method.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/variable_length_parameter_list.phpt" role="test" />
+            <file name="tests/ext/sandbox-prehook/variadic_args_internal.phpt" role="test" />
+
+            <file name="tests/ext/sandbox-regression/access_modifier_method_access_hook.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/access_modifier_property_access_hook.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/case_insensitive_method_hook.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/closure_accessing_outside_variables.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/closure_set_inside_object_methods.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/dd_trace_tracer_is_limited_hard.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/disable_tracing_disables_tracing.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/extension_disabled.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/method_invoked_via_reflection.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/method_returning_array.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/multiple_instrumentations.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/namespaces.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/overriding_construct.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/overriding_method_defined_in_parent.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/private_method_hook.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/private_self_access.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/protected_method_hook.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/recursion.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/reset_configured_overrides.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/reset_function_tracing.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/return_value_passed.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/simple_function_hook.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/simple_method_hook.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/throw_exception.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/trace_method_or_function_that_will_exist_later.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/trace_static_method.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/used_dispatch_shouldn_t_be_freed.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/variable_length_parameter_list.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/very_nested_functions_php5.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/very_nested_functions_php7.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/with_params_function_hook.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/with_params_method_hook.phpt" role="test" />
+
+            <file name="tests/ext/check_memory_under_limit_default.phpt" role="test" />
+            <file name="tests/ext/check_memory_under_limit_high_limit.phpt" role="test" />
+            <file name="tests/ext/check_memory_under_limit_high_user_limit.phpt" role="test" />
+            <file name="tests/ext/check_memory_under_limit_low_limit.phpt" role="test" />
+            <file name="tests/ext/check_memory_under_limit_low_user_limit.phpt" role="test" />
+            <file name="tests/ext/circuit_breaker_info.phpt" role="test" />
+            <file name="tests/ext/circuit_breaker_max_failures.phpt" role="test" />
+            <file name="tests/ext/circuit_breaker_retry_time.phpt" role="test" />
+            <file name="tests/ext/dd_trace_api_error.phpt" role="test" />
+            <file name="tests/ext/dd_trace_coms_empty_stacks_correctly_recycled.phpt" role="test" />
+            <file name="tests/ext/dd_trace_push_span_id_from_userland.phpt" role="test" />
+            <file name="tests/ext/dd_trace_send_traces_via_thread_001.phpt" role="test" />
+            <file name="tests/ext/dd_trace_send_traces_via_thread_002.phpt" role="test" />
+            <file name="tests/ext/dd_trace_serialize_msgpack.phpt" role="test" />
+            <file name="tests/ext/dd_trace_serialize_msgpack_error.phpt" role="test" />
+            <file name="tests/ext/dd_trace_serialize_msgpack_reference.phpt" role="test" />
+            <file name="tests/ext/dd_trace_tracer_is_limited_memory.phpt" role="test" />
+            <file name="tests/ext/dd_trace_warning.phpt" role="test" />
+            <file name="tests/ext/do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
+            <file name="tests/ext/extension_disabled.phpt" role="test" />
+            <file name="tests/ext/from_php_7_3_bug61728.phpt" role="test" />
+            <file name="tests/ext/from_php_7_3_test_user_streams_consumed_bug.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_0.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_0_percent.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_default.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_set_by_absolute.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_set_by_percentage.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_unlimited_default.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_unlimited_set_by_absolute.phpt" role="test" />
+            <file name="tests/ext/get_memory_limit_unlimited_set_by_percentage.phpt" role="test" />
+            <file name="tests/ext/read_c_configuration.phpt" role="test" />
+            <file name="tests/ext/request_timeout_01.phpt" role="test" />
+            <file name="tests/ext/segfault_backtrace_disabled.phpt" role="test" />
+            <file name="tests/ext/segfault_backtrace_enabled.phpt" role="test" />
+            <file name="tests/ext/startup_logging.inc" role="test" />
+            <file name="tests/ext/startup_logging.phpt" role="test" />
+            <file name="tests/ext/startup_logging_config.phpt" role="test" />
+            <file name="tests/ext/startup_logging_diagnostics.phpt" role="test" />
+            <file name="tests/ext/startup_logging_disabled.phpt" role="test" />
+            <file name="tests/ext/startup_logging_json.phpt" role="test" />
+            <file name="tests/ext/startup_logging_json_config.phpt" role="test" />
+            <file name="tests/ext/startup_logging_skipif.inc" role="test" />
+            <file name="tests/ext/traced_internal_functions_override_01.phpt" role="test" />
+            <file name="tests/ext/traced_internal_functions_override_02.phpt" role="test" />
+
+            <!-- Docs -->
             <file name="CHANGELOG.md" role="doc" />
             <file name="config.m4" role="src" />
-            <dir name="m4">
-                <file name="ax_execinfo.m4" role="src" />
-                <file name="polyfill.m4" role="src" />
-            </dir>
             <file name="LICENSE" role="doc" />
             <file name="LICENSE.Apache" role="doc" />
             <file name="LICENSE.BSD3" role="doc" />
             <file name="NOTICE" role="doc" />
             <file name="README.md" role="doc" />
             <file name="UPGRADE-0.10.md" role="doc" />
+
+            <!-- PHP files -->
+            <!-- Include any files from ./bridge that are not referenced in ./bridge/_files.php -->
+            <!-- Make sure to update <filelist> below too -->
+            <file name="bridge/_generated.php" role="php" />
+            <file name="bridge/autoload.php" role="php" />
+            <file name="bridge/dd_init.php" role="php" />
+            <file name="bridge/dd_register_optional_deps_autoloader.php" role="php" />
+            <file name="bridge/dd_wrap_autoloader.php" role="php" />
+            <file name="bridge/php5.php" role="php" />
         </dir>
     </contents>
     <dependencies>
         <required>
             <php>
-                <min>5.6</min>
+                <min>5.4</min>
                 <max>7.4.99</max>
             </php>
             <pearinstaller>
@@ -420,6 +478,13 @@
     </dependencies>
     <providesextension>ddtrace</providesextension>
     <extsrcrelease>
-        <configureoption name="enable-ddtrace-debug" default="no" prompt="Enable internal debugging in ddtrace" />
+        <filelist>
+            <install as="datadog_trace/bridge/_generated.php" name="bridge/_generated.php" />
+            <install as="datadog_trace/bridge/autoload.php" name="bridge/autoload.php" />
+            <install as="datadog_trace/bridge/dd_init.php" name="bridge/dd_init.php" />
+            <install as="datadog_trace/bridge/dd_register_optional_deps_autoloader.php" name="bridge/dd_register_optional_deps_autoloader.php" />
+            <install as="datadog_trace/bridge/dd_wrap_autoloader.php" name="bridge/dd_wrap_autoloader.php" />
+            <install as="datadog_trace/bridge/php5.php" name="bridge/php5.php" />
+        </filelist>
     </extsrcrelease>
 </package>

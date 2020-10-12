@@ -8,7 +8,7 @@ use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Util\Versions;
 use Predis\Configuration\Options;
 
-class PredisTest extends IntegrationTestCase
+final class PredisTest extends IntegrationTestCase
 {
     private $host = 'redis_integration';
     private $port = '6379';
@@ -27,7 +27,7 @@ class PredisTest extends IntegrationTestCase
     public function testPredisIntegrationCreatesSpans()
     {
         $traces = $this->inTestScope('custom_redis.test', function () {
-            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client = new \Predis\Client(["host" => $this->host]);
             $value = 'bar';
 
             $client->set('foo', $value);
@@ -44,7 +44,7 @@ class PredisTest extends IntegrationTestCase
     public function testPredisConstructOptionsAsArray()
     {
         $traces = $this->isolateTracer(function () {
-            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client = new \Predis\Client(["host" => $this->host]);
             $this->assertNotNull($client);
         });
 
@@ -59,7 +59,7 @@ class PredisTest extends IntegrationTestCase
         $options = new Options();
 
         $traces = $this->isolateTracer(function () use ($options) {
-            $client = new \Predis\Client([ "host" => $this->host ], $options);
+            $client = new \Predis\Client(["host" => $this->host], $options);
             $this->assertNotNull($client);
         });
 
@@ -73,7 +73,7 @@ class PredisTest extends IntegrationTestCase
     public function testPredisConnect()
     {
         $traces = $this->isolateTracer(function () {
-            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client = new \Predis\Client(["host" => $this->host]);
             $client->connect();
         });
 
@@ -89,7 +89,7 @@ class PredisTest extends IntegrationTestCase
         $connectionString = "tcp://{$this->host}";
 
         $traces = $this->isolateTracer(function () use ($connectionString) {
-            $client = new \Predis\Client([ $connectionString, $connectionString, $connectionString ]);
+            $client = new \Predis\Client([$connectionString, $connectionString, $connectionString]);
             $client->connect();
         });
 
@@ -103,7 +103,7 @@ class PredisTest extends IntegrationTestCase
     public function testPredisSetCommand()
     {
         $traces = $this->isolateTracer(function () {
-            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client = new \Predis\Client(["host" => $this->host]);
             $client->set('foo', 'value');
         });
 
@@ -121,7 +121,7 @@ class PredisTest extends IntegrationTestCase
     public function testPredisGetCommand()
     {
         $traces = $this->isolateTracer(function () {
-            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client = new \Predis\Client(["host" => $this->host]);
             $client->set('key', 'value');
             $this->assertSame('value', $client->get('key'));
         });
@@ -141,7 +141,7 @@ class PredisTest extends IntegrationTestCase
     public function testPredisRawCommand()
     {
         $traces = $this->isolateTracer(function () {
-            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client = new \Predis\Client(["host" => $this->host]);
             $client->executeRaw(["SET", "key", "value"]);
         });
 
@@ -159,7 +159,7 @@ class PredisTest extends IntegrationTestCase
     public function testPredisPipeline()
     {
         $traces = $this->isolateTracer(function () {
-            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client = new \Predis\Client(["host" => $this->host]);
             list($responsePing, $responseFlush) = $client->pipeline(function ($pipe) {
                 $pipe->ping();
                 $pipe->flushdb();
@@ -168,7 +168,7 @@ class PredisTest extends IntegrationTestCase
             $this->assertInstanceOf('Predis\Response\Status', $responseFlush);
         });
 
-        if (Versions::phpVersionMatches('5') && static::IS_SANDBOX) {
+        if (Versions::phpVersionMatches('5')) {
             $exactTags = [];
         } else {
             $exactTags = [
@@ -186,7 +186,7 @@ class PredisTest extends IntegrationTestCase
     public function testLimitedTracesPredisSetCommand()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client = new \Predis\Client(["host" => $this->host]);
             $client->set('foo', 'value');
         });
 
@@ -196,7 +196,7 @@ class PredisTest extends IntegrationTestCase
     public function testLimitedTracesPredisGetCommand()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client = new \Predis\Client(["host" => $this->host]);
             $client->set('key', 'value');
             $this->assertSame('value', $client->get('key'));
         });
@@ -207,7 +207,7 @@ class PredisTest extends IntegrationTestCase
     public function testLimitedTracerPredisPipeline()
     {
         $traces = $this->isolateLimitedTracer(function () {
-            $client = new \Predis\Client([ "host" => $this->host ]);
+            $client = new \Predis\Client(["host" => $this->host]);
             list($responsePing, $responseFlush) = $client->pipeline(function ($pipe) {
                 $pipe->ping();
                 $pipe->flushdb();

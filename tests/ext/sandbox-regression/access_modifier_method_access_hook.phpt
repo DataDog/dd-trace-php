@@ -1,7 +1,5 @@
 --TEST--
 [Sandbox regression] Private and protected methods are called from a tracing closure
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 class Foo

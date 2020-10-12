@@ -20,7 +20,7 @@ array_map(function($span) {
 var_dump(error_get_last());
 ?>
 --EXPECT--
-Error thrown in tracing closure for array_sum: Call to undefined function this_function_does_not_exist()
+Error thrown in ddtrace's closure for array_sum(): Call to undefined function this_function_does_not_exist()
 int(100)
 array_sum
 NULL

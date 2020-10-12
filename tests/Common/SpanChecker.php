@@ -238,15 +238,13 @@ final class SpanChecker
      *
      * @param $traces
      * @param SpanAssertion[] $expectedSpans
-     * @param bool $isSandbox
      */
-    public function assertSpans($traces, $expectedSpans, $isSandbox = false)
+    public function assertSpans($traces, $expectedSpans)
     {
         $flattenTraces = $this->flattenTraces($traces);
-        if (true === $isSandbox) {
-            // The sandbox API pops closed spans off a stack so spans will be in reverse order
-            $flattenTraces = array_reverse($flattenTraces);
-        }
+        // The sandbox API pops closed spans off a stack so spans will be in reverse order
+        $flattenTraces = array_reverse($flattenTraces);
+
         // First we assert that ALL the expected spans are in the actual traces and no unexpected span exists.
         $expectedSpansReferences = array_map(function (SpanAssertion $assertion) {
             return $assertion->getOperationName();
@@ -302,6 +300,7 @@ final class SpanChecker
                     isset($span['meta']['http.status_code']) ? $span['meta']['http.status_code'] : '',
                     $namePrefix . "Wrong value for 'status code'. "
                         . "Expected: $expectedStatusCode. Actual: $actualStatusCode"
+                        . print_r($span, true)
                 );
             }
         }
@@ -313,12 +312,12 @@ final class SpanChecker
         TestCase::assertSame(
             $exp->getOperationName(),
             isset($span['name']) ? $span['name'] : '',
-            $namePrefix . "Wrong value for 'operation name'"
+            $namePrefix . "Wrong value for 'operation name': " . print_r($span, true)
         );
         TestCase::assertSame(
             $exp->hasError(),
             isset($span['error']) && 1 === $span['error'],
-            $namePrefix . "Wrong value for 'error'"
+            $namePrefix . "Wrong value for 'error': " . print_r($span, true)
         );
         if ($exp->getExactTags() !== SpanAssertion::NOT_TESTED) {
             $filtered = [];
@@ -383,21 +382,21 @@ final class SpanChecker
             TestCase::assertEquals(
                 $metrics,
                 isset($span['metrics']) ? $span['metrics'] : [],
-                $namePrefix . "Wrong value for 'metrics'"
+                $namePrefix . "Wrong value for 'metrics' " . print_r($span, true)
             );
         }
         if ($exp->getService() != SpanAssertion::NOT_TESTED) {
             TestCase::assertSame(
                 $exp->getService(),
                 isset($span['service']) ? $span['service'] : '',
-                $namePrefix . "Wrong value for 'service'"
+                $namePrefix . "Wrong value for 'service' " . print_r($span, true)
             );
         }
         if ($exp->getType() != SpanAssertion::NOT_TESTED) {
             TestCase::assertSame(
                 $exp->getType(),
                 isset($span['type']) ? $span['type'] : '',
-                $namePrefix . "Wrong value for 'type'"
+                $namePrefix . "Wrong value for 'type' " . print_r($span, true)
             );
         }
         if ($exp->getResource() != SpanAssertion::NOT_TESTED) {
@@ -405,7 +404,8 @@ final class SpanChecker
             $actualResource = isset($span['resource']) ? $span['resource'] : '';
             TestCase::assertTrue(
                 $this->exactWildcardsMatches($expectedResource, $actualResource),
-                $namePrefix . "Wrong value for 'resource'. Exp: '$expectedResource' - Act: '$actualResource'"
+                $namePrefix . "Wrong value for 'resource'. Exp: '$expectedResource' - Act: '$actualResource' "
+                . print_r($span, true)
             );
         }
     }

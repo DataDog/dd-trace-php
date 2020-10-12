@@ -11,6 +11,7 @@
 #include "ddtrace.h"
 #include "logging.h"
 #include "mpack/mpack.h"
+#include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -183,14 +184,13 @@ static void _trace_string(smart_str *str, HashTable *ht, uint32_t num) /* {{{ */
     _DD_TRACE_APPEND_KEY("class");
     _DD_TRACE_APPEND_KEY("type");
     _DD_TRACE_APPEND_KEY("function");
-    tmp = zend_hash_str_find(ht, "args", sizeof("args") - 1);
 
-    /* If there were arguments, show an ellipsis, otherwise nothing */
-    if (tmp && Z_TYPE_P(tmp) == IS_ARRAY && zend_hash_num_elements(Z_ARRVAL_P(tmp))) {
-        smart_str_appends(str, "(...)\n");
-    } else {
-        smart_str_appends(str, "()\n");
-    }
+    /* We intentionally do not show any arguments, not even an ellipsis if there
+     * are arguments. This is because in PHP 7.4 there is an INI setting called
+     * zend.exception_ignore_args that prevents them from being generated, so we
+     * can't even know if there are args reliably.
+     */
+    smart_str_appends(str, "()\n");
 }
 
 /* Modelled after getTraceAsString from PHP 5.4:
@@ -221,32 +221,73 @@ static void _serialize_stack_trace(zval *meta, zval *trace) {
     add_assoc_zval(meta, "error.stack", &output);
 }
 
-static void _serialize_exception(zval *el, zval *meta, ddtrace_span_t *span) {
-    zval exception, name, msg, stack;
-    if (!span->exception) {
+static void dd_serialize_exception(zval *el, zval *meta, zend_object *exception_obj) {
+    zval exception, name, msg, code, stack;
+    if (!exception_obj) {
         return;
     }
 
-    ZVAL_OBJ(&exception, span->exception);
+    ZVAL_OBJ(&exception, exception_obj);
 
     add_assoc_long(el, "error", 1);
 
     ZVAL_STR(&name, Z_OBJCE(exception)->name);
+#if PHP_VERSION_ID < 80000
     zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "getmessage", &msg);
+#else
+    zend_call_method_with_0_params(exception_obj, Z_OBJCE(exception), NULL, "getmessage", &msg);
+#endif
 
-    _add_assoc_zval_copy(meta, "error.type", &name);
+    if (instanceof_function(Z_OBJCE(exception), ddtrace_ce_fatal_error)) {
+#if PHP_VERSION_ID < 80000
+        zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "getcode", &code);
+#else
+        zend_call_method_with_0_params(exception_obj, Z_OBJCE(exception), NULL, "getcode", &code);
+#endif
+        if (Z_TYPE_INFO(code) == IS_LONG) {
+            switch (Z_LVAL(code)) {
+                case E_ERROR:
+                    add_assoc_string(meta, "error.type", "E_ERROR");
+                    break;
+                case E_CORE_ERROR:
+                    add_assoc_string(meta, "error.type", "E_CORE_ERROR");
+                    break;
+                case E_COMPILE_ERROR:
+                    add_assoc_string(meta, "error.type", "E_COMPILE_ERROR");
+                    break;
+                case E_USER_ERROR:
+                    add_assoc_string(meta, "error.type", "E_USER_ERROR");
+                    break;
+                default:
+                    ZEND_ASSERT(0 && "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
+                    add_assoc_string(meta, "error.type", "{unknown error}");
+                    break;
+            }
+        } else {
+            ddtrace_log_debug("Exception was a DDTrace\\FatalError but exception code was not an int");
+        }
+        zval_ptr_dtor(&code);
+    } else {
+        _add_assoc_zval_copy(meta, "error.type", &name);
+    }
+
     add_assoc_zval(meta, "error.msg", &msg);
 
     /* Note, we use Exception::getTrace() instead of getTraceAsString because
      * function arguments can contain sensitive information. Since we do not
      * have a comprehensive way to know which function arguments are sensitive
      * we will just hide all of them. */
+#if PHP_VERSION_ID < 80000
     zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "gettrace", &stack);
+#else
+    zend_call_method_with_0_params(exception_obj, Z_OBJCE(exception), NULL, "gettrace", &stack);
+#endif
     _serialize_stack_trace(meta, &stack);
     zval_ptr_dtor(&stack);
 }
 
-static void _serialize_meta(zval *el, ddtrace_span_t *span) {
+static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
+    ddtrace_span_t *span = &span_fci->span;
     zval meta_zv, *meta = ddtrace_spandata_property_meta(span->span_data);
 
     array_init(&meta_zv);
@@ -263,8 +304,8 @@ static void _serialize_meta(zval *el, ddtrace_span_t *span) {
     }
     meta = &meta_zv;
 
-    _serialize_exception(el, meta, span);
-    if (!span->exception) {
+    dd_serialize_exception(el, meta, span_fci->exception);
+    if (!span_fci->exception) {
         zval *error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg"));
         if (error) {
             add_assoc_long(el, "error", 1);
@@ -290,7 +331,8 @@ static void _dd_add_assoc_zval_as_string(zval *el, const char *name, zval *value
     zval_dtor(&value_as_string);
 }
 
-void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC) {
+void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSRMLS_DC) {
+    ddtrace_span_t *span = &span_fci->span;
     zval *el;
     zval zv;
     el = &zv;
@@ -336,7 +378,7 @@ void ddtrace_serialize_span_to_array(ddtrace_span_t *span, zval *array TSRMLS_DC
         _dd_add_assoc_zval_as_string(el, "type", prop_type);
     }
 
-    _serialize_meta(el, span TSRMLS_CC);
+    _serialize_meta(el, span_fci TSRMLS_CC);
 
     zval *metrics = ddtrace_spandata_property_metrics(span->span_data);
     if (Z_TYPE_P(metrics) == IS_ARRAY) {

@@ -153,6 +153,9 @@ class Configuration extends AbstractConfiguration
      */
     public function isIntegrationEnabled($name)
     {
+        if (function_exists('ddtrace_config_integration_enabled')) {
+            return \ddtrace_config_integration_enabled($name);
+        }
         return $this->isEnabled() && !$this->inArray('integrations.disabled', $name);
     }
 
@@ -206,12 +209,13 @@ class Configuration extends AbstractConfiguration
 
     /**
      * Whether or not sandboxed tracing closures are enabled.
+     * @deprecated 0.48.0 Sandoxing is always enabled.
      *
      * @return bool
      */
     public function isSandboxEnabled()
     {
-        return $this->boolValue('trace.sandbox.enabled', true);
+        return true;
     }
 
     /**

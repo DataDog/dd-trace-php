@@ -17,6 +17,8 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
     const PORT = 9999;
 
+    const ERROR_LOG_NAME = 'phpunit_error.log';
+
     /**
      * @var WebServer|null
      */
@@ -24,6 +26,10 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
 
     public static function setUpBeforeClass()
     {
+        $index = static::getAppIndexScript();
+        if ($index) {
+            ini_set('error_log', dirname($index) . '/' . static::ERROR_LOG_NAME);
+        }
         parent::setUpBeforeClass();
         static::setUpWebServer();
     }
@@ -51,17 +57,12 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     protected static function getEnvs()
     {
         $envs = [
-            'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
             'DD_TEST_INTEGRATION' => 'true',
             'DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS' => 1,
             // Short flush interval by default or our tests will take all day
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => static::FLUSH_INTERVAL_MS,
             'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
         ];
-
-        if (!self::isSandboxed()) {
-            $envs['DD_TRACE_SANDBOX_ENABLED'] = 'false';
-        }
 
         return $envs;
     }
@@ -146,6 +147,9 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
                 // sleep for 100 milliseconds before trying again
                 \usleep(100 * 1000);
             } else {
+                // See phpunit_error.log in CircleCI artifacts
+                error_log("[request] '{$method} {$url}' (attempt #{$i})");
+                error_log("[response] {$response}");
                 break;
             }
         }

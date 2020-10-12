@@ -1,7 +1,5 @@
 --TEST--
 [Sandbox regression] Do not throw exceptions when verifying if method or function exists
---SKIPIF--
-<?php if (PHP_VERSION_ID < 50500) die('skip PHP 5.4 not supported'); ?>
 --FILE--
 <?php
 

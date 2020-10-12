@@ -28,9 +28,10 @@ if test "$PHP_DDTRACE" != "no"; then
   )
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
-    PHP_ADD_LIBRARY(asan, , EXTRA_LDFLAGS)
+    EXTRA_LDFLAGS="-fsanitize=address"
     EXTRA_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
     PHP_SUBST(EXTRA_CFLAGS)
+    PHP_SUBST(EXTRA_LDFLAGS)
   fi
 
   dnl ddtrace.c comes first, then everything else alphabetically
@@ -56,6 +57,7 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/signals.c \
     src/ext/span.c \
     src/ext/third-party/mt19937-64.c \
+    src/ext/integrations/integrations.c \
   "
 
   PHP_VERSION=$($PHP_CONFIG --vernum)
@@ -63,39 +65,62 @@ if test "$PHP_DDTRACE" != "no"; then
   if test $PHP_VERSION -lt 50500; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
       src/ext/php5_4/auto_flush.c \
-      src/ext/php5_4/blacklist.c \
       src/ext/php5_4/dispatch.c \
-      src/ext/php5_4/distributed_tracing.c \
       src/ext/php5_4/engine_hooks.c \
-      src/ext/php5_4/handlers_internal.c \
-      src/ext/php5_4/serializer.c \
+      src/ext/php5/distributed_tracing.c \
+      src/ext/php5/engine_api.c \
+      src/ext/php5/excluded_modules.c \
+      src/ext/php5/handlers_curl.c \
+      src/ext/php5/handlers_internal.c \
+      src/ext/php5/serializer.c \
+      src/ext/php5/startup_logging.c \
     "
   elif test $PHP_VERSION -lt 70000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
       src/ext/php5/auto_flush.c \
-      src/ext/php5/blacklist.c \
       src/ext/php5/dispatch.c \
       src/ext/php5/distributed_tracing.c \
       src/ext/php5/engine_api.c \
       src/ext/php5/engine_hooks.c \
+      src/ext/php5/excluded_modules.c \
       src/ext/php5/handlers_curl.c \
       src/ext/php5/handlers_internal.c \
       src/ext/php5/serializer.c \
+      src/ext/php5/startup_logging.c \
     "
   elif test $PHP_VERSION -lt 80000; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
       src/ext/php7/auto_flush.c \
-      src/ext/php7/blacklist.c \
       src/ext/php7/dispatch.c \
       src/ext/php7/distributed_tracing.c \
       src/ext/php7/engine_api.c \
       src/ext/php7/engine_hooks.c \
+      src/ext/php7/excluded_modules.c \
       src/ext/php7/handlers_curl.c \
       src/ext/php7/handlers_internal.c \
       src/ext/php7/handlers_memcached.c \
       src/ext/php7/handlers_mysqli.c \
       src/ext/php7/handlers_pdo.c \
+      src/ext/php7/handlers_phpredis.c \
       src/ext/php7/serializer.c \
+      src/ext/php7/startup_logging.c \
+    "
+  elif test $PHP_VERSION -lt 90000; then
+    DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES="\
+      src/ext/php7/auto_flush.c \
+      src/ext/php7/dispatch.c \
+      src/ext/php7/distributed_tracing.c \
+      src/ext/php7/engine_api.c \
+      src/ext/php7/engine_hooks.c \
+      src/ext/php7/excluded_modules.c \
+      src/ext/php7/handlers_curl.c \
+      src/ext/php7/handlers_internal.c \
+      src/ext/php7/handlers_memcached.c \
+      src/ext/php7/handlers_mysqli.c \
+      src/ext/php7/handlers_pdo.c \
+      src/ext/php7/handlers_phpredis.c \
+      src/ext/php7/serializer.c \
+      src/ext/php7/startup_logging.c \
     "
   else
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES=""
@@ -120,15 +145,25 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_ADD_INCLUDE([$ext_srcdir/src/ext/mpack])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/mpack])
 
+  PHP_ADD_INCLUDE([$ext_srcdir/src/ext/integrations])
+  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/integrations])
+
   PHP_ADD_INCLUDE([$ext_srcdir/src/dogstatsd])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/dogstatsd])
 
   if test $PHP_VERSION -lt 50500; then
     PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5_4])
-  elif test $PHP_VERSION -lt 70000; then
+  fi
+
+  dnl PHP 5.4 uses things from the php5 folder too
+  if test $PHP_VERSION -lt 70000; then
     PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php5])
   elif test $PHP_VERSION -lt 80000; then
     PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php7])
+  elif test $PHP_VERSION -lt 90000; then
+    dnl PHP 8.0 uses things from the php7 folder too
+    PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php7])
+    PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/php8])
   fi
   PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/third-party])
 fi

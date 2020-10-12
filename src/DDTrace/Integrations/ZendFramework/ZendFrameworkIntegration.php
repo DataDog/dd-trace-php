@@ -2,8 +2,12 @@
 
 namespace DDTrace\Integrations\ZendFramework;
 
+use DDTrace\GlobalTracer;
+use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
 use DDTrace\Util\Runtime;
+use Zend_Controller_Front;
 
 /**
  * Zend framework integration loader.
@@ -11,22 +15,6 @@ use DDTrace\Util\Runtime;
 class ZendFrameworkIntegration extends Integration
 {
     const NAME = 'zendframework';
-
-    /**
-     * @var self
-     */
-    private static $instance;
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
 
     /**
      * @return string The integration name.
@@ -49,7 +37,7 @@ class ZendFrameworkIntegration extends Integration
      *
      * @return int
      */
-    public static function load()
+    public function init()
     {
         if (!self::shouldLoad(self::NAME)) {
             return self::NOT_AVAILABLE;
@@ -61,21 +49,81 @@ class ZendFrameworkIntegration extends Integration
             return self::NOT_AVAILABLE;
         }
 
-        dd_trace('Zend_Application', 'setOptions', function () {
-            list($options) = func_get_args();
+        $integration = $this;
+        // For backward compatibility with the legacy API we are not using the integration
+        // name 'zendframework', we are instead using the 'zf1' prefix.
+        $appName = \ddtrace_config_app_name('zf1');
 
-            $classExist = class_exists('DDTrace_Ddtrace');
+        \DDTrace\trace_method(
+            'Zend_Controller_Plugin_Broker',
+            'preDispatch',
+            function (SpanData $spanData, $args) use ($integration, $appName) {
+                $rootScope = GlobalTracer::get()->getRootScope();
+                if (null === $rootScope) {
+                    return false;
+                }
 
-            if (!$classExist && !isset($options['resources']['ddtrace'])) {
-                $options['autoloaderNamespaces'][] = 'DDTrace_';
-                $options['pluginPaths']['DDTrace'] = __DIR__ . '/V1';
-                $options['resources']['ddtrace'] = true;
+                $rootSpan = $rootScope->getSpan();
+                if (null === $rootSpan) {
+                    return false;
+                }
+
+                // We are enclosing this into a try-catch because we always have to return false,
+                // even at the cost of not setting specific metadata.
+                try {
+                    /** @var Zend_Controller_Request_Abstract $request */
+                    list($request) = $args;
+                    $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
+                    $rootSpan->overwriteOperationName($integration->getOperationName());
+                    $rootSpan->setTag(Tag::SERVICE_NAME, $appName);
+                    $controller = $request->getControllerName();
+                    $action = $request->getActionName();
+                    $route = Zend_Controller_Front::getInstance()->getRouter()->getCurrentRouteName();
+                    $rootSpan->setTag('zf1.controller', $controller);
+                    $rootSpan->setTag('zf1.action', $action);
+                    $rootSpan->setTag('zf1.route_name', $route);
+                    $rootSpan->setResource($controller . '@' . $action . ' ' . $route);
+                    $rootSpan->setTag(Tag::HTTP_METHOD, $request->getMethod());
+                    $rootSpan->setTag(
+                        Tag::HTTP_URL,
+                        $request->getScheme() . '://' .
+                        $request->getHttpHost() .
+                        $request->getRequestUri()
+                    );
+                } catch (\Exception $e) {
+                }
+
+                return false;
+            }
+        );
+
+        \DDTrace\trace_method('Zend_Controller_Plugin_Broker', 'postDispatch', function () {
+            $rootScope = GlobalTracer::get()->getRootScope();
+            if (null === $rootScope || null === ($rootSpan = $rootScope->getSpan())) {
+                return false;
             }
 
-            // We can't use dd_trace_forward_call() here since we're changing the args
-            return $this->setOptions($options);
+            // We are enclosing this into a try-catch because we always have to return false,
+            // even at the cost of not setting specific metadata.
+            try {
+                $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $this->getResponse()->getHttpResponseCode());
+            } catch (\Exception $e) {
+            }
+
+            return false;
         });
 
         return Integration::LOADED;
+    }
+
+    /**
+     * @return string
+     */
+    public static function getOperationName()
+    {
+        $contextName = 'cli' === PHP_SAPI ? 'command' : 'request';
+        // For backward compatibility with the legacy API we are not using the integration
+        // name 'zendframework', we are instead using the 'zf1' prefix.
+        return 'zf1' . '.' . $contextName;
     }
 }

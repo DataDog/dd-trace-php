@@ -48,9 +48,6 @@ final class TracerTest extends BaseTestCase
 
     public function testGlobalTagsArePresentOnInternalSpansByFlushTime()
     {
-        if (Versions::phpVersionMatches('5.4')) {
-            $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
-        }
         \DDTrace\trace_method(
             'DDTrace\Tests\Integration\TracerTest',
             'dummyMethodGlobalTags',
@@ -135,10 +132,6 @@ final class TracerTest extends BaseTestCase
      */
     public function testResourceNormalizationNonRootSpanInternalApi()
     {
-        if (Versions::phpVersionMatches('5.4')) {
-            $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
-        }
-
         \DDTrace\trace_method(
             'DDTrace\Tests\Integration\TracerTest',
             'dummyMethodResourceNormalizationInternalApi',
@@ -260,7 +253,7 @@ final class TracerTest extends BaseTestCase
         $this->assertTrue(empty($traces[0][0]['meta']['env']));
     }
 
-    public function testDDEnvHasPrecendenceOverGlobalTags()
+    public function testDDEnvHasPrecedenceOverGlobalTags()
     {
         $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags']);
         $traces = $this->isolateTracer(function (Tracer $tracer) {
@@ -269,6 +262,47 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertSame('from-env', $traces[0][0]['meta']['env']);
+    }
+
+    public function testDDEnvHasPrecedenceOverGlobalTagsForChildrenSpans()
+    {
+        \DDTrace\trace_method(
+            'DDTrace\Tests\Integration\TracerTest',
+            'noopEnvPrecedence',
+            function (SpanData $span) {
+                $span->name = 'custom.child.2';
+                $span->meta = ['local_tag' => 'local'];
+            }
+        );
+
+        $this->putEnvAndReloadConfig(['DD_ENV=from-env', 'DD_TAGS=env:from-tags,global:foo']);
+
+        $test = $this;
+        $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scopeChild = $tracer->startActiveSpan('custom.child.1');
+            $test->noopEnvPrecedence();
+            $scopeChild->close();
+            $scope->close();
+        });
+
+        self::assertCount(3, $traces[0]);
+
+        $span = $traces[0][0];
+        self::assertSame('custom.root', $span['name']);
+        self::assertSame('foo', $span['meta']['global']);
+        self::assertSame('from-env', $span['meta']['env']);
+
+        $span = $traces[0][1];
+        self::assertSame('custom.child.1', $span['name']);
+        self::assertSame('foo', $span['meta']['global']);
+        self::assertSame('from-env', $span['meta']['env']);
+
+        $span = $traces[0][2];
+        self::assertSame('custom.child.2', $span['name']);
+        self::assertSame('foo', $span['meta']['global']);
+        self::assertSame('local', $span['meta']['local_tag']);
+        self::assertSame('from-env', $span['meta']['env']);
     }
 
     public function testServiceVersionIsAddedToASpan()
@@ -293,7 +327,7 @@ final class TracerTest extends BaseTestCase
         $this->assertTrue(empty($traces[0][0]['meta']['version']));
     }
 
-    public function testDDVersionHasPrecendenceOverGlobalTags()
+    public function testDDVersionHasPrecedenceOverGlobalTags()
     {
         $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags']);
         $traces = $this->isolateTracer(function (Tracer $tracer) {
@@ -302,6 +336,45 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertSame('from-env', $traces[0][0]['meta']['version']);
+    }
+
+    public function testDDVersionPrecedenceOverGlobalTagsForChildrenSpans()
+    {
+        \DDTrace\trace_method(
+            'DDTrace\Tests\Integration\TracerTest',
+            'noopVersionPrecedence',
+            function (SpanData $span) {
+                $span->name = 'custom.child.2';
+            }
+        );
+
+        $this->putEnvAndReloadConfig(['DD_VERSION=from-env', 'DD_TAGS=version:from-tags,global:foo']);
+
+        $test = $this;
+        $traces = $this->isolateTracer(function (Tracer $tracer) use ($test) {
+            $scope = $tracer->startActiveSpan('custom.root');
+            $scopeChild = $tracer->startActiveSpan('custom.child.1');
+            $test->noopVersionPrecedence();
+            $scopeChild->close();
+            $scope->close();
+        });
+
+        self::assertCount(3, $traces[0]);
+
+        $span = $traces[0][0];
+        self::assertSame('custom.root', $span['name']);
+        self::assertSame('foo', $span['meta']['global']);
+        self::assertSame('from-env', $span['meta']['version']);
+
+        $span = $traces[0][1];
+        self::assertSame('custom.child.1', $span['name']);
+        self::assertSame('foo', $span['meta']['global']);
+        self::assertSame('from-env', $span['meta']['version']);
+
+        $span = $traces[0][2];
+        self::assertSame('custom.child.2', $span['name']);
+        self::assertSame('foo', $span['meta']['global']);
+        self::assertSame('from-env', $span['meta']['version']);
     }
 
     public function testServiceMappingNoEnvMapping()
@@ -346,10 +419,6 @@ final class TracerTest extends BaseTestCase
     public function testServiceMappingInternalApi()
     {
         putenv('DD_SERVICE_MAPPING=original_service:changed_service');
-
-        if (Versions::phpVersionMatches('5.4')) {
-            $this->markTestSkipped('Internal spans are not enabled yet on PHP 5.4');
-        }
 
         \DDTrace\trace_method(
             'DDTrace\Tests\Integration\TracerTest',
@@ -413,6 +482,14 @@ final class TracerTest extends BaseTestCase
     }
 
     public function dummyMethodServiceMappingInternalApi()
+    {
+    }
+
+    public function noopEnvPrecedence()
+    {
+    }
+
+    public function noopVersionPrecedence()
     {
     }
 }

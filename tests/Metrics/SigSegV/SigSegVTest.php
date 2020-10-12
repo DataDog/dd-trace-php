@@ -8,7 +8,6 @@ use DDTrace\Tests\WebServer;
 
 class SigSegVTest extends WebFrameworkTestCase
 {
-
     protected static function getEnvs()
     {
         return \array_merge(parent::getEnvs(), ['DD_TRACE_HEALTH_METRICS_ENABLED' => 1]);

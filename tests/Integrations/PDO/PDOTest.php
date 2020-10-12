@@ -5,21 +5,31 @@ namespace DDTrace\Tests\Integrations\PDO;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 
-class PDOTest extends IntegrationTestCase
+final class PDOTest extends IntegrationTestCase
 {
-    const IS_SANDBOX = false;
-
     const MYSQL_DATABASE = 'test';
     const MYSQL_USER = 'test';
     const MYSQL_PASSWORD = 'test';
     const MYSQL_HOST = 'mysql_integration';
 
     // phpcs:disable
-    const ERROR_CONSTRUCT = 'Sql error: SQLSTATE[HY000] [1045]';
-    const ERROR_EXEC = 'Sql error';
-    const ERROR_QUERY = 'Sql error';
-    const ERROR_STATEMENT = 'Sql error';
+    const ERROR_CONSTRUCT = 'SQLSTATE[HY000] [1045] Access denied for user \'wrong_user\'@\'%s\' (using password: YES)';
+    const ERROR_EXEC = 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY)\' at line 1';
+    const ERROR_QUERY = 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\' at line 1';
+    const ERROR_STATEMENT = 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\' at line 1';
     // phpcs:enable
+
+    public static function setUpBeforeClass()
+    {
+        putenv('DD_PDO_ANALYTICS_ENABLED=true');
+        parent::setUpBeforeClass();
+    }
+
+    public static function tearDownAfterClass()
+    {
+        parent::tearDownAfterClass();
+        putenv('DD_PDO_ANALYTICS_ENABLED');
+    }
 
     protected function setUp()
     {
@@ -33,15 +43,105 @@ class PDOTest extends IntegrationTestCase
         parent::tearDown();
     }
 
+    public function testCustomPDOPrepareWithStringableStatement()
+    {
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = new CustomPDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
+            $stmt = $pdo->prepare(new CustomPDOStatement($query));
+            $stmt->execute([1]);
+            $results = $stmt->fetchAll();
+            $this->assertEquals('Tom', $results[0]['name']);
+            $stmt->closeCursor();
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build(
+                'PDO.prepare',
+                'pdo',
+                'sql',
+                $query
+            )->withExactTags($this->baseTags()),
+            SpanAssertion::build(
+                'PDOStatement.execute',
+                'pdo',
+                'sql',
+                $query
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(array_merge($this->baseTags(), [
+                    'db.rowcount' => 1,
+                ])),
+        ]);
+    }
+
+    public function testBrokenPDOPrepareWithNonStringableStatement()
+    {
+        if (PHP_VERSION_ID < 70200) {
+            $this->markTestSkipped('Test relies on spl_object_id() which was added in PHP 7.2');
+            return;
+        }
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $objId = 0;
+        $traces = $this->isolateTracer(function () use ($query, &$objId) {
+            $pdo = new CustomPDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD);
+            $brokenStatement = new BrokenPDOStatement($query);
+            $objId = spl_object_id($brokenStatement);
+            $stmt = $pdo->prepare($brokenStatement);
+            $stmt->execute([1]);
+            $results = $stmt->fetchAll();
+            $this->assertEquals('Tom', $results[0]['name']);
+            $stmt->closeCursor();
+        });
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build(
+                'PDO.prepare',
+                'pdo',
+                'sql',
+                'object(DDTrace\Tests\Integrations\PDO\BrokenPDOStatement)#' . $objId
+            )->withExactTags(SpanAssertion::NOT_TESTED),
+            SpanAssertion::build(
+                'PDOStatement.execute',
+                'pdo',
+                'sql',
+                $query
+            )
+                ->setTraceAnalyticsCandidate()
+                ->withExactTags(SpanAssertion::NOT_TESTED),
+        ]);
+    }
+
+    // @see https://github.com/DataDog/dd-trace-php/issues/510
+    public function testPDOStatementsAreReleased()
+    {
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $pdo = new \PDO(
+            $this->mysqlDns(),
+            self::MYSQL_USER,
+            self::MYSQL_PASSWORD,
+            [\PDO::ATTR_EMULATE_PREPARES => false]
+        );
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([1]);
+        unset($stmt);
+
+        $pdo->prepare($query)->execute([2]);
+
+        $closedCount = $pdo->query("SHOW SESSION STATUS LIKE 'Com_stmt_close'")->fetchColumn(1);
+
+        $this->assertEquals(2, $closedCount);
+    }
+
     public function testPDOConstructOk()
     {
         $traces = $this->isolateTracer(function () {
-                $this->pdoInstance();
+            $this->pdoInstance();
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'pdo', 'sql', 'PDO.__construct')
                 ->withExactTags($this->baseTags()),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOConstructError()
@@ -144,7 +244,7 @@ class PDOTest extends IntegrationTestCase
                 ->withExactTags(array_merge($this->baseTags(), [
                     'db.rowcount' => '1',
                 ])),
-        ], static::IS_SANDBOX);
+        ]);
     }
 
     public function testPDOQueryError()
@@ -235,7 +335,7 @@ class PDOTest extends IntegrationTestCase
             )
                 ->setTraceAnalyticsCandidate()
                 ->withExactTags(array_merge($this->baseTags(), [
-                'db.rowcount' => 1,
+                    'db.rowcount' => 1,
                 ])),
         ]);
     }
@@ -300,7 +400,7 @@ class PDOTest extends IntegrationTestCase
             SpanAssertion::build('PDOStatement.execute', 'pdo', 'sql', "WRONG QUERY")
                 ->settraceanalyticscandidate()
                 ->seterror('PDOStatement error', 'SQL error: 42000. Driver error: 1064')
-                    ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags()),
         ]);
     }
 

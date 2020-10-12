@@ -1,0 +1,59 @@
+#!/bin/sh
+set -e
+
+if [ -z "${PHP_SRC_DIR}" ]; then
+    echo "Please set PHP_SRC_DIR"
+    exit 1
+fi
+if [ -z "${PHP_INSTALL_DIR}" ]; then
+    echo "Please set PHP_INSTALL_DIR"
+    exit 1
+fi
+
+phpVersion=master
+srcDir=${PHP_SRC_DIR}/${phpVersion}
+installDir=${PHP_INSTALL_DIR}/${phpVersion}
+
+cd ${srcDir}
+git pull --depth=1 --rebase
+
+sharedConfig="
+    --enable-option-checking=fatal \
+    --enable-cgi \
+    --enable-embed \
+    --enable-fpm \
+    --enable-ftp \
+    --enable-mbstring \
+    --enable-opcache \
+    --enable-phpdbg \
+    --enable-sockets \
+    --with-curl \
+    --with-fpm-user=www-data \
+    --with-fpm-group=www-data \
+    --with-libedit \
+    --with-mhash \
+    --with-mysqli=mysqlnd \
+    --with-openssl \
+    --with-pdo-mysql=mysqlnd \
+    --with-pdo-pgsql \
+    --with-pdo-sqlite \
+    --with-pear \
+    --with-readline \
+    --with-zip \
+    --with-zlib
+"
+
+./buildconf --force
+./configure \
+    ${sharedConfig} \
+    --enable-debug \
+    --prefix=${installDir}-debug \
+    --with-config-file-path=${installDir}-debug \
+    --with-config-file-scan-dir=${installDir}-debug/conf.d
+# TODO Fix asan builds
+#   CFLAGS='-fsanitize=address -static-libasan -DZEND_TRACK_ARENA_ALLOC' \
+#   LDFLAGS='-fsanitize=address -static-libasan'
+make clean
+make -j "$((`nproc`+1))"
+make install
+switch-php ${phpVersion}-debug

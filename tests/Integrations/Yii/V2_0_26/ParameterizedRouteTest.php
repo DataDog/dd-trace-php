@@ -12,9 +12,6 @@ use DDTrace\Type;
 
 class ParameterizedRouteTest extends WebFrameworkTestCase
 {
-
-    const IS_SANDBOX = true;
-
     protected static function getAppIndexScript()
     {
         return __DIR__ . '/../../../Frameworks/Yii/Version_2_0_26/web/index.php';

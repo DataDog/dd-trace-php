@@ -16,6 +16,8 @@ final class Http implements Transport
 
     // Env variables to configure trace agent. They will be moved to a configuration class once we implement it.
     const AGENT_HOST_ENV = 'DD_AGENT_HOST';
+    const TRACE_AGENT_URL_ENV = 'DD_TRACE_AGENT_URL';
+
     // The Agent has a payload cap of 10MB
     // https://github.com/DataDog/datadog-agent/blob/355a34d610bd1554572d7733454ac4af3acd89cd/pkg/trace/api/api.go#L31
     const AGENT_REQUEST_BODY_LIMIT = 10485760; // 10 * 1024 * 1024 => 10MB
@@ -74,8 +76,9 @@ final class Http implements Transport
     {
         $host = getenv(self::AGENT_HOST_ENV) ?: self::DEFAULT_AGENT_HOST;
         $port = getenv(self::TRACE_AGENT_PORT_ENV) ?: self::DEFAULT_TRACE_AGENT_PORT;
+        $traceAgentUrl = getenv(self::TRACE_AGENT_URL_ENV) ?: "http://${host}:${port}";
         $path = self::DEFAULT_TRACE_AGENT_PATH;
-        $endpoint = "http://${host}:${port}${path}";
+        $endpoint = "${traceAgentUrl}${path}";
 
         $this->config = array_merge([
             'endpoint' => $endpoint,

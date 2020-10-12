@@ -7,6 +7,7 @@ use DDTrace\GlobalTracer;
 use DDTrace\Log\ErrorLogLogger;
 use DDTrace\Log\Logger;
 use DDTrace\Tag;
+use DDTrace\Tracer;
 use DDTrace\Type;
 
 date_default_timezone_set("UTC");
@@ -38,5 +39,10 @@ Configuration::get()->appName('default');
  */
 Logger::set(new ErrorLogLogger('debug'));
 Logger::get()->debug('some-debug-message');
+
+// Accessing tracer version, which was loaded from a physical file until 0.48.3.
+if (\class_exists('\DDTrace\Tracer')) {
+    Tracer::version();
+}
 
 echo "OK\n";

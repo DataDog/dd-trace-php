@@ -57,7 +57,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->onlyIf(static::IS_SANDBOX),
+                        ),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -78,7 +78,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->onlyIf(static::IS_SANDBOX),
+                        ),
                         SpanAssertion::build(
                             'cakephp.view',
                             'cakephp_test_app',
@@ -114,7 +114,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'Controller.invokeAction'
                         )->withExistingTagsNames([
                             'error.stack'
-                        ])->setError(null, 'Foo error')->onlyIf(static::IS_SANDBOX),
+                        ])->setError(null, 'Foo error'),
                         SpanAssertion::build(
                             'cakephp.view',
                             'cakephp_test_app',

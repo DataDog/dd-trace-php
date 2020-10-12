@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Configuration;
 use DDTrace\Tag;
 
 final class SpanAssertion
@@ -99,7 +98,7 @@ final class SpanAssertion
     /**
      * @param string|null $errorType The expected error.type
      * @param string|null $errorMessage The expected error.msg
-     * @param bool $exceptionThrown If we would expect error.stack (sandbox only)
+     * @param bool $exceptionThrown If we would expect error.stack
      * @return $this
      */
     public function setError($errorType = null, $errorMessage = null, $exceptionThrown = false)
@@ -119,7 +118,7 @@ final class SpanAssertion
         if (null !== $errorMessage) {
             $this->exactTags[Tag::ERROR_MSG] = $errorMessage;
         }
-        if ($exceptionThrown && Configuration::get()->isSandboxEnabled()) {
+        if ($exceptionThrown) {
             $this->existingTags[] = Tag::ERROR_STACK;
         }
         return $this;

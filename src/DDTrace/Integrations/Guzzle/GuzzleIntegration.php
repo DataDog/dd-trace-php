@@ -2,223 +2,147 @@
 
 namespace DDTrace\Integrations\Guzzle;
 
-use DDTrace\Contracts\Span;
 use DDTrace\Format;
 use DDTrace\GlobalTracer;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\CodeTracer;
+use GuzzleHttp;
 
-final class GuzzleIntegration extends Integration
+class GuzzleIntegration extends Integration
 {
+
     const NAME = 'guzzle';
 
-    /**
-     * @var CodeTracer
-     */
-    private $codeTracer;
-
-    /**
-     * @var self
-     */
-    private static $instance;
-
-    public function __construct()
-    {
-        parent::__construct();
-        $this->codeTracer = CodeTracer::getInstance();
-    }
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
-    /**
-     * @return string The integration name.
-     */
     public function getName()
     {
         return self::NAME;
     }
 
-    public static function load()
+    public function init()
     {
-        $instance = new self();
-        $instance->doLoad();
-        return Integration::LOADED;
-    }
+        if (!self::shouldLoad(self::NAME)) {
+            return Integration::NOT_LOADED;
+        }
 
-    /**
-     * @return int
-     */
-    public function doLoad()
-    {
-        $self = $this;
+        $tracer = GlobalTracer::get();
+        $rootScope = $tracer->getRootScope();
+        if (!$rootScope) {
+            return Integration::NOT_LOADED;
+        }
 
-        $postCallback = function (Span $span, $response) use ($self) {
-            $self->setStatusCodeTag($span, $response);
-        };
+        $integration = $this;
 
-        $integration = GuzzleIntegration::getInstance();
+        if (\PHP_VERSION_ID < 50500) {
+            \DDTrace\hook_method(
+                'GuzzleHttp\\Client',
+                '__construct',
+                null,
+                function (GuzzleHttp\Client $client, $s, $a) {
+                    if (!\method_exists($client, 'getEmitter')) {
+                        // must not be Guzzle 5
+                        return;
+                    }
+                    $emitter = $client->getEmitter();
+                    $emitter->once('before', function (GuzzleHttp\Event\EventInterface $event) {
+                        if (!$event instanceof GuzzleHttp\Event\AbstractRequestEvent) {
+                            return;
+                        }
+                        if (!\ddtrace_config_distributed_tracing_enabled()) {
+                            return;
+                        }
+                        /** @var GuzzleHttp\Event\AbstractRequestEvent $event */
+                        $request = $event->getRequest();
+                        $headers = [];
+                        \DDTrace\Bridge\inject_distributed_tracing_headers(Format::TEXT_MAP, $headers);
+                        $request->addHeaders($headers);
+                    });
+                }
+            );
+        }
 
-        $this->codeTracer->tracePublicMethod(
+        /* Until we support both pre- and post- hooks on the same function, do
+         * not send distributed tracing headers; curl will almost guaranteed do
+         * it for us anyway. Just do a post-hook to get the response.
+         */
+        \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'send',
-            $this->buildLimitTracerCallback(),
-            $this->buildPreCallback('send'),
-            $postCallback,
-            $integration,
-            true
+            function (SpanData $span, $args, $retval) use ($integration) {
+                $span->resource = 'send';
+                $span->name = 'GuzzleHttp\Client.send';
+                $span->service = 'guzzle';
+                $span->type = Type::HTTP_CLIENT;
+
+                if (isset($args[0])) {
+                    $integration->addRequestInfo($span, $args[0]);
+                }
+
+                if (isset($retval)) {
+                    $response = $retval;
+                    if (\is_a($response, 'GuzzleHttp\Message\ResponseInterface')) {
+                        /** @var \GuzzleHttp\Message\ResponseInterface $response */
+                        $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                    } elseif (\is_a($response, 'Psr\Http\Message\ResponseInterface')) {
+                        /** @var \Psr\Http\Message\ResponseInterface $response */
+                        $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                    } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
+                        /** @var \GuzzleHttp\Promise\PromiseInterface $response */
+                        $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
+                            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                        });
+                    }
+                }
+            }
         );
-        $this->codeTracer->tracePublicMethod(
+
+        \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'transfer',
-            $this->buildLimitTracerCallback(),
-            $this->buildPreCallback('transfer'),
-            $postCallback,
-            $integration,
-            true
+            function (SpanData $span, $args, $retval) use ($integration) {
+                $span->resource = 'transfer';
+                $span->name = 'GuzzleHttp\Client.transfer';
+                $span->service = 'guzzle';
+                $span->type = Type::HTTP_CLIENT;
+
+                if (isset($args[0])) {
+                    $integration->addRequestInfo($span, $args[0]);
+                }
+                if (isset($retval)) {
+                    $response = $retval;
+                    if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
+                        /** @var \GuzzleHttp\Promise\PromiseInterface $response */
+                        $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
+                            $span->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                        });
+                    }
+                }
+            }
         );
 
         return Integration::LOADED;
     }
 
-    /**
-     * @param string $method
-     * @return \Closure
-     */
-    private function buildPreCallback($method)
+    public function addRequestInfo(SpanData $span, $request)
     {
-        $self = $this;
-        return function (Span $span, array $args) use ($self, $method) {
-            list($request) = $args;
-            $self->applyDistributedTracingHeaders($span, $request);
-            $span->setTag(Tag::SPAN_TYPE, Type::HTTP_CLIENT);
-            $span->setTag(Tag::SERVICE_NAME, GuzzleIntegration::NAME);
-            $span->setTag(Tag::HTTP_METHOD, $request->getMethod());
-            $span->setTag(Tag::RESOURCE_NAME, $method);
-
-            $url = $self->getRequestUrl($request);
-            if (null !== $url) {
-                $span->setTag(Tag::HTTP_URL, $url);
-
-                if (\ddtrace_config_http_client_split_by_domain_enabled()) {
-                    $span->setTag(Tag::SERVICE_NAME, Urls::hostnameForTag($url));
-                }
+        if (\is_a($request, 'Psr\Http\Message\RequestInterface')) {
+            /** @var \Psr\Http\Message\RequestInterface $request */
+            $url = $request->getUri();
+            if (\ddtrace_config_http_client_split_by_domain_enabled()) {
+                $span->service = Urls::hostnameForTag($url);
             }
-        };
-    }
-
-    /**
-     * @return \Closure
-     */
-    private function buildLimitTracerCallback()
-    {
-        $self = $this;
-        return function (array $args) use ($self) {
-            if (!\ddtrace_config_distributed_tracing_enabled()) {
-                return null;
+            $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
+            $span->meta[Tag::HTTP_URL] = Urls::sanitize($url);
+        } elseif (\is_a($request, 'GuzzleHttp\Message\RequestInterface')) {
+            /** @var \GuzzleHttp\Message\RequestInterface $request */
+            $url = $request->getUrl();
+            if (\ddtrace_config_http_client_split_by_domain_enabled()) {
+                $span->service = Urls::hostnameForTag($url);
             }
-
-            list($request) = $args;
-            $activeSpan = GlobalTracer::get()->getActiveSpan();
-
-            if ($activeSpan) {
-                $self->applyDistributedTracingHeaders($activeSpan, $request);
-            }
-        };
-    }
-
-    /**
-     * @param mixed $request
-     */
-    private function getRequestUrl($request)
-    {
-        $url = null;
-        if (is_a($request, '\GuzzleHttp\Message\RequestInterface')) {
-            $url = (string) $request->getUrl();
-        } elseif (is_a($request, '\Psr\Http\Message\RequestInterface')) {
-            $url = (string) $request->getUri();
-        }
-
-        return $url;
-    }
-
-    /**
-     * @param Span $span
-     * @param mixed $response
-     */
-    private function setStatusCodeTag(Span $span, $response)
-    {
-        if (is_a($response, '\GuzzleHttp\Message\ResponseInterface')) {
-            $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
-        } elseif (is_a($response, '\Psr\Http\Message\ResponseInterface')) {
-            $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
-        } elseif (is_a($response, '\GuzzleHttp\Promise\Promise')) {
-            $response->then(function ($response) use ($span) {
-                $span->setTag(Tag::HTTP_STATUS_CODE, $response->getStatusCode(), true);
-            });
-        }
-    }
-
-    /**
-     * @param mixed $request
-     * @param Span $span
-     */
-    public function applyDistributedTracingHeaders(Span $span, $request)
-    {
-        if (!\ddtrace_config_distributed_tracing_enabled()) {
-            return;
-        }
-
-        $headers = $this->extractRequestHeaders($request);
-
-        $context = $span->getContext();
-        $tracer = GlobalTracer::get();
-        $tracer->inject($context, Format::HTTP_HEADERS, $headers);
-        $this->addRequestHeaders($request, $headers);
-    }
-
-    /**
-     * @param mixed $request
-     * @return string[]
-     */
-    private function extractRequestHeaders($request)
-    {
-        $headers = [];
-
-        if (
-            is_a($request, '\GuzzleHttp\Message\MessageInterface')
-            || is_a($request, '\Psr\Http\Message\MessageInterface')
-        ) {
-            // Associative array of header names to values
-            $headers = $request->getHeaders();
-        }
-
-        return $headers;
-    }
-
-    /**
-     * @param mixed $request
-     * @param array $headers
-     */
-    private function addRequestHeaders($request, $headers)
-    {
-        if (is_a($request, '\GuzzleHttp\Message\MessageInterface')) {
-            $request->setHeaders($headers);
-        } elseif (is_a($request, '\Psr\Http\Message\MessageInterface')) {
-            foreach ($headers as $name => $value) {
-                $request->withAddedHeader($name, $value);
-            }
+            $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
+            $span->meta[Tag::HTTP_URL] = Urls::sanitize($url);
         }
     }
 }

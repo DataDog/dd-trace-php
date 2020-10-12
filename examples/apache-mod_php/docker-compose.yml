@@ -1,0 +1,24 @@
+version: '3.6'
+
+services:
+
+  apache:
+    build:
+      context: .
+      args:
+        DD_TRACER_VERSION: 0.46.0
+    environment:
+      DD_AGENT_HOST: agent
+    ports:
+      - 8889:80
+    depends_on:
+      - agent
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /proc/:/host/proc/:ro
+    - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+    - DD_API_KEY=${DATADOG_API_KEY}
