@@ -77,7 +77,6 @@ return [
     __DIR__ . '/../src/DDTrace/Integrations/Laravel/LaravelIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Lumen/LumenIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/Guzzle/GuzzleIntegration.php',
-    __DIR__ . '/../src/DDTrace/Integrations/Yii/V2/YiiIntegrationLoader.php',
     __DIR__ . '/../src/DDTrace/Integrations/Yii/YiiIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/WordPress/WordPressIntegration.php',
     __DIR__ . '/../src/DDTrace/Integrations/WordPress/V4/WordPressIntegrationLoader.php',
