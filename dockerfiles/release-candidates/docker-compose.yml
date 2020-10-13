@@ -1,0 +1,146 @@
+version: '3.6'
+
+x-base-php-service:
+  - &base_php_service
+    ulimits:
+      core: 99999999999
+    working_dir: '/var/www/html'
+    volumes:
+      - .:/var/www/html
+    stdin_open: true
+    tty: true
+    environment:
+      - DD_AGENT_HOST=ddagent
+      - DD_TRACE_CLI_ENABLED=1
+      - DD_TRACE_DEBUG=1
+      - DD_TRACE_STARTUP_LOGS=0
+      - DD_ENV=testing # Should take priority over DD_TAGS=env:localhost
+      - DD_TAGS=env:localhost,foo.tag:custom
+      - DD_SERVICE_NAME=rc-testing-service # Will emmit deprecated diagnostic
+      #- DD_TRACE_AUTO_FLUSH_ENABLED=1
+      #- DD_TRACE_GENERATE_ROOT_SPAN=0
+    cap_add:
+      - SYS_PTRACE
+    depends_on:
+      - ddagent
+    networks:
+      default:
+        aliases:
+          - php-fpm
+    ports:
+      - 9000:9000
+
+services:
+
+  nginx:
+    image: nginx:1.17
+    volumes:
+      - .:/var/www/html
+      - ./nginx-default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - ${PHP_FPM_CONTAINER:-alpine-7.4}
+    ports:
+      - 8080:80
+
+  ddagent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    environment: # https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true
+      - DD_LOG_LEVEL=TRACE
+      #- DD_LOG_LEVEL=debug
+      #- DD_LOG_LEVEL=error
+    ports:
+      - 8126:8126
+
+  # Alpine
+  alpine-7.4:
+    <<: *base_php_service
+    build:
+      context: .
+      dockerfile: Dockerfile_alpine_74
+      args:
+        - ddtracePkgUrl=${DDTRACE_PKG_URL_APK}
+
+  # Debian
+  debian-7.4:
+    <<: *base_php_service
+    build:
+      context: .
+      dockerfile: Dockerfile_debian_74
+      args:
+        - ddtracePkgUrl=${DDTRACE_PKG_URL_DEB}
+
+  debian-8.0:
+    <<: *base_php_service
+    build:
+      context: .
+      dockerfile: Dockerfile_debian_80
+      args:
+        - ddtracePkgUrl=${DDTRACE_PKG_URL_DEB}
+
+  # CentOS 7
+  centos-7.2:
+    <<: *base_php_service
+    build:
+      context: .
+      dockerfile: Dockerfile_centos_72
+      args:
+        - ddtracePkgUrl=${DDTRACE_PKG_URL_RPM}
+
+  centos-5.4:
+    <<: *base_php_service
+    build:
+      context: .
+      dockerfile: Dockerfile_centos_54
+      args:
+        - ddtracePkgUrl=${DDTRACE_PKG_URL_RPM}
+
+  centos-5.5:
+    <<: *base_php_service
+    build:
+      context: .
+      dockerfile: Dockerfile_centos_55
+      args:
+        - ddtracePkgUrl=${DDTRACE_PKG_URL_RPM}
+
+  # PECL install
+  pecl-7.2:
+    <<: *base_php_service
+    build:
+      context: .
+      dockerfile: Dockerfile_pecl_amazon_72
+      args:
+        - ddtracePkgUrl=${DDTRACE_PKG_URL_PECL}
+
+  pecl-5.6:
+    <<: *base_php_service
+    build:
+      context: .
+      dockerfile: Dockerfile_pecl_alpine_56
+      args:
+        - ddtracePkgUrl=${DDTRACE_PKG_URL_PECL}
+
+  # TODO Get PHP-FPM configured properly
+  pecl-5.5:
+    <<: *base_php_service
+    build:
+      context: .
+      dockerfile: Dockerfile_pecl_amazon_55
+      args:
+        - ddtracePkgUrl=${DDTRACE_PKG_URL_PECL}
+
+  # Apache
+  apache-7.4:
+    <<: *base_php_service
+    build:
+      context: .
+      dockerfile: Dockerfile_apache_74
+      args:
+        - ddtracePkgUrl=${DDTRACE_PKG_URL_DEB}
+    ports:
+      - 8080:80

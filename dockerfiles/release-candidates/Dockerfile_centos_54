@@ -1,0 +1,11 @@
+FROM cytopia/php-fpm-5.4
+
+RUN set -xe; \
+  yum install -y yum-utils git curl libcurl-devel;
+
+# Install ddtrace
+ARG ddtracePkgUrl
+RUN set -eux; \
+    cd ${HOME}; \
+    curl -L "${ddtracePkgUrl}" -o ./ddtrace.rpm; \
+    rpm -ivh ddtrace.rpm;
