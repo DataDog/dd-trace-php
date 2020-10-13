@@ -3,6 +3,7 @@
 void ddtrace_memcached_handlers_startup(void) {
     // clang-format off
     ddtrace_string methods[] = {
+        DDTRACE_STRING_LITERAL("__construct"), // Not used for tracing. Used to trigger memcached instrumentation.
         DDTRACE_STRING_LITERAL("add"),
         DDTRACE_STRING_LITERAL("addbykey"),
         DDTRACE_STRING_LITERAL("append"),

@@ -73,31 +73,31 @@ class IntegrationsLoader
             '\DDTrace\Integrations\Laravel\LaravelIntegration';
         $this->integrations[LumenIntegration::NAME] =
             '\DDTrace\Integrations\Lumen\LumenIntegration';
-        $this->integrations[MemcachedIntegration::NAME] =
-            '\DDTrace\Integrations\Memcached\MemcachedIntegration';
         $this->integrations[MongoIntegration::NAME] =
             '\DDTrace\Integrations\Mongo\MongoIntegration';
         $this->integrations[MysqliIntegration::NAME] =
             '\DDTrace\Integrations\Mysqli\MysqliIntegration';
-        $this->integrations[PDOIntegration::NAME] =
-            '\DDTrace\Integrations\PDO\PDOIntegration';
-        $this->integrations[SlimIntegration::NAME] =
-            '\DDTrace\Integrations\Slim\SlimIntegration';
         $this->integrations[SymfonyIntegration::NAME] =
             '\DDTrace\Integrations\Symfony\SymfonyIntegration';
-        $this->integrations[WordPressIntegration::NAME] =
-            '\DDTrace\Integrations\WordPress\WordPressIntegration';
-        $this->integrations[YiiIntegration::NAME] =
-            '\DDTrace\Integrations\Yii\YiiIntegration';
         $this->integrations[ZendFrameworkIntegration::NAME] =
             '\DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration';
 
         // For PHP 7.0+ use C level deferred integration loader
         if (\PHP_MAJOR_VERSION < 7) {
-            $this->integrations[PredisIntegration::NAME] =
-                '\DDTrace\Integrations\Predis\PredisIntegration';
             $this->integrations[ElasticSearchIntegration::NAME] =
                 '\DDTrace\Integrations\ElasticSearch\V1\ElasticSearchIntegration';
+            $this->integrations[MemcachedIntegration::NAME] =
+                '\DDTrace\Integrations\Memcached\MemcachedIntegration';
+            $this->integrations[PDOIntegration::NAME] =
+                '\DDTrace\Integrations\PDO\PDOIntegration';
+            $this->integrations[PredisIntegration::NAME] =
+                '\DDTrace\Integrations\Predis\PredisIntegration';
+            $this->integrations[SlimIntegration::NAME] =
+                '\DDTrace\Integrations\Slim\SlimIntegration';
+            $this->integrations[YiiIntegration::NAME] =
+                '\DDTrace\Integrations\Yii\YiiIntegration';
+            $this->integrations[WordPressIntegration::NAME] =
+                '\DDTrace\Integrations\WordPress\WordPressIntegration';
         }
     }
 
