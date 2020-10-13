@@ -126,6 +126,7 @@ services:
   '7.4-debug': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
   '7.4-debug-asan': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-asan-buster' }
   '8.0': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
+  '8.0-centos': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
   'php-master': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }
   'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }

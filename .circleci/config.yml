@@ -746,7 +746,7 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
-  compile_extension_55:
+  compile_extension_ex:
     working_directory: ~/datadog
     parameters:
       docker_image:
@@ -757,36 +757,33 @@ jobs:
       catch_warnings:
         type: boolean
         default: true
+      php_version:
+        type: string
     docker: [ image: << parameters.docker_image >> ]
-    environment:
-      # This BASH_ENV sets up the newer GCC toolchain and the module system for
-      # non-login, non-interactive bash commands. I haven't found a way yet to
-      # make it automatic for these types (it is already automatic for login).
-      - BASH_ENV=/etc/profile.d/zzz-ddtrace.sh
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: mkdir -p extensions
       - run:
           name: Build ndebug, nts configuration
           command: |
-              module load php/5.5
-              make all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
+            switch-php << parameters.php_version >>
+            make all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           name: Build debug, nts configuration
           command: |
-              module load php/5.5-debug
-              make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
+            switch-php << parameters.php_version >>-debug
+            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
       - run:
-          name: Build debug, zts configuration
+          name: Build zts configuration
           command: |
-              module load php/5.5-debug-zts
-              make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug-zts.so
+            switch-php << parameters.php_version >>-zts
+            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-zts.so
       - persist_to_workspace:
           root: '.'
-          paths: ['./extensions']
+          paths: [ './extensions' ]
 
   "Prepare Code":
     working_directory: ~/datadog
@@ -862,9 +859,10 @@ workflows:
           lib_curl_command: yum -y install libcurl-devel
           so_suffix: "20100412"
           requires: [ 'Prepare Code' ]
-      - compile_extension_55:
+      - compile_extension_ex:
           name: "Compile PHP 55"
           docker_image: "datadog/dd-trace-ci:php-5.5_centos-6"
+          php_version: "5.5"
           catch_warnings: false
           so_suffix: "20121113"
           requires: [ 'Prepare Code' ]
@@ -902,6 +900,12 @@ workflows:
           name: "Compile PHP 74"
           docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
           so_suffix: "20190902"
+      - compile_extension_ex:
+          name: "Compile PHP 80"
+          docker_image: "datadog/dd-trace-ci:php-8.0_centos-6"
+          php_version: "8.0"
+          so_suffix: "20200930"
+          requires: [ 'Prepare Code' ]
       - compile_extension:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 56-zts"
@@ -951,6 +955,7 @@ workflows:
             - "Compile PHP 72"
             - "Compile PHP 73"
             - "Compile PHP 74"
+            - "Compile PHP 80"
             - "Compile PHP 56-zts"
             - "Compile PHP 70-zts"
             - "Compile PHP 71-zts"
