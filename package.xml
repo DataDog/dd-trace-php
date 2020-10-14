@@ -242,6 +242,7 @@
             <file name="tests/ext/sandbox/fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
             <file name="tests/ext/sandbox/generator.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_not_supported.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_with_exception.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_with_return.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_yield_from.phpt" role="test" />
