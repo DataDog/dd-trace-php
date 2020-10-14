@@ -98,8 +98,6 @@
             <file name="src/ext/compatibility.h" role="src" />
             <file name="src/ext/integrations/integrations.c" role="src" />
             <file name="src/ext/integrations/integrations.h" role="src" />
-            <file name="src/ext/integrations/elasticsearch.h" role="src" />
-            <file name="src/ext/integrations/test_integration.h" role="src" />
             <file name="src/ext/mpack/AUTHORS.md" role="doc" />
             <file name="src/ext/mpack/CHANGELOG.md" role="doc" />
             <file name="src/ext/mpack/README.md" role="doc" />
