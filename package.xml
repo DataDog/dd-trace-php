@@ -36,7 +36,31 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Added
+        - Add .gdbinit files from released PHP versions #996
+        - Support PHP 5.5 #1008, #1018, #1020, #1030, #1032
+        - Add PHP 5.4 support to PECL package #1019
+        - Add Levi and Luca as lead developers to package.xml #1025
+        - Close open spans on fatal errors #1028
+        - Attach fatal errors to all open internal spans #1034
+        - Experimental PHP 8.0.0 RC 1 support (Provided for testing only and not intended for use on production) #1027 #1036 #1041
+
+        ### Changed
+        - Enable the background sender by default on PHP 5.4 #991
+        - Remove userland references to sandboxing #1003
+        - Sandbox flush in limited mode on PHP 5.4 #1009
+        - Defer loading of PDO, Memcached, Slim, WordPress, and Yii integrations until first usage #1006
+        - Clear separation in testing of src/api vs src/DDTrace #1017
+        - Harden curl integration #1024
+        - Compile src/DDTrace/version.php into _generated.php to avoid loading it at runtime #1026
+        - Disable instrumenting generators on PHP 5 #1050
+
+        ### Fixed
+        - Fix pecl-build for real releases #998
+        - Properly group traces sent in batch during long running scripts #1029
+        - Add back support for trace analytics to curl integration #1031
+    </notes>
     <contents>
         <dir name="/">
             <!-- Source files -->
