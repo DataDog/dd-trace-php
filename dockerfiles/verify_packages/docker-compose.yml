@@ -24,15 +24,17 @@ services:
   '7.2-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_72' }
   '7.3-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_73' }
   '7.4-centos7': { <<: *base_image, image: 'datadog/dd-trace-ci:php-7.4-centos-7' }
-  '5.6-alpine':  { <<: *base_image, image: 'php:5.6-alpine' }
-  '7.0-alpine':  { <<: *base_image, image: 'php:7.0-alpine' }
-  '7.1-alpine':  { <<: *base_image, image: 'php:7.1-alpine' }
-  '7.2-alpine':  { <<: *base_image, image: 'php:7.2-alpine' }
-  '7.3-alpine':  { <<: *base_image, image: 'php:7.3-alpine' }
-  '7.4-alpine':  { <<: *base_image, image: 'php:7.4-alpine' }
-  '5.6-zts-alpine':  { <<: *base_image, image: 'php:5.6-zts-alpine' }
-  '7.0-zts-alpine':  { <<: *base_image, image: 'php:7.0-zts-alpine' }
-  '7.1-zts-alpine':  { <<: *base_image, image: 'php:7.1-zts-alpine' }
-  '7.2-zts-alpine':  { <<: *base_image, image: 'php:7.2-zts-alpine' }
-  '7.3-zts-alpine':  { <<: *base_image, image: 'php:7.3-zts-alpine' }
-  '7.4-zts-alpine':  { <<: *base_image, image: 'php:7.4-zts-alpine' }
+
+  alpine:
+    image: ${ALPINE_IMAGE}
+    working_dir: /datadog
+    volumes:
+      - ../../:/datadog
+    environment:
+      PHP_PACKAGE: ${PHP_PACKAGE}
+      PACKAGE_TYPE: ${PACKAGE_TYPE}
+    depends_on:
+      - request-replayer
+
+  request-replayer:
+    image: datadog/dd-trace-ci:php-request-replayer

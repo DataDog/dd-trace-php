@@ -4,7 +4,6 @@ RUN yum update -y \
     && yum install -y \
         centos-release-scl \
         curl \
-        environment-modules \
         gcc \
         gcc-c++ \
         git \
@@ -55,29 +54,27 @@ RUN mkdir -p /tmp/build/php-5.5-debug \
     && mkdir -p /opt/php/5.5-debug/etc/conf.d \
     && sed 's/;date.timezone =/date.timezone = UTC/' </usr/local/src/php/5.5/php.ini-development >/opt/php/5.5-debug/etc/php.ini
 
-FROM build as php55-debug-zts
-RUN mkdir -p /tmp/build/php-5.5-debug-zts \
-    && cd /tmp/build/php-5.5-debug-zts \
+FROM build as php55-ndebug-zts
+RUN mkdir -p /tmp/build/php-5.5-zts \
+    && cd /tmp/build/php-5.5-zts \
     && $SHELL /root/configure.sh \
-        --enable-debug \
         --enable-maintainer-zts \
-        --prefix=/opt/php/5.5-debug-zts \
-        --with-config-file-path=/opt/php/5.5-debug-zts/etc \
-        --with-config-file-scan-dir=/opt/php/5.5-debug-zts/etc/conf.d \
+        --prefix=/opt/php/5.5-zts \
+        --with-config-file-path=/opt/php/5.5-zts/etc \
+        --with-config-file-scan-dir=/opt/php/5.5-zts/etc/conf.d \
     && make all install \
-    && mkdir -p /opt/php/5.5-debug-zts/etc/conf.d \
-    && sed 's/;date.timezone =/date.timezone = UTC/' </usr/local/src/php/5.5/php.ini-development >/opt/php/5.5-debug-zts/etc/php.ini
+    && mkdir -p /opt/php/5.5-zts/etc/conf.d \
+    && sed 's/;date.timezone =/date.timezone = UTC/' </usr/local/src/php/5.5/php.ini-development >/opt/php/5.5-zts/etc/php.ini
 
 FROM base as ultimate
 COPY --from=php55-ndebug-nts /opt/php/5.5           /opt/php/5.5
 COPY --from=php55-debug-nts  /opt/php/5.5-debug     /opt/php/5.5-debug
-COPY --from=php55-debug-zts  /opt/php/5.5-debug-zts /opt/php/5.5-debug-zts
+COPY --from=php55-ndebug-zts  /opt/php/5.5-zts /opt/php/5.5-zts
 
-RUN printf "source scl_source enable devtoolset-7\nsource /etc/profile.d/modules.sh" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
+RUN printf "source scl_source enable devtoolset-7" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
+ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
 
-ADD modules/php/5.5 \
-    modules/php/5.5-debug \
-    modules/php/5.5-debug-zts \
-    modules/php/.version \
-    /usr/share/Modules/modulefiles/php/
-
+COPY switch-php /usr/local/bin/
+RUN set -eux; \
+# Set the default PHP version
+    switch-php 5.5-debug;

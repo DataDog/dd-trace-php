@@ -42,6 +42,7 @@ Zend/tests/bug75420.5.phpt
 Zend/tests/bug75420.6.phpt
 Zend/tests/bug75420.8.phpt
 Zend/tests/bug78999.phpt
+Zend/tests/bug79778.phpt
 Zend/tests/class_alias_020.phpt
 Zend/tests/class_name_as_scalar.phpt
 Zend/tests/closure_058.phpt

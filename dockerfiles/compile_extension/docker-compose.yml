@@ -1,0 +1,107 @@
+version: '3.7'
+
+services:
+
+  5.4-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-5.4
+    build:
+      context: .
+      dockerfile: Dockerfile_alpine
+      args:
+        php_version: 5.4.45
+        php_sha: 25bc4723955f4e352935258002af14a14a9810b491a19400d76fcdfa9d04b28f
+        php_api: 20100412
+    command: build-dd-trace-php
+    volumes:
+        - ../../:/app
+
+  5.5-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-5.5
+    build:
+      context: .
+      dockerfile: Dockerfile_alpine
+      args:
+        php_version: 5.5.38
+        php_sha: 4f458c9b504269615715a62f182b7c2f89bb8284f484befc221b56a1571b506e
+        php_api: 20121113
+    command: build-dd-trace-php
+    volumes:
+        - ../../:/app
+
+  5.6-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-5.6
+    build:
+      context: .
+      dockerfile: Dockerfile_alpine
+      args:
+        php_version: 5.6.40
+        php_sha: 56fb9878d12fdd921f6a0897e919f4e980d930160e154cbde2cc6d9206a27cac
+        php_api: 20131106
+    command: build-dd-trace-php
+    volumes:
+        - ../../:/app
+
+  7.0-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.0
+    build:
+      context: .
+      dockerfile: Dockerfile_alpine
+      args:
+        php_version: 7.0.33
+        php_sha: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
+        php_api: 20151012
+    command: build-dd-trace-php
+    volumes:
+        - ../../:/app
+
+  7.1-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.1
+    build:
+      context: .
+      dockerfile: Dockerfile_alpine
+      args:
+        php_version: 7.1.33
+        php_sha: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
+        php_api: 20160303
+    command: build-dd-trace-php
+    volumes:
+        - ../../:/app
+
+  7.2-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.2
+    build:
+      context: .
+      dockerfile: Dockerfile_alpine
+      args:
+        php_version: 7.2.34
+        php_sha: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
+        php_api: 20170718
+    command: build-dd-trace-php
+    volumes:
+        - ../../:/app
+
+  7.3-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.3
+    build:
+      context: .
+      dockerfile: Dockerfile_alpine
+      args:
+        php_version: 7.3.23
+        php_sha: a21094b9ba2d8fe7fa5838e6566e30cf4bfaf2c8a6dce90ff707c45d0d8d494d
+        php_api: 20180731
+    command: build-dd-trace-php
+    volumes:
+        - ../../:/app
+
+  7.4-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.4
+    build:
+      context: .
+      dockerfile: Dockerfile_alpine
+      args:
+        php_version: 7.4.11
+        php_sha: b4fae5c39ca1eedf5597071996d9c85d0674b83f5003126c39b7b44bbfbcd821
+        php_api: 20190902
+    command: build-dd-trace-php
+    volumes:
+        - ../../:/app

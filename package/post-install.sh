@@ -11,19 +11,30 @@ CUSTOM_INI_FILE_NAME='ddtrace-custom.ini'
 
 PATH="${PATH}:/usr/local/bin"
 
-if [[ -z "$DD_TRACE_PHP_BIN" ]]; then
-    DD_TRACE_PHP_BIN=$(command -v php)
+# We attempt in this order the following binary names:
+#    1. php
+#    2. php7 (some alpine versions install php 7.x from main repo to this binary)
+#    3. php5 (some alpine versions install php 5.x from main repo to this binary)
+if [ -z "$DD_TRACE_PHP_BIN" ]; then
+    DD_TRACE_PHP_BIN=$(command -v php || true)
+fi
+if [ -z "$DD_TRACE_PHP_BIN" ]; then
+    DD_TRACE_PHP_BIN=$(command -v php7 || true)
+fi
+if [ -z "$DD_TRACE_PHP_BIN" ]; then
+    DD_TRACE_PHP_BIN=$(command -v php5 || true)
 fi
 
-function invoke_php(){
+function invoke_php() {
     # In case of .apk post-install hooks the script has no access the set of exported ENVS.
-    # In case when 1) users import large ini files (e.g. browsercap.ini) and 2) they set memory_limit using an env
+    # When 1) users import large ini files (e.g. browsercap.ini) and 2) they set memory_limit using an env
     # variable we would fail because of the memory limit reached. In order to avoid this we set a sane memory limit
     # that should cause no problem in any machine when our tracer is installed.
-    $DD_TRACE_PHP_BIN -d memory_limit=128M $*
+    # alias invoke_php="$DD_TRACE_PHP_BIN -d memory_limit=128M"
+    $DD_TRACE_PHP_BIN -d memory_limit=128M "$*"
 }
 
-function println(){
+function println() {
     echo -e '###' "$@"
 }
 
@@ -138,6 +149,9 @@ function verify_installation() {
         fail_print_and_exit
 }
 
+println "PHP version"
+invoke_php -v
+
 mkdir -p $EXTENSION_DIR
 mkdir -p $EXTENSION_CFG_DIR
 mkdir -p $EXTENSION_LOGS_DIR
@@ -150,6 +164,7 @@ println
 invoke_php -i > "$EXTENSION_LOGS_DIR/php-info.log"
 
 PHP_VERSION=$(invoke_php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
+PHP_MAJOR_MINOR=$(invoke_php -r 'echo PHP_MAJOR_VERSION;').$(invoke_php -r 'echo PHP_MINOR_VERSION;')
 PHP_CFG_DIR=$(invoke_php -i | grep 'Scan this dir for additional .ini files =>' | sed -e 's/Scan this dir for additional .ini files =>//g' | head -n 1 | awk '{print $1}')
 
 PHP_THREAD_SAFETY=$(invoke_php -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
@@ -159,7 +174,12 @@ if [[ -n $PHP_THREAD_SAFETY ]]; then
     VERSION_SUFFIX="-zts"
 fi
 
-EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}.so"
+OS_SPECIFIER=""
+if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release") && [ "${VERSION_SUFFIX}" != "-zts" ]; then
+    OS_SPECIFIER="-alpine"
+fi
+
+EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}${OS_SPECIFIER}.so"
 EXTENSION_FILE_PATH="${EXTENSION_DIR}/${EXTENSION_NAME}"
 INI_FILE_CONTENTS=$(cat <<EOF
 [datadog]

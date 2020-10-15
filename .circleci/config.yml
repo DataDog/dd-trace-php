@@ -650,6 +650,29 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: sh dockerfiles/verify_packages/verify_<< parameters.package_type >>.sh
 
+  verify_alpine:
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      php_package:
+        type: string
+    docker:
+      - image: << parameters.docker_image >>
+        environment:
+          PHP_PACKAGE: << parameters.php_package >>
+          OS_NAME: alpine
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+    steps:
+      - run:
+          # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
+          name: Install ca-certificates
+          command: apk add --no-cache ca-certificates
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Validate alpine package
+          command: ./dockerfiles/verify_packages/verify.sh
+
   pecl_build:
     working_directory: ~/datadog
     executor:
@@ -701,6 +724,23 @@ jobs:
           when: on_fail
       - store_artifacts: { path: '/tmp/artifacts' }
 
+  compile_alpine:
+    working_directory: ~/datadog
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 5.6
+        type: string
+    docker:
+      - image: datadog/dd-trace-ci:php-compile-extension-alpine-<< parameters.php_major_minor >>
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Build extension
+          command: build-dd-trace-php
+      - persist_to_workspace:
+          root: '.'
+          paths: ['./extensions']
+
   compile_extension:
     working_directory: ~/datadog
     parameters:
@@ -741,7 +781,7 @@ jobs:
           root: '.'
           paths: ['./extensions']
 
-  compile_extension_55:
+  compile_extension_ex:
     working_directory: ~/datadog
     parameters:
       docker_image:
@@ -752,36 +792,33 @@ jobs:
       catch_warnings:
         type: boolean
         default: true
+      php_version:
+        type: string
     docker: [ image: << parameters.docker_image >> ]
-    environment:
-      # This BASH_ENV sets up the newer GCC toolchain and the module system for
-      # non-login, non-interactive bash commands. I haven't found a way yet to
-      # make it automatic for these types (it is already automatic for login).
-      - BASH_ENV=/etc/profile.d/zzz-ddtrace.sh
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run: mkdir -p extensions
       - run:
           name: Build ndebug, nts configuration
           command: |
-              module load php/5.5
-              make all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
+            switch-php << parameters.php_version >>
+            make all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>.so
       - run:
           name: Build debug, nts configuration
           command: |
-              module load php/5.5-debug
-              make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
+            switch-php << parameters.php_version >>-debug
+            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug.so
       - run:
-          name: Build debug, zts configuration
+          name: Build zts configuration
           command: |
-              module load php/5.5-debug-zts
-              make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
-              cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-debug-zts.so
+            switch-php << parameters.php_version >>-zts
+            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-zts.so
       - persist_to_workspace:
           root: '.'
-          paths: ['./extensions']
+          paths: [ './extensions' ]
 
   "Prepare Code":
     working_directory: ~/datadog
@@ -849,6 +886,19 @@ workflows:
   build_packages:
     jobs:
       - "Prepare Code"
+      - compile_alpine:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - '5.4'
+                - '5.5'
+                - '5.6'
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
       - compile_extension:
           name: "Compile PHP 54"
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
@@ -856,9 +906,10 @@ workflows:
           lib_curl_command: yum -y install libcurl-devel
           so_suffix: "20100412"
           requires: [ 'Prepare Code' ]
-      - compile_extension_55:
+      - compile_extension_ex:
           name: "Compile PHP 55"
           docker_image: "datadog/dd-trace-ci:php-5.5_centos-6"
+          php_version: "5.5"
           catch_warnings: false
           so_suffix: "20121113"
           requires: [ 'Prepare Code' ]
@@ -896,6 +947,12 @@ workflows:
           name: "Compile PHP 74"
           docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
           so_suffix: "20190902"
+      - compile_extension_ex:
+          name: "Compile PHP 80"
+          docker_image: "datadog/dd-trace-ci:php-8.0_centos-6"
+          php_version: "8.0"
+          so_suffix: "20200930"
+          requires: [ 'Prepare Code' ]
       - compile_extension:
           requires: [ 'Prepare Code' ]
           name: "Compile PHP 56-zts"
@@ -937,6 +994,7 @@ workflows:
           name: "Build PECL"
       - "package extension":
           requires:
+            - compile_alpine
             - "Compile PHP 54"
             - "Compile PHP 55"
             - "Compile PHP 56"
@@ -945,6 +1003,7 @@ workflows:
             - "Compile PHP 72"
             - "Compile PHP 73"
             - "Compile PHP 74"
+            - "Compile PHP 80"
             - "Compile PHP 56-zts"
             - "Compile PHP 70-zts"
             - "Compile PHP 71-zts"
@@ -1026,6 +1085,57 @@ workflows:
           name: "php:7.3"
           docker_image: php:7.3
           package_type: deb
+      - verify_alpine:
+          requires: [ "package extension" ]
+          matrix:
+            parameters:
+              php_package:
+                - php
+              docker_image:
+                - alpine:3.7
+                - alpine:3.8
+                - alpine:3.9
+                - alpine:3.10
+                - alpine:3.11
+                - alpine:3.12
+                - alpine:latest
+      - verify_alpine:
+          requires: [ "package extension" ]
+          matrix:
+            parameters:
+              php_package:
+                - php7
+              docker_image:
+                - alpine:3.8
+                - alpine:3.9
+                - alpine:3.9
+                - alpine:3.10
+                - alpine:3.11
+                - alpine:3.12
+                - alpine:latest
+      - verify_alpine:
+          requires: [ "package extension" ]
+          matrix:
+            parameters:
+              php_package:
+                - php5
+              docker_image:
+                - alpine:3.5
+                - alpine:3.6
+                - alpine:3.7
+                - alpine:3.8
+      - verify_alpine:
+          requires: [ "package extension" ]
+          php_package: ''
+          matrix:
+            parameters:
+              docker_image:
+                - php:5.6-fpm-alpine
+                - php:7.0-fpm-alpine
+                - php:7.1-fpm-alpine
+                - php:7.2-fpm-alpine
+                - php:7.3-fpm-alpine
+                - php:7.4-fpm-alpine
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 54 PECL tests"
