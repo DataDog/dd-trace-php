@@ -6,6 +6,7 @@ use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Common\BaseTestCase;
 use PHPUnit\Framework\TestCase;
+use PHPUnit_Framework_AssertionFailedError;
 
 class ComposerInteroperabilityTest extends BaseTestCase
 {
@@ -45,5 +46,22 @@ class ComposerInteroperabilityTest extends BaseTestCase
         );
 
         $this->assertNotEmpty($traces);
+    }
+
+    /**
+     * Given a path to a composer working directory, this method runs composer update in it.
+     *
+     * @param string $workingDir
+     */
+    private function composerUpdateScenario($workingDir)
+    {
+        exec(
+            "composer --working-dir='$workingDir' update -q",
+            $output,
+            $return
+        );
+        if (0 !== $return) {
+            $this->fail('Error while preparing the env: ' . implode("\n", $output));
+        }
     }
 }
