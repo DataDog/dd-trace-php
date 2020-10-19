@@ -3,20 +3,15 @@ version: '3.7'
 services:
 
   base:
-    image: datadog/dd-trace-ci:buster
+    image: datadog/dd-trace-ci:alpine
     build:
       context: .
 
   php-8.0:
-    image: datadog/dd-trace-ci:php-8.0_buster
+    image: datadog/dd-trace-ci:php-8.0_alpine
     build:
       context: ./php-8.0
       args:
         phpVersion: 8.0
         phpTarGzUrl: https://downloads.php.net/~pollita/php-8.0.0RC2.tar.gz
         phpSha256Hash: 0cebc11c61c0f153bd866eab76c424404b3ccc779417cdfde1061e550c3e364c
-
-  php-master:
-    image: datadog/dd-trace-ci:php-master_buster
-    build:
-      context: ./php-master

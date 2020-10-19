@@ -450,9 +450,11 @@ final class PDOTest extends IntegrationTestCase
 
     private function pdoInstance($opts = null)
     {
-        $instance =  new \PDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD, $opts);
-
-        return $instance;
+        // The default error mode is PDO::ERRMODE_SILENT on PHP < 8
+        if (!isset($opts[\PDO::ATTR_ERRMODE])) {
+            $opts[\PDO::ATTR_ERRMODE] = \PDO::ERRMODE_SILENT;
+        }
+        return new \PDO($this->mysqlDns(), self::MYSQL_USER, self::MYSQL_PASSWORD, $opts);
     }
 
     private function ensureActiveQueriesErrorCanHappen()

@@ -84,7 +84,7 @@
                 "scripts": {
                     "pre-autoload-dump": [
                         "sudo pecl uninstall redis",
-                        "printf 'no' | sudo pecl install -f redis-5.3.1"
+                        "printf 'no' | sudo pecl install -f redis-5.3.2RC2"
                     ]
                 }
             }

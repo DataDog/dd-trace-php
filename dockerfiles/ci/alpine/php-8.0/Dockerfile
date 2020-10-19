@@ -1,7 +1,7 @@
-FROM datadog/dd-trace-ci:buster AS base
+FROM datadog/dd-trace-ci:alpine AS base
 
 ARG phpVersion
-ENV PHP_INSTALL_DIR_DEBUG_ZTS_ASAN=${PHP_INSTALL_DIR}/${phpVersion}-debug-zts-asan
+ENV PHP_INSTALL_DIR_DEBUG_ZTS=${PHP_INSTALL_DIR}/${phpVersion}-debug-zts
 ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/${phpVersion}-debug
 ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/${phpVersion}
 ENV PHP_VERSION=${phpVersion}
@@ -18,20 +18,22 @@ RUN set -eux; \
     ./buildconf --force;
 COPY configure.sh /home/circleci
 
-FROM build as php-debug-zts-asan
-ENV CFLAGS='-fsanitize=address -DZEND_TRACK_ARENA_ALLOC'
-ENV LDFLAGS='-fsanitize=address'
+FROM build as php-debug-zts
+# TODO Fix Asan build
+#ENV CFLAGS="-fsanitize=address -DZEND_TRACK_ARENA_ALLOC"
+#ENV LDFLAGS="-fsanitize=address"
 RUN set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /home/circleci/configure.sh \
         --enable-debug \
         --enable-zts \
-        --prefix=${PHP_INSTALL_DIR_DEBUG_ZTS_ASAN} \
-        --with-config-file-path=${PHP_INSTALL_DIR_DEBUG_ZTS_ASAN} \
-        --with-config-file-scan-dir=${PHP_INSTALL_DIR_DEBUG_ZTS_ASAN}/conf.d; \
+        --prefix=${PHP_INSTALL_DIR_DEBUG_ZTS} \
+        --with-config-file-path=${PHP_INSTALL_DIR_DEBUG_ZTS} \
+        --with-config-file-scan-dir=${PHP_INSTALL_DIR_DEBUG_ZTS}/conf.d \
+    ; \
     make -j "$((`nproc`+1))"; \
     make install; \
-    mkdir -p ${PHP_INSTALL_DIR_DEBUG_ZTS_ASAN}/conf.d;
+    mkdir -p ${PHP_INSTALL_DIR_DEBUG_ZTS}/conf.d;
 
 FROM build as php-debug
 RUN set -eux; \
@@ -58,7 +60,7 @@ RUN set -eux; \
 
 FROM base as final
 COPY --chown=circleci:circleci --from=build $PHP_SRC_DIR $PHP_SRC_DIR
-COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR_DEBUG_ZTS_ASAN $PHP_INSTALL_DIR_DEBUG_ZTS_ASAN
+COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR_DEBUG_ZTS $PHP_INSTALL_DIR_DEBUG_ZTS
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR_DEBUG_NTS $PHP_INSTALL_DIR_DEBUG_NTS
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR_NTS $PHP_INSTALL_DIR_NTS
 
@@ -81,6 +83,9 @@ RUN set -eux; \
     done;
 
 RUN set -eux; \
+# TODO Remove this when apcu supports ZTS on Alpine
+# Causes error: "_tsrm_ls_cache: initial-exec TLS resolves to dynamic definition"
+    rm /opt/php/8.0-debug-zts/conf.d/apcu.ini; \
 # Set the default PHP version
     switch-php ${PHP_VERSION}-debug; \
 # Install Composer
