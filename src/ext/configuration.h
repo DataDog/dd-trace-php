@@ -31,7 +31,7 @@ bool ddtrace_config_env_bool(ddtrace_string env_name, bool default_value TSRMLS_
 bool ddtrace_config_distributed_tracing_enabled(TSRMLS_D);
 bool ddtrace_config_trace_enabled(TSRMLS_D);
 
-#define DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN 9  // "DD_TRACE_" FTW!
+#define DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN 9   // "DD_TRACE_" FTW!
 #define DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN 22  // "_ANALYTICS_SAMPLE_RATE" FTW!
 #define DDTRACE_LONGEST_INTEGRATION_ENV_LEN                                              \
     (DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN + DDTRACE_LONGEST_INTEGRATION_NAME_LEN + \
