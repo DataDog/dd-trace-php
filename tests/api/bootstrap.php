@@ -3,7 +3,7 @@
 error_reporting(E_ALL);
 
 if (getenv('DD_AUTOLOAD_NO_COMPILE') == 'true' && (false !== getenv('CI') || false !== getenv('CIRCLECI'))) {
-    throw new Exception('Running uncopiled files in CI');
+    throw new Exception('Tests must run using the _generated.php script in CI');
 }
 
 $phpunitVersionParts = class_exists('\PHPUnit\Runner\Version')
