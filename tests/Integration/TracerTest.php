@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Integration;
 
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\SpanData;
@@ -14,18 +14,18 @@ final class TracerTest extends BaseTestCase
 {
     use TracerTestTrait;
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         \putenv('DD_TAGS=global_tag:global,also_in_span:should_not_ovverride');
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
         \putenv('DD_TAGS');
         \putenv('DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED');
         \putenv('DD_SERVICE_MAPPING');
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     public function testGlobalTagsArePresentOnLegacySpansByFlushTime()

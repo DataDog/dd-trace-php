@@ -26,22 +26,22 @@ class PHPRedis3Test extends IntegrationTestCase
     private $redis;
     private $redisSecondInstance;
 
-    public function setUp()
+    public function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->redis = new \Redis();
         $this->redis->connect($this->host, $this->port);
         $this->redisSecondInstance = new \Redis();
         $this->redisSecondInstance->connect($this->host, $this->portSecondInstance);
     }
 
-    public function tearDown()
+    public function ddTearDown()
     {
         $this->redis->flushAll();
         $this->redis->close();
         $this->redisSecondInstance->flushAll();
         $this->redisSecondInstance->close();
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     /**

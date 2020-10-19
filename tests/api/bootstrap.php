@@ -12,7 +12,7 @@ $phpunitVersionParts = class_exists('\PHPUnit\Runner\Version')
 define('PHPUNIT_MAJOR', intval($phpunitVersionParts[0]));
 
 if (PHPUNIT_MAJOR >= 8) {
-    require __DIR__ . '/Common/MultiPHPUnitVersionAdapter_typed.php';
+    require __DIR__ . '/../Common/MultiPHPUnitVersionAdapter_typed.php';
 } else {
-    require __DIR__ . '/Common/MultiPHPUnitVersionAdapter_untyped.php';
+    require __DIR__ . '/../Common/MultiPHPUnitVersionAdapter_untyped.php';
 }

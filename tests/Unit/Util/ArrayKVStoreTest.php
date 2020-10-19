@@ -2,26 +2,26 @@
 
 namespace DDTrace\Tests\Unit\Util;
 
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Util\ArrayKVStore;
-use PHPUnit\Framework\TestCase;
 
-final class ArrayKVStoreTest extends TestCase
+final class ArrayKVStoreTest extends BaseTestCase
 {
     private $resource1;
     private $resource2;
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->resource1 = fopen('php://memory', 'r');
         $this->resource2 = fopen('php://memory', 'r');
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
         fclose($this->resource1);
         fclose($this->resource2);
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     public function testPutForResourceNull()

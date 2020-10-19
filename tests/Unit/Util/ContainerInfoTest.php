@@ -2,10 +2,10 @@
 
 namespace DDTrace\Tests\Unit\Util;
 
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Util\ContainerInfo;
-use PHPUnit\Framework\TestCase;
 
-final class ContainerInfoTest extends TestCase
+final class ContainerInfoTest extends BaseTestCase
 {
     private $mockCgroupProcFilePath = '/tmp/mock-cgroup-proc-file';
 
@@ -14,9 +14,9 @@ final class ContainerInfoTest extends TestCase
      */
     private $containerInfo;
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->containerInfo = new ContainerInfo($this->mockCgroupProcFilePath);
     }
 

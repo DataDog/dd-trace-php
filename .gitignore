@@ -6,6 +6,7 @@ core
 .vscode/
 .libs
 .deps
+.phpunit.result.cache
 **.code-workspace
 /Makefile*
 acinclude.m4

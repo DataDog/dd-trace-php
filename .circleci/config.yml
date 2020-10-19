@@ -87,15 +87,10 @@ aliases:
       name: Installing dependencies with composer
       command: composer update --no-interaction
 
-  - &STEP_COMPOSER_COMPILE
+  - &STEP_COMPOSER_GENERATE
     run:
       name: Compiling dd-tace-php files into single file
-      command: composer compile
-
-  - &STEP_COMPOSER_COMPILE_VERIFY
-    run:
-      name: Verifying dd-tace-php files compiled into single file
-      command: composer compile-verify
+      command: make generate
 
   - &STEP_COMPOSER_TESTS_UPDATE
     run:
@@ -685,7 +680,6 @@ jobs:
       docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_COMPOSER_UPDATE
       - run:
           name: Make PECL build
           command: |
@@ -841,8 +835,7 @@ jobs:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
       - <<: *STEP_COMPOSER_UPDATE
-      - <<: *STEP_COMPOSER_COMPILE
-      - <<: *STEP_COMPOSER_COMPILE_VERIFY
+      - <<: *STEP_COMPOSER_GENERATE
       - run:
           name: Showing folder containing generated files
           command: ls -al ~/datadog/bridge

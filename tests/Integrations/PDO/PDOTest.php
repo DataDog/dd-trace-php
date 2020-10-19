@@ -19,28 +19,28 @@ final class PDOTest extends IntegrationTestCase
     const ERROR_STATEMENT = 'SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'WRONG QUERY\' at line 1';
     // phpcs:enable
 
-    public static function setUpBeforeClass()
+    public static function ddSetUpBeforeClass()
     {
         putenv('DD_PDO_ANALYTICS_ENABLED=true');
-        parent::setUpBeforeClass();
+        parent::ddSetUpBeforeClass();
     }
 
-    public static function tearDownAfterClass()
+    public static function ddTearDownAfterClass()
     {
-        parent::tearDownAfterClass();
+        parent::ddTearDownAfterClass();
         putenv('DD_PDO_ANALYTICS_ENABLED');
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->setUpDatabase();
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
         $this->clearDatabase();
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     public function testCustomPDOPrepareWithStringableStatement()

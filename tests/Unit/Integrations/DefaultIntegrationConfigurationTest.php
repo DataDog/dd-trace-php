@@ -3,13 +3,13 @@
 namespace DDTrace\Tests\Unit\Integrations;
 
 use DDTrace\Integrations\DefaultIntegrationConfiguration;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class DefaultIntegrationConfigurationTest extends BaseTestCase
 {
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         putenv('DD_TRACE_ANALYTICS_ENABLED');
         putenv('DD_TRACE_PDO_ANALYTICS_ENABLED');
         putenv('DD_TRACE_PDO_ANALYTICS_SAMPLE_RATE');

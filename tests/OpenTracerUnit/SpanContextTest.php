@@ -4,9 +4,9 @@ namespace DDTrace\Tests\OpenTracerUnit;
 
 use DDTrace\OpenTracer\SpanContext;
 use DDTrace\SpanContext as DDSpanContext;
-use PHPUnit\Framework\TestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
-final class SpanContextTest extends TestCase
+final class SpanContextTest extends BaseTestCase
 {
     const BAGGAGE_ITEM_KEY = 'key';
     const BAGGAGE_ITEM_VALUE = 'value';

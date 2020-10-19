@@ -6,12 +6,11 @@ use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tag;
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\GlobalTracer;
 use DDTrace\Tracer;
 use Exception;
-use PHPUnit\Framework;
+use DDTrace\Tests\Common\BaseTestCase;
 
-final class SpanTest extends Framework\TestCase
+final class SpanTest extends BaseTestCase
 {
     const OPERATION_NAME = 'test_span';
     const SERVICE = 'test_service';
@@ -36,14 +35,14 @@ final class SpanTest extends Framework\TestCase
      */
     private $oldTracer;
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->tracer = new Tracer();
         $this->oldTracer = \DDTrace\GlobalTracer::get();
         \DDTrace\GlobalTracer::set($this->tracer);
     }
-    protected function tearDown()
+    protected function ddTearDown()
     {
         \DDTrace\GlobalTracer::set($this->oldTracer);
     }
@@ -193,12 +192,12 @@ final class SpanTest extends Framework\TestCase
         $this->assertSame('modified_test_resource', $span->getResource());
     }
 
-    /**
-     * @expectedException \DDTrace\Exceptions\InvalidSpanArgument
-     * @expectedExceptionMessage Error should be either Exception or Throwable, got integer.
-     */
     public function testSpanErrorFailsForInvalidError()
     {
+        $this->setExpectedException(
+            '\DDTrace\Exceptions\InvalidSpanArgument',
+            'Error should be either Exception or Throwable, got integer.'
+        );
         $span = $this->createSpan();
         $span->setError(1);
     }
@@ -215,12 +214,12 @@ final class SpanTest extends Framework\TestCase
         $this->assertEquals(self::ANOTHER_TYPE, $span->getType());
     }
 
-    /**
-     * @expectedException \DDTrace\Exceptions\InvalidSpanArgument
-     * @expectedExceptionMessage Invalid key type in given span tags. Expected string, got integer.
-     */
     public function testAddTagsFailsForInvalidTagKey()
     {
+        $this->setExpectedException(
+            '\DDTrace\Exceptions\InvalidSpanArgument',
+            'Invalid key type in given span tags. Expected string, got integer.'
+        );
         $span = $this->createSpan();
         $span->setTag(1, self::TAG_VALUE);
     }

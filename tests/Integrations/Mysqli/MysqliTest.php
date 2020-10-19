@@ -14,15 +14,15 @@ class MysqliTest extends IntegrationTestCase
     private static $user = 'test';
     private static $password = 'test';
 
-    public static function setUpBeforeClass()
+    public static function ddSetUpBeforeClass()
     {
-        parent::setUpBeforeClass();
+        parent::ddSetUpBeforeClass();
         IntegrationsLoader::load();
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->clearDatabase();
         $this->setUpDatabase();
     }

@@ -24,19 +24,19 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
      */
     private static $appServer;
 
-    public static function setUpBeforeClass()
+    public static function ddSetUpBeforeClass()
     {
         $index = static::getAppIndexScript();
         if ($index) {
             ini_set('error_log', dirname($index) . '/' . static::ERROR_LOG_NAME);
         }
-        parent::setUpBeforeClass();
+        parent::ddSetUpBeforeClass();
         static::setUpWebServer();
     }
 
-    public static function tearDownAfterClass()
+    public static function ddTearDownAfterClass()
     {
-        parent::tearDownAfterClass();
+        parent::ddTearDownAfterClass();
         static::tearDownWebServer();
     }
 
