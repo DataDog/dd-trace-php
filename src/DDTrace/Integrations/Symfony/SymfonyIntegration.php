@@ -103,7 +103,7 @@ class SymfonyIntegration extends Integration
         $integration->symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
         $integration->addTraceAnalyticsIfEnabledLegacy($integration->symfonyRequestSpan);
 
-        // Move this to its own integration
+        /* Move this to its own integration
         $doctrineRepositories = [];
         \DDTrace\hook_method(
             'Doctrine\\Bundle\\DoctrineBundle\\Repository\\ServiceEntityRepository',
@@ -142,6 +142,7 @@ class SymfonyIntegration extends Integration
                 }
             }
         );
+         */
 
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
