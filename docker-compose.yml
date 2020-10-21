@@ -211,3 +211,13 @@ services:
       - ./tests/Frameworks:/var/www
       - ./tests/dockerfiles/symfony_34_virtualhost.conf:/etc/apache2/sites-available/000-default.conf
       - ./:/var/dd-trace-php
+
+  apache:
+    build:
+      context: ./apache2
+    volumes:
+      - ./tests/Frameworks/Wordpress/Version_5_5:/var/www/html/
+    depends_on:
+      - mysql_integration
+    ports:
+      - 9999:80
