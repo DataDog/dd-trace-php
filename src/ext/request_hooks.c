@@ -236,6 +236,12 @@ int dd_execute_auto_prepend_file(char *auto_prepend_file TSRMLS_DC) {
     prepend_file.type = ZEND_HANDLE_FILENAME;
     prepend_file.filename = auto_prepend_file;
     int ret = zend_execute_scripts(ZEND_REQUIRE TSRMLS_CC, NULL, 1, &prepend_file) == SUCCESS;
+#if PHP_VERSION_ID >= 80000
+    // Exit no longer calls zend_bailout in PHP 8, so we need to "rethrow" the exit
+    if (ret == 0) {
+        zend_throw_unwind_exit();
+    }
+#endif
     // EG(current_execute_data) = ex;
     return ret;
 }

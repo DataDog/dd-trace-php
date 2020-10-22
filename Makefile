@@ -445,6 +445,17 @@ TEST_WEB_74 := \
 	test_web_custom \
 	test_opentracing_10
 
+TEST_INTEGRATIONS_80 := \
+	test_integrations_mysqli \
+	test_integrations_pdo \
+	test_integrations_predis1
+
+TEST_WEB_80 := \
+	test_metrics \
+	test_web_codeigniter_22 \
+	test_web_slim_312 \
+	test_web_custom
+
 define run_tests
 	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1)
 endef

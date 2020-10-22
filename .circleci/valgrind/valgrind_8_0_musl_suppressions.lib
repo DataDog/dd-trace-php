@@ -1,4 +1,105 @@
 {
+    <insert_a_suppression_name_here>
+    Memcheck:Free
+    fun:free
+    obj:/lib/ld-musl-x86_64.so.1
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Leak
+    match-leak-kinds: possible
+    fun:calloc
+    fun:__dls3
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Leak
+    match-leak-kinds: possible
+    fun:malloc
+    obj:/lib/ld-musl-x86_64.so.1
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:strlcpy
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:strlcpy
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    fun:zend_hash_find_bucket
+    obj:*
+    obj:*
+}
+{
+    php_zend_string_equal_val false positive due to handcrafted assembly
+    Memcheck:Cond
+    fun:zend_string_equal_val
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:memcmp
+    fun:__putenv
+    obj:*
+    obj:*
+    obj:*
+    fun:vgMemCheck_new_block
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    fun:do_cli
+    obj:*
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:memcmp
+    fun:unsetenv
+    obj:*
+    obj:*
+    obj:*
+    obj:*
+    fun:do_cli
+    obj:*
+    obj:*
+    fun:unsetenv
+    obj:*
+    obj:*
+}
+{
+    <insert_a_suppression_name_here>
+    Memcheck:Cond
+    fun:strlcpy
+    obj:*
+    obj:*
+}
+{
     <PHP leaks the file name on fatal errors>
     Memcheck:Leak
     match-leak-kinds: possible

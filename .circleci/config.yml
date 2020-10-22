@@ -594,36 +594,6 @@ jobs:
             - ~/.composer/cache
       - <<: *STEP_PERSIST_TO_WORKSPACE
 
-  hyperfine_tests:
-    working_directory: ~/datadog
-    parameters:
-      docker_image:
-        type: string
-      lib_curl_command:
-        type: string
-        default: none
-    executor:
-      name: with_agent
-      docker_image: << parameters.docker_image >>
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - lib_curl_workaround:
-          command: << parameters.lib_curl_command >>
-      - prepare_extension_and_composer_with_cache
-      - <<: *STEP_COMPOSER_TESTS_UPDATE
-      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-      - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_WAIT_AGENT
-      - run: |
-          set -xe
-          curl -q -o hyperfine.tgz -L https://github.com/sharkdp/hyperfine/releases/download/v1.6.0/hyperfine-v1.6.0-x86_64-unknown-linux-musl.tar.gz
-          tar xf hyperfine.tgz --strip-component=1
-          php -m | grep ddtrace
-          sudo rm /usr/local/etc/php/conf.d/ddtrace.ini
-          php -m | grep ddtrace || true
-          ./hyperfine -s basic 'php -m' 'php -m -dextension=ddtrace.so' --min-runs 10000 --export-markdown hyperfine.md
-      - store_artifacts: { path: 'hyperfine.md', destination: /hyperfine.md }
-
   framework_tests:
     working_directory: ~/datadog
     parameters:
@@ -709,7 +679,7 @@ jobs:
           command: |
             cp ./pecl/datadog_trace-*.tgz ./datadog_trace.tgz
             sudo pecl install datadog_trace.tgz
-            echo "extension=ddtrace.so" | sudo tee /usr/local/etc/php/conf.d/ddtrace.ini
+            echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
             php --ri=ddtrace
       - run:
           name: Run phpt tests with PECL
@@ -898,6 +868,7 @@ workflows:
                 - '7.2'
                 - '7.3'
                 - '7.4'
+                - '8.0'
       - compile_extension:
           name: "Compile PHP 54"
           docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
@@ -1135,6 +1106,7 @@ workflows:
                 - php:7.2-fpm-alpine
                 - php:7.3-fpm-alpine
                 - php:7.4-fpm-alpine
+                - php:8.0.0RC2-fpm-alpine
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 54 PECL tests"
@@ -1169,6 +1141,10 @@ workflows:
           requires: [ "Build PECL" ]
           name: "PHP 74 PECL tests"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+      - pecl_tests:
+          requires: [ "Build PECL" ]
+          name: "PHP 80 PECL tests"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 web tests with nginx + FastCGI"
@@ -1197,6 +1173,13 @@ workflows:
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 80 web tests with nginx + FastCGI"
+          resource_class: medium+
+          sapi: cgi-fcgi
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 55 custom autoloaded web tests with nginx + PHP-FPM"
@@ -1327,11 +1310,25 @@ workflows:
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 Unit tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
           valgrind_config: 8_0_musl
+      - opcache_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 80 opcache tests"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+      - xdebug_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 80 Xdebug tests"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          xdebug_version_one: "3.0.0beta1"
       - placeholder:
           requires: [ 'Prepare Code' ]
           name: Language tests
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          name: "PHP 80 language tests"
+          xfail_list: dockerfiles/ci/xfail_tests/8.0.list
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 74 language tests"
@@ -1404,6 +1401,10 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 base integration tests"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+      - base_integration_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 80 base integration tests"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 Integration tests"
@@ -1459,6 +1460,11 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
       - integration_tests:
           requires: [ 'Prepare Code' ]
+          name: "PHP 80 Integration tests"
+          integration_testsuite: "test_integrations"
+          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
+      - integration_tests:
+          requires: [ 'Prepare Code' ]
           name: "PHP 54 Web integration tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
           integration_testsuite: "test_web"
@@ -1502,45 +1508,12 @@ workflows:
           resource_class: medium+
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.4"
-      - hyperfine_tests:
+      - integration_tests:
           requires: [ 'Prepare Code' ]
-          name: "Hyperfine 54 benchmarks"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - hyperfine_tests:
-          requires: [ 'Prepare Code' ]
-          name: "Hyperfine 55 benchmarks"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - hyperfine_tests:
-          requires: [ 'Prepare Code' ]
-          name: "Hyperfine 56 benchmarks"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - hyperfine_tests:
-          requires: [ 'Prepare Code' ]
-          name: "Hyperfine 70 benchmarks"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - hyperfine_tests:
-          requires: [ 'Prepare Code' ]
-          name: "Hyperfine 71 benchmarks"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - hyperfine_tests:
-          requires: [ 'Prepare Code' ]
-          name: "Hyperfine 72 benchmarks"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - hyperfine_tests:
-          requires: [ 'Prepare Code' ]
-          name: "Hyperfine 73 benchmarks"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - hyperfine_tests:
-          requires: [ 'Prepare Code' ]
-          name: "Hyperfine 74 benchmarks"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
+          name: "PHP 80 Web integration tests"
+          resource_class: medium+
+          integration_testsuite: "test_web"
+          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
       - "Lint files":
           requires: [ 'Prepare Code' ]
       - "Static Analysis":
