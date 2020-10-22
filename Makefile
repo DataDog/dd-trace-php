@@ -616,6 +616,8 @@ test_web_symfony_44:
 	$(call run_tests,tests/Integrations/Symfony/V4_4)
 test_web_wordpress_48:
 	$(call run_tests,tests/Integrations/WordPress/V4_8)
+test_web_wordpress_55:
+	$(call run_tests,tests/Integrations/WordPress/V5_5)
 test_web_yii_2:
 	$(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0_26 update
 	$(call run_tests,tests/Integrations/Yii/V2_0_26)
