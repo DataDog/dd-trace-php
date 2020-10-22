@@ -326,6 +326,11 @@ typedef struct dd_error_info {
 static zend_string *dd_error_type(int code) {
     const char *error_type = "{unknown error}";
 
+#if PHP_VERSION_ID >= 80000
+    // mask off flags such as E_DONT_BAIL
+    code &= E_ALL;
+#endif
+
     switch (code) {
         case E_ERROR:
             error_type = "E_ERROR";
