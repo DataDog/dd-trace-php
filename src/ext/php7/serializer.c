@@ -411,7 +411,7 @@ static zend_string *dd_fatal_error_msg(const char *format, va_list args) {
      * will not be present in the rendered error message at that position.
      */
     size_t uncaught_len = sizeof uncaught - 1;
-    if ((unsigned)prefix >= uncaught_len && memcmp(uncaught, buffer, uncaught_len) == 0) {
+    if ((unsigned)prefix >= uncaught_len && memcmp(buffer, uncaught, uncaught_len) == 0) {
         char *newline = memchr(buffer, '\n', sizeof buffer);
         if (newline) {
             *newline = '\0';
@@ -647,6 +647,22 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
     ddtrace_prev_error_cb(DDTRACE_ERROR_CB_PARAM_PASSTHRU);
 }
 #else
+
+static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
+    const char uncaught[] = "Uncaught ";
+    const char *data = ZSTR_VAL(msg);
+    size_t uncaught_len = sizeof uncaught - 1;  // ignore the null terminator
+    size_t size = ZSTR_LEN(msg);
+    if (size > uncaught_len && memcmp(data, uncaught, uncaught_len) == 0) {
+        char *newline = memchr(data, '\n', size);
+        if (newline) {
+            size_t offset = newline - data;
+            return zend_string_init(data, offset, 0);
+        }
+    }
+    return zend_string_copy(msg);
+}
+
 void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t error_lineno, zend_string *message) {
     UNUSED(error_filename, error_lineno);
 
@@ -665,7 +681,7 @@ void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t er
         if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
             dd_error_info error = {
                 .type = dd_error_type(type),
-                .msg = zend_string_copy(message),
+                .msg = dd_truncate_uncaught_exception(message),
                 .stack = dd_fatal_error_stack(),
             };
             dd_fatal_error_to_meta(&DDTRACE_G(additional_trace_meta), error);
