@@ -403,6 +403,9 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+    // currently only use this for error.msg, error.stack, and error.type, so use 3
+    array_init_size(&DDTRACE_G(additional_trace_meta), 3);
+
     // Things that should only run on the first RINIT
     int expected_first_rinit = 1;
     if (atomic_compare_exchange_strong(&ddtrace_first_rinit, &expected_first_rinit, 0)) {
@@ -458,6 +461,9 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+    zval_dtor(&DDTRACE_G(additional_trace_meta));
+    ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
 
     ddtrace_engine_hooks_rshutdown(TSRMLS_C);
     ddtrace_internal_handlers_rshutdown();
@@ -981,6 +987,19 @@ static PHP_FUNCTION(hook_function) {
     RETURN_BOOL(ddtrace_trace(NULL, &function_name_zv, callable, options TSRMLS_CC));
 }
 #endif
+
+static PHP_FUNCTION(additional_trace_meta) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
+
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "")) {
+        ddtrace_log_debug("Unexpected parameters to DDTrace\\additional_trace_meta");
+        array_init(return_value);
+        return;
+    }
+
+    ZVAL_COPY_VALUE(return_value, &DDTRACE_G(additional_trace_meta));
+    zval_copy_ctor(return_value);
+}
 
 static PHP_FUNCTION(trace_function) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr);
@@ -1618,6 +1637,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(ddtrace_config_integration_enabled, arginfo_ddtrace_config_integration_enabled),
     DDTRACE_FE(ddtrace_config_trace_enabled, arginfo_ddtrace_void),
     DDTRACE_FE(ddtrace_init, arginfo_ddtrace_init),
+    DDTRACE_NS_FE(additional_trace_meta, arginfo_ddtrace_void),
     DDTRACE_NS_FE(trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_FALIAS(dd_trace_function, trace_function, arginfo_ddtrace_trace_function),
     DDTRACE_NS_FE(trace_method, arginfo_ddtrace_trace_method),

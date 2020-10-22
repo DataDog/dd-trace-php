@@ -107,7 +107,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             Type::WEB_SERVLET,
                             'Error_.index'
                         )->setError('Exception', 'datadog', true),
-                    ]),
+                    ])->setError("E_ERROR", "Uncaught Exception: datadog in %s:%d")
+                    ->withExistingTagsNames(['error.stack']),
                 ],
             ]
         );

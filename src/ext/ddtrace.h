@@ -37,6 +37,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint32_t traces_group_id;
     HashTable *class_lookup;
     HashTable *function_lookup;
+    zval additional_trace_meta; // IS_ARRAY
     zend_bool log_backtrace;
     zend_bool backtrace_handler_already_run;
     dogstatsd_client dogstatsd_client;

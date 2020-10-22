@@ -357,6 +357,22 @@ final class Tracer implements TracerInterface
         $autoFinishSpans = \ddtrace_config_autofinish_span_enabled();
         $serviceMappings = \ddtrace_config_service_mapping();
 
+        $root = $this->getSafeRootSpan();
+        if ($root) {
+            $meta = \DDTrace\additional_trace_meta();
+            foreach ($meta as $tag => $value) {
+                $root->setTag($tag, $value, true);
+            }
+            // If the root span is finished, then setError doesn't trigger.
+            // This hack bypasses setError.
+            if ($root instanceof \DDTrace\Data\Span) {
+                $errorMsg = $root->getTag(Tag::ERROR_MSG);
+                if ($errorMsg) {
+                    $root->hasError = true;
+                }
+            }
+        }
+
         foreach ($this->traces as $trace) {
             $traceToBeSent = [];
             foreach ($trace as $span) {

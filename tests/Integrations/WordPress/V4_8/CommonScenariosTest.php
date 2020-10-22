@@ -217,7 +217,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/error',
                         // WordPress doesn't appear to automatically set the proper error code
                         'http.status_code' => '200',
-                    ])->withChildren([
+                    ])->setError("E_ERROR", "Uncaught Exception: Oops! in %s:%d")
+                    ->withExistingTagsNames(['error.stack'])
+                    ->withChildren([
                         SpanAssertion::exists('WP.main')
                             // There's no way to propagate this to the root span in userland yet
                             ->setError('Exception', 'Oops!')

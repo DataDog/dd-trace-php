@@ -164,6 +164,9 @@ void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC) {
     DDTRACE_G(open_spans_top) = NULL;
     DDTRACE_G(open_spans_count) = 0;
     ddtrace_free_span_id_stack(TSRMLS_C);
+    // Clear out additional trace meta; re-initialize it to empty
+    zval_dtor(&DDTRACE_G(additional_trace_meta));
+    array_init(&DDTRACE_G(additional_trace_meta));
 
     ddtrace_span_fci *span_fci = DDTRACE_G(closed_spans_top);
     array_init(serialized);
