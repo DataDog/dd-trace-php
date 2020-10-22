@@ -32,22 +32,28 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
                 'symfony',
                 'web',
                 'terminated_by_exit'
-            )
-                ->withExactTags([
-                    'symfony.route.action' => 'AppBundle\Controller\HomeController@actionBeingTerminatedByExit',
-                    'symfony.route.name' => 'terminated_by_exit',
-                    'http.method' => 'GET',
-                    'http.url' => 'http://localhost:9999/terminated_by_exit',
-                    'http.status_code' => '200',
-                ])
-                ->withChildren([
-                    SpanAssertion::exists('symfony.kernel.handle')
-                        ->withChildren([
-                            SpanAssertion::exists('symfony.kernel.request'),
-                            SpanAssertion::exists('symfony.kernel.controller'),
-                            SpanAssertion::exists('symfony.kernel.controller_arguments'),
-                        ]),
+            )->withExactTags([
+                'symfony.route.action' => 'AppBundle\Controller\HomeController@actionBeingTerminatedByExit',
+                'symfony.route.name' => 'terminated_by_exit',
+                'http.method' => 'GET',
+                'http.url' => 'http://localhost:9999/terminated_by_exit',
+                'http.status_code' => '200',
+            ])->withChildren([
+                SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
+                    SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
+                    SpanAssertion::exists('symfony.kernel.handle')->withChildren([
+                        SpanAssertion::exists('symfony.kernel.request'),
+                        SpanAssertion::exists('symfony.kernel.controller'),
+                        SpanAssertion::exists('symfony.kernel.controller_arguments'),
+                        SpanAssertion::build(
+                            'symfony.controller',
+                            'symfony',
+                            'web',
+                            'AppBundle\Controller\HomeController::actionBeingTerminatedByExit'
+                        ),
+                    ]),
                 ]),
+            ]),
         ]);
     }
 }

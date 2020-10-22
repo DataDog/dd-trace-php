@@ -338,6 +338,7 @@ TEST_WEB_71 := \
 	test_web_symfony_30 \
 	test_web_symfony_33 \
 	test_web_symfony_34 \
+	test_web_symfony_40 \
 	test_web_symfony_42 \
 	test_web_yii_2 \
 	test_web_wordpress_48 \
@@ -403,6 +404,7 @@ TEST_WEB_73 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
+	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
 	test_web_symfony_44 \
@@ -433,6 +435,7 @@ TEST_WEB_74 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
+	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
 	test_web_symfony_44 \

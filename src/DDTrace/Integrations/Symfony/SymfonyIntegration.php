@@ -41,14 +41,42 @@ class SymfonyIntegration extends Integration
     {
         $integration = $this;
 
-        \DDTrace\trace_method(
+        \DDTrace\hook_method(
+            'Symfony\Component\HttpKernel\Kernel',
+            '__construct',
+            function () {
+                \DDTrace\trace_method(
+                    'Symfony\Component\HttpKernel\Kernel',
+                    'handle',
+                    function (SpanData $span) {
+                        $span->name = 'symfony.httpkernel.kernel.handle';
+                        $span->resource = \get_class($this);
+                        $span->type = Type::WEB_SERVLET;
+                        $span->service = \ddtrace_config_app_name('symfony');
+                    }
+                );
+
+                \DDTrace\trace_method(
+                    'Symfony\Component\HttpKernel\Kernel',
+                    'boot',
+                    function (SpanData $span) {
+                        $span->name = 'symfony.httpkernel.kernel.boot';
+                        $span->resource = \get_class($this);
+                        $span->type = Type::WEB_SERVLET;
+                        $span->service = \ddtrace_config_app_name('symfony');
+                    }
+                );
+            }
+        );
+
+        \DDTrace\hook_method(
             'Symfony\Component\HttpKernel\HttpKernel',
             '__construct',
             function () use ($integration) {
                 $tracer = GlobalTracer::get();
                 $scope = $tracer->getRootScope();
                 if (!$scope) {
-                    return false;
+                    return;
                 }
                 /** @var Span $symfonyRequestSpan */
                 $integration->symfonyRequestSpan = $scope->getSpan();
@@ -58,11 +86,10 @@ class SymfonyIntegration extends Integration
                         && Versions::versionMatches('2', \Symfony\Component\HttpKernel\Kernel::VERSION)
                 ) {
                     $integration->loadSymfony2($integration);
-                    return false;
+                    return;
                 }
 
                 $integration->loadSymfony($integration);
-                return false;
             }
         );
 
@@ -75,6 +102,47 @@ class SymfonyIntegration extends Integration
         $integration->symfonyRequestSpan->overwriteOperationName('symfony.request');
         $integration->symfonyRequestSpan->setTag(Tag::SERVICE_NAME, $integration->appName);
         $integration->addTraceAnalyticsIfEnabledLegacy($integration->symfonyRequestSpan);
+
+        /* Move this to its own integration
+        $doctrineRepositories = [];
+        \DDTrace\hook_method(
+            'Doctrine\\Bundle\\DoctrineBundle\\Repository\\ServiceEntityRepository',
+            '__construct',
+            function ($object, $class) use (&$doctrineRepositories) {
+                if (isset($object) && \is_object($object)) {
+                    $class = \get_class($object);
+                }
+
+                if (isset($doctrineRepositories[$class])) {
+                    return;
+                }
+
+                $doctrineRepositories[$class] = null;
+
+                $rc = new \ReflectionClass($class);
+                $methods = $rc->getMethods(\ReflectionMethod::IS_PUBLIC);
+                foreach ($methods as $method) {
+                    $methodname = $method->name;
+                    // Skip magic methods and other functions prefixed with _
+                    if (\strlen($methodname) === 0 || $methodname[0] === '_') {
+                        continue;
+                    }
+
+                    \DDTrace\trace_method(
+                        $class,
+                        $methodname,
+                        function (SpanData $span) use ($class, $methodname) {
+                            $replaced = \str_replace('\\', '.', $class);
+                            $span->name = "{$replaced}.{$methodname}";
+                            $span->resource = "{$class}::{$methodname}";
+                            $span->type = Type::WEB_SERVLET;
+                            $span->service = \ddtrace_config_app_name('doctrine');
+                        }
+                    );
+                }
+            }
+        );
+         */
 
         \DDTrace\trace_method(
             'Symfony\Component\HttpKernel\HttpKernel',
@@ -132,6 +200,41 @@ class SymfonyIntegration extends Integration
                         // Invalid API usage
                         return false;
                     }
+
+                    // trace the container itself
+                    if ($eventName === 'kernel.controller' && \method_exists($event, 'getController')) {
+                        $controller = $event->getController();
+                        if (!($controller instanceof \Closure)) {
+                            if (\is_callable($controller, false, $controllerName) && $controllerName !== null) {
+                                if (\strpos($controllerName, '::') > 0) {
+                                    list($class, $method) = \explode('::', $controllerName);
+                                    if (isset($class, $method)) {
+                                        \DDTrace\trace_method(
+                                            $class,
+                                            $method,
+                                            function (SpanData $span) use ($controllerName, $integration) {
+                                                $span->name = 'symfony.controller';
+                                                $span->resource = $controllerName;
+                                                $span->type = Type::WEB_SERVLET;
+                                                $span->service = $integration->appName;
+                                            }
+                                        );
+                                    }
+                                } else {
+                                    \DDTrace\trace_function(
+                                        $controllerName,
+                                        function (SpanData $span) use ($controllerName, $integration) {
+                                            $span->name = 'symfony.controller';
+                                            $span->resource = $controllerName;
+                                            $span->type = Type::WEB_SERVLET;
+                                            $span->service = $integration->appName;
+                                        }
+                                    );
+                                }
+                            }
+                        }
+                    }
+
                     $span->name = $span->resource = 'symfony.' . $eventName;
                     $span->service = $integration->appName;
                     if ($event === null) {
