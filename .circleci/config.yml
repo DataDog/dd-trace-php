@@ -467,6 +467,44 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
+  unit_tests_master:
+    working_directory: ~/datadog
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+      DD_AGENT_HOST: 127.0.0.1
+      HTTPBIN_HOSTNAME: httpbin_integration
+    executor:
+      name: with_httpbin
+      docker_image: datadog/dd-trace-ci:php-master_buster
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Build master branch
+          command: install-php-master
+      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - run:
+          name: Run extension phpt tests
+          command: make test_c BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
+      - run:
+          name: Run unit tests
+          command: make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
+      - run:
+          name: Run API tests
+          command: make test_api_unit
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
   php_language_tests:
     parameters:
       docker_image:
@@ -1630,6 +1668,9 @@ workflows:
           name: "PHP 80 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           xdebug_version_one: "3.0.0"
+      - unit_tests_master:
+          requires: [ 'Prepare Code' ]
+          name: "php-src master unit tests"
       - placeholder:
           requires: [ 'Prepare Code' ]
           name: Language tests
