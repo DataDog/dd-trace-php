@@ -128,6 +128,12 @@ Link: https://symfony.com/doc/4.4/setup.html
 
     $ composer create-project symfony/website-skeleton Version_4_4 "4.4.*"
 
+### Symfony 5.0
+
+Link: https://symfony.com/doc/5.0/setup.html
+
+    $ composer create-project symfony/website-skeleton Version_5_0 "5.0.*"
+
 ### Symfony 5.1
 
 Link: https://symfony.com/doc/5.1/setup.html
