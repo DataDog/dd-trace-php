@@ -458,6 +458,7 @@ TEST_WEB_80 := \
 	test_web_codeigniter_22 \
 	test_web_slim_312 \
 	test_web_custom
+	#test_web_symfony_51 ; will work eventually; currently hung on: doctrine/doctrine-migrations-bundle
 
 define run_tests
 	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1)
