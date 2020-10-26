@@ -460,7 +460,6 @@ TEST_WEB_80 := \
 	test_metrics \
 	test_web_codeigniter_22 \
 	test_web_slim_312 \
-	test_web_wordpress_55 \
 	test_web_custom
 
 define run_tests
