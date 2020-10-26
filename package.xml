@@ -68,6 +68,8 @@
             <file name="src/ext/ddtrace.h" role="src" />
             <file name="src/ext/ddtrace_string.c" role="src" />
             <file name="src/ext/ddtrace_string.h" role="src" />
+            <file name="src/ext/ddtrace_time.cc" role="src" />
+            <file name="src/ext/ddtrace_time.h" role="src" />
             <file name="src/ext/distributed_tracing.h" role="src" />
             <file name="src/ext/memory_limit.c" role="src" />
             <file name="src/ext/memory_limit.h" role="src" />

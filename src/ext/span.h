@@ -15,7 +15,7 @@ struct ddtrace_span_t {
     uint64_t trace_id;
     uint64_t parent_id;
     uint64_t span_id;
-    uint64_t start;
+    int64_t start;
     union {
         uint64_t duration_start;
         uint64_t duration;

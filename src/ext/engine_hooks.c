@@ -8,6 +8,7 @@
 
 #include "configuration.h"
 #include "ddtrace.h"
+#include "ddtrace_time.h"
 #include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -53,19 +54,11 @@ void ddtrace_engine_hooks_mshutdown(void) {
     ddtrace_execute_internal_mshutdown();
 }
 
-static uint64_t _get_microseconds() {
-    struct timespec time;
-    if (clock_gettime(CLOCK_MONOTONIC, &time) == 0) {
-        return time.tv_sec * 1000000U + time.tv_nsec / 1000U;
-    }
-    return 0U;
-}
-
 static zend_op_array *_dd_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC) {
     zend_op_array *res;
-    uint64_t start = _get_microseconds();
+    uint64_t start = ddtrace_monotonic_now_usec();
     res = _prev_compile_file(file_handle, type TSRMLS_CC);
-    DDTRACE_G(compile_time_microseconds) += (int64_t)(_get_microseconds() - start);
+    DDTRACE_G(compile_time_microseconds) += (ddtrace_monotonic_now_usec() - start);
     return res;
 }
 
@@ -84,7 +77,7 @@ static void _compile_mshutdown(void) {
 
 void ddtrace_compile_time_reset(TSRMLS_D) { DDTRACE_G(compile_time_microseconds) = 0; }
 
-int64_t ddtrace_compile_time_get(TSRMLS_D) { return DDTRACE_G(compile_time_microseconds); }
+int64_t ddtrace_compile_time_get(TSRMLS_D) { return (int64_t)DDTRACE_G(compile_time_microseconds); }
 
 extern inline void ddtrace_backup_error_handling(ddtrace_error_handling *eh, zend_error_handling_t mode TSRMLS_DC);
 #if PHP_VERSION_ID < 80000

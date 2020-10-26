@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "configuration.h"
+#include "ddtrace_time.h"
 #include "env_config.h"
 #include "macros.h"
 
@@ -71,13 +72,6 @@ static void prepare_cb() {
     }
 }
 
-static uint64_t current_timestamp_monotonic_usec() {
-    struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-
-    return t.tv_sec * 1000 * 1000 + t.tv_nsec / 1000;
-}
-
 static int64_t get_max_consecutive_failures(TSRMLS_D) {
     return ddtrace_get_int_config(DD_TRACE_CIRCUIT_BREAKER_ENV_MAX_CONSECUTIVE_FAILURES,
                                   DD_TRACE_CIRCUIT_BREAKER_DEFAULT_MAX_CONSECUTIVE_FAILURES TSRMLS_CC);
@@ -94,7 +88,7 @@ uint32_t dd_tracer_circuit_breaker_can_try(TSRMLS_D) {
         return 1;
     }
     uint64_t last_failure_timestamp = atomic_load(&dd_trace_circuit_breaker->last_failure_timestamp);
-    uint64_t current_time = current_timestamp_monotonic_usec();
+    uint64_t current_time = ddtrace_monotonic_now_usec();
 
     return (last_failure_timestamp + get_retry_time_usec(TSRMLS_C)) <= current_time;
 }
@@ -105,7 +99,7 @@ void dd_tracer_circuit_breaker_register_error(TSRMLS_D) {
     atomic_fetch_add(&dd_trace_circuit_breaker->consecutive_failures, 1);
     atomic_fetch_add(&dd_trace_circuit_breaker->total_failures, 1);
 
-    atomic_store(&dd_trace_circuit_breaker->last_failure_timestamp, current_timestamp_monotonic_usec());
+    atomic_store(&dd_trace_circuit_breaker->last_failure_timestamp, ddtrace_monotonic_now_usec());
 
     // if circuit breaker is closed attempt to open it if consecutive failures are higher thatn the threshold
     if (dd_tracer_circuit_breaker_is_closed()) {
@@ -126,7 +120,7 @@ void dd_tracer_circuit_breaker_open() {
     prepare_cb();
 
     atomic_fetch_or(&dd_trace_circuit_breaker->flags, DD_TRACE_CIRCUIT_BREAKER_OPENED);
-    atomic_store(&dd_trace_circuit_breaker->circuit_opened_timestamp, current_timestamp_monotonic_usec());
+    atomic_store(&dd_trace_circuit_breaker->circuit_opened_timestamp, ddtrace_monotonic_now_usec());
 }
 
 void dd_tracer_circuit_breaker_close() {

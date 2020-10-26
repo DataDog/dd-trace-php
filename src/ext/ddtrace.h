@@ -69,7 +69,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddtrace_span_fci *closed_spans_top;
     uint32_t open_spans_count;
     uint32_t closed_spans_count;
-    int64_t compile_time_microseconds;
+    uint64_t compile_time_microseconds;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 

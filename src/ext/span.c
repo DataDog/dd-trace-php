@@ -7,13 +7,11 @@
 #include "auto_flush.h"
 #include "configuration.h"
 #include "ddtrace.h"
+#include "ddtrace_time.h"
 #include "dispatch.h"
 #include "logging.h"
 #include "random.h"
 #include "serializer.h"
-
-#define USE_REALTIME_CLOCK 0
-#define USE_MONOTONIC_CLOCK 1
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -79,14 +77,6 @@ void ddtrace_free_span_stacks(TSRMLS_D) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-static uint64_t _get_nanoseconds(BOOL_T monotonic_clock) {
-    struct timespec time;
-    if (clock_gettime(monotonic_clock ? CLOCK_MONOTONIC : CLOCK_REALTIME, &time) == 0) {
-        return time.tv_sec * 1000000000L + time.tv_nsec;
-    }
-    return 0;
-}
-
 void ddtrace_push_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     span_fci->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = span_fci;
@@ -110,15 +100,15 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);
     // Set the trace_id last so we have ID's on the stack
     span->trace_id = DDTRACE_G(trace_id);
-    span->duration_start = _get_nanoseconds(USE_MONOTONIC_CLOCK);
+    span->duration_start = ddtrace_monotonic_now_nsec();
     span->pid = getpid();
     // Start time is nanoseconds from unix epoch
     // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    span->start = _get_nanoseconds(USE_REALTIME_CLOCK);
+    span->start = ddtrace_realtime_now_nsec();
 }
 
 void dd_trace_stop_span_time(ddtrace_span_t *span) {
-    span->duration = _get_nanoseconds(USE_MONOTONIC_CLOCK) - span->duration_start;
+    span->duration = ddtrace_monotonic_now_nsec() - span->duration_start;
 }
 
 void ddtrace_close_span(TSRMLS_D) {
