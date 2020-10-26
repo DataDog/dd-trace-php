@@ -377,6 +377,8 @@ TEST_WEB_72 := \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
 	test_web_symfony_44 \
+	test_web_symfony_50 \
+	test_web_symfony_51 \
 	test_web_wordpress_48 \
 	test_web_yii_2 \
 	test_web_zend_1 \
@@ -408,6 +410,8 @@ TEST_WEB_73 := \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
 	test_web_symfony_44 \
+	test_web_symfony_50 \
+	test_web_symfony_51 \
 	test_web_wordpress_48 \
 	test_web_yii_2 \
 	test_web_zend_1 \
@@ -439,6 +443,8 @@ TEST_WEB_74 := \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
 	test_web_symfony_44 \
+	test_web_symfony_50 \
+	test_web_symfony_51 \
 	test_web_wordpress_48 \
 	test_web_yii_2 \
 	test_web_zend_1 \
@@ -455,6 +461,7 @@ TEST_WEB_80 := \
 	test_web_codeigniter_22 \
 	test_web_slim_312 \
 	test_web_custom
+	#test_web_symfony_51 ; will work eventually; currently hung on: doctrine/doctrine-migrations-bundle
 
 define run_tests
 	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1)
@@ -608,6 +615,14 @@ test_web_symfony_44:
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_4 update
 	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V4_4)
+test_web_symfony_50:
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_0 install # EOL; install from lock
+	php tests/Frameworks/Symfony/Version_5_0/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests,tests/Integrations/Symfony/V5_0)
+test_web_symfony_51:
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_1 update
+	php tests/Frameworks/Symfony/Version_5_1/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests,tests/Integrations/Symfony/V5_1)
 test_web_wordpress_48:
 	$(call run_tests,tests/Integrations/WordPress/V4_8)
 test_web_yii_2:
