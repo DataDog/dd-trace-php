@@ -1,15 +1,19 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\PHPRedis\V3;
+namespace DDTrace\Tests\Integrations\PHPRedis\V5;
 
 use DDTrace\Integrations\PHPRedis\PHPRedisIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
 
-class PHPRedis3Test extends IntegrationTestCase
+// Note: PHPRedis 5 has many deprecated methodsd (comapred to 4) that we still want to test
+\error_reporting(E_ALL ^ \E_DEPRECATED);
+
+class PHPRedisTest extends IntegrationTestCase
 {
     const A_STRING = 'A_STRING';
+    const A_FLOAT = 'A_FLOAT';
     const ARRAY_COUNT_1 = 'ARRAY_COUNT_1';
     const ARRAY_COUNT_2 = 'ARRAY_COUNT_2';
     const ARRAY_COUNT_3 = 'ARRAY_COUNT_3';
@@ -31,15 +35,15 @@ class PHPRedis3Test extends IntegrationTestCase
         parent::ddSetUp();
         $this->redis = new \Redis();
         $this->redis->connect($this->host, $this->port);
+        $this->redis->flushAll();
         $this->redisSecondInstance = new \Redis();
         $this->redisSecondInstance->connect($this->host, $this->portSecondInstance);
+        $this->redisSecondInstance->flushAll();
     }
 
     public function ddTearDown()
     {
-        $this->redis->flushAll();
         $this->redis->close();
-        $this->redisSecondInstance->flushAll();
         $this->redisSecondInstance->close();
         $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST']);
         parent::ddTearDown();
@@ -211,6 +215,7 @@ class PHPRedis3Test extends IntegrationTestCase
             ['sort', ['k1', ['sort' => 'desc']], 'k1 sort desc'],
             ['ttl', ['k1'], 'k1'],
             ['pttl', ['k1'], 'k1'],
+            ['swapdb', ['0', '1'], '0 1'],
         ];
     }
 
@@ -594,7 +599,7 @@ class PHPRedis3Test extends IntegrationTestCase
             [
                 'exists', // method
                 [ 'k1'], // arguments
-                true, // expected final value
+                1, // expected final value
                 'exists k1', // raw command
                 ['k1' => 'v1'], // initial
             ],
@@ -1384,6 +1389,13 @@ class PHPRedis3Test extends IntegrationTestCase
                 'zDelete s1 v2', // raw command
             ],
             [
+                'zRemove', // method
+                [ 's1', 'v2' ], // arguments
+                1, // expected result
+                [ 's1' => 2, 's2' => 3, ], // expected final sizes
+                'zRemove s1 v2', // raw command
+            ],
+            [
                 'zRemRangeByRank', // method
                 [ 's1', 0, 1 ], // arguments
                 2, // expected result
@@ -1412,11 +1424,32 @@ class PHPRedis3Test extends IntegrationTestCase
                 'zDeleteRangeByScore s1 0 1', // raw command
             ],
             [
+                'zRemoveRangeByScore', // method
+                [ 's1', 0, 1 ], // arguments
+                2, // expected result
+                [ 's1' => 1, 's2' => 3, ], // expected final sizes
+                'zRemoveRangeByScore s1 0 1', // raw command
+            ],
+            [
                 'zRevRange', // method
                 [ 's1', 0, -2 ], // arguments
                 [ 'v3', 'v1' ], // expected result
                 [ 's1' => 3, 's2' => 3, ], // expected final sizes
                 'zRevRange s1 0 -2', // raw command
+            ],
+            [
+                'zPopMax', // method
+                [ 's1', 1 ], // arguments
+                [ 'v3' => 5.0 ], // expected result
+                [ 's1' => 2, 's2' => 3, ], // expected final sizes
+                'zPopMax s1 1', // raw command
+            ],
+            [
+                'zPopMin', // method
+                [ 's1', 1 ], // arguments
+                [ 'v2' => 0.0 ], // expected result
+                [ 's1' => 2, 's2' => 3, ], // expected final sizes
+                'zPopMin s1 1', // raw command
             ],
             [
                 'zScore', // method
@@ -1431,6 +1464,13 @@ class PHPRedis3Test extends IntegrationTestCase
                 5, // expected result
                 [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final sizes
                 'zUnion out s1 s2', // raw command
+            ],
+            [
+                'zunionstore', // method
+                [ 'out', ['s1', 's2'] ], // arguments
+                5, // expected result
+                [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final sizes
+                'zunionstore out s1 s2', // raw command
             ],
             [
                 'zScan', // method
@@ -1761,26 +1801,280 @@ class PHPRedis3Test extends IntegrationTestCase
         $this->assertSame('v1', $this->redis->get('k2'));
     }
 
-    public function testSetGetWithBinarySafeStringsAsValue()
+    /**
+     * @dataProvider dataProviderTestGeocodingFunctions
+     */
+    public function testGeocodingFunctions($method, $args, $expectedResult, /*$expectedFinal, */$rawCommand)
     {
-        $traces = $this->isolateTracer(function () {
-            $this->redis->set('k1', $this->getBinarySafeString());
-            $this->assertSame($this->getBinarySafeString(), $this->redis->get('k1'));
+        $result = null;
+        $initial = $this->redis->geoAdd('existing', -122.431, 37.773, 'San Francisco', -157.858, 21.315, 'Honolulu');
+
+        $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
+            if (count($args) === 0) {
+                $result = $this->redis->$method();
+            } elseif (count($args) === 1) {
+                $result = $this->redis->$method($args[0]);
+            } elseif (count($args) === 2) {
+                $result = $this->redis->$method($args[0], $args[1]);
+            } elseif (count($args) === 4) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2], $args[3]);
+            } elseif (count($args) === 5) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2], $args[3], $args[4]);
+            } else {
+                throw new \Exception('Number of arguments not supported: ' . \count($args));
+            }
         });
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.set",
+                "Redis.$method",
                 'phpredis',
                 'redis',
-                "Redis.set"
-            )->withExistingTagsNames(['redis.raw_command']),
+                "Redis.$method"
+            )->withExactTags(['redis.raw_command' => $rawCommand]),
+        ]);
+
+        if ($expectedResult === self::A_FLOAT) {
+            $this->assertTrue(\is_float($result));
+        } elseif ($expectedResult === self::ARRAY_COUNT_1) {
+            $this->assertCount(1, $result);
+        } else {
+            $this->assertSame($expectedResult, $result);
+        }
+    }
+
+    public function dataProviderTestGeocodingFunctions()
+    {
+        return [
+            [
+                'geoAdd', // method
+                [ 'k1', 2.349014, 48.864716, 'Paris' ], // arguments
+                1, // expected result
+                'geoAdd k1 2.349014 48.864716 Paris', // raw command
+            ],
+            [
+                'geoHash', // method
+                [ 'existing', 'San Francisco' ], // arguments
+                [ '9q8yyh27wv0' ], // expected result
+                'geoHash existing San Francisco', // raw command
+            ],
+            [
+                'geoPos', // method
+                [ 'existing', 'San Francisco' ], // arguments
+                // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
+                self::ARRAY_COUNT_1, // expected result
+                'geoPos existing San Francisco', // raw command
+            ],
+            [
+                'geoDist', // method
+                [ 'existing', 'San Francisco', 'Honolulu', 'm' ], // arguments
+                // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
+                self::A_FLOAT, // expected result
+                'geoDist existing San Francisco Honolulu m', // raw command
+            ],
+            [
+                'geoRadius', // method
+                [ 'existing', -122.431, 37.773, 100, 'km' ], // arguments
+                // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
+                [ 'San Francisco' ], // expected result
+                'geoRadius existing -122.431 37.773 100 km', // raw command
+            ],
+            [
+                'geoRadiusByMember', // method
+                [ 'existing', 'San Francisco', 100, 'km' ], // arguments
+                // This is the definition of 'flakiness'. Let's see how it is in CI and in case we can reconsider.
+                [ 'San Francisco' ], // expected result
+                'geoRadiusByMember existing San Francisco 100 km', // raw command
+            ],
+        ];
+    }
+
+    /**
+     * Various stream methods are very dependent on each other, so we test them sequentially.
+     * This at the cost of test readability, but otherwise it would add too much complexity in setting up fixtures.
+     */
+    public function testStreamsFunctions()
+    {
+        // xAdd
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xAdd('s1', '123-456', [ 'k1' => 'v1' ]);
+            $this->assertSame('123-456', $result);
+        });
+        $this->assertFlameGraph($traces, [
             SpanAssertion::build(
-                "Redis.get",
+                "Redis.xAdd",
                 'phpredis',
                 'redis',
-                "Redis.get"
-            )->withExistingTagsNames(['redis.raw_command']),
+                "Redis.xAdd"
+            )->withExactTags(['redis.raw_command' => 'xAdd s1 123-456 k1 v1']),
+        ]);
+
+        // xGroup
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xGroup('CREATE', 's1', 'group1', '0');
+            $this->assertSame(true, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xGroup",
+                'phpredis',
+                'redis',
+                "Redis.xGroup"
+            )->withExactTags(['redis.raw_command' => 'xGroup CREATE s1 group1 0']),
+        ]);
+
+        // xInfo
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xInfo('GROUPS', 's1');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xInfo",
+                'phpredis',
+                'redis',
+                "Redis.xInfo"
+            )->withExactTags(['redis.raw_command' => 'xInfo GROUPS s1']),
+        ]);
+
+        // xLen
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xLen('s1');
+            $this->assertSame(1, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xLen",
+                'phpredis',
+                'redis',
+                "Redis.xLen"
+            )->withExactTags(['redis.raw_command' => 'xLen s1']),
+        ]);
+
+        // xPending
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xPending('s1', 'group1');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xPending",
+                'phpredis',
+                'redis',
+                "Redis.xPending"
+            )->withExactTags(['redis.raw_command' => 'xPending s1 group1']),
+        ]);
+
+        // xRange
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xRange('s1', '-', '+');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xRange",
+                'phpredis',
+                'redis',
+                "Redis.xRange"
+            )->withExactTags(['redis.raw_command' => 'xRange s1 - +']),
+        ]);
+
+        // xRevRange
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xRevRange('s1', '+', '-');
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xRevRange",
+                'phpredis',
+                'redis',
+                "Redis.xRevRange"
+            )->withExactTags(['redis.raw_command' => 'xRevRange s1 + -']),
+        ]);
+
+        // xRead
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xRead(['s1' => '$']);
+            $this->assertSame([], $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xRead",
+                'phpredis',
+                'redis',
+                "Redis.xRead"
+            )->withExactTags(['redis.raw_command' => 'xRead s1 $']),
+        ]);
+
+        // xReadGroup
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xReadGroup('group1', 'consumer1', ['s1' => '>']);
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xReadGroup",
+                'phpredis',
+                'redis',
+                "Redis.xReadGroup"
+            )->withExactTags(['redis.raw_command' => 'xReadGroup group1 consumer1 s1 >']),
+        ]);
+
+        // xAck
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xAck('s1', 'group1', ['s1' => '123-456']);
+            $this->assertSame(1, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xAck",
+                'phpredis',
+                'redis',
+                "Redis.xAck"
+            )->withExactTags(['redis.raw_command' => 'xAck s1 group1 s1 123-456']),
+        ]);
+
+        // xClaim
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xClaim('s1', 'group1', 'consumer1', 0, ['s1' => '123-456']);
+            $this->assertTrue(is_array($result));
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xClaim",
+                'phpredis',
+                'redis',
+                "Redis.xClaim"
+            )->withExactTags(['redis.raw_command' => 'xClaim s1 group1 consumer1 0 s1 123-456']),
+        ]);
+
+        // xDel
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xDel('s1', ['123-456']);
+            $this->assertSame(1, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xDel",
+                'phpredis',
+                'redis',
+                "Redis.xDel"
+            )->withExactTags(['redis.raw_command' => 'xDel s1 123-456']),
+        ]);
+
+        // xTrim
+        $traces = $this->isolateTracer(function () use (&$result) {
+            $result = $this->redis->xTrim('s1', 0);
+            $this->assertSame(0, $result);
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.xTrim",
+                'phpredis',
+                'redis',
+                "Redis.xTrim"
+            )->withExactTags(['redis.raw_command' => 'xTrim s1 0']),
         ]);
     }
 
@@ -1844,6 +2138,30 @@ class PHPRedis3Test extends IntegrationTestCase
             ]),
         ]);
     }
+
+    public function testSetGetWithBinarySafeStringsAsValue()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->redis->set('k1', $this->getBinarySafeString());
+            $this->assertSame($this->getBinarySafeString(), $this->redis->get('k1'));
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.set",
+                'phpredis',
+                'redis',
+                "Redis.set"
+            )->withExistingTagsNames(['redis.raw_command']),
+            SpanAssertion::build(
+                "Redis.get",
+                'phpredis',
+                'redis',
+                "Redis.get"
+            )->withExistingTagsNames(['redis.raw_command']),
+        ]);
+    }
+
 
     public function testSetGetWithBinarySafeStringsAsKey()
     {

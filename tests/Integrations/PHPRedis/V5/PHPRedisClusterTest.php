@@ -10,7 +10,7 @@ use Exception;
 // Note: PHPRedis 5 has many deprecated methodsd (comapred to 4) that we still want to test
 \error_reporting(E_ALL ^ \E_DEPRECATED);
 
-class PHPRedisCluster5Test extends IntegrationTestCase
+class PHPRedisClusterTest extends IntegrationTestCase
 {
     const CONNECTION_1 = 'CONNECTION_1';
     const CONNECTION_1_AS_ARG = 'CONNECTION_1_AS_ARG';
@@ -34,9 +34,9 @@ class PHPRedisCluster5Test extends IntegrationTestCase
     private $redis;
     private $redisSecondInstance;
 
-    public function setUp()
+    public function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->clusterIp = gethostbyname($this->host);
         $this->connection1 = [$this->clusterIp, 7001];
         $this->connection2 = [$this->clusterIp, 7002];
@@ -51,11 +51,11 @@ class PHPRedisCluster5Test extends IntegrationTestCase
         $this->redis->flushAll($this->connection3);
     }
 
-    public function tearDown()
+    public function ddTearDown()
     {
         $this->redis->close();
         // $this->redisSecondInstance->close();
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     public function testClose()
