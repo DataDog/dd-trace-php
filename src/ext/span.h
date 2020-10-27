@@ -8,6 +8,9 @@
 #include "compatibility.h"
 #include "ddtrace.h"
 
+// error.type, error.type, error.stack
+static const int ddtrace_num_error_tags = 3;
+
 struct ddtrace_dispatch_t;
 
 struct ddtrace_span_t {

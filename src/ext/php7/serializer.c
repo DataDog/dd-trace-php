@@ -465,21 +465,17 @@ static int dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
     HashTable *ht = Z_ARR_P(meta);
 
     if (error.type) {
-        zval tmp;
-        ZVAL_STR(&tmp, zend_string_copy(error.type));
+        zval tmp = ddtrace_zval_zstr(zend_string_copy(error.type));
         zend_symtable_str_update(ht, ZEND_STRL("error.type"), &tmp);
     }
 
     if (error.msg) {
-        zval tmp;
-        ZVAL_STR(&tmp, zend_string_copy(error.msg));
+        zval tmp = ddtrace_zval_zstr(zend_string_copy(error.msg));
         zend_symtable_str_update(ht, ZEND_STRL("error.msg"), &tmp);
     }
 
-    // todo: add error.stack
     if (error.stack) {
-        zval tmp;
-        ZVAL_STR(&tmp, zend_string_copy(error.stack));
+        zval tmp = ddtrace_zval_zstr(zend_string_copy(error.stack));
         zend_symtable_str_update(ht, ZEND_STRL("error.stack"), &tmp);
     }
 
@@ -627,7 +623,7 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
 
                 if (Z_TYPE_P(meta) != IS_ARRAY) {
                     zval_ptr_dtor(meta);
-                    array_init_size(meta, 3);
+                    array_init_size(meta, ddtrace_num_error_tags);
                 }
                 dd_fatal_error_to_meta(meta, error);
             }
@@ -698,7 +694,7 @@ void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t er
 
                 if (Z_TYPE_P(meta) != IS_ARRAY) {
                     zval_ptr_dtor(meta);
-                    array_init_size(meta, 3);
+                    array_init_size(meta, ddtrace_num_error_tags);
                 }
                 dd_fatal_error_to_meta(meta, error);
             }
