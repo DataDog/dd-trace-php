@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "ddtrace_time.h"
 #include "env_config.h"
 #include "random.h"
 #include "version.h"
@@ -69,7 +70,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddtrace_span_fci *closed_spans_top;
     uint32_t open_spans_count;
     uint32_t closed_spans_count;
-    uint64_t compile_time_microseconds;
+    ddtrace_microtime compile_time_microseconds;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 

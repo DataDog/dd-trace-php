@@ -14,15 +14,8 @@ if test "$PHP_DDTRACE" != "no"; then
     AC_MSG_RESULT([yes])
   ])
 
-  m4_include([m4/ax_execinfo.m4])
   m4_include([m4/polyfill.m4])
-
-  PHP_REQUIRE_CXX
-
-  dnl This isn't portable, but AX_CXX_COMPILE_STDCXX wasn't working on Mac
-  CXXFLAGS="$CXXFLAGS -std=c++11"
-
-  CFLAGS="$CFLAGS -std=gnu11"
+  m4_include([m4/ax_execinfo.m4])
 
   AX_EXECINFO
 
@@ -46,13 +39,13 @@ if test "$PHP_DDTRACE" != "no"; then
     src/dogstatsd/client.c \
     src/ext/arrays.c \
     src/ext/circuit_breaker.c \
+    src/ext/clock.c \
     src/ext/comms_php.c \
     src/ext/compat_string.c \
     src/ext/coms.c \
     src/ext/configuration.c \
     src/ext/configuration_php_iface.c \
     src/ext/ddtrace_string.c \
-    src/ext/ddtrace_time.cc \
     src/ext/dispatch.c \
     src/ext/dogstatsd_client.c \
     src/ext/engine_hooks.c \
@@ -134,7 +127,7 @@ if test "$PHP_DDTRACE" != "no"; then
     DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES=""
   fi
 
-  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_PHP_SOURCES $DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall)
+  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_PHP_SOURCES $DD_TRACE_PHP_VERSION_SPECIFIC_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
   PHP_ADD_BUILD_DIR($ext_builddir/src/ext, 1)
 
   PHP_CHECK_LIBRARY(rt, shm_open,

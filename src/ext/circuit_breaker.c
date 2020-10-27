@@ -9,8 +9,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "clock.h"
 #include "configuration.h"
-#include "ddtrace_time.h"
 #include "env_config.h"
 #include "macros.h"
 
@@ -88,7 +88,7 @@ uint32_t dd_tracer_circuit_breaker_can_try(TSRMLS_D) {
         return 1;
     }
     uint64_t last_failure_timestamp = atomic_load(&dd_trace_circuit_breaker->last_failure_timestamp);
-    uint64_t current_time = ddtrace_monotonic_now_usec();
+    uint64_t current_time = ddtrace_steady_clock.now_usec().count;
 
     return (last_failure_timestamp + get_retry_time_usec(TSRMLS_C)) <= current_time;
 }
@@ -99,7 +99,8 @@ void dd_tracer_circuit_breaker_register_error(TSRMLS_D) {
     atomic_fetch_add(&dd_trace_circuit_breaker->consecutive_failures, 1);
     atomic_fetch_add(&dd_trace_circuit_breaker->total_failures, 1);
 
-    atomic_store(&dd_trace_circuit_breaker->last_failure_timestamp, ddtrace_monotonic_now_usec());
+    ddtrace_microtime now = ddtrace_steady_clock.now_usec();
+    atomic_store(&dd_trace_circuit_breaker->last_failure_timestamp, now.count);
 
     // if circuit breaker is closed attempt to open it if consecutive failures are higher thatn the threshold
     if (dd_tracer_circuit_breaker_is_closed()) {
@@ -120,7 +121,8 @@ void dd_tracer_circuit_breaker_open() {
     prepare_cb();
 
     atomic_fetch_or(&dd_trace_circuit_breaker->flags, DD_TRACE_CIRCUIT_BREAKER_OPENED);
-    atomic_store(&dd_trace_circuit_breaker->circuit_opened_timestamp, ddtrace_monotonic_now_usec());
+    int64_t now = ddtrace_steady_clock.now_usec().count;
+    atomic_store(&dd_trace_circuit_breaker->circuit_opened_timestamp, now);
 }
 
 void dd_tracer_circuit_breaker_close() {

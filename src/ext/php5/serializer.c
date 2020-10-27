@@ -386,8 +386,8 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     if (span->parent_id > 0) {
         add_assoc_long(el, "parent_id", span->parent_id);
     }
-    add_assoc_long(el, "start", span->start);
-    add_assoc_long(el, "duration", span->duration);
+    add_assoc_long(el, "start", span->start.count);
+    add_assoc_long(el, "duration", span->duration.count);
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
     zval *prop_name = _read_span_property(span->span_data, ZEND_STRL("name") TSRMLS_CC);

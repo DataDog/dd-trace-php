@@ -1,13 +1,12 @@
 #include "span.h"
 
 #include <php.h>
-#include <time.h>
 #include <unistd.h>
 
 #include "auto_flush.h"
+#include "clock.h"
 #include "configuration.h"
 #include "ddtrace.h"
-#include "ddtrace_time.h"
 #include "dispatch.h"
 #include "logging.h"
 #include "random.h"
@@ -100,15 +99,14 @@ void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC) {
     span->span_id = ddtrace_push_span_id(0 TSRMLS_CC);
     // Set the trace_id last so we have ID's on the stack
     span->trace_id = DDTRACE_G(trace_id);
-    span->duration_start = ddtrace_monotonic_now_nsec();
+    span->duration_start = ddtrace_steady_clock.now_nsec();
     span->pid = getpid();
-    // Start time is nanoseconds from unix epoch
-    // @see https://docs.datadoghq.com/api/?lang=python#send-traces
-    span->start = ddtrace_realtime_now_nsec();
+    span->start = ddtrace_system_clock.now_nsec();
 }
 
 void dd_trace_stop_span_time(ddtrace_span_t *span) {
-    span->duration = ddtrace_monotonic_now_nsec() - span->duration_start;
+    ddtrace_nanotime stop = ddtrace_steady_clock.now_nsec();
+    span->duration.count = stop.count - span->duration_start.count;
 }
 
 void ddtrace_close_span(TSRMLS_D) {

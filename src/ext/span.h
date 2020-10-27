@@ -7,6 +7,7 @@
 
 #include "compatibility.h"
 #include "ddtrace.h"
+#include "ddtrace_time.h"
 
 struct ddtrace_dispatch_t;
 
@@ -15,10 +16,13 @@ struct ddtrace_span_t {
     uint64_t trace_id;
     uint64_t parent_id;
     uint64_t span_id;
-    int64_t start;
+
+    // Start time is nanoseconds from unix epoch
+    // @see https://docs.datadoghq.com/api/v1/tracing/#send-traces
+    ddtrace_nanotime start;
     union {
-        uint64_t duration_start;
-        uint64_t duration;
+        ddtrace_nanotime duration_start;
+        ddtrace_nanotime duration;
     };
     pid_t pid;
 };

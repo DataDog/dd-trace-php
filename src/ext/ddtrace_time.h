@@ -3,9 +3,12 @@
 
 #include <stdint.h>
 
-uint64_t ddtrace_monotonic_now_nsec();
-uint64_t ddtrace_monotonic_now_usec();
+typedef struct ddtrace_nanotime {
+    int64_t count;
+} ddtrace_nanotime;
 
-int64_t ddtrace_realtime_now_nsec();
+typedef struct ddtrace_microtime {
+    int64_t count;
+} ddtrace_microtime;
 
 #endif  // DDTRACE_TIME_H
