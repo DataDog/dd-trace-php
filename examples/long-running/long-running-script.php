@@ -4,9 +4,7 @@ use DDTrace\SpanData;
 
 // This part is required for long running processes
 \DDTrace\trace_function('repetitive_function', function (SpanData $span, $args) {
-    $span->service = 'my_service';
-    // Optional
-    $span->meta['count'] = $args[0];
+    $span->service = getenv('DD_SERVICE');
 });
 
 // This is the function that is repeated and that will be the root of your trace.

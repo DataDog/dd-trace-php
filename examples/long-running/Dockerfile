@@ -7,8 +7,6 @@ RUN dpkg -i /tmp/dd-trace-php.deb
 WORKDIR /app
 
 CMD DD_TRACE_CLI_ENABLED=true \
-    DD_AGENT_HOST=agent \
-    DD_ENV=long_running \
     DD_TRACE_AUTO_FLUSH_ENABLED=true \
     DD_TRACE_GENERATE_ROOT_SPAN=false \
     php long-running-script.php
