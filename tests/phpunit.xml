@@ -57,7 +57,4 @@
             <directory suffix=".php">src</directory>
         </whitelist>
     </filter>
-    <listeners>
-        <listener class="DDTrace\Tests\DDTestListener"/>
-    </listeners>
 </phpunit>

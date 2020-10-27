@@ -16,9 +16,9 @@ final class MemcachedTest extends IntegrationTestCase
     private static $host = 'memcached_integration';
     private static $port = '11211';
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
 
         $this->client = new \Memcached();
         $this->client->addServer(self::$host, self::$port);

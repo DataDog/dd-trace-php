@@ -38,29 +38,35 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'symfony',
                     'web',
                     'simple'
-                )
-                    ->withExactTags([
-                        'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleAction',
-                        'symfony.route.name' => 'simple',
-                        'http.method' => 'GET',
-                        'http.url' => 'http://localhost:9999/simple',
-                        'http.status_code' => '200',
-                    ])
-                    ->withExactMetrics([
-                        '_dd1.sr.eausr' => 0.3,
-                        '_sampling_priority_v1' => 1,
-                    ])
-                    ->withChildren([
+                )->withExactTags([
+                    'symfony.route.action' => 'AppBundle\Controller\CommonScenariosController@simpleAction',
+                    'symfony.route.name' => 'simple',
+                    'http.method' => 'GET',
+                    'http.url' => 'http://localhost:9999/simple',
+                    'http.status_code' => '200',
+                ])->withExactMetrics([
+                    '_dd1.sr.eausr' => 0.3,
+                    '_sampling_priority_v1' => 1,
+                ])->withChildren([
+                    SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
+                        SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
                         SpanAssertion::exists('symfony.kernel.handle')
                             ->withChildren([
                                 SpanAssertion::exists('symfony.kernel.request'),
                                 SpanAssertion::exists('symfony.kernel.controller'),
                                 SpanAssertion::exists('symfony.kernel.controller_arguments'),
+                                SpanAssertion::build(
+                                    'symfony.controller',
+                                    'symfony',
+                                    'web',
+                                    'AppBundle\Controller\CommonScenariosController::simpleAction'
+                                ),
                                 SpanAssertion::exists('symfony.kernel.response'),
                                 SpanAssertion::exists('symfony.kernel.finish_request'),
                             ]),
-                        SpanAssertion::exists('symfony.kernel.terminate'),
                     ]),
+                    SpanAssertion::exists('symfony.kernel.terminate'),
+                ]),
             ]
         );
     }

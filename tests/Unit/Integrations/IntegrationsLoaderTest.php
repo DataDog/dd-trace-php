@@ -5,7 +5,7 @@ namespace DDTrace\Tests\Unit\Integrations;
 use DDTrace\Configuration;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\IntegrationsLoader;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Util\Versions;
 
 final class IntegrationsLoaderTest extends BaseTestCase
@@ -159,8 +159,13 @@ final class IntegrationsLoaderTest extends BaseTestCase
         } else {
             // Deferred loading integrations
             $excluded[] = 'elasticsearch';
+            $excluded[] = 'memcached';
+            $excluded[] = 'pdo';
             $excluded[] = 'phpredis';
             $excluded[] = 'predis';
+            $excluded[] = 'slim';
+            $excluded[] = 'wordpress';
+            $excluded[] = 'yii';
         }
         foreach ($excluded as $integrationToExclude) {
             $index = array_search($integrationToExclude, $expected, true);

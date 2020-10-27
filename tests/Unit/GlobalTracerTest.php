@@ -5,9 +5,9 @@ namespace DDTrace\Tests\Unit;
 use DDTrace\GlobalTracer;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop;
-use PHPUnit\Framework;
+use DDTrace\Tests\Common\BaseTestCase;
 
-final class GlobalTracerTest extends Framework\TestCase
+final class GlobalTracerTest extends BaseTestCase
 {
     public function testDDTracerIsSetAsIs()
     {

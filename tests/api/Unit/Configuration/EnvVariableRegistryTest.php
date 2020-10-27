@@ -3,13 +3,13 @@
 namespace DDTrace\Tests\Api\Unit\Configuration;
 
 use DDTrace\Configuration\EnvVariableRegistry;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class EnvVariableRegistryTest extends BaseTestCase
 {
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         putenv('DD_SOME_TEST_PARAMETER');
         putenv('DD_CUSTOM_PREFIX_SOME_TEST_PARAMETER');
     }

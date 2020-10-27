@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Unit\Sampling;
 
 use DDTrace\Sampling\PrioritySampling;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class PrioritySamplingTest extends BaseTestCase
 {

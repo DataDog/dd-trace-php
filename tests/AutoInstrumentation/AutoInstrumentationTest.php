@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\AutoInstrumentation;
 
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\WebServer;
 use DDTrace\Tracer;
 

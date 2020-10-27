@@ -592,6 +592,11 @@ static bool dd_try_fetch_user_dispatch(zend_execute_data *execute_data TSRMLS_DC
         return false;
     }
 
+    // Generators are not supported on PHP 5
+    if (op_array->fn_flags & ZEND_ACC_GENERATOR) {
+        return false;
+    }
+
     // we're not yet set-up to respect a cached dispatch; only a NOT_TRACED flag
     ddtrace_dispatch_t *dispatch = NULL;
     zend_function *fbc = (zend_function *)op_array;

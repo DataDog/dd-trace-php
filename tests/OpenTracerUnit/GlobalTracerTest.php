@@ -3,11 +3,11 @@
 namespace DDTrace\Tests\OpenTracerUnit;
 
 use DDTrace\GlobalTracer;
+use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Transport\Noop;
-use PHPUnit\Framework;
 
-final class GlobalTracerTest extends Framework\TestCase
+final class GlobalTracerTest extends BaseTestCase
 {
     public function testOpenTracingTracerCanBeSetUsingDDWrapper()
     {

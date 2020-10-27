@@ -8,8 +8,10 @@ ENV PHP_VERSION=${phpVersion}
 
 FROM base as build
 ARG phpTarGzUrl
+ARG phpSha256Hash
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
+    (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
@@ -61,19 +63,27 @@ COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR_DEBUG_NTS $PHP_
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR_NTS $PHP_INSTALL_DIR_NTS
 
 RUN set -eux; \
-# Set the default PHP version
-    switch-php ${PHP_VERSION}-debug;
+    for phpVer in $(ls ${PHP_INSTALL_DIR}); \
+    do \
+        echo "Install exts for PHP $phpVer..."; \
+        switch-php ${phpVer}; \
+        iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
+        \
+        yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \
+        pecl install ast; echo "extension=ast.so" >> ${iniDir}/ast.ini; \
+        #yes 'no' | pecl install memcached; \ # TODO Does not support PHP 8 yet
+        #pecl install mongodb; \ # TODO Does not support PHP 8 yet
+        pecl install redis-5.3.2RC2; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
+        # Xdebug is disabled by default
+        pecl install xdebug-3.0.0beta1; \
+        cd $(php-config --extension-dir); \
+        mv xdebug.so xdebug-3.0.0beta1.so; \
+    done;
 
-# TODO Install memcached
-# TODO Install mcrypt
-# TODO Install Xdebug (two versions for testing on PHP 7.1 - 7.4)
-# TODO Install ast
-# TODO Install sodium
-# TODO Install redis
-# TODO Install mongodb
-
-# Install Composer
 RUN set -eux; \
+# Set the default PHP version
+    switch-php ${PHP_VERSION}-debug; \
+# Install Composer
     curl -q https://raw.githubusercontent.com/composer/getcomposer.org/76a7060ccb93902cd7576b67264ad91c8a2700e2/web/installer | \
     sudo php -- --filename=composer --install-dir=/usr/local/bin;
 

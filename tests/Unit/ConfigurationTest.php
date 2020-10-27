@@ -2,6 +2,8 @@
 
 namespace DDTrace\Tests\Unit;
 
+use DDTrace\Tests\Common\BaseTestCase;
+
 final class ConfigurationTest extends BaseTestCase
 {
     const INTEGRATION_ERROR = <<<'EOD'
@@ -12,16 +14,16 @@ found in integrations.{h,c}. Integration-specific config for this integration wi
 fall back to the defaults if they have not been added at the extension level.
 EOD;
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->cleanUpEnvs();
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
         $this->cleanUpEnvs();
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     private function cleanUpEnvs()

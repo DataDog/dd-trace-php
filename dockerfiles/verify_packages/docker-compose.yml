@@ -17,6 +17,7 @@ services:
   '7.0-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_70' }
   '7.1-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_71' }
   '7.2-centos6': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_6_php_72' }
+  '8.0-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
   '5.4-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_54' }
   '5.6-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_56' }
   '7.0-centos7': { <<: *base_image, image: 'datadog/docker-library:ddtrace_centos_7_php_70' }

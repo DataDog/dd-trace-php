@@ -25,9 +25,9 @@ final class StartupLoggingDisabledTest extends WebFrameworkTestCase
         ]);
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
 
         // clear out any previous logs
         $log = self::getAppErrorLog();
@@ -51,6 +51,6 @@ final class StartupLoggingDisabledTest extends WebFrameworkTestCase
 
         $contents = \file_get_contents(self::getAppErrorLog());
 
-        self::assertNotContains('DATADOG TRACER CONFIGURATION', $contents);
+        self::assertStringNotContains('DATADOG TRACER CONFIGURATION', $contents);
     }
 }

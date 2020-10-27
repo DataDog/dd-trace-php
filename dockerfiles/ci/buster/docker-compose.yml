@@ -12,11 +12,9 @@ services:
     build:
       context: ./php-8.0
       args:
-        # Example custom build:
-        #   phpVersion: 8.0-custom
-        #   phpTarGzUrl: https://github.com/<org>/<repo>/archive/<branch-or-tag-name>.tar.gz
         phpVersion: 8.0
-        phpTarGzUrl: https://github.com/php/php-src/archive/php-8.0.0rc1.tar.gz
+        phpTarGzUrl: https://downloads.php.net/~pollita/php-8.0.0RC2.tar.gz
+        phpSha256Hash: 0cebc11c61c0f153bd866eab76c424404b3ccc779417cdfde1061e550c3e364c
 
   php-master:
     image: datadog/dd-trace-ci:php-master_buster

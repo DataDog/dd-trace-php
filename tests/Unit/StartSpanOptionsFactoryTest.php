@@ -7,6 +7,7 @@ use DDTrace\StartSpanOptionsFactory;
 use DDTrace\Tracer;
 use Mockery\MockInterface;
 use DDTrace\Reference;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class StartSpanOptionsFactoryTest extends BaseTestCase
 {
@@ -15,10 +16,10 @@ final class StartSpanOptionsFactoryTest extends BaseTestCase
      */
     private $tracer;
 
-    protected function setUp()
+    protected function ddSetUp()
     {
         putenv('DD_DISTRIBUTED_TRACING');
-        parent::setUp();
+        parent::ddSetUp();
         $this->tracer = \Mockery::mock('DDTrace\Contracts\Tracer');
     }
 

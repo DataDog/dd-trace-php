@@ -4,7 +4,7 @@ namespace DDTrace\Tests\Unit\Processing;
 
 use DDTrace\Processing\TraceAnalyticsProcessor;
 use DDTrace\Tag;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class TraceAnalyticsProcessorTest extends BaseTestCase
 {

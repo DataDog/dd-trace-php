@@ -3,7 +3,7 @@
 namespace DDTrace\Tests\Api\Unit;
 
 use DDTrace\Configuration;
-use DDTrace\Tests\Unit\BaseTestCase;
+use DDTrace\Tests\Common\BaseTestCase;
 
 final class ConfigurationTest extends BaseTestCase
 {
@@ -15,18 +15,18 @@ found in integrations.{h,c}. Integration-specific config for this integration wi
 fall back to the defaults if they have not been added at the extension level.
 EOD;
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         Configuration::clear();
         $this->cleanUpEnvs();
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
         $this->cleanUpEnvs();
         Configuration::clear();
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     private function cleanUpEnvs()

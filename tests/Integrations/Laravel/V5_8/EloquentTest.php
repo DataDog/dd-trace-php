@@ -18,9 +18,9 @@ class EloquentTest extends WebFrameworkTestCase
         return __DIR__ . '/../../../Frameworks/Laravel/Version_5_8/public/index.php';
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->connection()->exec("DELETE from users where email LIKE 'test-user-%'");
     }
 

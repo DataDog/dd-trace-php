@@ -32,9 +32,9 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
         ]);
     }
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
 
         // clear out any previous logs
         $log = self::getAppErrorLog();
@@ -63,9 +63,9 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
 
         $log = self::getAppErrorLog();
         $contents = \file_get_contents($log);
-        self::assertContains('[bgs] uploaded', $contents);
+        self::assertStringContains('[bgs] uploaded', $contents);
 
         // if this fails, our test may not be reliably clearing the log file
-        self::assertNotContains('[bgs] curl_easy_perform() failed', $contents);
+        self::assertStringNotContains('[bgs] curl_easy_perform() failed', $contents);
     }
 }

@@ -110,3 +110,37 @@
     obj:*
     obj:*
 }
+{
+    <leaks on exit from auto_prepend_file>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    obj:*
+    fun:_emalloc
+    obj:*
+    fun:compile_file
+    obj:*
+    fun:_dd_compile_file
+    fun:zend_execute_scripts
+    fun:dd_execute_auto_prepend_file
+    fun:zif_ddtrace_init
+    obj:*
+}
+{
+    <leaks on exit from auto_prepend_file>
+    Memcheck:Leak
+    match-leak-kinds: definite
+    fun:malloc
+    fun:__zend_malloc
+    obj:*
+    fun:_emalloc
+    obj:*
+    obj:*
+    fun:php_execute_script
+    obj:*
+    obj:*
+    obj:/lib/ld-musl-x86_64.so.1
+    obj:*
+    obj:*
+}

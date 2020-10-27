@@ -3,9 +3,9 @@
 namespace DDTrace\Tests\Unit;
 
 use DDTrace\SpanContext;
-use PHPUnit\Framework;
+use DDTrace\Tests\Common\BaseTestCase;
 
-final class SpanContextTest extends Framework\TestCase
+final class SpanContextTest extends BaseTestCase
 {
     const BAGGAGE_ITEM_KEY = 'key';
     const BAGGAGE_ITEM_VALUE = 'value';

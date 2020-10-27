@@ -2,10 +2,10 @@
 
 namespace DDTrace\Tests\Unit;
 
-use PHPUnit\Framework;
 use DDTrace\Obfuscation;
+use DDTrace\Tests\Common\BaseTestCase;
 
-final class ObfuscationTest extends Framework\TestCase
+final class ObfuscationTest extends BaseTestCase
 {
     public function testAStringWillBeObfuscated()
     {

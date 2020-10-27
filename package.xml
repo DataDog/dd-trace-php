@@ -98,8 +98,6 @@
             <file name="src/ext/compatibility.h" role="src" />
             <file name="src/ext/integrations/integrations.c" role="src" />
             <file name="src/ext/integrations/integrations.h" role="src" />
-            <file name="src/ext/integrations/elasticsearch.h" role="src" />
-            <file name="src/ext/integrations/test_integration.h" role="src" />
             <file name="src/ext/mpack/AUTHORS.md" role="doc" />
             <file name="src/ext/mpack/CHANGELOG.md" role="doc" />
             <file name="src/ext/mpack/README.md" role="doc" />
@@ -154,11 +152,13 @@
             <file name="tests/ext/request-init-hook/raises-fatal-error/dd_init.php" role="test" />
             <file name="tests/ext/request-init-hook/throws-exception/dd_init.php" role="test" />
             <file name="tests/ext/request-init-hook/auto_prepend_file.inc" role="test" />
+            <file name="tests/ext/request-init-hook/auto_prepend_file_exit.inc" role="test" />
             <file name="tests/ext/request-init-hook/auto_prepend_file_none.phpt" role="test" />
             <file name="tests/ext/request-init-hook/auto_prepend_file_once.phpt" role="test" />
             <file name="tests/ext/request-init-hook/auto_prepend_file_original.phpt" role="test" />
             <file name="tests/ext/request-init-hook/auto_prepend_file_original_disabled.phpt" role="test" />
             <file name="tests/ext/request-init-hook/auto_prepend_file_original_disabled_ini.phpt" role="test" />
+            <file name="tests/ext/request-init-hook/auto_prepend_file_original_exit.phpt" role="test" />
             <file name="tests/ext/request-init-hook/dd_init_open_basedir.inc" role="test" />
             <file name="tests/ext/request-init-hook/dd_init_open_basedir.phpt" role="test" />
             <file name="tests/ext/request-init-hook/error_get_last_is_unaffected.phpt" role="test" />
@@ -242,6 +242,7 @@
             <file name="tests/ext/sandbox/fatal_errors_ignored_in_tracing_closure_php7.phpt" role="test" />
             <file name="tests/ext/sandbox/generator.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_not_supported.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator_php5.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_with_exception.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_with_return.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_yield_from.phpt" role="test" />
@@ -466,7 +467,7 @@
         <required>
             <php>
                 <min>5.4</min>
-                <max>7.4.99</max>
+                <max>8.0.99</max>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>

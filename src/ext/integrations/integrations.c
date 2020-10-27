@@ -1,8 +1,30 @@
 #include "integrations.h"
 
+#include "configuration.h"
 #include "ddtrace_string.h"
-#include "elasticsearch.h"
-#include "test_integration.h"
+
+#define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
+    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
+                          DDTRACE_STRING_LITERAL(integration_name), DDTRACE_DISPATCH_DEFERRED_LOADER TSRMLS_CC)
+
+#define DD_SET_UP_DEFERRED_LOADING_BY_METHOD(name, Class, fname, integration)                                \
+    dd_set_up_deferred_loading_by_method(name, DDTRACE_STRING_LITERAL(Class), DDTRACE_STRING_LITERAL(fname), \
+                                         DDTRACE_STRING_LITERAL(integration))
+/**
+ * DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)
+ *
+ * This macro can be used to assign a tracing callable to Class, Method/Function name combination
+ * the callable can be any callable string thats recognized by PHP. It needs to have the signature
+ * expected by normal DDTrace.
+ *
+ * function tracing_function(SpanData $span, array $args) { }
+ *
+ * options need to specify either DDTRACE_DISPATCH_POSTHOOK or DDTRACE_DISPATCH_PREHOOK
+ * in order for the callable to be called by the hooks
+ **/
+#define DDTRACE_INTEGRATION_TRACE(class, fname, callable, options)                      \
+    ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \
+                          DDTRACE_STRING_LITERAL(callable), options TSRMLS_CC)
 
 ddtrace_integration ddtrace_integrations[] = {
     {DDTRACE_INTEGRATION_CAKEPHP, "CAKEPHP", ZEND_STRL("cakephp")},
@@ -61,32 +83,53 @@ static void dd_register_known_calls(TSRMLS_D) {
     DDTRACE_KNOWN_INTEGRATION("illuminate\\events\\dispatcher", "fire");
 }
 
-#if PHP_VERSION_ID >= 70000
-
-static void dd_set_up_deferred_loading_phpredis(void) {
-    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_PHPREDIS)) {
+static void dd_load_test_integrations(TSRMLS_D) {
+    char* test_deferred = getenv("_DD_LOAD_TEST_INTEGRATIONS");
+    if (!test_deferred) {
         return;
     }
 
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("Redis", "__construct", "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
+    DDTRACE_DEFERRED_INTEGRATION_LOADER("test", "public_static_method", "ddtrace\\test\\testsandboxedintegration");
+    DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
 }
 
-static void dd_set_up_deferred_loading_predis(void) {
-    if (!ddtrace_config_integration_enabled_ex(DDTRACE_INTEGRATION_PREDIS)) {
+#if PHP_VERSION_ID >= 70000
+static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, ddtrace_string Class,
+                                                 ddtrace_string method, ddtrace_string integration) {
+    if (!ddtrace_config_integration_enabled_ex(name)) {
         return;
     }
 
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("Predis\\Client", "__construct",
-                                        "DDTrace\\Integrations\\Predis\\PredisIntegration");
+    ddtrace_hook_callable(Class, method, integration, DDTRACE_DISPATCH_DEFERRED_LOADER);
 }
 
 void ddtrace_integrations_rinit(TSRMLS_D) {
     dd_register_known_calls();
+    dd_load_test_integrations(TSRMLS_C);
 
-    _dd_es_initialize_deferred_integration(TSRMLS_C);
-    _dd_load_test_integrations(TSRMLS_C);
-    dd_set_up_deferred_loading_phpredis();
-    dd_set_up_deferred_loading_predis();
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELASTICSEARCH, "elasticsearch\\client", "__construct",
+                                         "DDTrace\\Integrations\\ElasticSearch\\V1\\ElasticSearchIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHED, "Memcached", "__construct",
+                                         "DDTrace\\Integrations\\Memcached\\MemcachedIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "__construct",
+                                         "DDTrace\\Integrations\\PDO\\PDOIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PHPREDIS, "Redis", "__construct",
+                                         "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PREDIS, "Predis\\Client", "__construct",
+                                         "DDTrace\\Integrations\\Predis\\PredisIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SLIM, "Slim\\App", "__construct",
+                                         "DDTrace\\Integrations\\Slim\\SlimIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_WORDPRESS, "Requests", "set_certificate_path",
+                                         "DDTrace\\Integrations\\WordPress\\WordPressIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_YII, "yii\\di\\Container", "__construct",
+                                         "DDTrace\\Integrations\\Yii\\YiiIntegration");
 }
 
 ddtrace_integration* ddtrace_get_integration_from_string(ddtrace_string integration) {
@@ -104,7 +147,7 @@ void ddtrace_integrations_rinit(TSRMLS_D) {
      * size - even though the memory usage is below the limit. We still can trigger memory
      * allocation error to be issued
      */
-    _dd_load_test_integrations(TSRMLS_C);
+    dd_load_test_integrations(TSRMLS_C);
 
     dd_register_known_calls(TSRMLS_C);
 }

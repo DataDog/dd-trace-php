@@ -7,9 +7,9 @@ use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
 use DDTrace\Tracer;
 use DDTrace\GlobalTracer;
-use PHPUnit\Framework;
+use DDTrace\Tests\Common\BaseTestCase;
 
-final class TextMapTest extends Framework\TestCase
+final class TextMapTest extends BaseTestCase
 {
     const BAGGAGE_ITEM_KEY = 'test_key';
     const BAGGAGE_ITEM_VALUE = 'test_value';
@@ -21,9 +21,9 @@ final class TextMapTest extends Framework\TestCase
      */
     private $tracer;
 
-    protected function setUp()
+    protected function ddSetUp()
     {
-        parent::setUp();
+        parent::ddSetUp();
         $this->tracer = new Tracer(new DebugTransport());
         GlobalTracer::set($this->tracer);
     }

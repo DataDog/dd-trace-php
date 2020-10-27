@@ -119,6 +119,7 @@ clang_find_files_to_lint:
 	-path ./tests -prune -o \
 	-path ./src/ext/mpack -prune -o \
 	-path ./src/ext/third-party -prune -o \
+	-path ./tooling/generation -prune -o \
 	-iname "*.h" -o -iname "*.c" \
 	-type f
 
@@ -180,6 +181,17 @@ verify_version:
 	@echo "All version files match"
 
 verify_all: verify_pecl_file_definitions verify_version
+
+# Generates the bridge/_generated.php file. Note it only works on PHP < 8.0 because:
+#  - we need classpreloader: 1.4.* because otherwise the generated file is not compatible with 5.4
+#  - classpreloader: 1.4.* does not work on PHP 8 (even from a dedicated composer.json file), showing an incompatibility
+#    with nikic/php-parser lexer's.
+#  - even if we leave classpreloader: 1.4.* and not use it for PHP 8, this is not enough because it would force
+#    phpunit version down to 5 (nikic common dependency) which is not compatible with PHP 8.
+generate:
+	@composer -dtooling/generation update
+	@composer -dtooling/generation generate
+	@composer -dtooling/generation verify
 
 ########################################################################################################################
 # TESTS
@@ -264,6 +276,7 @@ TEST_WEB_56 := \
 	test_web_symfony_34 \
 	test_web_yii_2 \
 	test_web_wordpress_48 \
+	test_web_wordpress_55 \
 	test_web_zend_1 \
 	test_web_custom
 
@@ -294,6 +307,7 @@ TEST_WEB_70 := \
 	test_web_symfony_34 \
 	test_web_yii_2 \
 	test_web_wordpress_48 \
+	test_web_wordpress_55 \
 	test_web_zend_1 \
 	test_web_custom
 
@@ -326,9 +340,11 @@ TEST_WEB_71 := \
 	test_web_symfony_30 \
 	test_web_symfony_33 \
 	test_web_symfony_34 \
+	test_web_symfony_40 \
 	test_web_symfony_42 \
 	test_web_yii_2 \
 	test_web_wordpress_48 \
+	test_web_wordpress_55 \
 	test_web_zend_1 \
 	test_web_custom \
 	test_opentracing_10
@@ -364,7 +380,10 @@ TEST_WEB_72 := \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
 	test_web_symfony_44 \
+	test_web_symfony_50 \
+	test_web_symfony_51 \
 	test_web_wordpress_48 \
+	test_web_wordpress_55 \
 	test_web_yii_2 \
 	test_web_zend_1 \
 	test_web_custom \
@@ -391,10 +410,14 @@ TEST_WEB_73 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
+	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
 	test_web_symfony_44 \
+	test_web_symfony_50 \
+	test_web_symfony_51 \
 	test_web_wordpress_48 \
+	test_web_wordpress_55 \
 	test_web_yii_2 \
 	test_web_zend_1 \
 	test_web_custom \
@@ -421,14 +444,30 @@ TEST_WEB_74 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
+	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
 	test_web_symfony_44 \
+	test_web_symfony_50 \
+	test_web_symfony_51 \
 	test_web_wordpress_48 \
+	test_web_wordpress_55 \
 	test_web_yii_2 \
 	test_web_zend_1 \
 	test_web_custom \
 	test_opentracing_10
+
+TEST_INTEGRATIONS_80 := \
+	test_integrations_mysqli \
+	test_integrations_pdo \
+	test_integrations_predis1
+
+TEST_WEB_80 := \
+	test_metrics \
+	test_web_codeigniter_22 \
+	test_web_slim_312 \
+	test_web_custom
+	#test_web_symfony_51 ; will work eventually; currently hung on: doctrine/doctrine-migrations-bundle
 
 define run_tests
 	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1)
@@ -569,9 +608,9 @@ test_web_symfony_34:
 	php tests/Frameworks/Symfony/Version_3_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V3_4)
 test_web_symfony_40:
-	# Trick to have symfony 4.0 update process not to fail because of an error related to monolog dependencies.
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 update --no-scripts
-	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 update
+	# We hit broken updates in this unmaintained version, so we committed a
+	# working composer.lock and we composer install instead of composer update
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_0 install
 	php tests/Frameworks/Symfony/Version_4_0/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V4_0)
 test_web_symfony_42:
@@ -582,8 +621,18 @@ test_web_symfony_44:
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_4_4 update
 	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V4_4)
+test_web_symfony_50:
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_0 install # EOL; install from lock
+	php tests/Frameworks/Symfony/Version_5_0/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests,tests/Integrations/Symfony/V5_0)
+test_web_symfony_51:
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_1 update
+	php tests/Frameworks/Symfony/Version_5_1/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests,tests/Integrations/Symfony/V5_1)
 test_web_wordpress_48:
 	$(call run_tests,tests/Integrations/WordPress/V4_8)
+test_web_wordpress_55:
+	$(call run_tests,tests/Integrations/WordPress/V5_5)
 test_web_yii_2:
 	$(COMPOSER) --working-dir=tests/Frameworks/Yii/Version_2_0_26 update
 	$(call run_tests,tests/Integrations/Yii/V2_0_26)

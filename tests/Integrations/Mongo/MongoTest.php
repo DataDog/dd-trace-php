@@ -18,16 +18,16 @@ class MongoTest extends IntegrationTestCase
     const PASSWORD = 'test';
     const DATABASE = 'admin';
 
-    public static function setUpBeforeClass()
+    public static function ddSetUpBeforeClass()
     {
-        parent::setUpBeforeClass();
+        parent::ddSetUpBeforeClass();
         IntegrationsLoader::load();
     }
 
-    protected function tearDown()
+    protected function ddTearDown()
     {
         $this->clearDatabase();
-        parent::tearDown();
+        parent::ddTearDown();
     }
 
     // MongoClient tests

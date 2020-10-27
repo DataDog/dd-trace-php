@@ -255,6 +255,7 @@ ext/standard/tests/serialize/bug21957.phpt
 ext/standard/tests/serialize/bug27469.phpt
 ext/standard/tests/serialize/bug30234.phpt
 ext/standard/tests/serialize/bug62836_1.phpt
+ext/standard/tests/serialize/bug64146.phpt
 ext/standard/tests/serialize/bug68976.phpt
 ext/standard/tests/serialize/bug69210.phpt
 ext/standard/tests/serialize/bug69425.phpt

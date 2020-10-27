@@ -229,6 +229,7 @@ ext/standard/tests/serialize/bug64146.phpt
 ext/standard/tests/serialize/bug67072_2.phpt
 ext/standard/tests/serialize/bug68976.phpt
 ext/standard/tests/serialize/serialization_objects_007.phpt
+ext/standard/tests/strings/004.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/substr_compare.phpt
 ext/standard/tests/time/strptime_basic.phpt
