@@ -5,7 +5,6 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,DDTrace\Testing\trigger_error
 --SKIPIF--
 <?php
     if (PHP_VERSION_ID < 50500) die("skip: PHP 5.4 does not support close-at-exit functionality");
-    if (PHP_VERSION_ID >= 80000) die("skip: PHP 8.0 does not support close-at-exit functionality");
 ?>
 --FILE--
 <?php
