@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Common;
 
 use DDTrace\Tag;
+use DDTrace\Util\Versions;
 
 final class SpanAssertion
 {
@@ -365,5 +366,26 @@ final class SpanAssertion
     public function isToBeSkipped()
     {
         return $this->toBeSkipped;
+    }
+
+    /**
+     * Executes a callback only if the php version does not match one of the provided versions.
+     * Versions can be provided in the form: '5' -> all 5, '7.1' -> all 7.1.*, '7.1.2' -> only 7.1.2
+     * The callback will receive only one argument, which is the current assertion itself.
+     *
+     * @param string[] $versions
+     * @param Callable $callback
+     * @return $this
+     */
+    public function ifPhpVersionNotMatch(array $versions, $callback)
+    {
+        foreach ($versions as $version) {
+            if (Versions::phpVersionMatches($version)) {
+                return $this;
+            }
+        }
+
+        $callback($this);
+        return $this;
     }
 }

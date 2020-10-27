@@ -100,15 +100,19 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         // CodeIgniter's error handler does not adjust the status code
                         Tag::HTTP_STATUS_CODE => '200',
                         'app.endpoint' => 'Error_::index',
-                    ])->withChildren([
+                    ])->ifPhpVersionNotMatch(['5'], function (SpanAssertion $assertion) {
+                        // Automatic error attachement to root span in case of PHP < 7 is still under development.
+                        $assertion
+                            ->setError("E_ERROR", "Uncaught Exception: datadog in %s:%d")
+                            ->withExistingTagsNames(['error.stack']);
+                    })->withChildren([
                         SpanAssertion::build(
                             'Error_.index',
                             'codeigniter_test_app',
                             Type::WEB_SERVLET,
                             'Error_.index'
                         )->setError('Exception', 'datadog', true),
-                    ])->setError("E_ERROR", "Uncaught Exception: datadog in %s:%d")
-                    ->withExistingTagsNames(['error.stack']),
+                    ]),
                 ],
             ]
         );
