@@ -1,10 +1,13 @@
 <?php
 
 use DDTrace\SpanData;
+use DDTrace\Type;
 
 // This part is required for long running processes
 \DDTrace\trace_function('repetitive_function', function (SpanData $span, $args) {
     $span->service = getenv('DD_SERVICE');
+    $span->name = $span->resource = 'repetitive_function';
+    $span->type = Type::CLI; // or Type::MESSAGE_PRODUCER or anything appropriate from DDTrace\Type::
 });
 
 // This is the function that is repeated and that will be the root of your trace.
