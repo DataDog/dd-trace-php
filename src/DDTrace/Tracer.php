@@ -363,14 +363,6 @@ final class Tracer implements TracerInterface
             foreach ($meta as $tag => $value) {
                 $root->setTag($tag, $value, true);
             }
-            // If the root span is finished, then setError doesn't trigger.
-            // This hack bypasses setError.
-            if ($root instanceof \DDTrace\Data\Span) {
-                $errorMsg = $root->getTag(Tag::ERROR_MSG);
-                if ($errorMsg) {
-                    $root->hasError = true;
-                }
-            }
         }
 
         foreach ($this->traces as $trace) {

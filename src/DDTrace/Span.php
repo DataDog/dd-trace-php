@@ -18,6 +18,7 @@ final class Span extends DataSpan
     private static $specialTags = [
         Tag::ANALYTICS_KEY => true,
         Tag::ERROR => true,
+        Tag::ERROR_MSG => true,
         Tag::SERVICE_NAME => true,
         Tag::RESOURCE_NAME => true,
         Tag::SPAN_TYPE => true,
@@ -145,6 +146,12 @@ final class Span extends DataSpan
                 return;
             }
 
+            if ($key === Tag::ERROR_MSG) {
+                $this->tags[$key] = (string)$value;
+                $this->setError(true);
+                return;
+            }
+
             if ($key === Tag::SERVICE_NAME) {
                 $this->service = $value;
                 return;
@@ -263,10 +270,6 @@ final class Span extends DataSpan
      */
     public function setError($error)
     {
-        if ($this->duration !== null) { // if finished
-            return;
-        }
-
         if (($error instanceof Exception) || ($error instanceof Throwable)) {
             $this->hasError = true;
             $this->tags[Tag::ERROR_MSG] = $error->getMessage();
@@ -293,10 +296,6 @@ final class Span extends DataSpan
      */
     public function setRawError($message, $type)
     {
-        if ($this->duration !== null) { // if finished
-            return;
-        }
-
         $this->hasError = true;
         $this->tags[Tag::ERROR_MSG] = $message;
         $this->tags[Tag::ERROR_TYPE] = $type;
