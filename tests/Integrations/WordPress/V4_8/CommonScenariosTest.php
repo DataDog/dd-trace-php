@@ -218,7 +218,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         // WordPress doesn't appear to automatically set the proper error code
                         'http.status_code' => '200',
                     ])
-                    ->ifPhpVersionNotMatch(['5'], function (SpanAssertion $assertion) {
+                    ->ifPhpVersionNotMatch('5', function (SpanAssertion $assertion) {
                         // Automatic error attachement to root span in case of PHP < 7 is still under development.
                         $assertion
                             ->setError("E_ERROR", "Uncaught Exception: Oops! in %s:%d")

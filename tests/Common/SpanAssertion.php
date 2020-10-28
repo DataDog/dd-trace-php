@@ -369,20 +369,18 @@ final class SpanAssertion
     }
 
     /**
-     * Executes a callback only if the php version does not match one of the provided versions.
-     * Versions can be provided in the form: '5' -> all 5, '7.1' -> all 7.1.*, '7.1.2' -> only 7.1.2
+     * Executes a callback only if the php version does not match the provided one.
+     * Version can be provided in the form: '5' -> all 5, '7.1' -> all 7.1.*, '7.1.2' -> only 7.1.2
      * The callback will receive only one argument, which is the current assertion itself.
      *
-     * @param string[] $versions
+     * @param string $version
      * @param Callable $callback
      * @return $this
      */
-    public function ifPhpVersionNotMatch(array $versions, $callback)
+    public function ifPhpVersionNotMatch($version, $callback)
     {
-        foreach ($versions as $version) {
-            if (Versions::phpVersionMatches($version)) {
-                return $this;
-            }
+        if (Versions::phpVersionMatches($version)) {
+            return $this;
         }
 
         $callback($this);
