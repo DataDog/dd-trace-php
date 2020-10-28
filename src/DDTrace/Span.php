@@ -365,7 +365,14 @@ final class Span extends DataSpan
             } elseif ($key === Tag::LOG_ERROR || $key === Tag::LOG_ERROR_OBJECT) {
                 $this->setError($value);
             } elseif ($key === Tag::LOG_MESSAGE) {
-                $this->setTag(Tag::ERROR_MSG, $value);
+                // We recently changed our span behavior: when we set an error message, we now mark the span as 'error'.
+                // In order to be backward compatible with this publicly exposed method we manually set the message,
+                // and not the errror, internally.
+                // This should be considered a broken behavior because it would not allow for users to log multiple
+                // messages, and logging multiple messages is not prohibited by the OpenTracing spec:
+                // https://opentracing.io/docs/overview/tags-logs-baggage/#logs
+                // We want to deprecate this behavior and change it. In the meantime we apply this workaround.
+                $this->tags[Tag::ERROR_MSG] = (string)$value;
             } elseif ($key === Tag::LOG_STACK) {
                 $this->setTag(Tag::ERROR_STACK, $value);
             }

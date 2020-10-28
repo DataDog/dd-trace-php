@@ -160,14 +160,7 @@ final class SpanTest extends BaseTestCase
         $span = $this->createSpan();
         $span->log([Tag::LOG_MESSAGE => self::EXCEPTION_MESSAGE]);
 
-        /* I'm not exactly sure what the intended behavior here is, as this
-         * previously did assertFalse($span->hasError).
-         * However, I recently made it so that when ERROR_MSG is set that the
-         * error field will automatically be set to true. This is relied on for
-         * setting the proper fields on the root span, for instance.
-         *  - Levi Morrison, October 2020
-         */
-        $this->assertTrue($span->hasError());
+        $this->assertFalse($span->hasError());
         $this->assertEquals($span->getTag(Tag::ERROR_MSG), self::EXCEPTION_MESSAGE);
     }
 
