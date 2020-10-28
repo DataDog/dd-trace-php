@@ -143,8 +143,7 @@ static bool dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, 
         return false;
     }
 
-    zval fname;
-    ZVAL_STR(&fname, fbc->common.function_name);
+    zval fname = ddtrace_zval_zstr(fbc->common.function_name);
 
     zend_class_entry *scope = dd_get_called_scope(call);
 
@@ -665,8 +664,8 @@ static ZEND_RESULT_CODE dd_do_hook_method_posthook(zend_execute_data *call, ddtr
 
     zend_object *called_this = zend_get_this_object(call);
 
-    zval This = {.u1.type_info = IS_NULL}, scope = {.u1.type_info = IS_NULL}, args = {.u1.type_info = IS_NULL};
-    zval tmp_retval = {.u1.type_info = IS_NULL};
+    zval This = ddtrace_zval_null(), scope = ddtrace_zval_null(), args = ddtrace_zval_null();
+    zval tmp_retval = ddtrace_zval_null();
 
     if (called_this) {
         ZVAL_OBJ(&This, called_this);
@@ -1153,7 +1152,7 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
 zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
     PHP7_UNUSED(error_filename, error_lineno);
 
-    zval ex, tmp;
+    zval ex;
     va_list args2;
     char message[1024];
     object_init_ex(&ex, ddtrace_ce_fatal_error);
@@ -1161,11 +1160,11 @@ zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
     va_copy(args2, args);
     vsnprintf(message, sizeof(message), format, args2);
     va_end(args2);
-    ZVAL_STRING(&tmp, message);
+    zval tmp = ddtrace_zval_stringl(message, strlen(message));
     zend_update_property(ddtrace_ce_fatal_error, &ex, "message", sizeof("message") - 1, &tmp);
     zval_ptr_dtor(&tmp);
 
-    ZVAL_LONG(&tmp, (zend_long)type);
+    tmp = ddtrace_zval_long(type);
     zend_update_property(ddtrace_ce_fatal_error, &ex, "code", sizeof("code") - 1, &tmp);
 
     return Z_OBJ(ex);

@@ -1,4 +1,5 @@
 #include <Zend/zend.h>
+#include <Zend/zend_builtin_functions.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_interfaces.h>
 #include <Zend/zend_smart_str.h>
@@ -9,6 +10,8 @@
 #include "arrays.h"
 #include "compat_string.h"
 #include "ddtrace.h"
+#include "engine_api.h"
+#include "engine_hooks.h"
 #include "logging.h"
 #include "mpack/mpack.h"
 #include "span.h"
@@ -196,7 +199,7 @@ static void _trace_string(smart_str *str, HashTable *ht, uint32_t num) /* {{{ */
 /* Modelled after getTraceAsString from PHP 5.4:
  * @see https://lxr.room11.org/xref/php-src%405.4/Zend/zend_exceptions.c#609-635
  */
-static void _serialize_stack_trace(zval *meta, zval *trace) {
+static zval dd_serialize_stack_trace(zval *trace) {
     zval *frame, output;
     smart_str str = {0};
     uint32_t num = 0;
@@ -217,73 +220,273 @@ static void _serialize_stack_trace(zval *meta, zval *trace) {
     smart_str_0(&str);
 
     ZVAL_NEW_STR(&output, str.s);
-
-    add_assoc_zval(meta, "error.stack", &output);
+    return output;
 }
 
-static void dd_serialize_exception(zval *el, zval *meta, zend_object *exception_obj) {
-    zval exception, name, msg, code, stack;
-    if (!exception_obj) {
-        return;
+static int dd_exception_to_error_msg(zend_object *exception, void *context,
+                                     int (*add_tag)(void *context, ddtrace_string key, ddtrace_string value)) {
+    zval msg = ddtrace_zval_undef();
+    int status = ddtrace_call_method(exception, exception->ce, NULL, ZEND_STRL("getmessage"), &msg, 0, NULL);
+
+    if (status == SUCCESS && Z_TYPE(msg) == IS_STRING) {
+        ddtrace_string key = DDTRACE_STRING_LITERAL("error.msg");
+        ddtrace_string value = {Z_STRVAL(msg), Z_STRLEN(msg)};
+        status = add_tag(context, key, value);
+    } else {
+        ddtrace_assert_log_debug("Failed calling exception's getMessage()");
     }
 
-    ZVAL_OBJ(&exception, exception_obj);
+    zval_ptr_dtor(&msg);
+    return status;
+}
 
-    add_assoc_long(el, "error", 1);
+static int dd_exception_to_error_type(zend_object *exception, void *context,
+                                      int (*add_tag)(void *context, ddtrace_string key, ddtrace_string value)) {
+    ddtrace_string value, key = DDTRACE_STRING_LITERAL("error.type");
 
-    ZVAL_STR(&name, Z_OBJCE(exception)->name);
-#if PHP_VERSION_ID < 80000
-    zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "getmessage", &msg);
-#else
-    zend_call_method_with_0_params(exception_obj, Z_OBJCE(exception), NULL, "getmessage", &msg);
-#endif
+    if (instanceof_function(exception->ce, ddtrace_ce_fatal_error)) {
+        zval code = ddtrace_zval_undef();
+        int status = ddtrace_call_method(exception, exception->ce, NULL, ZEND_STRL("getcode"), &code, 0, NULL);
+        const char *error_type_string = "{unknown error}";
 
-    if (instanceof_function(Z_OBJCE(exception), ddtrace_ce_fatal_error)) {
-#if PHP_VERSION_ID < 80000
-        zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "getcode", &code);
-#else
-        zend_call_method_with_0_params(exception_obj, Z_OBJCE(exception), NULL, "getcode", &code);
-#endif
-        if (Z_TYPE_INFO(code) == IS_LONG) {
+        if (status == SUCCESS && Z_TYPE_INFO(code) == IS_LONG) {
             switch (Z_LVAL(code)) {
                 case E_ERROR:
-                    add_assoc_string(meta, "error.type", "E_ERROR");
+                    error_type_string = "E_ERROR";
                     break;
                 case E_CORE_ERROR:
-                    add_assoc_string(meta, "error.type", "E_CORE_ERROR");
+                    error_type_string = "E_CORE_ERROR";
                     break;
                 case E_COMPILE_ERROR:
-                    add_assoc_string(meta, "error.type", "E_COMPILE_ERROR");
+                    error_type_string = "E_COMPILE_ERROR";
                     break;
                 case E_USER_ERROR:
-                    add_assoc_string(meta, "error.type", "E_USER_ERROR");
+                    error_type_string = "E_USER_ERROR";
                     break;
                 default:
-                    ZEND_ASSERT(0 && "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
-                    add_assoc_string(meta, "error.type", "{unknown error}");
-                    break;
+                    ddtrace_assert_log_debug(
+                        "Unhandled error type in DDTrace\\FatalError; is a fatal error case missing?");
             }
+
         } else {
-            ddtrace_log_debug("Exception was a DDTrace\\FatalError but exception code was not an int");
+            ddtrace_assert_log_debug("Exception was a DDTrace\\FatalError but failed to get an exception code");
         }
+
         zval_ptr_dtor(&code);
+        value = ddtrace_string_cstring_ctor((char *)error_type_string);
+
     } else {
-        _add_assoc_zval_copy(meta, "error.type", &name);
+        zend_string *type_name = exception->ce->name;
+        value.ptr = ZSTR_VAL(type_name);
+        value.len = ZSTR_LEN(type_name);
     }
 
-    add_assoc_zval(meta, "error.msg", &msg);
+    return add_tag(context, key, value);
+}
+
+static int dd_exception_to_error_stack(zend_object *exception, void *context,
+                                       int (*add_tag)(void *context, ddtrace_string key, ddtrace_string value)) {
+    zval stack = ddtrace_zval_undef(), error_stack = ddtrace_zval_undef();
 
     /* Note, we use Exception::getTrace() instead of getTraceAsString because
      * function arguments can contain sensitive information. Since we do not
      * have a comprehensive way to know which function arguments are sensitive
      * we will just hide all of them. */
-#if PHP_VERSION_ID < 80000
-    zend_call_method_with_0_params(&exception, Z_OBJCE(exception), NULL, "gettrace", &stack);
-#else
-    zend_call_method_with_0_params(exception_obj, Z_OBJCE(exception), NULL, "gettrace", &stack);
-#endif
-    _serialize_stack_trace(meta, &stack);
+    int result = ddtrace_call_method(exception, exception->ce, NULL, ZEND_STRL("gettrace"), &stack, 0, NULL);
+    if (result == SUCCESS && Z_TYPE(stack) == IS_ARRAY) {
+        error_stack = dd_serialize_stack_trace(&stack);
+        if (Z_TYPE(error_stack) == IS_STRING) {
+            ddtrace_string key = DDTRACE_STRING_LITERAL("error.stack");
+            ddtrace_string value = {Z_STRVAL(error_stack), Z_STRLEN(error_stack)};
+            result = add_tag(context, key, value);
+        }
+    } else {
+        ddtrace_assert_log_debug("Failed calling exception's getTrace()");
+    }
+
+    zval_ptr_dtor(&error_stack);
     zval_ptr_dtor(&stack);
+    return result;
+}
+
+int ddtrace_exception_to_meta(zend_object *exception, void *context,
+                              int (*add_meta)(void *context, ddtrace_string key, ddtrace_string value)) {
+    bool success = dd_exception_to_error_msg(exception, context, add_meta) == SUCCESS &&
+                   dd_exception_to_error_type(exception, context, add_meta) == SUCCESS &&
+                   dd_exception_to_error_stack(exception, context, add_meta) == SUCCESS;
+    return success ? SUCCESS : FAILURE;
+}
+
+typedef struct dd_error_info {
+    zend_string *type;
+    zend_string *msg;
+    zend_string *stack;
+} dd_error_info;
+
+static zend_string *dd_error_type(int code) {
+    const char *error_type = "{unknown error}";
+
+#if PHP_VERSION_ID >= 80000
+    // mask off flags such as E_DONT_BAIL
+    code &= E_ALL;
+#endif
+
+    switch (code) {
+        case E_ERROR:
+            error_type = "E_ERROR";
+            break;
+        case E_CORE_ERROR:
+            error_type = "E_CORE_ERROR";
+            break;
+        case E_COMPILE_ERROR:
+            error_type = "E_COMPILE_ERROR";
+            break;
+        case E_USER_ERROR:
+            error_type = "E_USER_ERROR";
+            break;
+    }
+
+    return zend_string_init(error_type, strlen(error_type), 0);
+}
+
+static zend_string *dd_fatal_error_stack(void) {
+    zval stack;
+    zend_fetch_debug_backtrace(&stack, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0);
+    zend_string *error_stack = NULL;
+    if (Z_TYPE(stack) == IS_ARRAY) {
+        zval zstack = dd_serialize_stack_trace(&stack);
+        if (Z_TYPE(zstack) == IS_STRING) {
+            error_stack = Z_STR(zstack);
+        }
+    }
+    zval_ptr_dtor(&stack);
+    return error_stack;
+}
+
+#if PHP_VERSION_ID < 80000
+static zend_string *dd_vprintf_zstr(size_t len, const char *format, va_list args) {
+    va_list args2;
+
+    zend_string *msg = zend_string_alloc(len, 0);
+    ZSTR_LEN(msg) = len;
+
+    va_copy(args2, args);
+    int written = vsnprintf(ZSTR_VAL(msg), len + 1, format, args2);
+    va_end(args2);
+
+    if (written < 0) {
+        zend_string_release(msg);
+        return NULL;
+    }
+
+    ZSTR_VAL(msg)[len] = '\0';
+    return msg;
+}
+
+// Returns NULL in error conditions
+static zend_string *dd_fatal_error_msg(const char *format, va_list args) {
+    va_list args2;
+
+    /* In PHP 7 an uncaught exception results in a fatal error. The error
+     * message includes the call stack and its arguments, which is a vector for
+     * information disclosure. We need to avoid this.
+     *
+     * We capture the first line of the error which won't include arguments.
+     * The length of the buffer here is hopefully large enough to capture the
+     * first line so we can avoid allocating the full string, as these can be
+     * quite large and we're only interested in the first line.
+     */
+    const char uncaught[] = "Uncaught ";
+    char buffer[256];
+
+    va_copy(args2, args);
+    int prefix = vsnprintf(buffer, sizeof buffer, format, args2);
+    va_end(args2);
+
+    if (prefix < 0) {
+        return NULL;
+    }
+
+    /* The -1 is to avoid the null terminator which is included in literals and
+     * will not be present in the rendered error message at that position.
+     */
+    size_t uncaught_len = sizeof uncaught - 1;
+    if ((unsigned)prefix >= uncaught_len && memcmp(buffer, uncaught, uncaught_len) == 0) {
+        char *newline = memchr(buffer, '\n', sizeof buffer);
+        if (newline) {
+            *newline = '\0';
+            size_t linelen = newline - buffer;
+
+            // +1 for null terminator
+            zend_string *msg = zend_string_alloc(linelen + 1, 0);
+            memcpy(ZSTR_VAL(msg), buffer, linelen + 1);  // copy NULL too
+            ZSTR_LEN(msg) = linelen;
+
+            return msg;
+        } else {
+            // our buffer wasn't big enough; we have to render the full message
+            zend_string *msg = dd_vprintf_zstr(prefix, format, args);
+            if (!msg) {
+                return NULL;
+            }
+
+            newline = memchr(ZSTR_VAL(msg), '\n', sizeof buffer);
+            if (UNEXPECTED(!newline)) {
+                // This is suspect; there is always a newline in these messages
+                zend_string_release(msg);
+                return NULL;
+            }
+
+            size_t linepos = newline - ZSTR_VAL(msg);
+            ZSTR_LEN(msg) = linepos;
+            *newline = '\0';
+            return msg;
+        }
+    }
+
+    zend_string *msg = dd_vprintf_zstr(prefix, format, args);
+    if (!msg) {
+        return NULL;
+    }
+
+    return msg;
+}
+
+static dd_error_info dd_fatal_error(int type, const char *format, va_list args) {
+    return (dd_error_info){
+        .type = dd_error_type(type),
+        .msg = dd_fatal_error_msg(format, args),
+        .stack = dd_fatal_error_stack(),
+    };
+}
+#endif
+
+static int dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
+    HashTable *ht = Z_ARR_P(meta);
+
+    if (error.type) {
+        zval tmp = ddtrace_zval_zstr(zend_string_copy(error.type));
+        zend_symtable_str_update(ht, ZEND_STRL("error.type"), &tmp);
+    }
+
+    if (error.msg) {
+        zval tmp = ddtrace_zval_zstr(zend_string_copy(error.msg));
+        zend_symtable_str_update(ht, ZEND_STRL("error.msg"), &tmp);
+    }
+
+    if (error.stack) {
+        zval tmp = ddtrace_zval_zstr(zend_string_copy(error.stack));
+        zend_symtable_str_update(ht, ZEND_STRL("error.stack"), &tmp);
+    }
+
+    return error.type && error.msg ? SUCCESS : FAILURE;
+}
+
+static int dd_add_meta_array(void *context, ddtrace_string key, ddtrace_string value) {
+    zval *meta = context, tmp = ddtrace_zval_stringl(value.ptr, value.len);
+
+    // meta array takes ownership of tmp
+    return zend_symtable_str_update(Z_ARR_P(meta), key.ptr, key.len, &tmp) != NULL ? SUCCESS : FAILURE;
 }
 
 static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
@@ -304,13 +507,15 @@ static void _serialize_meta(zval *el, ddtrace_span_fci *span_fci) {
     }
     meta = &meta_zv;
 
-    dd_serialize_exception(el, meta, span_fci->exception);
-    if (!span_fci->exception) {
-        zval *error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg"));
-        if (error) {
-            add_assoc_long(el, "error", 1);
-        }
+    if (span_fci->exception) {
+        ddtrace_exception_to_meta(span_fci->exception, meta, dd_add_meta_array);
     }
+
+    zval *error = ddtrace_hash_find_ptr(Z_ARR_P(meta), ZEND_STRL("error.msg"));
+    if (error) {
+        add_assoc_long(el, "error", 1);
+    }
+
     if (span->parent_id == 0) {
         char pid[MAX_LENGTH_OF_LONG + 1];
         snprintf(pid, sizeof(pid), "%ld", (long)span->pid);
@@ -387,3 +592,123 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
 
     add_next_index_zval(array, el);
 }
+
+#if PHP_VERSION_ID < 80000
+void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
+    /* We need the error handling to place nicely with the sandbox. The best
+     * idea so far is to execute fatal error handling code iff the error handling
+     * mode is set to EH_NORMAL. If it's something else, such as EH_SUPPRESS or
+     * EH_THROW, then they are likely to be handled and accordingly they
+     * shouldn't be treated as fatal.
+     */
+    bool is_fatal_error = type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
+    if (EXPECTED(EG(active)) && EG(error_handling) == EH_NORMAL && UNEXPECTED(is_fatal_error)) {
+        /* If there is a fatal error in shutdown then this might not be an array
+         * because we set it to IS_NULL in RSHUTDOWN. We probably want a more
+         * robust way of detecting this, but I'm not sure how yet.
+         */
+        if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
+            dd_error_info error = dd_fatal_error(type, format, args);
+            dd_fatal_error_to_meta(&DDTRACE_G(additional_trace_meta), error);
+            ddtrace_span_fci *span;
+            for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
+                if (span->exception || !span->span.span_data) {
+                    continue;
+                }
+
+                zval *meta = ddtrace_spandata_property_meta(span->span.span_data);
+                if (!meta) {
+                    continue;
+                }
+
+                if (Z_TYPE_P(meta) != IS_ARRAY) {
+                    zval_ptr_dtor(meta);
+                    array_init_size(meta, ddtrace_num_error_tags);
+                }
+                dd_fatal_error_to_meta(meta, error);
+            }
+            if (error.type) {
+                zend_string_release(error.type);
+            }
+            if (error.msg) {
+                zend_string_release(error.msg);
+            }
+            if (error.stack) {
+                zend_string_release(error.stack);
+            }
+            ddtrace_close_all_open_spans();
+        }
+    }
+
+    ddtrace_prev_error_cb(DDTRACE_ERROR_CB_PARAM_PASSTHRU);
+}
+#else
+
+static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
+    const char uncaught[] = "Uncaught ";
+    const char *data = ZSTR_VAL(msg);
+    size_t uncaught_len = sizeof uncaught - 1;  // ignore the null terminator
+    size_t size = ZSTR_LEN(msg);
+    if (size > uncaught_len && memcmp(data, uncaught, uncaught_len) == 0) {
+        char *newline = memchr(data, '\n', size);
+        if (newline) {
+            size_t offset = newline - data;
+            return zend_string_init(data, offset, 0);
+        }
+    }
+    return zend_string_copy(msg);
+}
+
+void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t error_lineno, zend_string *message) {
+    UNUSED(error_filename, error_lineno);
+
+    /* We need the error handling to place nicely with the sandbox. The best
+     * idea so far is to execute fatal error handling code iff the error handling
+     * mode is set to EH_NORMAL. If it's something else, such as EH_SUPPRESS or
+     * EH_THROW, then they are likely to be handled and accordingly they
+     * shouldn't be treated as fatal.
+     */
+    bool is_fatal_error = type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
+    if (EXPECTED(EG(active)) && EG(error_handling) == EH_NORMAL && UNEXPECTED(is_fatal_error)) {
+        /* If there is a fatal error in shutdown then this might not be an array
+         * because we set it to IS_NULL in RSHUTDOWN. We probably want a more
+         * robust way of detecting this, but I'm not sure how yet.
+         */
+        if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
+            dd_error_info error = {
+                .type = dd_error_type(type),
+                .msg = dd_truncate_uncaught_exception(message),
+                .stack = dd_fatal_error_stack(),
+            };
+            dd_fatal_error_to_meta(&DDTRACE_G(additional_trace_meta), error);
+            ddtrace_span_fci *span;
+            for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
+                if (span->exception || !span->span.span_data) {
+                    continue;
+                }
+
+                zval *meta = ddtrace_spandata_property_meta(span->span.span_data);
+                if (!meta) {
+                    continue;
+                }
+
+                if (Z_TYPE_P(meta) != IS_ARRAY) {
+                    zval_ptr_dtor(meta);
+                    array_init_size(meta, ddtrace_num_error_tags);
+                }
+                dd_fatal_error_to_meta(meta, error);
+            }
+            if (error.type) {
+                zend_string_release(error.type);
+            }
+            if (error.msg) {
+                zend_string_release(error.msg);
+            }
+            if (error.stack) {
+                zend_string_release(error.stack);
+            }
+            ddtrace_close_all_open_spans();
+        }
+    }
+}
+#endif

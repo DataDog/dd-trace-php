@@ -4,19 +4,35 @@
 
 #include "configuration.h"
 
-inline void ddtrace_log_err(char *message) {
+inline void ddtrace_log_err(const char *message) {
+#if PHP_VERSION_ID < 80000
     TSRMLS_FETCH();
-    php_log_err(message TSRMLS_CC);
+    php_log_err((char *)message TSRMLS_CC);
+#else
+    php_log_err(message);
+#endif
 }
 
-#define ddtrace_log_debugf(...)        \
-    if (get_dd_trace_debug()) {        \
-        ddtrace_log_errf(__VA_ARGS__); \
-    }
-#define ddtrace_log_debug(message) \
-    if (get_dd_trace_debug()) {    \
-        ddtrace_log_err(message);  \
-    }
+#define ddtrace_log_debugf(...)            \
+    do {                                   \
+        if (get_dd_trace_debug()) {        \
+            ddtrace_log_errf(__VA_ARGS__); \
+        }                                  \
+    } while (0)
+
+#define ddtrace_log_debug(message)    \
+    do {                              \
+        if (get_dd_trace_debug()) {   \
+            ddtrace_log_err(message); \
+        }                             \
+    } while (0)
+
+#define ddtrace_assert_log_debug(message) \
+    do {                                  \
+        const char *message_ = message;   \
+        ZEND_ASSERT(0 && message_);       \
+        ddtrace_log_debug(message_);      \
+    } while (0)
 
 void ddtrace_log_errf(const char *format, ...);
 

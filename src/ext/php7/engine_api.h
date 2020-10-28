@@ -23,6 +23,12 @@ zend_class_entry *ddtrace_lookup_ce(const char *str, size_t len);
  */
 zval ddtrace_zval_stringl(const char *str, size_t len);
 
+static inline zval ddtrace_zval_zstr(zend_string *str) {
+    zval zv;
+    ZVAL_STR(&zv, str);  // does not copy
+    return zv;
+}
+
 inline zval ddtrace_zval_long(zend_long num) {
     zval zv;
     ZVAL_LONG(&zv, num);

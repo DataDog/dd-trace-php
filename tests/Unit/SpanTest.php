@@ -175,13 +175,13 @@ final class SpanTest extends BaseTestCase
         $this->assertEquals($span->getTag(Tag::ERROR_TYPE), 'Exception');
     }
 
-    public function testSpanErrorRemainsImmutableAfterFinishing()
+    public function testSpanErrorRemainsMutableAfterFinishing()
     {
         $span = $this->createSpan();
         $span->finish();
 
         $span->setError(new Exception());
-        $this->assertFalse($span->hasError());
+        $this->assertTrue($span->hasError());
     }
 
     public function testSpanSetResource()

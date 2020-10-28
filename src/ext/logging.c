@@ -7,6 +7,8 @@
 #include "configuration.h"
 #include "vendor_stdatomic.h"
 
+extern inline void ddtrace_log_err(const char *message);
+
 atomic_uintptr_t php_ini_error_log;
 
 void ddtrace_bgs_log_minit(void) { atomic_store(&php_ini_error_log, (uintptr_t)NULL); }
@@ -67,8 +69,6 @@ int ddtrace_bgs_logf(const char *fmt, ...) {
 
     return ret;
 }
-
-extern inline void ddtrace_log_err(char *message);
 
 void ddtrace_log_errf(const char *format, ...) {
     va_list args;
