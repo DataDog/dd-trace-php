@@ -9,7 +9,7 @@ use DDTrace\Type;
      * `name` defaults to the function/method name being traced.
      * `resource` defaults to span's name. If you set it, use something with low cardinality.
      */
-    
+
     // Required:
     $span->service = getenv('DD_SERVICE');
     $span->type = Type::CLI; // or Type::MESSAGE_PRODUCER or anything appropriate from DDTrace\Type::
