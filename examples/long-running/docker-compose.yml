@@ -1,0 +1,28 @@
+version: '3.7'
+
+services:
+
+  script:
+    build:
+      context: .
+    volumes:
+      - ./:/app
+    environment:
+      DD_ENV: long_running
+      DD_SERVICE: long_running_service
+      DD_AGENT_HOST: agent
+    depends_on:
+      - httpbin
+      - agent
+
+  httpbin:
+    image: kennethreitz/httpbin
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /proc/:/host/proc/:ro
+    - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+    - DD_API_KEY=${DD_API_KEY}
