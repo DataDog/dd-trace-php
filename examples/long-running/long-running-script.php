@@ -5,8 +5,13 @@ use DDTrace\Type;
 
 // This part is required for long running processes
 \DDTrace\trace_function('repetitive_function', function (SpanData $span, $args) {
+    /* Optional: $span->name and $span->resource
+     * `name` defaults to the function/method name being traced.
+     * `resource` defaults to span's name. If you set it, use something with low cardinality.
+     */
+    
+    // Required:
     $span->service = getenv('DD_SERVICE');
-    $span->name = $span->resource = 'repetitive_function';
     $span->type = Type::CLI; // or Type::MESSAGE_PRODUCER or anything appropriate from DDTrace\Type::
 });
 
