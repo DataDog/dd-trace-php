@@ -19,11 +19,11 @@ Visit the [PHP tracer documentation](https://docs.datadoghq.com/tracing/language
 
 ### Advanced configuration
 
-For more information about configuring and instrumenting **ddtrace**, view the [advanced-instrumentation documentation](https://docs.datadoghq.com/tracing/advanced_usage/?tab=php).
+For more information about configuring and instrumenting **ddtrace**, view the [configuration documentation](https://docs.datadoghq.com/tracing/setup/php/#configuration).
 
 ### OpenTracing
 
-The **ddtrace** package provides an [OpenTracing-compatible tracer](https://docs.datadoghq.com/tracing/advanced_usage/?tab=php#opentracing).
+The **ddtrace** package provides an [OpenTracing-compatible tracer](https://docs.datadoghq.com/tracing/custom_instrumentation/php/?tab=tracingfunctioncalls#opentracing).
 
 ## Contributing
 
