@@ -693,7 +693,7 @@ jobs:
           when: on_fail
       - store_artifacts: { path: '/tmp/artifacts' }
 
-  DatadogArena:
+  ExtensionComponents:
     working_directory: ~/datadog
     parameters:
       docker_image:
@@ -709,10 +709,21 @@ jobs:
       - run:
           name: Install cmake << parameters.cmake_version >>
           command: |
-            cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz
-            mkdir -p /opt/cmake/<< parameters.cmake_version >>
-            cd /opt/cmake/<< parameters.cmake_version >> && tar -xf /tmp/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz --strip 1
-            rm -f /tmp/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz
+            if [ -e /etc/alpine-release ]
+            then
+              # We build from source on Alpine (slow)
+              mkdir -p /tmp/cmake /opt/cmake/<< parameters.cmake_version >>
+              cd /tmp/cmake
+              curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>.tar.gz
+              tar -xf *.tar.gz --strip 1
+              ./bootstrap --prefix=/opt/cmake/<< parameters.cmake_version >> --parallel=2 && make -j 2 && make install
+            else
+              # We use prebuilt Linux packages everywhere else (fast)
+              cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz
+              mkdir -p /opt/cmake/<< parameters.cmake_version >>
+              cd /opt/cmake/<< parameters.cmake_version >> && tar -xf /tmp/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz --strip 1
+            fi
+
       - run:
           name: Install Catch2
           command: |
@@ -899,13 +910,15 @@ workflows:
       # We need to prepare code because centos 6's git is too old for CircleCI, true story:
       # > error: unknown switch `B'
       - "Prepare Code"
-      - DatadogArena:
+      - ExtensionComponents:
           requires: [ 'Prepare Code' ]
           matrix:
             parameters:
               docker_image:
                 # Don't need PHP, just basic toolchain
                 - "datadog/dd-trace-ci:php-8.0_centos-6"
+                - "datadog/dd-trace-ci:alpine"
+                - "datadog/dd-trace-ci:buster"
               cmake_version:
                 - "3.10.3"
                 - "3.18.4"
