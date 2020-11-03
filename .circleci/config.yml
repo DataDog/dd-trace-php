@@ -693,6 +693,59 @@ jobs:
           when: on_fail
       - store_artifacts: { path: '/tmp/artifacts' }
 
+  ExtensionComponents:
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      cmake_version:
+        type: string
+      catch2_version:
+        type: string
+    docker:
+      - image: << parameters.docker_image >>
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Install cmake << parameters.cmake_version >>
+          command: |
+            if [ -e /etc/alpine-release ]
+            then
+              # We build from source on Alpine (slow)
+              mkdir -p /tmp/cmake /opt/cmake/<< parameters.cmake_version >>
+              cd /tmp/cmake
+              curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>.tar.gz
+              tar -xf *.tar.gz --strip 1
+              ./bootstrap --prefix=/opt/cmake/<< parameters.cmake_version >> --parallel=2 && make -j 2 && make install
+            else
+              # We use prebuilt Linux packages everywhere else (fast)
+              cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz
+              mkdir -p /opt/cmake/<< parameters.cmake_version >>
+              cd /opt/cmake/<< parameters.cmake_version >> && tar -xf /tmp/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz --strip 1
+            fi
+
+      - run:
+          name: Install Catch2
+          command: |
+            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+            cd /tmp
+            curl -OL https://github.com/catchorg/Catch2/archive/v<< parameters.catch2_version >>.tar.gz
+            mkdir catch2
+            cd catch2
+            tar -xf ../v<< parameters.catch2_version >>.tar.gz --strip 1
+            cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2
+            cmake --build build/ --target install
+      - run:
+          name: Build and test Datadog::Arena
+          command: |
+            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+            cmake --version
+            mkdir -p /tmp/build/DatadogArena
+            cd /tmp/build/DatadogArena
+            CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ~/datadog/ext/DatadogArena
+            make -j
+            make test
+
   compile_alpine:
     working_directory: ~/datadog
     parameters:
@@ -851,6 +904,27 @@ jobs:
 
 workflows:
   version: 2
+
+  components:
+    jobs:
+      # We need to prepare code because centos 6's git is too old for CircleCI, true story:
+      # > error: unknown switch `B'
+      - "Prepare Code"
+      - ExtensionComponents:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              docker_image:
+                # Don't need PHP, just basic toolchain
+                - "datadog/dd-trace-ci:php-8.0_centos-6"
+                - "datadog/dd-trace-ci:alpine"
+                - "datadog/dd-trace-ci:buster"
+              cmake_version:
+                - "3.10.3"
+                - "3.18.4"
+              catch2_version:
+                - "2.4.2"
+                - "2.13.3"
 
   build_packages:
     jobs:
