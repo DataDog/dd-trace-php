@@ -36,7 +36,18 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Added
+        - Experimental support for PHP 8.0.0 RC 2 &amp; RC 3 (Provided for testing only and not intended for use on production) #1039 #1053 #1054 #1076
+        - Trace Symfony controller and more #1048
+        - Add example for long running processes #1049
+        - Add tests and support for WordPress 5 #1058 #1059
+        - Add tests for Symfony 5 #1060 #1062
+
+        ### Changed
+        - Build alpine packages on alpine and add e2e package verification #774
+        - Add fatal error info to `DDTrace\Tracer` made root spans on PHP 7 #1040
+    </notes>
     <contents>
         <dir name="/">
             <!-- Source files -->
