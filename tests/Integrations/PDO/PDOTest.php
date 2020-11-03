@@ -489,6 +489,11 @@ final class PDOTest extends IntegrationTestCase
                     name varchar(100)
                 )
             ");
+            if (PHP_VERSION_ID >= 80000 && !$pdo->inTransaction()) {
+                // CREATE TABLE causes an implicit commit on PHP 8
+                // @see https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
+                $pdo->beginTransaction();
+            }
             $pdo->exec("INSERT INTO tests (id, name) VALUES (1, 'Tom')");
 
             $pdo->commit();
@@ -502,7 +507,11 @@ final class PDOTest extends IntegrationTestCase
             $pdo = $this->pdoInstance();
             $pdo->beginTransaction();
             $pdo->exec("DROP TABLE tests");
-            $pdo->commit();
+            if (PHP_VERSION_ID < 80000) {
+                // DROP TABLE causes an implicit commit on PHP 8
+                // @see https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html
+                $pdo->commit();
+            }
             $pdo = null;
         });
     }
