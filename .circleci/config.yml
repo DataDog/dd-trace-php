@@ -1180,7 +1180,7 @@ workflows:
                 - php:7.2-fpm-alpine
                 - php:7.3-fpm-alpine
                 - php:7.4-fpm-alpine
-                - php:8.0.0RC2-fpm-alpine
+                - php:8.0.0RC3-fpm-alpine
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 54 PECL tests"
