@@ -43,14 +43,14 @@ TEST_CASE("arena try alloc", "[arena]") {
     datadog_arena *arena = datadog_arena_create(1024);
     datadog_arena *first_arena = arena;
 
-    char *ptr;
-    REQUIRE(datadog_arena_try_alloc(arena, 512, &ptr));
+    char *ptr = datadog_arena_try_alloc(arena, 512);
+    REQUIRE(ptr);
     REQUIRE((void *)ptr == (void *)((char *)arena + sizeof(datadog_arena)));
 
     char *ptr_backup = ptr;
     char *checkpoint = datadog_arena_checkpoint(arena);
     // arena size 1024 cannot fit 512 x2 because of arena struct overhead
-    REQUIRE(!datadog_arena_try_alloc(arena, 512, &ptr));
+    REQUIRE(!datadog_arena_try_alloc(arena, 512));
 
     REQUIRE(arena == first_arena);
     REQUIRE((void *)checkpoint == (void *)datadog_arena_checkpoint(arena));

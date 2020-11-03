@@ -5,7 +5,7 @@
 _Static_assert(sizeof(size_t) == 8, "Unexpected size_t size");
 
 extern inline char *datadog_arena_alloc(datadog_arena **arena_ptr, size_t size);
-extern inline bool datadog_arena_try_alloc(datadog_arena *arena, size_t size, char **result);
+extern inline char *datadog_arena_try_alloc(datadog_arena *arena, size_t size);
 
 /* prefer powers of 2 */
 datadog_arena *datadog_arena_create(size_t size) {

@@ -41,18 +41,17 @@ inline char *datadog_arena_alloc(datadog_arena **arena_ptr, size_t size) {
 }
 
 /* Try to allocate `size` memory without growing the arena.
- * If the allocation fits, return true and set *result to the pointer.
- * If it does not fit, return false and do not set *result.
+ * If the allocation fits, return pointer to the address; otherwise return NULL.
  */
-inline bool datadog_arena_try_alloc(datadog_arena *arena, size_t size, char **result) {
+inline char *datadog_arena_try_alloc(datadog_arena *arena, size_t size) {
     size = DATADOG_ARENA_ALIGNED_SIZE(size);
     if (size > (size_t)(arena->end - arena->ptr)) {
-        return false;
+        return NULL;
     }
 
-    *result = arena->ptr;
+    char *result = arena->ptr;
     arena->ptr += size;
-    return true;
+    return result;
 }
 
 /* Checkpointing allows you to save a position in the arena, then to later
