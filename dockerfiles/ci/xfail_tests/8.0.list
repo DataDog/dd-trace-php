@@ -7,6 +7,7 @@ Zend/tests/anon/007.phpt
 Zend/tests/anon/012.phpt
 Zend/tests/anon/013.phpt
 Zend/tests/arginfo_zpp_mismatch.phpt
+Zend/tests/arginfo_zpp_mismatch_strict.phpt
 Zend/tests/arrow_functions/005.phpt
 Zend/tests/assign_coalesce_001.phpt
 Zend/tests/assign_obj_ref_byval_function.phpt
