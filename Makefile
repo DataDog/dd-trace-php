@@ -241,7 +241,7 @@ TEST_WEB_55 := \
 	test_web_laravel_42 \
 	test_web_lumen_52 \
 	test_web_slim_312 \
-	#test_web_symfony_23 \
+	test_web_symfony_23 \
 	test_web_symfony_28 \
 	test_web_symfony_30 \
 	test_web_symfony_33 \
@@ -269,7 +269,7 @@ TEST_WEB_56 := \
 	test_web_laravel_42 \
 	test_web_lumen_52 \
 	test_web_slim_312 \
-	#test_web_symfony_23 \
+	test_web_symfony_23 \
 	test_web_symfony_28 \
 	test_web_symfony_30 \
 	test_web_symfony_33 \
@@ -300,7 +300,7 @@ TEST_WEB_70 := \
 	test_web_laravel_42 \
 	test_web_lumen_52 \
 	test_web_slim_312 \
-	#test_web_symfony_23 \
+	test_web_symfony_23 \
 	test_web_symfony_28 \
 	test_web_symfony_30 \
 	test_web_symfony_33 \
@@ -335,7 +335,7 @@ TEST_WEB_71 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
-	#test_web_symfony_23 \
+	test_web_symfony_23 \
 	test_web_symfony_28 \
 	test_web_symfony_30 \
 	test_web_symfony_33 \
@@ -372,7 +372,7 @@ TEST_WEB_72 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
-	#test_web_symfony_23 \
+	test_web_symfony_23 \
 	test_web_symfony_28 \
 	test_web_symfony_30 \
 	test_web_symfony_33 \
