@@ -15,7 +15,7 @@
 #include "compatibility.h"
 #include "configuration.h"
 #include "logging.h"
-#include "mpack.h"
+#include "mpack/mpack.h"
 
 extern inline bool ddtrace_coms_is_stack_unused(ddtrace_coms_stack_t *stack);
 extern inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack);
@@ -24,15 +24,7 @@ typedef uint32_t group_id_t;
 
 #define GROUP_ID_PROCESSED (1UL << 31UL)
 
-#ifndef __clang__
-// disable checks since older GCC is throwing false errors
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-ddtrace_coms_state_t ddtrace_coms_globals = {{0}};
-#pragma GCC diagnostic pop
-#else  //__clang__
 ddtrace_coms_state_t ddtrace_coms_globals = {.stacks = NULL};
-#endif
 
 static bool _dd_is_memory_pressure_high(void) {
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);

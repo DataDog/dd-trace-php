@@ -36,6 +36,8 @@ if test "$PHP_DDTRACE" != "no"; then
 
   dnl ddtrace.c comes first, then everything else alphabetically
   DD_TRACE_PHP_SOURCES="src/ext/ddtrace.c \
+    ext/vendor/mpack/mpack.c \
+    ext/vendor/mt19937/mt19937-64.c \
     src/dogstatsd/client.c \
     src/ext/arrays.c \
     src/ext/circuit_breaker.c \
@@ -51,12 +53,10 @@ if test "$PHP_DDTRACE" != "no"; then
     src/ext/env_config.c \
     src/ext/logging.c \
     src/ext/memory_limit.c \
-    src/ext/mpack/mpack.c \
     src/ext/random.c \
     src/ext/request_hooks.c \
     src/ext/signals.c \
     src/ext/span.c \
-    src/ext/third-party/mt19937-64.c \
     src/ext/integrations/integrations.c \
   "
 
@@ -140,10 +140,17 @@ if test "$PHP_DDTRACE" != "no"; then
   PHP_SUBST(EXTRA_LDFLAGS)
 
   PHP_ADD_INCLUDE([$ext_srcdir])
+  PHP_ADD_INCLUDE([$ext_srcdir/ext])
   PHP_ADD_INCLUDE([$ext_srcdir/src/ext])
 
-  PHP_ADD_INCLUDE([$ext_srcdir/src/ext/mpack])
-  PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/mpack])
+  PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor])
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor/mpack])
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor/mpack])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor/mt19937])
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor/mt19937])
 
   PHP_ADD_INCLUDE([$ext_srcdir/src/ext/integrations])
   PHP_ADD_BUILD_DIR([$ext_builddir/src/ext/integrations])

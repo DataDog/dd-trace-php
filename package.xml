@@ -40,6 +40,16 @@
     <contents>
         <dir name="/">
             <!-- Source files -->
+            <file name="ext/DatadogArena/arena.c" role="src" />
+            <file name="ext/DatadogArena/datadog/arena.h" role="src" />
+            <file name="ext/vendor/mpack/AUTHORS.md" role="doc" />
+            <file name="ext/vendor/mpack/CHANGELOG.md" role="doc" />
+            <file name="ext/vendor/mpack/README.md" role="doc" />
+            <file name="ext/vendor/mpack/LICENSE" role="doc" />
+            <file name="ext/vendor/mpack/mpack.c" role="src" />
+            <file name="ext/vendor/mpack/mpack.h" role="src" />
+            <file name="ext/vendor/mt19937/mt19937-64.c" role="src" />
+            <file name="ext/vendor/mt19937/mt19937-64.h" role="src" />
             <file name="m4/ax_execinfo.m4" role="src" />
             <file name="m4/polyfill.m4" role="src" />
             <file name="src/dogstatsd/client.c" role="src" />
@@ -73,7 +83,6 @@
             <file name="src/ext/memory_limit.h" role="src" />
             <file name="src/ext/circuit_breaker.c" role="src" />
             <file name="src/ext/circuit_breaker.h" role="src" />
-            <file name="src/ext/vendor_stdatomic.h" role="src" />
             <file name="src/ext/dispatch.c" role="src" />
             <file name="src/ext/dispatch.h" role="src" />
             <file name="src/ext/dogstatsd_client.c" role="src" />
@@ -98,12 +107,6 @@
             <file name="src/ext/compatibility.h" role="src" />
             <file name="src/ext/integrations/integrations.c" role="src" />
             <file name="src/ext/integrations/integrations.h" role="src" />
-            <file name="src/ext/mpack/AUTHORS.md" role="doc" />
-            <file name="src/ext/mpack/CHANGELOG.md" role="doc" />
-            <file name="src/ext/mpack/README.md" role="doc" />
-            <file name="src/ext/mpack/LICENSE" role="doc" />
-            <file name="src/ext/mpack/mpack.c" role="src" />
-            <file name="src/ext/mpack/mpack.h" role="src" />
             <file name="src/ext/php5_4/auto_flush.c" role="src" />
             <file name="src/ext/php5_4/dispatch.c" role="src" />
             <file name="src/ext/php5_4/engine_hooks.c" role="src" />
@@ -133,8 +136,6 @@
             <file name="src/ext/php7/handlers_phpredis.c" role="src" />
             <file name="src/ext/php7/serializer.c" role="src" />
             <file name="src/ext/php7/startup_logging.c" role="src" />
-            <file name="src/ext/third-party/mt19937-64.c" role="src" />
-            <file name="src/ext/third-party/mt19937-64.h" role="src" />
 
             <!-- Tests -->
             <file name="tests/ext/call_user_func/namespaced-array.phpt" role="test" />

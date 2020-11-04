@@ -1,4 +1,5 @@
 **/vendor
+!/ext/vendor
 tmp/build_extension/
 composer.lock
 core
@@ -37,7 +38,6 @@ tests/ext/*.diff
 tests/ext/*.log
 tests/ext/*.exp
 tests/ext/*.sh
-tests/ext/*.log
 tests/ext/*.mem
 tmp-php.ini
 tmp/opcache*

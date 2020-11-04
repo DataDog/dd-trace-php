@@ -2,10 +2,9 @@
 #define DD_COMS_H
 
 #include <curl/curl.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-#include "vendor_stdatomic.h"
 
 #define DDTRACE_COMS_STACK_MAX_SIZE (1024u * 1024u * 10u)      // 10 MiB
 #define DDTRACE_COMS_STACK_HALF_MAX_SIZE (1024u * 1024u * 5u)  // 5 MiB
