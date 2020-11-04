@@ -2,6 +2,11 @@ extern "C" {
 #include <datadog/arena.h>
 }
 
+static size_t arena_size(const datadog_arena *arena) {
+    char *begin = (char *)arena;
+    return arena->end - begin;
+}
+
 #include <catch2/catch.hpp>
 
 TEST_CASE("basic arena creation", "[arena]") {
@@ -38,7 +43,7 @@ TEST_CASE("basic arena growth", "[arena]") {
 
 TEST_CASE("arena initial size grows to fit the size of an arena", "[arena]") {
     datadog_arena *arena = datadog_arena_create(1);
-    size_t size = datadog_arena_size(arena);
+    size_t size = arena_size(arena);
 
     REQUIRE(size >= sizeof(datadog_arena));
 
@@ -102,7 +107,6 @@ TEST_CASE("arena checkpoint and restore where the checkpoint is not in the root 
     datadog_arena *arena = datadog_arena_create(32);
     datadog_arena *first_arena = arena;
 
-    size_t size = datadog_arena_size(arena);
     size_t remaining = arena->end - arena->ptr;
 
     // ensure we have at least a single byte remaining

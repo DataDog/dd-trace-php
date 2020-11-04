@@ -20,11 +20,6 @@ typedef struct datadog_arena datadog_arena;
 /* prefer powers of 2 */
 datadog_arena *datadog_arena_create(size_t size);
 
-inline size_t datadog_arena_size(const datadog_arena *arena) {
-    char *begin = (char *)arena;
-    return arena->end - begin;
-}
-
 inline char *datadog_arena_begin(datadog_arena *arena) {
     return (char *)arena + DATADOG_ARENA_ALIGNED_SIZE(sizeof(datadog_arena));
 }
