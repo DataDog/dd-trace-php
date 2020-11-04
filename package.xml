@@ -41,7 +41,7 @@
         - Experimental support for PHP 8.0.0 RC 2 &amp; RC 3 (Provided for testing only and not intended for use on production) #1039 #1053 #1054 #1076
         - Trace Symfony controller and more #1048
         - Add example for long running processes #1049
-        - Add tests and support for WordPress 5 #1058 #1059
+        - Add tests and support for WordPress 5 on PHP 7 #1058 #1059 #1081
         - Add tests for Symfony 5 #1060 #1062
 
         ### Changed
