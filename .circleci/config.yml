@@ -742,7 +742,11 @@ jobs:
             cmake --version
             mkdir -p /tmp/build/DatadogArena
             cd /tmp/build/DatadogArena
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ~/datadog/ext/DatadogArena
+            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
+              -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_TESTING=ON \
+              ~/datadog/ext/DatadogArena
             make -j
             make test
 
