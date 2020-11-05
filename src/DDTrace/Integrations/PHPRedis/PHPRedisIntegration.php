@@ -6,6 +6,8 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Private_;
+use DDTrace\Util\ObjectKVStore;
 
 class PHPRedisIntegration extends Integration
 {
@@ -28,9 +30,26 @@ class PHPRedisIntegration extends Integration
     public function init()
     {
         $traceConnectOpen = function (SpanData $span, $args) {
-            PHPRedisIntegration::enrichSpan($span);
-            $span->meta[Tag::TARGET_HOST] = (isset($args[0]) && \is_string($args[0])) ? $args[0] : '127.0.0.1';
+            $hostOrUDS = (isset($args[0]) && \is_string($args[0])) ? $args[0] : '127.0.0.1';
+            $span->meta[Tag::TARGET_HOST] = $hostOrUDS;
             $span->meta[Tag::TARGET_PORT] = (isset($args[1]) && \is_numeric($args[1])) ? $args[1] : 6379;
+
+            // Service name
+            if (empty($hostOrUDS) || !\ddtrace_config_redis_client_split_by_host_enabled()) {
+                $serviceName = 'phpredis';
+            } else {
+                $serviceName = 'redis-' . Private_\util_normalize_host_uds_as_service($hostOrUDS);
+            }
+
+            // While we would have access to Redis::getHost() from the instance to retrieve it later, we compute the
+            // service name here and store in the instance for later because of the following reasons:
+            //   - we would do over and over the same operation, involving a regex, for each method invocation.
+            //   - in case of connection error, the Redis::host value is not set and we would not have access to it
+            //     during callbacks, meaning that we would have to use two different ways to extract the name: args or
+            //     Redis::getHost() depending on when we are interested in such information.
+            ObjectKVStore::put($this, 'service', $serviceName);
+
+            PHPRedisIntegration::enrichSpan($span, $this);
         };
         \DDTrace\trace_method('Redis', 'connect', $traceConnectOpen);
         \DDTrace\trace_method('Redis', 'pconnect', $traceConnectOpen);
@@ -50,7 +69,7 @@ class PHPRedisIntegration extends Integration
         self::traceMethodNoArgs('restore');
 
         \DDTrace\trace_method('Redis', 'select', function (SpanData $span, $args) {
-            PHPRedisIntegration::enrichSpan($span);
+            PHPRedisIntegration::enrichSpan($span, $this);
             if (isset($args[0]) && \is_numeric($args[0])) {
                 $span->meta['db.index'] = $args[0];
             }
@@ -250,9 +269,9 @@ class PHPRedisIntegration extends Integration
         return Integration::LOADED;
     }
 
-    public static function enrichSpan(SpanData $span, $method = null)
+    public static function enrichSpan(SpanData $span, $instance, $method = null)
     {
-        $span->service = 'phpredis';
+        $span->service = ObjectKVStore::get($instance, 'service', 'phpredis');
         $span->type = Type::REDIS;
         if (null !== $method) {
             // method names for internal functions are lowered so we need to explitly set them if we want to have the
@@ -264,14 +283,14 @@ class PHPRedisIntegration extends Integration
     public static function traceMethodNoArgs($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
-            PHPRedisIntegration::enrichSpan($span, $method);
+            PHPRedisIntegration::enrichSpan($span, $this, $method);
         });
     }
 
     public static function traceMethodAsCommand($method)
     {
         \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
-            PHPRedisIntegration::enrichSpan($span, $method);
+            PHPRedisIntegration::enrichSpan($span, $this, $method);
             $normalizedArgs = PHPRedisIntegration::normalizeArgs($args);
             // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
             $span->meta[Tag::REDIS_RAW_COMMAND]
