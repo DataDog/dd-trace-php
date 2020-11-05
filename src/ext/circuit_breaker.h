@@ -1,9 +1,9 @@
 #ifndef DD_CIRCUIT_BREAKER_H
 #define DD_CIRCUIT_BREAKER_H
 
+#include <stdatomic.h>
 #include <stdint.h>
 
-#include "vendor_stdatomic.h"
 #include "version.h"
 
 typedef struct dd_trace_circuit_breaker_t {

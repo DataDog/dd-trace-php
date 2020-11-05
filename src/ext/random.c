@@ -8,7 +8,7 @@
 #include "configuration.h"
 #include "ddtrace.h"
 #include "env_config.h"
-#include "third-party/mt19937-64.h"
+#include "mt19937/mt19937-64.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

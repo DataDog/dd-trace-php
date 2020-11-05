@@ -1,12 +1,14 @@
 #include "comms_php.h"
 
+#include <stdatomic.h>
+
 #include "arrays.h"
 #include "compat_string.h"
 #include "compatibility.h"
 #include "coms.h"
 #include "ddtrace.h"
 #include "logging.h"
-#include "mpack.h"
+#include "mpack/mpack.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

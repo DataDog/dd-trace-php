@@ -10,6 +10,4 @@ RELEASING.md        export-ignore
 # ext/ddtrace
 .circleci           export-ignore
 .clang-format       export-ignore
-src/ext/mpack/*     linguist-generated=true
-src/ext/third-party/*     linguist-generated=true
-src/ext/vendor_stdatomic.h     linguist-generated=true
+ext/vendor/*        linguist-generated=true

@@ -1,11 +1,11 @@
 #include "logging.h"
 
+#include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
 #include "configuration.h"
-#include "vendor_stdatomic.h"
 
 extern inline void ddtrace_log_err(const char *message);
 
