@@ -42,7 +42,7 @@ class WordPressIntegration extends Integration
                 return false;
             }
             $majorVersion = substr($GLOBALS['wp_version'], 0, 2);
-            if ('4.' === $majorVersion || ('5.' === $majorVersion && PHP_VERSION_ID >= 70000)) {
+            if ('4.' === $majorVersion || '5.' === $majorVersion) {
                 $loader = new WordPressIntegrationLoader();
                 $loader->load($integration);
             }
