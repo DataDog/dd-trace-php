@@ -30,6 +30,14 @@ final class SpanChecker
     {
         $flattenTraces = $this->flattenTraces($traces);
         $actualGraph = $this->buildSpansGraph($flattenTraces);
+        if (\count($actualGraph) != \count($expectedFlameGraph)) {
+            TestCase::fail(\sprintf(
+                'Wrong number of root spans. Expected %d, actual: %s',
+                \count($expectedFlameGraph),
+                \count($actualGraph)
+            ));
+        }
+
         foreach ($expectedFlameGraph as $oneTrace) {
             if ($oneTrace->isToBeSkipped()) {
                 continue;
