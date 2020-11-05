@@ -264,6 +264,16 @@ function ddtrace_config_http_client_split_by_domain_enabled()
 }
 
 /**
+ * Set Redis client service name based on hostname
+ *
+ * @return bool
+ */
+function ddtrace_config_redis_client_split_by_host_enabled()
+{
+    return \_ddtrace_config_bool(\getenv('DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST'), false);
+}
+
+/**
  * Whether or not also unfinished spans should be finished (and thus sent) when tracer is flushed.
  * Motivation: We had users reporting that in some cases they have manual end-points that `echo` some content and
  * then just `exit(0)` at the end of action's method. While the shutdown hook that flushes traces would still be
