@@ -35,6 +35,8 @@ class UtilTest extends BaseTestCase
             'without_schema' => ['example.com', 'example.com'],
             'trim' => ['   example   .com   ', 'example.com'],
 
+            // Do not remove schema extraction, as it is used by predis/phpredis
+            // https://github.com/phpredis/phpredis#connect-open
             'schema_http' => ['http://example.com', 'example.com'],
             'schema_https' => ['https://example.com', 'example.com'],
             'schema_tls' => ['tls://example.com', 'example.com'],
