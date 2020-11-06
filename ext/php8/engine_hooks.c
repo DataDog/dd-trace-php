@@ -1,8 +1,8 @@
 #include "engine_hooks.h"
 
+#include <Zend/zend_observer.h>
 #include <php.h>
 #include <time.h>
-#include <Zend/zend_observer.h>
 
 #include "configuration.h"
 #include "ddtrace.h"
@@ -12,28 +12,17 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 static zend_op_array *(*_prev_compile_file)(zend_file_handle *file_handle, int type);
 
-void ddtrace_execute_internal_minit(void);
-void ddtrace_execute_internal_mshutdown(void);
-
 static void _compile_minit(void);
 static void _compile_mshutdown(void);
 
-void ddtrace_opcode_minit(void);
-void ddtrace_opcode_mshutdown(void);
-
 void ddtrace_engine_hooks_minit(void) {
-    ddtrace_execute_internal_minit();
-    ddtrace_opcode_minit();
     _compile_minit();
 
+    zend_observer_fcall_register(ddtrace_observer_fcall_init);
     zend_observer_error_register(ddtrace_observer_error_cb);
 }
 
-void ddtrace_engine_hooks_mshutdown(void) {
-    _compile_mshutdown();
-    ddtrace_opcode_mshutdown();
-    ddtrace_execute_internal_mshutdown();
-}
+void ddtrace_engine_hooks_mshutdown(void) { _compile_mshutdown(); }
 
 static uint64_t _get_microseconds() {
     struct timespec time;

@@ -71,16 +71,9 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
 PHP_INI_END()
 
 static int ddtrace_startup(struct _zend_extension *extension) {
-#if PHP_VERSION_ID < 80000
-    ddtrace_resource = zend_get_resource_handle(extension);
-#if PHP_VERSION_ID >= 70400
-    ddtrace_op_array_extension = zend_get_op_array_extension_handle();
-#endif
-#else
     UNUSED(extension);
     ddtrace_resource = zend_get_resource_handle(PHP_DDTRACE_EXTNAME);
     ddtrace_op_array_extension = zend_get_op_array_extension_handle(PHP_DDTRACE_EXTNAME);
-#endif
 
     ddtrace_excluded_modules_startup();
     ddtrace_internal_handlers_startup();
@@ -432,10 +425,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_dispatch_init(TSRMLS_C);
     ddtrace_distributed_tracing_rinit(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
-
-    // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
-    ZEND_VM_SET_OPCODE_HANDLER(EG(exception_op));
-    EG(exception_op)->opcode = ZEND_HANDLE_EXCEPTION;
 
     ddtrace_dogstatsd_client_rinit(TSRMLS_C);
 

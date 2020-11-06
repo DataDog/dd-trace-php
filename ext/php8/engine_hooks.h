@@ -3,6 +3,7 @@
 
 #include <Zend/zend.h>
 #include <Zend/zend_exceptions.h>
+#include <Zend/zend_observer.h>
 #include <php.h>
 #include <stdint.h>
 
@@ -11,7 +12,6 @@
 #include "ddtrace_string.h"
 
 extern int ddtrace_resource;
-
 extern int ddtrace_op_array_extension;
 #define DDTRACE_OP_ARRAY_EXTENSION(op_array) ZEND_OP_ARRAY_EXTENSION(op_array, ddtrace_op_array_extension)
 
@@ -89,6 +89,7 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup) {
 
 PHP_FUNCTION(ddtrace_internal_function_handler);
 
+zend_observer_fcall_handlers ddtrace_observer_fcall_init(zend_execute_data *execute_data);
 void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t error_lineno, zend_string *message);
 void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception);
 void ddtrace_close_all_open_spans(void);
