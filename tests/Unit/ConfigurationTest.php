@@ -41,10 +41,11 @@ EOD;
         putenv('DD_TRACE_DEBUG');
         putenv('DD_TRACE_ENABLED');
         putenv('DD_TRACE_GLOBAL_TAGS');
+        putenv('DD_TRACE_PDO_ENABLED');
+        putenv('DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST');
         putenv('DD_TRACE_SAMPLE_RATE');
         putenv('DD_TRACE_SAMPLING_RULES');
         putenv('DD_TRACE_SLIM_ENABLED');
-        putenv('DD_TRACE_PDO_ENABLED');
         putenv('DD_VERSION');
     }
 
@@ -546,5 +547,26 @@ EOD;
         $this->assertSame(['/a/'], \ddtrace_config_path_fragment_regex());
         $this->assertSame(['path/*'], \ddtrace_config_path_mapping_incoming());
         $this->assertSame(['path/*'], \ddtrace_config_path_mapping_outgoing());
+    }
+
+    public function testRedisClientSplitHostNotSet()
+    {
+        $this->assertFalse(\ddtrace_config_redis_client_split_by_host_enabled());
+    }
+
+    public function testRedisClientSplitHostSetFalse()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=false',
+        ]);
+        $this->assertFalse(\ddtrace_config_redis_client_split_by_host_enabled());
+    }
+
+    public function testRedisClientSplitHostSetTrue()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true',
+        ]);
+        $this->assertTrue(\ddtrace_config_redis_client_split_by_host_enabled());
     }
 }

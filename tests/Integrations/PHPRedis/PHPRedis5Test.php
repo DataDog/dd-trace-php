@@ -45,6 +45,7 @@ class PHPRedis5Test extends IntegrationTestCase
     {
         $this->redis->close();
         $this->redisSecondInstance->close();
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST']);
         parent::ddTearDown();
     }
 
@@ -2074,6 +2075,67 @@ class PHPRedis5Test extends IntegrationTestCase
                 'redis',
                 "Redis.xTrim"
             )->withExactTags(['redis.raw_command' => 'xTrim s1 0']),
+        ]);
+    }
+
+    public function testSplitByDomainWhenError()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
+        $redis = new \Redis();
+        $traces = $this->isolateTracer(function () use ($redis) {
+            try {
+                $redis->connect('non-existing-host');
+            } catch (Exception $e) {
+            }
+        });
+        $redis->close();
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.connect",
+                'redis-non-existing-host',
+                'redis',
+                "Redis.connect"
+            )
+            ->setError()
+            ->withExistingTagsNames(['error.msg', 'error.stack'])
+            ->withExactTags([
+                'out.host' => 'non-existing-host',
+                'out.port' => $this->port,
+            ]),
+        ]);
+    }
+
+    public function testSplitByDomainWhenSuccess()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
+        $redis = new \Redis();
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->connect($this->host);
+            $redis->set('key', 'value');
+        });
+        $redis->close();
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.connect",
+                'redis-redis_integration',
+                'redis',
+                "Redis.connect"
+            )
+            ->withExactTags([
+                'out.host' => $this->host,
+                'out.port' => $this->port,
+            ]),
+            SpanAssertion::build(
+                "Redis.set",
+                'redis-redis_integration',
+                'redis',
+                "Redis.set"
+            )
+            ->withExactTags([
+                'redis.raw_command' => 'set key value',
+            ]),
         ]);
     }
 
