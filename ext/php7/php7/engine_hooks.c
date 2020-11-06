@@ -1,4 +1,4 @@
-#include "../engine_hooks.h"
+#include "ext/php7/engine_hooks.h"
 
 #include <Zend/zend_closures.h>
 #include <Zend/zend_compile.h>
@@ -9,13 +9,13 @@
 
 #include <ext/spl/spl_exceptions.h>
 
-#include "../compatibility.h"
-#include "../ddtrace.h"
-#include "../dispatch.h"
-#include "../engine_api.h"
-#include "../env_config.h"
-#include "../logging.h"
-#include "../span.h"
+#include "ext/php7/compatibility.h"
+#include "ext/php7/ddtrace.h"
+#include "ext/php7/dispatch.h"
+#include "ext/php7/engine_api.h"
+#include "ext/php7/env_config.h"
+#include "ext/php7/logging.h"
+#include "ext/php7/span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 

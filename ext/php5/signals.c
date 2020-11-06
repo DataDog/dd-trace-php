@@ -9,9 +9,9 @@
 #include <php.h>
 #include <signal.h>
 
-#include "../version.h"
 #include "configuration.h"
 #include "ddtrace.h"
+#include "ext/version.h"
 #include "logging.h"
 
 #if defined HAVE_EXECINFO_H && defined backtrace_size_t && defined HAVE_BACKTRACE

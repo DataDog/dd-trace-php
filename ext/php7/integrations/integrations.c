@@ -1,7 +1,7 @@
 #include "integrations.h"
 
-#include "../configuration.h"
-#include "../ddtrace_string.h"
+#include "ext/php7/configuration.h"
+#include "ext/php7/ddtrace_string.h"
 
 #define DDTRACE_DEFERRED_INTEGRATION_LOADER(class, fname, integration_name)             \
     ddtrace_hook_callable(DDTRACE_STRING_LITERAL(class), DDTRACE_STRING_LITERAL(fname), \

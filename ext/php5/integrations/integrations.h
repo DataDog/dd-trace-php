@@ -2,8 +2,8 @@
 #define DD_INTEGRATIONS_INTEGRATIONS_H
 #include <php.h>
 
-#include "../ddtrace_string.h"
-#include "../dispatch.h"
+#include "ext/php5/ddtrace_string.h"
+#include "ext/php5/dispatch.h"
 
 #define DDTRACE_LONGEST_INTEGRATION_NAME_LEN 13  // "zendframework" FTW!
 

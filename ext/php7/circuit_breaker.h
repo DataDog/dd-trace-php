@@ -4,7 +4,7 @@
 #include <stdatomic.h>
 #include <stdint.h>
 
-#include "../version.h"
+#include "ext/version.h"
 
 typedef struct dd_trace_circuit_breaker_t {
     _Atomic(uint32_t) consecutive_failures;

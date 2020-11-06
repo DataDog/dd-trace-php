@@ -1,4 +1,4 @@
-#include "../engine_hooks.h"
+#include "ext/php5/engine_hooks.h"
 
 #include <Zend/zend.h>
 #include <Zend/zend_closures.h>
@@ -6,11 +6,11 @@
 #include <Zend/zend_interfaces.h>
 #include <php.h>
 
-#include "../compatibility.h"
-#include "../ddtrace.h"
-#include "../dispatch.h"
-#include "../logging.h"
-#include "../span.h"
+#include "ext/php5/compatibility.h"
+#include "ext/php5/ddtrace.h"
+#include "ext/php5/dispatch.h"
+#include "ext/php5/logging.h"
+#include "ext/php5/span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

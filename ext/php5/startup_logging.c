@@ -10,10 +10,10 @@
 #include <ext/standard/info.h>
 #include <ext/standard/php_smart_str.h>
 
-#include "../version.h"
 #include "coms.h"
 #include "configuration.h"
 #include "excluded_modules.h"
+#include "ext/version.h"
 #include "integrations/integrations.h"
 #include "logging.h"
 

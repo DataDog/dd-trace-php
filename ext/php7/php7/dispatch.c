@@ -1,13 +1,13 @@
-#include "../dispatch.h"
+#include "ext/php7/dispatch.h"
 
 #include <Zend/zend_exceptions.h>
 #include <php.h>
 
 #include <ext/spl/spl_exceptions.h>
 
-#include "../arrays.h"
-#include "../compatibility.h"
-#include "../ddtrace.h"
+#include "ext/php7/arrays.h"
+#include "ext/php7/compatibility.h"
+#include "ext/php7/ddtrace.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
