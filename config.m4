@@ -151,40 +151,40 @@ if test "$PHP_DDTRACE" != "no"; then
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.x
     dnl ddtrace.c comes first, then everything else alphabetically
-    DD_TRACE_PHP_SOURCES="ext/php7/ddtrace.c \
-      ext/php7/arrays.c \
-      ext/php7/auto_flush.c \
-      ext/php7/circuit_breaker.c \
-      ext/php7/comms_php.c \
-      ext/php7/compat_string.c \
-      ext/php7/coms.c \
-      ext/php7/configuration.c \
-      ext/php7/configuration_php_iface.c \
-      ext/php7/ddtrace_string.c \
-      ext/php7/dispatch.c \
-      ext/php7/distributed_tracing.c \
-      ext/php7/dogstatsd_client.c \
-      ext/php7/engine_api.c \
-      ext/php7/engine_hooks.c \
-      ext/php7/env_config.c \
-      ext/php7/excluded_modules.c \
-      ext/php7/handlers_curl.c \
-      ext/php7/handlers_internal.c \
-      ext/php7/handlers_memcached.c \
-      ext/php7/handlers_mysqli.c \
-      ext/php7/handlers_pdo.c \
-      ext/php7/handlers_phpredis.c \
-      ext/php7/integrations/integrations.c \
-      ext/php7/logging.c \
-      ext/php7/memory_limit.c \
-      ext/php7/php7/dispatch.c \
-      ext/php7/php7/engine_hooks.c \
-      ext/php7/random.c \
-      ext/php7/request_hooks.c \
-      ext/php7/serializer.c \
-      ext/php7/signals.c \
-      ext/php7/span.c \
-      ext/php7/startup_logging.c \
+    DD_TRACE_PHP_SOURCES="ext/php8/ddtrace.c \
+      ext/php8/arrays.c \
+      ext/php8/auto_flush.c \
+      ext/php8/circuit_breaker.c \
+      ext/php8/comms_php.c \
+      ext/php8/compat_string.c \
+      ext/php8/coms.c \
+      ext/php8/configuration.c \
+      ext/php8/configuration_php_iface.c \
+      ext/php8/ddtrace_string.c \
+      ext/php8/dispatch.c \
+      ext/php8/distributed_tracing.c \
+      ext/php8/dogstatsd_client.c \
+      ext/php8/engine_api.c \
+      ext/php8/engine_hooks.c \
+      ext/php8/env_config.c \
+      ext/php8/excluded_modules.c \
+      ext/php8/handlers_curl.c \
+      ext/php8/handlers_internal.c \
+      ext/php8/handlers_memcached.c \
+      ext/php8/handlers_mysqli.c \
+      ext/php8/handlers_pdo.c \
+      ext/php8/handlers_phpredis.c \
+      ext/php8/integrations/integrations.c \
+      ext/php8/logging.c \
+      ext/php8/memory_limit.c \
+      ext/php8/php8/dispatch.c \
+      ext/php8/php8/engine_hooks.c \
+      ext/php8/random.c \
+      ext/php8/request_hooks.c \
+      ext/php8/serializer.c \
+      ext/php8/signals.c \
+      ext/php8/span.c \
+      ext/php8/startup_logging.c \
     "
   fi
 
@@ -239,10 +239,10 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_ADD_INCLUDE([$ext_builddir/ext/php7/integrations])
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.0
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8])
     dnl Temp dir until we merge dispatch.c and engine_hooks.c
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/php7])
-    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/integrations])
-    PHP_ADD_INCLUDE([$ext_builddir/ext/php7/integrations])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/php8])
+    PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8/integrations])
+    PHP_ADD_INCLUDE([$ext_builddir/ext/php8/integrations])
   fi
 fi
