@@ -20,10 +20,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 int ddtrace_resource = -1;
-
-#if PHP_VERSION_ID >= 70400
 int ddtrace_op_array_extension = 0;
-#endif
 
 ZEND_TLS zend_function *dd_integrations_load_deferred_integration = NULL;
 
@@ -33,18 +30,12 @@ static user_opcode_handler_t prev_fcall_handler;
 static user_opcode_handler_t prev_fcall_by_name_handler;
 static user_opcode_handler_t prev_return_handler;
 static user_opcode_handler_t prev_return_by_ref_handler;
-#if PHP_VERSION_ID >= 70100
 static user_opcode_handler_t prev_yield_handler;
 static user_opcode_handler_t prev_yield_from_handler;
-#endif
 static user_opcode_handler_t prev_handle_exception_handler;
 static user_opcode_handler_t prev_exit_handler;
 
-#if PHP_VERSION_ID < 70100
-#define RETURN_VALUE_USED(opline) (!((opline)->result_type & EXT_TYPE_UNUSED))
-#else
 #define RETURN_VALUE_USED(opline) ((opline)->result_type != IS_UNUSED)
-#endif
 
 static zval *dd_call_this(zend_execute_data *call) {
     if (Z_TYPE(call->This) == IS_OBJECT && Z_OBJ(call->This) != NULL) {
@@ -81,13 +72,7 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
     va_list argv;
 
     va_start(argv, argc);
-#if PHP_VERSION_ID < 80000
-    ret = zend_fcall_info_argv(fci, argc, &argv);
-    // The only way we mess this up is by passing in argc < 0
-    ZEND_ASSERT(ret == SUCCESS);
-#else
     zend_fcall_info_argv(fci, (uint32_t)argc, &argv);
-#endif
     va_end(argv);
 
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
@@ -99,11 +84,7 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
 
         if (PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
             char *error;
-#if PHP_VERSION_ID < 80000
-            error = PG(last_error_message);
-#else
             error = ZSTR_VAL(PG(last_error_message));
-#endif
             ddtrace_log_errf("Error raised in ddtrace's closure for %s%s%s(): %s in %s on line %d", scope, colon, name,
                              error, PG(last_error_file), PG(last_error_lineno));
         }
@@ -212,7 +193,6 @@ static bool dd_should_trace_call(zend_execute_data *call, ddtrace_dispatch_t **d
         return false;
     }
 
-#if PHP_VERSION_ID >= 70300
     /* From PHP 7.3's UPGRADING.INTERNALS:
      * Special purpose zend_functions marked by ZEND_ACC_CALL_VIA_TRAMPOLINE or
      * ZEND_ACC_FAKE_CLOSURE flags use reserved[0] for internal purpose.
@@ -226,39 +206,17 @@ static bool dd_should_trace_call(zend_execute_data *call, ddtrace_dispatch_t **d
          * After that, you must use ZEND_OP_ARRAY_EXTENSION.
          * We don't use it at compile-time yet, so only check this on < 7.4.
          */
-#if PHP_VERSION_ID < 70400
-        if (fbc->op_array.reserved[ddtrace_resource] == DDTRACE_NOT_TRACED) {
-            return false;
-        }
-#else
         ddtrace_dispatch_t *cached_dispatch = DDTRACE_OP_ARRAY_EXTENSION(&fbc->op_array);
         if (cached_dispatch == DDTRACE_NOT_TRACED) {
             return false;
         }
-#endif
 
         if (!dd_should_trace_helper(call, fbc, dispatch)) {
-#if PHP_VERSION_ID < 70400
-            fbc->op_array.reserved[ddtrace_resource] = DDTRACE_NOT_TRACED;
-#else
             DDTRACE_OP_ARRAY_EXTENSION(&fbc->op_array) = DDTRACE_NOT_TRACED;
-#endif
             return false;
         }
         return dd_should_trace_runtime(*dispatch);
     }
-#else
-    if (fbc->common.type == ZEND_USER_FUNCTION && ddtrace_resource != -1) {
-        if (fbc->op_array.reserved[ddtrace_resource] == DDTRACE_NOT_TRACED) {
-            return false;
-        }
-        if (!dd_should_trace_helper(call, fbc, dispatch)) {
-            fbc->op_array.reserved[ddtrace_resource] = DDTRACE_NOT_TRACED;
-            return false;
-        }
-        return dd_should_trace_runtime(*dispatch);
-    }
-#endif
     return dd_should_trace_helper(call, fbc, dispatch) && dd_should_trace_runtime(*dispatch);
 }
 
@@ -399,10 +357,6 @@ static bool dd_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
     }
 
     fci.retval = &rv;
-
-#if PHP_VERSION_ID < 70300
-    fcc.initialized = 1;
-#endif
     fcc.object = this ? Z_OBJ_P(this) : NULL;
     fcc.called_scope = dd_get_called_scope(call);
     // Give the tracing closure access to private & protected class members
@@ -592,17 +546,6 @@ static ddtrace_span_fci *(*dd_fcall_begin[])(zend_execute_data *call, ddtrace_di
 };
 
 static ddtrace_span_fci *dd_observer_begin(zend_execute_data *call, ddtrace_dispatch_t *dispatch) {
-#if PHP_VERSION_ID < 70100
-    /*
-    For PHP < 7.1: The current execute_data gets replaced in the DO_FCALL handler and freed shortly
-    afterward, so there is no way to track the execute_data that is allocated for a generator.
-    */
-    if ((call->func->common.fn_flags & ZEND_ACC_GENERATOR) != 0) {
-        ddtrace_log_debug("Cannot instrument generators for PHP versions < 7.1");
-        return NULL;
-    }
-#endif
-
     uint16_t offset = DDTRACE_DISPATCH_JUMP_OFFSET(dispatch->options);
 
     ddtrace_dispatch_copy(dispatch);  // protecting against dispatch being freed during php code execution
@@ -851,11 +794,7 @@ static void dd_return_helper(zend_execute_data *execute_data) {
         zval *retval = NULL;
         switch (EX(opline)->op1_type) {
             case IS_CONST:
-#if PHP_VERSION_ID >= 70300
                 retval = RT_CONSTANT(EX(opline), EX(opline)->op1);
-#else
-                retval = EX_CONSTANT(EX(opline)->op1);
-#endif
                 break;
             case IS_TMP_VAR:
             case IS_VAR:
@@ -895,7 +834,6 @@ static int dd_return_by_ref_handler(zend_execute_data *execute_data) {
     return prev_return_by_ref_handler ? prev_return_by_ref_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
 
-#if PHP_VERSION_ID >= 70100
 static void dd_yield_helper(zend_execute_data *execute_data) {
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
     /*
@@ -909,11 +847,7 @@ static void dd_yield_helper(zend_execute_data *execute_data) {
         span_fci->execute_data = execute_data;
         switch (EX(opline)->op1_type) {
             case IS_CONST:
-#if PHP_VERSION_ID >= 70300
                 retval = RT_CONSTANT(EX(opline), EX(opline)->op1);
-#else
-                retval = EX_CONSTANT(EX(opline)->op1);
-#endif
                 break;
             case IS_TMP_VAR:
             case IS_VAR:
@@ -943,53 +877,22 @@ static int dd_yield_from_handler(zend_execute_data *execute_data) {
     }
     return prev_yield_from_handler ? prev_yield_from_handler(execute_data) : ZEND_USER_OPCODE_DISPATCH;
 }
-#endif
 
-#if PHP_VERSION_ID < 70100
-static zend_op *dd_get_next_catch_block(zend_execute_data *execute_data, zend_op *opline) {
-    if (opline->result.num) {
-        return NULL;
-    }
-    return &EX(func)->op_array.opcodes[opline->extended_value];
-}
-#elif PHP_VERSION_ID < 70300
-static zend_op *dd_get_next_catch_block(zend_op *opline) {
-    if (opline->result.num) {
-        return NULL;
-    }
-    return ZEND_OFFSET_TO_OPLINE(opline, opline->extended_value);
-}
-#else
 static zend_op *dd_get_next_catch_block(zend_op *opline) {
     if (opline->extended_value & ZEND_LAST_CATCH) {
         return NULL;
     }
     return OP_JMP_ADDR(opline, opline->op2);
 }
-#endif
 
 static zend_class_entry *dd_get_catching_ce(zend_execute_data *execute_data, const zend_op *opline) {
     zend_class_entry *catch_ce = NULL;
-#if PHP_VERSION_ID < 70300
-    catch_ce = CACHED_PTR(Z_CACHE_SLOT_P(EX_CONSTANT(opline->op1)));
-    if (catch_ce == NULL) {
-        catch_ce = zend_fetch_class_by_name(Z_STR_P(EX_CONSTANT(opline->op1)), EX_CONSTANT(opline->op1) + 1,
-                                            ZEND_FETCH_CLASS_NO_AUTOLOAD);
-    }
-#elif PHP_VERSION_ID < 70400
-    catch_ce = CACHED_PTR(opline->extended_value & ~ZEND_LAST_CATCH);
-    if (catch_ce == NULL) {
-        catch_ce = zend_fetch_class_by_name(Z_STR_P(RT_CONSTANT(opline, opline->op1)),
-                                            RT_CONSTANT(opline, opline->op1) + 1, ZEND_FETCH_CLASS_NO_AUTOLOAD);
-    }
-#else
     catch_ce = CACHED_PTR(opline->extended_value & ~ZEND_LAST_CATCH);
     if (catch_ce == NULL) {
         catch_ce =
             zend_fetch_class_by_name(Z_STR_P(RT_CONSTANT(opline, opline->op1)),
                                      Z_STR_P(RT_CONSTANT(opline, opline->op1) + 1), ZEND_FETCH_CLASS_NO_AUTOLOAD);
     }
-#endif
     return catch_ce;
 }
 
@@ -1032,11 +935,7 @@ static bool dd_is_catching_frame(zend_execute_data *execute_data) {
                         return true;
                     }
                 }
-#if PHP_VERSION_ID < 70100
-                opline = dd_get_next_catch_block(execute_data, opline);
-#else
                 opline = dd_get_next_catch_block(opline);
-#endif
             } while (opline != NULL);
         }
         current_try_catch_offset--;
@@ -1098,12 +997,10 @@ void ddtrace_opcode_minit(void) {
 
     prev_return_by_ref_handler = zend_get_user_opcode_handler(ZEND_RETURN_BY_REF);
     zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, dd_return_by_ref_handler);
-#if PHP_VERSION_ID >= 70100
     prev_yield_handler = zend_get_user_opcode_handler(ZEND_YIELD);
     zend_set_user_opcode_handler(ZEND_YIELD, dd_yield_handler);
     prev_yield_from_handler = zend_get_user_opcode_handler(ZEND_YIELD_FROM);
     zend_set_user_opcode_handler(ZEND_YIELD_FROM, dd_yield_from_handler);
-#endif
     prev_handle_exception_handler = zend_get_user_opcode_handler(ZEND_HANDLE_EXCEPTION);
     zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, dd_handle_exception_handler);
     prev_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
@@ -1117,10 +1014,8 @@ void ddtrace_opcode_mshutdown(void) {
 
     zend_set_user_opcode_handler(ZEND_RETURN, NULL);
     zend_set_user_opcode_handler(ZEND_RETURN_BY_REF, NULL);
-#if PHP_VERSION_ID >= 70100
     zend_set_user_opcode_handler(ZEND_YIELD, NULL);
     zend_set_user_opcode_handler(ZEND_YIELD_FROM, NULL);
-#endif
     zend_set_user_opcode_handler(ZEND_HANDLE_EXCEPTION, NULL);
     zend_set_user_opcode_handler(ZEND_EXIT, NULL);
 }
@@ -1146,26 +1041,3 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
         dd_observer_end(EX(func), span_fci, return_value);
     }
 }
-
-#if PHP_VERSION_ID < 80000
-zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
-    PHP7_UNUSED(error_filename, error_lineno);
-
-    zval ex;
-    va_list args2;
-    char message[1024];
-    object_init_ex(&ex, ddtrace_ce_fatal_error);
-
-    va_copy(args2, args);
-    vsnprintf(message, sizeof(message), format, args2);
-    va_end(args2);
-    zval tmp = ddtrace_zval_stringl(message, strlen(message));
-    zend_update_property(ddtrace_ce_fatal_error, &ex, "message", sizeof("message") - 1, &tmp);
-    zval_ptr_dtor(&tmp);
-
-    tmp = ddtrace_zval_long(type);
-    zend_update_property(ddtrace_ce_fatal_error, &ex, "code", sizeof("code") - 1, &tmp);
-
-    return Z_OBJ(ex);
-}
-#endif
