@@ -1,11 +1,11 @@
-#include "../dispatch.h"
+#include "ext/php5/dispatch.h"
 
 #include <Zend/zend_exceptions.h>
 #include <php.h>
 
 #include <ext/spl/spl_exceptions.h>
 
-#include "../ddtrace.h"
+#include "ext/php5/ddtrace.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 

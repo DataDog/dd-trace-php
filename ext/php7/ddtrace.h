@@ -4,8 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "../version.h"
 #include "env_config.h"
+#include "ext/version.h"
 #include "random.h"
 
 extern zend_module_entry ddtrace_module_entry;
