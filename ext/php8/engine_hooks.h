@@ -18,12 +18,12 @@ extern int ddtrace_op_array_extension;
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace)
 
 void ddtrace_engine_hooks_minit(void);
-void ddtrace_engine_hooks_rinit(TSRMLS_D);
-void ddtrace_engine_hooks_rshutdown(TSRMLS_D);
+void ddtrace_engine_hooks_rinit(void);
+void ddtrace_engine_hooks_rshutdown(void);
 void ddtrace_engine_hooks_mshutdown(void);
 
-void ddtrace_compile_time_reset(TSRMLS_D);
-int64_t ddtrace_compile_time_get(TSRMLS_D);
+void ddtrace_compile_time_reset(void);
+int64_t ddtrace_compile_time_get(void);
 
 struct ddtrace_error_handling {
     int type;
@@ -41,7 +41,7 @@ struct ddtrace_sandbox_backup {
 };
 typedef struct ddtrace_sandbox_backup ddtrace_sandbox_backup;
 
-inline void ddtrace_backup_error_handling(ddtrace_error_handling *eh, zend_error_handling_t mode TSRMLS_DC) {
+inline void ddtrace_backup_error_handling(ddtrace_error_handling *eh, zend_error_handling_t mode) {
     eh->type = PG(last_error_type);
     eh->lineno = PG(last_error_lineno);
     eh->message = PG(last_error_message);
@@ -53,7 +53,7 @@ inline void ddtrace_backup_error_handling(ddtrace_error_handling *eh, zend_error
 
     eh->error_reporting = EG(error_reporting);
     EG(error_reporting) = 0;
-    zend_replace_error_handling(mode, NULL, &eh->error_handling TSRMLS_CC);
+    zend_replace_error_handling(mode, NULL, &eh->error_handling);
 }
 
 void ddtrace_restore_error_handling(ddtrace_error_handling *eh);
@@ -76,9 +76,9 @@ inline ddtrace_sandbox_backup ddtrace_sandbox_begin(void) {
     return backup;
 }
 
-inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup TSRMLS_DC) {
-    ddtrace_restore_error_handling(&backup->eh TSRMLS_CC);
-    ddtrace_maybe_clear_exception(TSRMLS_C);
+inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup) {
+    ddtrace_restore_error_handling(&backup->eh);
+    ddtrace_maybe_clear_exception();
 
     if (backup->exception) {
         EG(exception) = backup->exception;
