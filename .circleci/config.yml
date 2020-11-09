@@ -65,7 +65,13 @@ aliases:
   - &STEP_COMPOSER_SELF_UPDATE
     run:
       name: Updating composer itself
-      command: sudo composer self-update
+      command: |
+        if which sudo &>/dev/null
+        then
+          sudo composer self-update
+        else
+          composer self-update
+        fi
 
   - &STEP_COMPOSER_CACHE_RESTORE
     restore_cache:
@@ -308,6 +314,7 @@ jobs:
       - run:
           name: Set php.ini defaults
           command: printf "date.timezone=UTC\nmemory_limit=-1\n" | sudo tee -a /usr/local/etc/php/php.ini
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - run:
@@ -515,6 +522,7 @@ jobs:
       - install_extension
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-base-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
@@ -570,6 +578,7 @@ jobs:
           lib_curl_command: << parameters.lib_curl_command >>
       - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
           key: 'betav1-composer-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
@@ -865,6 +874,7 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_GENERATE
       - run:
