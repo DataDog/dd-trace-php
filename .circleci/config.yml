@@ -3,7 +3,7 @@ version: "2.1"
 aliases:
 
   - &CACHE_COMPOSER_KEY
-    key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+    key: 'betav1-composer-deps-version1-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
 
   - &CACHE_NPM_KEY
     key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
