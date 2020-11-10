@@ -519,8 +519,7 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - install_extension
-      - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
-          key: 'betav1-composer-base-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
@@ -574,8 +573,7 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
-      - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
-          key: 'betav1-composer-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
