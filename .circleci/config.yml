@@ -81,7 +81,7 @@ aliases:
     save_cache:
       <<: *CACHE_COMPOSER_KEY
       paths:
-        - vendor/
+        - ~/.composer/cache
 
   - &STEP_COMPOSER_DISABLE_TLS
     run:
@@ -138,7 +138,6 @@ aliases:
     persist_to_workspace:
       root: '.'
       paths:
-      - vendor/
       - tmp/build_extension
 
   - &STEP_STORE_TEST_RESULTS
@@ -545,7 +544,6 @@ jobs:
       - save_cache:
           <<: *INTEGRATION_COMPOSER_CACHE_KEY
           paths:
-            - vendor/
             - ~/.composer/cache
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
@@ -599,7 +597,6 @@ jobs:
       - save_cache:
           <<: *INTEGRATION_COMPOSER_CACHE_KEY
           paths:
-            - vendor/
             - ~/.composer/cache
       - <<: *STEP_PERSIST_TO_WORKSPACE
 
