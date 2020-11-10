@@ -540,10 +540,7 @@ jobs:
       - run:
           name: Run integration tests
           command: make test_integration PHPUNIT_OPTS="--log-junit test-results/php-integration/results.xml"
-      - save_cache:
-          <<: *INTEGRATION_COMPOSER_CACHE_KEY
-          paths:
-            - ~/.composer/cache
+      - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
 
@@ -592,10 +589,7 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts/
-      - save_cache:
-          <<: *INTEGRATION_COMPOSER_CACHE_KEY
-          paths:
-            - ~/.composer/cache
+      - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PERSIST_TO_WORKSPACE
 
   framework_tests:
