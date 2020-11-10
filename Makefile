@@ -18,15 +18,30 @@ C_FILES := $(shell find ext src/dogstatsd -name '*.c' -o -name '*.h' | awk '{ pr
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
+# The following differentiation exists so we can build only (but always) the relevant files while executing tests
+#  - when a `.phpt` changes, we only copy the file to the build dir and we DO NOT rebuild
+#  - when a `.c` changes, we copy the file to the build dir and we DO the specific .lo build and linking
+#  - when a `.h` (or anything else) changes, we remove all .lo files from the build directory so a full build is done
+# The latter, avoids that during development we change something in a header included in multiple .c files, then we
+# change only one of those .c files, we only rebuild that one, we SEGFAULT.
+#
+# Note: while this adds some complexity, as a matter of facts it does not impact production builds in CI which are done
+# from scratch. But the benefits are that we can have the quickest possible `modify --> test` cycle possible.
 $(BUILD_DIR)/tests/%: tests/%
 	$(Q) echo Copying tests/$* to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a tests/$* $@
 
+$(BUILD_DIR)/%.c: %.c
+	$(Q) echo Copying $*.c to $@
+	$(Q) mkdir -p $(dir $@)
+	$(Q) cp -a $*.c $@
+
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $* $@
+	$(Q) rm -f tmp/build_extension/ext/**/*.lo
 
 JUNIT_RESULTS_DIR := $(shell pwd)
 
