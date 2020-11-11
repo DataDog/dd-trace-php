@@ -18,6 +18,7 @@ RUN set -eux; \
         scl-utils \
         unzip \
         vim \
+        xz \
         zlib-devel; \
     yum install -y devtoolset-7; \
     yum clean all;
@@ -46,6 +47,14 @@ RUN set -eux; \
 # No package 'oniguruma' found
     /root/download-src.sh oniguruma https://github.com/kkos/oniguruma/releases/download/v6.9.5_rev1/onig-6.9.5-rev1.tar.gz; \
     cd "${SRC_DIR}/oniguruma"; \
+    ./configure && make && make install; \
+# bison 3.0.0 or later is required to generate PHP parsers
+    /root/download-src.sh bison https://ftp.gnu.org/gnu/bison/bison-3.7.3.tar.gz; \
+    cd "${SRC_DIR}/bison"; \
+    ./configure && make && make install; \
+# re2c 0.13.4 is required to generate PHP lexers
+    /root/download-src.sh re2c https://github.com/skvadrik/re2c/releases/download/2.0.3/re2c-2.0.3.tar.xz; \
+    cd "${SRC_DIR}/re2c"; \
     ./configure && make && make install;
 
 # CMake 3.0.2 or higher is required.  You are running version 2.8.12.2
@@ -79,7 +88,8 @@ RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
-    rm -f /tmp/php.tar.gz;
+    rm -f /tmp/php.tar.gz; \
+    ${PHP_SRC_DIR}/buildconf --force;
 
 ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig"
 
