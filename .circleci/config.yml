@@ -3,7 +3,7 @@ version: "2.1"
 aliases:
 
   - &CACHE_COMPOSER_KEY
-    key: 'betav1-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+    key: 'betav2-composer-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
 
   - &CACHE_NPM_KEY
     key: 'betav1-lint-deps-{{ checksum "composer.json" }}'
@@ -81,7 +81,7 @@ aliases:
     save_cache:
       <<: *CACHE_COMPOSER_KEY
       paths:
-        - vendor/
+        - ~/.composer/cache
 
   - &STEP_COMPOSER_DISABLE_TLS
     run:
@@ -138,7 +138,6 @@ aliases:
     persist_to_workspace:
       root: '.'
       paths:
-      - vendor/
       - tmp/build_extension
 
   - &STEP_STORE_TEST_RESULTS
@@ -520,8 +519,7 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - install_extension
-      - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
-          key: 'betav1-composer-base-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
@@ -542,11 +540,7 @@ jobs:
       - run:
           name: Run integration tests
           command: make test_integration PHPUNIT_OPTS="--log-junit test-results/php-integration/results.xml"
-      - save_cache:
-          <<: *INTEGRATION_COMPOSER_CACHE_KEY
-          paths:
-            - vendor/
-            - ~/.composer/cache
+      - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
 
@@ -576,8 +570,7 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
-      - restore_cache: &INTEGRATION_COMPOSER_CACHE_KEY
-          key: 'betav1-composer-integration-deps-{{ .Environment.CIRCLE_JOB }}-{{ checksum "composer.json" }}'
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
@@ -596,11 +589,7 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts/
-      - save_cache:
-          <<: *INTEGRATION_COMPOSER_CACHE_KEY
-          paths:
-            - vendor/
-            - ~/.composer/cache
+      - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PERSIST_TO_WORKSPACE
 
   framework_tests:
