@@ -447,6 +447,7 @@ ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/sprintf_variation54.phpt
 ext/tokenizer/tests/PhpToken_constructor.phpt
 ext/tokenizer/tests/PhpToken_getAll.phpt
+ext/tokenizer/tests/PhpToken_tokenize.phpt
 ext/zip/tests/bug38943.phpt
 ext/zip/tests/bug38943_2.phpt
 sapi/cli/tests/upload_2G.phpt
