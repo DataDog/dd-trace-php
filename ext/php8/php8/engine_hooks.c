@@ -184,48 +184,7 @@ static bool dd_should_trace_runtime(ddtrace_dispatch_t *dispatch) {
         ZEND_HASH_FILL_ADD(q);              \
     }
 
-static void dd_copy_prehook_args(zval *args, zend_execute_data *call) {
-    uint32_t i, first_extra_arg, extra_arg_count;
-    zval *p, *q;
-    uint32_t arg_count = ZEND_CALL_NUM_ARGS(call);
-
-    // @see https://github.com/php/php-src/blob/PHP-7.0/Zend/zend_builtin_functions.c#L506-L562
-    array_init_size(args, arg_count);
-    if (arg_count && call->func) {
-        first_extra_arg = call->func->op_array.num_args;
-        bool has_extra_args = arg_count > first_extra_arg;
-
-        zend_hash_real_init(Z_ARRVAL_P(args), 1);
-        ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(args)) {
-            i = 0;
-            p = ZEND_CALL_ARG(call, 1);
-            if (has_extra_args) {
-                i = arg_count - first_extra_arg;
-            }
-            while (i < arg_count) {
-                q = p;
-                DD_TRACE_COPY_NULLABLE_ARG(q);
-                p++;
-                i++;
-            }
-            /* If we are copying arguments before i_init_func_execute_data() has run, the extra agruments
-               have not yet been moved to a separate array. */
-            if (has_extra_args) {
-                p = ZEND_CALL_VAR_NUM(call, first_extra_arg);
-                extra_arg_count = arg_count - first_extra_arg;
-                while (extra_arg_count--) {
-                    q = p;
-                    DD_TRACE_COPY_NULLABLE_ARG(q);
-                    p++;
-                }
-            }
-        }
-        ZEND_HASH_FILL_END();
-        Z_ARRVAL_P(args)->nNumOfElements = arg_count;
-    }
-}
-
-static void dd_copy_posthook_args(zval *args, zend_execute_data *call) {
+static void dd_copy_args(zval *args, zend_execute_data *call) {
     uint32_t i, first_extra_arg;
     zval *p, *q;
     uint32_t arg_count = ZEND_CALL_NUM_ARGS(call);
@@ -236,7 +195,7 @@ static void dd_copy_posthook_args(zval *args, zend_execute_data *call) {
         first_extra_arg = call->func->op_array.num_args;
         bool has_extra_args = arg_count > first_extra_arg;
 
-        zend_hash_real_init(Z_ARRVAL_P(args), 1);
+        zend_hash_real_init_packed(Z_ARRVAL_P(args));
         ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(args)) {
             i = 0;
             p = ZEND_CALL_ARG(call, 1);
@@ -331,13 +290,10 @@ static bool dd_execute_tracing_closure(zval *callable, zval *span_data, zend_exe
 
 static bool dd_call_sandboxed_tracing_closure(ddtrace_span_fci *span_fci, zval *callable, zval *user_retval) {
     zend_execute_data *call = span_fci->execute_data;
-    ddtrace_dispatch_t *dispatch = span_fci->dispatch;
     ddtrace_span_t *span = &span_fci->span;
     zval user_args;
 
-    void (*copy_args)(zval * args, zend_execute_data * call) =
-        dispatch->options & DDTRACE_DISPATCH_PREHOOK ? dd_copy_prehook_args : dd_copy_posthook_args;
-    copy_args(&user_args, call);
+    dd_copy_args(&user_args, call);
 
     bool keep_span =
         dd_execute_tracing_closure(callable, span->span_data, call, &user_args, user_retval, EG(exception));
@@ -363,7 +319,7 @@ static ZEND_RESULT_CODE dd_do_hook_function_prehook(zend_execute_data *call, ddt
 
     zval args = {.u1.type_info = IS_NULL};
 
-    dd_copy_prehook_args(&args, call);
+    dd_copy_args(&args, call);
 
     zval retval = {.u1.type_info = IS_NULL};
     fci.retval = &retval;
@@ -403,7 +359,7 @@ static ZEND_RESULT_CODE dd_do_hook_method_prehook(zend_execute_data *call, ddtra
         ZVAL_STR(&scope, called_scope->name);
     }
 
-    dd_copy_prehook_args(&args, call);
+    dd_copy_args(&args, call);
 
     zval retval = {.u1.type_info = IS_NULL};
     fci.retval = &retval;
@@ -572,7 +528,7 @@ static ZEND_RESULT_CODE dd_do_hook_method_posthook(zend_execute_data *call, ddtr
         ZVAL_STR(&scope, called_scope->name);
     }
 
-    dd_copy_posthook_args(&args, call);
+    dd_copy_args(&args, call);
 
     if (!user_retval) {
         user_retval = &tmp_retval;
@@ -606,7 +562,7 @@ static ZEND_RESULT_CODE dd_do_hook_function_posthook(zend_execute_data *call, dd
 
     zval args = {.u1.type_info = IS_NULL}, tmp_retval = {.u1.type_info = IS_NULL};
 
-    dd_copy_posthook_args(&args, call);
+    dd_copy_args(&args, call);
 
     if (!user_retval) {
         user_retval = &tmp_retval;
