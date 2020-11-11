@@ -8,6 +8,7 @@ RUN set -eux; \
     apk add --no-cache \
         argon2-dev \
         autoconf \
+        bison \
         bash \
         ca-certificates \
         coreutils \
