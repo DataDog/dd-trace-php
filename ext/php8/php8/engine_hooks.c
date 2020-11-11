@@ -263,8 +263,8 @@ static void dd_copy_posthook_args(zval *args, zend_execute_data *call) {
     }
 }
 
-void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, ddtrace_exception_t *exception) {
-    if (exception && span_fci->exception == NULL) {
+void ddtrace_span_attach_exception(ddtrace_span_fci *span_fci, zend_object *exception) {
+    if (exception && span_fci->exception == NULL && !zend_is_unwind_exit(exception)) {
         GC_ADDREF(exception);
         span_fci->exception = exception;
     }
@@ -625,6 +625,7 @@ static ZEND_RESULT_CODE dd_do_hook_function_posthook(zend_execute_data *call, dd
 
 static void dd_fcall_end_tracing_posthook(ddtrace_span_fci *span_fci, zval *user_retval) {
     ddtrace_dispatch_t *dispatch = span_fci->dispatch;
+    // TODO Remove this?
     ddtrace_span_attach_exception(span_fci, EG(exception));
 
     dd_trace_stop_span_time(&span_fci->span);
@@ -765,13 +766,6 @@ static void dd_observer_begin_handler(zend_execute_data *execute_data) {
         return;
     }
     dd_observer_begin(execute_data, cached_dispatch);
-
-    // TODO Remove debug info
-    /*
-    if (execute_data->func && execute_data->func->common.function_name) {
-        php_printf("<%s>\n", ZSTR_VAL(execute_data->func->common.function_name));
-    }
-    */
 }
 
 static void dd_observer_end_handler(zend_execute_data *execute_data, zval *retval) {
@@ -781,16 +775,6 @@ static void dd_observer_end_handler(zend_execute_data *execute_data, zval *retva
             ddtrace_span_attach_exception(span_fci, EG(exception));
         }
         dd_observer_end(EX(func), span_fci, retval);
-
-        // TODO Remove debug info
-        /*
-        if (EG(exception)) {
-            php_printf("<!-- Exception: %s -->\n", ZSTR_VAL(EG(exception)->ce->name));
-        }
-        if (execute_data->func && execute_data->func->common.function_name) {
-            php_printf("</%s>\n", ZSTR_VAL(execute_data->func->common.function_name));
-        }
-        */
     }
 }
 
