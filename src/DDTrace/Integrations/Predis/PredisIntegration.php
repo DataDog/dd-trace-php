@@ -3,12 +3,14 @@
 namespace DDTrace\Integrations\Predis;
 
 use DDTrace\Integrations\Integration;
+use DDTrace\Private_;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
+use DDTrace\Util\ObjectKVStore;
 use DDTrace\Util\Versions;
 use Predis\Configuration\OptionsInterface;
-use Predis\Connection\AbstractConnection;
+use Predis\Connection\NodeConnectionInterface;
 
 const VALUE_PLACEHOLDER = "?";
 const VALUE_MAX_LEN = 100;
@@ -18,11 +20,6 @@ const CMD_MAX_LEN = 1000;
 class PredisIntegration extends Integration
 {
     const NAME = 'predis';
-
-    /**
-     * @var array
-     */
-    private static $connections = [];
 
     /**
      * @return string The integration name.
@@ -42,25 +39,22 @@ class PredisIntegration extends Integration
         \DDTrace\trace_method('Predis\Client', '__construct', function (SpanData $span, $args) {
             $span->name = 'Predis.Client.__construct';
             $span->type = Type::CACHE;
-            $span->service = 'redis';
             $span->resource = 'Predis.Client.__construct';
-            PredisIntegration::storeConnectionParams($this, $args);
-            PredisIntegration::setConnectionTags($this, $span);
+            PredisIntegration::storeConnectionMetaAndService($this, $args);
+            PredisIntegration::setMetaAndServiceFromConnection($this, $span);
         });
 
         \DDTrace\trace_method('Predis\Client', 'connect', function (SpanData $span, $args) {
             $span->name = 'Predis.Client.connect';
             $span->type = Type::CACHE;
-            $span->service = 'redis';
             $span->resource = 'Predis.Client.connect';
-            PredisIntegration::setConnectionTags($this, $span);
+            PredisIntegration::setMetaAndServiceFromConnection($this, $span);
         });
 
         \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) use ($integration) {
             $span->name = 'Predis.Client.executeCommand';
             $span->type = Type::CACHE;
-            $span->service = 'redis';
-            PredisIntegration::setConnectionTags($this, $span);
+            PredisIntegration::setMetaAndServiceFromConnection($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
 
             // We default resource name to 'Predis.Client.executeCommand', but if we are able below to extract the query
@@ -83,8 +77,7 @@ class PredisIntegration extends Integration
         \DDTrace\trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) use ($integration) {
             $span->name = 'Predis.Client.executeRaw';
             $span->type = Type::CACHE;
-            $span->service = 'redis';
-            PredisIntegration::setConnectionTags($this, $span);
+            PredisIntegration::setMetaAndServiceFromConnection($this, $span);
             $integration->addTraceAnalyticsIfEnabled($span);
 
             // We default resource name to 'Predis.Client.executeRaw', but if we are able below to extract the query
@@ -108,8 +101,7 @@ class PredisIntegration extends Integration
                 $span->name = 'Predis.Pipeline.executePipeline';
                 $span->resource = $span->name;
                 $span->type = Type::CACHE;
-                $span->service = 'redis';
-                PredisIntegration::setConnectionTags($this, $span);
+                PredisIntegration::setMetaAndServiceFromConnection($this, $span);
             });
         } else {
             \DDTrace\trace_method(
@@ -120,8 +112,7 @@ class PredisIntegration extends Integration
                         $span->name = 'Predis.Pipeline.executePipeline';
                         $span->resource = $span->name;
                         $span->type = Type::CACHE;
-                        $span->service = 'redis';
-                        PredisIntegration::setConnectionTags($this, $span);
+                        PredisIntegration::setMetaAndServiceFromConnection($this, $span);
                         if (\count($args) < 2) {
                             return;
                         }
@@ -143,17 +134,23 @@ class PredisIntegration extends Integration
      * @param array $args
      * @return void
      */
-    public static function storeConnectionParams($predis, $args)
+    public static function storeConnectionMetaAndService($predis, $args)
     {
         $tags = [];
-
         $connection = $predis->getConnection();
+        $service = 'redis';
 
-        if ($connection instanceof AbstractConnection) {
+        if ($connection instanceof NodeConnectionInterface) {
             $connectionParameters = $connection->getParameters();
 
             $tags[Tag::TARGET_HOST] = $connectionParameters->host;
             $tags[Tag::TARGET_PORT] = $connectionParameters->port;
+
+            if (\ddtrace_config_redis_client_split_by_host_enabled()) {
+                $service = 'redis-' . (isset($connectionParameters->path)
+                    ? Private_\util_normalize_host_uds_as_service($connectionParameters->path)
+                    : Private_\util_normalize_host_uds_as_service($connectionParameters->host));
+            }
         }
 
         if (isset($args[1])) {
@@ -170,7 +167,8 @@ class PredisIntegration extends Integration
             }
         }
 
-        self::$connections[spl_object_hash($predis)] = $tags;
+        ObjectKVStore::put($predis, 'service', $service);
+        ObjectKVStore::put($predis, 'connection_meta', $tags);
     }
 
     /**
@@ -181,14 +179,12 @@ class PredisIntegration extends Integration
      * @param DDTrace\SpanData $span
      * @return void
      */
-    public static function setConnectionTags($predis, SpanData $span)
+    public static function setMetaAndServiceFromConnection($predis, SpanData $span)
     {
-        $hash = spl_object_hash($predis);
-        if (!isset(self::$connections[$hash])) {
-            return;
-        }
+        $span->service = ObjectKVStore::get($predis, 'service', 'redis');
+        $tags = ObjectKVStore::get($predis, 'connection_meta', []);
 
-        foreach (self::$connections[$hash] as $tag => $value) {
+        foreach ($tags as $tag => $value) {
             $span->meta[$tag] = $value;
         }
     }
