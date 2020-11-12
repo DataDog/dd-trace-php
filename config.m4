@@ -19,6 +19,13 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AX_EXECINFO
 
+  PHP_REQUIRE_CXX
+
+  CXXFLAGS="$CXXFLAGS -std=c++14"
+  CFLAGS="$CFLAGS -std=gnu11"
+  CPPFLAGS="$CPPFLAGS -D _GNU_SOURCE"
+  PHP_ADD_LIBRARY(stdc++, , EXTRA_LDFLAGS)
+
   AS_IF([test x"$ac_cv_header_execinfo_h" = xyes],
     dnl This duplicates some of AX_EXECINFO's work, but AX_EXECINFO puts the
     dnl library into LIBS, which we don't use anywhere else and am worried that
@@ -114,6 +121,7 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl PHP 7.x
     dnl ddtrace.c comes first, then everything else alphabetically
     DD_TRACE_PHP_SOURCES="ext/php7/ddtrace.c \
+      ext/DatadogArena/arena.c \
       ext/php7/arrays.c \
       ext/php7/auto_flush.c \
       ext/php7/circuit_breaker.c \
@@ -148,6 +156,17 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/span.c \
       ext/php7/startup_logging.c \
     "
+
+    if test $PHP_VERSION_ID -ge 70300; then
+      PHP_ADD_LIBRARY(protobuf-c, , EXTRA_LDFLAGS)
+      DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
+        ext/php7/profiler.cc \
+        ext/php7/stack_collector.cc \
+        ext/DDProf/src/pprof_exporter.cc \
+        ext/DDProf/src/profile.pb-c.c \
+        ext/DDProf/src/string_table.cc \
+      "
+    fi
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.x
     dnl ddtrace.c comes first, then everything else alphabetically
@@ -187,7 +206,7 @@ if test "$PHP_DDTRACE" != "no"; then
     "
   fi
 
-  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11)
+  PHP_NEW_EXTENSION(ddtrace, $DD_TRACE_VENDOR_SOURCES $DD_TRACE_PHP_SOURCES, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall)
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
   PHP_CHECK_LIBRARY(rt, shm_open,
@@ -202,6 +221,14 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_ADD_INCLUDE([$ext_srcdir])
   PHP_ADD_INCLUDE([$ext_srcdir/ext])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/ext/DatadogArena])
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/DatadogArena])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/ext/DatadogMemHash/include])
+
+  PHP_ADD_INCLUDE([$ext_srcdir/ext/DDProf/src])
+  PHP_ADD_BUILD_DIR([$ext_builddir/ext/DDProf/src])
 
   PHP_ADD_INCLUDE([$ext_srcdir/ext/vendor])
   PHP_ADD_BUILD_DIR([$ext_builddir/ext/vendor])
@@ -236,6 +263,7 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/php7])
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php7/integrations])
     PHP_ADD_INCLUDE([$ext_builddir/ext/php7/integrations])
+    PHP_ADD_INCLUDE([$ext_srcdir/ext/DDProf/include])
   elif test $PHP_VERSION_ID -lt 90000; then
     dnl PHP 8.0
     PHP_ADD_BUILD_DIR([$ext_builddir/ext/php8])

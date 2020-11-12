@@ -40,6 +40,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zval additional_trace_meta; // IS_ARRAY
     zend_bool log_backtrace;
     zend_bool backtrace_handler_already_run;
+    zend_bool profiling_enabled;
     dogstatsd_client dogstatsd_client;
     char *dogstatsd_host;
     char *dogstatsd_port;

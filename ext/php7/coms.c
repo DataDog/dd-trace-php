@@ -914,6 +914,14 @@ bool ddtrace_coms_init_and_start_writer(void) {
     writer->thread = thread;
     atomic_store(&writer->starting_up, true);
     if (pthread_create(&thread->self, NULL, &_dd_writer_loop, NULL) == 0) {
+#if defined(__GLIBC__) || defined(__APPLE__)
+        const char name[16] = "ddtrace::bgs";
+#if defined(__GLIBC__)
+        pthread_setname_np(pthread_self(), name);
+#else
+        pthread_setname_np(name);
+#endif
+#endif
         return true;
     } else {
         return false;

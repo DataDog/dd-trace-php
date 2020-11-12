@@ -6,11 +6,7 @@
 #include <Zend/zend_closures.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_extensions.h>
-#if PHP_VERSION_ID >= 70000
 #include <Zend/zend_smart_str.h>
-#else
-#include <Zend/zend_builtin_functions.h>
-#endif
 #include <Zend/zend_vm.h>
 #include <inttypes.h>
 #include <php.h>
@@ -20,9 +16,6 @@
 
 #include <ext/spl/spl_exceptions.h>
 #include <ext/standard/info.h>
-#if PHP_VERSION_ID < 70000
-#include <ext/standard/php_smart_str.h>
-#endif
 
 #include "arrays.h"
 #include "auto_flush.h"
@@ -51,6 +44,11 @@
 #include "span.h"
 #include "startup_logging.h"
 
+#if PHP_VERSION_ID >= 70300 && !defined(ZTS)
+#include "profiler.h"
+#define HAVE_PROFILER 1
+#endif
+
 bool ddtrace_has_excluded_module;
 
 atomic_int ddtrace_first_rinit;
@@ -68,6 +66,8 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "@php_dir@/datadog_trace/bridge/d
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
 #endif
+STD_PHP_INI_ENTRY("ddtrace.profiling.enable", "0", PHP_INI_SYSTEM, OnUpdateBool, profiling_enabled,
+                  zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 
 static int ddtrace_startup(struct _zend_extension *extension) {
@@ -322,6 +322,10 @@ static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     DDTRACE_G(disable) = 1;
 }
 
+#if HAVE_PROFILER
+ddtrace_profiler *profiler = NULL;
+#endif
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_CS | CONST_PERSISTENT);
@@ -346,6 +350,12 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+#if HAVE_PROFILER
+    if (DDTRACE_G(profiling_enabled)) {
+        profiler = ddtrace_profiler_create();
+    }
+#endif
 
     ddtrace_bgs_log_minit();
 
@@ -375,6 +385,12 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         return SUCCESS;
     }
 
+#if HAVE_PROFILER
+    if (profiler) {
+        ddtrace_profiler_stop(profiler);
+    }
+#endif
+
     ddtrace_integrations_mshutdown();
 
     ddtrace_signals_mshutdown();
@@ -389,6 +405,14 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_engine_hooks_mshutdown();
+
+#if HAVE_PROFILER
+    if (profiler) {
+        ddtrace_profiler_join(profiler);
+        ddtrace_profiler_destroy(profiler);
+        profiler = NULL;
+    }
+#endif
 
     return SUCCESS;
 }
@@ -417,6 +441,12 @@ static PHP_RINIT_FUNCTION(ddtrace) {
 
         ddtrace_startup_logging_first_rinit();
     }
+
+#if HAVE_PROFILER
+    if (profiler) {
+        ddtrace_profiler_start(profiler);
+    }
+#endif
 
 #if PHP_MAJOR_VERSION < 7
     DDTRACE_G(should_warn_call_depth) = ddtrace_get_bool_config("DD_TRACE_WARN_CALL_STACK_DEPTH", TRUE TSRMLS_CC);

@@ -42,12 +42,34 @@
             <!-- Shared -->
             <file name="ext/DatadogArena/arena.c" role="src" />
             <file name="ext/DatadogArena/datadog/arena.h" role="src" />
+            <file name="ext/DatadogArena/test/arena.cc" role="test" />
+            <file name="ext/DatadogArena/test/main.cc" role="test" />
 
             <file name="ext/DatadogMemHash/memhash.cc" role="src" />
             <file name="ext/DatadogMemHash/include/datadog/memhash.h" role="src" />
             <file name="ext/DatadogMemHash/include/datadog/memhash.hh" role="src" />
             <file name="ext/DatadogMemHash/test/cantor.cc" role="test" />
             <file name="ext/DatadogMemHash/test/main.cc" role="test" />
+
+            <file name="ext/version.h" role="src" />
+
+            <file name="ext/DDProf/CMakeLists.txt" role="src" />
+            <file name="ext/DDProf/include/ddprof/chrono.hh" role="src" />
+            <file name="ext/DDProf/include/ddprof/collector.hh" role="src" />
+            <file name="ext/DDProf/include/ddprof/event.hh" role="src" />
+            <file name="ext/DDProf/include/ddprof/exporter.hh" role="src" />
+            <file name="ext/DDProf/include/ddprof/profiler.hh" role="src" />
+            <file name="ext/DDProf/include/ddprof/recorder.hh" role="src" />
+            <file name="ext/DDProf/include/ddprof/scheduler.hh" role="src" />
+            <file name="ext/DDProf/include/ddprof/service.hh" role="src" />
+            <file name="ext/DDProf/include/ddprof/string_table.hh" role="src" />
+            <file name="ext/DDProf/src/string_table.cc" role="src" />
+            <file name="ext/DDProf/test/CMakeLists.txt" role="test" />
+            <file name="ext/DDProf/test/exporter.cc" role="test" />
+            <file name="ext/DDProf/test/main.cc" role="test" />
+            <file name="ext/DDProf/test/periodic_service.cc" role="test" />
+            <file name="ext/DDProf/test/scheduler.cc" role="test" />
+            <file name="ext/DDProf/test/string_table.cc" role="test" />
 
             <file name="ext/version.h" role="src" />
             <!-- Third party -->
@@ -184,6 +206,8 @@
             <file name="ext/php7/memory_limit.h" role="src" />
             <file name="ext/php7/php7/dispatch.c" role="src" />
             <file name="ext/php7/php7/engine_hooks.c" role="src" />
+            <file name="ext/php7/profiler.cc" role="src" />
+            <file name="ext/php7/profiler.h" role="src" />
             <file name="ext/php7/random.c" role="src" />
             <file name="ext/php7/random.h" role="src" />
             <file name="ext/php7/request_hooks.c" role="src" />
@@ -194,6 +218,8 @@
             <file name="ext/php7/signals.h" role="src" />
             <file name="ext/php7/span.c" role="src" />
             <file name="ext/php7/span.h" role="src" />
+            <file name="ext/php7/stack_collector.cc" role="src" />
+            <file name="ext/php7/stack_collector.hh" role="src" />
             <file name="ext/php7/startup_logging.c" role="src" />
             <file name="ext/php7/startup_logging.h" role="src" />
             <!-- PHP 8.x -->
@@ -265,6 +291,8 @@
             <!-- Shared -->
             <file name="src/dogstatsd/client.c" role="src" />
             <file name="src/dogstatsd/dogstatsd_client/client.h" role="src" />
+            <file name="src/dogstatsd/test/client.cc" role="test" />
+            <file name="src/dogstatsd/test/main.cc" role="test" />
 
             <!-- Tests -->
             <file name="tests/ext/call_user_func/namespaced-array.phpt" role="test" />

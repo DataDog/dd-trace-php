@@ -14,3 +14,4 @@ add_executable(arena arena.cc)
 target_link_libraries(arena PUBLIC catch2main Datadog::Arena)
 
 catch_discover_tests(arena)
+
