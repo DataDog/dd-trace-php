@@ -21,6 +21,8 @@ class PredisIntegration extends Integration
 {
     const NAME = 'predis';
 
+    const DEFAULT_SERVICE_NAME = 'redis';
+
     /**
      * @return string The integration name.
      */
@@ -138,7 +140,7 @@ class PredisIntegration extends Integration
     {
         $tags = [];
         $connection = $predis->getConnection();
-        $service = 'redis';
+        $service = PredisIntegration::DEFAULT_SERVICE_NAME;
 
         if ($connection instanceof NodeConnectionInterface) {
             $connectionParameters = $connection->getParameters();
@@ -181,7 +183,7 @@ class PredisIntegration extends Integration
      */
     public static function setMetaAndServiceFromConnection($predis, SpanData $span)
     {
-        $span->service = ObjectKVStore::get($predis, 'service', 'redis');
+        $span->service = ObjectKVStore::get($predis, 'service', PredisIntegration::DEFAULT_SERVICE_NAME);
 
         foreach (ObjectKVStore::get($predis, 'connection_meta', []) as $tag => $value) {
             $span->meta[$tag] = $value;
