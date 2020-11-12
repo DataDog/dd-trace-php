@@ -5,7 +5,8 @@ BUILD_SUFFIX := extension
 BUILD_DIR := $(PROJECT_ROOT)/tmp/build_$(BUILD_SUFFIX)
 SO_FILE := $(BUILD_DIR)/modules/ddtrace.so
 WALL_FLAGS := -Wall -Wextra
-CFLAGS := -O2 $(WALL_FLAGS)
+EXTRA_CFLAGS :=
+CFLAGS := -O2 $(EXTRA_CFLAGS) $(WALL_FLAGS)
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PHP_MAJOR_MINOR:=$(shell php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 
@@ -17,12 +18,30 @@ C_FILES := $(shell find ext src/dogstatsd -name '*.c' -o -name '*.h' | awk '{ pr
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
-ALL_FILES := $(C_FILES) $(TEST_FILES) $(BUILD_DIR)/config.m4 $(M4_FILES)
+# The following differentiation exists so we can build only (but always) the relevant files while executing tests
+#  - when a `.phpt` changes, we only copy the file to the build dir and we DO NOT rebuild
+#  - when a `.c` changes, we copy the file to the build dir and we DO the specific .lo build and linking
+#  - when a `.h` (or anything else) changes, we remove all .lo files from the build directory so a full build is done
+# The latter, avoids that during development we change something in a header included in multiple .c files, then we
+# change only one of those .c files, we only rebuild that one, we SEGFAULT.
+#
+# Note: while this adds some complexity, as a matter of facts it does not impact production builds in CI which are done
+# from scratch. But the benefits are that we can have the quickest possible `modify --> test` cycle possible.
+$(BUILD_DIR)/tests/%: tests/%
+	$(Q) echo Copying tests/$* to $@
+	$(Q) mkdir -p $(dir $@)
+	$(Q) cp -a tests/$* $@
+
+$(BUILD_DIR)/%.c: %.c
+	$(Q) echo Copying $*.c to $@
+	$(Q) mkdir -p $(dir $@)
+	$(Q) cp -a $*.c $@
 
 $(BUILD_DIR)/%: %
-	$(Q) echo Copying $* to build dir
+	$(Q) echo Copying $* to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a $* $@
+	$(Q) rm -f tmp/build_extension/ext/**/*.lo
 
 JUNIT_RESULTS_DIR := $(shell pwd)
 
@@ -36,7 +55,7 @@ $(BUILD_DIR)/configure: $(BUILD_DIR)/config.m4
 $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
 	$(Q) (cd $(BUILD_DIR); ./configure)
 
-$(SO_FILE): $(ALL_FILES) $(BUILD_DIR)/Makefile
+$(SO_FILE): $(C_FILES) $(BUILD_DIR)/Makefile
 	$(Q) $(MAKE) -C $(BUILD_DIR) CFLAGS="$(CFLAGS)"
 
 install: $(SO_FILE)
@@ -50,17 +69,15 @@ install_ini: $(INI_FILE)
 install_all: install install_ini
 
 test_c: export DD_TRACE_CLI_ENABLED=1
-test_c: $(SO_FILE)
+test_c: $(SO_FILE) $(TEST_FILES)
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
 	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
 	export USE_TRACKED_ALLOC=1; \
-	\
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all $(TESTS)
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
-test_c_mem: $(SO_FILE)
+test_c_mem: $(SO_FILE) $(TEST_FILES)
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
 	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
@@ -70,7 +87,7 @@ test_c_mem: $(SO_FILE)
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m $(TESTS)
 
 test_c_asan: export DD_TRACE_CLI_ENABLED=1
-test_c_asan: $(SO_FILE)
+test_c_asan: $(SO_FILE) $(TEST_FILES)
 	( \
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
@@ -81,7 +98,7 @@ test_c_asan: $(SO_FILE)
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all --asan $(TESTS); \
 	)
 
-test_extension_ci: $(SO_FILE)
+test_extension_ci: $(SO_FILE) $(TEST_FILES)
 	( \
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
@@ -101,6 +118,7 @@ dist_clean:
 
 clean:
 	$(MAKE) -C $(BUILD_DIR) clean
+	$(Q) rm -f $(SO_FILE)
 	$(Q) rm -f composer.lock
 
 sudo:
