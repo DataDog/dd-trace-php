@@ -717,6 +717,9 @@ void ddtrace_close_all_open_spans(void) {
 }
 
 static void dd_observer_begin_handler(zend_execute_data *execute_data) {
+    if (DDTRACE_G(disable_in_current_request)) {
+        return;
+    }
     ddtrace_dispatch_t *cached_dispatch = DDTRACE_OP_ARRAY_EXTENSION(&execute_data->func->op_array);
     if (!cached_dispatch || !dd_should_trace_runtime(cached_dispatch)) {
         return;
@@ -725,6 +728,9 @@ static void dd_observer_begin_handler(zend_execute_data *execute_data) {
 }
 
 static void dd_observer_end_handler(zend_execute_data *execute_data, zval *retval) {
+    if (DDTRACE_G(disable_in_current_request)) {
+        return;
+    }
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
     if (span_fci && span_fci->execute_data == execute_data) {
         if (EG(exception) && dd_is_catching_frame(execute_data) == false) {
