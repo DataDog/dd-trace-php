@@ -1,8 +1,7 @@
 --TEST--
 Functions that use return with yield are instrumented
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70100) die('skip: Generators are partially supported on PHP 7.1+'); ?>
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Generators are fully supported on PHP 8+'); ?>
+<?php if (PHP_VERSION_ID < 80000) die('skip: Generators are only fully supported on PHP 8+'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -49,4 +48,7 @@ array_map(function($span) {
 1337
 Done
 doSomething, Done
+getResultsWithReturn, 1337
+getResultsWithReturn, 22
+getResultsWithReturn, 21
 getResultsWithReturn, 20

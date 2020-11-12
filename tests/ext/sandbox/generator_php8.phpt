@@ -1,14 +1,15 @@
 --TEST--
-Functions that return generators with 'yield from' are instrumented
+Functions that return generators are instrumented
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70100) die('skip: Generators are partially supported on PHP 7.1+'); ?>
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Generators are fully supported on PHP 8+'); ?>
+<?php if (PHP_VERSION_ID < 80000) die('skip: Generators are only fully supported on PHP 8+'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
 
 function getResults() {
-    yield from [1337, 42, 0];
+    for ($i = 10; $i < 13; $i++) {
+        yield $i;
+    }
 }
 
 function doSomething() {
@@ -22,7 +23,7 @@ function doSomething() {
 
 DDTrace\trace_function('getResults', function(SpanData $s, $a, $retval) {
     $s->name = 'getResults';
-    $s->resource = $retval[0];
+    $s->resource = null === $retval ? 'NULL' : $retval;
 });
 
 DDTrace\trace_function('doSomething', function(SpanData $s, $a, $retval) {
@@ -39,9 +40,12 @@ array_map(function($span) {
 }, dd_trace_serialize_closed_spans());
 ?>
 --EXPECT--
-1337
-42
-0
+10
+11
+12
 Done
 doSomething, Done
-getResults, 1337
+getResults, NULL
+getResults, 12
+getResults, 11
+getResults, 10
