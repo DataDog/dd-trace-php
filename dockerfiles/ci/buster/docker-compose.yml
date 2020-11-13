@@ -14,7 +14,7 @@ services:
       args:
         phpVersion: 8.0
         phpTarGzUrl: https://github.com/SammyK/php-src/archive/sammyk/php8.0.0-pre-rc5.tar.gz
-        phpSha256Hash: 97f42abb17a116ff6b37c47be1e8852034dcd331ab5e150ebb6a8fbf64df5de0
+        phpSha256Hash: 9597c3497f6afa05e13db1e69e86e53bcfc19ad9581c30384be0f7f8f55c3eae
 
   php-master:
     image: datadog/dd-trace-ci:php-master_buster
