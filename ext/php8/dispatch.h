@@ -63,7 +63,6 @@ inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch) {
 
 void ddtrace_dispatch_init(TSRMLS_D);
 void ddtrace_dispatch_destroy(TSRMLS_D);
-void ddtrace_dispatch_reset(TSRMLS_D);
 
 #if PHP_VERSION_ID < 70000
 

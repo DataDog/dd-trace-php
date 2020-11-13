@@ -512,6 +512,7 @@
             <file name="tests/ext/sandbox-regression/protected_method_hook.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/recursion.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/reset_configured_overrides.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/reset_configured_overrides_php8.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/reset_function_tracing.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/return_value_passed.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/simple_function_hook.phpt" role="test" />

@@ -1103,15 +1103,9 @@ static PHP_FUNCTION(dd_trace_disable_in_request) {
 }
 
 static PHP_FUNCTION(dd_trace_reset) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
-    PHP7_UNUSED(execute_data);
-
-    if (DDTRACE_G(disable)) {
-        RETURN_BOOL(0);
-    }
-
-    ddtrace_dispatch_reset(TSRMLS_C);
-    RETURN_BOOL(1);
+    UNUSED(execute_data);
+    ddtrace_log_debug("Cannot reset traced functions on PHP 8+");
+    RETURN_BOOL(0);
 }
 
 /* {{{ proto string dd_trace_serialize_msgpack(array trace_array) */

@@ -108,15 +108,6 @@ void ddtrace_dispatch_destroy(TSRMLS_D) {
     }
 }
 
-void ddtrace_dispatch_reset(TSRMLS_D) {
-    if (DDTRACE_G(class_lookup)) {
-        zend_hash_clean(DDTRACE_G(class_lookup));
-    }
-    if (DDTRACE_G(function_lookup)) {
-        zend_hash_clean(DDTRACE_G(function_lookup));
-    }
-}
-
 static HashTable *_get_lookup_for_target(zval *class_name TSRMLS_DC) {
     HashTable *overridable_lookup = NULL;
     if (class_name && DDTRACE_G(class_lookup)) {

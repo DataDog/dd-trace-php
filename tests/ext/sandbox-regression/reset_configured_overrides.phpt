@@ -1,5 +1,7 @@
 --TEST--
 [Sandbox regression] Traced functions and methods are untraced with reset
+--SKIPIF--
+<?php if (PHP_VERSION_ID >= 80000) die('skip: Cannot reset instrumented functions on PHP 8+'); ?>
 --FILE--
 <?php
 class Test {
