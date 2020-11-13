@@ -296,6 +296,36 @@ final class PredisTest extends IntegrationTestCase
         $this->assertEmpty($traces);
     }
 
+    public function testSplitByHostForSecondarySpans()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
+        $traces = $this->isolateTracer(function () {
+            $client = new \Predis\Client(["host" => $this->host]);
+            $client->set('key', 'value');
+            $this->assertSame('value', $client->get('key'));
+        });
+
+        $this->assertSame('redis-redis_integration', $traces[0][0]['service']);
+        $this->assertSame('redis-redis_integration', $traces[0][1]['service']);
+        $this->assertSame('redis-redis_integration', $traces[0][2]['service']);
+    }
+
+    public function testSplitByHostForErrorSpans()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
+        $traces = $this->isolateTracer(function () {
+            try {
+                $client = new \Predis\Client(["host" => "non_existing"]);
+                $client->set('key', 'value');
+            } catch (\Exception $e) {
+                // no action
+            }
+        });
+
+        $this->assertSame('redis-non_existing', $traces[0][0]['service']);
+        $this->assertSame('redis-non_existing', $traces[0][1]['service']);
+    }
+
     private function baseTags()
     {
         return [
