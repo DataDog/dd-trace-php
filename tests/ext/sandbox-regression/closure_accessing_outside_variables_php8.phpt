@@ -1,7 +1,9 @@
 --TEST--
 [Sandbox regression] Tracing closure safely uses variables from outside scope
 --SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Dispatch cannot be overwritten on PHP 8+'); ?>
+<?php if (PHP_VERSION_ID < 80000) die('skip: Dispatch can be overwritten on PHP < 8'); ?>
+--ENV--
+DD_TRACE_DEBUG=1
 --FILE--
 <?php
 // variable present in outside scope
@@ -30,5 +32,6 @@ setup(3);
 --EXPECT--
 METHOD
 HOOK 1
+Cannot overwrite existing dispatch for 'm()'
 METHOD
-HOOK 3
+HOOK 1
