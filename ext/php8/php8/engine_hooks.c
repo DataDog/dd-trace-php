@@ -728,9 +728,6 @@ static void dd_observer_begin_handler(zend_execute_data *execute_data) {
 }
 
 static void dd_observer_end_handler(zend_execute_data *execute_data, zval *retval) {
-    if (DDTRACE_G(disable_in_current_request)) {
-        return;
-    }
     ddtrace_span_fci *span_fci = DDTRACE_G(open_spans_top);
     if (span_fci && span_fci->execute_data == execute_data) {
         if (EG(exception) && dd_is_catching_frame(execute_data) == false) {
