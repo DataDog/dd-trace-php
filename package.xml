@@ -36,7 +36,24 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Added
+        - Support service split by host in PHPRedis integration #1084
+        - Support service split by host in Predis integration #1094
+        - Load WordPress 5 integration on PHP 5 #1086
+        - Custom pre-RC5 build #1093
+        - Second custom pre-RC5 build #1096
+
+
+        ### Changed
+        - Consolidate 3rd party code into vendor directory #1082
+        - Separate extension code by PHP major version #1085
+        - Make include paths relative to ext/ #1087
+        - Copy PHP 7 extension code to php8 directory #1088
+        - Upgrade to composer 2 #1075
+        - Fix composer self-update on master properly handling cached directories #1092
+        - Make execution of ext tests locally faster and easier #1091
+    </notes>
     <contents>
         <dir name="/">
             <!-- Shared -->
