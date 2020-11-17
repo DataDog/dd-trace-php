@@ -6,6 +6,7 @@ set -xe
 PHP_TAR_FILE=php.tar.gz
 apk add --no-cache --virtual .php-build-deps \
     autoconf \
+    bison \
     ca-certificates \
     coreutils \
     g++ \
@@ -32,6 +33,7 @@ CFLAGS="$PHP_CFLAGS" CPPFLAGS="$PHP_CPPFLAGS" LDFLAGS="$PHP_LDFLAGS"
 PHP_CONFIG_ARGS=""
 
 # Installing PHP
+./buildconf --force
 ./configure \
     --prefix="${PHP_INSTALL_DIR}" \
     --with-config-file-path="${PHP_INI_DIR}" \
