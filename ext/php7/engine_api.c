@@ -188,10 +188,9 @@ ZEND_RESULT_CODE ddtrace_read_property(zval *dest, zval *obj, const char *prop, 
 #else
         zval *result = Z_OBJ_P(obj)->handlers->read_property(Z_OBJ_P(obj), Z_STR(member), BP_VAR_R, NULL, &rv);
 #endif
-        zend_string_release(Z_STR(member));
         if (result) {
+            zend_string_release(Z_STR(member));
             ZVAL_COPY(dest, result);
-            zval_ptr_dtor(result);
             return SUCCESS;
         }
     }
