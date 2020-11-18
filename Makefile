@@ -82,8 +82,6 @@ test_c_mem: $(SO_FILE) $(TEST_FILES)
 	export REPORT_EXIT_STATUS=1; \
 	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
 	export USE_TRACKED_ALLOC=1; \
-	\
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m $(TESTS)
 
 test_c_asan: export DD_TRACE_CLI_ENABLED=1
