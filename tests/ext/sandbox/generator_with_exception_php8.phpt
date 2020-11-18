@@ -1,8 +1,7 @@
 --TEST--
 Exceptions are handled from a generator context
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70100) die('skip: Generators are partially supported on PHP 7.1+'); ?>
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Generators are fully supported on PHP 8+'); ?>
+<?php if (PHP_VERSION_ID < 80000) die('skip: Generators are only fully supported on PHP 8+'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -12,9 +11,6 @@ class FooException extends Exception {}
 function maybeThrowException() {
     for ($i = 0; $i <= 3; $i++) {
         if ($i === 3) {
-            // TODO Figure out this black hole
-            // The span closes on the first yield so there
-            // is no span to attach the exception to
             throw new FooException('Oops!');
         }
         yield $i;
@@ -35,7 +31,7 @@ function doSomething() {
 
 DDTrace\trace_function('maybeThrowException', function(SpanData $s, $a, $retval) {
     $s->name = 'maybeThrowException';
-    $s->resource = $retval;
+    $s->resource = null === $retval ? 'NULL' : $retval;
 });
 
 DDTrace\trace_function('doSomething', function(SpanData $s, $a, $retval) {
@@ -58,4 +54,7 @@ array_map(function($span) {
 2
 FooException caught
 doSomething, FooException caught
+maybeThrowException, NULL, Oops!
+maybeThrowException, 2
+maybeThrowException, 1
 maybeThrowException, 0

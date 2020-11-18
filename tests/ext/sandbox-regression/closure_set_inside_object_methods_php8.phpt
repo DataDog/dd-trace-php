@@ -1,9 +1,9 @@
 --TEST--
 [Sandbox regression] Tracing closure set from inside non-static method
---DESCRIPTION--
-This differs from the original dd_trace() test in that it does not modify the original call arguments
 --SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Dispatch cannot be overwritten on PHP 8+'); ?>
+<?php if (PHP_VERSION_ID < 80000) die('skip: Dispatch can be overwritten on PHP < 8'); ?>
+--ENV--
+DD_TRACE_DEBUG=1
 --FILE--
 <?php
 class Test {
@@ -30,9 +30,6 @@ final class TestSetup {
     }
 }
 
-// Cannot call a function while it is not traced and later expect it to trace
-//(new Test())->m(0);
-
 // use convoluted way to execute to test if it also works
 $o = new TestSetup();
 $reflectionMethod = new ReflectionMethod('TestSetup', 'setup');
@@ -49,7 +46,8 @@ $o->setup_ext(100);
 --EXPECT--
 METHOD 1
 HOOK 11
+Cannot overwrite existing dispatch for 'm()'
 METHOD 1
-HOOK 1101
+HOOK 11
 METHOD 10
-HOOK 1211
+HOOK 20

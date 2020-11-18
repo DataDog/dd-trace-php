@@ -1,7 +1,8 @@
 --TEST--
 Functions that return generators are instrumented
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 70100) die('skip: Generators are supported for PHP 7.1 and greater'); ?>
+<?php if (PHP_VERSION_ID < 70100) die('skip: Generators are partially supported on PHP 7.1+'); ?>
+<?php if (PHP_VERSION_ID >= 80000) die('skip: Generators are fully supported on PHP 8+'); ?>
 --FILE--
 <?php
 use DDTrace\SpanData;

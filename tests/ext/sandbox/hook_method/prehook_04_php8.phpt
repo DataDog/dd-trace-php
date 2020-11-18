@@ -1,7 +1,9 @@
 --TEST--
 DDTrace\hook_method prehook is passed the correct args with inheritance
 --SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: Dispatch cannot be overwritten on PHP 8+'); ?>
+<?php if (PHP_VERSION_ID < 80000) die('skip: Dispatch can be overwritten on PHP < 8'); ?>
+--ENV--
+DD_TRACE_DEBUG=1
 --INI--
 zend.assertions=1
 assert.exception=1
@@ -9,11 +11,10 @@ assert.exception=1
 <?php
 
 var_dump(DDTrace\hook_method('Greeter', 'greet',
-    function ($This, $scope, $args) {
+    function ($obj, $scope, $args) {
         echo "Greeter::greet hooked.\n";
-        assert($this instanceof SubGreeter);
-        assert($scope == "SubGreeter");
-        assert($args == ["Datadog"]);
+        assert($obj instanceof Greeter);
+        assert($args === ["Datadog"]);
     }
 ));
 
@@ -31,13 +32,14 @@ $greeter = new SubGreeter();
 $greeter->greet('Datadog');
 
 var_dump(DDTrace\hook_method('Greeter', 'greet',
-    function ($This, $scope, $args) {
+    function ($obj, $scope, $args) {
         echo "Greeter::greet hooked.\n";
-        assert($This instanceof Greeter);
+        assert($obj instanceof Greeter);
         assert($scope == "Greeter");
         assert($args == ["Datadog"]);
     }
 ));
+
 $greeter = new Greeter();
 $greeter->greet('Datadog');
 
@@ -46,7 +48,7 @@ $greeter->greet('Datadog');
 bool(true)
 Greeter::greet hooked.
 Hello, Datadog.
-bool(true)
+Cannot overwrite existing dispatch for 'greet()'
+bool(false)
 Greeter::greet hooked.
 Hello, Datadog.
-

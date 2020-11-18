@@ -368,9 +368,13 @@
             <file name="tests/ext/sandbox/generator.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_not_supported.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_php5.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator_php8.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_with_exception.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator_with_exception_php8.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_with_return.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator_with_return_php8.phpt" role="test" />
             <file name="tests/ext/sandbox/generator_yield_from.phpt" role="test" />
+            <file name="tests/ext/sandbox/generator_yield_from_php8.phpt" role="test" />
             <file name="tests/ext/sandbox/get_last_error.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_function/02.phpt" role="test" />
@@ -426,6 +430,7 @@
             <file name="tests/ext/sandbox/hook_method/prehook_02.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_03.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_04.phpt" role="test" />
+            <file name="tests/ext/sandbox/hook_method/prehook_04_php8.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_05.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_access_01.phpt" role="test" />
             <file name="tests/ext/sandbox/hook_method/prehook_error_01.phpt" role="test" />
@@ -491,7 +496,9 @@
             <file name="tests/ext/sandbox-regression/allow_overriding_before_overrided_methods_functions_are_defined.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/case_insensitive_method_hook.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/closure_accessing_outside_variables.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/closure_accessing_outside_variables_php8.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/closure_set_inside_object_methods.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/closure_set_inside_object_methods_php8.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/dd_trace_tracer_is_limited_hard.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/destructor_called_when_this_gets_out_of_scope.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/do_not_check_if_class_or_function_exists_by_default.phpt" role="test" />
@@ -508,6 +515,7 @@
             <file name="tests/ext/sandbox-regression/protected_method_hook.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/recursion.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/reset_configured_overrides.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/reset_configured_overrides_php8.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/reset_function_tracing.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/return_value_passed.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/simple_function_hook.phpt" role="test" />
@@ -515,7 +523,8 @@
             <file name="tests/ext/sandbox-regression/throw_exception.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/trace_method_or_function_that_will_exist_later.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/trace_static_method.phpt" role="test" />
-            <file name="tests/ext/sandbox-regression/used_dispatch_shouldn_t_be_freed.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/used_dispatch_should_not_free.phpt" role="test" />
+            <file name="tests/ext/sandbox-regression/used_dispatch_should_not_free_php8.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/variable_length_parameter_list.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/very_nested_functions_php5.phpt" role="test" />
             <file name="tests/ext/sandbox-regression/very_nested_functions_php7.phpt" role="test" />

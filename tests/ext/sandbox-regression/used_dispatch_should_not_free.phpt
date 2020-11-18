@@ -1,5 +1,7 @@
 --TEST--
 [Sandbox regression] Override traced function from within itself
+--SKIPIF--
+<?php if (PHP_VERSION_ID >= 80000) die('skip: Dispatch cannot be overwritten on PHP 8+'); ?>
 --FILE--
 <?php
 function test($a){
