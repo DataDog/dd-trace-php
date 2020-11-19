@@ -476,8 +476,11 @@ TEST_WEB_74 := \
 	test_opentracing_10
 
 TEST_INTEGRATIONS_80 := \
+	test_integrations_curl \
 	test_integrations_mysqli \
 	test_integrations_pdo \
+	test_integrations_guzzle5 \
+	test_integrations_guzzle6 \
 	test_integrations_predis1
 
 TEST_WEB_80 := \

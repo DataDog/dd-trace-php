@@ -217,8 +217,6 @@
             <file name="ext/php8/ddtrace.h" role="src" />
             <file name="ext/php8/dispatch.c" role="src" />
             <file name="ext/php8/dispatch.h" role="src" />
-            <file name="ext/php8/distributed_tracing.c" role="src" />
-            <file name="ext/php8/distributed_tracing.h" role="src" />
             <file name="ext/php8/dogstatsd_client.c" role="src" />
             <file name="ext/php8/dogstatsd_client.h" role="src" />
             <file name="ext/php8/engine_api.c" role="src" />
@@ -591,10 +589,10 @@
             <!-- Make sure to update <filelist> below too -->
             <file name="bridge/_generated.php" role="php" />
             <file name="bridge/autoload.php" role="php" />
+            <file name="bridge/curl_inject.php" role="php" />
             <file name="bridge/dd_init.php" role="php" />
             <file name="bridge/dd_register_optional_deps_autoloader.php" role="php" />
             <file name="bridge/dd_wrap_autoloader.php" role="php" />
-            <file name="bridge/php5.php" role="php" />
         </dir>
     </contents>
     <dependencies>
@@ -616,10 +614,10 @@
         <filelist>
             <install as="datadog_trace/bridge/_generated.php" name="bridge/_generated.php" />
             <install as="datadog_trace/bridge/autoload.php" name="bridge/autoload.php" />
+            <install as="datadog_trace/bridge/curl_inject.php" name="bridge/curl_inject.php" />
             <install as="datadog_trace/bridge/dd_init.php" name="bridge/dd_init.php" />
             <install as="datadog_trace/bridge/dd_register_optional_deps_autoloader.php" name="bridge/dd_register_optional_deps_autoloader.php" />
             <install as="datadog_trace/bridge/dd_wrap_autoloader.php" name="bridge/dd_wrap_autoloader.php" />
-            <install as="datadog_trace/bridge/php5.php" name="bridge/php5.php" />
         </filelist>
     </extsrcrelease>
 </package>
