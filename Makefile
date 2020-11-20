@@ -424,6 +424,7 @@ TEST_WEB_73 := \
 	test_web_codeigniter_22 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
+	test_web_laravel_8x \
 	test_web_lumen_52 \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
@@ -458,6 +459,7 @@ TEST_WEB_74 := \
 	test_web_codeigniter_22 \
 	test_web_laravel_57 \
 	test_web_laravel_58 \
+	test_web_laravel_8x \
 	test_web_lumen_52 \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
@@ -483,6 +485,7 @@ TEST_INTEGRATIONS_80 := \
 TEST_WEB_80 := \
 	test_metrics \
 	test_web_codeigniter_22 \
+	test_web_laravel_8x \
 	test_web_slim_312 \
 	test_web_custom
 	#test_web_symfony_51 ; will work eventually; currently hung on: doctrine/doctrine-migrations-bundle
@@ -595,6 +598,9 @@ test_web_laravel_57:
 test_web_laravel_58:
 	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_5_8 update
 	$(call run_tests,--testsuite=laravel-58-test)
+test_web_laravel_8x:
+	$(COMPOSER) --working-dir=tests/Frameworks/Laravel/Version_8_x update
+	$(call run_tests,tests/Integrations/Laravel/V8_x)
 test_web_lumen_52:
 	$(COMPOSER) --working-dir=tests/Frameworks/Lumen/Version_5_2 update
 	$(call run_tests,tests/Integrations/Lumen/V5_2)
