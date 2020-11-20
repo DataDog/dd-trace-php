@@ -59,6 +59,23 @@ class IntegrationsLoader
     {
         $this->integrations = $integrations;
 
+        // Add integrations as they support PHP 8
+        if (\PHP_MAJOR_VERSION >= 8) {
+            $this->integrations[CodeIgniterIntegration::NAME] =
+                '\DDTrace\Integrations\CodeIgniter\V2\CodeIgniterIntegration';
+            $this->integrations[CurlIntegration::NAME] =
+                '\DDTrace\Integrations\Curl\CurlIntegration';
+            $this->integrations[EloquentIntegration::NAME] =
+                '\DDTrace\Integrations\Eloquent\EloquentIntegration';
+            $this->integrations[GuzzleIntegration::NAME] =
+                '\DDTrace\Integrations\Guzzle\GuzzleIntegration';
+            $this->integrations[LaravelIntegration::NAME] =
+                '\DDTrace\Integrations\Laravel\LaravelIntegration';
+            $this->integrations[MysqliIntegration::NAME] =
+                '\DDTrace\Integrations\Mysqli\MysqliIntegration';
+            return;
+        }
+
         $this->integrations[CakePHPIntegration::NAME] =
             '\DDTrace\Integrations\CakePHP\CakePHPIntegration';
         $this->integrations[CodeIgniterIntegration::NAME] =

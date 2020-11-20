@@ -93,7 +93,6 @@ static void dd_load_test_integrations(TSRMLS_D) {
     DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
 }
 
-#if PHP_VERSION_ID >= 70000
 static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, ddtrace_string Class,
                                                  ddtrace_string method, ddtrace_string integration) {
     if (!ddtrace_config_integration_enabled_ex(name)) {
@@ -107,29 +106,14 @@ void ddtrace_integrations_rinit(TSRMLS_D) {
     dd_register_known_calls();
     dd_load_test_integrations(TSRMLS_C);
 
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_ELASTICSEARCH, "elasticsearch\\client", "__construct",
-                                         "DDTrace\\Integrations\\ElasticSearch\\V1\\ElasticSearchIntegration");
-
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_MEMCACHED, "Memcached", "__construct",
-                                         "DDTrace\\Integrations\\Memcached\\MemcachedIntegration");
-
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PDO, "PDO", "__construct",
                                          "DDTrace\\Integrations\\PDO\\PDOIntegration");
-
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PHPREDIS, "Redis", "__construct",
-                                         "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PREDIS, "Predis\\Client", "__construct",
                                          "DDTrace\\Integrations\\Predis\\PredisIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SLIM, "Slim\\App", "__construct",
                                          "DDTrace\\Integrations\\Slim\\SlimIntegration");
-
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_WORDPRESS, "Requests", "set_certificate_path",
-                                         "DDTrace\\Integrations\\WordPress\\WordPressIntegration");
-
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_YII, "yii\\di\\Container", "__construct",
-                                         "DDTrace\\Integrations\\Yii\\YiiIntegration");
 }
 
 ddtrace_integration* ddtrace_get_integration_from_string(ddtrace_string integration) {
@@ -141,28 +125,3 @@ static void _dd_add_integration_to_map(char* name, size_t name_len, ddtrace_inte
     ZEND_ASSERT(strlen(integration->name_ucase) == name_len);
     ZEND_ASSERT(DDTRACE_LONGEST_INTEGRATION_NAME_LEN >= name_len);
 }
-#else
-void ddtrace_integrations_rinit(TSRMLS_D) {
-    /* In PHP 5.6 currently adding deferred integrations seem to trigger increase in heap
-     * size - even though the memory usage is below the limit. We still can trigger memory
-     * allocation error to be issued
-     */
-    dd_load_test_integrations(TSRMLS_C);
-
-    dd_register_known_calls(TSRMLS_C);
-}
-
-ddtrace_integration *ddtrace_get_integration_from_string(ddtrace_string integration) {
-    ddtrace_integration **tmp;
-    if (zend_hash_find(&_dd_string_to_integration_name_map, integration.ptr, integration.len + 1, (void **)&tmp) ==
-        SUCCESS) {
-        return *tmp;
-    }
-    return NULL;
-}
-
-static void _dd_add_integration_to_map(char *name, size_t name_len, ddtrace_integration *integration) {
-    zend_hash_add(&_dd_string_to_integration_name_map, name, name_len + 1, (void **)&integration, sizeof(integration),
-                  NULL);
-}
-#endif
