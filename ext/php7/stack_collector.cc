@@ -120,10 +120,10 @@ zend_string *dd_readv_string(pid_t pid, datadog_arena *arena, zend_string *remot
 stack_collector::stack_collector(ddprof::recorder &r) : recorder{r}, m{}, thread{}, running{false}, thread_id{} {}
 
 static void push(ddprof::recorder &recorder, size_t entries_num, ddtrace_sample_entry entries[]) {
-    ddprof::stack_event event{};
-    event.sampled.basic.name = 0;                                 // todo
-    event.sampled.basic.timestamp = ddprof::system_clock::now();  // todo
-    event.sampled.sampling_period = std::chrono::nanoseconds(0);  // todo
+    ddprof::event event{};
+    event.name = 0;                                 // todo
+    event.system_time = ddprof::system_clock::now(); // todo: should these be passed in?
+    event.steady_time = ddprof::steady_clock::now();
     event.thread_id = getpid();                                   // todo: get sampled thread, not collector thread
     event.thread_name = 0;                                        // todo
 

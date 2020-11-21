@@ -44,16 +44,27 @@ inline void stream_exporter::operator()(const recorder::event_table_t &event_tab
     ostream << "{\n";
     ostream << "\tstarted_at: " << start_time.time_since_epoch().count() << ";\n";
     ostream << "\tstopped_at: " << stop_time.time_since_epoch().count() << ";\n";
+    ostream << "\tcount: " << event_table.size() << ";\n";
     ostream << "\tevent_table: [\n";
-    for (auto &event_it : event_table) {
+    for (auto &event : event_table) {
         ostream << "\t\t{\n";
-        ostream << "\t\t\tevent_type: " << event_it.first << ";\n";
-        ostream << "\t\t\tcount: " << event_it.second.size() << ";\n";
-        ostream << "\t\t\tdata: [\n";
-        for (auto &event : event_it.second) {
-            ostream << "\t\t\t\t" << *event << ",\n";
+        ostream << "\t\t\tname: " << &strings[event->name].data[0] << ";\n";
+        ostream << "\t\t\tthread_name: " << &strings[event->thread_name].data[0] << ";\n";
+        ostream << "\t\t\tthread_id: " << event->thread_id << ";\n";
+        ostream << "\t\t\tsystem_time: " << event->system_time.time_since_epoch().count() << ";\n";
+        ostream << "\t\t\tsteady_time: " << event->steady_time.time_since_epoch().count() << ";\n";
+
+        ostream << "\t\t\tframes: [\n";
+        for (auto &frame : event->frames) {
+            ostream << "\t\t\t\t[" ;
+            ostream << " " << &strings[frame.function_name].data[0];
+            ostream << " " << &strings[frame.filename].data[0];
+            ostream << ":" << frame.lineno;
+            ostream << "\n";
         }
-        ostream << "\t\t\t]\n\t\t},\n";
+        ostream << "\t\t\t];\n";
+
+        ostream << "\t\t},\n";
     }
 
     ostream << "\t]\n";

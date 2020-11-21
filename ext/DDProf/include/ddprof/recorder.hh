@@ -17,10 +17,7 @@ namespace ddprof {
 // TODO: set limits on maximum number of events
 class recorder {
     public:
-    struct event_hash {
-        std::size_t operator()(enum event::type type) const noexcept;
-    };
-    using event_table_t = std::unordered_map<enum event::type, std::vector<std::unique_ptr<event>>, event_hash>;
+    using event_table_t = std::vector<std::unique_ptr<event>>;
 
     private:
     std::mutex m{};
@@ -41,14 +38,14 @@ class recorder {
 
 inline void recorder::push(std::unique_ptr<event> event) {
     std::lock_guard<std::mutex> lock{m};
-    event_table[event->type].emplace_back(std::move(event));
+    event_table.emplace_back(std::move(event));
 }
 
 inline void recorder::push(size_t num_events, std::unique_ptr<event> events[]) {
     std::lock_guard<std::mutex> lock{m};
     for (size_t i = 0; i < num_events; ++i) {
         auto event = events[i].release();
-        event_table[event->type].emplace_back(event);
+        event_table.emplace_back(event);
     }
 }
 
@@ -62,11 +59,6 @@ inline std::pair<recorder::event_table_t, string_table> recorder::release() noex
     }
 
     return std::make_pair(std::move(events_tmp), std::move(strings_tmp));
-}
-
-inline std::size_t recorder::event_hash::operator()(enum event::type type) const noexcept {
-    using underlying = std::underlying_type<enum event::type>::type;
-    return std::hash<underlying>{}(static_cast<underlying>(type));
 }
 
 inline interned_string &recorder::intern(hashed_string string) {

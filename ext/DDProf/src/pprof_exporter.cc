@@ -178,32 +178,25 @@ void pprof_exporter::operator()(const recorder::event_table_t &event_table, stri
     std::stringstream ss{};
     ss << "profile-" << num++ << ".pb";
 
-    for (auto &pair : event_table) {
-        if (pair.first == event::type::stack_event) {
-            auto &events_vector = pair.second;
-            for (auto &event : events_vector) {
-                if (event->type == event::type::stack_event) {
-                    PProf__Sample sample = PPROF__SAMPLE__INIT;
-                    sample.n_location_id = event->stack.frames.size();
-                    sample.location_id =
-                        (uint64_t *) datadog_arena_alloc(&arena, sizeof(uint64_t) * sample.n_location_id);
-                    unsigned local_locations = 0;
+    for (auto &event : event_table) {
+        PProf__Sample sample = PPROF__SAMPLE__INIT;
+        sample.n_location_id = event->frames.size();
+        sample.location_id =
+            (uint64_t *) datadog_arena_alloc(&arena, sizeof(uint64_t) * sample.n_location_id);
+        unsigned local_locations = 0;
 
-                    for (auto &frame : event->stack.frames) {
-                        uint64_t function_id = add_function(&arena, functions, frame.function_name);
-                        PProf__Line *line = add_line(&arena, function_id, frame.lineno);
+        for (auto &frame : event->frames) {
+            uint64_t function_id = add_function(&arena, functions, frame.function_name);
+            PProf__Line *line = add_line(&arena, function_id, frame.lineno);
 
-                        PProf__Location location = PPROF__LOCATION__INIT;
-                        location.line = &line;
-                        location.n_line = 1;
-                        uint64_t location_offset = locations.insert(location);
+            PProf__Location location = PPROF__LOCATION__INIT;
+            location.line = &line;
+            location.n_line = 1;
+            uint64_t location_offset = locations.insert(location);
 
-                        sample.location_id[local_locations++] = locations[location_offset].id;
-                        sample.value = (int64_t *) datadog_arena_alloc(&arena, sizeof(int64_t));
-                        *sample.value = 0; // todo: this is nanoseconds since... what?
-                    }
-                }
-            }
+            sample.location_id[local_locations++] = locations[location_offset].id;
+            sample.value = (int64_t *) datadog_arena_alloc(&arena, sizeof(int64_t));
+            *sample.value = 0; // todo: this is nanoseconds since... what?
         }
     }
 

@@ -5,142 +5,46 @@
 #include <unistd.h>
 
 #include <cstdint>
-#include <type_traits>
-#include <utility>
+#include <unordered_set>
 #include <vector>
+
+#include <datadog/memhash.hh>
 
 #include "chrono.hh"
 
 namespace ddprof {
 
-struct basic_event {
-    std::size_t name;
-    system_clock::time_point timestamp;  // nanoseconds from Unix epoch
+struct trace_context {
+    uint64_t trace_id;
+    uint64_t span_id;
 };
 
-struct sampled_event {
-    basic_event basic;  // must be first member
-    std::chrono::nanoseconds sampling_period;
-};
+constexpr bool operator==(trace_context a, trace_context b) {
+    /* I don't know how long this link will stay good for, but it demonstrates
+     * 3 ways to write this and shows the generated asm:
+     *   https://godbolt.org/z/r98Kvn.
+     * Across relevant compilers, this form is the most reliable for perf.
+     */
+    return !((a.trace_id ^ b.trace_id) | (b.span_id ^ b.span_id));
+}
 
 struct frame {
-    std::size_t function_name;
-    std::size_t filename;
+    uint64_t function_name;
+    uint64_t filename;
     int64_t lineno;
 };
 
-struct stack_event {
-    sampled_event sampled;  // must be first member
-    pid_t thread_id;
-    std::size_t thread_name;
-
-    std::vector<frame> frames;
-
-    // todo: span_id, trace_id,
-};
-
-// }}}
-
 struct event {
-    enum class type : unsigned char {
-        basic,
-        sampled,
-        stack_event,
-    } type;
-
-    union {
-        basic_event basic;  // all members must have basic as their first member
-        sampled_event sampled;
-        stack_event stack;
-    };
-
-    event(basic_event ev) noexcept;
-    event(sampled_event ev) noexcept;
-    event(stack_event ev) noexcept;
-
-    event(const event &other) noexcept;
-    event(event &&other) noexcept;
-
-    event &operator=(const event &other) noexcept;
-    event &operator=(event &&other) noexcept;
-
-    ~event() noexcept;
-
-    template <class Visitor>
-    decltype(auto) visit(Visitor visitor) const {
-        if (type == type::basic) {
-            return visitor(basic);
-        } else if (type == type::sampled) {
-            return visitor(sampled);
-        } else if (type == type::stack_event) {
-            return visitor(stack);
-        }
-    }
+    uint64_t name;
+    uint64_t thread_name;
+    pid_t thread_id;
+    system_clock::time_point system_time;
+    steady_clock::time_point steady_time;
+    // the most recent frame is at `frames[0]`
+    std::vector<frame> frames;
+    std::unordered_set<trace_context> trace_contexts;
 };
 
-inline bool operator==(enum event::type lhs, enum event::type rhs) {
-    using underlying = std::underlying_type_t<enum event::type>;
-    return static_cast<underlying>(lhs) == static_cast<underlying>(rhs);
-}
-
-inline event::event(basic_event ev) noexcept : type{type::basic}, basic{ev} {}
-inline event::event(sampled_event ev) noexcept : type{type::sampled}, sampled{ev} {}
-inline event::event(stack_event ev) noexcept : type{type::stack_event}, stack{std::move(ev)} {}
-
-inline event::event(const event &other) noexcept : type{other.type} {
-    if (type == type::basic) {
-        basic = other.basic;
-    } else if (type == type::sampled) {
-        sampled = other.sampled;
-    } else if (type == type::stack_event) {
-        stack = other.stack;
-    }
-}
-
-inline event::event(event &&other) noexcept : type{other.type} {
-    if (type == type::basic) {
-        basic = other.basic;
-    } else if (type == type::sampled) {
-        sampled = other.sampled;
-    } else if (type == type::stack_event) {
-        stack = std::move(other.stack);
-    }
-}
-
-inline event::~event() noexcept {
-    if (type == type::basic) {
-        basic.~basic_event();
-    } else if (type == type::sampled) {
-        sampled.~sampled_event();
-    } else if (type == type::stack_event) {
-        stack.~stack_event();
-    }
-}
-
-}  // namespace ddprof
-
-#include <iostream>
-
-// ostream overloads for debugging; may be removed in future
-namespace ddprof {
-
-inline std::ostream &operator<<(std::ostream &out, enum event::type type) {
-    using underlying = std::underlying_type_t<enum event::type>;
-    return out << (int)static_cast<underlying>(type);
-}
-
-inline std::ostream &operator<<(std::ostream &out, const struct event &event) {
-    out << "{ type:" << event.type;
-    out << "; name: " << event.basic.name;
-    out << "; timestamp: " << event.basic.timestamp.time_since_epoch().count();
-
-    if (event.type == event::type::sampled || event.type == event::type::stack_event) {
-        // todo: more info on other event types
-    }
-
-    return out << " }";
-}
-
-}  // namespace ddprof
+} // namespace ddprof
 
 #endif  // DDPROF_EVENT_HH
