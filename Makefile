@@ -84,6 +84,12 @@ test_c_mem: $(SO_FILE) $(TEST_FILES)
 	export USE_TRACKED_ALLOC=1; \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m $(TESTS)
 
+test_c2php: export DD_TRACE_CLI_ENABLED=1
+test_c2php: export DD_AUTOLOAD_NO_COMPILE=1
+test_c2php: $(SO_FILE)
+	valgrind --leak-check=full --show-reachable=yes --errors-for-leak-kinds=all php tests/C2PHP/get_context_distributed_tracing_test.php
+	# valgrind --leak-check=full --show-reachable=yes --errors-for-leak-kinds=all php -d ddtrace.request_init_hook=bridge/dd_wrap_autoloader.php tests/C2PHP/get_context_distributed_tracing_test.php
+
 test_c_asan: export DD_TRACE_CLI_ENABLED=1
 test_c_asan: $(SO_FILE) $(TEST_FILES)
 	( \
