@@ -17,7 +17,8 @@ RUN touch /var/log/php-fpm.log && chmod 777 /var/log/php-fpm.log
 ARG APP_PATH
 WORKDIR /var/www/html/
 ADD ./$APP_PATH /var/www/html/
-# RUN composer update --no-dev
+RUN composer update --no-dev
+RUN chmod -R a+w /var/www/html/storage
 
 # Adding configuration files
 ADD docker-scripts/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
