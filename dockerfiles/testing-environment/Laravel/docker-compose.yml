@@ -26,8 +26,8 @@ services:
       - DD_AGENT_HOST=agent
       - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.51.0/datadog-php-tracer_0.51.0_amd64.deb
       # - DD_TRACE_DEBUG=true
-    volumes:
-      - ./8x:/var/www/html/
+    # volumes:
+    #   - ./8x:/var/www/html/
     command: [ "/scripts/local-run.sh" ]
 
   agent:
