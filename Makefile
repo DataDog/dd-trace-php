@@ -84,11 +84,20 @@ test_c_mem: $(SO_FILE) $(TEST_FILES)
 	export USE_TRACKED_ALLOC=1; \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m $(TESTS)
 
+test_mem_with_init_hook: export DD_TRACE_CLI_ENABLED=1
+test_mem_with_init_hook: $(SO_FILE)
+	set -xe; \
+	export REPORT_EXIT_STATUS=1; \
+	export TEST_PHP_SRCDIR=$$(pwd); \
+	export USE_TRACKED_ALLOC=1; \
+	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php -q --show-all -m tests/C2PHP/
+
 test_c2php: export DD_TRACE_CLI_ENABLED=1
-test_c2php: export DD_AUTOLOAD_NO_COMPILE=1
+test_c2php: export USE_ZEND_ALLOC=0
+test_c2php: export ZEND_DONT_UNLOAD_MODULES=1
+test_c2php: export USE_TRACKED_ALLOC=1
 test_c2php: $(SO_FILE)
-	valgrind --leak-check=full --show-reachable=yes --errors-for-leak-kinds=all php tests/C2PHP/get_context_distributed_tracing_test.php
-	# valgrind --leak-check=full --show-reachable=yes --errors-for-leak-kinds=all php -d ddtrace.request_init_hook=bridge/dd_wrap_autoloader.php tests/C2PHP/get_context_distributed_tracing_test.php
+	valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access php -n -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php tests/C2PHP/get_context_distributed_tracing_test.phpt
 
 test_c_asan: export DD_TRACE_CLI_ENABLED=1
 test_c_asan: $(SO_FILE) $(TEST_FILES)

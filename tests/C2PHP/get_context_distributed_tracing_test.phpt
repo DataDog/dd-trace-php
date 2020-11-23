@@ -1,3 +1,6 @@
+--TEST--
+Distributed tracing context with an origin
+--FILE--
 <?php
 
 use DDTrace\GlobalTracer;
@@ -22,4 +25,9 @@ if (empty($response['headers']['X-Datadog-Origin']) || $response['headers']['X-D
 
 curl_close($ch);
 
+var_dump($context->origin);
 echo "OK\n";
+?>
+--EXPECT--
+string(11) "some-origin"
+OK
