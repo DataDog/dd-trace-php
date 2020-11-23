@@ -147,12 +147,13 @@ final class IntegrationsLoaderTest extends BaseTestCase
 
     public function testWeDidNotForgetToRegisterALibraryForAutoLoading()
     {
-        if (Versions::phpVersionMatches('5.4')) {
-            $this->markTestSkipped('Sandboxed tests are skipped on PHP 5.4 so we cannot check for all integrations.');
-        }
-
         $expected = $this->normalize(glob(__DIR__ . '/../../../src/DDTrace/Integrations/*', GLOB_ONLYDIR));
 
+        /*
+         * We need a better way of validating loaded integrations:
+         * 0) that validates deferred-loaded integrations, and
+         * 1) does not require modifying this test.
+         */
         $excluded = [];
         if (\PHP_MAJOR_VERSION < 7) {
             $excluded[] = 'phpredis'; // PHP 7 only integration
@@ -167,6 +168,14 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'wordpress';
             $excluded[] = 'yii';
         }
+        if (\PHP_MAJOR_VERSION >= 8) {
+            // Integrations that do not support PHP 8
+            $excluded[] = 'cakephp';
+            $excluded[] = 'lumen';
+            $excluded[] = 'mongo';
+            $excluded[] = 'symfony';
+            $excluded[] = 'zendframework';
+        }
         foreach ($excluded as $integrationToExclude) {
             $index = array_search($integrationToExclude, $expected, true);
             unset($expected[$index]);
@@ -178,8 +187,7 @@ final class IntegrationsLoaderTest extends BaseTestCase
         \ksort($integrations);
         $loaded = $this->normalize(array_keys($integrations));
 
-        // If this test fails you need to add an entry to IntegrationsLoader::LIBRARIES array.
-        $this->assertEquals(array_values($expected), array_values($loaded));
+        self::assertEquals(array_values($expected), array_values($loaded));
     }
 
     /**
