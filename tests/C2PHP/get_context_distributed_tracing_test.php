@@ -22,4 +22,4 @@ if (empty($response['headers']['X-Datadog-Origin']) || $response['headers']['X-D
 
 curl_close($ch);
 
-echo "Done\n";
+echo "OK\n";
