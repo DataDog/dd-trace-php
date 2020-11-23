@@ -1,4 +1,5 @@
-**/** linguist-generated
-.gitattributes -linguist-generated
-app/Http/Controllers/ -linguist-generated
-config/app.php -linguist-generated
+* text=auto
+*.css linguist-vendored
+*.scss linguist-vendored
+*.js linguist-vendored
+CHANGELOG.md export-ignore
