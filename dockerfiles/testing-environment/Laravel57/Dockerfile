@@ -14,10 +14,9 @@ RUN /scripts/install-php-and-composer.sh
 RUN touch /var/log/php-fpm.log && chmod 777 /var/log/php-fpm.log
 
 # Setup web app
-ARG APP_PATH
 WORKDIR /var/www/html/
-ADD ./$APP_PATH /var/www/html/
-# RUN composer update --no-dev
+ADD ./app /var/www/html/
+RUN composer update --no-dev
 
 # Adding configuration files
 ADD docker-scripts/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
