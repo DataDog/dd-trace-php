@@ -183,11 +183,7 @@ bool ddtrace_property_exists(zval *object, zval *property) {
 ZEND_RESULT_CODE ddtrace_read_property(zval *dest, zval *obj, const char *prop, size_t prop_len) {
     zval rv, member = ddtrace_zval_stringl(prop, prop_len);
     if (ddtrace_property_exists(obj, &member)) {
-#if PHP_VERSION_ID < 80000
         zval *result = Z_OBJ_P(obj)->handlers->read_property(obj, &member, BP_VAR_R, NULL, &rv);
-#else
-        zval *result = Z_OBJ_P(obj)->handlers->read_property(Z_OBJ_P(obj), Z_STR(member), BP_VAR_R, NULL, &rv);
-#endif
         if (result) {
             zend_string_release(Z_STR(member));
             ZVAL_COPY(dest, result);
