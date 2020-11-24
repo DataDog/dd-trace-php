@@ -16,6 +16,7 @@ INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini file
 
 C_FILES := $(shell find ext src/dogstatsd -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+INIT_HOOK_TEST_FILES := $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
 # The following differentiation exists so we can build only (but always) the relevant files while executing tests
@@ -84,13 +85,16 @@ test_c_mem: $(SO_FILE) $(TEST_FILES)
 	export USE_TRACKED_ALLOC=1; \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m $(TESTS)
 
-test_mem_with_init_hook: export DD_TRACE_CLI_ENABLED=1
-test_mem_with_init_hook: $(SO_FILE)
+test_with_init_hook_asan: export DD_TRACE_CLI_ENABLED=1
+test_with_init_hook_asan: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
+	( \
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
 	export TEST_PHP_SRCDIR=$$(pwd); \
-	export USE_TRACKED_ALLOC=1; \
-	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php -q --show-all -m tests/C2PHP/
+	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-init-hook-test.xml; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
+	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php -q --show-all --asan $(INIT_HOOK_TEST_FILES); \
+	)
 
 test_c2php: export DD_TRACE_CLI_ENABLED=1
 test_c2php: export USE_ZEND_ALLOC=0
@@ -200,7 +204,7 @@ packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
 verify_pecl_file_definitions:
-	@for i in $(C_FILES) $(TEST_FILES) $(M4_FILES); do\
+	@for i in $(C_FILES) $(TEST_FILES) $(INIT_HOOK_TEST_FILES) $(M4_FILES); do\
 		grep -q $${i#"$(BUILD_DIR)/"} package.xml && continue;\
 		echo package.xml is missing \"$${i#"$(BUILD_DIR)/"}\"; \
 		exit 1;\
