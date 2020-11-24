@@ -119,7 +119,21 @@ static bool dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, 
     HashTable *function_table = NULL;
     bool found = ddtrace_try_find_dispatch(scope, &fname, &dispatch, &function_table);
     if (found && dispatch->options & DDTRACE_DISPATCH_DEFERRED_LOADER) {
-        if (Z_TYPE(dispatch->deferred_load_integration_name) != IS_NULL) {
+        do {
+            if (Z_TYPE(dispatch->deferred_load_integration_name) == IS_NULL) {
+                dispatch = NULL;
+                break;
+            }
+            zend_string *load_func = zend_string_init(ZEND_STRL("ddtrace\\integrations\\load_deferred_integration"), 0);
+            if (!zend_hash_exists(EG(function_table), load_func)) {
+                dispatch = NULL;
+                zend_string_release(load_func);
+                ddtrace_log_debug(
+                    "Cannot load deferred integrations: DDTrace\\Integrations\\load_deferred_integration does not "
+                    "exist");
+                break;
+            }
+
             ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
 
             // protect against the free when we remove the dispatch from function_table
@@ -134,17 +148,17 @@ static bool dd_should_trace_helper(zend_execute_data *call, zend_function *fbc, 
             zval retval = {.u1.type_info = IS_UNDEF};
             zval *integration = &dispatch->deferred_load_integration_name;
             zend_function **fn_proxy = &dd_integrations_load_deferred_integration;
-            ddtrace_string loader = DDTRACE_STRING_LITERAL("ddtrace\\integrations\\load_deferred_integration");
-            ZEND_RESULT_CODE status = ddtrace_call_function(fn_proxy, loader.ptr, loader.len, &retval, 1, integration);
+            ZEND_RESULT_CODE status =
+                ddtrace_call_function(fn_proxy, ZSTR_VAL(load_func), ZSTR_LEN(load_func), &retval, 1, integration);
 
             ddtrace_dispatch_release(dispatch);
             dispatch = EXPECTED(status == SUCCESS) ? ddtrace_find_dispatch(scope, &fname) : NULL;
             zval_ptr_dtor(&retval);
 
             ddtrace_sandbox_end(&backup);
-        } else {
-            dispatch = NULL;
-        }
+
+            zend_string_release(load_func);
+        } while (0);
     }
 
     if (dispatch_ptr != NULL) {

@@ -36,7 +36,6 @@
 #include "ddtrace.h"
 #include "ddtrace_string.h"
 #include "dispatch.h"
-#include "distributed_tracing.h"
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
 #include "excluded_modules.h"
@@ -420,10 +419,10 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         dd_request_init_hook_rinit(TSRMLS_C);
     }
 
+    ddtrace_internal_handlers_rinit();
     ddtrace_engine_hooks_rinit(TSRMLS_C);
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
-    ddtrace_distributed_tracing_rinit(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
 
     ddtrace_dogstatsd_client_rinit(TSRMLS_C);
@@ -458,7 +457,6 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_internal_handlers_rshutdown();
     ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
 
-    ddtrace_distributed_tracing_rshutdown(TSRMLS_C);
     ddtrace_dispatch_destroy(TSRMLS_C);
     ddtrace_free_span_id_stack(TSRMLS_C);
     ddtrace_free_span_stacks(TSRMLS_C);

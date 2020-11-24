@@ -284,14 +284,14 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
     public function testKVStoreIsCleanedOnCurlClose()
     {
-        if (\PHP_MAJOR_VERSION === 5) {
-            $this->markTestSkipped("PHP 5 does not use ArrayKVStore");
+        if (\PHP_MAJOR_VERSION === 5 || \PHP_MAJOR_VERSION === 8) {
+            self::markTestSkipped("PHP 5 & 8 do not use ArrayKVStore");
         }
         $ch = curl_init(self::URL . '/status/200');
         curl_setopt($ch, CURLOPT_HTTPHEADER, []);
-        $this->assertNotSame('default', ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, 'default'));
+        self::assertNotSame('default', ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, 'default'));
         curl_close($ch);
-        $this->assertSame('default', ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, 'default'));
+        self::assertSame('default', ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, 'default'));
     }
 
     public function testDistributedTracingIsPropagated()
@@ -320,19 +320,19 @@ final class CurlIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        $this->assertEquals(
-            PHP_MAJOR_VERSION === 5,
+        self::assertEquals(
+            PHP_MAJOR_VERSION === 5 || PHP_MAJOR_VERSION === 8,
             function_exists('DDTrace\\Bridge\\curl_inject_distributed_headers')
         );
 
         // trace is: custom
-        $this->assertSame($traces[0][0]['trace_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame($traces[0][0]['trace_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec
-        $this->assertSame($traces[0][1]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
-        $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
-        $this->assertSame($traces[0][0]['metrics']['_sampling_priority_v1'], PrioritySampling::AUTO_KEEP);
+        self::assertSame($traces[0][1]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+        self::assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
+        self::assertSame($traces[0][0]['metrics']['_sampling_priority_v1'], PrioritySampling::AUTO_KEEP);
         // existing headers are honored
-        $this->assertSame('preserved_value', $found['headers']['Honored']);
+        self::assertSame('preserved_value', $found['headers']['Honored']);
     }
 
     public function testOriginIsPropagatedAndSetsRootSpanTag()

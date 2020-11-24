@@ -1,7 +1,7 @@
 --TEST--
 If curl_inject_distributed_headers helper is missing, we don't sigsegv, right?
 --SKIPIF--
-<?php if (PHP_VERSION_ID >= 70000) die('skip: PHP 7 not supported'); ?>
+<?php if (PHP_VERSION_ID >= 70000 && PHP_VERSION_ID < 80000) die('skip: PHP 7 not supported'); ?>
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 --INI--
@@ -31,10 +31,10 @@ dt_dump_headers_from_httpbin($headers, [
 ]);
 
 $spans = dd_trace_serialize_closed_spans();
-assert(isset($headers['x-datadog-parent-id']));
+var_dump(isset($headers['x-datadog-parent-id']));
 
 echo 'Done.' . PHP_EOL;
 ?>
---EXPECTF--
-Warning: assert(): Assertion failed in %s on line %d
+--EXPECT--
+bool(false)
 Done.
