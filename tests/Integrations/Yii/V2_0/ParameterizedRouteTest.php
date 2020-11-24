@@ -1,11 +1,9 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\Yii\V2_0_26;
+namespace DDTrace\Tests\Integrations\Yii\V2_0;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
-use DDTrace\Tests\Common\SpanAssertionTrait;
-use DDTrace\Tests\Common\TracerTestTrait;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Type;
@@ -14,7 +12,7 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
 {
     protected static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Yii/Version_2_0_26/web/index.php';
+        return __DIR__ . '/../../../Frameworks/Yii/Version_2_0/web/index.php';
     }
 
     protected static function getEnvs()

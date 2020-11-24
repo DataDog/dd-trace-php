@@ -114,6 +114,9 @@ void ddtrace_integrations_rinit(TSRMLS_D) {
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SLIM, "Slim\\App", "__construct",
                                          "DDTrace\\Integrations\\Slim\\SlimIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_YII, "yii\\di\\Container", "__construct",
+                                         "DDTrace\\Integrations\\Yii\\YiiIntegration");
 }
 
 ddtrace_integration* ddtrace_get_integration_from_string(ddtrace_string integration) {
