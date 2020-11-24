@@ -157,6 +157,18 @@ commands:
               if [[ ! "<<parameters.command>>" == "none" ]]; then
                 << parameters.command >>
               fi;
+  switch_php:
+    parameters:
+      php_version:
+        type: string
+        default: none
+    steps:
+      - run:
+          name: Switch PHP version
+          command: |
+            if [[ ! "<<parameters.php_version>>" == "none" ]]; then
+              switch-php << parameters.php_version >>
+            fi;
   install_extension:
     parameters:
       lib_curl_command:
@@ -409,6 +421,9 @@ jobs:
       lib_curl_command:
         type: string
         default: none
+      switch_php_version:
+        type: string
+        default: none
       unit_test_target:
         type: string
         default: test_extension_ci
@@ -424,6 +439,8 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
           command: << parameters.lib_curl_command >>
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
@@ -1393,6 +1410,12 @@ workflows:
           name: "PHP 80 Unit tests"
           docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
           valgrind_config: 8_0_musl
+      - unit_tests:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 80 asan tests"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          unit_test_target: test_c_asan
+          switch_php_version: 8.0-debug-zts-asan
       - opcache_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 opcache tests"
