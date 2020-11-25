@@ -15,15 +15,6 @@ extern zend_class_entry *ddtrace_ce_fatal_error;
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_fci ddtrace_span_fci;
 
-#if PHP_VERSION_ID >= 70000
-zval *ddtrace_spandata_property_name(zval *spandata);
-zval *ddtrace_spandata_property_resource(zval *spandata);
-zval *ddtrace_spandata_property_service(zval *spandata);
-zval *ddtrace_spandata_property_type(zval *spandata);
-zval *ddtrace_spandata_property_meta(zval *spandata);
-zval *ddtrace_spandata_property_metrics(zval *spandata);
-#endif
-
 BOOL_T ddtrace_tracer_is_limited(TSRMLS_D);
 
 // clang-format off
@@ -45,8 +36,6 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *dogstatsd_port;
     char *dogstatsd_buffer;
 
-    // PHP 7 uses ZEND_TLS for these
-#if PHP_VERSION_ID < 70000
     // Distributed tracing & curl
     HashTable *dt_http_saved_curl_headers;
     zend_bool back_up_http_headers;
@@ -62,7 +51,6 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     // ext/curl's list entry resource type
     int le_curl;
-#endif
 
     uint64_t trace_id;
     ddtrace_span_ids_t *span_ids_top;
@@ -92,13 +80,7 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
  * defines these macros without the comma in the definition site, so that it
  * exists at the usage site.
  */
-#if PHP_VERSION_ID < 70000
 #define DDTRACE_ARG_INFO_SIZE(arg_info) ((zend_uint)(sizeof(arg_info) / sizeof(struct _zend_arg_info) - 1))
-#elif PHP_VERSION_ID < 80100
-#define DDTRACE_ARG_INFO_SIZE(arg_info) ((uint32_t)(sizeof(arg_info) / sizeof(struct _zend_internal_arg_info) - 1))
-#else
-#error Check if ZEND_FENTRY has changed in PHP 8.1 and if we need to update the macros
-#endif
 
 #define DDTRACE_FENTRY(zend_name, name, arg_info, flags) \
     { #zend_name, name, arg_info, DDTRACE_ARG_INFO_SIZE(arg_info), flags }

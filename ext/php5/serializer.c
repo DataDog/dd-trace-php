@@ -1,4 +1,5 @@
 #include <Zend/zend.h>
+#include <Zend/zend_builtin_functions.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_interfaces.h>
 #include <php.h>
@@ -162,7 +163,7 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
     }
 /* }}} */
 
-/* This is modelled after _build_trace_string in PHP 5.4
+/* This is modeled after _build_trace_string in PHP 5.4
  * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L543-L605
  */
 static int _trace_string(zval **frame TSRMLS_DC, int num_args, va_list args, zend_hash_key *hash_key) {
@@ -228,12 +229,16 @@ static int _trace_string(zval **frame TSRMLS_DC, int num_args, va_list args, zen
     return ZEND_HASH_APPLY_KEEP;
 }
 
-/* This is modelled after getTraceAsString in PHP 5.4
+/* This is modeled after Exception::getTraceAsString() in PHP 5.4
  * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L607-L635
  */
-static void _serialize_stack_trace(zval *meta, zval *trace TSRMLS_DC) {
+static char *dd_serialize_stack_trace(zval *trace TSRMLS_DC) {
     char *res, **str, *s_tmp;
     int res_len = 0, *len = &res_len, num = 0;
+
+    if (Z_TYPE_P(trace) != IS_ARRAY) {
+        return NULL;
+    }
 
     res = estrdup("");
     str = &res;
@@ -247,7 +252,7 @@ static void _serialize_stack_trace(zval *meta, zval *trace TSRMLS_DC) {
 
     res[res_len] = '\0';
 
-    add_assoc_string(meta, "error.stack", res, 0);
+    return res;
 }
 
 int ddtrace_exception_to_meta(ddtrace_exception_t *exception, void *context,
@@ -321,7 +326,10 @@ static void dd_serialize_exception(zval *el, zval *meta, ddtrace_exception_t *ex
      * we will just hide all of them. */
     zend_call_method_with_0_params(&exception, Z_OBJCE_P(exception), NULL, "gettrace", &stack);
     if (stack) {
-        _serialize_stack_trace(meta, stack TSRMLS_CC);
+        char *trace_string = dd_serialize_stack_trace(stack TSRMLS_CC);
+        if (trace_string) {
+            add_assoc_string(meta, "error.stack", trace_string, 0);
+        }
         zval_ptr_dtor(&stack);
     }
 }
@@ -433,6 +441,113 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     add_next_index_zval(array, el);
 }
 
+static void dd_fatal_error_type(int code, zval **type) {
+    const char *error_type = "{unknown error}";
+    switch (code) {
+        case E_ERROR:
+            error_type = "E_ERROR";
+            break;
+        case E_CORE_ERROR:
+            error_type = "E_CORE_ERROR";
+            break;
+        case E_COMPILE_ERROR:
+            error_type = "E_COMPILE_ERROR";
+            break;
+        case E_USER_ERROR:
+            error_type = "E_USER_ERROR";
+            break;
+    }
+    MAKE_STD_ZVAL(*type);
+    ZVAL_STRING(*type, error_type, 1);
+}
+
+static void dd_fatal_error_msg(const char *format, va_list args, zval **msg) {
+    va_list args2;
+    char *buffer;
+
+    va_copy(args2, args);
+    int buffer_len = vspprintf(&buffer, 0, format, args2);
+    va_end(args2);
+
+    MAKE_STD_ZVAL(*msg);
+    if (buffer_len <= 0) {
+        ZVAL_STRING(*msg, "Unknown error", 1);
+        efree(buffer);
+        return;
+    }
+
+    /* In PHP 5 an uncaught exception results in a fatal error. The error
+     * message includes the call stack and its arguments, which is a vector for
+     * information disclosure. We need to avoid this.
+     */
+    const char uncaught[] = "Uncaught ";
+    /* The -1 is to avoid the null terminator which is included in literals and
+     * will not be present in the rendered error message at that position.
+     */
+    size_t uncaught_len = sizeof uncaught - 1;
+    if ((unsigned)buffer_len >= uncaught_len && memcmp(buffer, uncaught, uncaught_len) == 0) {
+        char *newline = memchr(buffer, '\n', buffer_len);
+        if (newline) {
+            *newline = '\0';
+            size_t linelen = newline - buffer;
+            // +1 for null terminator
+            ZVAL_STRINGL(*msg, buffer, linelen + 1, 1);
+        } else {
+            // This is suspect; there is always a newline in these messages
+            ZVAL_STRING(*msg, "Unknown uncaught exception", 1);
+        }
+    } else {
+        ZVAL_STRING(*msg, buffer, 1);
+    }
+    efree(buffer);
+}
+
+static void dd_fatal_error_stack(zval **stack) {
+    zval *trace;
+    TSRMLS_FETCH();
+
+    MAKE_STD_ZVAL(trace);
+    zend_fetch_debug_backtrace(trace, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0 TSRMLS_CC);
+    if (Z_TYPE_P(trace) == IS_ARRAY) {
+        char *stack_str = dd_serialize_stack_trace(trace TSRMLS_CC);
+        if (stack_str) {
+            MAKE_STD_ZVAL(*stack);
+            ZVAL_STRING(*stack, stack_str, 0);
+        }
+    }
+    zval_ptr_dtor(&trace);
+}
+
+typedef struct dd_error_info {
+    zval *type;
+    zval *msg;
+    zval *stack;
+} dd_error_info;
+
+static int dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
+    if (error.type) {
+        Z_ADDREF_P(error.type);
+        add_assoc_zval(meta, "error.type", error.type);
+    }
+    if (error.msg) {
+        Z_ADDREF_P(error.msg);
+        add_assoc_zval(meta, "error.msg", error.msg);
+    }
+    if (error.stack) {
+        Z_ADDREF_P(error.stack);
+        add_assoc_zval(meta, "error.stack", error.stack);
+    }
+    return error.type && error.msg ? SUCCESS : FAILURE;
+}
+
+static dd_error_info dd_fatal_error(int type, const char *format, va_list args) {
+    dd_error_info error = {0};
+    dd_fatal_error_type(type, &error.type);
+    dd_fatal_error_msg(format, args, &error.msg);
+    dd_fatal_error_stack(&error.stack);
+    return error;
+}
+
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
     TSRMLS_FETCH();
 
@@ -445,14 +560,51 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
 
     bool is_fatal_error = type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
     if (EXPECTED(EG(active)) && EG(error_handling) == EH_NORMAL && UNEXPECTED(is_fatal_error)) {
-        ddtrace_exception_t *error = ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAM_PASSTHRU TSRMLS_CC);
-        ddtrace_span_fci *span = DDTRACE_G(open_spans_top);
-        while (span) {
-            ddtrace_span_attach_exception(span, error);
-            span = span->next;
+        /* If there is a fatal error in shutdown then this might not be an array
+         * because we set it to IS_NULL in RSHUTDOWN. We probably want a more
+         * robust way of detecting this, but I'm not sure how yet.
+         */
+        if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
+            dd_error_info error = dd_fatal_error(type, format, args);
+            dd_fatal_error_to_meta(&DDTRACE_G(additional_trace_meta), error);
+
+            ddtrace_span_fci *span;
+            for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
+                if (span->exception || !span->span.span_data) {
+                    continue;
+                }
+                zval *meta = _read_span_property(span->span.span_data, ZEND_STRL("meta") TSRMLS_CC);
+                if (!meta) {
+                    continue;
+                }
+
+                if (Z_TYPE_P(meta) == IS_NULL) {
+                    // Unlike PHP 7, we cannot mutate the SpanData properties outside of the zend_*_property APIs
+                    zval *zmeta;
+                    MAKE_STD_ZVAL(zmeta);
+                    array_init_size(zmeta, ddtrace_num_error_tags);
+                    zend_update_property(ddtrace_ce_span_data, span->span.span_data, ZEND_STRL("meta"),
+                                         zmeta TSRMLS_CC);
+                    zval_ptr_dtor(&zmeta);
+
+                    meta = _read_span_property(span->span.span_data, ZEND_STRL("meta") TSRMLS_CC);
+                }
+                if (Z_TYPE_P(meta) == IS_ARRAY) {
+                    dd_fatal_error_to_meta(meta, error);
+                }
+            }
+
+            if (error.type) {
+                zval_ptr_dtor(&error.type);
+            }
+            if (error.msg) {
+                zval_ptr_dtor(&error.msg);
+            }
+            if (error.stack) {
+                zval_ptr_dtor(&error.stack);
+            }
+            ddtrace_close_all_open_spans(TSRMLS_C);
         }
-        zval_ptr_dtor(&error);
-        ddtrace_close_all_open_spans(TSRMLS_C);
     }
 
     ddtrace_prev_error_cb(DDTRACE_ERROR_CB_PARAM_PASSTHRU);

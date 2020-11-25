@@ -31,9 +31,7 @@ struct ddtrace_span_fci {
     zend_execute_data *execute_data;
     struct ddtrace_dispatch_t *dispatch;
     ddtrace_exception_t *exception;
-#if PHP_VERSION_ID < 70000
     ddtrace_execute_data dd_execute_data;
-#endif
     struct ddtrace_span_fci *next;
     ddtrace_span_t span;
 };
