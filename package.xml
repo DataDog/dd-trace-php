@@ -42,6 +42,13 @@
             <!-- Shared -->
             <file name="ext/DatadogArena/arena.c" role="src" />
             <file name="ext/DatadogArena/datadog/arena.h" role="src" />
+
+            <file name="ext/DatadogMemHash/memhash.cc" role="src" />
+            <file name="ext/DatadogMemHash/include/datadog/memhash.h" role="src" />
+            <file name="ext/DatadogMemHash/include/datadog/memhash.hh" role="src" />
+            <file name="ext/DatadogMemHash/test/cantor.cc" role="test" />
+            <file name="ext/DatadogMemHash/test/main.cc" role="test" />
+
             <file name="ext/version.h" role="src" />
             <!-- Third party -->
             <file name="ext/vendor/mpack/AUTHORS.md" role="doc" />
