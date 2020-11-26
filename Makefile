@@ -90,7 +90,7 @@ test_with_init_hook_asan: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
 	( \
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
-	export TEST_PHP_SRCDIR=$$(pwd); \
+	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-init-hook-test.xml; \
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php -q --show-all --asan $(INIT_HOOK_TEST_FILES); \
