@@ -11,6 +11,7 @@ services:
     environment:
       - DD_AGENT_HOST=agent
       - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.51.0/datadog-php-tracer_0.51.0_amd64.deb
+      - DD_SERVICE=laravel57-php73-synthetic
       # - DD_TRACE_DEBUG=true
     # volumes:
     #   - ./57:/var/www/html/
@@ -25,6 +26,7 @@ services:
     environment:
       - DD_AGENT_HOST=agent
       - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.51.0/datadog-php-tracer_0.51.0_amd64.deb
+      - DD_SERVICE=laravel8x-php80-synthetic
       # - DD_TRACE_DEBUG=true
     # volumes:
     #   - ./8x:/var/www/html/
