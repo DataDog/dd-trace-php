@@ -32,5 +32,7 @@ ADD dockerfiles/php-fpm.conf /etc/php/${PHP_VERSION}/fpm/php-fpm.conf
 
 ADD dockerfiles/ubuntu/local-run.sh /scripts/local-run.sh
 
+WORKDIR /var/www/html/
+
 EXPOSE 80
 CMD [ "supervisord" ]

@@ -14,7 +14,10 @@ apt install -y \
     php${PHP_VERSION}-fpm \
     php${PHP_VERSION}-mbstring \
     php${PHP_VERSION}-mysql \
+    php${PHP_VERSION}-mysqli \
+    php${PHP_VERSION}-memcached \
     php${PHP_VERSION}-opcache \
+    php${PHP_VERSION}-redis \
     php${PHP_VERSION}-xml \
     php${PHP_VERSION}-zip
 # remove unused php-fpm files that will be provided from outside

@@ -6,6 +6,11 @@ services:
     image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-randomtests:7.4"
     depends_on:
       - agent
+      - elasticsearch
+      - redis
+      - memcached
+      - mysql
+      - httpbin
     ports:
       - 6666:80
     environment:
@@ -25,3 +30,23 @@ services:
       - DD_API_KEY=${DATADOG_API_KEY}
       - DD_APM_ENABLED=true
       - DD_APM_ENV=testenv
+
+  redis:
+    image: redis:latest
+
+  httpbin:
+    image: kennethreitz/httpbin
+
+  memcached:
+    image: "memcached:1.5-alpine"
+
+  elasticsearch:
+    image: "elasticsearch:6.8.13"
+
+  mysql:
+    image: mysql:5.7
+    environment:
+      - MYSQL_ROOT_PASSWORD=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_USER=test
+      - MYSQL_DATABASE=test

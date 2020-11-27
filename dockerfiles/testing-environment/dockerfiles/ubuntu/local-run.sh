@@ -11,4 +11,9 @@ if [ ! -z ${TRACER_DOWNLOAD_URL} ]; then
     dpkg -i /dd-trace-php.deb
 fi
 
+if [ -f "composer.json" ]; then
+    echo "Updating composer"
+    composer update
+fi
+
 supervisord

@@ -1,4 +1,5 @@
 BUILD_OPTS :=
+DURATION := 60s
 
 # PHP 7.4 on ubuntu
 7.4.ubuntu.build:
@@ -7,6 +8,8 @@ BUILD_OPTS :=
 	docker build $(BUILD_OPTS) --build-arg PHP_VERSION="7.4" --build-arg APP_PATH="./RandomTesting" -t registry.ddbuild.io/apm-integrations-testing/handmade/php-randomtests:7.4 -f dockerfiles/ubuntu.random/Dockerfile .
 7.4.ubuntu.random.up: 7.4.ubuntu.random.build
 	docker-compose up -d 7.4.ubuntu.random
+7.4.ubuntu.random.load:
+	echo "GET http://localhost:6666?seed=460" | vegeta attack -format=http -duration=${DURATION} -keepalive=false -max-workers=30 -rate=0 | tee results.bin | vegeta report
 
 # PHP 8.0 on ubuntu
 8.0.ubuntu.build:
