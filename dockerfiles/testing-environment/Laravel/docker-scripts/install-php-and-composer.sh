@@ -28,5 +28,4 @@ update-alternatives --install /usr/bin/php-fpm php-fpm /usr/sbin/php-fpm${PHP_VE
 php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 php composer-setup.php --quiet --filename=composer --install-dir=/usr/local/bin/
 
-
 rm -rf /var/lib/apt/lists/*
