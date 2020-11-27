@@ -25,12 +25,12 @@ RUN echo "<?php echo 'hi from php'; ?>" > /var/www/html/public/index.php
 
 # # Adding configuration files
 ADD dockerfiles/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
-# ADD dockerfiles/ubuntu/nginx.conf /etc/nginx/nginx.conf
+ADD dockerfiles/nginx.conf /etc/nginx/nginx.conf
 ADD dockerfiles/php-fpm.conf /etc/php/${PHP_VERSION}/fpm/php-fpm.conf
 # ADD dockerfiles/ubuntu/opcache.ini /etc/php/${PHP_VERSION}/fpm/conf.d/10-opcache.ini
 # ADD dockerfiles/ubuntu/logging.ini /etc/php/${PHP_VERSION}/fpm/80-logging.ini
 
 # ADD dockerfiles/ubuntu/local-run.sh /scripts/local-run.sh
 
-EXPOSE 9000
-CMD [ "php-fpm", "-R", "-F" ]
+EXPOSE 80
+CMD [ "supervisord" ]
