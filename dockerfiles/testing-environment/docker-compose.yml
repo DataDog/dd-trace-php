@@ -1,0 +1,27 @@
+version: "3.7"
+
+services:
+
+  7.4.ubuntu.random:
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-randomtests:7.4"
+    depends_on:
+      - agent
+    ports:
+      - 6666:80
+    environment:
+      - DD_AGENT_HOST=agent
+      - TRACER_DOWNLOAD_URL=https://286700-119990860-gh.circle-artifacts.com/0/datadog-php-tracer_1.0.0-nightly_amd64.deb
+      - DD_SERVICE=random-74
+      # - DD_TRACE_DEBUG=true
+    command: [ "/scripts/local-run.sh" ]
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true
+      - DD_APM_ENV=testenv

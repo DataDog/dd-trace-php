@@ -30,7 +30,7 @@ ADD dockerfiles/php-fpm.conf /etc/php/${PHP_VERSION}/fpm/php-fpm.conf
 # ADD dockerfiles/ubuntu/opcache.ini /etc/php/${PHP_VERSION}/fpm/conf.d/10-opcache.ini
 # ADD dockerfiles/ubuntu/logging.ini /etc/php/${PHP_VERSION}/fpm/80-logging.ini
 
-# ADD dockerfiles/ubuntu/local-run.sh /scripts/local-run.sh
+ADD dockerfiles/ubuntu/local-run.sh /scripts/local-run.sh
 
 EXPOSE 80
 CMD [ "supervisord" ]
