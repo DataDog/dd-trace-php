@@ -112,9 +112,8 @@ services:
       context: .
       dockerfile: Dockerfile_alpine
       args:
-        php_version: 8.0.0RC5
-        php_url: https://github.com/php/php-src/archive/php-8.0.0RC5.tar.gz
-        php_sha: ec5836f816e17fd8a281f671bb247b4c420f8de23fb425d599877cd911a54230
+        php_version: 8.0.0
+        php_sha: 3ed7b48d64357d3e8fa9e828dbe7416228f84105b8290c2f9779cd66be31ea71
         php_api: 20200930
     command: build-dd-trace-php
     volumes:
