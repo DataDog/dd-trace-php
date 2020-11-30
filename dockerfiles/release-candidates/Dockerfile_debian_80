@@ -1,4 +1,4 @@
-FROM php:8.0.0RC3-fpm-buster
+FROM php:8.0-rc-fpm-buster
 
 # Install PDO MySQL + OPcache
 RUN set -eux; \
