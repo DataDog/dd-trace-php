@@ -36,7 +36,20 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+        ### Added
+        - Laravel 8 support #1100 #1102
+        - Enable Yii 2 on PHP 8 #1106
+        - Add PHP 8 asan tests #1108
+
+        ### Changed
+        - Use the observer API on PHP 8 #1089
+        - Remove integrations that do not yet support PHP 8 #1103
+        - Update containers to PHP 8.0.0 #1111
+
+        ### Fixed
+        - Fix distributed tracing on PHP 8 #1099
+    </notes>
     <contents>
         <dir name="/">
             <!-- Shared -->
