@@ -1220,7 +1220,7 @@ workflows:
                 - php:7.2-fpm-alpine
                 - php:7.3-fpm-alpine
                 - php:7.4-fpm-alpine
-                - php:8.0.0RC4-fpm-alpine # Add RC5 when available
+                - php:8.0-rc-fpm-alpine
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 54 PECL tests"
@@ -1440,7 +1440,7 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
-          xdebug_version_one: "3.0.0beta1"
+          xdebug_version_one: "3.0.0"
       - placeholder:
           requires: [ 'Prepare Code' ]
           name: Language tests

@@ -10,7 +10,7 @@ ddtrace.request_init_hook={PWD}/../fake_request_init_hook.inc
 ddtrace.traced_internal_functions=array_sum
 --FILE--
 <?php
-if (!extension_loaded('xdebug') || version_compare(phpversion('xdebug'), '3.0.0beta1') < 0) die('Xdebug 3.0.0+ required');
+if (!extension_loaded('xdebug') || version_compare(phpversion('xdebug'), '3.0.0') < 0) die('Xdebug 3.0.0+ required');
 
 var_dump(array_sum([1, 2, 3]));
 

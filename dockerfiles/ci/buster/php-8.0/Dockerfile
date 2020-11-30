@@ -72,20 +72,20 @@ RUN set -eux; \
         yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \
         pecl install ast; echo "extension=ast.so" >> ${iniDir}/ast.ini; \
         #yes 'no' | pecl install memcached; \ # TODO Does not support PHP 8 yet
-        #pecl install mongodb; \ # TODO Does not support PHP 8 yet
-        pecl install redis-5.3.2RC2; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
+        pecl install mongodb; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
+        pecl install redis-5.3.2; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
         # Xdebug is disabled by default
-        pecl install xdebug-3.0.0beta1; \
+        pecl install xdebug-3.0.0; \
         cd $(php-config --extension-dir); \
-        mv xdebug.so xdebug-3.0.0beta1.so; \
+        mv xdebug.so xdebug-3.0.0.so; \
     done;
 
 RUN set -eux; \
 # Set the default PHP version
-    switch-php ${PHP_VERSION}-debug; \
+    switch-php ${PHP_VERSION}-debug;
+
 # Install Composer
-    curl -q https://raw.githubusercontent.com/composer/getcomposer.org/76a7060ccb93902cd7576b67264ad91c8a2700e2/web/installer | \
-    sudo php -- --filename=composer --install-dir=/usr/local/bin;
+COPY --from=composer:1 /usr/bin/composer /usr/local/bin/composer
 
 COPY welcome /etc/motd
 
