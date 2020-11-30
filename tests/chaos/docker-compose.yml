@@ -1,0 +1,72 @@
+version: '3.7'
+
+services:
+
+  nginx:
+    image: nginx
+    ports:
+      - 8000:80
+    volumes:
+      - ./app:/var/www/html
+      - ./dockerfiles/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - php-fpm
+
+  php-fpm:
+    ulimits:
+      core: 99999999999
+    build:
+      args:
+        php_version: 7.4
+      context: dockerfiles/php-fpm
+    privileged: true
+    volumes:
+      - composer_cache:/root/.composer
+      - ./app:/var/www/html
+      - ./tracer-versions:/tracer-versions
+    environment:
+      TRACER_VERSION: ${TRACER_VERSION}
+      DD_AGENT_HOST: agent
+      DD_TRACE_DEBUG: 'false'
+      DD_SERVICE: random_tests
+      DD_ENV: entrophy
+      DD_TRACE_ENABLED: 'true'
+    depends_on:
+      - agent
+      - elasticsearch
+      - redis
+      - memcached
+      - mysql
+      - httpbin
+
+  redis:
+    image: redis:latest
+
+  httpbin:
+    image: kennethreitz/httpbin
+
+  memcached:
+    image: "memcached:1.5-alpine"
+
+  elasticsearch:
+    image: "elasticsearch:6.8.13"
+
+  mysql:
+    image: mysql:5.7
+    environment:
+      - MYSQL_ROOT_PASSWORD=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_USER=test
+      - MYSQL_DATABASE=test
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /proc/:/host/proc/:ro
+    - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+    - DD_API_KEY=${DATADOG_API_KEY}
+
+volumes:
+    composer_cache:
