@@ -168,10 +168,13 @@ PHP_MAJOR_MINOR=$(invoke_php -r 'echo PHP_MAJOR_VERSION;').$(invoke_php -r 'echo
 PHP_CFG_DIR=$(invoke_php -i | grep 'Scan this dir for additional .ini files =>' | sed -e 's/Scan this dir for additional .ini files =>//g' | head -n 1 | awk '{print $1}')
 
 PHP_THREAD_SAFETY=$(invoke_php -i | grep 'Thread Safety' | awk '{print $NF}' | grep -i enabled)
+PHP_DEBUG_BUILD=$(invoke_php -i | grep 'Debug Build => ' | awk '{print $NF}' | grep -i yes)
 
 VERSION_SUFFIX=""
 if [[ -n $PHP_THREAD_SAFETY ]]; then
     VERSION_SUFFIX="-zts"
+elif [[ -n $PHP_DEBUG_BUILD ]]; then
+    VERSION_SUFFIX="-debug"
 fi
 
 OS_SPECIFIER=""

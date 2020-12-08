@@ -875,7 +875,7 @@ jobs:
           name: Build zts configuration
           command: |
             switch-php << parameters.php_version >>-zts
-            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
+            make clean all ECHO_ARG="-e" CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra <<# parameters.catch_warnings >> -Werror <</ parameters.catch_warnings >>"
             cp tmp/build_extension/.libs/ddtrace.so extensions/ddtrace-<< parameters.so_suffix >>-zts.so
       - persist_to_workspace:
           root: '.'
@@ -983,117 +983,78 @@ workflows:
                 - '7.3'
                 - '7.4'
                 - '8.0'
-      - compile_extension:
-          name: "Compile PHP 54"
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_4"
-          catch_warnings: false
-          lib_curl_command: yum -y install libcurl-devel
-          so_suffix: "20100412"
-          requires: [ 'Prepare Code' ]
       - compile_extension_ex:
-          name: "Compile PHP 55"
-          docker_image: "datadog/dd-trace-ci:php-5.5_centos-6"
-          php_version: "5.5"
+          requires: [ 'Prepare Code' ]
+          name: "Compile PHP 54 nts + zts + debug"
+          php_version: "5.4"
+          docker_image: "datadog/dd-trace-ci:php-5.4_centos-6"
+          so_suffix: "20100412"
           catch_warnings: false
+      - compile_extension_ex:
+          requires: [ 'Prepare Code' ]
+          name: "Compile PHP 55 nts + zts + debug"
+          php_version: "5.5"
+          docker_image: "datadog/dd-trace-ci:php-5.5_centos-6"
           so_suffix: "20121113"
+          catch_warnings: false
+      - compile_extension_ex:
           requires: [ 'Prepare Code' ]
-      - compile_extension:
-          requires: [ 'Prepare Code' ]
-          name: "Compile PHP 56"
-          lib_curl_command: yum -y install libcurl-devel
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_5_6"
+          name: "Compile PHP 56 nts + zts + debug"
+          php_version: "5.6"
+          docker_image: "datadog/dd-trace-ci:php-5.6_centos-6"
           so_suffix: "20131106"
-      - compile_extension:
+      - compile_extension_ex:
           requires: [ 'Prepare Code' ]
-          name: "Compile PHP 70"
-          lib_curl_command: yum -y install libcurl-devel
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_0"
+          name: "Compile PHP 70 nts + zts + debug"
+          php_version: "7.0"
+          docker_image: "datadog/dd-trace-ci:php-7.0_centos-6"
           so_suffix: "20151012"
-      - compile_extension:
+      - compile_extension_ex:
           requires: [ 'Prepare Code' ]
-          name: "Compile PHP 71"
-          lib_curl_command: yum -y install libcurl-devel
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_1"
+          name: "Compile PHP 71 nts + zts + debug"
+          php_version: "7.1"
+          docker_image: "datadog/dd-trace-ci:php-7.1_centos-6"
           so_suffix: "20160303"
-      - compile_extension:
+      - compile_extension_ex:
           requires: [ 'Prepare Code' ]
-          name: "Compile PHP 72"
-          lib_curl_command: yum -y install libcurl-devel
-          docker_image: "datadog/docker-library:ddtrace_centos_6_php_7_2"
+          name: "Compile PHP 72 nts + zts + debug"
+          php_version: "7.2"
+          docker_image: "datadog/dd-trace-ci:php-7.2_centos-6"
           so_suffix: "20170718"
-      - compile_extension:
+      - compile_extension_ex:
           requires: [ 'Prepare Code' ]
-          name: "Compile PHP 73"
-          docker_image: "datadog/dd-trace-ci:php-7.3-centos-7"
+          name: "Compile PHP 73 nts + zts + debug"
+          php_version: "7.3"
+          docker_image: "datadog/dd-trace-ci:php-7.3_centos-6"
           so_suffix: "20180731"
-      - compile_extension:
+          catch_warnings: false # On debug builds: unused parameter '__zend_filename'
+      - compile_extension_ex:
           requires: [ 'Prepare Code' ]
-          name: "Compile PHP 74"
-          docker_image: "datadog/dd-trace-ci:php-7.4-centos-7"
+          name: "Compile PHP 74 nts + zts + debug"
+          php_version: "7.4"
+          docker_image: "datadog/dd-trace-ci:php-7.4_centos-6"
           so_suffix: "20190902"
       - compile_extension_ex:
-          name: "Compile PHP 80"
+          requires: [ 'Prepare Code' ]
+          name: "Compile PHP 80 nts + zts + debug"
           docker_image: "datadog/dd-trace-ci:php-8.0_centos-6"
           php_version: "8.0"
           so_suffix: "20200930"
-          requires: [ 'Prepare Code' ]
-      - compile_extension:
-          requires: [ 'Prepare Code' ]
-          name: "Compile PHP 56-zts"
-          docker_image: "circleci/php:5.6-zts"
-          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-          so_suffix: "20131106-zts"
-      - compile_extension:
-          requires: [ 'Prepare Code' ]
-          name: "Compile PHP 70-zts"
-          docker_image: "circleci/php:7.0-zts"
-          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-          so_suffix: "20151012-zts"
-      - compile_extension:
-          requires: [ 'Prepare Code' ]
-          name: "Compile PHP 71-zts"
-          docker_image: "circleci/php:7.1-zts"
-          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-          so_suffix: "20160303-zts"
-      - compile_extension:
-          requires: [ 'Prepare Code' ]
-          name: "Compile PHP 72-zts"
-          docker_image: "circleci/php:7.2-zts"
-          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-          so_suffix: "20170718-zts"
-      - compile_extension:
-          requires: [ 'Prepare Code' ]
-          name: "Compile PHP 73-zts"
-          docker_image: "circleci/php:7.3-zts"
-          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-          so_suffix: "20180731-zts"
-      - compile_extension:
-          requires: [ 'Prepare Code' ]
-          name: "Compile PHP 74-zts"
-          docker_image: "circleci/php:7.4-zts"
-          lib_curl_command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-          so_suffix: "20190902-zts"
       - pecl_build:
           requires: [ 'Prepare Code' ]
           name: "Build PECL"
       - "package extension":
           requires:
             - compile_alpine
-            - "Compile PHP 54"
-            - "Compile PHP 55"
-            - "Compile PHP 56"
-            - "Compile PHP 70"
-            - "Compile PHP 71"
-            - "Compile PHP 72"
-            - "Compile PHP 73"
-            - "Compile PHP 74"
-            - "Compile PHP 80"
-            - "Compile PHP 56-zts"
-            - "Compile PHP 70-zts"
-            - "Compile PHP 71-zts"
-            - "Compile PHP 72-zts"
-            - "Compile PHP 73-zts"
-            - "Compile PHP 74-zts"
+            - "Compile PHP 54 nts + zts + debug"
+            - "Compile PHP 55 nts + zts + debug"
+            - "Compile PHP 56 nts + zts + debug"
+            - "Compile PHP 70 nts + zts + debug"
+            - "Compile PHP 71 nts + zts + debug"
+            - "Compile PHP 72 nts + zts + debug"
+            - "Compile PHP 73 nts + zts + debug"
+            - "Compile PHP 74 nts + zts + debug"
+            - "Compile PHP 80 nts + zts + debug"
             - "Build PECL"
       - "package verification":
           requires:

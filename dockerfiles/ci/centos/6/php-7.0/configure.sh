@@ -10,9 +10,8 @@ ${PHP_SRC_DIR}/configure \
     --enable-fpm \
     --enable-ftp \
     --enable-mbstring \
-    --enable-mysqlnd \
     --enable-opcache \
-    --enable-pdo \
+    --enable-phpdbg \
     --enable-sockets \
     --enable-zip \
     --with-curl \

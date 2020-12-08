@@ -76,7 +76,7 @@ services:
       args:
         PHP_MAJOR_MINOR: '7.0'
         MCRYPT_PACKAGE: mcrypt
-  '7.0-centos': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_centos_6_php_7_0' }
+  '7.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-6' }
   '7.0-debug-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.0-debug-buster' }
   '7.0-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.0-debug' }
   '7.0-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.0-zts' }
@@ -93,7 +93,7 @@ services:
   '7.1-debug-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1-debug-buster' }
   '7.1-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-debug' }
   '7.1-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.1-zts' }
-  '7.1-centos6': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_centos_6_php_7_1' }
+  '7.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-6' }
   '7.1-centos-compiled': { <<: *base_php_service, build: 'dockerfiles/verify_packages/centos7-compiled' }
   '7.2':
     <<: *base_php_service
@@ -118,6 +118,7 @@ services:
       args:
         PHP_MAJOR_MINOR: '7.3'
         MCRYPT_PACKAGE: mcrypt-1.0.3
+  '7.3-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-6' }
   '7.3-debug-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3-debug-buster' }
   '7.3-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-debug' }
   '7.3-zts-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.3-zts-debug' }
@@ -126,7 +127,7 @@ services:
   '7.4-debug': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
   '7.4-debug-asan': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-asan-buster' }
   '8.0': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
-  '8.0-centos': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
+  '8.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
   'php-master': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }
   'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }

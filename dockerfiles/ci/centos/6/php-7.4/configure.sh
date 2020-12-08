@@ -10,11 +10,9 @@ ${PHP_SRC_DIR}/configure \
     --enable-fpm \
     --enable-ftp \
     --enable-mbstring \
-    --enable-mysqlnd \
     --enable-opcache \
-    --enable-pdo \
+    --enable-phpdbg \
     --enable-sockets \
-    --enable-zip \
     --with-curl \
     --with-fpm-user=www-data \
     --with-fpm-group=www-data \
@@ -25,6 +23,7 @@ ${PHP_SRC_DIR}/configure \
     --with-pdo-mysql=mysqlnd \
     --with-pear \
     --with-readline \
+    --with-zip \
     --with-zlib \
     --without-pdo-sqlite \
     --without-sqlite3 \

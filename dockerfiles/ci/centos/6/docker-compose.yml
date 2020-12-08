@@ -1,10 +1,82 @@
 version: '3'
 
 services:
+  base:
+    image: 'datadog/dd-trace-ci:centos-6'
+    build:
+      context: .
+
+  php-5.4:
+    build:
+      context: ./php-5.4
+      args:
+        phpVersion: 5.4
+        phpTarGzUrl: https://www.php.net/distributions/php-5.4.45.tar.gz
+        phpSha256Hash: 25bc4723955f4e352935258002af14a14a9810b491a19400d76fcdfa9d04b28f
+    image: 'datadog/dd-trace-ci:php-5.4_centos-6'
+
   php-5.5:
     build:
       context: ./php-5.5
+      args:
+        phpVersion: 5.5
+        phpTarGzUrl: https://www.php.net/distributions/php-5.5.38.tar.gz
+        phpSha256Hash: 4f458c9b504269615715a62f182b7c2f89bb8284f484befc221b56a1571b506e
     image: 'datadog/dd-trace-ci:php-5.5_centos-6'
+
+  php-5.6:
+    build:
+      context: ./php-5.6
+      args:
+        phpVersion: 5.6
+        phpTarGzUrl: https://www.php.net/distributions/php-5.6.40.tar.gz
+        phpSha256Hash: 56fb9878d12fdd921f6a0897e919f4e980d930160e154cbde2cc6d9206a27cac
+    image: 'datadog/dd-trace-ci:php-5.6_centos-6'
+
+  php-7.0:
+    build:
+      context: ./php-7.0
+      args:
+        phpVersion: 7.0
+        phpTarGzUrl: https://www.php.net/distributions/php-7.0.33.tar.gz
+        phpSha256Hash: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
+    image: 'datadog/dd-trace-ci:php-7.0_centos-6'
+
+  php-7.1:
+    build:
+      context: ./php-7.1
+      args:
+        phpVersion: 7.1
+        phpTarGzUrl: https://www.php.net/distributions/php-7.1.33.tar.gz
+        phpSha256Hash: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
+    image: 'datadog/dd-trace-ci:php-7.1_centos-6'
+
+  php-7.2:
+    build:
+      context: ./php-7.2
+      args:
+        phpVersion: 7.2
+        phpTarGzUrl: https://www.php.net/distributions/php-7.2.34.tar.gz
+        phpSha256Hash: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
+    image: 'datadog/dd-trace-ci:php-7.2_centos-6'
+
+  php-7.3:
+    build:
+      context: ./php-7.3
+      args:
+        phpVersion: 7.3
+        phpTarGzUrl: https://www.php.net/distributions/php-7.3.25.tar.gz
+        phpSha256Hash: 097c7a2a2f9189b33799d79ee5a8aac68a4d72696c1cd69c66ef5d0941ce28ad
+    image: 'datadog/dd-trace-ci:php-7.3_centos-6'
+
+  php-7.4:
+    build:
+      context: ./php-7.4
+      args:
+        phpVersion: 7.4
+        phpTarGzUrl: https://www.php.net/distributions/php-7.4.13.tar.gz
+        phpSha256Hash: 0865cff41e7210de2537bcd5750377cfe09a9312b9b44c1a166cf372d5204b8f
+    image: 'datadog/dd-trace-ci:php-7.4_centos-6'
 
   php-8.0:
     build:
