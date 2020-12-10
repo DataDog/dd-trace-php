@@ -487,6 +487,22 @@ class UriTest extends BaseTestCase
         );
     }
 
+    public function testQueryStringHasParams()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_QUERY_STRING_RESOURCE_PARAMS=foo',
+        ]);
+
+        $this->assertSame(
+            '/int/?/nested/some?foo=value',
+            \DDtrace\Private_\util_uri_normalize_incoming_path('/int/123/nested/some?foo=value&bar=value')
+        );
+        $this->assertSame(
+            '/int/?/nested/some?foo=value',
+            \DDtrace\Private_\util_uri_normalize_outgoing_path('/int/123/nested/some?foo=value&bar=value')
+        );
+    }
+
     public function testQueryStringIsRemoved()
     {
         $this->assertSame(

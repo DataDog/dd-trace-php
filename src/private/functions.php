@@ -53,8 +53,37 @@ function _util_uri_apply_rules($uriPath, $incoming)
         return '/';
     }
 
-    // Removing query string
-    $uriPath = strstr($uriPath, '?', true) ? : $uriPath;
+    if (empty(\ddtrace_config_path_query_resource_params())) {
+        // Removing query string
+        $uriPath = strstr($uriPath, '?', true) ? : $uriPath;
+    } else {
+        $queryParams = \ddtrace_config_path_query_resource_params();
+        $parts = explode('?', $uriPath);
+
+        // Removing query string
+        $uriPath = strstr($uriPath, '?', true) ? : $uriPath;
+
+        // Check if we have a query string
+        if (count($parts) > 1) {
+            $fragments = explode('&', $parts[1]);
+            $fragmentsAllowed = [];
+
+            foreach ($fragments as $fragment) {
+                if ('' === $fragment) {
+                    continue;
+                }
+
+                $key = explode('=', $fragment)[0];
+                if (in_array($key, $queryParams)) {
+                    array_push($fragmentsAllowed, $fragment);
+                }
+            }
+
+            if (!empty($fragmentsAllowed)) {
+                $uriPath .= '?' . implode('&', $fragmentsAllowed);
+            }
+        }
+    }
 
     // We always expect leading slash if it is a pure path, while urls with RFC3986 complaint schemes are preserved.
     // See: https://tools.ietf.org/html/rfc3986#page-17
