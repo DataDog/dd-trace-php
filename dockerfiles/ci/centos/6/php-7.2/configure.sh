@@ -22,9 +22,9 @@ ${PHP_SRC_DIR}/configure \
     --with-mysqli=mysqlnd \
     --with-openssl \
     --with-pdo-mysql=mysqlnd \
+    --with-pdo-pgsql \
+    --with-pdo-sqlite \
     --with-pear \
     --with-readline \
     --with-zlib \
-    --without-pdo-sqlite \
-    --without-sqlite3 \
     $@

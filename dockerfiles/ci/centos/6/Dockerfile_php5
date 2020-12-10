@@ -18,7 +18,7 @@ RUN set -eux; \
     rm -f /tmp/php.tar.gz;
 
 FROM base as build
-COPY configure.sh /root/
+COPY php-${PHP_VERSION}/configure.sh /root/
 
 FROM build as php-zts
 RUN set -eux; \
@@ -69,4 +69,4 @@ RUN set -eux; \
 
 RUN set -eux; \
 # Set the default PHP version
-    switch-php ${PHP_VERSION}-debug;
+    switch-php ${PHP_VERSION};

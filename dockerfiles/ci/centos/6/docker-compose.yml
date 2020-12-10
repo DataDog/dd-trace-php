@@ -8,7 +8,8 @@ services:
 
   php-5.4:
     build:
-      context: ./php-5.4
+      context: .
+      dockerfile: Dockerfile_php5
       args:
         phpVersion: 5.4
         phpTarGzUrl: https://www.php.net/distributions/php-5.4.45.tar.gz
@@ -17,7 +18,8 @@ services:
 
   php-5.5:
     build:
-      context: ./php-5.5
+      context: .
+      dockerfile: Dockerfile_php5
       args:
         phpVersion: 5.5
         phpTarGzUrl: https://www.php.net/distributions/php-5.5.38.tar.gz
@@ -26,7 +28,8 @@ services:
 
   php-5.6:
     build:
-      context: ./php-5.6
+      context: .
+      dockerfile: Dockerfile_php5
       args:
         phpVersion: 5.6
         phpTarGzUrl: https://www.php.net/distributions/php-5.6.40.tar.gz
@@ -35,7 +38,8 @@ services:
 
   php-7.0:
     build:
-      context: ./php-7.0
+      context: .
+      dockerfile: Dockerfile_php7
       args:
         phpVersion: 7.0
         phpTarGzUrl: https://www.php.net/distributions/php-7.0.33.tar.gz
@@ -44,7 +48,8 @@ services:
 
   php-7.1:
     build:
-      context: ./php-7.1
+      context: .
+      dockerfile: Dockerfile_php7
       args:
         phpVersion: 7.1
         phpTarGzUrl: https://www.php.net/distributions/php-7.1.33.tar.gz
@@ -53,7 +58,8 @@ services:
 
   php-7.2:
     build:
-      context: ./php-7.2
+      context: .
+      dockerfile: Dockerfile_php7
       args:
         phpVersion: 7.2
         phpTarGzUrl: https://www.php.net/distributions/php-7.2.34.tar.gz
@@ -62,7 +68,8 @@ services:
 
   php-7.3:
     build:
-      context: ./php-7.3
+      context: .
+      dockerfile: Dockerfile_php7
       args:
         phpVersion: 7.3
         phpTarGzUrl: https://www.php.net/distributions/php-7.3.25.tar.gz
@@ -71,7 +78,8 @@ services:
 
   php-7.4:
     build:
-      context: ./php-7.4
+      context: .
+      dockerfile: Dockerfile_php7
       args:
         phpVersion: 7.4
         phpTarGzUrl: https://www.php.net/distributions/php-7.4.13.tar.gz
@@ -80,7 +88,8 @@ services:
 
   php-8.0:
     build:
-      context: ./php-8.0
+      context: .
+      dockerfile: Dockerfile_php8
       args:
         phpVersion: 8.0
         phpTarGzUrl: https://www.php.net/distributions/php-8.0.0.tar.gz

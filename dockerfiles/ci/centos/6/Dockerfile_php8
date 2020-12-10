@@ -15,16 +15,17 @@ RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
-    rm -f /tmp/php.tar.gz;
+    rm -f /tmp/php.tar.gz; \
+    ${PHP_SRC_DIR}/buildconf --force;
 
 FROM base as build
-COPY configure.sh /root/
+COPY php-${PHP_VERSION}/configure.sh /root/
 
 FROM build as php-zts
 RUN set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /root/configure.sh \
-        --enable-maintainer-zts \
+        --enable-zts \
         --prefix=${PHP_INSTALL_DIR_ZTS} \
         --with-config-file-path=${PHP_INSTALL_DIR_ZTS} \
         --with-config-file-scan-dir=${PHP_INSTALL_DIR_ZTS}/conf.d; \
@@ -60,13 +61,6 @@ COPY --from=php-zts $PHP_INSTALL_DIR_ZTS $PHP_INSTALL_DIR_ZTS
 COPY --from=php-debug $PHP_INSTALL_DIR_DEBUG_NTS $PHP_INSTALL_DIR_DEBUG_NTS
 COPY --from=php-nts $PHP_INSTALL_DIR_NTS $PHP_INSTALL_DIR_NTS
 
-# Set default INI settings
-RUN set -eux; \
-    for phpVer in $(ls ${PHP_INSTALL_DIR}); \
-    do \
-        sed 's/;date.timezone =/date.timezone = UTC/' <${PHP_SRC_DIR}/php.ini-development >${PHP_INSTALL_DIR}/${phpVer}/etc/php.ini; \
-    done;
-
 RUN set -eux; \
 # Set the default PHP version
-    switch-php ${PHP_VERSION}-debug;
+    switch-php ${PHP_VERSION};
