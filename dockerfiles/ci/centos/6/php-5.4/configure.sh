@@ -11,7 +11,6 @@ ${PHP_SRC_DIR}/configure \
     --enable-ftp \
     --enable-mbstring \
     --enable-mysqlnd \
-    --enable-opcache \
     --enable-pdo \
     --enable-sockets \
     --enable-zip \

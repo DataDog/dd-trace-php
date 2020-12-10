@@ -118,6 +118,7 @@ dist_clean:
 
 clean:
 	$(MAKE) -C $(BUILD_DIR) clean
+	$(Q) rm -f $(BUILD_DIR)/configure*
 	$(Q) rm -f $(SO_FILE)
 	$(Q) rm -f composer.lock
 
