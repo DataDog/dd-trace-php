@@ -267,6 +267,7 @@
             <file name="src/dogstatsd/dogstatsd_client/client.h" role="src" />
 
             <!-- Tests -->
+            <file name="tests/C2PHP/get_context_distributed_tracing_test.phpt" role="test" />
             <file name="tests/ext/call_user_func/namespaced-array.phpt" role="test" />
             <file name="tests/ext/call_user_func/namespaced.phpt" role="test" />
             <file name="tests/ext/call_user_func/not-namespaced-array.phpt" role="test" />
