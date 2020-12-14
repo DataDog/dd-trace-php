@@ -4,4 +4,6 @@ BasedOnStyle: Google
 Language: Cpp
 ColumnLimit: 120
 IndentWidth: 4
+AccessModifierOffset: 0
+BreakConstructorInitializers: AfterColon
 ---

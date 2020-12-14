@@ -82,9 +82,8 @@ install(
 )
 
 # Add infrastructure for enabling tests
-option(BUILD_TESTING "Enable tests" OFF)
-include(CTest)
-if (${BUILD_TESTING})
+option(BUILD_MEMHHASH_TESTING "Enable tests" OFF)
+if (${BUILD_MEMHHASH_TESTING})
   enable_testing()
   add_subdirectory(test)
 endif()

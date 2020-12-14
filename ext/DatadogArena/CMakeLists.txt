@@ -27,11 +27,41 @@ set_target_properties(DatadogArena PROPERTIES
 add_library(Datadog::Arena ALIAS DatadogArena)
 
 # Add infrastructure for enabling tests
-option(BUILD_TESTING "Enable tests" ON)
-include(CTest)
-if (${BUILD_TESTING})
+option(BUILD_ARENA_TESTING "Enable tests" OFF)
+if (${BUILD_ARENA_TESTING})
   enable_testing()
   add_subdirectory(test)
 endif()
 
-# todo: add stuff for installing the library
+install(
+  TARGETS DatadogArena
+  EXPORT DatadogArenaTargets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+  PUBLIC_HEADER DESTINATION include
+  INCLUDES DESTINATION include
+)
+
+install(
+  EXPORT DatadogArenaTargets
+  NAMESPACE Datadog::
+  DESTINATION share/cmake/DatadogArena
+)
+
+export(
+  TARGETS DatadogArena
+  FILE DatadogArenaExports.cmake
+)
+
+include(CMakePackageConfigHelpers)
+
+write_basic_package_version_file("DatadogArenaVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY ExactVersion
+)
+
+install(
+  FILES "${PROJECT_BINARY_DIR}/DatadogArenaVersion.cmake"
+  DESTINATION share/cmake/DatadogArena
+)
