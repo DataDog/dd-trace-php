@@ -441,7 +441,8 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     add_next_index_zval(array, el);
 }
 
-static void dd_fatal_error_type(int code, zval **type) {
+static zval *dd_fatal_error_type(int code) {
+    zval *type = NULL;
     const char *error_type = "{unknown error}";
     switch (code) {
         case E_ERROR:
@@ -457,11 +458,13 @@ static void dd_fatal_error_type(int code, zval **type) {
             error_type = "E_USER_ERROR";
             break;
     }
-    MAKE_STD_ZVAL(*type);
-    ZVAL_STRING(*type, error_type, 1);
+    MAKE_STD_ZVAL(type);
+    ZVAL_STRING(type, error_type, 1);
+    return type;
 }
 
-static void dd_fatal_error_msg(const char *format, va_list args, zval **msg) {
+static zval *dd_fatal_error_msg(const char *format, va_list args) {
+    zval *msg = NULL;
     va_list args2;
     char *buffer;
 
@@ -469,11 +472,11 @@ static void dd_fatal_error_msg(const char *format, va_list args, zval **msg) {
     int buffer_len = vspprintf(&buffer, 0, format, args2);
     va_end(args2);
 
-    MAKE_STD_ZVAL(*msg);
+    MAKE_STD_ZVAL(msg);
     if (buffer_len <= 0) {
-        ZVAL_STRING(*msg, "Unknown error", 1);
+        ZVAL_STRING(msg, "Unknown error", 1);
         efree(buffer);
-        return;
+        return msg;
     }
 
     /* In PHP 5 an uncaught exception results in a fatal error. The error
@@ -491,18 +494,20 @@ static void dd_fatal_error_msg(const char *format, va_list args, zval **msg) {
             *newline = '\0';
             size_t linelen = newline - buffer;
             // +1 for null terminator
-            ZVAL_STRINGL(*msg, buffer, linelen + 1, 1);
+            ZVAL_STRINGL(msg, buffer, linelen + 1, 1);
         } else {
             // This is suspect; there is always a newline in these messages
-            ZVAL_STRING(*msg, "Unknown uncaught exception", 1);
+            ZVAL_STRING(msg, "Unknown uncaught exception", 1);
         }
     } else {
-        ZVAL_STRING(*msg, buffer, 1);
+        ZVAL_STRING(msg, buffer, 1);
     }
     efree(buffer);
+    return msg;
 }
 
-static void dd_fatal_error_stack(zval **stack) {
+static zval *dd_fatal_error_stack(void) {
+    zval *stack = NULL;
     zval *trace;
     TSRMLS_FETCH();
 
@@ -511,11 +516,12 @@ static void dd_fatal_error_stack(zval **stack) {
     if (Z_TYPE_P(trace) == IS_ARRAY) {
         char *stack_str = dd_serialize_stack_trace(trace TSRMLS_CC);
         if (stack_str) {
-            MAKE_STD_ZVAL(*stack);
-            ZVAL_STRING(*stack, stack_str, 0);
+            MAKE_STD_ZVAL(stack);
+            ZVAL_STRING(stack, stack_str, 0);
         }
     }
     zval_ptr_dtor(&trace);
+    return stack;
 }
 
 typedef struct dd_error_info {
@@ -524,7 +530,7 @@ typedef struct dd_error_info {
     zval *stack;
 } dd_error_info;
 
-static int dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
+static void dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
     if (error.type) {
         Z_ADDREF_P(error.type);
         add_assoc_zval(meta, "error.type", error.type);
@@ -537,14 +543,13 @@ static int dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
         Z_ADDREF_P(error.stack);
         add_assoc_zval(meta, "error.stack", error.stack);
     }
-    return error.type && error.msg ? SUCCESS : FAILURE;
 }
 
 static dd_error_info dd_fatal_error(int type, const char *format, va_list args) {
     dd_error_info error = {0};
-    dd_fatal_error_type(type, &error.type);
-    dd_fatal_error_msg(format, args, &error.msg);
-    dd_fatal_error_stack(&error.stack);
+    error.type = dd_fatal_error_type(type);
+    error.msg = dd_fatal_error_msg(format, args);
+    error.stack = dd_fatal_error_stack();
     return error;
 }
 
@@ -583,13 +588,11 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
                     zval *zmeta;
                     MAKE_STD_ZVAL(zmeta);
                     array_init_size(zmeta, ddtrace_num_error_tags);
+                    dd_fatal_error_to_meta(zmeta, error);
                     zend_update_property(ddtrace_ce_span_data, span->span.span_data, ZEND_STRL("meta"),
                                          zmeta TSRMLS_CC);
                     zval_ptr_dtor(&zmeta);
-
-                    meta = _read_span_property(span->span.span_data, ZEND_STRL("meta") TSRMLS_CC);
-                }
-                if (Z_TYPE_P(meta) == IS_ARRAY) {
+                } else if (Z_TYPE_P(meta) == IS_ARRAY) {
                     dd_fatal_error_to_meta(meta, error);
                 }
             }
