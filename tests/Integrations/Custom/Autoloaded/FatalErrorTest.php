@@ -26,8 +26,8 @@ final class FatalErrorTest extends WebFrameworkTestCase
 
     public function testScenario()
     {
-        if (\PHP_MAJOR_VERSION !== 7) {
-            $this->markTestSkipped('Fatal errors on the root span only work on PHP 7');
+        if (\PHP_VERSION_ID < 50500) {
+            self::markTestSkipped('Fatal errors on the root span only work on PHP 5.5+');
         }
         $traces = $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Fatal error tracking', '/fatal');

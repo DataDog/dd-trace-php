@@ -246,22 +246,6 @@ static void dd_register_span_data_ce(TSRMLS_D) {
     zend_declare_property_null(ddtrace_ce_span_data, "metrics", sizeof("metrics") - 1, ZEND_ACC_PUBLIC TSRMLS_CC);
 }
 
-#if PHP_VERSION_ID >= 70000
-// SpanData::$name
-zval *ddtrace_spandata_property_name(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 0); }
-// SpanData::$resource
-zval *ddtrace_spandata_property_resource(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 1); }
-// SpanData::$service
-zval *ddtrace_spandata_property_service(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 2); }
-// SpanData::$type
-zval *ddtrace_spandata_property_type(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 3); }
-// SpanData::$meta
-zval *ddtrace_spandata_property_meta(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 4); }
-// SpanData::$metrics
-zval *ddtrace_spandata_property_metrics(zval *spandata) { return OBJ_PROP_NUM(Z_OBJ_P(spandata), 5); }
-#endif
-
-#if PHP_VERSION_ID < 70000
 static zend_object_handlers ddtrace_fatal_error_handlers;
 /* The goal is to mimic zend_default_exception_new_ex except for adding
  * DEBUG_BACKTRACE_IGNORE_ARGS to zend_fetch_debug_backtrace. We don't want the
@@ -293,7 +277,6 @@ static zend_object_value ddtrace_fatal_error_new(zend_class_entry *class_type TS
 
     return Z_OBJVAL(obj);
 }
-#endif
 
 /* DDTrace\FatalError */
 zend_class_entry *ddtrace_ce_fatal_error;
@@ -301,15 +284,11 @@ zend_class_entry *ddtrace_ce_fatal_error;
 static void dd_register_fatal_error_ce(TSRMLS_D) {
     zend_class_entry ce;
     INIT_NS_CLASS_ENTRY(ce, "DDTrace", "FatalError", NULL);
-#if PHP_VERSION_ID < 70000
     ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
     ddtrace_ce_fatal_error->create_object = ddtrace_fatal_error_new;
     // these mimic zend_register_default_exception
     memcpy(&ddtrace_fatal_error_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
     ddtrace_fatal_error_handlers.clone_obj = NULL;
-#else
-    ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_ce_exception TSRMLS_CC);
-#endif
 }
 
 static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
