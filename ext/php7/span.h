@@ -31,23 +31,20 @@ struct ddtrace_span_fci {
     zend_execute_data *execute_data;
     struct ddtrace_dispatch_t *dispatch;
     ddtrace_exception_t *exception;
-#if PHP_VERSION_ID < 70000
-    ddtrace_execute_data dd_execute_data;
-#endif
     struct ddtrace_span_fci *next;
     ddtrace_span_t span;
 };
 typedef struct ddtrace_span_fci ddtrace_span_fci;
 
-void ddtrace_init_span_stacks(TSRMLS_D);
-void ddtrace_free_span_stacks(TSRMLS_D);
+void ddtrace_init_span_stacks(void);
+void ddtrace_free_span_stacks(void);
 
-void ddtrace_push_span(ddtrace_span_fci *span_fci TSRMLS_DC);
-void ddtrace_open_span(ddtrace_span_fci *span_fci TSRMLS_DC);
+void ddtrace_push_span(ddtrace_span_fci *span_fci);
+void ddtrace_open_span(ddtrace_span_fci *span_fci);
 void dd_trace_stop_span_time(ddtrace_span_t *span);
-void ddtrace_close_span(TSRMLS_D);
-void ddtrace_drop_top_open_span(TSRMLS_D);
-void ddtrace_serialize_closed_spans(zval *serialized TSRMLS_DC);
+void ddtrace_close_span(void);
+void ddtrace_drop_top_open_span(void);
+void ddtrace_serialize_closed_spans(zval *serialized);
 
 // Prefer ddtrace_drop_top_open_span
 void ddtrace_drop_span(ddtrace_span_fci *span_fci);
