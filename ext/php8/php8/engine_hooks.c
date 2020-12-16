@@ -598,7 +598,7 @@ static void dd_fcall_end_tracing_posthook(ddtrace_span_fci *span_fci, zval *user
     // TODO Remove this?
     ddtrace_span_attach_exception(span_fci, EG(exception));
 
-    dd_trace_stop_span_time(&span_fci->span);
+    ddtrace_span_stop(&span_fci->span);
 
     bool keep_span = dd_call_sandboxed_tracing_closure(span_fci, &dispatch->posthook, user_retval);
 
@@ -626,7 +626,7 @@ static void dd_fcall_end_non_tracing_posthook(ddtrace_span_fci *span_fci, zval *
 
 static void dd_fcall_end_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_retval) {
     UNUSED(user_retval);
-    dd_trace_stop_span_time(&span_fci->span);
+    ddtrace_span_stop(&span_fci->span);
 
     dd_set_default_properties();
     ddtrace_close_span();

@@ -18,10 +18,22 @@ ZEND_TLS HashTable *dd_headers = NULL;
 ZEND_TLS bool dd_should_save_headers = true;
 ZEND_TLS zend_function *dd_curl_inject_fn_proxy = NULL;
 
+// Multi-handle API: curl_multi_*()
+struct dd_mh_span {
+    zend_long mh_id;
+    bool finished;
+    ddtrace_span_t span;
+};
+typedef struct dd_mh_span dd_mh_span;
+
+ZEND_TLS HashTable *dd_mh_spans = NULL;
+ZEND_TLS dd_mh_span *dd_mh_span_cache = NULL;
+
 static void (*dd_curl_close_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_exec_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_copy_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_init_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
+static void (*dd_curl_multi_exec_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_setopt_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_setopt_array_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 
@@ -89,6 +101,35 @@ static void dd_init_headers_arg(zval *arg, zval *ch) {
 
 static void dd_free_headers_arg(zval *arg) { zend_array_destroy(Z_ARRVAL_P(arg)); }
 
+static void dd_mh_span_dtor(void *mh_span) {
+    dd_mh_span *mh_s = *((dd_mh_span **)mh_span);
+    ddtrace_spandata_free(&mh_s->span);
+    efree(mh_s);
+}
+
+static void dd_mh_store_span(zval *mh, dd_mh_span *mh_span) {
+    if (!dd_mh_spans) {
+        ALLOC_HASHTABLE(dd_mh_spans);
+        zend_hash_init(dd_mh_spans, 8, NULL, (dtor_func_t)dd_mh_span_dtor, 0);
+    }
+    zend_hash_index_update_ptr(dd_mh_spans, Z_OBJ_HANDLE_P(mh), mh_span);
+    dd_mh_span_cache = mh_span;
+}
+
+static dd_mh_span *dd_mh_fetch_span(zval *mh) {
+    if (dd_mh_span_cache != NULL && dd_mh_span_cache->mh_id == Z_OBJ_HANDLE_P(mh)) {
+        return dd_mh_span_cache;
+    }
+    if (dd_mh_spans) {
+        dd_mh_span *mh_span = zend_hash_index_find_ptr(dd_mh_spans, Z_OBJ_HANDLE_P(mh));
+        if (mh_span) {
+            dd_mh_span_cache = mh_span;
+        }
+        return mh_span;
+    }
+    return NULL;
+}
+
 ZEND_FUNCTION(ddtrace_curl_close) {
     zval *ch;
 
@@ -155,6 +196,64 @@ ZEND_FUNCTION(ddtrace_curl_init) {
 
     if (dd_load_curl_integration() && Z_TYPE_P(return_value) == IS_OBJECT) {
         dd_ch_delete_headers(return_value);
+    }
+}
+
+ZEND_FUNCTION(ddtrace_curl_multi_exec) {
+    zval *z_mh;
+    zval *z_still_running;
+    int still_running;
+    dd_mh_span *mh_span = NULL;
+    bool pop_span_id = false;
+
+    if (!dd_load_curl_integration() ||
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "Oz", &z_mh, curl_multi_ce, &z_still_running) == FAILURE) {
+        dd_curl_multi_exec_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        return;
+    }
+    
+    /* curl_multi_exec() cannot be a root-level span because its span is tracked outside of the regular span stack to prevent inadvertent children spans. This also makes it incompatible with auto flushing. */
+    if (ddtrace_peek_span_id() == 0) {
+        ddtrace_log_debug("curl_multi_exec() cannot be a root-level span");
+        dd_curl_multi_exec_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+        return;
+    }
+
+    mh_span = dd_mh_fetch_span(z_mh);
+    if (mh_span == NULL) {
+        /* We start a short-lived span that will move to the closed-span stack right after this call. We keep track of this span on the multi-handle and stop the span timer as soon as the curl_multi_exec() call finishes. This ensures that the only children spans are the individual curl handle calls that are associated with this multi-handle. */
+        mh_span = ecalloc(1, sizeof(dd_mh_span));
+        mh_span->finished = false;
+        ddtrace_span_start(&mh_span->span);
+
+        // TODO Manually set SpanData::$name = 'curl_multi_exec'
+
+        dd_mh_store_span(z_mh, mh_span);
+        pop_span_id = true;
+    }
+
+    // TODO if a new ch has been added to the mh, push the span ID before injecting
+    // TODO inject DT headers for all curl handles for this mh
+
+    dd_curl_multi_exec_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
+    if (pop_span_id) {
+        /* Since the multi-handle spans are not tracked on the main span stack, we only want to have the span_id available in userland from dd_trace_peek_span_id() for when we inject the distributed-tracing headers on the first call to curl_multi_exec(). */
+        ddtrace_pop_span_id();
+    }
+
+    // Re-parse the params to see if we are still running
+    if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "Oz", &z_mh, curl_multi_ce, &z_still_running) == SUCCESS) {
+        still_running = zval_get_long(z_still_running);
+        // TODO Validate "done" logic
+        if (still_running > 0 && mh_span != NULL && !mh_span->finished) {
+            ddtrace_span_stop(&mh_span->span);
+            mh_span->finished = true;
+
+            // TODO We need something akin to ddtrace_push_closed_span() to add this finished span to the closed span stack
+
+            // TODO Add rich metadata
+        }
     }
 }
 
@@ -242,6 +341,7 @@ void ddtrace_curl_handlers_startup(void) {
         {ZEND_STRL("curl_copy_handle"), &dd_curl_copy_handle_handler, ZEND_FN(ddtrace_curl_copy_handle)},
         {ZEND_STRL("curl_exec"), &dd_curl_exec_handler, ZEND_FN(ddtrace_curl_exec)},
         {ZEND_STRL("curl_init"), &dd_curl_init_handler, ZEND_FN(ddtrace_curl_init)},
+        {ZEND_STRL("curl_multi_exec"), &dd_curl_multi_exec_handler, ZEND_FN(ddtrace_curl_multi_exec)},
         {ZEND_STRL("curl_setopt"), &dd_curl_setopt_handler, ZEND_FN(ddtrace_curl_setopt)},
         {ZEND_STRL("curl_setopt_array"), &dd_curl_setopt_array_handler, ZEND_FN(ddtrace_curl_setopt_array)},
     };
@@ -260,6 +360,9 @@ void ddtrace_curl_handlers_rinit(void) {
     dd_headers = NULL;
     dd_should_save_headers = true;
     dd_curl_inject_fn_proxy = NULL;
+
+    dd_mh_spans = NULL;
+    dd_mh_span_cache = NULL;
 }
 
 void ddtrace_curl_handlers_rshutdown(void) {
@@ -269,4 +372,11 @@ void ddtrace_curl_handlers_rshutdown(void) {
         dd_headers = NULL;
     }
     dd_curl_inject_fn_proxy = NULL;
+
+    if (dd_mh_spans) {
+        zend_hash_destroy(dd_mh_spans);
+        FREE_HASHTABLE(dd_mh_spans);
+        dd_mh_spans = NULL;
+    }
+    dd_mh_span_cache = NULL;
 }

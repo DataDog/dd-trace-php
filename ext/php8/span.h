@@ -39,14 +39,17 @@ typedef struct ddtrace_span_fci ddtrace_span_fci;
 void ddtrace_init_span_stacks(void);
 void ddtrace_free_span_stacks(void);
 
+void ddtrace_span_start(ddtrace_span_t *span);
+void ddtrace_span_stop(ddtrace_span_t *span);
+void ddtrace_spandata_free(ddtrace_span_t *span);
+
 void ddtrace_push_span(ddtrace_span_fci *span_fci);
 void ddtrace_open_span(ddtrace_span_fci *span_fci);
-void dd_trace_stop_span_time(ddtrace_span_t *span);
 void ddtrace_close_span(void);
 void ddtrace_drop_top_open_span(void);
-void ddtrace_serialize_closed_spans(zval *serialized);
-
 // Prefer ddtrace_drop_top_open_span
 void ddtrace_drop_span(ddtrace_span_fci *span_fci);
+
+void ddtrace_serialize_closed_spans(zval *serialized);
 
 #endif  // DD_SPAN_H
