@@ -250,7 +250,7 @@ ZEND_FUNCTION(ddtrace_curl_multi_exec) {
             ddtrace_span_stop(&mh_span->span);
             mh_span->finished = true;
 
-            // TODO We need something akin to ddtrace_push_closed_span() to add this finished span to the closed span stack
+            //ddtrace_push_closed_span(&mh_span->span);
 
             // TODO Add rich metadata
         }

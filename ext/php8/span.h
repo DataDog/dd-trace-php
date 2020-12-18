@@ -42,8 +42,8 @@ void ddtrace_free_span_stacks(void);
 void ddtrace_span_start(ddtrace_span_t *span);
 void ddtrace_span_stop(ddtrace_span_t *span);
 void ddtrace_spandata_free(ddtrace_span_t *span);
+void ddtrace_push_closed_span(ddtrace_span_t *span);
 
-void ddtrace_push_span(ddtrace_span_fci *span_fci);
 void ddtrace_open_span(ddtrace_span_fci *span_fci);
 void ddtrace_close_span(void);
 void ddtrace_drop_top_open_span(void);

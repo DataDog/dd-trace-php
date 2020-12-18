@@ -99,16 +99,28 @@ void ddtrace_free_span_stacks(void) {
     DDTRACE_G(closed_spans_count) = 0;
 }
 
-void ddtrace_push_span(ddtrace_span_fci *span_fci) {
+static void dd_push_open_span_fci(ddtrace_span_fci *span_fci) {
     span_fci->next = DDTRACE_G(open_spans_top);
     DDTRACE_G(open_spans_top) = span_fci;
 }
 
 void ddtrace_open_span(ddtrace_span_fci *span_fci) {
-    ddtrace_push_span(span_fci);
+    dd_push_open_span_fci(span_fci);
     ddtrace_span_start(&span_fci->span);
     // TODO This should only be attached to root-level spans
     span_fci->span.pid = getpid();
+}
+
+static void dd_push_closed_span_fci(ddtrace_span_fci *span_fci) {
+    span_fci->next = DDTRACE_G(closed_spans_top);
+    DDTRACE_G(closed_spans_top) = span_fci;
+}
+
+/* This is a hack to sync manual span creation with the current userland serialization architecture. Once we serialize spans directly to a buffer, we won't need to take this intermediate step. */
+void ddtrace_push_closed_span(ddtrace_span_t *span) {
+    ddtrace_span_fci *span_fci = ecalloc(1, sizeof(ddtrace_span_fci));
+    memcpy(&span_fci->span, span, sizeof(*span));
+    dd_push_closed_span_fci(span_fci);
 }
 
 void ddtrace_close_span(void) {
@@ -121,8 +133,7 @@ void ddtrace_close_span(void) {
     ddtrace_pop_span_id();
     // TODO Assuming the tracing closure has run at this point, we can serialize the span onto a buffer with
     // ddtrace_coms_buffer_data() and free the span
-    span_fci->next = DDTRACE_G(closed_spans_top);
-    DDTRACE_G(closed_spans_top) = span_fci;
+    dd_push_closed_span_fci(span_fci);
 
     if (span_fci->dispatch) {
         ddtrace_dispatch_release(span_fci->dispatch);
