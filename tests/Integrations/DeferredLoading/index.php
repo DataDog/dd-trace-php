@@ -1,5 +1,7 @@
 <?php
 
+require __DIR__ . '/../../vendor/autoload.php';
+
 // This script HAS to invoke at least two integrations via deferred integration loading mechanism.
 
 // PDO
@@ -16,11 +18,10 @@ $pdo = new \PDO(
 $stmt = $pdo->prepare('SELECT 1');
 $stmt->execute();
 
-// Memcached
-const MEMCACHED_HOST = 'memcached_integration';
-const MEMCACHED_PORT = '11211';
-$client = new \Memcached();
-$client->addServer(MEMCACHED_HOST, MEMCACHED_PORT);
-$client->add('key', 'value');
+// Predis
+const PREDIS_HOST = 'redis_integration';
+const PREDIS_PORT = '6379';
+$client = new \Predis\Client(["host" => PREDIS_HOST]);
+$client->set('key', 'value');
 
 echo "OK";

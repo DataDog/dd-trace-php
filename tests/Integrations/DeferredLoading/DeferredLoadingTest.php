@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Integration\DeferredLoading;
+namespace DDTrace\Tests\Integrations\DeferredLoading;
 
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
@@ -28,7 +28,8 @@ final class DeferredLoadingTest extends WebFrameworkTestCase
                     SpanAssertion::exists('PDO.__construct'),
                     SpanAssertion::exists('PDO.prepare'),
                     SpanAssertion::exists('PDOStatement.execute'),
-                    SpanAssertion::exists('Memcached.add'),
+                    SpanAssertion::exists('Predis.Client.__construct'),
+                    SpanAssertion::exists('Predis.Client.executeCommand'),
                 ]),
         ]);
     }

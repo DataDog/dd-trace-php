@@ -230,6 +230,7 @@ PHPUNIT_OPTS := $(PHPUNIT_OPTS)
 PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 
 TEST_INTEGRATIONS_54 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -247,6 +248,7 @@ TEST_WEB_54 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_55 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -275,6 +277,7 @@ TEST_WEB_55 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_56 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -304,6 +307,7 @@ TEST_WEB_56 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_70 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -335,6 +339,7 @@ TEST_WEB_70 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_71 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -373,6 +378,7 @@ TEST_WEB_71 := \
 	test_opentracing_10
 
 TEST_INTEGRATIONS_72 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -413,6 +419,7 @@ TEST_WEB_72 := \
 	test_opentracing_10
 
 TEST_INTEGRATIONS_73 :=\
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -448,6 +455,7 @@ TEST_WEB_73 := \
 	test_opentracing_10
 
 TEST_INTEGRATIONS_74 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -483,6 +491,7 @@ TEST_WEB_74 := \
 	test_opentracing_10
 
 TEST_INTEGRATIONS_80 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_mysqli \
 	test_integrations_pdo \
@@ -557,6 +566,9 @@ test_opentracing_10:
 test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
 test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))
 
+test_integrations_deferred_loading:
+	$(MAKE) test_scenario_predis1
+	$(call run_tests,tests/Integrations/DeferredLoading)
 test_integrations_curl:
 	$(call run_tests,tests/Integrations/Curl)
 test_integrations_elasticsearch1:
