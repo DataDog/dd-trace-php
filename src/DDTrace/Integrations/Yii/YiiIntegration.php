@@ -107,7 +107,14 @@ class YiiIntegration extends Integration
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
+                if (isset($args[0]) && \is_string($args[0])) {
+                    // Empty action name means 'index'. See:
+                    //   - https://github.com/yiisoft/yii2/blob/ff0fd9a9ea043bcd915f055a868585b945399864/framework/base/Controller.php#L245
+                    //   - https://github.com/yiisoft/yii2/blob/ff0fd9a9ea043bcd915f055a868585b945399864/framework/base/Controller.php#L55
+                    $span->resource = empty($args[0]) ? 'index' : $args[0];
+                } else {
+                    $span->resource = $span->name;
+                }
 
                 if (
                     $firstController === $this
