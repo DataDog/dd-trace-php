@@ -33,8 +33,6 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
             error_log('Response: ' . var_export($response, 1));
         });
 
-        error_log('Traces' . print_r($traces, 1));
-
         $this->assertFlameGraph(
             $traces,
             [

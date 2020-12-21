@@ -20,7 +20,6 @@ final class DeferredLoadingTest extends WebFrameworkTestCase
             $response = $this->call(GetSpec::create('Root', '/'));
             TestCase::assertSame('OK', $response);
         });
-        error_log('Traces' . print_r($traces, 1));
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('web.request')
