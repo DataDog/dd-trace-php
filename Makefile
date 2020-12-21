@@ -212,6 +212,10 @@ generate:
 	@composer -dtooling/generation generate
 	@composer -dtooling/generation verify
 
+# Find all generated core dumps, sorted by date descending
+cores:
+	find . -path "./*/vendor" -prune -false -o \( -type f -regex ".*\/core\.?[0-9]*" \) -printf "%T@ %Tc %p\n" | sort -n -r
+
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
@@ -683,5 +687,5 @@ test_api_unit: composer.lock
 composer.lock: composer.json
 	$(Q) composer update
 
-.PHONY: dev dist_clean clean all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test install_ini install_all \
+.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all
