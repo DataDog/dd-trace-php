@@ -112,9 +112,7 @@ ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *nam
 
     fci.retval = retval;
     fci.params = argv;
-#if PHP_VERSION_ID < 80000
     fci.no_separation = 0;  // allow for by-ref args
-#endif
     fci.param_count = argc;
     ZEND_RESULT_CODE result = zend_call_function(&fci, &fcc);
     return result;
