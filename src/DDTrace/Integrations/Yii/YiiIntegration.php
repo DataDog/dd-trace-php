@@ -161,7 +161,7 @@ class YiiIntegration extends Integration
     public static function extractResourceNameFromRunAction($args)
     {
 
-        if (isset($args[0]) && is_string($args[0])) {
+        if (isset($args[0]) && \is_string($args[0])) {
             // Empty action name means 'index'. See:
             //   - https://github.com/yiisoft/yii2/blob/ff0fd9a9ea043bcd915f055a868585b945399864/framework/base/Controller.php#L245
             //   - https://github.com/yiisoft/yii2/blob/ff0fd9a9ea043bcd915f055a868585b945399864/framework/base/Controller.php#L55
