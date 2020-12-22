@@ -96,7 +96,7 @@ class YiiIntegration extends Integration
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
+                $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ? : $span->name;
             }
         );
 
@@ -107,7 +107,7 @@ class YiiIntegration extends Integration
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
-                $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
+                $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ? : $span->name;
 
                 if (
                     $firstController === $this
@@ -150,5 +150,24 @@ class YiiIntegration extends Integration
                 $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
             }
         );
+    }
+
+    /**
+     * Returns the resource name if it can be detected from the invocation args, null otherwise.
+     *
+     * @param array invocation params of teh Module and Controller::runAction method.
+     * @return string|null the obtained resource name or null if it cannot be detected.
+     */
+    public static function extractResourceNameFromRunAction($args)
+    {
+
+        if (isset($args[0]) && \is_string($args[0])) {
+            // Empty action name means 'index'. See:
+            //   - https://github.com/yiisoft/yii2/blob/ff0fd9a9ea043bcd915f055a868585b945399864/framework/base/Controller.php#L245
+            //   - https://github.com/yiisoft/yii2/blob/ff0fd9a9ea043bcd915f055a868585b945399864/framework/base/Controller.php#L55
+            return empty($args[0]) ? 'index' : $args[0];
+        }
+
+        return null;
     }
 }
