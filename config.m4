@@ -124,7 +124,6 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/configuration_php_iface.c \
       ext/php7/ddtrace_string.c \
       ext/php7/dispatch.c \
-      ext/php7/distributed_tracing.c \
       ext/php7/dogstatsd_client.c \
       ext/php7/engine_api.c \
       ext/php7/engine_hooks.c \

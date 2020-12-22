@@ -50,7 +50,7 @@ inline zval ddtrace_zval_undef(void) {
 ZEND_RESULT_CODE ddtrace_call_method(zend_object *obj, zend_class_entry *ce, zend_function **fn_proxy,
                                      const char *fname, size_t fname_len, zval *retval, int argc, zval *argv);
 ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *name, size_t name_len, zval *retval,
-                                       int argc, zval argv[]);
+                                       int argc, ...);
 
 void ddtrace_write_property(zval *obj, const char *prop, size_t prop_len, zval *value);
 bool ddtrace_property_exists(zval *object, zval *property);

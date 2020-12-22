@@ -1,7 +1,6 @@
 --TEST--
 Calls to curl_inject_distributed_headers() are sandboxed
 --SKIPIF--
-<?php if (PHP_VERSION_ID >= 70000 && PHP_VERSION_ID < 80000) die('skip: PHP 7 not supported'); ?>
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 --INI--

@@ -15,14 +15,12 @@ extern zend_class_entry *ddtrace_ce_fatal_error;
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_fci ddtrace_span_fci;
 
-#if PHP_VERSION_ID >= 70000
 zval *ddtrace_spandata_property_name(zval *spandata);
 zval *ddtrace_spandata_property_resource(zval *spandata);
 zval *ddtrace_spandata_property_service(zval *spandata);
 zval *ddtrace_spandata_property_type(zval *spandata);
 zval *ddtrace_spandata_property_meta(zval *spandata);
 zval *ddtrace_spandata_property_metrics(zval *spandata);
-#endif
 
 BOOL_T ddtrace_tracer_is_limited(TSRMLS_D);
 
@@ -44,25 +42,6 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     char *dogstatsd_host;
     char *dogstatsd_port;
     char *dogstatsd_buffer;
-
-    // PHP 7 uses ZEND_TLS for these
-#if PHP_VERSION_ID < 70000
-    // Distributed tracing & curl
-    HashTable *dt_http_saved_curl_headers;
-    zend_bool back_up_http_headers;
-
-    /* These ones are used for measuring the call stack depth so that we can
-     * emit a warning prior to encountering a stack overflow.
-     *
-     * A 16-bit call depth would allow us to count to 65,535, which is way more
-     * than necessary. An 8-bit depth would be inadequate (255).
-     */
-    bool should_warn_call_depth;
-    uint16_t call_depth;
-
-    // ext/curl's list entry resource type
-    int le_curl;
-#endif
 
     uint64_t trace_id;
     ddtrace_span_ids_t *span_ids_top;
@@ -92,13 +71,7 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
  * defines these macros without the comma in the definition site, so that it
  * exists at the usage site.
  */
-#if PHP_VERSION_ID < 70000
-#define DDTRACE_ARG_INFO_SIZE(arg_info) ((zend_uint)(sizeof(arg_info) / sizeof(struct _zend_arg_info) - 1))
-#elif PHP_VERSION_ID < 80100
 #define DDTRACE_ARG_INFO_SIZE(arg_info) ((uint32_t)(sizeof(arg_info) / sizeof(struct _zend_internal_arg_info) - 1))
-#else
-#error Check if ZEND_FENTRY has changed in PHP 8.1 and if we need to update the macros
-#endif
 
 #define DDTRACE_FENTRY(zend_name, name, arg_info, flags) \
     { #zend_name, name, arg_info, DDTRACE_ARG_INFO_SIZE(arg_info), flags }
@@ -110,20 +83,5 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #define DDTRACE_SUB_NS_FE(ns, name, arg_info) DDTRACE_RAW_FENTRY("DDTrace\\" ns #name, zif_##name, arg_info, 0)
 #define DDTRACE_FALIAS(name, alias, arg_info) DDTRACE_RAW_FENTRY(#name, zif_##alias, arg_info, 0)
 #define DDTRACE_FE_END ZEND_FE_END
-
-/* Currently used on PHP 5. After a zend_execute_ex has called the previous hook
- * the execute_data cannot be trusted for some things, notably function_state.
- * So we use this struct to back up the data.
- */
-struct ddtrace_execute_data {
-    zval *This;
-    zend_class_entry *scope;
-    zend_function *fbc;
-    const zend_op *opline;
-    void **arguments;
-    zval *retval;
-    bool free_retval;
-};
-typedef struct ddtrace_execute_data ddtrace_execute_data;
 
 #endif  // DDTRACE_H
