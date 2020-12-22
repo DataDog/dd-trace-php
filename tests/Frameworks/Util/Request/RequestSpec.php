@@ -33,7 +33,7 @@ class RequestSpec
      * @param $name
      * @param string $method
      * @param string $path
-     * @param array $headers
+     * @param string[] $headers An indexed array as expected by `curl_setopt`.
      */
     public function __construct($name, $method, $path, array $headers = [])
     {

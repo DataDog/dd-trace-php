@@ -134,10 +134,10 @@ dist_clean:
 	rm -rf $(BUILD_DIR)
 
 clean:
-	$(MAKE) -C $(BUILD_DIR) clean
-	$(Q) rm -f $(BUILD_DIR)/configure*
-	$(Q) rm -f $(SO_FILE)
-	$(Q) rm -f composer.lock
+	if [[ -f "$(BUILD_DIR)/Makefile" ]]; then $(MAKE) -C $(BUILD_DIR) clean; fi
+	rm -f $(BUILD_DIR)/configure*
+	rm -f $(SO_FILE)
+	rm -f composer.lock
 
 sudo:
 	$(eval SUDO:=sudo)
@@ -703,6 +703,9 @@ test_web_zend_1:
 test_web_custom:
 	$(COMPOSER) --working-dir=tests/Frameworks/Custom/Version_Autoloaded update
 	$(call run_tests,--testsuite=custom-framework-autoloading-test)
+test_nginx: export DD_TRACE_TEST_SAPI=fpm-fcgi
+test_nginx:
+	$(call run_tests,tests/Nginx/Tests)
 
 test_scenario_%:
 	$(Q) $(COMPOSER_TESTS) scenario $*
