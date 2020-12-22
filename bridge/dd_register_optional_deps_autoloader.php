@@ -20,7 +20,6 @@ class OptionalDepsAutoloader
         "DDTrace\\OpenTracer\\Scope" => 'DDTrace/OpenTracer/Scope.php',
         "DDTrace\\OpenTracer\\ScopeManager" => 'DDTrace/OpenTracer/ScopeManager.php',
         "DDTrace\\OpenTracer\\SpanContext" => 'DDTrace/OpenTracer/SpanContext.php',
-        "DDTrace\\Log\\NullLogger" => 'api/Log/NullLogger.php',
         "DDTrace\\NoopTracer" => 'api/NoopTracer.php',
         "DDTrace\\NoopSpan" => 'api/NoopSpan.php',
         "DDTrace\\NoopScope" => 'api/NoopScope.php',

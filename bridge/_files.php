@@ -87,6 +87,7 @@ return [
     __DIR__ . '/../src/api/Log/LogLevel.php',
     __DIR__ . '/../src/api/Log/AbstractLogger.php',
     __DIR__ . '/../src/api/Log/ErrorLogLogger.php',
+    __DIR__ . '/../src/api/Log/NullLogger.php',
 
     __DIR__ . '/../src/DDTrace/Obfuscation.php',
     __DIR__ . '/../src/DDTrace/Format.php',

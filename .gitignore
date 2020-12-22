@@ -2,7 +2,7 @@
 !/ext/vendor
 tmp/build_extension/
 composer.lock
-core
+**/core*
 .scenarios.lock/
 .vscode/
 .libs

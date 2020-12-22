@@ -212,6 +212,10 @@ generate:
 	@composer -dtooling/generation generate
 	@composer -dtooling/generation verify
 
+# Find all generated core dumps, sorted by date descending
+cores:
+	find . -path "./*/vendor" -prune -false -o \( -type f -regex ".*\/core\.?[0-9]*" \) -printf "%T@ %Tc %p\n" | sort -n -r
+
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
@@ -226,6 +230,7 @@ PHPUNIT_OPTS := $(PHPUNIT_OPTS)
 PHPUNIT := $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
 
 TEST_INTEGRATIONS_54 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -243,6 +248,7 @@ TEST_WEB_54 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_55 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -271,6 +277,7 @@ TEST_WEB_55 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_56 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -300,6 +307,7 @@ TEST_WEB_56 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_70 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -331,6 +339,7 @@ TEST_WEB_70 := \
 	test_web_custom
 
 TEST_INTEGRATIONS_71 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -369,6 +378,7 @@ TEST_WEB_71 := \
 	test_opentracing_10
 
 TEST_INTEGRATIONS_72 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -409,6 +419,7 @@ TEST_WEB_72 := \
 	test_opentracing_10
 
 TEST_INTEGRATIONS_73 :=\
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -444,6 +455,7 @@ TEST_WEB_73 := \
 	test_opentracing_10
 
 TEST_INTEGRATIONS_74 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_memcached \
 	test_integrations_mysqli \
@@ -479,6 +491,7 @@ TEST_WEB_74 := \
 	test_opentracing_10
 
 TEST_INTEGRATIONS_80 := \
+	test_integrations_deferred_loading \
 	test_integrations_curl \
 	test_integrations_mysqli \
 	test_integrations_pdo \
@@ -553,6 +566,9 @@ test_opentracing_10:
 test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
 test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))
 
+test_integrations_deferred_loading:
+	$(MAKE) test_scenario_predis1
+	$(call run_tests,tests/Integrations/DeferredLoading)
 test_integrations_curl:
 	$(call run_tests,tests/Integrations/Curl)
 test_integrations_elasticsearch1:
@@ -683,5 +699,5 @@ test_api_unit: composer.lock
 composer.lock: composer.json
 	$(Q) composer update
 
-.PHONY: dev dist_clean clean all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test install_ini install_all \
+.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug strict run-tests.php verify_pecl_file_definitions verify_version verify_package_xml verify_all

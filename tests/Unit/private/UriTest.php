@@ -199,7 +199,11 @@ class UriTest extends BaseTestCase
             'ends_with_uuid_no_dash' => ['/path/b968fb042be9494b8b26efb8a816e7a5', '/path/?'],
             'has_uuid_no_dash' => ['/before/b968fb042be9494b8b26efb8a816e7a5/path', '/before/?/path'],
 
-            'multiple_patterns' => ['/int/1/uuid/b968fb042be9494b8b26efb8a816e7a5/int/2', '/int/?/uuid/?/int/?']
+            'multiple_patterns' => ['/int/1/uuid/b968fb042be9494b8b26efb8a816e7a5/int/2', '/int/?/uuid/?/int/?'],
+
+            // Case insensitivity
+            'hex_case_insensitive' => ['/some/path/b968Fb04-2bE9-494B-8b26-Efb8A816e7a5/after', '/some/path/?/after'],
+            'uuid_case_insensitive' => ['/some/path/0123456789AbCdEf/after', '/some/path/?/after'],
         ];
     }
 
