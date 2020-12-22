@@ -93,7 +93,6 @@ static void dd_load_test_integrations(TSRMLS_D) {
     DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
 }
 
-#if PHP_VERSION_ID >= 70000
 static void dd_set_up_deferred_loading_by_method(ddtrace_integration_name name, ddtrace_string Class,
                                                  ddtrace_string method, ddtrace_string integration) {
     if (!ddtrace_config_integration_enabled_ex(name)) {
@@ -141,28 +140,3 @@ static void _dd_add_integration_to_map(char* name, size_t name_len, ddtrace_inte
     ZEND_ASSERT(strlen(integration->name_ucase) == name_len);
     ZEND_ASSERT(DDTRACE_LONGEST_INTEGRATION_NAME_LEN >= name_len);
 }
-#else
-void ddtrace_integrations_rinit(TSRMLS_D) {
-    /* In PHP 5.6 currently adding deferred integrations seem to trigger increase in heap
-     * size - even though the memory usage is below the limit. We still can trigger memory
-     * allocation error to be issued
-     */
-    dd_load_test_integrations(TSRMLS_C);
-
-    dd_register_known_calls(TSRMLS_C);
-}
-
-ddtrace_integration *ddtrace_get_integration_from_string(ddtrace_string integration) {
-    ddtrace_integration **tmp;
-    if (zend_hash_find(&_dd_string_to_integration_name_map, integration.ptr, integration.len + 1, (void **)&tmp) ==
-        SUCCESS) {
-        return *tmp;
-    }
-    return NULL;
-}
-
-static void _dd_add_integration_to_map(char *name, size_t name_len, ddtrace_integration *integration) {
-    zend_hash_add(&_dd_string_to_integration_name_map, name, name_len + 1, (void **)&integration, sizeof(integration),
-                  NULL);
-}
-#endif

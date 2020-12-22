@@ -215,7 +215,7 @@ final class Http implements Transport
                 'extra' => $extra,
             ]);
 
-            if ($isDebugEnabled && isset($verbose)) {
+            if ($isDebugEnabled && $verbose !== false) {
                 @\rewind($verbose);
                 $verboseLog = @\stream_get_contents($verbose);
                 if ($verboseLog !== false) {

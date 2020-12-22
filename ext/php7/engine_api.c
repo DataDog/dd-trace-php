@@ -87,6 +87,16 @@ ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *nam
         .function_handler = (fn_proxy && *fn_proxy) ? *fn_proxy : NULL,
     };
 
+#if PHP_VERSION_ID < 70300
+    // Between 7.2 and 7.3 the field `zend_fcall_info_cache->initialized` was removed:
+    //    - 7.2: https://heap.space/xref/PHP-7.2/Zend/zend_API.h?r=cce2e33c#54
+    //    - 7.3: https://heap.space/xref/PHP-7.3/Zend/zend_API.h?r=cce2e33c#52
+    // Since the second time we invoke this function with a function proxy we do not invoke
+    // `zend_is_callable_ex` (see lines that follow), `fcc.initialized` remained 0 potentially resulting
+    // in a SEGFAULT
+    fcc.initialized = fcc.function_handler ? 1 : 0;
+#endif
+
     if (!fcc.function_handler) {
         // This avoids allocating a zend_string if fn_proxy is used
         zval fname = ddtrace_zval_stringl(name, name_len);
@@ -112,9 +122,7 @@ ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *nam
 
     fci.retval = retval;
     fci.params = argv;
-#if PHP_VERSION_ID < 80000
     fci.no_separation = 0;  // allow for by-ref args
-#endif
     fci.param_count = argc;
     ZEND_RESULT_CODE result = zend_call_function(&fci, &fcc);
     return result;
