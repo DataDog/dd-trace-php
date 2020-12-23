@@ -378,16 +378,25 @@ static void dd_install_handler(dd_curl_handler handler) {
     }
 }
 
+/* This function is called during process startup so all of the memory allocations should be
+ * persistent to avoid using the Zend Memory Manager. This will avoid an accidental use after free.
+ *
+ * "If you use ZendMM out of the scope of a request (like in MINIT()), the allocation will be
+ * silently cleared by ZendMM before treating the first request, and you'll probably use-after-free:
+ * simply don't."
+ *
+ * @see http://www.phpinternalsbook.com/php7/memory_management/zend_memory_manager.html#common-errors-and-mistakes
+ */
 void ddtrace_curl_handlers_startup(void) {
     // if we cannot find ext/curl then do not instrument it
-    zend_string *curl = zend_string_init(ZEND_STRL("curl"), 0);
+    zend_string *curl = zend_string_init(ZEND_STRL("curl"), 1);
     dd_ext_curl_loaded = zend_hash_exists(&module_registry, curl);
     zend_string_release(curl);
     if (!dd_ext_curl_loaded) {
         return;
     }
 
-    zend_string *const_name = zend_string_init(ZEND_STRL("CURLOPT_HTTPHEADER"), 0);
+    zend_string *const_name = zend_string_init(ZEND_STRL("CURLOPT_HTTPHEADER"), 1);
     zval *const_value = zend_get_constant_ex(const_name, NULL, ZEND_FETCH_CLASS_SILENT);
     zend_string_release(const_name);
     if (!const_value) {
