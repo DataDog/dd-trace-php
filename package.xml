@@ -89,8 +89,6 @@
             <file name="ext/php5/ddtrace.h" role="src" />
             <file name="ext/php5/dispatch.c" role="src" />
             <file name="ext/php5/dispatch.h" role="src" />
-            <file name="ext/php5/distributed_tracing.c" role="src" />
-            <file name="ext/php5/distributed_tracing.h" role="src" />
             <file name="ext/php5/dogstatsd_client.c" role="src" />
             <file name="ext/php5/dogstatsd_client.h" role="src" />
             <file name="ext/php5/engine_api.c" role="src" />
