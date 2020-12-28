@@ -43,6 +43,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable *curl_mh_ch_map;
     HashTable *curl_mh_ch_map_cache;
     int curl_mh_ch_map_cache_id;
+    HashTable *curl_bug_71523_copied_ch;
 
     /* These ones are used for measuring the call stack depth so that we can
      * emit a warning prior to encountering a stack overflow.

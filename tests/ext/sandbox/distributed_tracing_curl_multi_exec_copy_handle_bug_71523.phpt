@@ -1,7 +1,7 @@
 --TEST--
-Distributed tracing headers propagate with curl_multi_exec() after curl_copy_handle()
+(Bug #71523) Distributed tracing headers propagate with curl_multi_exec() after curl_copy_handle()
 --SKIPIF--
-<?php if (PHP_VERSION_ID < 50616) die('skip: PHP < 5.6.16 has a separate test due to bug #71523'); ?>
+<?php if (PHP_VERSION_ID >= 50616) die('skip: PHP >= 5.6.16 is not affected by bug #71523'); ?>
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
 --INI--
@@ -75,11 +75,9 @@ doMulti($url);
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-x-datadog-origin: phpt-test
-x-datadog-parent-id: %d
+Could not inject distributed tracing headers for curl handle #%d because it was copied with curl_copy_handle(). Upgrade to PHP 5.6.16 or greater to fix this issue. See https://bugs.php.net/bug.php?id=71523 for more information.
+Could not inject distributed tracing headers for curl handle #%d because it was copied with curl_copy_handle(). Upgrade to PHP 5.6.16 or greater to fix this issue. See https://bugs.php.net/bug.php?id=71523 for more information.
 x-foo: copied
-x-datadog-origin: phpt-test
-x-datadog-parent-id: %d
 x-foo: copied
 x-datadog-origin: phpt-test
 x-datadog-parent-id: %d

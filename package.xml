@@ -338,6 +338,7 @@
             <file name="tests/ext/sandbox/distributed_tracing_curl_missing_fn.phpt" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec.phpt" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_copy_handle.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_copy_handle_bug_71523.phpt" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_disable.phpt" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_existing_headers_001.phpt" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_existing_headers_002.phpt" role="test" />

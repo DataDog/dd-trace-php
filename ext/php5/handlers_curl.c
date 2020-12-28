@@ -8,11 +8,22 @@
 #include "ddtrace.h"
 #include "engine_api.h"
 #include "handlers_internal.h"
+#include "logging.h"
 #include "random.h"
 
 // True global - only modify during MINIT/MSHUTDOWN
 bool dd_ext_curl_loaded = false;
 long dd_const_curlopt_httpheader = 0;
+/* In PHP < 5.6.16, a crash occurs from curl_multi_exec() when headers are
+ * updated from a curl handle that was duplicated via curl_copy_handle().
+ * Since distributed trace headers are injected via a call to curl_setopt()
+ * just before the first call to curl_multi_exec(), this bug will always
+ * cause a crash when using a copied handle with curl_multi_exec().
+ *
+ * @see https://bugs.php.net/bug.php?id=71523
+ * @see https://github.com/php/php-src/commit/5fdfab7
+ */
+bool dd_enable_bug_71523_workaround = false;
 
 static void (*dd_curl_close_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_copy_handle_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
@@ -58,6 +69,9 @@ static void dd_ch_store_headers(zval *ch, HashTable *headers TSRMLS_DC) {
 static void dd_ch_delete_headers(zval *ch TSRMLS_DC) {
     if (DDTRACE_G(curl_headers)) {
         zend_hash_index_del(DDTRACE_G(curl_headers), Z_RESVAL_P(ch));
+    }
+    if (DDTRACE_G(curl_bug_71523_copied_ch)) {
+        zend_hash_index_del(DDTRACE_G(curl_bug_71523_copied_ch), Z_RESVAL_P(ch));
     }
 }
 
@@ -186,6 +200,21 @@ static void dd_mh_map_delete(zval *mh TSRMLS_DC) {
     }
 }
 
+static void dd_bug_71523_add_copied_ch(zval *ch1, zval *ch2 TSRMLS_DC) {
+    if (!DDTRACE_G(curl_bug_71523_copied_ch)) {
+        ALLOC_HASHTABLE(DDTRACE_G(curl_bug_71523_copied_ch));
+        zend_hash_init(DDTRACE_G(curl_bug_71523_copied_ch), 8, NULL, NULL, 0);
+    }
+
+    void *tmp = (void *)1;
+    zend_hash_index_update(DDTRACE_G(curl_bug_71523_copied_ch), Z_RESVAL_P(ch1), &tmp, sizeof(void *), NULL);
+    zend_hash_index_update(DDTRACE_G(curl_bug_71523_copied_ch), Z_RESVAL_P(ch2), &tmp, sizeof(void *), NULL);
+}
+
+static bool dd_bug_71523_should_inject_from_multi_exec(zval *ch TSRMLS_DC) {
+    return !zend_hash_index_exists(DDTRACE_G(curl_bug_71523_copied_ch), Z_RESVAL_P(ch));
+}
+
 static void dd_mh_map_inject_headers(zval *mh TSRMLS_DC) {
     HashTable *ch_map = NULL;
 
@@ -201,7 +230,19 @@ static void dd_mh_map_inject_headers(zval *mh TSRMLS_DC) {
         HashPosition pos;
         zend_hash_internal_pointer_reset_ex(ch_map, &pos);
         while (zend_hash_get_current_data_ex(ch_map, (void **)&ch, &pos) == SUCCESS) {
-            dd_inject_distributed_tracing_headers(*ch TSRMLS_CC);
+            if (DDTRACE_G(curl_bug_71523_copied_ch)) {
+                if (dd_bug_71523_should_inject_from_multi_exec(*ch TSRMLS_CC)) {
+                    dd_inject_distributed_tracing_headers(*ch TSRMLS_CC);
+                } else {
+                    ddtrace_log_debugf(
+                        "Could not inject distributed tracing headers for curl handle #%d because it was copied with "
+                        "curl_copy_handle(). Upgrade to PHP 5.6.16 or greater to fix this issue. See "
+                        "https://bugs.php.net/bug.php?id=71523 for more information.",
+                        Z_RESVAL_P(*ch));
+                }
+            } else {
+                dd_inject_distributed_tracing_headers(*ch TSRMLS_CC);
+            }
             zend_hash_move_forward_ex(ch_map, &pos);
         }
         dd_mh_map_delete(mh TSRMLS_CC);
@@ -234,6 +275,10 @@ ZEND_FUNCTION(ddtrace_curl_copy_handle) {
 
     if (Z_TYPE_P(return_value) == IS_RESOURCE) {
         dd_ch_duplicate_headers(ch1, return_value TSRMLS_CC);
+        if (dd_enable_bug_71523_workaround) {
+            // Both handles are affected by bug #71523
+            dd_bug_71523_add_copied_ch(ch1, return_value TSRMLS_CC);
+        }
     }
 }
 
@@ -413,6 +458,8 @@ void ddtrace_curl_handlers_startup(void) {
         return;
     }
 
+    dd_enable_bug_71523_workaround = (PHP_VERSION_ID < 50616);
+
     // These are not 'sizeof() - 1' on PHP 5
     dd_curl_handler handlers[] = {
         {"curl_close", sizeof("curl_close"), &dd_curl_close_handler, ZEND_FN(ddtrace_curl_close)},
@@ -457,5 +504,10 @@ void ddtrace_curl_handlers_rshutdown(TSRMLS_D) {
         zend_hash_destroy(DDTRACE_G(curl_mh_ch_map));
         FREE_HASHTABLE(DDTRACE_G(curl_mh_ch_map));
         DDTRACE_G(curl_mh_ch_map) = NULL;
+    }
+    if (DDTRACE_G(curl_bug_71523_copied_ch)) {
+        zend_hash_destroy(DDTRACE_G(curl_bug_71523_copied_ch));
+        FREE_HASHTABLE(DDTRACE_G(curl_bug_71523_copied_ch));
+        DDTRACE_G(curl_bug_71523_copied_ch) = NULL;
     }
 }
