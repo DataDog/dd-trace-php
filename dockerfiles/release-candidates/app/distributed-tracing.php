@@ -8,7 +8,7 @@ class DistributedTracing
     public function fetchUsersFromApi($group)
     {
         // Tests distributed tracing
-        $ch = curl_init('http://nginx/api.php?group=' . $group);
+        $ch = curl_init(DD_BASE_URL . '/api.php?group=' . $group);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'X-mt-rand: ' . mt_rand(),
