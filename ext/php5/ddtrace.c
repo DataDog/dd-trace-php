@@ -1536,6 +1536,13 @@ static PHP_FUNCTION(dd_trace_peek_span_id) {
     return_span_id(return_value, ddtrace_peek_span_id(TSRMLS_C));
 }
 
+/* {{{ proto string dd_trace_peek_trace_id() */
+static PHP_FUNCTION(dd_trace_peek_trace_id) {
+    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    PHP7_UNUSED(execute_data);
+    return_span_id(return_value, ddtrace_peek_trace_id(TSRMLS_C));
+}
+
 /* {{{ proto string dd_trace_closed_spans_count() */
 static PHP_FUNCTION(dd_trace_closed_spans_count) {
     PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
@@ -1597,6 +1604,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_internal_fn, arginfo_dd_trace_internal_fn),
     DDTRACE_FE(dd_trace_noop, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_peek_span_id, arginfo_ddtrace_void),
+    DDTRACE_FE(dd_trace_peek_trace_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
