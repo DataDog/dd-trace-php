@@ -155,6 +155,37 @@ trait TracerTestTrait
     }
 
     /**
+     * This method executes a single script with the provided configuration.
+     */
+    public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '')
+    {
+        $this->resetRequestDumper();
+        $envs = (string) new EnvSerializer(array_merge(
+            [
+                'DD_TRACE_CLI_ENABLED' => 'true',
+                'DD_AGENT_HOST' => 'request-replayer',
+                'DD_TRACE_AGENT_PORT' => '80',
+                // Uncomment to see debug-level messages
+                //'DD_TRACE_DEBUG' => 'true',
+            ],
+            $customEnvs
+        ));
+        $inis = (string) new IniSerializer(array_merge(
+            [
+                'ddtrace.request_init_hook' => __DIR__ . '/../../bridge/dd_wrap_autoloader.php',
+            ],
+            $customInis
+        ));
+
+        $script = escapeshellarg($scriptPath);
+        $arguments = escapeshellarg($arguments);
+        $commandToExecute = "$envs php $inis $script $arguments";
+        `$commandToExecute`;
+
+        return $this->parseTracesFromDumpedData();
+    }
+
+    /**
      * Reset the request dumper removing all the dumped  data file.
      */
     private function resetRequestDumper()
