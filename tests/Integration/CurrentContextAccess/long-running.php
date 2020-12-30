@@ -30,5 +30,3 @@ function root_span()
 }
 
 root_span();
-
-sleep(1);
