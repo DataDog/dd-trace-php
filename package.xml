@@ -36,7 +36,18 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+    - Add function to correctly extract trace id in all contexts #1125
+    ### Fixed
+    - Attach fatal errors to userland root span on PHP 5.6 + PHP 5.5 #1109
+    - Rebuild CentOS 6 containers #1116
+    - NullLogger is essential, not optional #1113
+    - Make Uri to resource name normalization case insensitive #1120
+    - Avoid empty resource names in Yii in case of root `/` paths #1122
+    - Fix multiple deferred integration loading on PHP from 7.0 to 7.2 #1121
+    - Fix error in case of x-datadog-origin header in distributed tracing on PHP 7.0-7.2 #1124
+    </notes>
     <contents>
         <dir name="/">
             <!-- Shared -->
