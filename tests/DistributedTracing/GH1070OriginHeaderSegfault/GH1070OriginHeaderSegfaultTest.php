@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Tests\Nginx\Tests\GH1070OriginHeaderSegfault;
+namespace DDTrace\Tests\DistributedTracing\GH1070OriginHeaderSegfault;
 
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;

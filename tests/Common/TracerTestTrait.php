@@ -133,8 +133,6 @@ trait TracerTestTrait
         $webServer->mergeInis($inis);
         $webServer->start();
 
-        \dd_trace_disable_in_request();
-
         $fn(function (RequestSpec $request) use ($webServer, &$curlInfo) {
             if ($request instanceof GetSpec) {
                 $curl =  curl_init('http://127.0.0.1:6666' . $request->getPath());
@@ -152,8 +150,6 @@ trait TracerTestTrait
             $webServer->stop();
             throw new Exception('Spec type not supported.');
         });
-
-        \dd_trace_enable_in_request();
 
         return $this->parseTracesFromDumpedData();
     }

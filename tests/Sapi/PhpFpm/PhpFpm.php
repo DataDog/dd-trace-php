@@ -84,7 +84,7 @@ final class PhpFpm implements Sapi
     public function stop()
     {
         error_log("[php-fpm] Stopping...");
-        $this->process->stop(0);
+        $this->process->stop(1);
         // Waiting 200 ms for PHP-FPM to give the socket back
         \usleep(200 * 1000);
     }
