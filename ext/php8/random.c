@@ -110,5 +110,3 @@ uint64_t ddtrace_peek_span_id(TSRMLS_D) {
     }
     return DDTRACE_G(span_ids_top)->id;
 }
-
-uint64_t ddtrace_peek_trace_id(TSRMLS_D) { return DDTRACE_G(trace_id); }

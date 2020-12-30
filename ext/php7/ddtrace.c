@@ -1552,16 +1552,14 @@ static PHP_FUNCTION(dd_trace_pop_span_id) {
 
 /* {{{ proto string dd_trace_peek_span_id() */
 static PHP_FUNCTION(dd_trace_peek_span_id) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
-    PHP7_UNUSED(execute_data);
+    UNUSED(execute_data);
     return_span_id(return_value, ddtrace_peek_span_id(TSRMLS_C));
 }
 
-/* {{{ proto string ddtrace_peek_trace_id() */
-static PHP_FUNCTION(dd_trace_peek_trace_id) {
-    PHP5_UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
-    PHP7_UNUSED(execute_data);
-    return_span_id(return_value, ddtrace_peek_trace_id(TSRMLS_C));
+/* {{{ proto string \DDTrace\trace_id() */
+static PHP_FUNCTION(trace_id) {
+    UNUSED(execute_data);
+    return_span_id(return_value, DDTRACE_G(trace_id));
 }
 
 /* {{{ proto string dd_trace_closed_spans_count() */
@@ -1626,7 +1624,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_FE(dd_trace_noop, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_peek_span_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_pop_span_id, arginfo_ddtrace_void),
-    DDTRACE_FE(dd_trace_peek_trace_id, arginfo_ddtrace_void),
+    DDTRACE_NS_FE(trace_id, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_push_span_id, arginfo_dd_trace_push_span_id),
     DDTRACE_FE(dd_trace_reset, arginfo_ddtrace_void),
     DDTRACE_FE(dd_trace_send_traces_via_thread, arginfo_dd_trace_send_traces_via_thread),
