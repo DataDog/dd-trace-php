@@ -125,7 +125,7 @@ trait TracerTestTrait
      * This method executes a request into an ad-hoc web server configured with the provided envs and inis that is
      * created and destroyed with the scope of this test.
      */
-    public function inWebServer($fn, $rootPath, $envs = [], $inis = [])
+    public function inWebServer($fn, $rootPath, $envs = [], $inis = [], &$curlInfo = null)
     {
         $this->resetRequestDumper();
         $webServer = new WebServer($rootPath, '0.0.0.0', 6666);
@@ -133,11 +133,16 @@ trait TracerTestTrait
         $webServer->mergeInis($inis);
         $webServer->start();
 
-        $fn(function (RequestSpec $request) use ($webServer) {
+        $fn(function (RequestSpec $request) use ($webServer, &$curlInfo) {
             if ($request instanceof GetSpec) {
                 $curl =  curl_init('http://127.0.0.1:6666' . $request->getPath());
                 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_HTTPHEADER, $request->getHeaders());
                 $response = curl_exec($curl);
+                if (\is_array($curlInfo)) {
+                    $curlInfo = \array_merge($curlInfo, \curl_getinfo($curl));
+                }
+                \curl_close($curl);
                 $webServer->stop();
                 return $response;
             }

@@ -16,6 +16,7 @@ INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini file
 
 C_FILES := $(shell find ext src/dogstatsd -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+INIT_HOOK_TEST_FILES := $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
 # The following differentiation exists so we can build only (but always) the relevant files while executing tests
@@ -82,9 +83,28 @@ test_c_mem: $(SO_FILE) $(TEST_FILES)
 	export REPORT_EXIT_STATUS=1; \
 	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
 	export USE_TRACKED_ALLOC=1; \
-	\
-	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all -m $(TESTS)
+
+test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
+	( \
+	set -xe; \
+	export DD_TRACE_CLI_ENABLED=1; \
+	export USE_ZEND_ALLOC=0; \
+	export ZEND_DONT_UNLOAD_MODULES=1; \
+	export USE_TRACKED_ALLOC=1; \
+	valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access php -n -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php $(INIT_HOOK_TEST_FILES); \
+	)
+
+test_with_init_hook_asan: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
+	( \
+	set -xe; \
+	export DD_TRACE_CLI_ENABLED=1; \
+	export REPORT_EXIT_STATUS=1; \
+	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
+	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/asan-extension-init-hook-test.xml; \
+	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g -fsanitize=address" LDFLAGS="-fsanitize=address" clean all; \
+	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -d ddtrace.request_init_hook=$$(pwd)/bridge/dd_wrap_autoloader.php -q --show-all --asan $(INIT_HOOK_TEST_FILES); \
+	)
 
 test_c_asan: export DD_TRACE_CLI_ENABLED=1
 test_c_asan: $(SO_FILE) $(TEST_FILES)
@@ -117,10 +137,10 @@ dist_clean:
 	rm -rf $(BUILD_DIR)
 
 clean:
-	$(MAKE) -C $(BUILD_DIR) clean
-	$(Q) rm -f $(BUILD_DIR)/configure*
-	$(Q) rm -f $(SO_FILE)
-	$(Q) rm -f composer.lock
+	if [[ -f "$(BUILD_DIR)/Makefile" ]]; then $(MAKE) -C $(BUILD_DIR) clean; fi
+	rm -f $(BUILD_DIR)/configure*
+	rm -f $(SO_FILE)
+	rm -f composer.lock
 
 sudo:
 	$(eval SUDO:=sudo)

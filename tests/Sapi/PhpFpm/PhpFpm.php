@@ -84,7 +84,8 @@ final class PhpFpm implements Sapi
     public function stop()
     {
         error_log("[php-fpm] Stopping...");
-        $this->process->stop(0);
+        // In case of SEGFAULT nginx takes a few more millisecond to return an appropriate 502 code and then exit.
+        $this->process->stop(1);
         // Waiting 200 ms for PHP-FPM to give the socket back
         \usleep(200 * 1000);
     }
