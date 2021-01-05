@@ -1,0 +1,9 @@
+---
+BasedOnStyle: Google
+---
+Language: Cpp
+ColumnLimit: 80
+IndentWidth: 4
+AccessModifierOffset: 0
+BreakConstructorInitializers: AfterColon
+---
