@@ -282,18 +282,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
         ]);
     }
 
-    public function testKVStoreIsCleanedOnCurlClose()
-    {
-        if (\PHP_MAJOR_VERSION === 5 || \PHP_MAJOR_VERSION === 8) {
-            self::markTestSkipped("PHP 5 & 8 do not use ArrayKVStore");
-        }
-        $ch = curl_init(self::URL . '/status/200');
-        curl_setopt($ch, CURLOPT_HTTPHEADER, []);
-        self::assertNotSame('default', ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, 'default'));
-        curl_close($ch);
-        self::assertSame('default', ArrayKVStore::getForResource($ch, Format::CURL_HTTP_HEADERS, 'default'));
-    }
-
     public function testDistributedTracingIsPropagated()
     {
         $found = [];
@@ -320,10 +308,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        self::assertEquals(
-            PHP_MAJOR_VERSION === 5 || PHP_MAJOR_VERSION === 8,
-            function_exists('DDTrace\\Bridge\\curl_inject_distributed_headers')
-        );
+        self::assertTrue(function_exists('DDTrace\\Bridge\\curl_inject_distributed_headers'));
 
         // trace is: custom
         self::assertSame($traces[0][0]['trace_id'], (int) $found['headers']['X-Datadog-Trace-Id']);

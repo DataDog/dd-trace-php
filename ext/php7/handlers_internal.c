@@ -91,6 +91,7 @@ void ddtrace_phpredis_handlers_startup(void);
 void ddtrace_mysqli_handlers_shutdown(void);
 void ddtrace_pdo_handlers_shutdown(void);
 
+void ddtrace_curl_handlers_rinit(void);
 void ddtrace_curl_handlers_rshutdown(void);
 
 // Internal handlers use ddtrace_resource and only implement the sandbox API.
@@ -138,4 +139,5 @@ void ddtrace_internal_handlers_shutdown(void) {
     ddtrace_pdo_handlers_shutdown();
 }
 
+void ddtrace_internal_handlers_rinit(void) { ddtrace_curl_handlers_rinit(); }
 void ddtrace_internal_handlers_rshutdown(void) { ddtrace_curl_handlers_rshutdown(); }

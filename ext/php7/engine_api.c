@@ -79,13 +79,18 @@ ZEND_RESULT_CODE ddtrace_call_method(zend_object *obj, zend_class_entry *ce, zen
 }
 
 ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *name, size_t name_len, zval *retval,
-                                       int argc, zval argv[]) {
+                                       int argc, ...) {
     zend_fcall_info fci = {
         .size = sizeof(zend_fcall_info),
     };
     zend_fcall_info_cache fcc = {
         .function_handler = (fn_proxy && *fn_proxy) ? *fn_proxy : NULL,
     };
+
+    va_list argv;
+    va_start(argv, argc);
+    zend_fcall_info_argv(&fci, (uint32_t)argc, &argv);
+    va_end(argv);
 
 #if PHP_VERSION_ID < 70300
     // Between 7.2 and 7.3 the field `zend_fcall_info_cache->initialized` was removed:
@@ -109,6 +114,7 @@ ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *nam
              * of this.
              */
             ZVAL_UNDEF(retval);
+            zend_fcall_info_args_clear(&fci, 1);
             return FAILURE;
         }
 
@@ -121,10 +127,11 @@ ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *nam
     // ZVAL_COPY_VALUE(&fci.function_name, fcc.function_handler->common.function_name);
 
     fci.retval = retval;
-    fci.params = argv;
     fci.no_separation = 0;  // allow for by-ref args
-    fci.param_count = argc;
     ZEND_RESULT_CODE result = zend_call_function(&fci, &fcc);
+
+    zend_fcall_info_args_clear(&fci, 1);
+
     return result;
 }
 
