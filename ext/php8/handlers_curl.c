@@ -20,9 +20,9 @@ ZEND_TLS zend_function *dd_curl_inject_fn_proxy = NULL;
 ZEND_TLS zend_string *dd_inject_func = NULL;
 
 // Multi-handle API: curl_multi_*()
-ZEND_TLS HashTable *dd_mh_ch_map = NULL;
-ZEND_TLS HashTable *dd_mh_ch_map_cache = NULL;
-ZEND_TLS zend_long dd_mh_ch_map_cache_id = 0;
+ZEND_TLS HashTable *dd_multi_handles = NULL;
+ZEND_TLS HashTable *dd_multi_handles_cache = NULL;
+ZEND_TLS zend_long dd_multi_handles_cache_id = 0;
 
 static void (*dd_curl_close_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_exec_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
@@ -43,8 +43,8 @@ static bool dd_load_curl_integration(void) {
     return ddtrace_config_distributed_tracing_enabled();
 }
 
-static void dd_ht_dtor(void *data) {
-    HashTable *ht = *((HashTable **)data);
+static void dd_ht_dtor(void *pData) {
+    HashTable *ht = *((HashTable **)pData);
     zend_hash_destroy(ht);
     FREE_HASHTABLE(ht);
 }
@@ -128,79 +128,96 @@ static void dd_inject_distributed_tracing_headers(zval *ch) {
     }
 }
 
-static void dd_zo_ch_dtor(void *ch) {
-    zend_object *zo_ch = *((zend_object **)ch);
-    GC_DELREF(zo_ch);
+static void dd_obj_dtor(void *pData) {
+    zend_object *obj = *((zend_object **)pData);
+    GC_DELREF(obj);
 }
 
-static void dd_update_mh_ch_map_cache(zval *mh, HashTable *ch_map) {
-    dd_mh_ch_map_cache_id = Z_OBJ_HANDLE_P(mh);
-    dd_mh_ch_map_cache = ch_map;
+static void dd_multi_update_cache(zval *mh, HashTable *handles) {
+    dd_multi_handles_cache_id = Z_OBJ_HANDLE_P(mh);
+    dd_multi_handles_cache = handles;
 }
 
-static void dd_mh_map_add_ch(zval *mh, zval *ch) {
-    HashTable *ch_map = NULL;
+static void dd_multi_lazy_init_globals(void) {
+    if (!dd_multi_handles) {
+        ALLOC_HASHTABLE(dd_multi_handles);
+        zend_hash_init(dd_multi_handles, 8, NULL, (dtor_func_t)dd_ht_dtor, 0);
+    }
+}
+
+/* Find or create the multi-handle map for this multi-handle and save the curl handle object.
+ * We need to keep a reference to the curl handle in order to inject the distributed tracing
+ * headers on the first call to curl_multi_exec().
+ */
+static void dd_multi_add_handle(zval *mh, zval *ch) {
+    HashTable *handles = NULL;
     zend_object *zo_ch = Z_OBJ_P(ch);
 
-    if (!dd_mh_ch_map) {
-        ALLOC_HASHTABLE(dd_mh_ch_map);
-        zend_hash_init(dd_mh_ch_map, 8, NULL, (dtor_func_t)dd_ht_dtor, 0);
-    } else {
-        ch_map = zend_hash_index_find_ptr(dd_mh_ch_map, Z_OBJ_HANDLE_P(mh));
+    if (UNEXPECTED(!dd_multi_handles)) {
+        return;
     }
 
-    if (!ch_map) {
-        ALLOC_HASHTABLE(ch_map);
-        zend_hash_init(ch_map, 8, NULL, (dtor_func_t)dd_zo_ch_dtor, 0);
-        zend_hash_index_update_ptr(dd_mh_ch_map, Z_OBJ_HANDLE_P(mh), ch_map);
+    handles = zend_hash_index_find_ptr(dd_multi_handles, Z_OBJ_HANDLE_P(mh));
+
+    if (!handles) {
+        ALLOC_HASHTABLE(handles);
+        zend_hash_init(handles, 8, NULL, (dtor_func_t)dd_obj_dtor, 0);
+        zend_hash_index_update_ptr(dd_multi_handles, Z_OBJ_HANDLE_P(mh), handles);
     }
 
     GC_ADDREF(zo_ch);
-    zend_hash_index_update_ptr(ch_map, Z_OBJ_HANDLE_P(ch), zo_ch);
+    zend_hash_index_update_ptr(handles, Z_OBJ_HANDLE_P(ch), zo_ch);
 
-    dd_update_mh_ch_map_cache(mh, ch_map);
+    dd_multi_update_cache(mh, handles);
 }
 
-static void dd_mh_map_remove_ch(zval *mh, zval *ch) {
-    HashTable *ch_map = NULL;
+/* Remove a curl handle from the multi-handle map when curl_multi_remove_handle() is called.
+ */
+static void dd_multi_remove_handle(zval *mh, zval *ch) {
+    HashTable *handles = NULL;
 
-    if (dd_mh_ch_map) {
-        ch_map = zend_hash_index_find_ptr(dd_mh_ch_map, Z_OBJ_HANDLE_P(mh));
-        if (ch_map) {
-            zend_hash_index_del(ch_map, Z_OBJ_HANDLE_P(ch));
+    if (dd_multi_handles) {
+        handles = zend_hash_index_find_ptr(dd_multi_handles, Z_OBJ_HANDLE_P(mh));
+        dd_multi_update_cache(mh, handles);
+        if (handles) {
+            zend_hash_index_del(handles, Z_OBJ_HANDLE_P(ch));
         }
-        dd_update_mh_ch_map_cache(mh, ch_map);
     }
 }
 
-static void dd_mh_map_delete(zval *mh) {
-    if (dd_mh_ch_map) {
-        zend_hash_index_del(dd_mh_ch_map, Z_OBJ_HANDLE_P(mh));
-        dd_update_mh_ch_map_cache(mh, NULL);
+/* Remove the map of curl handles from a multi-handle map. This resets the multi-handle map
+ * when either 1) curl_multi_init() / curl_multi_close() is called or 2) the distributed
+ * tracing headers have been injected for all of the curl handles associated with this
+ * multi-handle.
+ */
+static void dd_multi_reset(zval *mh) {
+    if (dd_multi_handles) {
+        zend_hash_index_del(dd_multi_handles, Z_OBJ_HANDLE_P(mh));
+        dd_multi_update_cache(mh, NULL);
     }
 }
 
-static void dd_mh_map_inject_headers(zval *mh) {
-    HashTable *ch_map = NULL;
+static void dd_multi_inject_headers(zval *mh) {
+    HashTable *handles = NULL;
 
-    if (dd_mh_ch_map_cache_id == Z_OBJ_HANDLE_P(mh)) {
-        ch_map = dd_mh_ch_map_cache;
-    } else if (dd_mh_ch_map) {
-        ch_map = zend_hash_index_find_ptr(dd_mh_ch_map, Z_OBJ_HANDLE_P(mh));
-        dd_update_mh_ch_map_cache(mh, ch_map);
+    if (dd_multi_handles_cache_id == Z_OBJ_HANDLE_P(mh)) {
+        handles = dd_multi_handles_cache;
+    } else if (dd_multi_handles) {
+        handles = zend_hash_index_find_ptr(dd_multi_handles, Z_OBJ_HANDLE_P(mh));
+        dd_multi_update_cache(mh, handles);
     }
 
-    if (ch_map && zend_hash_num_elements(ch_map) > 0) {
+    if (handles && zend_hash_num_elements(handles) > 0) {
         // zend_hash_apply() assumes a HashTable of zvals, otherwise we'd use that here
         zend_object *zo_ch;
-        ZEND_HASH_FOREACH_PTR(ch_map, zo_ch) {
+        ZEND_HASH_FOREACH_PTR(handles, zo_ch) {
             zval tmp;
             ZVAL_OBJ(&tmp, zo_ch);
             dd_inject_distributed_tracing_headers(&tmp);
         }
         ZEND_HASH_FOREACH_END();
 
-        dd_mh_map_delete(mh);
+        dd_multi_reset(mh);
     }
 }
 
@@ -218,15 +235,11 @@ ZEND_FUNCTION(ddtrace_curl_close) {
 ZEND_FUNCTION(ddtrace_curl_copy_handle) {
     zval *ch;
 
-    if (!dd_load_curl_integration() ||
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "O", &ch, curl_ce) == FAILURE) {
-        dd_curl_copy_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
-    }
-
     dd_curl_copy_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (Z_TYPE_P(return_value) == IS_OBJECT) {
+    if (dd_load_curl_integration() &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "O", &ch, curl_ce) == SUCCESS &&
+        Z_TYPE_P(return_value) == IS_OBJECT) {
         dd_ch_duplicate_headers(ch, return_value);
     }
 }
@@ -254,13 +267,10 @@ ZEND_FUNCTION(ddtrace_curl_multi_add_handle) {
     zval *z_mh;
     zval *z_ch;
 
-    if (!dd_load_curl_integration() || zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "OO", &z_mh,
-                                                                curl_multi_ce, &z_ch, curl_ce) == FAILURE) {
-        dd_curl_multi_add_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
+    if (dd_load_curl_integration() && zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "OO", &z_mh,
+                                                               curl_multi_ce, &z_ch, curl_ce) == SUCCESS) {
+        dd_multi_add_handle(z_mh, z_ch);
     }
-
-    dd_mh_map_add_ch(z_mh, z_ch);
 
     dd_curl_multi_add_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
@@ -268,13 +278,10 @@ ZEND_FUNCTION(ddtrace_curl_multi_add_handle) {
 ZEND_FUNCTION(ddtrace_curl_multi_close) {
     zval *z_mh;
 
-    if (!dd_load_curl_integration() ||
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "O", &z_mh, curl_multi_ce) == FAILURE) {
-        dd_curl_multi_close_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
+    if (dd_load_curl_integration() &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "O", &z_mh, curl_multi_ce) == SUCCESS) {
+        dd_multi_reset(z_mh);
     }
-
-    dd_mh_map_delete(z_mh);
 
     dd_curl_multi_close_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
@@ -283,29 +290,22 @@ ZEND_FUNCTION(ddtrace_curl_multi_exec) {
     zval *z_mh;
     zval *z_still_running;
 
-    if (!dd_load_curl_integration() || ddtrace_peek_span_id() == 0 ||
+    if (dd_load_curl_integration() && ddtrace_peek_span_id() != 0 &&
         zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "Oz", &z_mh, curl_multi_ce,
-                                 &z_still_running) == FAILURE) {
-        dd_curl_multi_exec_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
+                                 &z_still_running) == SUCCESS) {
+        dd_multi_inject_headers(z_mh);
     }
-
-    dd_mh_map_inject_headers(z_mh);
 
     dd_curl_multi_exec_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
 ZEND_FUNCTION(ddtrace_curl_multi_init) {
-    if (!dd_load_curl_integration() || ZEND_NUM_ARGS() != 0) {
-        dd_curl_multi_init_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
-    }
-
     dd_curl_multi_init_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (Z_TYPE_P(return_value) == IS_OBJECT) {
+    if (dd_load_curl_integration() && ZEND_NUM_ARGS() == 0 && Z_TYPE_P(return_value) == IS_OBJECT) {
+        dd_multi_lazy_init_globals();
         // Reset this multi-handle map in the event the object ID is reused
-        dd_mh_map_delete(return_value);
+        dd_multi_reset(return_value);
     }
 }
 
@@ -313,13 +313,10 @@ ZEND_FUNCTION(ddtrace_curl_multi_remove_handle) {
     zval *z_mh;
     zval *z_ch;
 
-    if (!dd_load_curl_integration() || zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "OO", &z_mh,
-                                                                curl_multi_ce, &z_ch, curl_ce) == FAILURE) {
-        dd_curl_multi_remove_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
+    if (dd_load_curl_integration() && zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "OO", &z_mh,
+                                                               curl_multi_ce, &z_ch, curl_ce) == SUCCESS) {
+        dd_multi_remove_handle(z_mh, z_ch);
     }
-
-    dd_mh_map_remove_ch(z_mh, z_ch);
 
     dd_curl_multi_remove_handle_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
@@ -328,15 +325,12 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
     zval *ch, *zvalue;
     zend_long option;
 
-    if (!dd_load_curl_integration() || zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "Olz", &ch,
-                                                                curl_ce, &option, &zvalue) == FAILURE) {
-        dd_curl_setopt_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
-    }
-
     dd_curl_setopt_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (dd_should_save_headers && Z_TYPE_P(return_value) == IS_TRUE && dd_const_curlopt_httpheader == option &&
+    if (dd_load_curl_integration() &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "Olz", &ch, curl_ce, &option, &zvalue) ==
+            SUCCESS &&
+        dd_should_save_headers && Z_TYPE_P(return_value) == IS_TRUE && dd_const_curlopt_httpheader == option &&
         Z_TYPE_P(zvalue) == IS_ARRAY) {
         dd_ch_store_headers(ch, Z_ARRVAL_P(zvalue));
     }
@@ -345,15 +339,11 @@ ZEND_FUNCTION(ddtrace_curl_setopt) {
 ZEND_FUNCTION(ddtrace_curl_setopt_array) {
     zval *ch, *arr;
 
-    if (!dd_load_curl_integration() ||
-        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "Oa", &ch, curl_ce, &arr) == FAILURE) {
-        dd_curl_setopt_array_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-        return;
-    }
-
     dd_curl_setopt_array_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
-    if (Z_TYPE_P(return_value) == IS_TRUE) {
+    if (dd_load_curl_integration() &&
+        zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS(), "Oa", &ch, curl_ce, &arr) == SUCCESS &&
+        Z_TYPE_P(return_value) == IS_TRUE) {
         zval *value = zend_hash_index_find(Z_ARRVAL_P(arr), dd_const_curlopt_httpheader);
         if (value && Z_TYPE_P(value) == IS_ARRAY) {
             dd_ch_store_headers(ch, Z_ARRVAL_P(value));
@@ -443,9 +433,9 @@ void ddtrace_curl_handlers_rinit(void) {
     dd_curl_inject_fn_proxy = NULL;
     dd_inject_func = NULL;
 
-    dd_mh_ch_map = NULL;
-    dd_mh_ch_map_cache = NULL;
-    dd_mh_ch_map_cache_id = 0;
+    dd_multi_handles = NULL;
+    dd_multi_handles_cache = NULL;
+    dd_multi_handles_cache_id = 0;
 }
 
 void ddtrace_curl_handlers_rshutdown(void) {
@@ -460,11 +450,11 @@ void ddtrace_curl_handlers_rshutdown(void) {
         dd_inject_func = NULL;
     }
 
-    if (dd_mh_ch_map) {
-        zend_hash_destroy(dd_mh_ch_map);
-        FREE_HASHTABLE(dd_mh_ch_map);
-        dd_mh_ch_map = NULL;
+    if (dd_multi_handles) {
+        zend_hash_destroy(dd_multi_handles);
+        FREE_HASHTABLE(dd_multi_handles);
+        dd_multi_handles = NULL;
     }
-    dd_mh_ch_map_cache = NULL;
-    dd_mh_ch_map_cache_id = 0;
+    dd_multi_handles_cache = NULL;
+    dd_multi_handles_cache_id = 0;
 }
