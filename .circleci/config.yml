@@ -1,0 +1,8 @@
+version: "2.1"
+
+jobs:
+  build:
+    docker:
+      - image: cimg/php:7.4
+    steps:
+      - run: echo "Hello"
