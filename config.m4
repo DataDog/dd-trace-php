@@ -55,7 +55,6 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/configuration_php_iface.c \
       ext/php5/ddtrace_string.c \
       ext/php5/dispatch.c \
-      ext/php5/distributed_tracing.c \
       ext/php5/dogstatsd_client.c \
       ext/php5/engine_api.c \
       ext/php5/engine_hooks.c \
@@ -90,7 +89,6 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/configuration_php_iface.c \
       ext/php5/ddtrace_string.c \
       ext/php5/dispatch.c \
-      ext/php5/distributed_tracing.c \
       ext/php5/dogstatsd_client.c \
       ext/php5/engine_api.c \
       ext/php5/engine_hooks.c \

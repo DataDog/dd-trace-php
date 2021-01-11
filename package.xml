@@ -89,8 +89,6 @@
             <file name="ext/php5/ddtrace.h" role="src" />
             <file name="ext/php5/dispatch.c" role="src" />
             <file name="ext/php5/dispatch.h" role="src" />
-            <file name="ext/php5/distributed_tracing.c" role="src" />
-            <file name="ext/php5/distributed_tracing.h" role="src" />
             <file name="ext/php5/dogstatsd_client.c" role="src" />
             <file name="ext/php5/dogstatsd_client.h" role="src" />
             <file name="ext/php5/engine_api.c" role="src" />
@@ -338,6 +336,12 @@
             <file name="tests/ext/sandbox/distributed_tracing_curl_inject.inc" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_inject_exception.inc" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_missing_fn.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_copy_handle.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_copy_handle_bug_71523.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_disable.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_existing_headers_001.phpt" role="test" />
+            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_existing_headers_002.phpt" role="test" />
             <file name="tests/ext/sandbox/distributed_tracing_curl_sandboxed.phpt" role="test" />
             <file name="tests/ext/sandbox/drop_spans.phpt" role="test" />
             <file name="tests/ext/sandbox/errors_are_flagged_from_userland.phpt" role="test" />

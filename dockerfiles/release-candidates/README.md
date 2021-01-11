@@ -46,7 +46,7 @@ $ docker-compose logs -f <service-name>
 ```bash
 # Debian (Apache) on PHP 7.4
 $ docker-compose build apache-7.4
-$ docker-compose up -d apache-7.4
+$ PHP_FPM_CONTAINER=apache-7.4 docker-compose up -d apache-7.4
 ```
 
 ## PECL

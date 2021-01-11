@@ -6,7 +6,10 @@ use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tracer;
 use GuzzleHttp\Client;
+use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\Handler\CurlMultiHandler;
+use GuzzleHttp\Promise;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use DDTrace\Tests\Common\SpanAssertion;
@@ -140,7 +143,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
 
         // trace is: custom
-        $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
 
         // parent is: curl_exec, used under the hood
         $curl_exec = null;
@@ -153,9 +156,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         self::assertNotNull($curl_exec, 'Unable to find curl_exec in spans!');
         self::assertSame($curl_exec['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
 
-        $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
+        self::assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
-        $this->assertSame('preserved_value', $found['headers']['Honored']);
+        self::assertSame('preserved_value', $found['headers']['Honored']);
     }
 
     public function testDistributedTracingIsNotPropagatedIfDisabled()
@@ -176,9 +179,83 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        $this->assertArrayNotHasKey('X-Datadog-Trace-Id', $found['headers']);
-        $this->assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
-        $this->assertArrayNotHasKey('X-Datadog-Sampling-Priority', $found['headers']);
+        self::assertArrayNotHasKey('X-Datadog-Trace-Id', $found['headers']);
+        self::assertArrayNotHasKey('X-Datadog-Parent-Id', $found['headers']);
+        self::assertArrayNotHasKey('X-Datadog-Sampling-Priority', $found['headers']);
+    }
+
+    public function testDistributedTracingIsPropagatedForMultiHandler()
+    {
+        $found = [];
+
+        $traces = $this->isolateTracer(function () use (&$found) {
+            /** @var Tracer $tracer */
+            $tracer = GlobalTracer::get();
+            $tracer->setPrioritySampling(PrioritySampling::AUTO_KEEP);
+            $span = $tracer->startActiveSpan('custom')->getSpan();
+
+            $curl = new CurlMultiHandler();
+            $client = new Client([
+                'handler' => HandlerStack::create($curl)
+            ]);
+
+            $resolver = function (Response $response) use (&$found) {
+                $found[] = $response;
+            };
+
+            $promise1 = $client->getAsync(self::URL . '/headers', [
+                'headers' => [
+                    'honored' => 'preserved_value',
+                ],
+            ])->then($resolver);
+
+            $promise2 = $client->getAsync(self::URL . '/headers', [
+                'headers' => [
+                    'honored' => 'preserved_value',
+                ],
+            ])->then($resolver);
+
+            $aggregate = Promise\all([$promise1, $promise2]);
+            while (!Promise\is_settled($aggregate)) {
+                $curl->tick();
+            }
+
+            $span->finish();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('custom', 'cli', '', 'custom')
+                ->withChildren([
+                    SpanAssertion::exists('GuzzleHttp\Client.transfer'),
+                    SpanAssertion::exists('GuzzleHttp\Client.transfer'),
+                ]),
+        ]);
+
+        foreach ($found as $response) {
+            $data = json_decode($response->getBody(), 1);
+            /*
+             * Ideally the distributed traces for curl multi would be children
+             * of the GuzzleHttp\Client.transfer span, but we do not currently
+             * support this concurrency model so the parent span of curl multi
+             * distributed traces will be whichever span resolves the promise.
+             * In this particular case it is the root span that is active when
+             * $curl->tick() is called.
+             */
+            $rootSpan = $traces[0][0];
+            self::assertSame(
+                $rootSpan['span_id'],
+                (int) $data['headers']['X-Datadog-Parent-Id']
+            );
+            self::assertSame(
+                $rootSpan['trace_id'],
+                (int) $data['headers']['X-Datadog-Trace-Id']
+            );
+            self::assertSame(
+                (float) $rootSpan['metrics']['_sampling_priority_v1'],
+                (float) $data['headers']['X-Datadog-Sampling-Priority']
+            );
+            self::assertSame('preserved_value', $data['headers']['Honored']);
+        }
     }
 
     public function testLimitedTracer()
@@ -190,7 +267,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             $this->getMockedClient()->send($request);
         });
 
-        $this->assertEmpty($traces);
+        self::assertEmpty($traces);
     }
 
     public function testLimitedTracerDistributedTracingIsPropagated()
@@ -215,13 +292,13 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
 
         // trace is: custom
-        $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
-        $this->assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
-        $this->assertEquals(1, sizeof($traces[0]));
+        self::assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame($traces[0][0]['span_id'], (int) $found['headers']['X-Datadog-Parent-Id']);
+        self::assertEquals(1, sizeof($traces[0]));
 
-        $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
+        self::assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
-        $this->assertSame('preserved_value', $found['headers']['Honored']);
+        self::assertSame('preserved_value', $found['headers']['Honored']);
     }
 
     public function testAppendHostnameToServiceName()

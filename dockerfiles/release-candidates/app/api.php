@@ -5,14 +5,13 @@ instrumentMethod('MyApi', 'getUsers');
 
 class MyApi
 {
-    public function getUsers()
+    public function getUsers($group)
     {
         $users = [];
-        $prefix = isset($_GET['group']) ? $_GET['group'] : '';
         foreach (range(0, mt_rand(5, 10)) as $i) {
             $users[] = [
                 'id' => $i,
-                'name' => uniqid($prefix, true),
+                'name' => uniqid($group, true),
                 'email' => uniqid() . '@example.com',
             ];
         }
@@ -21,5 +20,11 @@ class MyApi
 }
 
 header('Content-Type:application/json');
+
+$group = isset($_GET['group']) ? $_GET['group'] : '';
+if ('red' === $group) {
+    usleep(10000);
+}
+
 $api = new MyApi();
-echo json_encode($api->getUsers());
+echo json_encode($api->getUsers($group));

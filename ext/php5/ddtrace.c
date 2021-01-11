@@ -36,7 +36,6 @@
 #include "ddtrace.h"
 #include "ddtrace_string.h"
 #include "dispatch.h"
-#include "distributed_tracing.h"
 #include "dogstatsd_client.h"
 #include "engine_hooks.h"
 #include "excluded_modules.h"
@@ -409,7 +408,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     ddtrace_engine_hooks_rinit(TSRMLS_C);
     ddtrace_bgs_log_rinit(PG(error_log));
     ddtrace_dispatch_init(TSRMLS_C);
-    ddtrace_distributed_tracing_rinit(TSRMLS_C);
     DDTRACE_G(disable_in_current_request) = 0;
 
     // This allows us to hook the ZEND_HANDLE_EXCEPTION pseudo opcode
@@ -445,10 +443,9 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
 
     ddtrace_engine_hooks_rshutdown(TSRMLS_C);
-    ddtrace_internal_handlers_rshutdown();
+    ddtrace_internal_handlers_rshutdown(TSRMLS_C);
     ddtrace_dogstatsd_client_rshutdown(TSRMLS_C);
 
-    ddtrace_distributed_tracing_rshutdown(TSRMLS_C);
     ddtrace_dispatch_destroy(TSRMLS_C);
     ddtrace_free_span_id_stack(TSRMLS_C);
     ddtrace_free_span_stacks(TSRMLS_C);

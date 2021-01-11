@@ -16,7 +16,7 @@ x-base-php-service:
       - DD_TRACE_STARTUP_LOGS=0
       - DD_ENV=testing # Should take priority over DD_TAGS=env:localhost
       - DD_TAGS=env:localhost,foo.tag:custom
-      - DD_SERVICE_NAME=rc-testing-service # Will emmit deprecated diagnostic
+      - DD_SERVICE_NAME=rc-${PHP_FPM_CONTAINER:-testing-service} # Will emmit deprecated diagnostic
       #- DD_TRACE_AUTO_FLUSH_ENABLED=1
       #- DD_TRACE_GENERATE_ROOT_SPAN=0
     cap_add:

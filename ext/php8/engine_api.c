@@ -98,12 +98,16 @@ ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *nam
         zend_bool is_callable = zend_is_callable_ex(&fname, NULL, IS_CALLABLE_CHECK_SILENT, NULL, &fcc, NULL);
         zend_string_release(Z_STR(fname));
 
+        /* Given that fname is always a string, this path is only possible if
+         * the function does not exist.
+         */
         if (UNEXPECTED(!is_callable)) {
             /* zend_call_function undef's the retval; as a wrapper for it, this
              * func should have the same invariant; a sigsegv occurred because
              * of this.
              */
             ZVAL_UNDEF(retval);
+            zend_fcall_info_args_clear(&fci, 1);
             return FAILURE;
         }
 
