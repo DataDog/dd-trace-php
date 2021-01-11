@@ -650,6 +650,10 @@ jobs:
         environment:
           PHP_PACKAGE: << parameters.php_package >>
           OS_NAME: alpine
+          DD_AGENT_HOST: request-replayer
+          DD_TRACE_AGENT_PORT: 80
+          DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
+          VERIFY_APACHE: 'no'
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
       - run:
@@ -1138,24 +1142,24 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php
+                - php php-fpm
+              docker_image:
+                - alpine:3.8
+                - alpine:3.9
+                - alpine:3.10
+                - alpine:3.11
+                - alpine:3.12
+                - alpine:latest
+      - verify_alpine:
+          requires: [ "package extension" ]
+          matrix:
+            parameters:
+              php_package:
+                - php7 php7-fpm
               docker_image:
                 - alpine:3.7
                 - alpine:3.8
                 - alpine:3.9
-                - alpine:3.10
-                - alpine:3.11
-                - alpine:3.12
-                - alpine:latest
-      - verify_alpine:
-          requires: [ "package extension" ]
-          matrix:
-            parameters:
-              php_package:
-                - php7
-              docker_image:
-                - alpine:3.8
-                - alpine:3.9
                 - alpine:3.9
                 - alpine:3.10
                 - alpine:3.11
@@ -1166,7 +1170,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php5
+                - php5 php5-fpm
               docker_image:
                 - alpine:3.5
                 - alpine:3.6
