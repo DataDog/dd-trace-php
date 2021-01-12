@@ -23,6 +23,7 @@ Critical issues and scenarios
 
 const NUMBER_OF_SCENARIOS = 5;
 const MAX_ENV_MODIFICATIONS = 5;
+const MAX_INI_MODIFICATIONS = 5;
 
 const DOCKER_IMAGES = [
     'centos:7' => [
@@ -87,6 +88,11 @@ const ENVS = [
     'DD_TRACE_ZENDFRAMEWORK_ENABLED' => ['false'],
 ];
 
+const INIS = [
+    'opcache.enabled' => ['0'],
+    // 'opcache.preload' => ['TBD'],
+];
+
 function main()
 {
     for ($iteration = 0; $iteration < NUMBER_OF_SCENARIOS; $iteration++) {
@@ -101,12 +107,20 @@ function main()
             $availableValues = ENVS[$currentEnv];
             $envModifications[$currentEnv] = $availableValues[array_rand($availableValues)];
         }
+        $numberOfIniModifications = rand(0, min(MAX_INI_MODIFICATIONS, count(INIS)));
+        $iniModifications = [];
+        for ($iniModification = 0; $iniModification < $numberOfIniModifications; $iniModification++) {
+            $currentIni = array_rand(INIS);
+            $availableValues = INIS[$currentIni];
+            $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
+        }
         $seed = rand();
         echo "Selected: " . $selectedDockerImage . "\n";
         echo "   PHP  : " . $selectedPhpVersion . "\n";
         echo "   Seed : " . $seed . "\n";
         echo "   Insta: " . $selectedInstallationMethod . "\n";
         echo "   Envs : " . var_export($envModifications, 1) . "\n";
+        echo "   Inis : " . var_export($iniModifications, 1) . "\n";
     }
 }
 
