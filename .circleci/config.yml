@@ -650,6 +650,10 @@ jobs:
         environment:
           PHP_PACKAGE: << parameters.php_package >>
           OS_NAME: alpine
+          DD_AGENT_HOST: request-replayer
+          DD_TRACE_AGENT_PORT: 80
+          DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
+          VERIFY_APACHE: 'no'
       - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
     steps:
       - run:
@@ -660,6 +664,72 @@ jobs:
       - run:
           name: Validate alpine package
           command: ./dockerfiles/verify_packages/verify.sh
+
+  verify_centos:
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      configuration:
+        type: string
+      php_package:
+        type: string
+        default: ""
+    docker:
+      - image: << parameters.docker_image >>
+        environment:
+          PHP_PACKAGE: << parameters.php_package >>
+          DD_AGENT_HOST: request-replayer
+          DD_TRACE_AGENT_PORT: 80
+          DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Validate centos package
+          command: << parameters.configuration >> ./dockerfiles/verify_packages/verify.sh
+
+
+  verify_centos_6:
+    working_directory: ~/datadog
+    machine:
+      image: circleci/classic:latest
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run: mkdir -p test-results
+      - run:
+          name: Test installing packages on target systems
+          command: make -f dockerfiles/verify_packages/Makefile docker_compose_pull verify_centos_6
+      - store_test_results:
+          path: test-results
+
+  verify_debian:
+    working_directory: ~/datadog
+    parameters:
+      docker_image:
+        type: string
+      install_mode:
+        type: string
+      verify_apache:
+        # yes|no
+        type: string
+        default: "yes"
+      configuration:
+        type: string
+    docker:
+      - image: << parameters.docker_image >>
+        environment:
+          DD_AGENT_HOST: request-replayer
+          DD_TRACE_AGENT_PORT: 80
+          DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
+          VERIFY_APACHE: << parameters.verify_apache >>
+          INSTALL_MODE: << parameters.install_mode >>
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Validate debian package
+          command: << parameters.configuration >> bash ./dockerfiles/verify_packages/verify.sh
 
   pecl_build:
     working_directory: ~/datadog
@@ -927,18 +997,6 @@ jobs:
           root: '.'
           paths: ['./build/packages', 'dockerfiles/verify_packages']
 
-  "package verification":
-    working_directory: ~/datadog
-    machine:
-      image: circleci/classic:latest
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - run: mkdir -p test-results
-      - run:
-          name: Test installing packages on target systems
-          command: make -f dockerfiles/verify_packages/Makefile docker_compose_pull all
-      - store_test_results:
-          path: test-results
   placeholder:
     docker:
       - image: busybox
@@ -1059,9 +1117,6 @@ workflows:
             - "Compile PHP 74 nts + zts + debug"
             - "Compile PHP 80 nts + zts + debug"
             - "Build PECL"
-      - "package verification":
-          requires:
-            - "package extension"
       - placeholder:
           requires: [ 'package extension' ]
           name: Framework tests
@@ -1123,39 +1178,29 @@ workflows:
           requires: [ "Framework tests" ]
           framework_target: wordpress_no_ddtrace
           name: "WordPress baseline testsuite"
-      - verify_package:
-          requires: [ "package extension" ]
-          name: "webdevops/php:7.1"
-          docker_image: webdevops/php:7.1
-          package_type: deb
-      - verify_package:
-          requires: [ "package extension" ]
-          name: "php:7.3"
-          docker_image: php:7.3
-          package_type: deb
       - verify_alpine:
           requires: [ "package extension" ]
           matrix:
             parameters:
               php_package:
-                - php
+                - php php-fpm
+              docker_image:
+                - alpine:3.8
+                - alpine:3.9
+                - alpine:3.10
+                - alpine:3.11
+                - alpine:3.12
+                - alpine:latest
+      - verify_alpine:
+          requires: [ "package extension" ]
+          matrix:
+            parameters:
+              php_package:
+                - php7 php7-fpm
               docker_image:
                 - alpine:3.7
                 - alpine:3.8
                 - alpine:3.9
-                - alpine:3.10
-                - alpine:3.11
-                - alpine:3.12
-                - alpine:latest
-      - verify_alpine:
-          requires: [ "package extension" ]
-          matrix:
-            parameters:
-              php_package:
-                - php7
-              docker_image:
-                - alpine:3.8
-                - alpine:3.9
                 - alpine:3.9
                 - alpine:3.10
                 - alpine:3.11
@@ -1166,7 +1211,7 @@ workflows:
           matrix:
             parameters:
               php_package:
-                - php5
+                - php5 php5-fpm
               docker_image:
                 - alpine:3.5
                 - alpine:3.6
@@ -1185,6 +1230,55 @@ workflows:
                 - php:7.3-fpm-alpine
                 - php:7.4-fpm-alpine
                 - php:8.0-rc-fpm-alpine
+      - verify_centos:
+          requires: [ "package extension" ]
+          matrix:
+            parameters:
+              docker_image:
+                - centos:7
+              configuration:
+                - PHP_MAJOR=5 PHP_MINOR=4
+                - PHP_MAJOR=5 PHP_MINOR=5
+                - PHP_MAJOR=5 PHP_MINOR=6
+                - PHP_MAJOR=7 PHP_MINOR=0
+                - PHP_MAJOR=7 PHP_MINOR=1
+                - PHP_MAJOR=7 PHP_MINOR=2
+                - PHP_MAJOR=7 PHP_MINOR=3
+                - PHP_MAJOR=7 PHP_MINOR=4
+                - PHP_MAJOR=8 PHP_MINOR=0
+      - verify_centos_6:
+          requires: [ "package extension" ]
+      - verify_debian:
+          requires: [ "package extension" ]
+          matrix:
+            parameters:
+              install_mode:
+                - sury
+              docker_image:
+                - debian:buster
+                - debian:stretch
+              configuration:
+                - PHP_VERSION=5.6
+                - PHP_VERSION=7.0
+                - PHP_VERSION=7.1
+                - PHP_VERSION=7.2
+                - PHP_VERSION=7.3
+                - PHP_VERSION=7.4
+                - PHP_VERSION=8.0
+      - verify_debian:
+          requires: [ "package extension" ]
+          matrix:
+            parameters:
+              install_mode:
+                - native
+              docker_image:
+                - debian:jessie
+              configuration:
+                  # Sury.org no longer provides PHP packages for Jessie
+                  # https://www.linuxcompatible.org/story/suryorg-has-discontinued-debian-8-support/
+                  # So we just test the PHP version in the default repo (5.6)
+                - PHP_PACKAGE="php5 php5-fpm libapache2-mod-php5" PHP_FPM_BIN="php5-fpm"
+
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 54 PECL tests"
