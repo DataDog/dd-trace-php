@@ -21,12 +21,13 @@ Critical issues and scenarios
     - other conditions to be investigated
 */
 
-const NUMBER_OF_SCENARIOS = 5;
+const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
+const NUMBER_OF_SCENARIOS = 2;
 const MAX_ENV_MODIFICATIONS = 5;
 const MAX_INI_MODIFICATIONS = 5;
 
-const DOCKER_IMAGES = [
-    'centos:7' => [
+const OS = [
+    'centos7' => [
         'php' => [
             '7.4',
         ],
@@ -93,11 +94,11 @@ const INIS = [
     // 'opcache.preload' => ['TBD'],
 ];
 
-function main()
+function generate()
 {
     for ($iteration = 0; $iteration < NUMBER_OF_SCENARIOS; $iteration++) {
-        $selectedDockerImage = array_rand(DOCKER_IMAGES);
-        $availablePHPVersions = DOCKER_IMAGES[$selectedDockerImage]['php'];
+        $selectedOs = array_rand(OS);
+        $availablePHPVersions = OS[$selectedOs]['php'];
         $selectedPhpVersion = $availablePHPVersions[array_rand($availablePHPVersions)];
         $selectedInstallationMethod = INSTALLATION[array_rand(INSTALLATION)];
         $numberOfEnvModifications = rand(0, MAX_ENV_MODIFICATIONS);
@@ -115,13 +116,17 @@ function main()
             $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
         }
         $seed = rand();
-        echo "Selected: " . $selectedDockerImage . "\n";
-        echo "   PHP  : " . $selectedPhpVersion . "\n";
-        echo "   Seed : " . $seed . "\n";
-        echo "   Insta: " . $selectedInstallationMethod . "\n";
-        echo "   Envs : " . var_export($envModifications, 1) . "\n";
-        echo "   Inis : " . var_export($iniModifications, 1) . "\n";
+        echo "Selected        : " . $selectedOs . "\n";
+        echo "   PHP          : " . $selectedPhpVersion . "\n";
+        echo "   Seed         : " . $seed . "\n";
+        echo "   Installation : " . $selectedInstallationMethod . "\n";
+        echo "   Envs         : " . var_export($envModifications, 1) . "\n";
+        echo "   Inis         : " . var_export($iniModifications, 1) . "\n";
+        $scenarioFolder = TMP_SCENARIOS_FOLDER . "/random-$seed-$selectedOs-$selectedPhpVersion";
+        exec("mkdir -p $scenarioFolder/app");
+        exec("cp -r ./docker/app/public $scenarioFolder/app");
+        exec("cp -r ./docker/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
     }
 }
 
-main();
+generate();
