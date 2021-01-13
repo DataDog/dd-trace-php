@@ -35,7 +35,7 @@ const OS = [
 ];
 
 const INSTALLATION = [
-    'pecl',
+    // 'pecl',
     'package',
 ];
 
@@ -96,6 +96,10 @@ const INIS = [
 
 function generate()
 {
+    $scenariosFolder = TMP_SCENARIOS_FOLDER;
+    $dockerComposeFile = "${scenariosFolder}/docker-compose.yml";
+    exec("cp ./docker-compose.template.yml ${dockerComposeFile}");
+    $dockerComposeHandle = fopen($dockerComposeFile, 'a');
     for ($iteration = 0; $iteration < NUMBER_OF_SCENARIOS; $iteration++) {
         $selectedOs = array_rand(OS);
         $availablePHPVersions = OS[$selectedOs]['php'];
@@ -122,11 +126,47 @@ function generate()
         echo "   Installation : " . $selectedInstallationMethod . "\n";
         echo "   Envs         : " . var_export($envModifications, 1) . "\n";
         echo "   Inis         : " . var_export($iniModifications, 1) . "\n";
-        $scenarioFolder = TMP_SCENARIOS_FOLDER . "/random-$seed-$selectedOs-$selectedPhpVersion";
+        $identifier = "random-$seed-$selectedOs-$selectedPhpVersion";
+        $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";
         exec("mkdir -p $scenarioFolder/app");
         exec("cp -r ./docker/app/public $scenarioFolder/app");
-        exec("cp -r ./docker/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
+
+        // Writing PHP-FPM worker file
+        $wwwFilePath = "$scenarioFolder/$identifier.www.conf";
+        exec("cp ./www.template.conf $wwwFilePath");
+        $wwwFileHandle = fopen($wwwFilePath, 'a');
+        foreach ($envModifications as $envName => $envValue) {
+            fwrite($wwwFileHandle, "env[$envName] = \"$envValue\"\n");
+        }
+        foreach ($iniModifications as $iniName => $iniValue) {
+            fwrite($wwwFileHandle, "php_value[$iniName] = \"$iniValue\"\n");
+        }
+        fclose($wwwFileHandle);
+
+        // Writing composer file
+        exec("cp ./docker/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
+        fwrite($dockerComposeHandle, "
+  php-$identifier:
+    image: dd-random-testing:$selectedOs
+    ulimits:
+      core: 99999999999
+    privileged: true
+    volumes:
+      - composer_cache:/root/.composer
+      - ./$identifier/app:/var/www/html
+      - $wwwFilePath:/etc/php-fpm.d/www.conf
+      - ./.tracer-versions:/tmp/tracer-versions
+    environment:
+        INSTALL_MODE: $selectedInstallationMethod
+    depends_on:
+      - agent
+      - elasticsearch
+      - redis
+      - memcached
+      - mysql
+      - httpbin\n");
     }
+    fclose($dockerComposeHandle);
 }
 
 generate();
