@@ -156,8 +156,10 @@ function generate()
       - ./$identifier/app:/var/www/html
       - $wwwFilePath:/etc/php-fpm.d/www.conf
       - ./.tracer-versions:/tmp/tracer-versions
+      - ./.results:/results
     environment:
         INSTALL_MODE: $selectedInstallationMethod
+        TEST_SCENARIO: $identifier
     depends_on:
       - agent
       - elasticsearch

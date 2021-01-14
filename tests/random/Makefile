@@ -1,4 +1,5 @@
 TMP_SCENARIO_FOLDER := ./.tmp.scenarios
+TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
 DURATION := 30s
 TRACER_VERSION := 0.49.0
 DOCKER_IMAGE_PREFIX := dd-random-testing:
@@ -11,7 +12,7 @@ build: centos7.build
 %.build:
 	docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)$(*) ./docker
 
-%.shell:
+%.shell: %.build
 	docker run --rm -ti \
 		$(DOCKER_IMAGE_PREFIX)$(*) \
 		bash
@@ -25,14 +26,15 @@ download:
 	@curl --silent -L -o ${TRACER_DOWNLOAD_PATH}/ddtrace-test.tar.gz "$(TRACER_TEST_URL)"
 	@echo "Done"
 
-generate: scenarios_clean
+generate: scenarios_clean results_folder
 	@php randomizer.php
 	@cp -r ${TRACER_DOWNLOAD_PATH} $$(pwd)/$(TMP_SCENARIO_FOLDER)
 
 scenarios_clean:
 	@rm -rf $$(pwd)/$(TMP_SCENARIO_FOLDER)/**
 
-
+results_folder:
+	@mkdir -p $(TMP_RESULTS_FOLDER)
 
 
 

@@ -18,6 +18,10 @@ RUN \
             php-pecl-redis \
             mod_php
 
+# Installing vegeta
+ADD https://github.com/tsenart/vegeta/releases/download/v12.8.4/vegeta_12.8.4_linux_amd64.tar.gz /tmp/vegeta.tar.gz
+RUN tar -C /usr/bin -zxvf /tmp/vegeta.tar.gz vegeta
+
 # Installing composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 

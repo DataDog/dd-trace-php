@@ -27,4 +27,4 @@ sleep 1
 
 composer --working-dir=/var/www/html install
 
-curl -v localhost
+echo "GET http://localhost" | vegeta attack -format=http -duration=2s -keepalive=true -max-workers=5 -rate=0 | tee results.bin | vegeta report --type=json --output=/results/${TEST_SCENARIO}.json
