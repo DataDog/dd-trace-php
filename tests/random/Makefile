@@ -27,7 +27,7 @@ download:
 	@echo "Done"
 
 generate: scenarios_clean results_folder
-	@php randomizer.php
+	@php generate-scenarios.php
 	@cp -r ${TRACER_DOWNLOAD_PATH} $$(pwd)/$(TMP_SCENARIO_FOLDER)
 
 scenarios_clean:
