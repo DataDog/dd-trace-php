@@ -1,0 +1,12 @@
+{
+    "autoload": {
+        "psr-4": {
+            "RandomTests\\": "./src/RandomTests"
+        }
+    },
+    "require": {
+        "elasticsearch/elasticsearch": "2.*",
+        "guzzlehttp/guzzle": "6.*",
+        "datadog/dd-trace": "^0.49.0"
+    }
+}

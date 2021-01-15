@@ -142,7 +142,7 @@ function generate()
         $testIdentifiers[] = $identifier;
         $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";
         exec("mkdir -p $scenarioFolder/app");
-        exec("cp -r ./docker/app/public $scenarioFolder/app");
+        exec("cp -r ./app/ $scenarioFolder/app");
 
         // Writing PHP-FPM worker file
         $wwwFilePath = "$scenarioFolder/$identifier.www.conf";

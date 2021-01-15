@@ -1,4 +1,9 @@
 {
+    "autoload": {
+        "psr-4": {
+            "RandomTests\\": "./src/RandomTests"
+        }
+    },
     "require": {
         "elasticsearch/elasticsearch": "6.*",
         "guzzlehttp/guzzle": "6.*",
