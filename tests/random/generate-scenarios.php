@@ -22,10 +22,10 @@ Critical issues and scenarios
 */
 
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
-const NUMBER_OF_SCENARIOS = 2;
+const NUMBER_OF_SCENARIOS = 10;
 const MAX_ENV_MODIFICATIONS = 5;
 const MAX_INI_MODIFICATIONS = 5;
-const EXECUTION_BATCH = 30;
+const EXECUTION_BATCH = 2;
 
 const OS = [
     'centos7' => [
@@ -40,12 +40,16 @@ const INSTALLATION = [
     'package',
 ];
 
+const DEFAULT_ENVS = [
+    'DD_AGENT_HOST' => 'agent',
+];
+
 const ENVS = [
     'DD_ENV' => ['some_env'],
     'DD_SERVICE' => ['my_custom_service'],
     'DD_TRACE_ENABLED' => ['false'],
     'DD_TRACE_DEBUG' => ['true'],
-    'DD_AGENT_HOST' => ['wrong_host'],
+    'DD_AGENT_HOST' => [null, 'wrong_host'],
     'DD_TRACE_AGENT_PORT' => ['9999'],
     'DD_DISTRIBUTED_TRACING' => ['false'],
     'DD_AUTOFINISH_SPANS' => ['true'],
@@ -109,13 +113,22 @@ function generate()
         $availablePHPVersions = OS[$selectedOs]['php'];
         $selectedPhpVersion = $availablePHPVersions[array_rand($availablePHPVersions)];
         $selectedInstallationMethod = INSTALLATION[array_rand(INSTALLATION)];
+
+        // Environment variables
         $numberOfEnvModifications = rand(0, MAX_ENV_MODIFICATIONS);
-        $envModifications = [];
+        $envModifications = array_merge([], DEFAULT_ENVS);
         for ($envModification = 0; $envModification < $numberOfEnvModifications; $envModification++) {
             $currentEnv = array_rand(ENVS);
             $availableValues = ENVS[$currentEnv];
-            $envModifications[$currentEnv] = $availableValues[array_rand($availableValues)];
+            $selectedEnvValue = $availableValues[array_rand($availableValues)];
+            if (null === $selectedEnvValue) {
+                unset($envModifications[$currentEnv]);
+            } else {
+                $envModifications[$currentEnv] = $selectedEnvValue;
+            }
         }
+
+        // INI settings
         $numberOfIniModifications = rand(0, min(MAX_INI_MODIFICATIONS, count(INIS)));
         $iniModifications = [];
         for ($iniModification = 0; $iniModification < $numberOfIniModifications; $iniModification++) {
@@ -124,12 +137,6 @@ function generate()
             $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
         }
         $seed = rand();
-        echo "Selected        : " . $selectedOs . "\n";
-        echo "   PHP          : " . $selectedPhpVersion . "\n";
-        echo "   Seed         : " . $seed . "\n";
-        echo "   Installation : " . $selectedInstallationMethod . "\n";
-        echo "   Envs         : " . var_export($envModifications, 1) . "\n";
-        echo "   Inis         : " . var_export($iniModifications, 1) . "\n";
         $identifier = "random-$seed-$selectedOs-$selectedPhpVersion";
         $testIdentifiers[] = $identifier;
         $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";

@@ -39,7 +39,8 @@ results_folder:
 run: execute analyze
 
 execute:
-	@make -C $(TMP_SCENARIO_FOLDER) clean_results test
+	@make -C $(TMP_SCENARIO_FOLDER) clean_results
+	@make -C $(TMP_SCENARIO_FOLDER) --jobs=30 test
 
 analyze:
 	@php analyze-results.php .tmp.scenarios/.results

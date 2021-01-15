@@ -6,4 +6,6 @@ clean_results:
 	@echo "Results folder cleaned"
 
 test.scenario.%:
-	@docker-compose run --rm $(*)
+	@docker-compose run $(*)
+
+# Dynamically generated targets will be added after this line
