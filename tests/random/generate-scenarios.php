@@ -22,10 +22,10 @@ Critical issues and scenarios
 */
 
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
-const NUMBER_OF_SCENARIOS = 10;
+const NUMBER_OF_SCENARIOS = 100;
 const MAX_ENV_MODIFICATIONS = 5;
 const MAX_INI_MODIFICATIONS = 5;
-const EXECUTION_BATCH = 2;
+const EXECUTION_BATCH = 30;
 
 const OS = [
     'centos7' => [
@@ -94,8 +94,9 @@ const ENVS = [
     'DD_TRACE_ZENDFRAMEWORK_ENABLED' => ['false'],
 ];
 
+// Add flags as boolean
 const INIS = [
-    'opcache.enabled' => ['0'],
+    'opcache.enabled' => [false],
     // 'opcache.preload' => ['TBD'],
 ];
 
@@ -151,7 +152,11 @@ function generate()
             fwrite($wwwFileHandle, "env[$envName] = \"$envValue\"\n");
         }
         foreach ($iniModifications as $iniName => $iniValue) {
-            fwrite($wwwFileHandle, "php_value[$iniName] = \"$iniValue\"\n");
+            if (is_bool($iniValue)) {
+                fwrite($wwwFileHandle, "php_flag[$iniName] = " . ($iniValue ? 'on' : 'off') . "\n");
+            } else {
+                fwrite($wwwFileHandle, "php_value[$iniName] = \"$iniValue\"\n");
+            }
         }
         fclose($wwwFileHandle);
 
