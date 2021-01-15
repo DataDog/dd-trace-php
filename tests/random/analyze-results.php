@@ -6,6 +6,7 @@ function analyze()
     $resultsFolder = $argv[1];
     // error_log('Results: ' . var_export($resultsFolder, 1));
 
+    $analyzed = [];
     $errors = [];
 
     foreach (scandir($resultsFolder) as $file) {
@@ -13,6 +14,7 @@ function analyze()
             continue;
         }
         $identifier = explode('.', $file)[0];
+        $analyzed[] = $identifier;
         $absFilePath = implode(DIRECTORY_SEPARATOR, [$resultsFolder, $file]);
         // error_log('File: ' . var_export($absFilePath, 1));
 
@@ -30,6 +32,7 @@ function analyze()
     }
 
     // Reporting errors
+    echo "Analyzed " . count($analyzed) . " scenarios.\n";
     if (count($errors)) {
         echo "Errors found: " . var_export($errors, 1) . "\n";
         exit(1);

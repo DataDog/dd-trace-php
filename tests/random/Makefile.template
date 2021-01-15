@@ -1,0 +1,9 @@
+pull:
+	@docker-compose pull
+
+clean_results:
+	@rm -rf ./.results/*
+	@echo "Results folder cleaned"
+
+test.scenario.%:
+	@docker-compose run --rm $(*)

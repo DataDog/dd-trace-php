@@ -36,9 +36,13 @@ scenarios_clean:
 results_folder:
 	@mkdir -p $(TMP_RESULTS_FOLDER)
 
+run: execute analyze
 
+execute:
+	@make -C $(TMP_SCENARIO_FOLDER) clean_results test
 
-
+analyze:
+	@php analyze-results.php .tmp.scenarios/.results
 
 
 

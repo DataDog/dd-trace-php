@@ -25,6 +25,7 @@ const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
 const NUMBER_OF_SCENARIOS = 2;
 const MAX_ENV_MODIFICATIONS = 5;
 const MAX_INI_MODIFICATIONS = 5;
+const EXECUTION_BATCH = 30;
 
 const OS = [
     'centos7' => [
@@ -100,6 +101,9 @@ function generate()
     $dockerComposeFile = "${scenariosFolder}/docker-compose.yml";
     exec("cp ./docker-compose.template.yml ${dockerComposeFile}");
     $dockerComposeHandle = fopen($dockerComposeFile, 'a');
+
+    $testIdentifiers = [];
+
     for ($iteration = 0; $iteration < NUMBER_OF_SCENARIOS; $iteration++) {
         $selectedOs = array_rand(OS);
         $availablePHPVersions = OS[$selectedOs]['php'];
@@ -127,6 +131,7 @@ function generate()
         echo "   Envs         : " . var_export($envModifications, 1) . "\n";
         echo "   Inis         : " . var_export($iniModifications, 1) . "\n";
         $identifier = "random-$seed-$selectedOs-$selectedPhpVersion";
+        $testIdentifiers[] = $identifier;
         $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";
         exec("mkdir -p $scenarioFolder/app");
         exec("cp -r ./docker/app/public $scenarioFolder/app");
@@ -146,7 +151,7 @@ function generate()
         // Writing composer file
         exec("cp ./docker/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
         fwrite($dockerComposeHandle, "
-  php-$identifier:
+  $identifier:
     image: dd-random-testing:$selectedOs
     ulimits:
       core: 99999999999
@@ -169,6 +174,21 @@ function generate()
       - httpbin\n");
     }
     fclose($dockerComposeHandle);
+
+    // Generating makefile
+    $makefile = "${scenariosFolder}/Makefile";
+    exec("cp ./Makefile.template ${makefile}");
+    $makefileHandle = fopen($makefile, 'a');
+    $batches = [];
+    for ($testIndex = 0; $testIndex < count($testIdentifiers); $testIndex++) {
+        $batch = "test.batch." . (floor($testIndex / EXECUTION_BATCH) + 1);
+        $batches[$batch][] = "test.scenario." . $testIdentifiers[$testIndex];
+    }
+    fwrite($makefileHandle, sprintf("\ntest: %s\n", implode(' ', array_keys($batches))));
+    foreach ($batches as $batch => $identifiers) {
+        fwrite($makefileHandle, sprintf("%s: %s\n", $batch, implode(' ', $identifiers)));
+    }
+    fclose($makefileHandle);
 }
 
 generate();
