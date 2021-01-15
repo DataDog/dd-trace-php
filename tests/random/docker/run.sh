@@ -16,7 +16,10 @@ fi
 
 # Start PHP-FPM
 echo "Starting PHP-FPM"
+mkdir -p /var/log/php-fpm/
+chmod a+w /var/log/php-fpm/
 php-fpm -D
+sleep 1
 
 # Start nginx
 echo "Starting nginx"
@@ -27,4 +30,6 @@ sleep 1
 
 composer --working-dir=/var/www/html install
 
-echo "GET http://localhost" | vegeta attack -format=http -duration=2s -keepalive=true -max-workers=5 -rate=0 | tee results.bin | vegeta report --type=json --output=/results/${TEST_SCENARIO}.json
+echo "Starting loading"
+echo "GET http://localhost" | vegeta attack -format=http -duration=30s -keepalive=true -max-workers=5 -rate=0 | tee results.bin | vegeta report --type=json --output=/results/${TEST_SCENARIO}.json
+echo "Done loading"

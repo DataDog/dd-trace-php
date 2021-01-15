@@ -36,4 +36,11 @@ ADD nginx.conf /etc/nginx/conf.d/default.conf
 
 ADD run.sh /scripts/run.sh
 
+WORKDIR /var/www/html
+
+ENV COMPOSER_CACHE_DIR /composer-cache
+RUN mkdir -p ${COMPOSER_CACHE_DIR}
+ENV COMPOSER_VENDOR_DIR /composer-vendor
+RUN mkdir -p ${COMPOSER_VENDOR_DIR}
+
 CMD [ "bash", "/scripts/run.sh" ]

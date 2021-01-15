@@ -33,7 +33,7 @@ function analyze()
 
     // Reporting errors
     echo "Analyzed " . count($analyzed) . " scenarios.\n";
-    if (count($errors)) {
+    if (count($errors) > 0) {
         echo "Errors found: " . var_export($errors, 1) . "\n";
         exit(1);
     } else {

@@ -2,7 +2,8 @@
 
 use DDTrace\GlobalTracer;
 
-require __DIR__ . '/../vendor/autoload.php';
+$composerVendor = getenv('COMPOSER_VENDOR_DIR') ? : __DIR__ . '/../vendor';
+require "$composerVendor/autoload.php";
 
 require __DIR__ . '/chaos.php';
 $chaos = new Chaos($allowFatalAndUncaught = true);

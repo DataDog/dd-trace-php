@@ -164,7 +164,7 @@ function generate()
       core: 99999999999
     privileged: true
     volumes:
-      - composer_cache:/root/.composer
+      - composer_cache:/composer-cache
       - ./$identifier/app:/var/www/html
       - $wwwFilePath:/etc/php-fpm.d/www.conf
       - ./.tracer-versions:/tmp/tracer-versions
