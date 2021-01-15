@@ -1,22 +1,16 @@
 <?php
 
-function analyze()
+function analyze($resultsFolder, $dockerComposeFile)
 {
-    global $argv;
-    $resultsFolder = $argv[1];
-    // error_log('Results: ' . var_export($resultsFolder, 1));
-
     $analyzed = [];
     $errors = [];
 
-    foreach (scandir($resultsFolder) as $file) {
-        if (in_array($file, ['.', '..'])) {
+    foreach (scandir($resultsFolder) as $identifier) {
+        if (in_array($identifier, ['.', '..'])) {
             continue;
         }
-        $identifier = explode('.', $file)[0];
+        $absFilePath = $resultsFolder . DIRECTORY_SEPARATOR . $identifier . DIRECTORY_SEPARATOR . 'results.json';
         $analyzed[] = $identifier;
-        $absFilePath = implode(DIRECTORY_SEPARATOR, [$resultsFolder, $file]);
-        // error_log('File: ' . var_export($absFilePath, 1));
 
         $jsonResult = json_decode(file_get_contents($absFilePath), 1);
 
@@ -24,11 +18,29 @@ function analyze()
         //   - 200: OK
         //   - 530: Uncaught new style exception (status code forced by us)
         //   - 531: Unhandled legacy error (status code forced by us)
-        // error_log("result: " . var_export($jsonResult, 1));
         $receivedStatusCodes = $jsonResult['status_codes'];
-        if (array_keys($receivedStatusCodes) !== [200, 530, 531]) {
+        if (array_keys($receivedStatusCodes) !== [ 200, 530, 531 ]) {
             $errors[$identifier] = $receivedStatusCodes;
         }
+    }
+
+    // Reading expected identifiers from docker-compose file
+    $dockerComposeContent = explode("\n", file_get_contents($dockerComposeFile));
+    $composeRunners = [];
+    foreach ($dockerComposeContent as $line) {
+        $normalizedLine = trim($line, " :\t");
+        if (strncmp($normalizedLine, 'random-', strlen('random-')) === 0) {
+            $composeRunners[] = $normalizedLine;
+        }
+    }
+
+    if ($composeRunners != $analyzed) {
+        echo sprintf(
+            "Error: number of docker compose test runners (%d) and results found (%d) mismastch.\n",
+            count($composeRunners),
+            count($analyzed)
+        );
+        exit(1);
     }
 
     // Reporting errors
@@ -41,4 +53,4 @@ function analyze()
     }
 }
 
-analyze();
+analyze(__DIR__ . '/.tmp.scenarios/.results', __DIR__ . '/.tmp.scenarios/docker-compose.yml');

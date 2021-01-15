@@ -173,7 +173,9 @@ function generate()
       - ./$identifier/app:/var/www/html
       - $wwwFilePath:/etc/php-fpm.d/www.conf
       - ./.tracer-versions:/tmp/tracer-versions
-      - ./.results:/results
+      - ./.results/$identifier/:/results/
+      - ./.results/$identifier/nginx:/var/log/nginx
+      - ./.results/$identifier/php-fpm:/var/log/php-fpm
     environment:
         INSTALL_MODE: $selectedInstallationMethod
         TEST_SCENARIO: $identifier
