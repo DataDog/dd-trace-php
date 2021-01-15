@@ -164,7 +164,7 @@ function generate()
         exec("cp ./docker/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
         fwrite($dockerComposeHandle, "
   $identifier:
-    image: dd-random-testing:$selectedOs
+    image: dd-random-testing:$selectedOs-$selectedPhpVersion
     ulimits:
       core: 99999999999
     privileged: true
