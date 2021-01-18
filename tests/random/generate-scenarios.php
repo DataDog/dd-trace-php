@@ -44,7 +44,6 @@ const OS = [
 ];
 
 const INSTALLATION = [
-    // 'pecl',
     'package',
 ];
 
@@ -152,7 +151,7 @@ function generate()
         $testIdentifiers[] = $identifier;
         $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";
         exec("mkdir -p $scenarioFolder/app");
-        exec("cp -r ./app/ $scenarioFolder/app");
+        exec("cp -r ./app $scenarioFolder/");
         exec("cp $scenarioFolder/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
 
         // Writing PHP-FPM worker file
@@ -174,10 +173,12 @@ function generate()
         // Writing docker-compose file
         fwrite($dockerComposeHandle, "
   $identifier:
-    image: dd-random-testing:$selectedOs-$selectedPhpVersion
+    image: datadog/dd-trace-ci:php-randomtests-$selectedOs-$selectedPhpVersion
     ulimits:
       core: 99999999999
     privileged: true
+    networks:
+      - random_tests
     volumes:
       - composer_cache:/composer-cache
       - ./$identifier/app:/var/www/html

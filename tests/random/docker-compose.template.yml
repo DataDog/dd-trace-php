@@ -3,25 +3,40 @@ version: '3.7'
 volumes:
     composer_cache:
 
+networks:
+  random_tests:
+
 services:
 
   agent:
     image: datadog/agent:latest
+    networks:
+      - random_tests
 
   redis:
     image: redis:latest
+    networks:
+      - random_tests
 
   httpbin:
     image: kennethreitz/httpbin
+    networks:
+      - random_tests
 
   memcached:
     image: "memcached:1.5-alpine"
+    networks:
+      - random_tests
 
   elasticsearch:
     image: "elasticsearch:6.8.13"
+    networks:
+      - random_tests
 
   mysql:
     image: mysql:5.7
+    networks:
+      - random_tests
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_PASSWORD=test

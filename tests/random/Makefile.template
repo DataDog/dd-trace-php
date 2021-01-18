@@ -1,11 +1,14 @@
 pull:
 	@docker-compose pull
 
+up:
+	@docker-compose up -d agent redis httpbin memcached elasticsearch mysql
+
 clean_results:
 	@rm -rf ./.results/*
 	@echo "Results folder cleaned"
 
 test.scenario.%:
-	@docker-compose run --rm $(*)
+	@docker-compose up $(*)
 
 # Dynamically generated targets will be added after this line
