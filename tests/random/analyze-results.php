@@ -1,5 +1,7 @@
 <?php
 
+const MINIMUM_ACCEPTABLE_REQUESTS = 1000;
+
 function analyze($resultsFolder, $dockerComposeFile)
 {
     $analyzed = [];
@@ -21,6 +23,14 @@ function analyze($resultsFolder, $dockerComposeFile)
         $receivedStatusCodes = $jsonResult['status_codes'];
         if (array_keys($receivedStatusCodes) !== [ 200, 530, 531 ]) {
             $errors[$identifier] = $receivedStatusCodes;
+        }
+        if (array_sum($receivedStatusCodes) < MINIMUM_ACCEPTABLE_REQUESTS) {
+            echo sprintf(
+                "Scenario '%s' did not reaced the minimum amount of requests: %d.\n",
+                $identifier,
+                MINIMUM_ACCEPTABLE_REQUESTS
+            );
+            exit(1);
         }
     }
 
