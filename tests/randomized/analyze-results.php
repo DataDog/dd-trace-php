@@ -5,7 +5,8 @@ const MINIMUM_ACCEPTABLE_REQUESTS = 1000;
 function analyze($resultsFolder, $dockerComposeFile)
 {
     $analyzed = [];
-    $errors = [];
+    $unexpectedCodes = [];
+    $minimumRequestCount = [];
 
     foreach (scandir($resultsFolder) as $identifier) {
         if (in_array($identifier, ['.', '..'])) {
@@ -22,15 +23,10 @@ function analyze($resultsFolder, $dockerComposeFile)
         //   - 531: Unhandled legacy error (status code forced by us)
         $receivedStatusCodes = $jsonResult['status_codes'];
         if (array_keys($receivedStatusCodes) !== [ 200, 530, 531 ]) {
-            $errors[$identifier] = $receivedStatusCodes;
+            $unexpectedCodes[$identifier] = $receivedStatusCodes;
         }
-        if (array_sum($receivedStatusCodes) < MINIMUM_ACCEPTABLE_REQUESTS) {
-            echo sprintf(
-                "Scenario '%s' did not reaced the minimum amount of requests: %d.\n",
-                $identifier,
-                MINIMUM_ACCEPTABLE_REQUESTS
-            );
-            exit(1);
+        if (($requestCount = array_sum($receivedStatusCodes)) < MINIMUM_ACCEPTABLE_REQUESTS) {
+            $minimumRequestCount[$identifier] = $requestCount;
         }
     }
 
@@ -39,7 +35,7 @@ function analyze($resultsFolder, $dockerComposeFile)
     $composeRunners = [];
     foreach ($dockerComposeContent as $line) {
         $normalizedLine = trim($line, " :\t");
-        if (strncmp($normalizedLine, 'random-', strlen('random-')) === 0) {
+        if (strncmp($normalizedLine, 'randomized-', strlen('randomized-')) === 0) {
             $composeRunners[] = $normalizedLine;
         }
     }
@@ -58,12 +54,20 @@ function analyze($resultsFolder, $dockerComposeFile)
 
     // Reporting errors
     echo "Analyzed " . count($analyzed) . " scenarios.\n";
-    if (count($errors) > 0) {
-        echo "Errors found: " . var_export($errors, 1) . "\n";
-        exit(1);
-    } else {
-        echo "Success\n";
+
+    $isError = false;
+    if (count($unexpectedCodes) > 0) {
+        echo "Unexpected status codes found: " . var_export($unexpectedCodes, 1) . "\n";
     }
+    if (count($minimumRequestCount)) {
+        echo "Minimum request not matched: " . var_export($minimumRequestCount, 1) . "\n";
+    }
+
+    if ($isError) {
+        exit(1);
+    }
+
+    echo "Success\n";
 }
 
 analyze(__DIR__ . '/.tmp.scenarios/.results', __DIR__ . '/.tmp.scenarios/docker-compose.yml');

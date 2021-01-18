@@ -1,6 +1,6 @@
 <?php
 
-namespace RandomTests;
+namespace RandomizedTests;
 
 class GeneratorSnippets
 {

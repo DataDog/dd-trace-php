@@ -1,6 +1,6 @@
 <?php
 
-namespace RandomTests;
+namespace RandomizedTests;
 
 use Elasticsearch\ClientBuilder;
 use GuzzleHttp\Client as GuzzleClient;

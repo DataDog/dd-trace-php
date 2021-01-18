@@ -126,7 +126,7 @@ function generate()
             $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
         }
         $seed = rand();
-        $identifier = "random-$seed-$selectedOs-$selectedPhpVersion";
+        $identifier = "randomized-$seed-$selectedOs-$selectedPhpVersion";
         $testIdentifiers[] = $identifier;
         $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";
         exec("mkdir -p $scenarioFolder/app");
@@ -152,12 +152,10 @@ function generate()
         // Writing docker-compose file
         fwrite($dockerComposeHandle, "
   $identifier:
-    image: datadog/dd-trace-ci:php-randomtests-$selectedOs-$selectedPhpVersion
+    image: datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion
     ulimits:
       core: 99999999999
     privileged: true
-    networks:
-      - random_tests
     volumes:
       - composer_cache:/composer-cache
       - ./$identifier/app:/var/www/html

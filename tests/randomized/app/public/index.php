@@ -1,7 +1,7 @@
 <?php
 
 use DDTrace\GlobalTracer;
-use RandomTests\RandomExecutionPath;
+use RandomizedTests\RandomExecutionPath;
 
 $composerVendor = getenv('COMPOSER_VENDOR_DIR') ? : __DIR__ . '/../vendor';
 require "$composerVendor/autoload.php";

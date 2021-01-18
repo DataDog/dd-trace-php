@@ -2,10 +2,11 @@ TMP_SCENARIO_FOLDER := ./.tmp.scenarios
 TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
 DURATION := 30s
 TRACER_VERSION := 0.49.0
-DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomtests-
+DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
 TRACER_TEST_URL := https://303308-119990860-gh.circle-artifacts.com/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz
 # TRACER_COMPARE_URL := $(shell curl --silent https://api.github.com/repos/DataDog/dd-trace-php/releases/latest | grep -e 'browser_download_url.*\.tar\.gz' | cut -d'"' -f 4)
 TRACER_DOWNLOAD_PATH := ./.tracer-versions
+CONCURRENT_JOBS := 10
 
 build: build.centos7
 
@@ -74,7 +75,8 @@ run: execute analyze
 execute:
 	@make -C $(TMP_SCENARIO_FOLDER) clean_results
 	@make -C $(TMP_SCENARIO_FOLDER) up
-	@make -C $(TMP_SCENARIO_FOLDER) --jobs=30 test
+	@echo "Starting tests with $(CONCURRENT_JOBS) concurrent runs."
+	@make -C $(TMP_SCENARIO_FOLDER) --jobs=$(CONCURRENT_JOBS) test
 
 analyze:
 	@php analyze-results.php .tmp.scenarios/.results

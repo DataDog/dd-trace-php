@@ -713,19 +713,19 @@ jobs:
           command: sudo apt update && sudo apt install -y php git
       - run:
           name: Copy tracer package
-          command: make -C tests/random tracer.local
+          command: make -C tests/randomized tracer.local
       - run:
           name: Generate scenarios
-          command: make -C tests/random generate
+          command: make -C tests/randomized generate
       - run:
           name: Pull docker images
-          command: make -C tests/random pull
+          command: make -C tests/randomized pull
       - run:
           name: Execute tests
-          command: make -C tests/random execute
+          command: make -C tests/randomized execute
       - run:
           name: Analyze results
-          command: make -C tests/random analyze
+          command: make -C tests/randomized analyze
 
   verify_debian:
     working_directory: ~/datadog
