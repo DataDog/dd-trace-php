@@ -31,5 +31,5 @@ sleep 1
 composer --working-dir=/var/www/html install
 
 echo "Starting loading"
-echo "GET http://localhost" | vegeta attack -format=http -duration=30s -keepalive=true -max-workers=5 -rate=0 | tee results.bin | vegeta report --type=json --output=/results/results.json
+echo "GET http://localhost" | vegeta attack -format=http -duration=${DURATION:-60s} -keepalive=true -max-workers=5 -rate=0 | tee results.bin | vegeta report --type=json --output=/results/results.json
 echo "Done loading"
