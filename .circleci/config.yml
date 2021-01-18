@@ -702,7 +702,7 @@ jobs:
       - store_test_results:
           path: test-results
 
-  random_tests:
+  randomized_tests:
     working_directory: ~/datadog
     machine:
       image: ubuntu-2004:202010-01
@@ -719,7 +719,10 @@ jobs:
           command: make -C tests/random generate
       - run:
           name: Pull docker images
-          command: make -C tests/random run
+          command: make -C tests/random pull
+      - run:
+          name: Execute tests
+          command: make -C tests/random execute
       - run:
           name: Analyze results
           command: make -C tests/random analyze
@@ -1138,7 +1141,7 @@ workflows:
             - "Compile PHP 74 nts + zts + debug"
             - "Compile PHP 80 nts + zts + debug"
             - "Build PECL"
-      - random_tests:
+      - randomized_tests:
           requires: [ 'package extension' ]
   #     - placeholder:
   #         requires: [ 'package extension' ]

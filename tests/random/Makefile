@@ -11,6 +11,8 @@ build: build.centos7
 
 publish: publish.centos7
 
+pull: pull.centos7
+
 build.centos7:
 	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=0 -t $(DOCKER_IMAGE_PREFIX)centos7-8.0 ./docker
 	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)centos7-7.4 ./docker
@@ -32,6 +34,17 @@ publish.centos7: build.centos7
 	@docker push $(DOCKER_IMAGE_PREFIX)centos7-5.6
 	@docker push $(DOCKER_IMAGE_PREFIX)centos7-5.5
 	@docker push $(DOCKER_IMAGE_PREFIX)centos7-5.4
+
+pull.centos7:
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-8.0
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.4
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.3
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.2
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.1
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-7.0
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.6
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.5
+	@docker pull $(DOCKER_IMAGE_PREFIX)centos7-5.4
 
 tracer.local:
 	@mkdir -p ${TRACER_DOWNLOAD_PATH}
@@ -60,7 +73,6 @@ run: execute analyze
 
 execute:
 	@make -C $(TMP_SCENARIO_FOLDER) clean_results
-	@make -C $(TMP_SCENARIO_FOLDER) pull
 	@make -C $(TMP_SCENARIO_FOLDER) up
 	@make -C $(TMP_SCENARIO_FOLDER) --jobs=30 test
 

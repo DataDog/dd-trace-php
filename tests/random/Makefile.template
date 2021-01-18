@@ -1,6 +1,3 @@
-pull:
-	@docker-compose pull
-
 up:
 	@docker-compose up -d agent redis httpbin memcached elasticsearch mysql
 
