@@ -1,26 +1,5 @@
 <?php
 
-/*
-Critical issues and scenarios
-- https://github.com/DataDog/dd-trace-php/issues/1090
-    - installation: pecl
-- https://github.com/DataDog/dd-trace-php/pull/1121
-    - PHP 7.0-7.2
-    - one request with pdo + memcached
-- https://github.com/DataDog/dd-trace-php/pull/1124
-    - PHP 7.*
-    - curl in request
-- https://github.com/DataDog/dd-trace-php/pull/1022
-    - DD_TRACE_ENABLED=0
-    - a warn emitted
-    - PHP 7
-- https://github.com/DataDog/dd-trace-php/issues/1012
-    - PHP 7
-- https://github.com/DataDog/dd-trace-php/pull/1001
-    - PHP 5.4-5.6
-    - other conditions to be investigated
-*/
-
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
 const DEFAULT_NUMBER_OF_SCENARIOS = 100;
 const MAX_ENV_MODIFICATIONS = 5;

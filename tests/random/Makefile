@@ -9,6 +9,8 @@ TRACER_DOWNLOAD_PATH := ./.tracer-versions
 
 build: build.centos7
 
+publish: publish.centos7
+
 build.centos7:
 	@docker build --build-arg PHP_MAJOR=8 --build-arg PHP_MINOR=0 -t $(DOCKER_IMAGE_PREFIX)centos7-8.0 ./docker
 	@docker build --build-arg PHP_MAJOR=7 --build-arg PHP_MINOR=4 -t $(DOCKER_IMAGE_PREFIX)centos7-7.4 ./docker
