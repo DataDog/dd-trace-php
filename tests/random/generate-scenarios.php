@@ -116,7 +116,9 @@ function generate()
     $dockerComposeHandle = fopen($dockerComposeFile, 'a');
 
     $testIdentifiers = [];
-    $numberOfScenarios = getenv('NUMBER_OF_SCENARIOS') ? intval(getenv('NUMBER_OF_SCENARIOS')) : DEFAULT_NUMBER_OF_SCENARIOS;
+    $numberOfScenarios = getenv('NUMBER_OF_SCENARIOS')
+        ? intval(getenv('NUMBER_OF_SCENARIOS'))
+        : DEFAULT_NUMBER_OF_SCENARIOS;
     for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
         $selectedOs = array_rand(OS);
         $availablePHPVersions = OS[$selectedOs]['php'];
