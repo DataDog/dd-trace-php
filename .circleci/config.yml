@@ -702,37 +702,6 @@ jobs:
       - store_test_results:
           path: test-results
 
-  randomized_tests:
-    working_directory: ~/datadog
-    machine:
-      image: ubuntu-2004:202010-01
-    parameters:
-      batch:
-        type: integer
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          name: Install required packages
-          command: sudo apt update && sudo apt install -y php git
-      - run:
-          name: Copy tracer package
-          command: make -C tests/randomized tracer.local
-      - run:
-          name: Generate scenarios
-          command: make -C tests/randomized generate
-      - run:
-          name: Pull docker images
-          command: make -C tests/randomized pull
-      - run:
-          name: Execute tests
-          command: make -C tests/randomized execute
-      - run:
-          name: Analyze results
-          command: make -C tests/randomized analyze
-      - store_artifacts:
-          path: 'tests/randomized/.tmp.scenarios'
-          destination: /
-
   verify_debian:
     working_directory: ~/datadog
     parameters:
@@ -760,6 +729,37 @@ jobs:
       - run:
           name: Validate debian package
           command: << parameters.configuration >> bash ./dockerfiles/verify_packages/verify.sh
+
+  randomized_tests:
+    working_directory: ~/datadog
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    parameters:
+      batch:
+        type: integer
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Install required packages
+          command: sudo apt update && sudo apt install -y php git
+      - run:
+          name: Copy tracer package
+          command: make -C tests/randomized tracer.local
+      - run:
+          name: Generate scenarios
+          command: make -C tests/randomized generate
+      - run:
+          name: Pull docker images
+          command: make -C tests/randomized pull
+      - run:
+          name: Execute tests
+          command: make -C tests/randomized execute
+      - run:
+          name: Analyze results
+          command: make -C tests/randomized analyze
+      - store_test_results:
+          path: 'tests/randomized/.tmp.scenarios'
 
   pecl_build:
     working_directory: ~/datadog

@@ -6,7 +6,7 @@ DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
 TRACER_TEST_URL := https://303308-119990860-gh.circle-artifacts.com/0/datadog-php-tracer-1.0.0-nightly.x86_64.tar.gz
 # TRACER_COMPARE_URL := $(shell curl --silent https://api.github.com/repos/DataDog/dd-trace-php/releases/latest | grep -e 'browser_download_url.*\.tar\.gz' | cut -d'"' -f 4)
 TRACER_DOWNLOAD_PATH := ./.tracer-versions
-CONCURRENT_JOBS := 10
+CONCURRENT_JOBS := 5
 
 build: build.centos7
 

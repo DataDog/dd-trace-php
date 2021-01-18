@@ -58,9 +58,11 @@ function analyze($resultsFolder, $dockerComposeFile)
     $isError = false;
     if (count($unexpectedCodes) > 0) {
         echo "Unexpected status codes found: " . var_export($unexpectedCodes, 1) . "\n";
+        $isError = true;
     }
     if (count($minimumRequestCount)) {
         echo "Minimum request not matched: " . var_export($minimumRequestCount, 1) . "\n";
+        $isError = true;
     }
 
     if ($isError) {
