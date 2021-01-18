@@ -22,10 +22,10 @@ Critical issues and scenarios
 */
 
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
-const DEFAULT_NUMBER_OF_SCENARIOS = 10;
+const DEFAULT_NUMBER_OF_SCENARIOS = 100;
 const MAX_ENV_MODIFICATIONS = 5;
 const MAX_INI_MODIFICATIONS = 5;
-const DEFAULT_EXECUTION_BATCH =  30;
+const DEFAULT_EXECUTION_BATCH =  20;
 
 const OS = [
     'centos7' => [
