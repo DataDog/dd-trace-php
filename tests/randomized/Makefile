@@ -60,7 +60,7 @@ tracer.download:
 	@curl --silent -L -o ${TRACER_DOWNLOAD_PATH}/ddtrace-test.tar.gz "$(TRACER_TEST_URL)"
 	@echo "Done"
 
-generate: scenarios_clean results_folder
+generate: clean results_folder
 	@php generate-scenarios.php
 	@cp -r ${TRACER_DOWNLOAD_PATH} $$(pwd)/$(TMP_SCENARIO_FOLDER)
 
@@ -82,4 +82,4 @@ analyze:
 	@php analyze-results.php .tmp.scenarios/.results
 
 clean:
-	rm -rf $(TMP_SCENARIO_FOLDER)
+	@rm -rf $(TMP_SCENARIO_FOLDER)

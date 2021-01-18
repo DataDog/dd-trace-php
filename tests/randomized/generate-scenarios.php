@@ -1,10 +1,9 @@
 <?php
 
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
-const DEFAULT_NUMBER_OF_SCENARIOS = 100;
+const DEFAULT_NUMBER_OF_SCENARIOS = 20;
 const MAX_ENV_MODIFICATIONS = 5;
 const MAX_INI_MODIFICATIONS = 5;
-const DEFAULT_EXECUTION_BATCH =  20;
 
 const OS = [
     'centos7' => [
@@ -128,7 +127,7 @@ function generate()
         $seed = rand();
         $identifier = "randomized-$seed-$selectedOs-$selectedPhpVersion";
         $testIdentifiers[] = $identifier;
-        $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";
+        $scenarioFolder = TMP_SCENARIOS_FOLDER . "/files-$identifier";
         exec("mkdir -p $scenarioFolder/app");
         exec("cp -r ./app $scenarioFolder/");
         exec("cp $scenarioFolder/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
@@ -158,7 +157,7 @@ function generate()
     privileged: true
     volumes:
       - composer_cache:/composer-cache
-      - ./$identifier/app:/var/www/html
+      - ./files-$identifier/app:/var/www/html
       - $wwwFilePath:/etc/php-fpm.d/www.conf
       - ./.tracer-versions:/tmp/tracer-versions
       - ./.results/$identifier/:/results/
@@ -181,16 +180,13 @@ function generate()
     $makefile = "${scenariosFolder}/Makefile";
     exec("cp ./Makefile.template ${makefile}");
     $makefileHandle = fopen($makefile, 'a');
-    $batches = [];
-    $executionBatchCount = getenv('EXECUTION_BATCH') ? intval(getenv('EXECUTION_BATCH')) : DEFAULT_EXECUTION_BATCH;
-    for ($testIndex = 0; $testIndex < count($testIdentifiers); $testIndex++) {
-        $batch = "test.batch." . (floor($testIndex / $executionBatchCount) + 1);
-        $batches[$batch][] = "test.scenario." . $testIdentifiers[$testIndex];
-    }
-    fwrite($makefileHandle, sprintf("\ntest: %s\n", implode(' ', array_keys($batches))));
-    foreach ($batches as $batch => $identifiers) {
-        fwrite($makefileHandle, sprintf("%s: %s\n", $batch, implode(' ', $identifiers)));
-    }
+    $testTargets = array_map(
+        function ($identifier) {
+            return "test.scenario.$identifier";
+        },
+        $testIdentifiers
+    );
+    fwrite($makefileHandle, sprintf("test: %s\n", implode(" \\\n    ", $testTargets)));
     fclose($makefileHandle);
 }
 
