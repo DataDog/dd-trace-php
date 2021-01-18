@@ -22,10 +22,10 @@ Critical issues and scenarios
 */
 
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
-const NUMBER_OF_SCENARIOS = 100;
+const DEFAULT_NUMBER_OF_SCENARIOS = 10;
 const MAX_ENV_MODIFICATIONS = 5;
 const MAX_INI_MODIFICATIONS = 5;
-const EXECUTION_BATCH = 30;
+const DEFAULT_EXECUTION_BATCH =  30;
 
 const OS = [
     'centos7' => [
@@ -116,8 +116,8 @@ function generate()
     $dockerComposeHandle = fopen($dockerComposeFile, 'a');
 
     $testIdentifiers = [];
-
-    for ($iteration = 0; $iteration < NUMBER_OF_SCENARIOS; $iteration++) {
+    $numberOfScenarios = getenv('NUMBER_OF_SCENARIOS') ? intval(getenv('NUMBER_OF_SCENARIOS')) : DEFAULT_NUMBER_OF_SCENARIOS;
+    for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
         $selectedOs = array_rand(OS);
         $availablePHPVersions = OS[$selectedOs]['php'];
         $selectedPhpVersion = $availablePHPVersions[array_rand($availablePHPVersions)];
@@ -202,8 +202,9 @@ function generate()
     exec("cp ./Makefile.template ${makefile}");
     $makefileHandle = fopen($makefile, 'a');
     $batches = [];
+    $executionBatchCount = getenv('EXECUTION_BATCH') ? intval(getenv('EXECUTION_BATCH')) : DEFAULT_EXECUTION_BATCH;
     for ($testIndex = 0; $testIndex < count($testIdentifiers); $testIndex++) {
-        $batch = "test.batch." . (floor($testIndex / EXECUTION_BATCH) + 1);
+        $batch = "test.batch." . (floor($testIndex / $executionBatchCount) + 1);
         $batches[$batch][] = "test.scenario." . $testIdentifiers[$testIndex];
     }
     fwrite($makefileHandle, sprintf("\ntest: %s\n", implode(' ', array_keys($batches))));
