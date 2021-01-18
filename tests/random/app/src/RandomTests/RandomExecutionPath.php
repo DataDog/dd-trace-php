@@ -140,7 +140,7 @@ class RandomExecutionPath
 
     private function availableIntegrations()
     {
-        return [
+        $all = [
             'elasticsearch' => 1,
             'guzzle' => 1,
             'memcached' => 1,
@@ -149,6 +149,12 @@ class RandomExecutionPath
             'pdo' => 1,
             'phpredis' => 1,
         ];
+
+        if (Utils::isPhpVersion(8, 0)) {
+            unset($all['elasticsearch']);
+        }
+
+        return $all;
     }
 
     private function maybeSomethingHappens()

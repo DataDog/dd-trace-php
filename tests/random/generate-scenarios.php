@@ -30,7 +30,15 @@ const EXECUTION_BATCH = 30;
 const OS = [
     'centos7' => [
         'php' => [
+            '8.0',
             '7.4',
+            '7.3',
+            '7.2',
+            '7.1',
+            '7.0',
+            '5.6',
+            '5.5',
+            '5.4',
         ],
     ],
 ];
@@ -143,6 +151,7 @@ function generate()
         $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";
         exec("mkdir -p $scenarioFolder/app");
         exec("cp -r ./app/ $scenarioFolder/app");
+        exec("cp $scenarioFolder/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
 
         // Writing PHP-FPM worker file
         $wwwFilePath = "$scenarioFolder/$identifier.www.conf";
@@ -160,8 +169,7 @@ function generate()
         }
         fclose($wwwFileHandle);
 
-        // Writing composer file
-        exec("cp ./docker/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
+        // Writing docker-compose file
         fwrite($dockerComposeHandle, "
   $identifier:
     image: dd-random-testing:$selectedOs-$selectedPhpVersion

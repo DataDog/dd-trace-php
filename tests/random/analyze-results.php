@@ -34,6 +34,9 @@ function analyze($resultsFolder, $dockerComposeFile)
         }
     }
 
+    sort($analyzed);
+    sort($composeRunners);
+
     if ($composeRunners != $analyzed) {
         echo sprintf(
             "Error: number of docker compose test runners (%d) and results found (%d) mismastch.\n",
