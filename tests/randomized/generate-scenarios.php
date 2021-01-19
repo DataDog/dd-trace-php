@@ -97,59 +97,79 @@ function generate()
         ? intval(getenv('NUMBER_OF_SCENARIOS'))
         : DEFAULT_NUMBER_OF_SCENARIOS;
     for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
-        $selectedOs = array_rand(OS);
-        $availablePHPVersions = OS[$selectedOs]['php'];
-        $selectedPhpVersion = $availablePHPVersions[array_rand($availablePHPVersions)];
-        $selectedInstallationMethod = INSTALLATION[array_rand(INSTALLATION)];
+        $testIdentifiers[] = generateOne($dockerComposeHandle);
+    }
+    fclose($dockerComposeHandle);
 
-        // Environment variables
-        $numberOfEnvModifications = rand(0, MAX_ENV_MODIFICATIONS);
-        $envModifications = array_merge([], DEFAULT_ENVS);
-        for ($envModification = 0; $envModification < $numberOfEnvModifications; $envModification++) {
-            $currentEnv = array_rand(ENVS);
-            $availableValues = ENVS[$currentEnv];
-            $selectedEnvValue = $availableValues[array_rand($availableValues)];
-            if (null === $selectedEnvValue) {
-                unset($envModifications[$currentEnv]);
-            } else {
-                $envModifications[$currentEnv] = $selectedEnvValue;
-            }
-        }
+    // Generating makefile
+    $makefile = "${scenariosFolder}/Makefile";
+    exec("cp ./Makefile.template ${makefile}");
+    $makefileHandle = fopen($makefile, 'a');
+    $testTargets = array_map(
+        function ($identifier) {
+            return "test.scenario.$identifier";
+        },
+        $testIdentifiers
+    );
+    fwrite($makefileHandle, sprintf("test: %s\n", implode(" \\\n    ", $testTargets)));
+    fclose($makefileHandle);
+}
 
-        // INI settings
-        $numberOfIniModifications = rand(0, min(MAX_INI_MODIFICATIONS, count(INIS)));
-        $iniModifications = [];
-        for ($iniModification = 0; $iniModification < $numberOfIniModifications; $iniModification++) {
-            $currentIni = array_rand(INIS);
-            $availableValues = INIS[$currentIni];
-            $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
-        }
-        $seed = rand();
-        $identifier = "randomized-$seed-$selectedOs-$selectedPhpVersion";
-        $testIdentifiers[] = $identifier;
-        $scenarioFolder = TMP_SCENARIOS_FOLDER . "/files-$identifier";
-        exec("mkdir -p $scenarioFolder/app");
-        exec("cp -r ./app $scenarioFolder/");
-        exec("cp $scenarioFolder/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
+function generateOne($dockerComposeHandle)
+{
+    $scenariosFolder = TMP_SCENARIOS_FOLDER;
+    $selectedOs = array_rand(OS);
+    $availablePHPVersions = OS[$selectedOs]['php'];
+    $selectedPhpVersion = $availablePHPVersions[array_rand($availablePHPVersions)];
+    $selectedInstallationMethod = INSTALLATION[array_rand(INSTALLATION)];
 
-        // Writing PHP-FPM worker file
-        $wwwFilePath = "$scenarioFolder/$identifier.www.conf";
-        exec("cp ./www.template.conf $wwwFilePath");
-        $wwwFileHandle = fopen($wwwFilePath, 'a');
-        foreach ($envModifications as $envName => $envValue) {
-            fwrite($wwwFileHandle, "env[$envName] = \"$envValue\"\n");
+    // Environment variables
+    $numberOfEnvModifications = rand(0, MAX_ENV_MODIFICATIONS);
+    $envModifications = array_merge([], DEFAULT_ENVS);
+    for ($envModification = 0; $envModification < $numberOfEnvModifications; $envModification++) {
+        $currentEnv = array_rand(ENVS);
+        $availableValues = ENVS[$currentEnv];
+        $selectedEnvValue = $availableValues[array_rand($availableValues)];
+        if (null === $selectedEnvValue) {
+            unset($envModifications[$currentEnv]);
+        } else {
+            $envModifications[$currentEnv] = $selectedEnvValue;
         }
-        foreach ($iniModifications as $iniName => $iniValue) {
-            if (is_bool($iniValue)) {
-                fwrite($wwwFileHandle, "php_flag[$iniName] = " . ($iniValue ? 'on' : 'off') . "\n");
-            } else {
-                fwrite($wwwFileHandle, "php_value[$iniName] = \"$iniValue\"\n");
-            }
-        }
-        fclose($wwwFileHandle);
+    }
 
-        // Writing docker-compose file
-        fwrite($dockerComposeHandle, "
+    // INI settings
+    $numberOfIniModifications = rand(0, min(MAX_INI_MODIFICATIONS, count(INIS)));
+    $iniModifications = [];
+    for ($iniModification = 0; $iniModification < $numberOfIniModifications; $iniModification++) {
+        $currentIni = array_rand(INIS);
+        $availableValues = INIS[$currentIni];
+        $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
+    }
+    $seed = rand();
+    $identifier = "randomized-$seed-$selectedOs-$selectedPhpVersion";
+    $scenarioFolder = TMP_SCENARIOS_FOLDER . "/files-$identifier";
+    exec("mkdir -p $scenarioFolder/app");
+    exec("cp -r ./app $scenarioFolder/");
+    exec("cp $scenarioFolder/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
+
+    // Writing PHP-FPM worker file
+    $wwwFilePath = "$scenarioFolder/$identifier.www.conf";
+    exec("cp ./www.template.conf $wwwFilePath");
+    $wwwFileHandle = fopen($wwwFilePath, 'a');
+    foreach ($envModifications as $envName => $envValue) {
+        fwrite($wwwFileHandle, "env[$envName] = \"$envValue\"\n");
+    }
+    foreach ($iniModifications as $iniName => $iniValue) {
+        if (is_bool($iniValue)) {
+            fwrite($wwwFileHandle, "php_flag[$iniName] = " . ($iniValue ? 'on' : 'off') . "\n");
+        } else {
+            fwrite($wwwFileHandle, "php_value[$iniName] = \"$iniValue\"\n");
+        }
+    }
+    fclose($wwwFileHandle);
+
+    // Writing docker-compose file
+    fwrite($dockerComposeHandle, "
   $identifier:
     image: datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion
     ulimits:
@@ -173,21 +193,8 @@ function generate()
       - memcached
       - mysql
       - httpbin\n");
-    }
-    fclose($dockerComposeHandle);
 
-    // Generating makefile
-    $makefile = "${scenariosFolder}/Makefile";
-    exec("cp ./Makefile.template ${makefile}");
-    $makefileHandle = fopen($makefile, 'a');
-    $testTargets = array_map(
-        function ($identifier) {
-            return "test.scenario.$identifier";
-        },
-        $testIdentifiers
-    );
-    fwrite($makefileHandle, sprintf("test: %s\n", implode(" \\\n    ", $testTargets)));
-    fclose($makefileHandle);
+    return $identifier;
 }
 
 generate();
