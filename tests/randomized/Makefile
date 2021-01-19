@@ -64,6 +64,10 @@ generate: clean results_folder
 	@php generate-scenarios.php
 	@cp -r ${TRACER_DOWNLOAD_PATH} $$(pwd)/$(TMP_SCENARIO_FOLDER)
 
+generate.%: clean results_folder
+	@php generate-scenarios.php --scenario $(*)
+	@cp -r ${TRACER_DOWNLOAD_PATH} $$(pwd)/$(TMP_SCENARIO_FOLDER)
+
 scenarios_clean:
 	@rm -rf $$(pwd)/$(TMP_SCENARIO_FOLDER)/**
 

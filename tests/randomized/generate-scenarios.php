@@ -92,13 +92,31 @@ function generate()
     exec("cp ./docker-compose.template.yml ${dockerComposeFile}");
     $dockerComposeHandle = fopen($dockerComposeFile, 'a');
 
+    $options = getopt('', ['scenario:']);
+
     $testIdentifiers = [];
-    $numberOfScenarios = getenv('NUMBER_OF_SCENARIOS')
-        ? intval(getenv('NUMBER_OF_SCENARIOS'))
-        : DEFAULT_NUMBER_OF_SCENARIOS;
-    for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
-        $testIdentifiers[] = generateOne($dockerComposeHandle);
+    if (isset($options['scenario'])) {
+        // Generate only one scenario
+        $seed = intval($options['scenario']);
+        $testIdentifiers[] = generateOne($dockerComposeHandle, $seed);
+    } else {
+        // If a scenario number has not been provided, we generate a number of different scenarios based on based
+        // configuration
+        $seed = rand();
+        $numberOfScenarios = getenv('NUMBER_OF_SCENARIOS')
+            ? intval(getenv('NUMBER_OF_SCENARIOS'))
+            : DEFAULT_NUMBER_OF_SCENARIOS;
+
+        srand($seed);
+        echo "Using seed: $seed\n";
+
+        exec("cp ./docker-compose.template.yml ${dockerComposeFile}");
+        for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
+            $scenarioSeed = rand();
+            $testIdentifiers[] = generateOne($dockerComposeHandle, $scenarioSeed);
+        }
     }
+
     fclose($dockerComposeHandle);
 
     // Generating makefile
@@ -115,9 +133,9 @@ function generate()
     fclose($makefileHandle);
 }
 
-function generateOne($dockerComposeHandle)
+function generateOne($dockerComposeHandle, $scenarioSeed)
 {
-    $scenariosFolder = TMP_SCENARIOS_FOLDER;
+    srand($scenarioSeed);
     $selectedOs = array_rand(OS);
     $availablePHPVersions = OS[$selectedOs]['php'];
     $selectedPhpVersion = $availablePHPVersions[array_rand($availablePHPVersions)];
@@ -145,8 +163,7 @@ function generateOne($dockerComposeHandle)
         $availableValues = INIS[$currentIni];
         $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
     }
-    $seed = rand();
-    $identifier = "randomized-$seed-$selectedOs-$selectedPhpVersion";
+    $identifier = "randomized-$scenarioSeed-$selectedOs-$selectedPhpVersion";
     $scenarioFolder = TMP_SCENARIOS_FOLDER . "/files-$identifier";
     exec("mkdir -p $scenarioFolder/app");
     exec("cp -r ./app $scenarioFolder/");
