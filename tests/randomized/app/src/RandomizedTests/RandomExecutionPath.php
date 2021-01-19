@@ -203,7 +203,7 @@ class RandomExecutionPath
     {
         if ($this->percentOfCases(20)) {
             try {
-                $this->alwaysThrowException('caught exception from chaos');
+                $this->alwaysThrowException('caught exception from randomized tests');
             } catch (\Exception $e) {
             }
         }
@@ -212,7 +212,7 @@ class RandomExecutionPath
     private function maybeEmitAnUncaughtException()
     {
         if ($this->allowFatalAndUncaught && $this->percentOfCases(2)) {
-            $this->alwaysThrowException('uncaught exception from chaos');
+            $this->alwaysThrowException('uncaught exception from randomized tests');
         }
     }
 
@@ -240,8 +240,13 @@ class RandomExecutionPath
 
     public function handleException($ex)
     {
-        error_log("Handling Exception: " . $ex->getMessage());
-        http_response_code(530);
+        if ($ex->getMessage() === 'uncaught exception from randomized tests') {
+            error_log("Handling expected Exception: " . $ex->getMessage());
+            http_response_code(530);
+        } else {
+            error_log("Unexpected Exception: " . $ex->getMessage());
+            http_response_code(500);
+        }
         exit(1);
     }
 
