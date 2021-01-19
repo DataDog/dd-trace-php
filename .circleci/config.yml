@@ -758,8 +758,9 @@ jobs:
       - run:
           name: Analyze results
           command: make -C tests/randomized analyze
-      - store_test_results:
-          path: 'tests/randomized/.tmp.scenarios'
+      - store_artifacts:
+          path: 'tests/randomized/.tmp.scenarios/.results'
+          destination: '/'
 
   pecl_build:
     working_directory: ~/datadog
