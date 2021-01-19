@@ -6,6 +6,6 @@ clean_results:
 	@echo "Results folder cleaned"
 
 test.scenario.%:
-	@docker-compose up $(*)
+	@docker-compose up --remove-orphan $(*)
 
 # Dynamically generated targets will be added after this line
