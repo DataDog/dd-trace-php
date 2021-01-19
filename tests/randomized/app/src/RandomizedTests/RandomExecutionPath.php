@@ -12,6 +12,16 @@ class RandomExecutionPath
 
     public function __construct($allowFatalAndUncaught = false)
     {
+        // Seeding to allow reproducible requests via <url>/?seed=123
+        $queries = array();
+        if (isset($_SERVER['QUERY_STRING'])) {
+            parse_str($_SERVER['QUERY_STRING'], $queries);
+        }
+        if (isset($queries['seed'])) {
+            $seed = intval($queries['seed']);
+            srand($seed);
+        }
+
         $this->snippets = new Snippets();
         $this->allowFatalAndUncaught = $allowFatalAndUncaught;
         if (!Utils::isPhpVersion(5, 4)) {
