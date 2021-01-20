@@ -160,7 +160,7 @@ class RandomExecutionPath
             'phpredis' => 1,
         ];
 
-        if (Utils::isPhpVersion(8, 0)) {
+        if (Utils::isPhpVersion(5, 4) || Utils::isPhpVersion(5, 5) || Utils::isPhpVersion(8, 0)) {
             unset($all['elasticsearch']);
         }
 
