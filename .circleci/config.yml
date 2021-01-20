@@ -746,24 +746,24 @@ jobs:
       - run:
           name: Copy tracer package
           command: make -C tests/randomized tracer.local
-      - run:
-          name: Generate scenarios
-          command: make -C tests/randomized generate
-      - run:
-          name: "Increase virtual memory limit for elasticsearch"
-          command: sudo sysctl -w vm.max_map_count=262144
-      - run:
-          name: Pull docker images
-          command: make -C tests/randomized pull
-      - run:
-          name: Execute tests
-          command: make -C tests/randomized execute
-      - run:
-          name: Analyze results
-          command: make -C tests/randomized analyze
-      - store_artifacts:
-          path: 'tests/randomized/.tmp.scenarios/.results'
-          destination: '/'
+      # - run:
+      #     name: Generate scenarios
+      #     command: make -C tests/randomized generate
+      # - run:
+      #     name: "Increase virtual memory limit for elasticsearch"
+      #     command: sudo sysctl -w vm.max_map_count=262144
+      # - run:
+      #     name: Pull docker images
+      #     command: make -C tests/randomized pull
+      # - run:
+      #     name: Execute tests
+      #     command: make -C tests/randomized execute
+      # - run:
+      #     name: Analyze results
+      #     command: make -C tests/randomized analyze
+      # - store_artifacts:
+      #     path: 'tests/randomized/.tmp.scenarios/.results'
+      #     destination: '/'
 
   pecl_build:
     working_directory: ~/datadog
