@@ -36,7 +36,13 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+    - Support distributed tracing for calls to curl_multi_exec() #1119
+    ### Changed
+    - Refactor PHP 7 curl distributed tracing #1123
+    - Real package verification on nginx, cli, apache #1129
+    </notes>
     <contents>
         <dir name="/">
             <!-- Shared -->
