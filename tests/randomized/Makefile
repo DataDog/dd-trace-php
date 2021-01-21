@@ -74,11 +74,13 @@ scenarios_clean:
 results_folder:
 	@mkdir -p $(TMP_RESULTS_FOLDER)
 
-run: execute analyze
+run: up execute analyze
+
+up:
+	@make -C $(TMP_SCENARIO_FOLDER) up
 
 execute:
 	@make -C $(TMP_SCENARIO_FOLDER) clean_results
-	@make -C $(TMP_SCENARIO_FOLDER) up
 	@echo "Starting tests with $(CONCURRENT_JOBS) concurrent runs."
 	@make -C $(TMP_SCENARIO_FOLDER) --jobs=$(CONCURRENT_JOBS) test
 

@@ -744,26 +744,32 @@ jobs:
           name: Install required packages
           command: sudo apt update && sudo apt install -y php git
       - run:
+          name: "Increase virtual memory limit for elasticsearch"
+          command: sudo sysctl -w vm.max_map_count=262144
+      - run:
           name: Copy tracer package
           command: make -C tests/randomized tracer.local
-      # - run:
-      #     name: Generate scenarios
-      #     command: make -C tests/randomized generate
-      # - run:
-      #     name: "Increase virtual memory limit for elasticsearch"
-      #     command: sudo sysctl -w vm.max_map_count=262144
-      # - run:
-      #     name: Pull docker images
-      #     command: make -C tests/randomized pull
-      # - run:
-      #     name: Execute tests
-      #     command: make -C tests/randomized execute
-      # - run:
-      #     name: Analyze results
-      #     command: make -C tests/randomized analyze
-      # - store_artifacts:
-      #     path: 'tests/randomized/.tmp.scenarios/.results'
-      #     destination: '/'
+      - run:
+          name: Generate scenarios
+          command: make -C tests/randomized generate
+      - run:
+          name: Pull docker images
+          command: make -C tests/randomized pull
+      - run:
+          name: Starting composer environment
+          command: make -C tests/randomized up
+      - run:
+          name: Wait for services to be started
+          command: sleep 5
+      - run:
+          name: Execute tests
+          command: make -C tests/randomized execute
+      - run:
+          name: Analyze results
+          command: make -C tests/randomized analyze
+      - store_artifacts:
+          path: 'tests/randomized/.tmp.scenarios/.results'
+          destination: '/'
 
   pecl_build:
     working_directory: ~/datadog
@@ -1155,7 +1161,8 @@ workflows:
           requires: [ 'package extension' ]
           matrix:
             parameters:
-              batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ]
+              batch: [ 1, 2, 3 ]
+              # batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ]
 
   #     - placeholder:
   #         requires: [ 'package extension' ]
