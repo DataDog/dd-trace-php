@@ -23,6 +23,8 @@ services:
 
   elasticsearch:
     image: "elasticsearch:6.8.13"
+    environment:
+      - discovery.type=single-node
 
   mysql:
     image: mysql:5.7

@@ -53,6 +53,8 @@ class Snippets
         ];
 
         $client->index($params);
+        // See: https://github.com/elastic/elasticsearch-php/issues/842
+        $client = null;
     }
 
     public function guzzleVariant1()

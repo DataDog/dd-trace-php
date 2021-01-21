@@ -56,7 +56,7 @@ tracer.download:
 #	@echo "Downloading tracer for comparison at url: $(TRACER_COMPARE_URL)"
 #	@curl --silent -L -o tracer-versions/ddtrace-compare.tar.gz "$(TRACER_COMPARE_URL)"
 #	@echo "Done"
-	@echo "Downloading tracer funder test at url: $(TRACER_TEST_URL)"
+	@echo "Downloading tracer at url: $(TRACER_TEST_URL)"
 	@mkdir -p $(TRACER_DOWNLOAD_PATH)
 	@curl --silent -L -o $(TRACER_DOWNLOAD_PATH)/ddtrace-test.tar.gz "$(TRACER_TEST_URL)"
 	@echo "Done"
@@ -75,13 +75,13 @@ scenarios_clean:
 results_folder:
 	@mkdir -p $(TMP_RESULTS_FOLDER)
 
-run: up execute analyze
+run: execute analyze
 
 up:
 	@docker-compose -f $(DOCKER_COMPOSE_FILE) up -d agent redis httpbin memcached elasticsearch mysql
-	@sleep 5
+	@sleep 10
 
-execute: clean_results
+execute: clean_results up
 	@echo "Starting tests with $(CONCURRENT_JOBS) concurrent runs."
 	@make -C $(TMP_SCENARIO_FOLDER) --jobs=$(CONCURRENT_JOBS) test
 
