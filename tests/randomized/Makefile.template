@@ -1,11 +1,13 @@
-up:
-	@docker-compose up -d agent redis httpbin memcached elasticsearch mysql
+RESULTS_DIR := ./.results
 
-clean_results:
-	@rm -rf ./.results/*
-	@echo "Results folder cleaned"
-
-test.scenario.%:
+test.scenario.%: results.scenario.%
 	@docker-compose up --remove-orphan $(*)
+
+results.scenario.%:
+	@mkdir -p $(RESULTS_DIR)/$(*)
+	@chmod -R a+w $(RESULTS_DIR)/$(*)
+
+shell.scenario.%:
+	@docker-compose run --rm $(*) bash
 
 # Dynamically generated targets will be added after this line

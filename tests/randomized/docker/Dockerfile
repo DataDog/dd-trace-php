@@ -5,7 +5,7 @@ ARG PHP_MINOR
 
 RUN \
     rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
-    && yum install -y wget nginx httpd unzip \
+    && yum install -y elinks wget nginx httpd unzip \
     && rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-7.rpm \
     && yum --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} install -y \
             php-cli \
@@ -35,6 +35,7 @@ RUN adduser -M --system -g www-data www-data
 ADD nginx.conf /etc/nginx/conf.d/default.conf
 
 ADD run.sh /scripts/run.sh
+ADD prepare.sh /scripts/prepare.sh
 
 WORKDIR /var/www/html
 

@@ -102,13 +102,15 @@ function generate()
     } else {
         // If a scenario number has not been provided, we generate a number of different scenarios based on based
         // configuration
-        $seed = rand();
+        $options = getopt('', ['seed:']);
+        $seed = isset($options['seed']) ? intval($options['seed']) : rand();
+        srand($seed);
+        echo "Using seed: $seed\n";
+
         $numberOfScenarios = getenv('NUMBER_OF_SCENARIOS')
             ? intval(getenv('NUMBER_OF_SCENARIOS'))
             : DEFAULT_NUMBER_OF_SCENARIOS;
 
-        srand($seed);
-        echo "Using seed: $seed\n";
 
         exec("cp ./docker-compose.template.yml ${dockerComposeFile}");
         for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {

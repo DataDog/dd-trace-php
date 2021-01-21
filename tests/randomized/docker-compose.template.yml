@@ -6,7 +6,11 @@ volumes:
 services:
 
   agent:
-    image: datadog/agent:latest
+    image: datadog/agent:7
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
 
   redis:
     image: redis:latest

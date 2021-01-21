@@ -1,5 +1,6 @@
 TMP_SCENARIO_FOLDER := ./.tmp.scenarios
 TMP_RESULTS_FOLDER := $(TMP_SCENARIO_FOLDER)/.results
+DOCKER_COMPOSE_FILE := $(TMP_SCENARIO_FOLDER)/docker-compose.yml
 REGRESSIONS_FOLDER := ./regressions
 REGRESSION_NAME := "provide-regression-name"
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
@@ -56,12 +57,12 @@ tracer.download:
 #	@curl --silent -L -o tracer-versions/ddtrace-compare.tar.gz "$(TRACER_COMPARE_URL)"
 #	@echo "Done"
 	@echo "Downloading tracer funder test at url: $(TRACER_TEST_URL)"
-	@mkdir -p ${TRACER_DOWNLOAD_PATH}
-	@curl --silent -L -o ${TRACER_DOWNLOAD_PATH}/ddtrace-test.tar.gz "$(TRACER_TEST_URL)"
+	@mkdir -p $(TRACER_DOWNLOAD_PATH)
+	@curl --silent -L -o $(TRACER_DOWNLOAD_PATH)/ddtrace-test.tar.gz "$(TRACER_TEST_URL)"
 	@echo "Done"
 
 generate: clean results_folder
-	@php generate-scenarios.php
+	@php generate-scenarios.php --seed=$(SEED)
 	@cp -r ${TRACER_DOWNLOAD_PATH} $$(pwd)/$(TMP_SCENARIO_FOLDER)
 
 generate.%: clean results_folder
@@ -77,10 +78,10 @@ results_folder:
 run: up execute analyze
 
 up:
-	@make -C $(TMP_SCENARIO_FOLDER) up
+	@docker-compose -f $(DOCKER_COMPOSE_FILE) up -d agent redis httpbin memcached elasticsearch mysql
+	@sleep 5
 
-execute:
-	@make -C $(TMP_SCENARIO_FOLDER) clean_results
+execute: clean_results
 	@echo "Starting tests with $(CONCURRENT_JOBS) concurrent runs."
 	@make -C $(TMP_SCENARIO_FOLDER) --jobs=$(CONCURRENT_JOBS) test
 
@@ -89,6 +90,9 @@ analyze:
 
 clean:
 	@rm -rf $(TMP_SCENARIO_FOLDER)
+
+clean_results:
+	@rm -rf $(TMP_RESULTS_FOLDER)
 
 freeze.%:
 	@mkdir -p $(REGRESSIONS_FOLDER)
