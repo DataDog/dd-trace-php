@@ -77,7 +77,7 @@ results_folder:
 	@mkdir -p $(TMP_RESULTS_FOLDER)
 
 up:
-	@docker-compose -f $(DOCKER_COMPOSE_FILE) up -d agent redis httpbin memcached elasticsearch mysql
+	@docker-compose -f $(DOCKER_COMPOSE_FILE) up --remove-orphans -d agent redis httpbin memcached elasticsearch mysql
 	@sleep 10
 
 execute: clean_results up

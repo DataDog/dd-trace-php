@@ -1,7 +1,7 @@
 RESULTS_DIR := ./.results
 
 test.scenario.%: results.scenario.%
-	@docker-compose up --remove-orphan $(*)
+	@docker-compose up $(*)
 
 results.scenario.%:
 	@mkdir -p $(RESULTS_DIR)/$(*)
