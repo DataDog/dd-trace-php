@@ -19,10 +19,12 @@ function analyze($resultsFolder, $dockerComposeFile)
 
         // For now ERROR means that we receives status code different than:
         //   - 200: OK
-        //   - 530: Uncaught new style exception (status code forced by us)
-        //   - 531: Unhandled legacy error (status code forced by us)
+        //   - 510: Uncaught new style exception (status code forced by us)
+        //   - 511: Unhandled legacy error (status code forced by us)
+        // Note: not all the 5** can be set in PHP/Apache via http_response_code()
+        // See: https://www.php.net/manual/en/function.http-response-code.php#114996
         $receivedStatusCodes = $jsonResult['status_codes'];
-        if (array_keys($receivedStatusCodes) !== [ 200, 530, 531 ]) {
+        if (array_keys($receivedStatusCodes) !== [ 200, 510, 511 ]) {
             $unexpectedCodes[$identifier] = $receivedStatusCodes;
         }
         if (($requestCount = array_sum($receivedStatusCodes)) < MINIMUM_ACCEPTABLE_REQUESTS) {

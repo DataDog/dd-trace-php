@@ -3,6 +3,9 @@ FROM centos:7
 ARG PHP_MAJOR
 ARG PHP_MINOR
 
+# Getting the latest nginx
+RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline/centos/7/$basearch/\ngpgcheck=0\nenabled=1' >> /etc/yum.repos.d/nginx.repo
+
 RUN \
     rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
     && yum install -y elinks wget nginx httpd unzip gdb git \

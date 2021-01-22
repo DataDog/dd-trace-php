@@ -230,7 +230,7 @@ class RandomExecutionPath
 
     private function alwaysThrowException($message)
     {
-        throw new \Exception($message, 510);
+        throw new \Exception($message, 508);
     }
 
     private function alwaysGenerateAFatal()
@@ -242,7 +242,7 @@ class RandomExecutionPath
     {
         if ($ex->getMessage() === 'uncaught exception from randomized tests') {
             error_log("Handling expected Exception: " . $ex->getMessage());
-            http_response_code(530);
+            http_response_code(510);
         } else {
             error_log("Unexpected Exception: " . $ex->getMessage());
             http_response_code(500);
@@ -265,7 +265,7 @@ class RandomExecutionPath
         error_log("Handling Error: $errorName - $errstr");
 
         if ($errno === \E_USER_ERROR) {
-            http_response_code(531);
+            http_response_code(511);
             exit(1);
         }
     }

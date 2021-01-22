@@ -239,7 +239,7 @@ function generateRequestScenarios($number)
     ];
     $requests = '';
     for ($idx = 0; $idx < $number; $idx++) {
-        $method = ['GET', 'POST', 'PUT'][rand(0, 2)];
+        $method = ['GET', 'POST'][rand(0, 1)];
         $port = [/* nginx */80, /* apache*/ 81][rand(0, 1)];
         $host = 'http://localhost';
         // Query String
