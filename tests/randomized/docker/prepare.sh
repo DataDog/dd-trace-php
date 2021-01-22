@@ -26,4 +26,9 @@ echo "Starting nginx"
 nginx
 sleep 1
 
+# Start Apache
+echo "Starting apache"
+httpd
+sleep 1
+
 composer --working-dir=/var/www/html install

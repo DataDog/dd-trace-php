@@ -202,6 +202,7 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
       - ./.results/$identifier/:/results/
       - ./.results/$identifier/nginx:/var/log/nginx
       - ./.results/$identifier/php-fpm:/var/log/php-fpm
+      - ./.results/$identifier/apache:/var/log/httpd/
     environment:
         INSTALL_MODE: $selectedInstallationMethod
         TEST_SCENARIO: $identifier
