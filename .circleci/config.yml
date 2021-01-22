@@ -734,7 +734,7 @@ jobs:
     working_directory: ~/datadog
     machine:
       image: ubuntu-2004:202010-01
-    resource_class: xlarge
+    resource_class: large
     parameters:
       batch:
         type: integer
@@ -1160,8 +1160,7 @@ workflows:
           requires: [ 'package extension' ]
           matrix:
             parameters:
-              batch: [ 1, 2, 3 ]
-              # batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ]
+              batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ]
 
   #     - placeholder:
   #         requires: [ 'package extension' ]
