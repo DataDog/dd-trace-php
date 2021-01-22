@@ -8,6 +8,7 @@ TRACER_TEST_URL := https://github.com/DataDog/dd-trace-php/releases/download/0.5
 # TRACER_COMPARE_URL := $(shell curl --silent https://api.github.com/repos/DataDog/dd-trace-php/releases/latest | grep -e 'browser_download_url.*\.tar\.gz' | cut -d'"' -f 4)
 TRACER_DOWNLOAD_PATH := ./.tracer-versions
 CONCURRENT_JOBS := 5
+NUMBER_OF_SCENARIOS := 20
 
 build: build.centos7
 
@@ -62,7 +63,7 @@ tracer.download:
 	@echo "Done"
 
 generate: clean results_folder
-	@php generate-scenarios.php --seed=$(SEED)
+	@php generate-scenarios.php --seed=$(SEED) --number=$(NUMBER_OF_SCENARIOS)
 	@cp -r ${TRACER_DOWNLOAD_PATH} $$(pwd)/$(TMP_SCENARIO_FOLDER)
 
 generate.%: clean results_folder

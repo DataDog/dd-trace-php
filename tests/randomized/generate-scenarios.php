@@ -1,7 +1,6 @@
 <?php
 
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
-const DEFAULT_NUMBER_OF_SCENARIOS = 20;
 const MAX_ENV_MODIFICATIONS = 5;
 const MAX_INI_MODIFICATIONS = 5;
 
@@ -102,15 +101,16 @@ function generate()
     } else {
         // If a scenario number has not been provided, we generate a number of different scenarios based on based
         // configuration
-        $options = getopt('', ['seed:']);
+        $options = getopt('', ['seed:', 'number:']);
         $seed = isset($options['seed']) ? intval($options['seed']) : rand();
         srand($seed);
         echo "Using seed: $seed\n";
 
-        $numberOfScenarios = getenv('NUMBER_OF_SCENARIOS')
-            ? intval(getenv('NUMBER_OF_SCENARIOS'))
-            : DEFAULT_NUMBER_OF_SCENARIOS;
-
+        $numberOfScenarios = intval($options['number']);
+        if (0 === $numberOfScenarios) {
+            echo "Error: --number option is required to set the number of scenarios to create.\n";
+            exit(1);
+        }
 
         exec("cp ./docker-compose.template.yml ${dockerComposeFile}");
         for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
