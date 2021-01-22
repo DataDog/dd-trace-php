@@ -5,7 +5,7 @@ ARG PHP_MINOR
 
 RUN \
     rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
-    && yum install -y elinks wget nginx httpd unzip \
+    && yum install -y elinks wget nginx httpd unzip gdb \
     && rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-7.rpm \
     && yum --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} install -y \
             php-cli \

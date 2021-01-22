@@ -750,11 +750,11 @@ jobs:
           name: Copy tracer package
           command: make -C tests/randomized tracer.local
       - run:
-          name: Generate scenarios
-          command: make -C tests/randomized generate
-      - run:
           name: Pull docker images
           command: make -C tests/randomized pull
+      - run:
+          name: Generate scenarios
+          command: make -C tests/randomized generate
       - run:
           name: Starting composer environment
           command: make -C tests/randomized up
