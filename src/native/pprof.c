@@ -94,11 +94,11 @@ uint64_t pprof_stringtable_intern(void* state, char* str) {
 }
 
 char** pprof_stringtable_gettable(void* state) {
-  return (char**)((StringTable*)state)->table;
+  return (char**)((StringTable*)state)->arena->entry;
 }
 
 size_t pprof_stringtable_size(void* state) {
-  return (size_t)((StringTable*)state)->table_size;
+  return ((StringTable*)state)->arena->entry_idx;
 }
 
 size_t pprof_strIntern(DProf* dp, char* str) {
@@ -156,7 +156,7 @@ char isEqualMapping(uint64_t map_start, uint64_t map_end, uint64_t map_off, int6
 
 // Returns the ID of the mapping
 // NOTE that this is different from the index of the mapping in the pprof
-uint64_t pprof_mapAdd(DProf* dp, uint64_t map_start, uint64_t map_end, uint64_t map_off, char* filename, char* build) {
+uint64_t pprof_mapAdd(DProf* dp, uint64_t map_start, uint64_t map_end, uint64_t map_off, const char* filename, const char* build) {
   PPProfile* pprof = &dp->pprof;
   uint64_t id_filename = pprof_strIntern(dp, filename);
   uint64_t id_build = pprof_strIntern(dp, build);
@@ -226,7 +226,7 @@ static uint64_t _pprof_funNew(DProf* dp, int64_t id_name, int64_t id_system_name
   return id;
 }
 
-uint64_t pprof_funAdd(DProf* dp, char* name, char* system_name, char* filename, int64_t start_line) {
+uint64_t pprof_funAdd(DProf* dp, const char* name, const char* system_name, const char* filename, int64_t start_line) {
   PPProfile* pprof = &dp->pprof;
   int64_t id_name = pprof_strIntern(dp, name);
   int64_t id_system_name = pprof_strIntern(dp, system_name);
@@ -351,22 +351,20 @@ char pprof_sampleFree(PPSample** sample, size_t sz) {
 }
 
 void pprof_timeUpdate(DProf* dp) {
-  PPProfile* pprof = &dp->pprof;
-  if(!pprof) return;
+  if(!dp) return;
   struct timeval tv = {0};
   gettimeofday(&tv, NULL);
-  pprof->time_nanos = (tv.tv_sec*1000*1000 + tv.tv_usec)*1000;
+  pprof_timeSet(dp, (tv.tv_sec*1000*1000 + tv.tv_usec)*1000);
 }
 
 void pprof_durationUpdate(DProf* dp) {
-  PPProfile* pprof = &dp->pprof;
-  if(!pprof) return;
+  if(!dp) return;
   struct timeval tv = {0};
   gettimeofday(&tv, NULL);
-  pprof->duration_nanos = (tv.tv_sec*1000*1000 + tv.tv_usec)*1000 - pprof->time_nanos;
+  pprof_durationSet(dp, (tv.tv_sec*1000*1000 + tv.tv_usec)*1000 - dp->pprof.time_nanos);
 }
 
-char pprof_Init(DProf* dp, char** sample_names, char** sample_units, size_t n_sampletypes) {
+char pprof_Init(DProf* dp, const char** sample_names, const char** sample_units, size_t n_sampletypes) {
   PPProfile* pprof = &dp->pprof;
   // Early sanity checks
   if (!sample_names || !sample_units || 2>n_sampletypes) return -1;
@@ -384,7 +382,7 @@ char pprof_Init(DProf* dp, char** sample_names, char** sample_units, size_t n_sa
       dp->intern_string     = pprof_stringtable_intern;
       dp->string_table      = pprof_stringtable_gettable;
       dp->string_table_size = pprof_stringtable_size;
-      dp->string_table_data = stringtable_init(&(StringTableOptions){.hash=1, .alloc=1, .logging=0});
+      dp->string_table_data = stringtable_init(NULL, &(StringTableOptions){.hash=1, .logging=0});
       ((StringTable*)dp->string_table_data)->logging = 1; // TODO make this configurable
       break;
   }
@@ -595,5 +593,3 @@ size_t pprof_zip(DProf* dp, unsigned char* ret, const size_t sz_packed) {
 
   return zs.total_out;
 }
-
-

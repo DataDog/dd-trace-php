@@ -48,21 +48,211 @@ typedef struct DProf {
   void* string_table_data; // Whatever state held by the string table impl.
 } DProf;
 
-// Prototypes
-uint64_t pprof_mapAdd(DProf*, uint64_t, uint64_t, uint64_t, char*, char*);
-uint64_t pprof_funAdd(DProf*, char*, char*, char*, int64_t);
-uint64_t pprof_locAdd(DProf*, uint64_t, uint64_t, uint64_t*, int64_t*, size_t);
-uint64_t pprof_lineAdd(DProf*, PPLocation*, uint64_t, int64_t);
-char     pprof_sampleAdd(DProf*, int64_t*, size_t, uint64_t*, size_t);
-void     pprof_sampleMakeStack(DProf*, PPSample*, uint64_t*, size_t, pid_t);
+// Public API
+/*******************************************************************************
+ * Initializes a DProf object
+ *
+ * Initializes a DProf object, a pprof container suitable for DataDog's
+ * continuous profilers.  When a DProf is initialized, the ValueType for the
+ * underlying pprof is set in the arguments.
+ *
+ * @param dp Either an un-initialized DProf or NULL.  If the latter, will
+ *           allocate the object on the heap and manage its lifecycle during
+ *           subsequent free operations.  If not NULL, then it is up to the user
+ *           to free() the object after calling pprof_Free()
+ *
+ * @param sample_names TBD
+ *
+ * @param sample_units TBD
+ *
+ * @param n_sampletypes TBD
+ *
+ * @return A pointer to an initialized DProf object, or {@code NULL} if the
+ *         object could not be initialized
+ ******************************************************************************/
+char     pprof_Init(DProf*, const char**, const char**, size_t);
 
-// (con/de)structors
-char     pprof_Init(DProf*, char**, char**, size_t);
+/*******************************************************************************
+ * Frees a DProf object
+ *
+ * Frees a DProf object, releasing all child objects and references.
+ *
+ * @param dp An initialized DProf object
+ ******************************************************************************/
 char     pprof_Free(DProf*);
 
-// Serializers/helpers
+/*******************************************************************************
+ * Adds a map to an initialized DProf object
+ *
+ * Adds a map to an itialized DProf object.  Will de-duplicate the incoming
+ * map on entry, returning the ID into the underlying pprof mappings table.
+ *
+ * A mapping represents a region mapped by a process during execution, such as
+ * a segment of a shared object.  In other words, a mapping represents the same
+ * object (and much of the same metadata) as an executable region in
+ * the procfs /proc/self/maps entry (on Linux).
+ *
+ * On x86-Linux, the addresses below are typically understood to be page-
+ * aligned, but this interface in no way sanitizes non-aligned addresses.
+ *
+ * @param dp A initialize DProf object
+ *
+ * @param map_start Represents the starting addr. of the map in virtual memory.
+ *
+ * @param map_end Represents the ending address of the map in virtual memory.
+ *
+ * @param map_off The offset into the file at which the executable region
+ *                starts (conventionally, 0 for anonymous regions)
+ *
+ * @param filename The absolute path to the file, unless anonymous.  It is not
+ *                 clear which namespace the path might be relative to, although
+ *                 it is conventional for the paths to be reachable by the
+ *                 main binary.
+ *
+ * @param build A build-id for the file representing the mapping.  It is unclear
+ *              what this means for anonymous mappings.
+ ******************************************************************************/
+uint64_t pprof_mapAdd(DProf*, uint64_t, uint64_t, uint64_t, const char*, const char*);
+
+/*******************************************************************************
+ * Adds a function to an initialized DProf object
+ *
+ * Adds a function to an initialized DProf object.  A function represents a
+ * callable object which may or may not possess an underlying human-readable
+ * code resource in a file.
+ *
+ * @param dp An initialized DProf object
+ *
+ * @param name The human-relatable name of a function, for example the demangled
+ *             or original name of a C++ function, as represented in code.
+ *
+ * @param system_name The function as it is known by the system.  This may be,
+ *                    for instance, a mangled C++ symbol name as represented in
+ *                    an ELF symbol table.
+ *
+ * @param filename If applicable, the path to the file in which the code
+ *                 representation of the function is available.  If no code is
+ *                 available, then this is the empty string "" or NULL
+ *
+ * @param start_line The 1-indexed line of the filename where the specified
+ *                   function is first represented in code.
+ *
+ ******************************************************************************/
+uint64_t pprof_funAdd(DProf*, const char*, const char*, const char*, int64_t);
+
+/*******************************************************************************
+ * Adds a location to an initialized DProf object
+ *
+ * Adds a location to an initialized DProf object.
+ *
+ * @param dp An initialized DProf object
+ *
+ * @param id_mapping The ID for the mapping backing this location
+ *
+ * @param addr The address of this location.  Conventionally, it is the location
+ *             in either virtual memory OR relative to the file behind the
+ *             underlying mapping, but the choice should be represented
+ *             consistently in user code and downstream applications.
+ *
+ * @param functions An array of function IDs
+ *
+ * @param lines
+ *
+ * @param n_functions
+ *
+ ******************************************************************************/
+uint64_t pprof_locAdd(DProf*, uint64_t, uint64_t, uint64_t*, int64_t*, size_t);
+
+/*******************************************************************************
+ * Adds a line to an initialized DProf object
+ *
+ * Adds a line to an initialized DProf object
+ ******************************************************************************/
+uint64_t pprof_lineAdd(DProf*, PPLocation*, uint64_t, int64_t);
+
+/*******************************************************************************
+ * No documentation available
+ ******************************************************************************/
+char     pprof_sampleAdd(DProf*, int64_t*, size_t, uint64_t*, size_t);
+
+/*******************************************************************************
+ * No documentation available
+ ******************************************************************************/
 void GZip(char*, const char*, const size_t);
+
+/*******************************************************************************
+ * No documentation available
+ ******************************************************************************/
 size_t pprof_zip(DProf*, unsigned char*, const size_t);
 
+/*******************************************************************************
+ * Uses gettimeofday() to update the duration element of a pprof
+ *
+ * Honestly, I'm not quite sure what to do here.  Since DataDog aggregates
+ * pprof samples over a fixed period of time and then flushes the result to
+ * a backend system, this function calls gettimeofday(), converts it to
+ * nanoseconds since the epoch, and subtracts the internal time element.
+ * Therefore, this function is intended to be called at the termination of a
+ * pprof, with the expectation that `time` represents the start time of
+ * profiling.
+ *
+ * @param dp An initialized DProf object
+ ******************************************************************************/
+void pprof_durationUpdate(DProf*);
+
+/*******************************************************************************
+ * Uses gettimeofday() to update the time element of a pprof
+ *
+ * Converts the current local time to nanoseconds since the Unix epoch
+ *
+ * @param dp An initialized DProf object
+ ******************************************************************************/
+void pprof_timeUpdate(DProf*);
+
+/*******************************************************************************
+ * Sets the time_nanos field of a pprof
+ *
+ * Sets the time_nanos field of a pprof.  Note that this function is defined in
+ * a header and is expected to inline.  Also note that a more convenient
+ * interface is provided by pprof_timeUpdate()--this interface is provided for
+ * users who want to set their own time for some reason.
+ *
+ * @param dp An initialized DProf object
+ *
+ * @param time_nanos The time in nanoseconds since the Unix epoch, at which
+ *                   point collection into this pprof began
+ ******************************************************************************/
+static inline void pprof_timeSet(DProf* dp, int64_t time_nanos) {
+  dp->pprof.time_nanos = time_nanos;
+}
+
+/*******************************************************************************
+ * Sets the duration_nanos field of a pprof
+ *
+ * Sets the duration_nanos field of a pprof.  Note that this function is defined
+ * in a header and is expected to inline.  Also note that a more convenient
+ * interface is provided by pprof_durationUpdate()--this interface is provided
+ * for users who want to set their own duration for some reason.
+ *
+ * @param dp An initialized DProf object
+ *
+ * @param duration_nanos The duration in nanoseconds of the pprof.  Usually is
+ *                       the difference between original collection start time
+ *                       and the current time.
+ ******************************************************************************/
+static inline void pprof_durationSet(DProf* dp, int64_t duration_nanos) {
+  dp->pprof.duration_nanos = duration_nanos;
+}
+
+/*******************************************************************************
+ * Clears the sample list from a pprof
+ *
+ * Clears the samples from a pprof without clearing the underlying locations,
+ * mappings, string table, or other metadata.  This is useful when the
+ * functions, etc, are assumed to be common between sampling periods.
+ *
+ * @param dp An initialized DProf object
+ ******************************************************************************/
+char pprof_sampleClear(DProf*);
 
 #endif
