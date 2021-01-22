@@ -1,25 +1,25 @@
 #include <stdlib.h>
-#include <sys/mman.h>
 
 #include "string_table.h"
+
+#ifdef D_SANITY_CHECKS
+  #include <signal.h>
+#endif
 
 // ONLY FOR INTERNAL USE.  ONLY.
 #define STR_LEN_PTR(x) ((uint32_t*)&(x)[-4])
 #define STR_LEN(x) (*STR_LEN_PTR(x))
-
-#ifdef D_ALLOC_DBG
-#  include <errno.h>
-#  include <stdio.h>
-#  define P_ADBG(x) if(MAP_FAILED == (x)) printf("%d: %s\n", __LINE__, strerror(errno)); else printf("%d: %s\n", __LINE__, #x)
-#else
-#  define P_ADBG(x) do {}while(0)
-#endif
 
 #ifdef D_LOGGING_ENABLE
 #include <unistd.h>
 #include <stdio.h>
 #endif
 
+/* TODO
+
+1. Better interface protection.
+  a. Check for null pointers on function entry
+*/
 
 /******************************************************************************\
 |*                          Internal Hash Functions                           *|
@@ -35,12 +35,10 @@ uint32_t djb2_hash(unsigned char* str, size_t len) {
 }
 
 
+// The below section as per https://github.com/wangyi-fudan/wyhash
 /******************************************************************************\
 |*                      Inlined wyhash32 Implementation                       *|
 \******************************************************************************/
-// The remainder of this file is attributed as noted.  Provided inline merely to
-// make this library importable as a single-file include.
-
 // Author: Wang Yi <godspeed_china@yeah.net>
 #include <stdint.h>
 #include <string.h>
@@ -83,384 +81,548 @@ uint32_t wyhash_hash(unsigned char* str, size_t len) {
 |*                   End of Inlined wyhash32 Implementation                   *|
 \******************************************************************************/
 
-// ---- Forward decl of purely internal functions
-static char StringTableNode_add(StringTableNode**, StringTableNode*, uint32_t);
-static char _StringTable_arena_init_resized(StringTable*);
-static char _StringTable_arena_init_chained(StringTable*);
-static char _StringTable_arena_init(StringTable*);
-static char _StringTable_arena_resize_resized(StringTable*);
-static char _StringTable_arena_resize_chained(StringTable*);
-static char _StringTable_arena_resize(StringTable*);
-static void _StringTable_arena_free_resized(StringTable*);
-static void _StringTable_arena_free_chained(StringTable*);
-static void _StringTable_arena_free(StringTable*);
-static unsigned char*_StringTable_arena_add(StringTable*, unsigned char*, size_t);
-static char _StringTable_nodes_init(StringTable*);
-static char _StringTable_nodes_resize(StringTable*);
-static void _StringTable_nodes_free(StringTable*);
-static StringTableNode* _StringTable_nodes_add(StringTable*, unsigned char*, ssize_t);
-static char _StringTable_table_init(StringTable*);
-static char _StringTable_table_resize(StringTable*);
-static void _StringTable_table_free(StringTable*);
-static ssize_t _StringTable_table_add(StringTable*, unsigned char*);
+
+/******************************************************************************\
+|*                           Internal Declarations                            *|
+\******************************************************************************/
+static StringTableArena* _StringTableArena_init(StringTableArena*);
+//static char _StringTableArena_expand(StringTableArena*);
+static void _StringTableArena_free(StringTableArena*);
+static char _StringTableArena_reserve(StringTableArena*, size_t);
+//static unsigned char*_StringTableArena_insert(StringTableArena*, unsigned char*, size_t);
+
+static StringTableNodes* _StringTableNodes_init(StringTableNodes*);
+//static char _StringTableNodes_expand(StringTableNodes*);
+static void _StringTableNodes_free(StringTableNodes*);
+static char _StringTableNodes_reserve(StringTableNodes*);
+//static char _StringTableNodes_insert(StringTableNodes*, unsigned char*, ssize_t);
+static StringTableNode* _StringTableNodes_get(StringTableNodes*, unsigned char*, size_t, uint32_t*, HashFun);
+
+//static char _StringTable_table_init(StringTable*);
+//static char _StringTable_table_expand(StringTable*);
+//static void _StringTable_table_free(StringTable*);
+//static ssize_t _StringTable_table_add(StringTable*, unsigned char*);
 
 
-// ---- StringTable Arena
-static char _StringTable_arena_init_resized(StringTable* st) {
-// TODO This can be changed to allow multiple threads or processes to coordinate
-//      on the same string table.  The outline is to mmap() to a file or tmp,
-//      then during initialization make sure each StringTable has a unique name
-//      to refer to that file.  Every region needs to live in its own file
-//      (3?), so need to juggle O_CREAT with sequenced file existence checks.
-//      Obviously will be MAP_SHARED
-  st->arena = mmap(NULL, ST_ARENA_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-P_ADBG(st->arena);
-  if(MAP_FAILED == st->arena) {
+/******************************************************************************\
+|*                              StringTableArena                              *|
+\******************************************************************************/
+#define STA_ALIGNMENT_MASK 15ull
+#define STA_ALIGN(x) ((__typeof__(x))(((uint64_t)(x)+STA_ALIGNMENT_MASK) &~STA_ALIGNMENT_MASK))
+
+/*******************************************************************************
+ * Initializes a StringTableArena.
+ *
+ * @param sta A recently initialized or freed StringTableArena.  Cal also be a
+ *            NULL pointer, in which case the ownership of the arena is marked
+ *            internal.  Internal objects are freed by the library on
+ *            _StringTableArena_free().
+ ******************************************************************************/
+static StringTableArena* _StringTableArena_init(StringTableArena* sta) {
+  unsigned char* sta_buf = calloc(1, ST_ARENA_SIZE);
+  if(!sta_buf) goto STA_INIT_CLEANUP00;
+
+  unsigned char** entry_buf = calloc(sizeof(unsigned char*), ST_ARENA_NELEM);
+  if(!entry_buf) goto STA_INIT_CLEANUP01;
+
+  if(!sta) {
+    sta = calloc(1, sizeof(StringTableArena));
+    if(!sta) goto STA_INIT_CLEANUP02;
+    sta->ownership = 1;
+  }
+
+  sta->arena = sta_buf;
+  sta->regions[0] = sta_buf;
+  sta->capacity = ST_ARENA_SIZE;
+  sta->arena_off = 0;
+  sta->filled_regions = 1; // Points to the next region to fill
+
+  sta->entry = entry_buf;
+  sta->entry_capacity = ST_ARENA_NELEM;
+  sta->entry_idx = 0;
+
+  return sta;
+
+STA_INIT_CLEANUP02:
+  free(entry_buf);
+STA_INIT_CLEANUP01:
+  free(sta_buf);
+STA_INIT_CLEANUP00:
+  return NULL;
+}
+
+
+/*******************************************************************************
+ * Frees a StringTableArena.
+ *
+ * If the StringTableArena was initialized by the library, setting the ownership
+ * flag, then the input will become invalid after this call.  Strongly assumes
+ * struct internals have not been modified by a user.
+ *
+ * @param sta An initialized StringTableArena
+ ******************************************************************************/
+static void _StringTableArena_free(StringTableArena* sta) {
+  for(int i=0; i<32; i++)
+    if(sta->regions[i])
+      free(sta->regions[i]), sta->regions[i]=NULL;
+
+  free(sta->entry);
+
+  sta->filled_regions = 0;
+  sta->arena = NULL;
+  sta->capacity = 0;
+  sta->arena_off = 0;
+  sta->entry = NULL;
+  sta->entry_capacity = 0;
+  sta->entry_idx = 0;
+
+  if(sta->ownership)
+    free(sta);
+}
+
+/*******************************************************************************
+ * Increases the space allocated to the StringTableArena storage area
+ *
+ * @param sta An initialized StringTableArena
+ ******************************************************************************/
+static char _StringTableArena_expandar(StringTableArena* sta) {
+  // NB, there are various inefficiencies with this implementation for multi-
+  // scale allocations.  TODO
+  unsigned char* buf = calloc(2*sizeof(unsigned char), sta->capacity);
+  if(!buf) return -1;
+
+  sta->arena = buf;
+  sta->regions[sta->filled_regions++] = buf;
+  sta->capacity *= 2;
+  sta->arena_off = 0;
+  return 0;
+}
+
+/*******************************************************************************
+ * Increases the space allocated to the StringTableArena entry list
+ *
+ * @param sta An initialized StringTableArena
+ ******************************************************************************/
+static char _StringTableArena_expandcap(StringTableArena* sta) {
+  unsigned char** buf = realloc(sta->entry, 2*sizeof(unsigned char*)*sta->entry_capacity);
+  if(!buf) return -1;
+
+  sta->entry = buf;
+  sta->entry_capacity *= 2;
+  return 0;
+}
+
+
+// TODO something is wrong with these reservation functions
+
+/*******************************************************************************
+ * Ensures that a StringTableArena has enough space for a new object.  In the
+ * future, will return a reservation to a portion of the arena in a thread-safe
+ * fashion.
+ *
+ * Will return -1 if the user requests more data than can fit in a newly
+ * initialized, initial-sized region.  We could certainly allow it to fit the
+ * new power-of-two reservation size, but this creates runtime uncertainty about
+ * allocation.  This is probably fine, since the intent is to intern name-type
+ * strings (i.e., not descriptions or Project Gutenberg).
+ *
+ * @param sta An initialized StringTableArena
+ *
+ * @param length how much space is requested
+ ******************************************************************************/
+static char _StringTableArena_reserve(StringTableArena* sta, size_t length) {
+  if(length > ST_ARENA_SIZE) return -1; // Will not grant oversized reservations
+
+  // Check whether the arena has capacity
+  if(STA_ALIGN(sta->arena_off + length + 1  + sizeof(uint32_t)) >= sta->capacity)
+    if(_StringTableArena_expandar(sta)) return -1;
+
+  // Check whether the entries has capacity
+  if(sta->entry_idx >= sta->entry_capacity)
+    if(_StringTableArena_expandcap(sta)) return -1;
+
+  return 0;
+}
+
+/*******************************************************************************
+ * Interns an item to a StringTableArena.
+ *
+ * Appends an item to a StringTableArena.  It does not de-duplicate insertion,
+ * which is handled by the StringTable.  Note that each object is followed by
+ * a '\0' and prepended by a four-byte header, encoding the size.
+ *
+ * After appending the item to the arena, it also adds a reference to the
+ * pointer array (entry).
+ *
+ * @param sta An initialized StringTableArena
+ *
+ * @param val An object(probably a string) to intern.  Will be shallow copy.
+ *
+ * @param sz_val the size of the value in bytes.  Does not need to be aligned
+ *        size, as that is handled during append
+ ******************************************************************************/
+static ssize_t _StringTableArena_append(StringTableArena* sta, unsigned char* val, size_t sz_val) {
+  // If the total size exceeds the minimum arena size, then we could either
+  // silently truncate or we could throw an error.  Right now, we silently
+  // truncate.  TODO OOB logs
+  // ASSERT ?alloc aligns to word-boundaries, which should be true on x86_64
+  size_t sz_total = STA_ALIGN(sz_val + sizeof(uint32_t) + 1);
+  if(sz_total > ST_ARENA_SIZE)
+    sz_val = ST_ARENA_SIZE; // if we subtract 5 bytes, it'll just realign
+
+  // Ensure we have enough space for both the arena and the entries
+  if(-1 == _StringTableArena_reserve(sta, sz_val))
     return -1;
-  }
-  st->arena_reserved = ST_ARENA_SIZE;
-  st->arena_size = 0;
-  return 0;
-}
 
-static char _StringTable_arena_init_chained(StringTable* st) {
-  return _StringTable_arena_resize_chained(st);
-}
+  // Compute several constants related to setting up the arena
+  unsigned char* dst = &sta->arena[sta->arena_off];   // Top of the object
+  unsigned char* arena_ptr = dst + sizeof(uint32_t);  // What we return
+  uint32_t write_len = sz_val;                        // Size after padding
 
-static char _StringTable_arena_init(StringTable* st) {
-  switch(st->mode) {
-  case 0:
-    return _StringTable_arena_init_resized(st);
-  case 1:
-    return _StringTable_arena_init_chained(st);
-  }
-  return -1;
-}
+#ifdef D_SANITY_CHECKS
+  if(STA_ALIGN(dst) != dst)
+    printf("NOT ALIGNED\n"), raise(SIGINT);
+  if(sz_total & STA_ALIGNMENT_MASK)
+    printf("LENGTH NOT ALIGNED\n"), raise(SIGINT);
+#endif
 
-static char _StringTable_arena_resize_resized(StringTable* st) {
-  unsigned char* arena_buf = mremap(st->arena, st->arena_reserved, 2*st->arena_reserved, MREMAP_MAYMOVE);
-P_ADBG(arena_buf);
-  if(MAP_FAILED == arena_buf) {
-    // What else can we do?
-    return -1;
-  }
+  // Copy the 4-byte header (length) TODO this can overrun?
+  memcpy(dst, &write_len, sizeof(uint32_t));  dst += sizeof(uint32_t);
 
-  // We need to go through and adjust the old pointers.
-  if(arena_buf != st->arena) {
-    int64_t offset = arena_buf - st->arena; // no
-    for(uint64_t i=0; i < st->table_size; i++) {
-      st->table[i] = st->table[i] + offset;
-      st->nodes[i].string = st->nodes[i].string + offset;
-    }
-  }
+  // Copy the string (either whole or truncated)
+  memcpy(dst, val, sz_val);
 
-  // Finalize state
-  st->arena_reserved *= 2;
-  st->arena = arena_buf;
-  return 0;
-}
+  // ASSERT:
+  // dst - &sta->arena[sta->arena_off] is in [1,8]
+  // &st->arena[...] + sz_total = new aligned address
+  sta->arena_off += sz_total;
 
-static char _StringTable_arena_resize_chained(StringTable *st) {
-  StringTableNode* arena_buf_chained = calloc(2, st->arena_reserved);
-P_ADBG(arena_buf_chained);
-  if(!arena_buf_chained) return -1;
-
-  st->chained_arenas[st->chained_idx++] = arena_buf_chained;
-  st->nodes = arena_buf_chained;
-  return 0;
-}
-
-static char _StringTable_arena_resize(StringTable *st) {
-  switch(st->mode) {
-  case 0:
-    return _StringTable_arena_resize_resized(st);
-  case 1:
-    return _StringTable_arena_resize_chained(st);
-  }
-  return -1;
-}
-
-static void _StringTable_arena_free_resized(StringTable* st) {
-  if(st->arena) munmap(st->arena, st->arena_reserved);
-  st->arena = NULL;
-}
-
-static void _StringTable_arena_free_chained(StringTable* st) {
-  for(uint64_t i=0; i<st->chained_idx; i++)
-    if(st->chained_arenas[i]) {
-      free(st->chained_arenas[i]);
-      st->chained_arenas[i] = NULL;
-    }
-}
-
-
-static void _StringTable_arena_free(StringTable* st) {
-  if(0 == st->mode) _StringTable_arena_free_resized(st);
-  if(1 == st->mode) _StringTable_arena_free_chained(st);
-  return;
-}
-
-static unsigned char* _StringTable_arena_add(StringTable* st, unsigned char* str, size_t len) {
-  // TODO, the user has no idea if their string was resized.
-  // TODO, harmonize the length checks
-  // TODO, detect resize errors
-  // NB, the offset arena + size is always the first unused byte of the arena
-  if(len > ST_ARENA_SIZE)                      len = ST_ARENA_SIZE - 1 - sizeof(uint32_t); // Make the string smaller than a chunk
-//  if(len > (2ull<<32) - 1 - sizeof(uint32_t))  len = (2ull<<32)    - 1 - sizeof(uint32_t);
-  while(st->arena_reserved - st->arena_size < sizeof(uint32_t)+ 1 + len) _StringTable_arena_resize(st);
-
-  // Now we can add it
-  unsigned char* ret;
-  uint32_t write_len = len;
-  memcpy(st->arena+st->arena_size, &write_len, sizeof(uint32_t)); st->arena_size += sizeof(uint32_t);
-  ret = st->arena + st->arena_size;
-  memcpy(st->arena+st->arena_size, str, len);                     st->arena_size += len;
-  memset(st->arena+st->arena_size, 0, 1);                         st->arena_size += 1;
-
+  // Now also add this to the entries
+  ssize_t ret = sta->entry_idx++;
+  sta->entry[ret] = arena_ptr;
   return ret;
 }
 
-// ---- StringTable Nodes
-static char _StringTable_nodes_init(StringTable* st) {
-  st->nodes = mmap(NULL, ST_ARENA_NELEM*sizeof(StringTableNode), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-P_ADBG(st->nodes);
-  if(MAP_FAILED == st->nodes)
-    return -1;
-  st->entry = mmap(NULL, ST_ARENA_NELEM*sizeof(StringTableNode*), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if(MAP_FAILED == st->entry)
-    return -1;
-P_ADBG(st->entry);
 
-  // Finalize
-  st->nodes_reserved = ST_ARENA_NELEM;
-  st->nodes_size = 0;
+/******************************************************************************\
+|*                              StringTableNodes                              *|
+\******************************************************************************/
+/*******************************************************************************
+ * Initializes the nodes portion of a StringTable
+ *
+ * TODO: could be harmonized with the StringTableArena initializer?
+ *
+ * @param stn An uninitialized StringTableNodes object
+ ******************************************************************************/
+static StringTableNodes* _StringTableNodes_init(StringTableNodes* stn) {
+  StringTableNode* stn_buf = calloc(sizeof(StringTableNode), ST_ARENA_NELEM);
+  if(!stn_buf) goto STN_INIT_CLEANUP00;
 
-  // Especially important to clear the entries
-  memset(st->entry, 0, st->nodes_reserved*sizeof(StringTableNode*));
-  return 0;
-}
+  StringTableNode** entry_buf = calloc(sizeof(StringTableNode*), ST_ARENA_NELEM);
+  if(!entry_buf) goto STN_INIT_CLEANUP01;
 
-static char _StringTable_nodes_resize(StringTable* st) {
-  // NOTE, this actually oversizes the entries, since that's the array of leading nodes for each hash, and a hash may have collisions.
-  //       the way to handle this is straightforward, but omitted for now.
-  StringTableNode* buf_nodes  = mremap(st->nodes, st->nodes_reserved*sizeof(StringTableNode), 2*st->nodes_reserved*sizeof(StringTableNode), MREMAP_MAYMOVE);
-P_ADBG(buf_nodes);
-  if(MAP_FAILED == buf_nodes)
-    return -1;
-
-  StringTableNode** buf_entry = mmap(NULL, 2*st->nodes_reserved*sizeof(StringTableNode*), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);  // Have to rehash!
-P_ADBG(buf_entry);
-  if(MAP_FAILED == buf_entry)
-    return -1;
-  // TODO check errors
-  // TODO if we are to support incremental rehashing, this is where we set the metadata
-
-  // Rehash
-  // TODO in addition to being oversized, this is actually a dubious strategy.  We're trying to make sure that the
-  //      number of slots in the hash table is roughly equivalent to the number of entries because it's the simplest
-  //      way of ensuring that conflicts remain low.  The thing is, there's a tradeoff here between rehashes and
-  //      marginally higher lookups (remember that lookups check string length, so the *expensive* case is when
-  //      multiple strings conflict AND they have equal lengths).
-  memset(buf_entry, 0, 2*st->nodes_reserved*sizeof(StringTableNode*));
-  uint32_t mask = 2*st->nodes_reserved - 1;
-  for(ssize_t i = 0; i<st->nodes_size; i++) {
-    if(!buf_entry[i]) continue;
-
-    // Generate hash for resized table
-    unsigned char* this_string = st->entry[i]->string;
-    ssize_t i2 = st->hash_fun(this_string, STR_LEN(this_string)) & mask;
-
-    // Add it in
-    StringTableNode_add(buf_entry, st->entry[i], i2);
+  if(!stn) {
+    stn = calloc(1, sizeof(StringTableNodes));
+    if(!stn) goto STN_INIT_CLEANUP02;
+    stn->ownership = 1;
   }
-  munmap(st->entry, st->nodes_reserved*sizeof(StringTableNode*));
 
-  // Update
-  st->nodes_reserved *= 2;
-  st->nodes = buf_nodes;
-  st->entry = buf_entry;
+  stn->arena = stn_buf;
+  stn->sz_region[0]   = ST_ARENA_NELEM;
+  stn->regions[0] = stn_buf;
+  stn->capacity = ST_ARENA_NELEM;
+  stn->arena_off = 0;
+  stn->filled_regions = 1;
+
+  stn->entry = entry_buf;
+  stn->entry_capacity = ST_ARENA_NELEM;
+  stn->entry_count = 0;
+
+  return stn;
+
+STN_INIT_CLEANUP02:
+  free(entry_buf);
+STN_INIT_CLEANUP01:
+  free(stn_buf);
+STN_INIT_CLEANUP00:
+  return NULL;
+}
+
+/*******************************************************************************
+ * De-allocates the contents of a StringTableNodes object
+ *
+ * If the StringTableNodes object was allocated internally, then this is where
+ * it will be deallocated.
+ *
+ * @param stn An initialized StringTableNodes
+ ******************************************************************************/
+static void _StringTableNodes_free(StringTableNodes* stn) {
+  for(int i=0; i<32; i++)
+    if(stn->regions[i]) free(stn->regions[i]), stn->regions[i]=NULL;
+
+  free(stn->entry);
+
+  stn->filled_regions = 0;
+  stn->arena = NULL;
+  stn->capacity = 0;
+  stn->arena_off = 0;
+  stn->entry = NULL;
+  stn->entry_capacity = 0;
+  stn->entry_count = 0;
+
+  if(stn->ownership)
+    free(stn);
+}
+
+/*******************************************************************************
+ * Increases the space allocated to the StringTableNodes storage area
+ *
+ * @param stn An initialized StringTableNodes
+ ******************************************************************************/
+static char _StringTableNodes_expandar(StringTableNodes* stn) {
+  StringTableNode* buf = calloc(2*sizeof(StringTableNode), stn->capacity);
+  if(!buf) return -1;
+
+  stn->arena = buf;
+  stn->capacity *= 2;
+  stn->sz_region[stn->filled_regions] = stn->capacity;
+  stn->regions[stn->filled_regions++] = buf;
+  stn->arena_off = 0;
   return 0;
 }
 
-static void _StringTable_nodes_free(StringTable* st) {
-  if(st->nodes) munmap(st->nodes, st->nodes_reserved*sizeof(StringTableNode));
-  if(st->entry) munmap(st->entry, st->nodes_reserved*sizeof(StringTableNode*));
-  st->nodes_reserved = 0;
-  st->nodes_size = 0;
-  st->nodes = NULL;
-  st->entry = NULL;
-}
+/*******************************************************************************
+ * Increases the space allocated to the StringTableNodes entry list
+ *
+ * Note that until incremental hashing is enabled, this requires rehashing the
+ * entire list so far.
+ *
+ * TODO: hilariously re-hashes using wyhash, which breaks every other hash user
+ *
+ * @param stn An initialized StringTableNodes
+ ******************************************************************************/
+static char _StringTableNodes_expandcap(StringTableNodes* stn) {
+  StringTableNode** buf = calloc(2*stn->entry_capacity, sizeof(StringTableNode*));
+  if(!buf) return -1;
+  stn->entry_capacity *= 2;
+  stn->entry_count = 0;
 
-static StringTableNode* _StringTable_nodes_add(StringTable* st, unsigned char* arena_str, ssize_t idx) {
-  while(st->nodes_reserved <= st->nodes_size) _StringTable_nodes_resize(st);
+  // Iterate through the regions, re-inserting every individual element...
+  StringTableNode* node = NULL;
+  uint32_t hash_val;
+  for(uint64_t i = 0; i < stn->filled_regions; i++) {
+    for(uint32_t j = 0; j < stn->sz_region[i]; j++) {
+      node = &stn->regions[i][j];
+      if(!node->value) continue;
+      node->next = NULL;
+      hash_val = wyhash_hash(node->value, STR_LEN(node->value));
+      uint32_t idx = hash_val & (stn->entry_capacity - 1);
+      StringTableNode* that_node = buf[idx];
 
-  size_t i = st->nodes_size++;
-  StringTableNode* node = &st->nodes[i];
-
-  node->string = arena_str;
-  node->idx = idx;
-  node->next = NULL;
-  return node;
-}
-
-// ---- StringTable Table
-static char _StringTable_table_init(StringTable* st) {
-  st->table = mmap(NULL, ST_ARENA_NELEM*sizeof(char*), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-P_ADBG(st->table);
-  if(MAP_FAILED == st->table)
-    return -1;
-  st->table_reserved = ST_ARENA_NELEM;
-  st->table_size = 0;
-  return 0;
-}
-
-static char _StringTable_table_resize(StringTable* st) {
-  unsigned char** table_resize_buf = mremap(st->table, st->table_reserved*sizeof(char*), 2*st->table_reserved*sizeof(char*), MREMAP_MAYMOVE);
-P_ADBG(table_resize_buf);
-  if(MAP_FAILED == table_resize_buf)
-    return -1;
-
-  st->table = table_resize_buf;
-  st->table_reserved *= 2;
-  return 0;
-}
-
-static void _StringTable_table_free(StringTable* st) {
-  if(st->table) munmap(st->table, st->table_reserved*sizeof(char*));
-  st->table = NULL;
-}
-
-static ssize_t _StringTable_table_add(StringTable* st, unsigned char* arena_str) {
-  while(st->table_reserved <= st->table_size) _StringTable_table_resize(st);
-
-  ssize_t idx = st->table_size++;
-  st->table[idx] = arena_str;
-  return idx;
-}
-
-// ---- StringTableNode
-static char StringTableNode_add(StringTableNode** entry, StringTableNode* node, uint32_t h) {
-  // assume h fits
-  if(!entry || !node) return -1;
-
-  if(!entry[h]) {
-    entry[h] = node;
-  } else {
-    StringTableNode* parent = entry[h];
-    while(parent->next) parent = parent->next;
-    parent->next = node;
+      if(that_node) {
+        while(that_node->next) that_node = that_node->next;
+        that_node->next = node;
+      } else {
+        stn->entry_count++;
+        buf[idx] = node;
+      }
+    }
   }
+
+  free(stn->entry);
+  stn->entry = buf;
   return 0;
 }
 
-// ---- StringTable
-StringTable* stringtable_init(StringTableOptions * opts) {
-  static StringTableOptions default_opts = {.hash=1, .alloc=1, .logging=0};
-  if(!opts) opts = &default_opts;
-  StringTable* ret = calloc(1, sizeof(StringTable));
-  if(!ret)
-    return NULL;
 
-  // Set options
-  ret->logging = opts->logging;
-  ret->hash_fun = opts->hash ? wyhash_hash : djb2_hash;
-  ret->mode = opts->alloc;
+/*******************************************************************************
+ * Reserve space on a StringTableNodes object
+ *
+ * Ensures that a StringTableNodes has enough room for a single insert.  In the
+ * future, this will return a numerical reservation which will be submitted
+ * during the insertion
+ *
+ * @param stn An initialized StringTableNodes
+ ******************************************************************************/
+static char _StringTableNodes_reserve(StringTableNodes* stn) {
+  if(stn->arena_off >= stn->capacity)
+    if(_StringTableNodes_expandar(stn)) return -1;
 
-  // Run internal initializers
-  if(_StringTable_arena_init(ret) ||
-     _StringTable_nodes_init(ret) ||
-     _StringTable_table_init(ret))
-    return NULL;
-
-  return ret;
+  if(stn->entry_count*2 > stn->entry_capacity)
+    if(_StringTableNodes_expandcap(stn)) return -1;
+  return 0;
 }
 
-void stringtable_free(StringTable* st) {
-  _StringTable_arena_free(st);
-  _StringTable_nodes_free(st);
-  _StringTable_table_free(st);
+/*******************************************************************************
+ * Checks that a given value is interned in the nodes
+ *
+ * Checks the StringTableNodes for the node representing the given value.
+ * Requires the user to provide an appropriate function and possibly a value.
+ *
+ * @param stn An initialized StringTableNodes object
+ *
+ * @param val A pointer to the input string
+ *
+ * @param sz_val The size of the given value
+ *
+ * @param hash A pointer to a computed hash, or NULL.  If not NULL, will compute
+ *             the hash, otherwise will reuse the passed value.
+ *
+ * @param fun A function for computing the hash.  Passed along because the
+ *            underlying function is not currently a property of the
+ *            StringTableNodes object, but rather the containing struct.
+ *****************************************************************************/
+inline static StringTableNode* _StringTableNodes_get(StringTableNodes* stn, unsigned char* val, size_t sz_val, uint32_t* hash, HashFun fun) {
+  uint32_t hash_val;
 
-  free(st); st = NULL;
-}
+  if(hash)
+    hash_val = *hash;
+  else if(fun)
+    hash_val = fun(val, sz_val);
+  else
+    return NULL; // No hash and can't compute it
 
-// Gives -1 if string is not interned, the index if it is
-ssize_t stringtable_lookup(StringTable* st, unsigned char* str, size_t len) {
-  if(!str || !len) return -1; // not going to deal with it
-  ssize_t h = st->hash_fun(str, len) & (st->nodes_reserved - 1);
-  StringTableNode* node = st->entry[h];
-  if(!node) return -1; // Not found!
-
-  while(len != STR_LEN(node->string) ||
-        memcmp(str, node->string, len)) {
-    if(!node->next)
-      return -1;
+  // Now look it up
+  StringTableNode* node = stn->entry[hash_val & (stn->entry_capacity - 1)];
+  while(node) {
+    if(sz_val == STR_LEN(node->value) && !memcmp(val, node->value, sz_val)) {
+      return node;
+    }
     node = node->next;
+  }
+
+  return NULL;
+}
+
+/******************************************************************************\
+|*                                 Public API                                 *|
+\******************************************************************************/
+ssize_t stringtable_add(StringTable* st, unsigned char* val, size_t sz_val) {
+  // Compute hash
+  uint32_t hash_val;
+  uint64_t stashed_capacity = st->nodes->entry_capacity;
+  if(!st->hash_fun) return -1;
+  hash_val = st->hash_fun(val, sz_val);
+
+  // Now we can hash into a node to see whether one exists
+  StringTableNode* node = st->nodes->entry[hash_val & (stashed_capacity - 1)];
+  StringTableNode* node_prev = NULL;
+
+  // Either find a matching node and return the index or run into an empty node
+  // and quit.
+  while(node) {
+    if(sz_val == STR_LEN(node->value) && !memcmp(val, node->value, sz_val))
+      return node->idx;
+    node_prev = node;
+    node = node->next;
+  }
+
+  // Node doesn't exist, which means the value is novel in the arena and thus
+  // needs to be added.  We start out by reserving enough room for both the
+  // string arena itself and for the hashtable nodes.  If
+  if(-1 == _StringTableArena_reserve(st->arena, sz_val))
+    return -1;
+  if(-1 == _StringTableNodes_reserve(st->nodes))
+    return -1;
+
+  // It's possible that we rehashed in the last step, so refresh the lookup
+  // because the capacity may have changed
+  if(stashed_capacity != st->nodes->entry_capacity) {
+    node = st->nodes->entry[hash_val & (st->nodes->entry_capacity - 1)];
+    node_prev = NULL;
+
+    // Either find a matching node and return the index or run into an empty node
+    // and quit.
+    while(node) {
+      if(sz_val == STR_LEN(node->value) && !memcmp(val, node->value, sz_val))
+        return node->idx;
+      node_prev = node;
+      node = node->next;
+    }
+  }
+
+  // Now add the object into the arena and check consistency
+  ssize_t arena_idx = _StringTableArena_append(st->arena, val, sz_val);
+  if(-1 == arena_idx)
+    return -1;
+  unsigned char* arena_ptr = st->arena->entry[arena_idx];
+  if(!arena_ptr)
+    return -1;
+
+  // At this point, we have what we need to populate a node and we've reserved
+  // the space necessary to actually do so.
+  node = &st->nodes->arena[st->nodes->arena_off++];
+  node->value = arena_ptr;
+  node->idx = arena_idx;
+  node->next = NULL;
+
+  // Now we need to either add the node to the entries or as a child of a
+  // different node.  When we looked it up, we kept track of whether we
+  // terminated immediately or after visiting a parent.
+  if(!node_prev) {
+    st->nodes->entry_count++;
+    st->nodes->entry[hash_val & (st->nodes->entry_capacity - 1)] = node;
+  } else {
+    node_prev->next = node;
   }
 
   return node->idx;
 }
 
-unsigned char* stringtable_get(StringTable* st, ssize_t idx) {
-  if(idx < 0 || idx > st->table_size) return NULL;
-  return st->table[idx];
-}
+StringTable* stringtable_init(StringTable* ret, StringTableOptions* opts) {
+  static StringTableOptions default_opts = {.hash=1, .logging=0};
+  if(!opts) opts = &default_opts;
 
-ssize_t stringtable_add(StringTable* st, unsigned char* str, size_t len) {
-  if(!str || !len) return -1; // not going to deal with it
-  ssize_t idx = stringtable_lookup(st, str, len);
-  if(-1 == idx) {
-    // TODO, the mask can overrun.  :)
-    unsigned char* arena_str = _StringTable_arena_add(st, str, len); // Add to the arena
-
-    // Register in the string table
-    idx = _StringTable_table_add(st, arena_str);
-
-    // Add to the nodes
-    StringTableNode* node = _StringTable_nodes_add(st, arena_str, idx);
-
-    // Compute the hash and update the entries
-    uint32_t h = st->hash_fun(str, len) & (st->nodes_reserved - 1);
-    if(!st->entry[h]) {
-      st->entry[h] = node;
-    } else {
-      StringTableNode* entry = st->entry[h];
-      while(entry->next) entry = entry->next;
-      entry->next = node;
-    }
-
-    // If we were compiled with logging support AND logging is enabled, then
-    // write to a newline-delimited file for later analysis.
-#ifdef D_LOGGING_ENABLE
-    static FILE* tmp_fs = NULL;
-    static char tmp_name[32] = "/tmp/stringtableXXXXXX" ".log";
-    static int tmp_fd = -111;
-    if(st->logging) {
-      if(tmp_fd == -111) {
-        tmp_fd = mkstemps(tmp_name, strlen(".log"));
-        close(tmp_fd);
-        tmp_fs = fopen(tmp_name, "a");
-        printf("Saving log to %s\n", tmp_name);
-      }
-      fwrite(arena_str, STR_LEN(arena_str), 1, tmp_fs);
-      fwrite("\n", 1, 1, tmp_fs);
-    }
-#endif
+  // If the user gave us a NULL pointer, then return a substantial one
+  if(!ret) {
+    ret = calloc(1, sizeof(StringTable));
+    if(!ret) goto STRING_TABLE_INIT_CLEANUP00;
+    ret->ownership = 1;
   }
 
-  return idx;
+  // Set options
+  ret->logging = opts->logging;
+  ret->hash_fun = opts->hash ? wyhash_hash : djb2_hash;
+
+  // Run internal initializers
+  if(!(ret->arena = _StringTableArena_init(NULL))) goto STRING_TABLE_INIT_CLEANUP01;
+  if(!(ret->nodes = _StringTableNodes_init(NULL))) goto STRING_TABLE_INIT_CLEANUP02;
+
+  return ret;
+
+STRING_TABLE_INIT_CLEANUP02:
+  _StringTableArena_free(ret->arena);
+STRING_TABLE_INIT_CLEANUP01:
+  if(ret->ownership) {
+    free(ret);
+    ret = NULL;
+  }
+STRING_TABLE_INIT_CLEANUP00:
+  return NULL;
+}
+
+void stringtable_free(StringTable* st) {
+  _StringTableArena_free(st->arena); st->arena = NULL;
+  _StringTableNodes_free(st->nodes); st->nodes = NULL;
+
+  if(st->ownership)
+    free(st);
+}
+
+ssize_t stringtable_lookup(StringTable* st, unsigned char* val, size_t sz_val, uint32_t* hash) {
+  StringTableNode* node = _StringTableNodes_get(st->nodes, val, sz_val, hash, st->hash_fun);
+
+  return (!node) ? -1 : node->idx;
+}
+
+unsigned char* stringtable_get(StringTable* st, ssize_t idx) {
+  return st->arena->entry[idx];
 }
 
 ssize_t stringtable_lookup_cstr(StringTable* st, char* str) {
-  return stringtable_lookup(st, (unsigned char*)str, strlen(str));
+  return stringtable_lookup(st, (unsigned char*)str, strlen(str), NULL);
 }
 
-ssize_t stringtable_add_cstr(StringTable* st, char* str) {
+ssize_t stringtable_add_cstr(StringTable* st, char* str){
   return stringtable_add(st, (unsigned char*)str, strlen(str));
 }
-
-
-// Let's make the world a safer place by disabling these
-#undef STR_LEN
-#undef STR_LEN_PTR
-
-
