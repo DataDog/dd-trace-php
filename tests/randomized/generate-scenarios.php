@@ -166,7 +166,7 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
         $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
     }
     $identifier = "randomized-$scenarioSeed-$selectedOs-$selectedPhpVersion";
-    $scenarioFolder = TMP_SCENARIOS_FOLDER . "/files-$identifier";
+    $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";
     exec("mkdir -p $scenarioFolder/app");
     exec("cp -r ./app $scenarioFolder/");
     exec("cp $scenarioFolder/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
@@ -195,8 +195,8 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
       core: 99999999999
     privileged: true
     volumes:
-      - composer_cache:/composer-cache
-      - ./files-$identifier/app:/var/www/html
+#      - composer_cache:/composer-cache
+      - ./$identifier/app:/var/www/html
       - $wwwFilePath:/etc/php-fpm.d/www.conf
       - ./.tracer-versions:/tmp/tracer-versions
       - ./.results/$identifier/:/results/

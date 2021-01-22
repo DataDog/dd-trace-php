@@ -769,7 +769,6 @@ jobs:
           command: make -C tests/randomized analyze
       - store_artifacts:
           path: 'tests/randomized/.tmp.scenarios/.results'
-          destination: '/'
 
   pecl_build:
     working_directory: ~/datadog
