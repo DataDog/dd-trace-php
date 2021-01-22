@@ -25,6 +25,11 @@ RUN tar -C /usr/bin -zxvf /tmp/vegeta.tar.gz vegeta
 # Installing composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
+# Create coredumps folder
+# If not generated, see: https://fromdual.com/hunting-the-core
+RUN mkdir -p /tmp/corefiles
+RUN chmod -R a+w /tmp/corefiles
+
 # Preparing PHP-FPM
 RUN mkdir -p /run/php-fpm
 RUN sed -i 's/^listen = .*$/listen = 9000/g' /etc/php-fpm.d/www.conf
