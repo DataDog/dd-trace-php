@@ -737,6 +737,7 @@ jobs:
     resource_class: xlarge
     parameters:
       batch:
+        # Batch is only used to run a number of this jobs in parallel via a testing matrix.
         type: integer
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
