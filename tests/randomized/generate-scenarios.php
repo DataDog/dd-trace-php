@@ -169,21 +169,37 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
     exec("cp -r ./app $scenarioFolder/");
     exec("cp $scenarioFolder/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
 
-    // Writing PHP-FPM worker file
-    $wwwFilePath = "$scenarioFolder/$identifier.www.conf";
-    exec("cp ./www.template.conf $wwwFilePath");
-    $wwwFileHandle = fopen($wwwFilePath, 'a');
+    // Setting ENVs and INIs
+    $fpmWwwFileContent = "";
+    $apacheConfigFileContent = "";
     foreach ($envModifications as $envName => $envValue) {
-        fwrite($wwwFileHandle, "env[$envName] = \"$envValue\"\n");
+        $fpmWwwFileContent .= "env[$envName] = \"$envValue\"\n";
+        $apacheConfigFileContent .= "    SetEnv $envName \"$envValue\"\n";
     }
     foreach ($iniModifications as $iniName => $iniValue) {
         if (is_bool($iniValue)) {
-            fwrite($wwwFileHandle, "php_flag[$iniName] = " . ($iniValue ? 'on' : 'off') . "\n");
+            $fpmWwwFileContent .= sprintf("php_admin_flag[%s] = %s\n", $iniName, $iniValue ? 'on' : 'off');
+            $apacheConfigFileContent .= sprintf("    php_admin_flag %s %s\n", $iniName, $iniValue ? 'on' : 'off');
         } else {
-            fwrite($wwwFileHandle, "php_value[$iniName] = \"$iniValue\"\n");
+            $fpmWwwFileContent .= sprintf("php_admin_value[%s] = \"%s\"\n", $iniName, $iniValue);
+            $apacheConfigFileContent .= sprintf("    php_admin_value %s %s\n", $iniName, $iniValue);
         }
     }
-    fclose($wwwFileHandle);
+    // Writing PHP-FPM worker pool file
+    $fpmWwwFilePath = "$scenarioFolder/$identifier.php-fpm.conf";
+    $fpmWwwFileHandle = fopen($fpmWwwFilePath, 'w');
+    $fpmWwwTemplate = file_get_contents('./templates/php-fpm.template.conf');
+    fwrite($fpmWwwFileHandle, str_replace('__configs_will_go_here__', $fpmWwwFileContent, $fpmWwwTemplate));
+    fclose($fpmWwwFileHandle);
+    // Writing Apache config file
+    $apacheConfigFilePath = "$scenarioFolder/$identifier.apache.conf";
+    $apacheConfigFileHandle = fopen($apacheConfigFilePath, 'w');
+    $apacheConfigTemplate = file_get_contents('./templates/apache.template.conf');
+    fwrite(
+        $apacheConfigFileHandle,
+        str_replace('__configs_will_go_here__', $apacheConfigFileContent, $apacheConfigTemplate)
+    );
+    fclose($apacheConfigFileHandle);
 
     // Writing docker-compose file
     fwrite($dockerComposeHandle, "
@@ -194,7 +210,8 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
     privileged: true
     volumes:
       - ./$identifier/app:/var/www/html
-      - $wwwFilePath:/etc/php-fpm.d/www.conf
+      - $fpmWwwFilePath:/etc/php-fpm.d/www.conf
+      - $apacheConfigFilePath:/etc/httpd/conf.d/www.conf
       - ./.tracer-versions:/tmp/tracer-versions
       - ./.results/$identifier/:/results/
       - ./.results/$identifier/nginx:/var/log/nginx

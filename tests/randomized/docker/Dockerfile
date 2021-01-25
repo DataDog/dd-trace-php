@@ -45,7 +45,6 @@ ADD nginx.conf /etc/nginx/conf.d/default.conf
 # Preparing HTTPD
 RUN sed -i 's/Listen 80/Listen 81/' /etc/httpd/conf/httpd.conf
 RUN echo "CoreDumpDirectory /tmp/corefiles" >> /etc/httpd/conf/httpd.conf
-ADD www.apache.conf /etc/httpd/conf.d/www.conf
 
 ADD run.sh /scripts/run.sh
 ADD prepare.sh /scripts/prepare.sh
