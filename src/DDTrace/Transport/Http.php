@@ -18,9 +18,9 @@ final class Http implements Transport
     const AGENT_HOST_ENV = 'DD_AGENT_HOST';
     const TRACE_AGENT_URL_ENV = 'DD_TRACE_AGENT_URL';
 
-    // The Agent has a payload cap of 10MB
-    // https://github.com/DataDog/datadog-agent/blob/355a34d610bd1554572d7733454ac4af3acd89cd/pkg/trace/api/api.go#L31
-    const AGENT_REQUEST_BODY_LIMIT = 10485760; // 10 * 1024 * 1024 => 10MB
+    // The Agent has a payload cap of 50MB
+    // https://github.com/DataDog/datadog-agent/blob/dd194ab6b41c4f0e4c80bede234b1b49383429cd/pkg/trace/config/config.go#L136
+    const AGENT_REQUEST_BODY_LIMIT = 52428800; // 50 * 1024 * 1024 => 10MB
     const TRACE_AGENT_PORT_ENV = 'DD_TRACE_AGENT_PORT';
     const AGENT_TIMEOUT_ENV = 'DD_TRACE_AGENT_TIMEOUT';
     const AGENT_CONNECT_TIMEOUT_ENV = 'DD_TRACE_AGENT_CONNECT_TIMEOUT';
