@@ -421,6 +421,7 @@ TEST_WEB_72 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
+	test_web_slim_4 \
 	test_web_symfony_23 \
 	test_web_symfony_28 \
 	test_web_symfony_30 \
@@ -461,6 +462,7 @@ TEST_WEB_73 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
+	test_web_slim_4 \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
@@ -497,6 +499,7 @@ TEST_WEB_74 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
+	test_web_slim_4 \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
@@ -524,6 +527,7 @@ TEST_WEB_80 := \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
 	test_web_slim_312 \
+	test_web_slim_4 \
 	test_web_yii_2 \
 	test_web_custom
 	#test_web_symfony_51 ; will work eventually; currently hung on: doctrine/doctrine-migrations-bundle
@@ -654,6 +658,9 @@ test_web_lumen_58:
 test_web_slim_312:
 	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_3_12 update
 	$(call run_tests,--testsuite=slim-312-test)
+test_web_slim_4:
+	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_4 update
+	$(call run_tests,--testsuite=slim-4-test)
 test_web_symfony_23:
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_3 update
 	$(call run_tests,tests/Integrations/Symfony/V2_3)
