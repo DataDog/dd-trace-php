@@ -81,14 +81,13 @@ const ENVS = [
 // Add flags as boolean
 const INIS = [
     'opcache.enabled' => [false],
-    // 'opcache.preload' => ['TBD'],
 ];
 
 function generate()
 {
     $scenariosFolder = TMP_SCENARIOS_FOLDER;
     $dockerComposeFile = "${scenariosFolder}/docker-compose.yml";
-    exec("cp ./docker-compose.template.yml ${dockerComposeFile}");
+    exec("cp ./templates/docker-compose.template.yml ${dockerComposeFile}");
     $dockerComposeHandle = fopen($dockerComposeFile, 'a');
 
     $options = getopt('', ['scenario:']);
@@ -112,7 +111,6 @@ function generate()
             exit(1);
         }
 
-        exec("cp ./docker-compose.template.yml ${dockerComposeFile}");
         for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
             $scenarioSeed = rand();
             $testIdentifiers[] = generateOne($dockerComposeHandle, $scenarioSeed);
@@ -123,7 +121,7 @@ function generate()
 
     // Generating makefile
     $makefile = "${scenariosFolder}/Makefile";
-    exec("cp ./Makefile.template ${makefile}");
+    exec("cp ./templates/Makefile.template ${makefile}");
     $makefileHandle = fopen($makefile, 'a');
     $testTargets = array_map(
         function ($identifier) {
@@ -195,7 +193,6 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
       core: 99999999999
     privileged: true
     volumes:
-#      - composer_cache:/composer-cache
       - ./$identifier/app:/var/www/html
       - $wwwFilePath:/etc/php-fpm.d/www.conf
       - ./.tracer-versions:/tmp/tracer-versions
@@ -233,7 +230,7 @@ function generateRequestScenarios($number)
     $availableHeaders = [
         'content-type: application/json',
         'authorization: Bearer abcdef0987654321',
-        'origin: http://some.very.cool:9000',
+        'origin: http://some.url.com:9000',
         'cache-control: no-cache',
         'accept: */*',
     ];
@@ -285,6 +282,9 @@ function generateRequestScenarios($number)
     return $requests;
 }
 
+/**
+ * Returns true $percent of the times, otherwise false.
+ */
 function percentOfTimes($percent)
 {
     return rand(0, 100) <= $percent;

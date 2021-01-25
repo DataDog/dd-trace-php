@@ -230,6 +230,7 @@ class RandomExecutionPath
 
     private function alwaysThrowException($message)
     {
+        // We return a status code that is not 'expected'. Expected are 510/511.
         throw new \Exception($message, 508);
     }
 
@@ -242,6 +243,8 @@ class RandomExecutionPath
     {
         if ($ex->getMessage() === 'uncaught exception from randomized tests') {
             error_log("Handling expected Exception: " . $ex->getMessage());
+            // When we have an expected uncaught exception, we return 510 that is one of the three status codes we
+            // accept (200, 510 - expected exceptions, 511 - expected user errors)
             http_response_code(510);
         } else {
             error_log("Unexpected Exception: " . $ex->getMessage());
@@ -265,6 +268,8 @@ class RandomExecutionPath
         error_log("Handling Error: $errorName - $errstr");
 
         if ($errno === \E_USER_ERROR) {
+            // When we have a user error, we return 511 that is one of the three status codes we
+            // accept (200, 510 - expected exceptions, 511 - expected user errors)
             http_response_code(511);
             exit(1);
         }

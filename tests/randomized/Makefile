@@ -5,7 +5,6 @@ REGRESSIONS_FOLDER := ./regressions
 REGRESSION_NAME := "provide-regression-name"
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
 TRACER_TEST_URL := https://github.com/DataDog/dd-trace-php/releases/download/0.54.0/datadog-php-tracer-0.54.0.x86_64.tar.gz
-# TRACER_COMPARE_URL := $(shell curl --silent https://api.github.com/repos/DataDog/dd-trace-php/releases/latest | grep -e 'browser_download_url.*\.tar\.gz' | cut -d'"' -f 4)
 TRACER_DOWNLOAD_PATH := ./.tracer-versions
 CONCURRENT_JOBS := 5
 NUMBER_OF_SCENARIOS := 20
@@ -54,9 +53,6 @@ tracer.local:
 	@cp ../../build/packages/datadog-php-tracer-*.tar.gz ${TRACER_DOWNLOAD_PATH}/ddtrace-test.tar.gz
 
 tracer.download:
-#	@echo "Downloading tracer for comparison at url: $(TRACER_COMPARE_URL)"
-#	@curl --silent -L -o tracer-versions/ddtrace-compare.tar.gz "$(TRACER_COMPARE_URL)"
-#	@echo "Done"
 	@echo "Downloading tracer at url: $(TRACER_TEST_URL)"
 	@mkdir -p $(TRACER_DOWNLOAD_PATH)
 	@curl --silent -L -o $(TRACER_DOWNLOAD_PATH)/ddtrace-test.tar.gz "$(TRACER_TEST_URL)"
