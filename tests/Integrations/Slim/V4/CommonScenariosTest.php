@@ -47,6 +47,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'GET /simple'
                     )->withExactTags([
                         'slim.route.name' => 'simple-route',
+                        'slim.route.handler' => 'Closure::__invoke',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
@@ -68,6 +69,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'GET /simple_view'
                     )->withExactTags([
+                        'slim.route.handler' => 'Closure::__invoke',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
@@ -96,6 +98,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'GET /error'
                     )->withExactTags([
+                        'slim.route.handler' => 'Closure::__invoke',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',

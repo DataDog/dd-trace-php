@@ -85,6 +85,7 @@ class SlimIntegration extends Integration
 
                     if ('4' === $majorVersion) {
                         $span->name = 'slim.route';
+                        $rootSpan->setTag('slim.route.handler', $callableName);
 
                         $route = $request->getAttribute(RouteContext::ROUTE);
                         if ($route && $route instanceof \Slim\Interfaces\RouteInterface) {
