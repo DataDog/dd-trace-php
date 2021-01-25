@@ -32,7 +32,7 @@ return function (App $app) {
     })->setName('simple-route');
 
     // Create Twig
-    $twig = Twig::create(__DIR__ . '/../templates'/*, ['cache' => 'path/to/cache']*/);
+    $twig = Twig::create(__DIR__ . '/../templates');
 
     // Add Twig-View Middleware
     $app->add(TwigMiddleware::create($app, $twig));

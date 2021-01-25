@@ -84,7 +84,6 @@ class SlimIntegration extends Integration
                     $rootSpan->setTag(Tag::HTTP_URL, (string) $request->getUri());
 
                     if ('4' === $majorVersion) {
-                        $rootSpan->setTag('slim.route', $callableName);
                         $span->name = 'slim.route';
 
                         $route = $request->getAttribute(RouteContext::ROUTE);
@@ -92,6 +91,7 @@ class SlimIntegration extends Integration
                             $routeName = $route->getName();
                             if ($routeName) {
                                 $span->meta['slim.route.name'] = $routeName;
+                                $rootSpan->setTag('slim.route.name', $routeName);
                             }
                         }
                     } else {
