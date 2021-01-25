@@ -15,6 +15,16 @@ and to run a application with randomily generated execution paths, which involve
 
 The typical worksflow is:
 
+Download the tracer version you intend to test.
+
+```
+# Use the .tar.gz from <root>/build/packages built locally
+make tracer.local
+
+# Download from a url
+make tracer.download TRACER_TEST_URL=<link to the .tar.gz>
+```
+
 Generate scenarios, i.e. all the possible configuration we are testing.
 
 ```
@@ -79,3 +89,7 @@ $ make analyze
 Currently the following checks are executed:
 - the returned status code can only be on of 200 (OK), 510 (controlled uncaught exception), 511 (controlled php error). Any other return code will result in a failing analysis.
 - At least 1000 requests have been executed. If we find that vegeta has performed less than 1000 request, then the  test fails as we might have put the system not under enough pressure and combination of execution paths to find meaningful problems.
+
+## Debugging
+
+Note that the generated scenarios can be run individually. In the directory `.tmp.scenarios` you can see a `Makefile` with a list of targets that can be executed.
