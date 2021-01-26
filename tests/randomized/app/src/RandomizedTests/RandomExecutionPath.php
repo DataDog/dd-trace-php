@@ -10,7 +10,7 @@ class RandomExecutionPath
 
     private $generatorSnippets;
 
-    public function __construct($allowFatalAndUncaught = false)
+    public function __construct($allowFatalAndUncaught = true)
     {
         // Seeding to allow reproducible requests via <url>/?seed=123
         $queries = array();
@@ -24,8 +24,22 @@ class RandomExecutionPath
 
         $this->snippets = new Snippets();
         $this->allowFatalAndUncaught = $allowFatalAndUncaught;
+
         if (!Utils::isPhpVersion(5, 4)) {
             $this->generatorSnippets = new GeneratorSnippets($this);
+        }
+
+        // Do not use function_exists('DDTrace\...') because if DD_TRACE_ENABLED is not false and the function does not
+        // exist then we MUST generate an error
+        if (getenv('DD_TRACE_ENABLED') !== 'false' && extension_loaded('ddtrace')) {
+            // Tracing manual functions
+            $callback = function (\DDTrace\SpanData $span) {
+                $span->service = \ddtrace_config_app_name();
+            };
+            \dd_trace_method('RandomizedTests\RandomExecutionPath', 'doSomethingTraced', $callback);
+            \dd_trace_method('RandomizedTests\RandomExecutionPath', 'doSomethingTraced1', $callback);
+            \dd_trace_method('RandomizedTests\RandomExecutionPath', 'doSomethingTraced2', $callback);
+            \dd_trace_method('RandomizedTests\GeneratorSnippets', 'generator', $callback);
         }
     }
 
