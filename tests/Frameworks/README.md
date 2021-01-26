@@ -82,6 +82,10 @@ In order to generate the sample Slim Framework apps we used the default commands
 
     $ composer create-project slim/slim-skeleton Version_3_12 "3.12.*"
 
+### Slim 4.x
+
+    $ composer create-project slim/slim-skeleton Version_4 "4.*"
+
 ## Symfony
 
 In order to generate the sample Symfony apps we used the default commands from the framework's 'Getting started' guides.
