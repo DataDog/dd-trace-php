@@ -4,18 +4,34 @@ project(DDProf
   VERSION 0.1.0
 )
 
-add_library(DDProf src/string_table.cc src/arena.c)
-target_compile_features(DDProf PUBLIC cxx_std_11 c_std_99)
+add_library(DDProf
+  src/arena.c
+  src/string_table.cc
+  src/native/dictionary.c
+  src/native/pprof.c
+  src/native/proto/profile.pb-c.c
+  src/native/string_table.c
+)
+
+target_compile_features(DDProf
+  PUBLIC cxx_std_11 c_std_99
+  PRIVATE c_std_11
+)
+
+target_compile_definitions(DDProf PUBLIC -D_GNU_SOURCE)
 
 target_include_directories(DDProf
   PUBLIC
     $<INSTALL_INTERFACE:include>
+    $<INSTALL_INTERFACE:include/native>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/native>
 )
 
 set_target_properties(DDProf PROPERTIES
   OUTPUT_NAME ddprof # It should be named libddprof.{a,so}
   VERSION ${PROJECT_VERSION}
+  POSITION_INDEPENDENT_CODE ON # PHP always needs PIC, even in static libs
 )
 
 #[[ We want to be able to use the namespaced name everywhere, including in this
