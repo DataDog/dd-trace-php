@@ -28,6 +28,8 @@
         <exclude-pattern>tests/api/bootstrap.php</exclude-pattern>
         <exclude-pattern>tests/Integration/CurrentContextAccess/</exclude-pattern>
         <exclude-pattern>tests/Integration/LongRunning/long_running_script_manual.php</exclude-pattern>
+        <exclude-pattern>tests/Integrations/PHPRedis/V3/*Test.php</exclude-pattern>
+        <exclude-pattern>tests/Integrations/PHPRedis/V4/*Test.php</exclude-pattern>
         <exclude-pattern>tests/Integrations/PHPRedis/V5/*Test.php</exclude-pattern>
     </rule>
 
