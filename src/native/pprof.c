@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -112,7 +113,6 @@ size_t pprof_strIntern(DProf* dp, char* str) {
 // Forward decl of purely internal functions
 static uint64_t _pprof_mapNew(DProf*, uint64_t, uint64_t, uint64_t, uint64_t, int64_t);
 static uint64_t _pprof_funNew(DProf*, int64_t, int64_t, int64_t, int64_t);
-static uint64_t _pprof_locNew(DProf*, uint64_t, uint64_t, uint64_t*, int64_t*, size_t);
 static uint64_t _pprof_lineNew(DProf*, PPLocation*, uint64_t, int64_t);
 static char _pprof_mapFree(PPMapping**, size_t);
 
@@ -238,11 +238,7 @@ uint64_t pprof_funAdd(DProf* dp, const char* name, const char* system_name, cons
   return _pprof_funNew(dp, id_name, id_system_name, id_filename, start_line)+1;
 }
 
-char isEqualLocation(uint64_t id_mapping, uint64_t addr, PPLocation* B) {
-  return id_mapping == B->mapping_id && addr == B->address;
-}
-
-static uint64_t _pprof_locNew(DProf* dp, uint64_t id_mapping, uint64_t addr, uint64_t* functions, int64_t* lines, size_t n_functions) {
+static uint64_t _pprof_locNew(DProf* dp, uint64_t id_mapping, uint64_t addr, const uint64_t *functions, const int64_t *lines, size_t n_functions) {
   PPProfile* pprof = &dp->pprof;
   uint64_t id = pprof->n_location;
 
@@ -273,21 +269,67 @@ static uint64_t _pprof_locNew(DProf* dp, uint64_t id_mapping, uint64_t addr, uin
 
 }
 
-uint64_t pprof_locAdd(DProf* dp, uint64_t id_mapping, uint64_t addr, uint64_t* functions, int64_t* lines, size_t n_functions) {
-  PPProfile* pprof = &dp->pprof;
-  for(size_t i=0; i < pprof->n_location; i++) {
-    if(isEqualLocation(id_mapping, addr, pprof->location[i]))
-      return i+1;
-  }
-  return _pprof_locNew(dp, id_mapping, addr, functions, lines, n_functions) + 1;
+static bool isEqualLine(const PPLine *line, uint64_t function_id, int64_t lineno) {
+  uint64_t fid_a = line->function_id, fid_b = function_id;
+  int64_t line_a = line->line, line_b = lineno;
+  return !((fid_a ^ fid_b) | (line_a ^ line_b));
 }
 
-char isEqualSample(uint64_t* loc, size_t nloc, PPSample* B) {
-  if (nloc != B->n_location_id) return 0;
-  for (size_t i = 0; i <= nloc; i++) {
-    if (loc[i] != B->location_id[i]) return 0;
+static bool isEqualLocation(const PPLocation *location, uint64_t mapping_id,
+                            uint64_t addr, const uint64_t *functions,
+                            const int64_t *lines, size_t n_functions) {
+  if (location->mapping_id != mapping_id) return false;
+  if (location->address != addr) return false;
+  if (location->n_line != n_functions) return false;
+
+  for (size_t i = 0; i < n_functions; ++i) {
+    if (!isEqualLine(location->line[i], functions[i], lines[i])) {
+      return false;
+    }
   }
-  return 1;
+
+  return true;
+}
+
+static PPLocation *findLocation(DProf* dp, uint64_t id_mapping, uint64_t addr,
+                                const uint64_t *functions, const int64_t *lines,
+                                size_t n_functions) {
+  PPProfile* pprof = &dp->pprof;
+  for (size_t i = 0; i < pprof->n_location; ++i) {
+    PPLocation *location = pprof->location[i];
+    if (isEqualLocation(location, id_mapping, addr, functions, lines, n_functions)) {
+      return location;
+    }
+  }
+  return NULL;
+}
+
+uint64_t pprof_locAdd(DProf* dp, uint64_t id_mapping, uint64_t addr,
+                      const uint64_t *functions, const int64_t *lines,
+                      size_t n_functions) {
+  PPLocation *location = findLocation(dp, id_mapping, addr, functions, lines, n_functions);
+  return (location)
+    ? location->id
+    : _pprof_locNew(dp, id_mapping, addr, functions, lines, n_functions) + 1;
+}
+
+static bool isEqualSample(const PPSample *B, const uint64_t *loc, size_t nloc) {
+  if (nloc != B->n_location_id) return false;
+  for (size_t i = 0; i != nloc; i++) {
+    if (loc[i] != B->location_id[i]) return false;
+  }
+  return true;
+}
+
+static PPSample *findSample(DProf* dp, uint64_t* loc, size_t nloc) {
+  PPProfile* pprof = &dp->pprof;
+  for (size_t i = 0; i != pprof->n_sample; ++i) {
+    PPSample *sample = pprof->sample[i];
+    if (isEqualSample(sample, loc, nloc)) {
+      return sample;
+    }
+  }
+  return NULL;
 }
 
 char pprof_sampleAdd(DProf* dp, int64_t* val, size_t nval, uint64_t* loc, size_t nloc) {
@@ -298,6 +340,15 @@ char pprof_sampleAdd(DProf* dp, int64_t* val, size_t nval, uint64_t* loc, size_t
   if (nval != pprof->n_sample_type) return -1;  // pprof and user disagree
   if (!val) return -1; // samples are null
   if (!nloc || !loc) return -1; // no locations
+
+  PPSample *sample = findSample(dp, loc, nloc);
+  if (sample) {
+    for (size_t j = 0; j != sample->n_value; ++j) {
+      // todo: do different sample types need to be handled differently?
+      sample->value[j] += val[j];
+    }
+    return 0;
+  }
 
   // Initialize the sample, possibly expanding if needed
   pprofgrow(pprof->sample, pprof->n_sample, DPROF_CHUNK_SZ);
