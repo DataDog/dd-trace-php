@@ -135,6 +135,7 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("zcount"),
         DDTRACE_STRING_LITERAL("zincrby"),
         DDTRACE_STRING_LITERAL("zinter"),
+        DDTRACE_STRING_LITERAL("zinterstore"),
         DDTRACE_STRING_LITERAL("zrange"),
         DDTRACE_STRING_LITERAL("zrangebyscore"),
         DDTRACE_STRING_LITERAL("zrevrangebyscore"),

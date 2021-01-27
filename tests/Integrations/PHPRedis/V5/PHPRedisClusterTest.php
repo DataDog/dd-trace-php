@@ -60,8 +60,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
 
     public function testClose()
     {
-        $redis = new \Redis();
-        $redis->connect($this->host);
+        $redis = $this->redis;
         $traces = $this->isolateTracer(function () use ($redis) {
             $redis->close();
         });
@@ -86,7 +85,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
      */
     public function testMethodsSpansOnly($method, $args, $rawCommand)
     {
-        $this->redis->set('k1', 'v1');
+        $this->redis->set('k1{hash}', 'v1');
         $traces = $this->invokeInIsolatedTracerWithArgs($method, $args);
 
         $this->assertFlameGraph($traces, [
@@ -102,24 +101,24 @@ class PHPRedisClusterTest extends IntegrationTestCase
     public function dataProviderTestMethodsSpansOnly()
     {
         return [
-            ['del', ['k1'], 'k1'],
-            ['del', [['k1', 'k2']], 'k1 k2'],
-            ['exists', ['k1'], 'k1'],
-            ['expire', ['k1', 2], 'k1 2'],
-            ['pexpire', ['k1', 2], 'k1 2'],
-            ['expireAt', ['k1', 2], 'k1 2'],
+            ['del', ['k1{hash}'], 'k1{hash}'],
+            ['del', [['k1{hash}', 'k2{hash}']], 'k1{hash} k2{hash}'],
+            ['exists', ['k1{hash}'], 'k1{hash}'],
+            ['expire', ['k1{hash}', 2], 'k1{hash} 2'],
+            ['pexpire', ['k1{hash}', 2], 'k1{hash} 2'],
+            ['expireAt', ['k1{hash}', 2], 'k1{hash} 2'],
             ['keys', ['*'], '*'],
             ['scan', [null, self::CONNECTION_1], '0 ' . self::CONNECTION_1_AS_ARG], // the argument is the LONG (reference), initialized to NULL
-            ['object', ['encoding', 'k1'], 'encoding k1'],
-            ['persist', ['k1'], 'k1'],
+            ['object', ['encoding', 'k1{hash}'], 'encoding k1{hash}'],
+            ['persist', ['k1{hash}'], 'k1{hash}'],
             ['randomKey', [self::CONNECTION_1], self::CONNECTION_1_AS_ARG],
-            ['rename', ['k1', 'k3'], 'k1 k3'],
-            ['renameNx', ['k1', 'k3'], 'k1 k3'],
-            ['type', ['k1'], 'k1'],
-            ['sort', ['k1'], 'k1'],
-            ['sort', ['k1', ['sort' => 'desc']], 'k1 sort desc'],
-            ['ttl', ['k1'], 'k1'],
-            ['pttl', ['k1'], 'k1'],
+            ['rename', ['k1{hash}', 'k3{hash}'], 'k1{hash} k3{hash}'],
+            ['renameNx', ['k1{hash}', 'k3{hash}'], 'k1{hash} k3{hash}'],
+            ['type', ['k1{hash}'], 'k1{hash}'],
+            ['sort', ['k1{hash}'], 'k1{hash}'],
+            ['sort', ['k1{hash}', ['sort' => 'desc']], 'k1{hash} sort desc'],
+            ['ttl', ['k1{hash}'], 'k1{hash}'],
+            ['pttl', ['k1{hash}'], 'k1{hash}'],
         ];
     }
 
@@ -130,7 +129,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
     {
         $redis = $this->redis;
         $traces = $this->isolateTracer(function () use ($redis, $method, $arg) {
-            null === $arg ? $redis->$method() : $redis->$method($arg);
+            null === $arg ? $redis->$method($this->connection1) : $redis->$method($this->connection1, $arg);
         });
 
         $this->assertFlameGraph($traces, [
@@ -150,7 +149,6 @@ class PHPRedisClusterTest extends IntegrationTestCase
             'echo' => ['echo', 'hey'],
             'save' => ['save', null],
             'bgRewriteAOF' => ['bgRewriteAOF', null],
-            'bgSave' => ['bgSave', null],
             'flushAll' => ['flushAll', null],
             'flushDb' => ['flushDb', null],
         ];
@@ -347,26 +345,6 @@ class PHPRedisClusterTest extends IntegrationTestCase
 
         $this->assertSame('v1', $redis->get('k1'));
         $this->assertSame('v2', $redis->get('k2'));
-    }
-
-    public function testRawCommand()
-    {
-        $redis = $this->redis;
-
-        $traces = $this->isolateTracer(function () use ($redis) {
-            $redis->rawCommand('set', 'k1', 'v1');
-        });
-
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build(
-                "RedisCluster.rawCommand",
-                'phpredis',
-                'redis',
-                "RedisCluster.rawCommand"
-            )->withExactTags(['redis.raw_command' => 'rawCommand set k1 v1']),
-        ]);
-
-        $this->assertSame('v1', $redis->get('k1'));
     }
 
     /**
@@ -630,9 +608,10 @@ class PHPRedisClusterTest extends IntegrationTestCase
      */
     public function testListFunctions($method, $args, $expectedResult, $expectedFinal, $rawCommand)
     {
-        $this->redis->rPush('l1', 'v1');
-        $this->redis->rPush('l1', 'v2');
-        $this->redis->rPush('l2', 'z1');
+        // Using fixed has mechanism: https://redis.io/commands/cluster-keyslot#example
+        $this->redis->rPush('l1{fixed_hash}', 'v1');
+        $this->redis->rPush('l1{fixed_hash}', 'v2');
+        $this->redis->rPush('l2{fixed_hash}', 'z1');
         $result = null;
 
         $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
@@ -675,193 +654,193 @@ class PHPRedisClusterTest extends IntegrationTestCase
         return [
             [
                 'blPop', // method
-                [ 'l1', 'l2', 10 ], // arguments
-                [ 'l1', 'v1' ], // expected result
+                [ 'l1{fixed_hash}', 'l2{fixed_hash}', 10 ], // arguments
+                [ 'l1{fixed_hash}', 'v1' ], // expected result
                 [
-                    'l1' => [ 'v2' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v2' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'blPop l1 l2 10', // raw command
+                'blPop l1{fixed_hash} l2{fixed_hash} 10', // raw command
             ],
             [
                 'brPop', // method
-                [ 'l1', 'l2', 10 ], // arguments
-                [ 'l1', 'v2' ], // expected result
+                [ 'l1{fixed_hash}', 'l2{fixed_hash}', 10 ], // arguments
+                [ 'l1{fixed_hash}', 'v2' ], // expected result
                 [
-                    'l1' => [ 'v1' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v1' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'brPop l1 l2 10', // raw command
+                'brPop l1{fixed_hash} l2{fixed_hash} 10', // raw command
             ],
             [
                 'bRPopLPush', // method
-                [ 'l1', 'l2', 10 ], // arguments
+                [ 'l1{fixed_hash}', 'l2{fixed_hash}', 10 ], // arguments
                 'v2', // expected result
                 [
-                    'l1' => [ 'v1' ],
-                    'l2' => [ 'v2', 'z1' ],
+                    'l1{fixed_hash}' => [ 'v1' ],
+                    'l2{fixed_hash}' => [ 'v2', 'z1' ],
                 ], // expected final value
-                'bRPopLPush l1 l2 10', // raw command
+                'bRPopLPush l1{fixed_hash} l2{fixed_hash} 10', // raw command
             ],
             [
                 'rPopLPush', // method
-                [ 'l1', 'l2' ], // arguments
+                [ 'l1{fixed_hash}', 'l2{fixed_hash}' ], // arguments
                 'v2', // expected result
                 [
-                    'l1' => [ 'v1' ],
-                    'l2' => [ 'v2', 'z1' ],
+                    'l1{fixed_hash}' => [ 'v1' ],
+                    'l2{fixed_hash}' => [ 'v2', 'z1' ],
                 ], // expected final value
-                'rPopLPush l1 l2', // raw command
+                'rPopLPush l1{fixed_hash} l2{fixed_hash}', // raw command
             ],
             [
                 'lIndex', // method
-                [ 'l1', 0 ], // arguments
+                [ 'l1{fixed_hash}', 0 ], // arguments
                 'v1', // expected result
                 [
-                    'l1' => $l1,
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => $l1,
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lIndex l1 0', // raw command
+                'lIndex l1{fixed_hash} 0', // raw command
             ],
             [
                 'lGet', // method
-                [ 'l1', 0 ], // arguments
+                [ 'l1{fixed_hash}', 0 ], // arguments
                 'v1', // expected result
                 [
-                    'l1' => $l1,
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => $l1,
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lGet l1 0', // raw command
+                'lGet l1{fixed_hash} 0', // raw command
             ],
             [
                 'lInsert', // method
-                [ 'l1', \Redis::BEFORE, 'v2', 'v3' ], // arguments
+                [ 'l1{fixed_hash}', \Redis::BEFORE, 'v2', 'v3' ], // arguments
                 3, // expected result
                 [
-                    'l1' => ['v1', 'v3', 'v2'],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => ['v1', 'v3', 'v2'],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lInsert l1 before v2 v3', // raw command
+                'lInsert l1{fixed_hash} before v2 v3', // raw command
             ],
             [
                 'lLen', // method
-                [ 'l1' ], // arguments
+                [ 'l1{fixed_hash}' ], // arguments
                 2, // expected result
                 [
-                    'l1' => $l1,
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => $l1,
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lLen l1', // raw command
+                'lLen l1{fixed_hash}', // raw command
             ],
             [
                 'lLen', // method
-                [ 'l1' ], // arguments
+                [ 'l1{fixed_hash}' ], // arguments
                 2, // expected result
                 [
-                    'l1' => $l1,
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => $l1,
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lLen l1', // raw command
+                'lLen l1{fixed_hash}', // raw command
             ],
             [
                 'lPop', // method
-                [ 'l1' ], // arguments
+                [ 'l1{fixed_hash}' ], // arguments
                 'v1', // expected result
                 [
-                    'l1' => [ 'v2' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v2' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lPop l1', // raw command
+                'lPop l1{fixed_hash}', // raw command
             ],
             [
                 'lPush', // method
-                [ 'l1', 'v3' ], // arguments
+                [ 'l1{fixed_hash}', 'v3' ], // arguments
                 3, // expected result
                 [
-                    'l1' => [ 'v3', 'v1', 'v2' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v3', 'v1', 'v2' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lPush l1 v3', // raw command
+                'lPush l1{fixed_hash} v3', // raw command
             ],
             [
                 'lPushx', // method
-                [ 'l1', 'v3' ], // arguments
+                [ 'l1{fixed_hash}', 'v3' ], // arguments
                 3, // expected result
                 [
-                    'l1' => [ 'v3', 'v1', 'v2' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v3', 'v1', 'v2' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lPushx l1 v3', // raw command
+                'lPushx l1{fixed_hash} v3', // raw command
             ],
             [
                 'lRange', // method
-                [ 'l1', '0', '0' ], // arguments
+                [ 'l1{fixed_hash}', '0', '0' ], // arguments
                 [ 'v1' ], // expected result
                 [
-                    'l1' => $l1,
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => $l1,
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lRange l1 0 0', // raw command
+                'lRange l1{fixed_hash} 0 0', // raw command
             ],
             [
                 'lRem', // method
-                [ 'l1', 'v1', '2' ], // arguments
+                [ 'l1{fixed_hash}', 'v1', '2' ], // arguments
                 1, // expected result
                 [
-                    'l1' => [ 'v2' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v2' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lRem l1 v1 2', // raw command
+                'lRem l1{fixed_hash} v1 2', // raw command
             ],
             [
                 'lSet', // method
-                [ 'l1', 1, 'changed' ], // arguments
+                [ 'l1{fixed_hash}', 1, 'changed' ], // arguments
                 true, // expected result
                 [
-                    'l1' => [ 'v1', 'changed' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v1', 'changed' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lSet l1 1 changed', // raw command
+                'lSet l1{fixed_hash} 1 changed', // raw command
             ],
             [
                 'lTrim', // method
-                [ 'l1', 1, 2 ], // arguments
+                [ 'l1{fixed_hash}', 1, 2 ], // arguments
                 true, // expected result
                 [
-                    'l1' => [ 'v2' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v2' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'lTrim l1 1 2', // raw command
+                'lTrim l1{fixed_hash} 1 2', // raw command
             ],
             [
                 'rPop', // method
-                [ 'l1' ], // arguments
+                [ 'l1{fixed_hash}' ], // arguments
                 'v2', // expected result
                 [
-                    'l1' => [ 'v1' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v1' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'rPop l1', // raw command
+                'rPop l1{fixed_hash}', // raw command
             ],
             [
                 'rPush', // method
-                [ 'l1', 'v3' ], // arguments
+                [ 'l1{fixed_hash}', 'v3' ], // arguments
                 3, // expected result
                 [
-                    'l1' => [ 'v1', 'v2', 'v3' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v1', 'v2', 'v3' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'rPush l1 v3', // raw command
+                'rPush l1{fixed_hash} v3', // raw command
             ],
             [
                 'rPushX', // method
-                [ 'l1', 'v3' ], // arguments
+                [ 'l1{fixed_hash}', 'v3' ], // arguments
                 3, // expected result
                 [
-                    'l1' => [ 'v1', 'v2', 'v3' ],
-                    'l2' => $l2,
+                    'l1{fixed_hash}' => [ 'v1', 'v2', 'v3' ],
+                    'l2{fixed_hash}' => $l2,
                 ], // expected final value
-                'rPushX l1 v3', // raw command
+                'rPushX l1{fixed_hash} v3', // raw command
             ],
         ];
     }
@@ -871,8 +850,8 @@ class PHPRedisClusterTest extends IntegrationTestCase
      */
     public function testSetFunctions($method, $args, $expectedResult, $expectedFinal, $rawCommand)
     {
-        $this->redis->sAdd('s1', 'v1', 'v2', 'v3');
-        $this->redis->sAdd('s2', 'z1', 'v2' /* 'v2' not a typo */, 'z3');
+        $this->redis->sAdd('s1{hash}', 'v1', 'v2', 'v3');
+        $this->redis->sAdd('s2{hash}', 'z1', 'v2' /* 'v2' not a typo */, 'z3');
         $result = null;
 
         $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
@@ -924,115 +903,108 @@ class PHPRedisClusterTest extends IntegrationTestCase
         return [
             [
                 'sAdd', // method
-                [ 's1', 'v4' ], // arguments
+                [ 's1{hash}', 'v4' ], // arguments
                 1, // expected result
-                [ 's1' => 4, 's2' => 3 ], // expected final value
-                'sAdd s1 v4', // raw command
+                [ 's1{hash}' => 4, 's2{hash}' => 3 ], // expected final value
+                'sAdd s1{hash} v4', // raw command
             ],
             [
                 'sCard', // method
-                [ 's1' ], // arguments
+                [ 's1{hash}' ], // arguments
                 3, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sCard s1', // raw command
-            ],
-            [
-                'scard', // method
-                [ 's1' ], // arguments
-                3, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'scard s1', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final value
+                'sCard s1{hash}', // raw command
             ],
             [
                 'sDiff', // method
-                [ 's1', 's2' ], // arguments
+                [ 's1{hash}', 's2{hash}' ], // arguments
                 self::ARRAY_COUNT_2, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sDiff s1 s2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final value
+                'sDiff s1{hash} s2{hash}', // raw command
             ],
             [
                 'sDiffStore', // method
-                [ 'out', 's1', 's2' ], // arguments
+                [ 'out{hash}', 's1{hash}', 's2{hash}' ], // arguments
                 2, // expected result
-                [ 's1' => 3, 's2' => 3, 'out' => 2 ], // expected final value
-                'sDiffStore out s1 s2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, 'out{hash}' => 2 ], // expected final value
+                'sDiffStore out{hash} s1{hash} s2{hash}', // raw command
             ],
             [
                 'sInter', // method
-                [ 's1', 's2' ], // arguments
+                [ 's1{hash}', 's2{hash}' ], // arguments
                 [ 'v2' ], // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sInter s1 s2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final value
+                'sInter s1{hash} s2{hash}', // raw command
             ],
             [
                 'sInterStore', // method
-                [ 'out', 's1', 's2' ], // arguments
+                [ 'out{hash}', 's1{hash}', 's2{hash}' ], // arguments
                 1, // expected result
-                [ 's1' => 3, 's2' => 3, 'out' => 1 ], // expected final value
-                'sInterStore out s1 s2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, 'out{hash}' => 1 ], // expected final value
+                'sInterStore out{hash} s1{hash} s2{hash}', // raw command
             ],
             [
                 'sIsMember', // method
-                [ 's1', 'v3' ], // arguments
+                [ 's1{hash}', 'v3' ], // arguments
                 true, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sIsMember s1 v3', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final value
+                'sIsMember s1{hash} v3', // raw command
             ],
             [
                 'sMembers', // method
-                [ 's1' ], // arguments
+                [ 's1{hash}' ], // arguments
                 self::ARRAY_COUNT_3, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sMembers s1', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final value
+                'sMembers s1{hash}', // raw command
             ],
             [
                 'sMove', // method
-                [ 's1', 's2', 'v1' ], // arguments
+                [ 's1{hash}', 's2{hash}', 'v1' ], // arguments
                 true, // expected result
-                [ 's1' => 2, 's2' => 4 ], // expected final value
-                'sMove s1 s2 v1', // raw command
+                [ 's1{hash}' => 2, 's2{hash}' => 4 ], // expected final value
+                'sMove s1{hash} s2{hash} v1', // raw command
             ],
             [
                 'sPop', // method
-                [ 's1', 2 ], // arguments
+                [ 's1{hash}', 2 ], // arguments
                 self::ARRAY_COUNT_2, // expected result
-                [ 's1' => 1, 's2' => 3 ], // expected final value
-                'sPop s1 2', // raw command
+                [ 's1{hash}' => 1, 's2{hash}' => 3 ], // expected final value
+                'sPop s1{hash} 2', // raw command
             ],
             [
                 'sRandMember', // method
-                [ 's1' ], // arguments
+                [ 's1{hash}' ], // arguments
                 self::A_STRING, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sRandMember s1', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final value
+                'sRandMember s1{hash}', // raw command
             ],
             [
                 'sRem', // method
-                [ 's1', 'v1' ], // arguments
+                [ 's1{hash}', 'v1' ], // arguments
                 1, // expected result
-                [ 's1' => 2, 's2' => 3 ], // expected final value
-                'sRem s1 v1', // raw command
+                [ 's1{hash}' => 2, 's2{hash}' => 3 ], // expected final value
+                'sRem s1{hash} v1', // raw command
             ],
             [
                 'sUnion', // method
-                [ 's1', 's2' ], // arguments
+                [ 's1{hash}', 's2{hash}' ], // arguments
                 self::ARRAY_COUNT_5, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sUnion s1 s2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final value
+                'sUnion s1{hash} s2{hash}', // raw command
             ],
             [
                 'sUnionStore', // method
-                [ 'out', 's1', 's2' ], // arguments
+                [ 'out{hash}', 's1{hash}', 's2{hash}' ], // arguments
                 5, // expected result
-                [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final value
-                'sUnionStore out s1 s2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, 'out{hash}' => 5 ], // expected final value
+                'sUnionStore out{hash} s1{hash} s2{hash}', // raw command
             ],
             [
                 'sScan', // method
-                [ 's1', null ], // arguments
+                [ 's1{hash}', null ], // arguments
                 self::ARRAY_COUNT_3, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final value
-                'sScan s1 0', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final value
+                'sScan s1{hash} 0', // raw command
             ],
         ];
     }
@@ -1042,12 +1014,12 @@ class PHPRedisClusterTest extends IntegrationTestCase
      */
     public function testSortedSetFunctions($method, $args, $expectedResult, $expectedFinal, $rawCommand)
     {
-        $this->redis->zAdd('s1', 1, 'v1');
-        $this->redis->zAdd('s1', 0, 'v2');
-        $this->redis->zAdd('s1', 5, 'v3');
-        $this->redis->zAdd('s2', 1, 'z1');
-        $this->redis->zAdd('s2', 0, 'v2' /* 'v2' is not a typo */);
-        $this->redis->zAdd('s2', 5, 'z3');
+        $aaa = $this->redis->zAdd('s1{hash}', 1, 'v1');
+        $this->redis->zAdd('s1{hash}', 0, 'v2');
+        $this->redis->zAdd('s1{hash}', 5, 'v3');
+        $this->redis->zAdd('s2{hash}', 1, 'z1');
+        $this->redis->zAdd('s2{hash}', 0, 'v2' /* 'v2' is not a typo */);
+        $this->redis->zAdd('s2{hash}', 5, 'z3');
         $result = null;
 
         $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
@@ -1090,7 +1062,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
         }
 
         foreach ($expectedFinal as $set => $value) {
-            $this->assertSame($this->redis->zCount($set), $value);
+            $this->assertSame($this->redis->zCount($set, '-inf', '+inf'), $value);
         }
     }
 
@@ -1099,150 +1071,143 @@ class PHPRedisClusterTest extends IntegrationTestCase
         return [
             [
                 'zAdd', // method
-                [ 's1', 1, 'v4' ], // arguments
+                [ 's1{hash}', 1, 'v4' ], // arguments
                 1, // expected result
-                [ 's1' => 4, 's2' => 3 ], // expected final sizes
-                'zAdd s1 1 v4', // raw command
+                [ 's1{hash}' => 4, 's2{hash}' => 3 ], // expected final sizes
+                'zAdd s1{hash} 1 v4', // raw command
             ],
             [
                 'zCard', // method
-                [ 's1' ], // arguments
+                [ 's1{hash}' ], // arguments
                 3, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final sizes
-                'zCard s1', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final sizes
+                'zCard s1{hash}', // raw command
             ],
             [
                 'zCount', // method
-                [ 's1' ], // arguments
-                3, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final sizes
-                'zCount s1', // raw command
-            ],
-            [
-                'zCount', // method
-                [ 's1', 0, 3 ], // arguments
+                [ 's1{hash}', 0, 3 ], // arguments
                 2, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final sizes
-                'zCount s1 0 3', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final sizes
+                'zCount s1{hash} 0 3', // raw command
             ],
             [
                 'zIncrBy', // method
-                [ 's1', 2.5, 'v1' ], // arguments
+                [ 's1{hash}', 2.5, 'v1' ], // arguments
                 3.5, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final sizes
-                'zIncrBy s1 2.5 v1', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final sizes
+                'zIncrBy s1{hash} 2.5 v1', // raw command
             ],
             [
                 'zInterstore', // method
-                [ 'out', ['s1', 's2'] ], // arguments
+                [ 'out{hash}', ['s1{hash}', 's2{hash}'] ], // arguments
                 1, // expected result
-                [ 's1' => 3, 's2' => 3, 'out' => 1 ], // expected final sizes
-                'zInterstore out s1 s2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, 'out{hash}' => 1 ], // expected final sizes
+                'zInterstore out{hash} s1{hash} s2{hash}', // raw command
             ],
             [
                 'zRange', // method
-                [ 's1', 0, 1, true ], // arguments
+                [ 's1{hash}', 0, 1, true ], // arguments
                 ['v1' => 1.0, 'v2' => 0.0], // expected result
-                [ 's1' => 3, 's2' => 3, ], // expected final sizes
-                'zRange s1 0 1 true', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, ], // expected final sizes
+                'zRange s1{hash} 0 1 true', // raw command
             ],
             [
                 'zRangeByScore', // method
-                [ 's1', 0, 2, ['withscores' => true] ], // arguments
+                [ 's1{hash}', 0, 2, ['withscores' => true] ], // arguments
                 self::ARRAY_COUNT_2, // expected result
-                [ 's1' => 3, 's2' => 3, ], // expected final sizes
-                'zRangeByScore s1 0 2 withscores true', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, ], // expected final sizes
+                'zRangeByScore s1{hash} 0 2 withscores true', // raw command
             ],
             [
                 'zRevRangeByScore', // method
-                [ 's1', 2, 0 ], // arguments
+                [ 's1{hash}', 2, 0 ], // arguments
                 self::ARRAY_COUNT_2, // expected result
-                [ 's1' => 3, 's2' => 3, ], // expected final sizes
-                'zRevRangeByScore s1 2 0', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, ], // expected final sizes
+                'zRevRangeByScore s1{hash} 2 0', // raw command
             ],
             [
                 'zRangeByLex', // method
-                [ 's1', '-', '[v2' ], // arguments
+                [ 's1{hash}', '-', '[v2' ], // arguments
                 self::ARRAY_COUNT_2, // expected result
-                [ 's1' => 3, 's2' => 3, ], // expected final sizes
-                'zRangeByLex s1 - [v2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, ], // expected final sizes
+                'zRangeByLex s1{hash} - [v2', // raw command
             ],
             [
                 'zRank', // method
-                [ 's1', 'v2' ], // arguments
+                [ 's1{hash}', 'v2' ], // arguments
                 0, // expected result
-                [ 's1' => 3, 's2' => 3, ], // expected final sizes
-                'zRank s1 v2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, ], // expected final sizes
+                'zRank s1{hash} v2', // raw command
             ],
             [
                 'zRevRank', // method
-                [ 's1', 'v2' ], // arguments
+                [ 's1{hash}', 'v2' ], // arguments
                 2, // expected result
-                [ 's1' => 3, 's2' => 3, ], // expected final sizes
-                'zRevRank s1 v2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, ], // expected final sizes
+                'zRevRank s1{hash} v2', // raw command
             ],
             [
                 'zRem', // method
-                [ 's1', 'v2' ], // arguments
+                [ 's1{hash}', 'v2' ], // arguments
                 1, // expected result
-                [ 's1' => 2, 's2' => 3, ], // expected final sizes
-                'zRem s1 v2', // raw command
+                [ 's1{hash}' => 2, 's2{hash}' => 3, ], // expected final sizes
+                'zRem s1{hash} v2', // raw command
             ],
             [
                 'zRemRangeByRank', // method
-                [ 's1', 0, 1 ], // arguments
+                [ 's1{hash}', 0, 1 ], // arguments
                 2, // expected result
-                [ 's1' => 1, 's2' => 3, ], // expected final sizes
-                'zRemRangeByRank s1 0 1', // raw command
+                [ 's1{hash}' => 1, 's2{hash}' => 3, ], // expected final sizes
+                'zRemRangeByRank s1{hash} 0 1', // raw command
             ],
             [
                 'zRemRangeByScore', // method
-                [ 's1', 0, 1 ], // arguments
+                [ 's1{hash}', 0, 1 ], // arguments
                 2, // expected result
-                [ 's1' => 1, 's2' => 3, ], // expected final sizes
-                'zRemRangeByScore s1 0 1', // raw command
+                [ 's1{hash}' => 1, 's2{hash}' => 3, ], // expected final sizes
+                'zRemRangeByScore s1{hash} 0 1', // raw command
             ],
             [
                 'zRevRange', // method
-                [ 's1', 0, -2 ], // arguments
+                [ 's1{hash}', 0, -2 ], // arguments
                 [ 'v3', 'v1' ], // expected result
-                [ 's1' => 3, 's2' => 3, ], // expected final sizes
-                'zRevRange s1 0 -2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, ], // expected final sizes
+                'zRevRange s1{hash} 0 -2', // raw command
             ],
             [
                 'zPopMax', // method
-                [ 's1', 1 ], // arguments
+                [ 's1{hash}', 1 ], // arguments
                 [ 'v3' => 5.0 ], // expected result
-                [ 's1' => 2, 's2' => 3, ], // expected final sizes
-                'zPopMax s1 1', // raw command
+                [ 's1{hash}' => 2, 's2{hash}' => 3, ], // expected final sizes
+                'zPopMax s1{hash} 1', // raw command
             ],
             [
                 'zPopMin', // method
-                [ 's1', 1 ], // arguments
+                [ 's1{hash}', 1 ], // arguments
                 [ 'v2' => 0.0 ], // expected result
-                [ 's1' => 2, 's2' => 3, ], // expected final sizes
-                'zPopMin s1 1', // raw command
+                [ 's1{hash}' => 2, 's2{hash}' => 3, ], // expected final sizes
+                'zPopMin s1{hash} 1', // raw command
             ],
             [
                 'zScore', // method
-                [ 's1', 'v3' ], // arguments
+                [ 's1{hash}', 'v3' ], // arguments
                 5, // expected result
-                [ 's1' => 3, 's2' => 3, ], // expected final sizes
-                'zScore s1 v3', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, ], // expected final sizes
+                'zScore s1{hash} v3', // raw command
             ],
             [
                 'zunionstore', // method
-                [ 'out', ['s1', 's2'] ], // arguments
+                [ 'out{hash}', ['s1{hash}', 's2{hash}'] ], // arguments
                 5, // expected result
-                [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final sizes
-                'zunionstore out s1 s2', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3, 'out{hash}' => 5 ], // expected final sizes
+                'zunionstore out{hash} s1{hash} s2{hash}', // raw command
             ],
             [
                 'zScan', // method
-                [ 's1', null ], // arguments
+                [ 's1{hash}', null ], // arguments
                 self::ARRAY_COUNT_3, // expected result
-                [ 's1' => 3, 's2' => 3 ], // expected final sizes
-                'zScan s1 0', // raw command
+                [ 's1{hash}' => 3, 's2{hash}' => 3 ], // expected final sizes
+                'zScan s1{hash} 0', // raw command
             ],
         ];
     }
@@ -1305,23 +1270,13 @@ class PHPRedisClusterTest extends IntegrationTestCase
      */
     public function testScriptingFunctions($method, $args, $expectedResult, /*$expectedFinal, */$rawCommand)
     {
-        $sha = $this->redis->script('load', 'return 1');
+        $sha = $this->redis->script($this->connection1, 'load', 'return 1');
         $this->assertSame(self::SCRIPT_SHA, $sha);
         $this->redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
         $result = null;
 
-        $traces = $this->isolateTracer(function () use ($method, $args, &$result) {
-            if (count($args) === 0) {
-                $result = $this->redis->$method();
-            } elseif (count($args) === 1) {
-                $result = $this->redis->$method($args[0]);
-            } elseif (count($args) === 2) {
-                $result = $this->redis->$method($args[0], $args[1]);
-            } else {
-                throw new \Exception('Number of arguments not supported: ' . \count($args));
-            }
-        });
+        $traces = $this->invokeInIsolatedTracerWithArgs($method, $args, $result);
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build(
@@ -1329,7 +1284,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'phpredis',
                 'redis',
                 "RedisCluster.$method"
-            )->withExactTags(['redis.raw_command' => $rawCommand]),
+            )->withExactTags(['redis.raw_command' => $this->normalizeRawCommand($method, $rawCommand)]),
         ]);
         $this->assertEquals($expectedResult, $result);
     }
@@ -1341,43 +1296,43 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'eval', // method
                 [ 'return 1' ], // arguments
                 1, // expected result
-                'eval return 1', // raw command
+                'return 1', // raw command
             ],
             [
                 'evalSha', // method
                 [ self::SCRIPT_SHA ], // arguments
                 1, // expected result
-                'evalSha ' . self::SCRIPT_SHA, // raw command
+                self::SCRIPT_SHA, // raw command
             ],
             [
                 'script', // method
-                [ 'load', 'return 2' ], // arguments
+                [ self::CONNECTION_1, 'load', 'return 2' ], // arguments
                 '7f923f79fe76194c868d7e1d0820de36700eb649', // expected result
-                'script load return 2', // raw command
+                self::CONNECTION_1_AS_ARG . ' load return 2', // raw command
             ],
             [
                 'getLastError', // method
                 [ ], // arguments
                 null, // expected result
-                'getLastError', // raw command
+                '', // raw command
             ],
             [
                 'clearLastError', // method
                 [ ], // arguments
                 true, // expected result
-                'clearLastError', // raw command
+                '', // raw command
             ],
             [
                 '_serialize', // method
                 [ 'foo' ], // arguments
                 's:3:"foo";', // expected result
-                '_serialize foo', // raw command
+                'foo', // raw command
             ],
             [
                 '_unserialize', // method
                 [ 's:3:"foo";' ], // arguments
                 'foo', // expected result
-                '_unserialize s:3:"foo";', // raw command
+                's:3:"foo";', // raw command
             ],
         ];
     }
@@ -1409,48 +1364,6 @@ class PHPRedisClusterTest extends IntegrationTestCase
 
         $this->assertSame('v1', $redis->get('k1'));
         $this->assertSame('v1', $redis->get('k2'));
-    }
-
-    public function testMigrate()
-    {
-        $this->redis->set('k1', 'v1');
-        $this->redis->set('k2', 'v2');
-        $this->redis->set('k3', 'v3');
-
-        $this->assertFalse($this->redisSecondInstance->get('k1'));
-        $this->assertFalse($this->redisSecondInstance->get('k2'));
-        $this->assertFalse($this->redisSecondInstance->get('k3'));
-
-        $traces = $this->isolateTracer(function () {
-            $this->redis->migrate($this->host, $this->portSecondInstance, 'k1', 0, 3600);
-        });
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build(
-                "RedisCluster.migrate",
-                'phpredis',
-                'redis',
-                "RedisCluster.migrate"
-            )->withExactTags(['redis.raw_command' => "migrate redis_integration 6380 k1 0 3600"]),
-        ]);
-
-        $traces = $this->isolateTracer(function () {
-            $this->redis->migrate($this->host, $this->portSecondInstance, ['k2', 'k3'], 0, 3600);
-        });
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build(
-                "RedisCluster.migrate",
-                'phpredis',
-                'redis',
-                "RedisCluster.migrate"
-            )->withExactTags(['redis.raw_command' => "migrate redis_integration 6380 k2 k3 0 3600"]),
-        ]);
-
-        $this->assertSame('v1', $this->redisSecondInstance->get('k1'));
-        $this->assertSame('v2', $this->redisSecondInstance->get('k2'));
-        $this->assertSame('v3', $this->redisSecondInstance->get('k3'));
-        $this->assertFalse($this->redis->get('k1'));
-        $this->assertFalse($this->redis->get('k2'));
-        $this->assertFalse($this->redis->get('k3'));
     }
 
     /**
@@ -1832,7 +1745,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
         return $binarySafeString;
     }
 
-    private function invokeInIsolatedTracerWithArgs($method, $args)
+    private function invokeInIsolatedTracerWithArgs($method, $args, &$result = null)
     {
         // Replacing args with connections, as dataproviders run before anything else, including setup
         foreach ($args as &$arg) {
@@ -1840,15 +1753,17 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 $arg = $this->connection1;
             }
         }
-        return $this->isolateTracer(function () use ($method, $args) {
+        return $this->isolateTracer(function () use ($method, $args, &$result) {
             if (count($args) === 0) {
-                $this->redis->$method();
+                $result = $this->redis->$method();
             } elseif (count($args) === 1) {
-                $this->redis->$method($args[0]);
+                $result = $this->redis->$method($args[0]);
             } elseif (count($args) === 2) {
-                $this->redis->$method($args[0], $args[1]);
+                $result = $this->redis->$method($args[0], $args[1]);
+            } elseif (count($args) === 3) {
+                $result = $this->redis->$method($args[0], $args[1], $args[2]);
             } else {
-                throw new \Exception('number of args not supported');
+                throw new \Exception('number of args not supported: ' . count($args));
             }
         });
     }

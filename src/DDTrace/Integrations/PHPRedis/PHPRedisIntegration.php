@@ -32,6 +32,7 @@ class PHPRedisIntegration extends Integration
         $traceConnectOpen = function (SpanData $span, $args) {
             $hostOrUDS = (isset($args[0]) && \is_string($args[0])) ? $args[0] : '127.0.0.1';
             $span->meta[Tag::TARGET_HOST] = $hostOrUDS;
+            $span->meta[Tag::TARGET_PORT] = (isset($args[1]) && \is_numeric($args[1])) ? $args[1] : 6379;
 
             // Service name
             if (empty($hostOrUDS) || !\ddtrace_config_redis_client_split_by_host_enabled()) {
@@ -192,6 +193,7 @@ class PHPRedisIntegration extends Integration
         self::traceMethodAsCommand('zCount');
         self::traceMethodAsCommand('zIncrBy');
         self::traceMethodAsCommand('zInter');
+        self::traceMethodAsCommand('zInterstore');
         self::traceMethodAsCommand('zPopMax');
         self::traceMethodAsCommand('zPopMin');
         self::traceMethodAsCommand('zRange');
