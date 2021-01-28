@@ -580,6 +580,9 @@ jobs:
       disable_runner_distributed_tracing:
         type: boolean
         default: false
+      switch_php:
+        type: string
+        default: ''
     resource_class: << parameters.resource_class >>
     executor:
       name: with_integrations
@@ -588,6 +591,9 @@ jobs:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: 'Switch PHP'
+          command: switch-php << parameters.switch_php >>
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
       - <<: *STEP_COMPOSER_CACHE_RESTORE
@@ -1707,6 +1713,18 @@ workflows:
           name: "PHP 80 Integration tests"
           integration_testsuite: "test_integrations"
           docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
+      - integration_tests:
+          # NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that
+          # only shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
+          # Since we run tests using php debug builds, we have to run test_integrations_phpredis5 in a separate runner
+          # and switch to a non-debug PHP build.
+          # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove this additional
+          # runner and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
+          requires: [ 'Prepare Code' ]
+          name: "PHP 80 Integration tests (PHPRedis 5)"
+          integration_testsuite: "test_integrations_phpredis5"
+          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
+          switch_php: '8.0'
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 Web integration tests"
