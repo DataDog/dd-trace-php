@@ -7,7 +7,7 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
 
-// Note: PHPRedis 5 has many deprecated methodsd (comapred to 4) that we still want to test
+// Note: PhpRedis 5 has many deprecated methods (compared to 4) that we still want to test
 \error_reporting(E_ALL ^ \E_DEPRECATED);
 
 class PHPRedisClusterTest extends IntegrationTestCase
@@ -54,7 +54,6 @@ class PHPRedisClusterTest extends IntegrationTestCase
     public function ddTearDown()
     {
         $this->redis->close();
-        // $this->redisSecondInstance->close();
         parent::ddTearDown();
     }
 
@@ -1275,7 +1274,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
             //  - flackiness is not due to our tracer as results can vary even without our tracer (possibly due to
             //    interactions with other tests)
             //  - running only this testsuite it passes.
-            $this->markTestSkipped('This is flacky in CI. Skipping for now');
+            $this->markTestSkipped('This is flaky in CI. Skipping for now');
             return;
         }
 
