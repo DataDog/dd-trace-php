@@ -593,7 +593,7 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
           name: 'Switch PHP'
-          command: <<# parameters.switch_php >> switch-php << parameters.switch_php >> <</ parameters.switch_php >>
+          command: <<# parameters.switch_php >> switch-php << parameters.switch_php >> <</ parameters.switch_php >> ;
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
       - <<: *STEP_COMPOSER_CACHE_RESTORE
