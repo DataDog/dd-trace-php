@@ -591,10 +591,10 @@ jobs:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - install_extension:
-          lib_curl_command: << parameters.lib_curl_command >>
       - switch_php:
           php_version: << parameters.switch_php_version >>
+      - install_extension:
+          lib_curl_command: << parameters.lib_curl_command >>
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
