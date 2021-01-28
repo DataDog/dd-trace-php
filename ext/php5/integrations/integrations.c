@@ -91,10 +91,6 @@ static void dd_load_test_integrations(TSRMLS_D) {
 
     DDTRACE_DEFERRED_INTEGRATION_LOADER("test", "public_static_method", "ddtrace\\test\\testsandboxedintegration");
     DDTRACE_INTEGRATION_TRACE("test", "automaticaly_traced_method", "tracing_function", DDTRACE_DISPATCH_POSTHOOK);
-
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("Redis", "__construct", "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
-    DDTRACE_DEFERRED_INTEGRATION_LOADER("RedisCluster", "__construct",
-                                        "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
 }
 
 #if PHP_VERSION_ID >= 70000
@@ -121,6 +117,9 @@ void ddtrace_integrations_rinit(TSRMLS_D) {
                                          "DDTrace\\Integrations\\PDO\\PDOIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PHPREDIS, "Redis", "__construct",
+                                         "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
+
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PHPREDIS, "RedisCluster", "__construct",
                                          "DDTrace\\Integrations\\PHPRedis\\PHPRedisIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_PREDIS, "Predis\\Client", "__construct",

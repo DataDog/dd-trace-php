@@ -7,9 +7,6 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
 
-// Note: PHPRedis 5 has many deprecated methodsd (comapred to 4) that we still want to test
-\error_reporting(E_ALL ^ \E_DEPRECATED);
-
 class PHPRedisClusterTest extends IntegrationTestCase
 {
     const CONNECTION_1 = 'CONNECTION_1';
