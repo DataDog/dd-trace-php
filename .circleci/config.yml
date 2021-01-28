@@ -571,6 +571,9 @@ jobs:
       lib_curl_command:
         type: string
         default: none
+      switch_php_version:
+        type: string
+        default: none
       resource_class:
         type: string
         default: medium
@@ -580,9 +583,6 @@ jobs:
       disable_runner_distributed_tracing:
         type: boolean
         default: false
-      switch_php:
-        type: string
-        default: ''
     resource_class: << parameters.resource_class >>
     executor:
       name: with_integrations
@@ -591,11 +591,10 @@ jobs:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          name: 'Switch PHP'
-          command: <<# parameters.switch_php >> switch-php << parameters.switch_php >> <</ parameters.switch_php >> ;
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
@@ -1724,7 +1723,7 @@ workflows:
           name: "PHP 80 Integration tests (PHPRedis 5)"
           integration_testsuite: "test_integrations_phpredis5"
           docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
-          switch_php: '8.0'
+          switch_php_version: '8.0'
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 Web integration tests"
