@@ -513,6 +513,11 @@ TEST_WEB_74 := \
 	test_web_custom \
 	test_opentracing_10
 
+# NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that only
+# shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
+# Since we run tests in CI using php debug builds, we run test_integrations_phpredis5 in a separate non-debug container.
+# Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove that additional container
+# and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
 TEST_INTEGRATIONS_80 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
@@ -618,13 +623,13 @@ test_integrations_pdo:
 	$(call run_tests,tests/Integrations/PDO)
 test_integrations_phpredis3:
 	$(MAKE) test_scenario_phpredis3
-	$(call run_tests,tests/Integrations/PHPRedis/PHPRedis3Test.php)
+	$(call run_tests,tests/Integrations/PHPRedis/V3)
 test_integrations_phpredis4:
 	$(MAKE) test_scenario_phpredis4
-	$(call run_tests,tests/Integrations/PHPRedis/PHPRedis4Test.php)
+	$(call run_tests,tests/Integrations/PHPRedis/V4)
 test_integrations_phpredis5:
 	$(MAKE) test_scenario_phpredis5
-	$(call run_tests,tests/Integrations/PHPRedis/PHPRedis5Test.php)
+	$(call run_tests,tests/Integrations/PHPRedis/V5)
 test_integrations_predis1:
 	$(MAKE) test_scenario_predis1
 	$(call run_tests,tests/Integrations/Predis)

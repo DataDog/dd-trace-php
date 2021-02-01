@@ -135,6 +135,7 @@ void ddtrace_phpredis_handlers_startup(void) {
         DDTRACE_STRING_LITERAL("zcount"),
         DDTRACE_STRING_LITERAL("zincrby"),
         DDTRACE_STRING_LITERAL("zinter"),
+        DDTRACE_STRING_LITERAL("zinterstore"),
         DDTRACE_STRING_LITERAL("zrange"),
         DDTRACE_STRING_LITERAL("zrangebyscore"),
         DDTRACE_STRING_LITERAL("zrevrangebyscore"),
@@ -210,6 +211,8 @@ void ddtrace_phpredis_handlers_startup(void) {
     // clang-format on
 
     ddtrace_string phpredis = DDTRACE_STRING_LITERAL("redis");
+    ddtrace_string phpredis_cluster = DDTRACE_STRING_LITERAL("rediscluster");
     size_t methods_len = sizeof methods / sizeof methods[0];
     ddtrace_replace_internal_methods(phpredis, methods_len, methods);
+    ddtrace_replace_internal_methods(phpredis_cluster, methods_len, methods);
 }

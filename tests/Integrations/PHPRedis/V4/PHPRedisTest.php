@@ -1,16 +1,13 @@
 <?php
 
-namespace DDTrace\Tests\Integrations\PHPRedis;
+namespace DDTrace\Tests\Integrations\PHPRedis\V4;
 
 use DDTrace\Integrations\PHPRedis\PHPRedisIntegration;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use Exception;
 
-// Note: PHPRedis 5 has many deprecated methodsd (comapred to 4) that we still want to test
-\error_reporting(E_ALL ^ \E_DEPRECATED);
-
-class PHPRedis5Test extends IntegrationTestCase
+class PHPRedisTest extends IntegrationTestCase
 {
     const A_STRING = 'A_STRING';
     const A_FLOAT = 'A_FLOAT';
@@ -1389,13 +1386,6 @@ class PHPRedis5Test extends IntegrationTestCase
                 'zDelete s1 v2', // raw command
             ],
             [
-                'zRemove', // method
-                [ 's1', 'v2' ], // arguments
-                1, // expected result
-                [ 's1' => 2, 's2' => 3, ], // expected final sizes
-                'zRemove s1 v2', // raw command
-            ],
-            [
                 'zRemRangeByRank', // method
                 [ 's1', 0, 1 ], // arguments
                 2, // expected result
@@ -1424,32 +1414,11 @@ class PHPRedis5Test extends IntegrationTestCase
                 'zDeleteRangeByScore s1 0 1', // raw command
             ],
             [
-                'zRemoveRangeByScore', // method
-                [ 's1', 0, 1 ], // arguments
-                2, // expected result
-                [ 's1' => 1, 's2' => 3, ], // expected final sizes
-                'zRemoveRangeByScore s1 0 1', // raw command
-            ],
-            [
                 'zRevRange', // method
                 [ 's1', 0, -2 ], // arguments
                 [ 'v3', 'v1' ], // expected result
                 [ 's1' => 3, 's2' => 3, ], // expected final sizes
                 'zRevRange s1 0 -2', // raw command
-            ],
-            [
-                'zPopMax', // method
-                [ 's1', 1 ], // arguments
-                [ 'v3' => 5.0 ], // expected result
-                [ 's1' => 2, 's2' => 3, ], // expected final sizes
-                'zPopMax s1 1', // raw command
-            ],
-            [
-                'zPopMin', // method
-                [ 's1', 1 ], // arguments
-                [ 'v2' => 0.0 ], // expected result
-                [ 's1' => 2, 's2' => 3, ], // expected final sizes
-                'zPopMin s1 1', // raw command
             ],
             [
                 'zScore', // method
@@ -1464,13 +1433,6 @@ class PHPRedis5Test extends IntegrationTestCase
                 5, // expected result
                 [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final sizes
                 'zUnion out s1 s2', // raw command
-            ],
-            [
-                'zunionstore', // method
-                [ 'out', ['s1', 's2'] ], // arguments
-                5, // expected result
-                [ 's1' => 3, 's2' => 3, 'out' => 5 ], // expected final sizes
-                'zunionstore out s1 s2', // raw command
             ],
             [
                 'zScan', // method
@@ -2078,6 +2040,29 @@ class PHPRedis5Test extends IntegrationTestCase
         ]);
     }
 
+    public function testSetGetWithBinarySafeStringsAsValue()
+    {
+        $traces = $this->isolateTracer(function () {
+            $this->redis->set('k1', $this->getBinarySafeString());
+            $this->assertSame($this->getBinarySafeString(), $this->redis->get('k1'));
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                "Redis.set",
+                'phpredis',
+                'redis',
+                "Redis.set"
+            )->withExistingTagsNames(['redis.raw_command']),
+            SpanAssertion::build(
+                "Redis.get",
+                'phpredis',
+                'redis',
+                "Redis.get"
+            )->withExistingTagsNames(['redis.raw_command']),
+        ]);
+    }
+
     public function testSplitByDomainWhenError()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true']);
@@ -2138,30 +2123,6 @@ class PHPRedis5Test extends IntegrationTestCase
             ]),
         ]);
     }
-
-    public function testSetGetWithBinarySafeStringsAsValue()
-    {
-        $traces = $this->isolateTracer(function () {
-            $this->redis->set('k1', $this->getBinarySafeString());
-            $this->assertSame($this->getBinarySafeString(), $this->redis->get('k1'));
-        });
-
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build(
-                "Redis.set",
-                'phpredis',
-                'redis',
-                "Redis.set"
-            )->withExistingTagsNames(['redis.raw_command']),
-            SpanAssertion::build(
-                "Redis.get",
-                'phpredis',
-                'redis',
-                "Redis.get"
-            )->withExistingTagsNames(['redis.raw_command']),
-        ]);
-    }
-
 
     public function testSetGetWithBinarySafeStringsAsKey()
     {
