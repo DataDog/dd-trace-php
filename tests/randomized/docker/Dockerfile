@@ -32,6 +32,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 # If not generated, see: https://fromdual.com/hunting-the-core
 RUN mkdir -p /tmp/corefiles
 RUN chmod -R a+w /tmp/corefiles
+ADD enable-coredump.sh /scripts/enable-coredump.sh
 
 # Preparing PHP-FPM
 RUN mkdir -p /run/php-fpm

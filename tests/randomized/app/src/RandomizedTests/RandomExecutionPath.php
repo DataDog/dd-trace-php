@@ -19,8 +19,11 @@ class RandomExecutionPath
         }
         if (isset($queries['seed'])) {
             $seed = intval($queries['seed']);
-            srand($seed);
+        } else {
+            $seed = rand();
         }
+        error_log(sprintf('Current PID: %d. Current seed %d', getmypid(), $seed));
+        srand($seed);
 
         $this->snippets = new Snippets();
         $this->allowFatalAndUncaught = $allowFatalAndUncaught;
