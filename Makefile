@@ -421,6 +421,7 @@ TEST_WEB_72 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
+	test_web_slim_4 \
 	test_web_symfony_23 \
 	test_web_symfony_28 \
 	test_web_symfony_30 \
@@ -461,6 +462,7 @@ TEST_WEB_73 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
+	test_web_slim_4 \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
@@ -497,6 +499,7 @@ TEST_WEB_74 := \
 	test_web_lumen_56 \
 	test_web_lumen_58 \
 	test_web_slim_312 \
+	test_web_slim_4 \
 	test_web_symfony_34 \
 	test_web_symfony_40 \
 	test_web_symfony_42 \
@@ -510,6 +513,11 @@ TEST_WEB_74 := \
 	test_web_custom \
 	test_opentracing_10
 
+# NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that only
+# shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
+# Since we run tests in CI using php debug builds, we run test_integrations_phpredis5 in a separate non-debug container.
+# Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove that additional container
+# and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
 TEST_INTEGRATIONS_80 := \
 	test_integrations_deferred_loading \
 	test_integrations_curl \
@@ -524,6 +532,7 @@ TEST_WEB_80 := \
 	test_web_codeigniter_22 \
 	test_web_laravel_8x \
 	test_web_slim_312 \
+	test_web_slim_4 \
 	test_web_yii_2 \
 	test_web_custom
 	#test_web_symfony_51 ; will work eventually; currently hung on: doctrine/doctrine-migrations-bundle
@@ -614,13 +623,13 @@ test_integrations_pdo:
 	$(call run_tests,tests/Integrations/PDO)
 test_integrations_phpredis3:
 	$(MAKE) test_scenario_phpredis3
-	$(call run_tests,tests/Integrations/PHPRedis/PHPRedis3Test.php)
+	$(call run_tests,tests/Integrations/PHPRedis/V3)
 test_integrations_phpredis4:
 	$(MAKE) test_scenario_phpredis4
-	$(call run_tests,tests/Integrations/PHPRedis/PHPRedis4Test.php)
+	$(call run_tests,tests/Integrations/PHPRedis/V4)
 test_integrations_phpredis5:
 	$(MAKE) test_scenario_phpredis5
-	$(call run_tests,tests/Integrations/PHPRedis/PHPRedis5Test.php)
+	$(call run_tests,tests/Integrations/PHPRedis/V5)
 test_integrations_predis1:
 	$(MAKE) test_scenario_predis1
 	$(call run_tests,tests/Integrations/Predis)
@@ -654,6 +663,9 @@ test_web_lumen_58:
 test_web_slim_312:
 	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_3_12 update
 	$(call run_tests,--testsuite=slim-312-test)
+test_web_slim_4:
+	$(COMPOSER) --working-dir=tests/Frameworks/Slim/Version_4 update
+	$(call run_tests,--testsuite=slim-4-test)
 test_web_symfony_23:
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_2_3 update
 	$(call run_tests,tests/Integrations/Symfony/V2_3)
