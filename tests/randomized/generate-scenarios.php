@@ -105,11 +105,11 @@ function generate()
         srand($seed);
         echo "Using seed: $seed\n";
 
-        $numberOfScenarios = intval($options['number']);
-        if (0 === $numberOfScenarios) {
+        if (empty($options['number'])) {
             echo "Error: --number option is required to set the number of scenarios to create.\n";
             exit(1);
         }
+        $numberOfScenarios = intval($options['number']);
 
         for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
             $scenarioSeed = rand();
