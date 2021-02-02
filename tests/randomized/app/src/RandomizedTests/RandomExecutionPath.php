@@ -4,6 +4,10 @@ namespace RandomizedTests;
 
 class RandomExecutionPath
 {
+    /** @var boolean */
+    private $traceMethodExecution;
+    private $currentExecutionPathDepth = 0;
+
     private $snippets;
 
     private $allowFatalAndUncaught = false;
@@ -17,6 +21,8 @@ class RandomExecutionPath
         if (isset($_SERVER['QUERY_STRING'])) {
             parse_str($_SERVER['QUERY_STRING'], $queries);
         }
+        $this->traceMethodExecution = isset($queries['execution_path']);
+
         if (isset($queries['seed'])) {
             $seed = intval($queries['seed']);
         } else {
@@ -48,16 +54,19 @@ class RandomExecutionPath
 
     public function randomPath()
     {
+        $this->logEnter(__FUNCTION__);
         if ($this->percentOfCases(70)) {
             $this->doSomethingTraced();
         } else {
             $this->doSomethingUntraced();
         }
+        $this->logLeave(__FUNCTION__);
         return "OK";
     }
 
     public function doSomethingUntraced()
     {
+        $this->logEnter(__FUNCTION__);
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
@@ -73,10 +82,12 @@ class RandomExecutionPath
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
+        $this->logLeave(__FUNCTION__);
     }
 
     public function doSomethingTraced()
     {
+        $this->logEnter(__FUNCTION__);
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
@@ -92,10 +103,12 @@ class RandomExecutionPath
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
+        $this->logLeave(__FUNCTION__);
     }
 
     public function doSomethingUntraced1()
     {
+        $this->logEnter(__FUNCTION__);
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
@@ -111,10 +124,12 @@ class RandomExecutionPath
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
+        $this->logLeave(__FUNCTION__);
     }
 
     public function doSomethingTraced1()
     {
+        $this->logEnter(__FUNCTION__);
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         if ($this->percentOfCases(80)) {
@@ -129,29 +144,37 @@ class RandomExecutionPath
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
+        $this->logLeave(__FUNCTION__);
     }
 
     public function doSomethingUntraced2()
     {
+        $this->logEnter(__FUNCTION__);
         $this->maybeRunSomeIntegrations();
         $this->maybeSomethingHappens();
+        $this->logLeave(__FUNCTION__);
     }
 
     public function doSomethingTraced2()
     {
+        $this->logEnter(__FUNCTION__);
         $this->maybeSomethingHappens();
         $this->maybeRunSomeIntegrations();
+        $this->logLeave(__FUNCTION__);
     }
 
     private function maybeRunSomeIntegrations()
     {
+        $this->logEnter(__FUNCTION__);
         if ($this->percentOfCases(70)) {
             $this->runSomeIntegrations();
         }
+        $this->logLeave(__FUNCTION__);
     }
 
     public function runSomeIntegrations()
     {
+        $this->logEnter(__FUNCTION__);
         $availableIntegrations = $this->availableIntegrations();
         $availableIntegrationsNames = \array_keys($availableIntegrations);
         $numberOfIntegrationsToRun = \rand(0, \count($availableIntegrations));
@@ -163,6 +186,7 @@ class RandomExecutionPath
             $functionName = $integrationName . 'Variant' . $pickAVariant;
             $this->snippets->$functionName();
         }
+        $this->logLeave(__FUNCTION__);
     }
 
     private function availableIntegrations()
@@ -186,44 +210,54 @@ class RandomExecutionPath
 
     private function maybeSomethingHappens()
     {
+        $this->logEnter(__FUNCTION__);
         $this->maybeUseAGenerator();
         $this->maybeEmitAWarning();
         $this->maybeEmitACaughtException();
         $this->maybeEmitAnUncaughtException();
         $this->maybeGenerateAFatal();
+        $this->logLeave(__FUNCTION__);
     }
 
     private function maybeUseAGenerator()
     {
+        $this->logEnter(__FUNCTION__);
         if (!Utils::isPhpVersion(5, 4) && $this->percentOfCases(5)) {
             $this->useAGenerator();
         }
+        $this->logLeave(__FUNCTION__);
     }
 
     protected function useAGenerator()
     {
+        $this->logEnter(__FUNCTION__);
         $generator = $this->generatorSnippets->generator();
         foreach ($generator as $value) {
             // doing nothing
         }
+        $this->logLeave(__FUNCTION__);
     }
 
     private function maybeEmitAWarning()
     {
+        $this->logEnter(__FUNCTION__);
         // #1021 caused by DD_TRACE_ENABLED=true + warning emitted
         if ($this->percentOfCases(5)) {
             \trigger_error("Some warning triggered", \E_USER_WARNING);
         }
+        $this->logLeave(__FUNCTION__);
     }
 
     private function maybeEmitACaughtException()
     {
+        $this->logEnter(__FUNCTION__);
         if ($this->percentOfCases(20)) {
             try {
                 $this->alwaysThrowException('caught exception from randomized tests');
             } catch (\Exception $e) {
             }
         }
+        $this->logLeave(__FUNCTION__);
     }
 
     private function maybeEmitAnUncaughtException()
@@ -235,9 +269,11 @@ class RandomExecutionPath
 
     private function maybeGenerateAFatal()
     {
+        $this->logEnter(__FUNCTION__);
         if ($this->allowFatalAndUncaught && $this->percentOfCases(2)) {
             $this->alwaysGenerateAFatal();
         }
+        $this->logLeave(__FUNCTION__);
     }
 
     private function percentOfCases($percent)
@@ -247,17 +283,23 @@ class RandomExecutionPath
 
     private function alwaysThrowException($message)
     {
+        $this->logEnter(__FUNCTION__);
+        $this->logLeave(__FUNCTION__);
         // We return a status code that is not 'expected'. Expected are 510/511.
         throw new \Exception($message, 508);
     }
 
     private function alwaysGenerateAFatal()
     {
+        $this->logEnter(__FUNCTION__);
+        $this->logLeave(__FUNCTION__);
         trigger_error('triggering a user errror', \E_USER_ERROR);
     }
 
     public function handleException($ex)
     {
+        $this->logEnter(__FUNCTION__);
+
         if ($ex->getMessage() === 'uncaught exception from randomized tests') {
             error_log("Handling expected Exception: " . $ex->getMessage());
             // When we have an expected uncaught exception, we return 510 that is one of the three status codes we
@@ -267,11 +309,13 @@ class RandomExecutionPath
             error_log("Unexpected Exception: " . $ex->getMessage());
             http_response_code(500);
         }
+        $this->logLeave(__FUNCTION__);
         exit(1);
     }
 
     public function handleError($errno, $errstr)
     {
+        $this->logEnter(__FUNCTION__);
         $errorName = $errno;
         if ($errno === \E_USER_ERROR) {
             $errorName = 'E_USER_ERROR';
@@ -288,7 +332,25 @@ class RandomExecutionPath
             // When we have a user error, we return 511 that is one of the three status codes we
             // accept (200, 510 - expected exceptions, 511 - expected user errors)
             http_response_code(511);
+            $this->logLeave(__FUNCTION__);
             exit(1);
+        }
+        $this->logLeave(__FUNCTION__);
+    }
+
+    public function logEnter($subject)
+    {
+        if ($this->traceMethodExecution) {
+            error_log(\sprintf("%s↘ %s", \str_repeat(' ', $this->currentExecutionPathDepth), $subject));
+            $this->currentExecutionPathDepth += 2;
+        }
+    }
+
+    public function logLeave($subject)
+    {
+        if ($this->traceMethodExecution) {
+            $this->currentExecutionPathDepth -= 2;
+            error_log(\sprintf("%s↙ %s", \str_repeat(' ', $this->currentExecutionPathDepth), $subject));
         }
     }
 }
