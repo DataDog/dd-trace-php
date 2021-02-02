@@ -80,7 +80,7 @@ const ENVS = [
 
 // Add flags as boolean
 const INIS = [
-    'opcache.enabled' => [false],
+    'opcache.enable' => [false],
 ];
 
 function generate()
@@ -186,13 +186,13 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
         }
     }
     // Writing PHP-FPM worker pool file
-    $fpmWwwFilePath = "$scenarioFolder/$identifier.php-fpm.conf";
+    $fpmWwwFilePath = "$scenarioFolder/www.php-fpm.conf";
     $fpmWwwFileHandle = fopen($fpmWwwFilePath, 'w');
     $fpmWwwTemplate = file_get_contents('./templates/php-fpm.template.conf');
     fwrite($fpmWwwFileHandle, str_replace('__configs_will_go_here__', $fpmWwwFileContent, $fpmWwwTemplate));
     fclose($fpmWwwFileHandle);
     // Writing Apache config file
-    $apacheConfigFilePath = "$scenarioFolder/$identifier.apache.conf";
+    $apacheConfigFilePath = "$scenarioFolder/www.apache.conf";
     $apacheConfigFileHandle = fopen($apacheConfigFilePath, 'w');
     $apacheConfigTemplate = file_get_contents('./templates/apache.template.conf');
     fwrite(
@@ -200,6 +200,12 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
         str_replace('__configs_will_go_here__', $apacheConfigFileContent, $apacheConfigTemplate)
     );
     fclose($apacheConfigFileHandle);
+
+    // Vegeta request targets
+    $requestsFilePath = "$scenarioFolder/vegeta-request-targets.txt";
+    $requestsFileHandle = fopen($requestsFilePath, 'w');
+    fwrite($requestsFileHandle, generateRequestScenarios(2000));
+    fclose($requestsFileHandle);
 
     // Writing docker-compose file
     fwrite($dockerComposeHandle, "
@@ -212,6 +218,7 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
       - ./$identifier/app:/var/www/html
       - $fpmWwwFilePath:/etc/php-fpm.d/www.conf
       - $apacheConfigFilePath:/etc/httpd/conf.d/www.conf
+      - $requestsFilePath:/vegeta-request-targets.txt
       - ./.tracer-versions:/tmp/tracer-versions
       - ./.results/$identifier/:/results/
       - ./.results/$identifier/nginx:/var/log/nginx
@@ -227,10 +234,6 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
       - memcached
       - mysql
       - httpbin\n");
-
-    $requestsFile = fopen("$scenarioFolder/app/request-targets.txt", 'w');
-    fwrite($requestsFile, generateRequestScenarios(2000));
-    fclose($requestsFile);
 
     return $identifier;
 }
