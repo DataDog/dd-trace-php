@@ -90,6 +90,9 @@ Currently the following checks are executed:
 - the returned status code can only be on of 200 (OK), 510 (controlled uncaught exception), 511 (controlled php error). Any other return code will result in a failing analysis.
 - At least 1000 requests have been executed. If we find that vegeta has performed less than 1000 request, then the  test fails as we might have put the system not under enough pressure and combination of execution paths to find meaningful problems.
 
-## Debugging
+## Debugging a segmentation fault
+
+At the beginning of every request a message is printed to correlate a PID and a seed. E.g. `Current PID: 70. Current seed 754539563`.
+That seed can be used later on to recreate the same request: `curl localhost:80?seed=754539563`.
 
 Note that the generated scenarios can be run individually. In the directory `.tmp.scenarios` you can see a `Makefile` with a list of targets that can be executed.
