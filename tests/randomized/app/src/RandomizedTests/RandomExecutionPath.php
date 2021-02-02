@@ -77,6 +77,7 @@ class RandomExecutionPath
                 $this->doSomethingTraced1();
             }
         } else {
+            $this->logLeave(__FUNCTION__);
             return;
         }
         $this->maybeSomethingHappens();
@@ -98,6 +99,7 @@ class RandomExecutionPath
                 $this->doSomethingTraced1();
             }
         } else {
+            $this->logLeave(__FUNCTION__);
             return;
         }
         $this->maybeSomethingHappens();
@@ -119,6 +121,7 @@ class RandomExecutionPath
                 $this->doSomethingTraced2();
             }
         } else {
+            $this->logLeave(__FUNCTION__);
             return;
         }
         $this->maybeSomethingHappens();
@@ -139,6 +142,7 @@ class RandomExecutionPath
                 $this->doSomethingTraced2();
             }
         } else {
+            $this->logLeave(__FUNCTION__);
             return;
         }
         $this->maybeSomethingHappens();

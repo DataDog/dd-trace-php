@@ -2,7 +2,7 @@
 
 set -e
 
-# Steps are and excerpt from https://fromdual.com/hunting-the-core
+# Steps based on https://fromdual.com/hunting-the-core
 
 ulimit -c unlimited
 
