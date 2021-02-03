@@ -274,8 +274,8 @@ jobs:
           command: |
               wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
               (
-                echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
-                echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
+                echo "deb http://apt.llvm.org/buster/ llvm-toolchain-buster-12 main"
+                echo "deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-12 main"
               ) | sudo tee /etc/apt/sources.list.d/llvm-toolchain.list
               sudo apt-get update
               sudo apt-get -y install clang-format
