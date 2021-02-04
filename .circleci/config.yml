@@ -213,7 +213,7 @@ executors:
     docker:
       - image: << parameters.docker_image >>
       - <<: *IMAGE_DOCKER_DD_AGENT
-  with_httpbin:
+  with_httpbin_and_request_replayer:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
     parameters:
@@ -223,6 +223,7 @@ executors:
       - image: << parameters.docker_image >>
       - <<: *IMAGE_DOCKER_DD_AGENT
       - <<: *IMAGE_DOCKER_HTTPBIN
+      - <<: *IMAGE_DOCKER_REQUEST_REPLAYER
   with_integrations:
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -265,7 +266,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!dockerfiles/**/*' '!tests/ext/sandbox/**' '!tests/ext/sandbox-prehook/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!ext/vendor/**/*' '!ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.*.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!LICENSE.*' '!tooling/*' '!tests/randomized/**' || touch .failure
+          command: node_modules/.bin/eclint check '**/*' '!dockerfiles/**/*' '!tests/ext/sandbox/**' '!tests/ext/sandbox-prehook/*' '!tests/ext/background-sender/**/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!ext/vendor/**/*' '!ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.*.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!LICENSE.*' '!tooling/*' '!tests/randomized/**' '!ext/DatadogShared/test/stubs/**' || touch .failure
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
@@ -433,7 +434,7 @@ jobs:
       DD_AGENT_HOST: 127.0.0.1
       HTTPBIN_HOSTNAME: httpbin_integration
     executor:
-      name: with_httpbin
+      name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
@@ -445,6 +446,7 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
       - copy_valgrind_rc:
           valgrind_config: << parameters.valgrind_config >>
       - run:
@@ -799,8 +801,10 @@ jobs:
         type: boolean
         default: true
     working_directory: ~/datadog
+    environment:
+      HTTPBIN_HOSTNAME: httpbin_integration
     executor:
-      name: with_agent
+      name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
@@ -811,6 +815,7 @@ jobs:
             sudo pecl install datadog_trace.tgz
             echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
             php --ri=ddtrace
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
       - run:
           name: Run phpt tests with PECL
           command: |
@@ -897,6 +902,23 @@ jobs:
               -DCMAKE_BUILD_TYPE=Debug \
               -DBUILD_TESTING=ON \
               ~/datadog/ext/DatadogMemHash
+            make -j
+            make test
+      - run:
+          name: Build and test Datadog::Shared
+          command: |
+            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+            mkdir -p /tmp/build/DatadogShared
+            cd /tmp/build/DatadogShared
+            if [ -f "/etc/debian_version" ]
+            then
+              toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
+            fi
+            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
+              $toolchain \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_TESTING=ON \
+              ~/datadog/ext/DatadogShared
             make -j
             make test
 

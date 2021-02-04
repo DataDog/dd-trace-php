@@ -28,7 +28,6 @@ return [
     __DIR__ . '/../src/DDTrace/Util/ObjectKVStore.php',
     __DIR__ . '/../src/DDTrace/Util/ArrayKVStore.php',
     __DIR__ . '/../src/DDTrace/Util/CodeTracer.php',
-    __DIR__ . '/../src/DDTrace/Util/ContainerInfo.php',
     __DIR__ . '/../src/DDTrace/Processing/TraceAnalyticsProcessor.php',
     __DIR__ . '/../src/api/Tag.php',
     __DIR__ . '/../src/DDTrace/Scope.php',

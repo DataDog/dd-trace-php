@@ -55,6 +55,11 @@
             <file name="ext/DatadogMemHash/test/cantor.cc" role="test" />
             <file name="ext/DatadogMemHash/test/main.cc" role="test" />
 
+            <file name="ext/DatadogShared/container_id.c" role="src" />
+            <file name="ext/DatadogShared/string.c" role="src" />
+            <file name="ext/DatadogShared/datadog/container_id.h" role="src" />
+            <file name="ext/DatadogShared/datadog/string.h" role="src" />
+
             <file name="ext/version.h" role="src" />
             <!-- Third party -->
             <file name="ext/vendor/mpack/AUTHORS.md" role="doc" />
@@ -217,6 +222,8 @@
             <file name="ext/php8/configuration_php_iface.h" role="src" />
             <file name="ext/php8/configuration_php_iface.c" role="src" />
             <file name="ext/php8/configuration_render.h" role="src" />
+            <file name="ext/php8/ddshared.c" role="src" />
+            <file name="ext/php8/ddshared.h" role="src" />
             <file name="ext/php8/ddtrace_string.c" role="src" />
             <file name="ext/php8/ddtrace_string.h" role="src" />
             <file name="ext/php8/ddtrace.c" role="src">
@@ -269,6 +276,13 @@
             <file name="src/dogstatsd/dogstatsd_client/client.h" role="src" />
 
             <!-- Tests -->
+            <file name="tests/ext/background-sender/agent_headers.phpt" role="test" />
+            <file name="tests/ext/background-sender/agent_headers_container_id.phpt" role="test" />
+            <file name="tests/ext/background-sender/agent_headers_container_id_empty.phpt" role="test" />
+            <file name="tests/ext/background-sender/agent_headers_ignore_userland.phpt" role="test" />
+            <file name="tests/ext/background-sender/stubs/cgroup.docker" role="test" />
+            <file name="tests/ext/background-sender/stubs/cgroup.empty" role="test" />
+
             <file name="tests/ext/call_user_func/namespaced-array.phpt" role="test" />
             <file name="tests/ext/call_user_func/namespaced.phpt" role="test" />
             <file name="tests/ext/call_user_func/not-namespaced-array.phpt" role="test" />
@@ -276,6 +290,7 @@
 
             <file name="tests/ext/includes/dd_init.php" role="test" />
             <file name="tests/ext/includes/request_init_hook.inc" role="test" />
+            <file name="tests/ext/includes/request_replayer.inc" role="test" />
             <file name="tests/ext/includes/sanity_check.php" role="test" />
             <file name="tests/ext/includes/try_catch_finally.php" role="test" />
 
