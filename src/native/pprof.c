@@ -108,8 +108,9 @@ size_t pprof_stringtable_size(void *state) {
   return ((StringTable *)state)->arena->entry_idx;
 }
 
-size_t pprof_strIntern(DProf *dp, char *str) {
-  return dp->intern_string(dp->string_table_data, str);
+size_t pprof_strIntern(DProf *dp, const char *str) {
+  // todo: change intern_string to accept `const char *` instead of `char *)
+  return dp->intern_string(dp->string_table_data, (char *)str);
 }
 
 /******************************************************************************\
