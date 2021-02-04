@@ -6,7 +6,7 @@ REGRESSION_NAME := "provide-regression-name"
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
 TRACER_TEST_URL := https://github.com/DataDog/dd-trace-php/releases/download/0.54.0/datadog-php-tracer-0.54.0.x86_64.tar.gz
 TRACER_DOWNLOAD_PATH := ./.tracer-versions
-CONCURRENT_JOBS := 5
+CONCURRENT_JOBS := 4
 NUMBER_OF_SCENARIOS := 20
 
 build: build.centos7
