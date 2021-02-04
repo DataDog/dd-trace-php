@@ -36,7 +36,11 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+    - Slim 4 integration #1136
+    - Add support for redis cluster #1137
+    </notes>
     <contents>
         <dir name="/">
             <!-- Shared -->
