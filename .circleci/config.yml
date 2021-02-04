@@ -769,7 +769,7 @@ jobs:
           command: sleep 5
       - run:
           name: Execute tests
-          command: make -C tests/randomized execute
+          command: make -C tests/randomized execute CONCURRENT_JOBS=5 DURATION=1m
       - run:
           name: Analyze results
           command: make -C tests/randomized analyze

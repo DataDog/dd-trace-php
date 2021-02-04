@@ -1,7 +1,8 @@
 RESULTS_DIR := ./.results
+DURATION := 30s
 
 test.scenario.%: results.scenario.%
-	@docker-compose up $(*)
+	@docker-compose run -e DURATION=$(DURATION) $(*)
 
 results.scenario.%:
 	@mkdir -p $(RESULTS_DIR)/$(*)
