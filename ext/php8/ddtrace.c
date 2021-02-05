@@ -1638,10 +1638,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
     DDTRACE_FE_END};
 
-static const zend_module_dep ddtrace_deps[] = {
-    ZEND_MOD_REQUIRED("curl")
-    ZEND_MOD_END
-};
+static const zend_module_dep ddtrace_deps[] = {ZEND_MOD_REQUIRED("curl") ZEND_MOD_END};
 
 zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER_EX,
                                           NULL,
