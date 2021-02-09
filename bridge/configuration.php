@@ -355,3 +355,16 @@ function ddtrace_config_service_mapping()
 {
     return \_ddtrace_config_associative_array(\getenv('DD_SERVICE_MAPPING'), []);
 }
+
+/**
+ * Returns the list of header names to be added as a tag to the root span. Header names are converted to lowercase.
+ */
+function ddtrace_config_http_headers()
+{
+    return array_map(
+        function ($header) {
+            return \strtolower($header);
+        },
+        \_ddtrace_config_indexed_array(\getenv('DD_TRACE_HTTP_HEADERS'), [])
+    );
+}
