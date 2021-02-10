@@ -1,9 +1,13 @@
 <?php
 
+// Values in this array will always be set. Although, their values might be overwritten by corresponding values in
+// the ENVS array.
 const DEFAULT_ENVS = [
     'DD_AGENT_HOST' => 'agent',
 ];
 
+// Values from this array might be selected and set. When an environment variable from this list is selected,
+// then there is an equal probability that any of the assigned values from this array can be set.
 const ENVS = [
     'DD_ENV' => ['some_env'],
     'DD_SERVICE' => ['my_custom_service'],

@@ -9,6 +9,11 @@ The basic idea is to randomly generate a matrix of application configurations:
 
 and to run a application with randomily generated execution paths, which involve a number of scenarios and integrations.
 
+Additional platforms and settings can be provided in the `./config` folder.
+- `./config/envs.php`: all tested environment variables values;
+- `./config/inis.php`: all tested INI modifications;
+- `./config/platforms.php`: all possible OSes and PHP versions.
+
 ## Usage
 
 ### Overview
