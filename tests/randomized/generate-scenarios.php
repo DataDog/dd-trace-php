@@ -1,11 +1,13 @@
 <?php
 
 use RandomizedTests\Tooling\ApacheConfigGenerator;
+use RandomizedTests\Tooling\PhpFpmConfigGenerator;
 
 include __DIR__ . '/config/platforms.php';
 include __DIR__ . '/config/envs.php';
 include __DIR__ . '/config/inis.php';
 include __DIR__ . '/lib/ApacheConfigGenerator.php';
+include __DIR__ . '/lib/PhpFpmConfigGenerator.php';
 
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
 const MAX_ENV_MODIFICATIONS = 5;
@@ -97,25 +99,8 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
     exec("cp -r ./app $scenarioFolder/");
     exec("cp $scenarioFolder/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
 
-    // Setting ENVs and INIs
-    $fpmWwwFileContent = "";
-    foreach ($envModifications as $envName => $envValue) {
-        $fpmWwwFileContent .= "env[$envName] = \"$envValue\"\n";
-    }
-    foreach ($iniModifications as $iniName => $iniValue) {
-        if (is_bool($iniValue)) {
-            $fpmWwwFileContent .= sprintf("php_admin_flag[%s] = %s\n", $iniName, $iniValue ? 'on' : 'off');
-        } else {
-            $fpmWwwFileContent .= sprintf("php_admin_value[%s] = \"%s\"\n", $iniName, $iniValue);
-        }
-    }
-    // Writing PHP-FPM worker pool file
-    $fpmWwwFilePath = "$scenarioFolder/www.php-fpm.conf";
-    $fpmWwwFileHandle = fopen($fpmWwwFilePath, 'w');
-    $fpmWwwTemplate = file_get_contents('./templates/php-fpm.template.conf');
-    fwrite($fpmWwwFileHandle, str_replace('__configs_will_go_here__', $fpmWwwFileContent, $fpmWwwTemplate));
-    fclose($fpmWwwFileHandle);
     (new ApacheConfigGenerator())->generate("$scenarioFolder/www.apache.conf", $envModifications, $iniModifications);
+    (new PhpFpmConfigGenerator())->generate("$scenarioFolder/www.php-fpm.conf", $envModifications, $iniModifications);
 
     // Vegeta request targets
     $requestsFilePath = "$scenarioFolder/vegeta-request-targets.txt";
@@ -132,7 +117,7 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
     privileged: true
     volumes:
       - ./$identifier/app:/var/www/html
-      - $fpmWwwFilePath:/etc/php-fpm.d/www.conf
+      - $scenarioFolder/www.php-fpm.conf:/etc/php-fpm.d/www.conf
       - $scenarioFolder/www.apache.conf:/etc/httpd/conf.d/www.conf
       - $requestsFilePath:/vegeta-request-targets.txt
       - ./.tracer-versions:/tmp/tracer-versions
