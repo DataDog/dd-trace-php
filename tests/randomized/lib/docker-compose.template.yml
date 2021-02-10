@@ -33,3 +33,5 @@ services:
       - MYSQL_PASSWORD=test
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
+
+{{services}}

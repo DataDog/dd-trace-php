@@ -1,14 +1,16 @@
 <?php
 
 use RandomizedTests\Tooling\ApacheConfigGenerator;
+use RandomizedTests\Tooling\DockerComposeFileGenerator;
 use RandomizedTests\Tooling\MakefileGenerator;
 use RandomizedTests\Tooling\PhpFpmConfigGenerator;
 use RandomizedTests\Tooling\RequestTargetsGenerator;
 
-include __DIR__ . '/config/platforms.php';
 include __DIR__ . '/config/envs.php';
 include __DIR__ . '/config/inis.php';
+include __DIR__ . '/config/platforms.php';
 include __DIR__ . '/lib/ApacheConfigGenerator.php';
+include __DIR__ . '/lib/DockerComposeFileGenerator.php';
 include __DIR__ . '/lib/MakefileGenerator.php';
 include __DIR__ . '/lib/PhpFpmConfigGenerator.php';
 include __DIR__ . '/lib/RequestTargetsGenerator.php';
@@ -20,17 +22,14 @@ const MAX_INI_MODIFICATIONS = 5;
 function generate()
 {
     $scenariosFolder = TMP_SCENARIOS_FOLDER;
-    $dockerComposeFile = "${scenariosFolder}/docker-compose.yml";
-    exec("cp ./templates/docker-compose.template.yml ${dockerComposeFile}");
-    $dockerComposeHandle = fopen($dockerComposeFile, 'a');
 
     $options = getopt('', ['scenario:']);
 
-    $testIdentifiers = [];
+    $testDataByIdentifier = [];
     if (isset($options['scenario'])) {
         // Generate only one scenario
         $seed = intval($options['scenario']);
-        $testIdentifiers[] = generateOne($dockerComposeHandle, $seed);
+        $testDataByIdentifier = array_merge($testDataByIdentifier, generateOne($seed));
     } else {
         // If a scenario number has not been provided, we generate a number of different scenarios based on based
         // configuration
@@ -47,15 +46,15 @@ function generate()
 
         for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
             $scenarioSeed = rand();
-            $testIdentifiers[] = generateOne($dockerComposeHandle, $scenarioSeed);
+            $testDataByIdentifier = array_merge($testDataByIdentifier, generateOne($scenarioSeed));
         }
     }
 
-    fclose($dockerComposeHandle);
-    (new MakefileGenerator())->generate("$scenariosFolder/Makefile", $testIdentifiers);
+    (new MakefileGenerator())->generate("$scenariosFolder/Makefile", array_keys($testDataByIdentifier));
+    (new DockerComposeFileGenerator())->generate("$scenariosFolder/docker-compose.yml", $testDataByIdentifier);
 }
 
-function generateOne($dockerComposeHandle, $scenarioSeed)
+function generateOne($scenarioSeed)
 {
     srand($scenarioSeed);
     $selectedOs = array_rand(OS);
@@ -63,7 +62,7 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
     $selectedPhpVersion = $availablePHPVersions[array_rand($availablePHPVersions)];
     $selectedInstallationMethod = INSTALLATION[array_rand(INSTALLATION)];
 
-    // Environment variables
+    // Environment variables modifications
     $numberOfEnvModifications = rand(0, MAX_ENV_MODIFICATIONS);
     $envModifications = array_merge([], DEFAULT_ENVS);
     for ($envModification = 0; $envModification < $numberOfEnvModifications; $envModification++) {
@@ -77,7 +76,7 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
         }
     }
 
-    // INI settings
+    // INI settings modification
     $numberOfIniModifications = rand(0, min(MAX_INI_MODIFICATIONS, count(INIS)));
     $iniModifications = [];
     for ($iniModification = 0; $iniModification < $numberOfIniModifications; $iniModification++) {
@@ -87,43 +86,25 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
     }
     $identifier = "randomized-$scenarioSeed-$selectedOs-$selectedPhpVersion";
     $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";
+
+    // Preparing folder
     exec("mkdir -p $scenarioFolder/app");
     exec("cp -r ./app $scenarioFolder/");
     exec("cp $scenarioFolder/app/composer-$selectedPhpVersion.json $scenarioFolder/app/composer.json");
 
+    // Writing scenario specific files
     (new ApacheConfigGenerator())->generate("$scenarioFolder/www.apache.conf", $envModifications, $iniModifications);
     (new PhpFpmConfigGenerator())->generate("$scenarioFolder/www.php-fpm.conf", $envModifications, $iniModifications);
     (new RequestTargetsGenerator())->generate("$scenarioFolder/vegeta-request-targets.txt", 2000);
 
-    // Writing docker-compose file
-    fwrite($dockerComposeHandle, "
-  $identifier:
-    image: datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion
-    ulimits:
-      core: 99999999999
-    privileged: true
-    volumes:
-      - ./$identifier/app:/var/www/html
-      - $scenarioFolder/www.php-fpm.conf:/etc/php-fpm.d/www.conf
-      - $scenarioFolder/www.apache.conf:/etc/httpd/conf.d/www.conf
-      - $scenarioFolder/vegeta-request-targets.txt:/vegeta-request-targets.txt
-      - ./.tracer-versions:/tmp/tracer-versions
-      - ./.results/$identifier/:/results/
-      - ./.results/$identifier/nginx:/var/log/nginx
-      - ./.results/$identifier/php-fpm:/var/log/php-fpm
-      - ./.results/$identifier/apache:/var/log/httpd/
-    environment:
-        INSTALL_MODE: $selectedInstallationMethod
-        TEST_SCENARIO: $identifier
-    depends_on:
-      - agent
-      - elasticsearch
-      - redis
-      - memcached
-      - mysql
-      - httpbin\n");
-
-    return $identifier;
+    return [
+        $identifier => [
+            'identifier' => $identifier,
+            'scenario_folder' => $scenarioFolder,
+            'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion",
+            'installation_method' => $selectedInstallationMethod,
+        ],
+    ];
 }
 
 generate();
