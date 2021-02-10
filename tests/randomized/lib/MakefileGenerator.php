@@ -17,7 +17,7 @@ class MakefileGenerator
                 )
             )
         );
-        $template = \file_get_contents(__DIR__ . '/Makefile.template');
+        $template = \file_get_contents(__DIR__ . '/templates/Makefile.template');
         file_put_contents(
             $destination,
             str_replace(

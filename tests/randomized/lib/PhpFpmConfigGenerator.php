@@ -18,7 +18,7 @@ class PhpFpmConfigGenerator
                 $inisString .= sprintf("php_admin_value[%s] = \"%s\"\n", $iniName, $iniValue);
             }
         }
-        $template = \file_get_contents(__DIR__ . '/php-fpm.template.conf');
+        $template = \file_get_contents(__DIR__ . '/templates/php-fpm.template.conf');
         file_put_contents(
             $destination,
             str_replace(

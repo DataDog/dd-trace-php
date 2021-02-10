@@ -7,7 +7,7 @@ class DockerComposeFileGenerator
     public function generate($destination, array $substitutionsByIdentifier)
     {
         $services = "";
-        $serviceTemplate = file_get_contents(__DIR__ . '/docker-compose.service.template.yml');
+        $serviceTemplate = file_get_contents(__DIR__ . '/templates/docker-compose.service.template.yml');
         foreach ($substitutionsByIdentifier as $identifier => $substitutions) {
             $needles = \array_map(
                 function ($key) {
@@ -25,7 +25,7 @@ class DockerComposeFileGenerator
         $dockerComposeFile = \str_replace(
             '{{services}}',
             $services,
-            file_get_contents(__DIR__ . '/docker-compose.template.yml')
+            file_get_contents(__DIR__ . '/templates/docker-compose.template.yml')
         );
         file_put_contents($destination, $dockerComposeFile);
     }
