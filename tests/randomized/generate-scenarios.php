@@ -1,8 +1,11 @@
 <?php
 
+use RandomizedTests\Tooling\ApacheConfigGenerator;
+
 include __DIR__ . '/config/platforms.php';
 include __DIR__ . '/config/envs.php';
 include __DIR__ . '/config/inis.php';
+include __DIR__ . '/lib/ApacheConfigGenerator.php';
 
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
 const MAX_ENV_MODIFICATIONS = 5;
@@ -96,18 +99,14 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
 
     // Setting ENVs and INIs
     $fpmWwwFileContent = "";
-    $apacheConfigFileContent = "";
     foreach ($envModifications as $envName => $envValue) {
         $fpmWwwFileContent .= "env[$envName] = \"$envValue\"\n";
-        $apacheConfigFileContent .= "    SetEnv $envName \"$envValue\"\n";
     }
     foreach ($iniModifications as $iniName => $iniValue) {
         if (is_bool($iniValue)) {
             $fpmWwwFileContent .= sprintf("php_admin_flag[%s] = %s\n", $iniName, $iniValue ? 'on' : 'off');
-            $apacheConfigFileContent .= sprintf("    php_admin_flag %s %s\n", $iniName, $iniValue ? 'on' : 'off');
         } else {
             $fpmWwwFileContent .= sprintf("php_admin_value[%s] = \"%s\"\n", $iniName, $iniValue);
-            $apacheConfigFileContent .= sprintf("    php_admin_value %s %s\n", $iniName, $iniValue);
         }
     }
     // Writing PHP-FPM worker pool file
@@ -116,15 +115,7 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
     $fpmWwwTemplate = file_get_contents('./templates/php-fpm.template.conf');
     fwrite($fpmWwwFileHandle, str_replace('__configs_will_go_here__', $fpmWwwFileContent, $fpmWwwTemplate));
     fclose($fpmWwwFileHandle);
-    // Writing Apache config file
-    $apacheConfigFilePath = "$scenarioFolder/www.apache.conf";
-    $apacheConfigFileHandle = fopen($apacheConfigFilePath, 'w');
-    $apacheConfigTemplate = file_get_contents('./templates/apache.template.conf');
-    fwrite(
-        $apacheConfigFileHandle,
-        str_replace('__configs_will_go_here__', $apacheConfigFileContent, $apacheConfigTemplate)
-    );
-    fclose($apacheConfigFileHandle);
+    (new ApacheConfigGenerator())->generate("$scenarioFolder/www.apache.conf", $envModifications, $iniModifications);
 
     // Vegeta request targets
     $requestsFilePath = "$scenarioFolder/vegeta-request-targets.txt";
@@ -142,7 +133,7 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
     volumes:
       - ./$identifier/app:/var/www/html
       - $fpmWwwFilePath:/etc/php-fpm.d/www.conf
-      - $apacheConfigFilePath:/etc/httpd/conf.d/www.conf
+      - $scenarioFolder/www.apache.conf:/etc/httpd/conf.d/www.conf
       - $requestsFilePath:/vegeta-request-targets.txt
       - ./.tracer-versions:/tmp/tracer-versions
       - ./.results/$identifier/:/results/
