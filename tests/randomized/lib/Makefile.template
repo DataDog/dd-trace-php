@@ -11,4 +11,4 @@ results.scenario.%:
 shell.scenario.%:
 	@docker-compose run --rm $(*) bash
 
-# Dynamically generated targets will be added after this line
+test: {{test_target}}

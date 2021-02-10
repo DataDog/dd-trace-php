@@ -1,12 +1,14 @@
 <?php
 
 use RandomizedTests\Tooling\ApacheConfigGenerator;
+use RandomizedTests\Tooling\MakefileGenerator;
 use RandomizedTests\Tooling\PhpFpmConfigGenerator;
 
 include __DIR__ . '/config/platforms.php';
 include __DIR__ . '/config/envs.php';
 include __DIR__ . '/config/inis.php';
 include __DIR__ . '/lib/ApacheConfigGenerator.php';
+include __DIR__ . '/lib/MakefileGenerator.php';
 include __DIR__ . '/lib/PhpFpmConfigGenerator.php';
 
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
@@ -48,19 +50,7 @@ function generate()
     }
 
     fclose($dockerComposeHandle);
-
-    // Generating makefile
-    $makefile = "${scenariosFolder}/Makefile";
-    exec("cp ./templates/Makefile.template ${makefile}");
-    $makefileHandle = fopen($makefile, 'a');
-    $testTargets = array_map(
-        function ($identifier) {
-            return "test.scenario.$identifier";
-        },
-        $testIdentifiers
-    );
-    fwrite($makefileHandle, sprintf("test: %s\n", implode(" \\\n    ", $testTargets)));
-    fclose($makefileHandle);
+    (new MakefileGenerator())->generate("$scenariosFolder/Makefile", $testIdentifiers);
 }
 
 function generateOne($dockerComposeHandle, $scenarioSeed)
