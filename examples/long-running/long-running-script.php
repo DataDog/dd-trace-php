@@ -4,6 +4,7 @@ use DDTrace\SpanData;
 use DDTrace\Type;
 
 // This part is required for long running processes
+// Note: in case of a method, use `\DDTrace\trace_method('Some\Class', 'some_method', function(...){...})` instead.
 \DDTrace\trace_function('repetitive_function', function (SpanData $span, $args) {
     /* Optional: $span->name and $span->resource
      * `name` defaults to the function/method name being traced.
