@@ -3,6 +3,7 @@
 use RandomizedTests\Tooling\ApacheConfigGenerator;
 use RandomizedTests\Tooling\MakefileGenerator;
 use RandomizedTests\Tooling\PhpFpmConfigGenerator;
+use RandomizedTests\Tooling\RequestTargetsGenerator;
 
 include __DIR__ . '/config/platforms.php';
 include __DIR__ . '/config/envs.php';
@@ -10,6 +11,7 @@ include __DIR__ . '/config/inis.php';
 include __DIR__ . '/lib/ApacheConfigGenerator.php';
 include __DIR__ . '/lib/MakefileGenerator.php';
 include __DIR__ . '/lib/PhpFpmConfigGenerator.php';
+include __DIR__ . '/lib/RequestTargetsGenerator.php';
 
 const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
 const MAX_ENV_MODIFICATIONS = 5;
@@ -91,12 +93,7 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
 
     (new ApacheConfigGenerator())->generate("$scenarioFolder/www.apache.conf", $envModifications, $iniModifications);
     (new PhpFpmConfigGenerator())->generate("$scenarioFolder/www.php-fpm.conf", $envModifications, $iniModifications);
-
-    // Vegeta request targets
-    $requestsFilePath = "$scenarioFolder/vegeta-request-targets.txt";
-    $requestsFileHandle = fopen($requestsFilePath, 'w');
-    fwrite($requestsFileHandle, generateRequestScenarios(2000));
-    fclose($requestsFileHandle);
+    (new RequestTargetsGenerator())->generate("$scenarioFolder/vegeta-request-targets.txt", 2000);
 
     // Writing docker-compose file
     fwrite($dockerComposeHandle, "
@@ -109,7 +106,7 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
       - ./$identifier/app:/var/www/html
       - $scenarioFolder/www.php-fpm.conf:/etc/php-fpm.d/www.conf
       - $scenarioFolder/www.apache.conf:/etc/httpd/conf.d/www.conf
-      - $requestsFilePath:/vegeta-request-targets.txt
+      - $scenarioFolder/vegeta-request-targets.txt:/vegeta-request-targets.txt
       - ./.tracer-versions:/tmp/tracer-versions
       - ./.results/$identifier/:/results/
       - ./.results/$identifier/nginx:/var/log/nginx
@@ -128,78 +125,5 @@ function generateOne($dockerComposeHandle, $scenarioSeed)
 
     return $identifier;
 }
-
-function generateRequestScenarios($number)
-{
-    $availableQueries = [
-        'key' => 'value',
-        'key1' => 'value1',
-        'key.2' => '2',
-        'key_3' => 'value-3',
-        'key%204' => 'value%204',
-    ];
-    $availableHeaders = [
-        'content-type: application/json',
-        'authorization: Bearer abcdef0987654321',
-        'origin: http://some.url.com:9000',
-        'cache-control: no-cache',
-        'accept: */*',
-    ];
-    $requests = '';
-    for ($idx = 0; $idx < $number; $idx++) {
-        $method = ['GET', 'POST'][rand(0, 1)];
-        $port = [/* nginx */80, /* apache*/ 81][rand(0, 1)];
-        $host = 'http://localhost';
-        // Query String
-        $query = '';
-        if (percentOfTimes(50)) {
-            $query .= '?';
-            // We are adding a query string
-            foreach ($availableQueries as $key => $value) {
-                if (percentOfTimes(70)) {
-                    continue;
-                }
-                $query .= "$key=$value&";
-            }
-        }
-        // Headers
-        //   - distributed traing
-        //   - datadog origin header
-        //   - common headers (e.g. Content-Type, Origin)
-        $headers = [];
-        if (percentOfTimes(30)) {
-            $headers[] = 'x-datadog-trace-id: ' . rand();
-            $headers[] = 'x-datadog-parent-id: ' . rand();
-            $headers[] = 'x-datadog-sampling-priority: ' . (percentOfTimes(70) ? '1.0' : '0.3');
-        }
-        if (percentOfTimes(30)) {
-            $headers[] = 'x-datadog-origin: some-origin';
-        }
-        foreach ($availableHeaders as $header) {
-            if (percentOfTimes(20)) {
-                $headers[] = $header;
-            }
-        }
-
-        $requests .= sprintf(
-            "%s %s:%d%s\n%s\n\n",
-            $method,
-            $host,
-            $port,
-            $query,
-            implode("\n", $headers)
-        );
-    }
-    return $requests;
-}
-
-/**
- * Returns true $percent of the times, otherwise false.
- */
-function percentOfTimes($percent)
-{
-    return rand(0, 100) <= $percent;
-}
-
 
 generate();
