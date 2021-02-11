@@ -1,8 +1,9 @@
 RESULTS_DIR := ../.results
+DURATION := 30s
 SCENARIO := {{scenario_name}}
 
 run: prepare_results_folders
-	@docker-compose up php-fpm
+	@DURATION=$(DURATION) docker-compose up php-fpm
 	@docker-compose down
 
 prepare_results_folders:

@@ -762,14 +762,8 @@ jobs:
           name: Generate scenarios
           command: make -C tests/randomized generate
       - run:
-          name: Starting composer environment
-          command: make -C tests/randomized up
-      - run:
-          name: Wait for services to be started
-          command: sleep 5
-      - run:
           name: Execute tests
-          command: make -C tests/randomized execute CONCURRENT_JOBS=5 DURATION=1m
+          command: make -C tests/randomized test CONCURRENT_JOBS=5 DURATION=1m
       - run:
           name: Analyze results
           command: make -C tests/randomized analyze

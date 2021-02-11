@@ -140,6 +140,8 @@ Examples:
 
 ```
 make freeze SCENARIO_NAME=randomized-663735226-centos7-5.6 REGRESSION_NAME=GH1001-out-of-sync-span-stack-closed
+
    ... or ...
+
 make freeze SCENARIO_NAME=randomized-1048937434-centos7-7.1 REGRESSION_NAME=APMPHP-517-multiple-integrations-deffered-loading
 ```

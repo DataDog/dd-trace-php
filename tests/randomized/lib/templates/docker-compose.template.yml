@@ -50,6 +50,7 @@ services:
       - ../.results/{{identifier}}/php-fpm:/var/log/php-fpm
       - ../.results/{{identifier}}/apache:/var/log/httpd/
     environment:
+        DURATION: ${DURATION}
         INSTALL_MODE: {{installation_method}}
         TEST_SCENARIO: {{identifier}}
     depends_on:
