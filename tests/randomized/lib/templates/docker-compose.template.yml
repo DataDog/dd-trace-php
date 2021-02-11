@@ -34,7 +34,7 @@ services:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
-  {{identifier}}:
+  php-fpm:
     image: {{image}}
     ulimits:
       core: 99999999999

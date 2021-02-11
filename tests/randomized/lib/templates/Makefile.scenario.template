@@ -2,7 +2,7 @@ RESULTS_DIR := ../.results
 SCENARIO := {{scenario_name}}
 
 run: prepare_results_folders
-	@docker-compose up $(SCENARIO)
+	@docker-compose up php-fpm
 	@docker-compose down
 
 prepare_results_folders:

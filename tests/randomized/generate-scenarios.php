@@ -2,6 +2,7 @@
 
 use RandomizedTests\Tooling\ApacheConfigGenerator;
 use RandomizedTests\Tooling\DockerComposeFileGenerator;
+use RandomizedTests\Tooling\EnvFileGenerator;
 use RandomizedTests\Tooling\MakefileGenerator;
 use RandomizedTests\Tooling\MakefileScenarioGenerator;
 use RandomizedTests\Tooling\PhpFpmConfigGenerator;
@@ -12,6 +13,7 @@ include __DIR__ . '/config/inis.php';
 include __DIR__ . '/config/platforms.php';
 include __DIR__ . '/lib/ApacheConfigGenerator.php';
 include __DIR__ . '/lib/DockerComposeFileGenerator.php';
+include __DIR__ . '/lib/EnvFileGenerator.php';
 include __DIR__ . '/lib/MakefileGenerator.php';
 include __DIR__ . '/lib/MakefileScenarioGenerator.php';
 include __DIR__ . '/lib/PhpFpmConfigGenerator.php';
@@ -113,6 +115,7 @@ function generateOne($scenarioSeed)
     (new PhpFpmConfigGenerator())->generate("$scenarioFolder/www.php-fpm.conf", $envModifications, $iniModifications);
     (new RequestTargetsGenerator())->generate("$scenarioFolder/vegeta-request-targets.txt", 2000);
     (new MakefileScenarioGenerator())->generate("$scenarioFolder/Makefile", $identifier);
+    (new EnvFileGenerator())->generate("$scenarioFolder/.env", $identifier);
     (new DockerComposeFileGenerator())->generate(
         "$scenarioFolder/docker-compose.yml",
         [
