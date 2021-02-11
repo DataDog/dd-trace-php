@@ -34,4 +34,28 @@ services:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
-{{services}}
+  {{identifier}}:
+    image: {{image}}
+    ulimits:
+      core: 99999999999
+    privileged: true
+    volumes:
+      - ./app:/var/www/html
+      - ./www.php-fpm.conf:/etc/php-fpm.d/www.conf
+      - ./www.apache.conf:/etc/httpd/conf.d/www.conf
+      - ./vegeta-request-targets.txt:/vegeta-request-targets.txt
+      - ../.tracer-versions:/tmp/tracer-versions
+      - ../.results/{{identifier}}/:/results/
+      - ../.results/{{identifier}}/nginx:/var/log/nginx
+      - ../.results/{{identifier}}/php-fpm:/var/log/php-fpm
+      - ../.results/{{identifier}}/apache:/var/log/httpd/
+    environment:
+        INSTALL_MODE: {{installation_method}}
+        TEST_SCENARIO: {{identifier}}
+    depends_on:
+      - agent
+      - elasticsearch
+      - redis
+      - memcached
+      - mysql
+      - httpbin

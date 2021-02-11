@@ -80,11 +80,7 @@ scenarios_clean:
 results_folder:
 	@mkdir -p $(TMP_RESULTS_FOLDER)
 
-up:
-	@docker-compose -f $(DOCKER_COMPOSE_FILE) up --remove-orphans -d agent redis httpbin memcached elasticsearch mysql
-	@sleep 10
-
-execute: clean_results up
+test: clean_results
 	@echo "Starting tests with $(CONCURRENT_JOBS) concurrent runs."
 	@make -C $(TMP_SCENARIO_FOLDER) --jobs=$(CONCURRENT_JOBS) test DURATION=$(DURATION)
 

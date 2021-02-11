@@ -41,7 +41,7 @@ Scenarios will be generated in `.tmp.scenarios` folder.
 Execute tests based on the generated scenarios scenarios
 
 ```
-$ make execute
+$ make test
 ```
 
 Analyze the results (that will be generated in `.tmp.scenarios/.results` directory)
@@ -74,13 +74,13 @@ Using seed: 12345
 Running the following command will execute tests
 
 ```
-$ make execute
+$ make test
 ```
 
 By default 5 tests are executed at the same time to avoid resource starving. The number of concurrent jobs can be changed, though.
 
 ```
-$ make execute CONCURRENT_JOBS=10
+$ make test CONCURRENT_JOBS=10
 ```
 
 ### Analyze results

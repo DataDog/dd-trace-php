@@ -21,7 +21,7 @@ class MakefileGenerator
         file_put_contents(
             $destination,
             str_replace(
-                ['{{test_target}}'],
+                ['{{test_targets}}'],
                 [$targetsString],
                 $template
             )
