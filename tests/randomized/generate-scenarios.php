@@ -53,6 +53,20 @@ function generate()
         }
     }
 
+    // Unpacking regressions
+    foreach (scandir(REGRESSIONS_FOLDER) as $fileName) {
+        if (substr($fileName, - strlen('.tar.gz')) !== '.tar.gz') {
+            continue;
+        }
+
+        $nameParts = explode('.tar.gz', $fileName);
+        $regressionIdentifier = $nameParts[0];
+        $testIdentifiers[] = $regressionIdentifier;
+
+        $cmd = sprintf("tar -xzf %s/%s -C %s", REGRESSIONS_FOLDER, $fileName, TMP_SCENARIOS_FOLDER);
+        exec($cmd);
+    }
+
     (new MakefileGenerator())->generate("$scenariosFolder/Makefile", $testIdentifiers);
 }
 

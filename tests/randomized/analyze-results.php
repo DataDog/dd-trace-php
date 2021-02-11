@@ -2,8 +2,9 @@
 
 const MINIMUM_ACCEPTABLE_REQUESTS = 1000;
 
-function analyze($resultsFolder, $dockerComposeFile)
+function analyze($tmpScenariosFolder)
 {
+    $resultsFolder = $tmpScenariosFolder . DIRECTORY_SEPARATOR . '.results';
     $analyzed = [];
     $unexpectedCodes = [];
     $minimumRequestCount = [];
@@ -32,28 +33,6 @@ function analyze($resultsFolder, $dockerComposeFile)
         }
     }
 
-    // Reading expected identifiers from docker-compose file
-    $dockerComposeContent = explode("\n", file_get_contents($dockerComposeFile));
-    $composeRunners = [];
-    foreach ($dockerComposeContent as $line) {
-        $normalizedLine = trim($line, " :\t");
-        if (strncmp($normalizedLine, 'randomized-', strlen('randomized-')) === 0) {
-            $composeRunners[] = $normalizedLine;
-        }
-    }
-
-    sort($analyzed);
-    sort($composeRunners);
-
-    if ($composeRunners != $analyzed) {
-        echo sprintf(
-            "Error: number of docker compose test runners (%d) and results found (%d) mismastch.\n",
-            count($composeRunners),
-            count($analyzed)
-        );
-        exit(1);
-    }
-
     // Reporting errors
     echo "Analyzed " . count($analyzed) . " scenarios.\n";
 
@@ -71,7 +50,31 @@ function analyze($resultsFolder, $dockerComposeFile)
         exit(1);
     }
 
+    // Reading expected identifiers
+    $foundScenarios = [];
+    foreach (scandir($tmpScenariosFolder) as $identifier) {
+        if (
+            substr($identifier, 0, strlen('randomized-')) !== 'randomized-'
+                && substr($identifier, 0, strlen('regression-')) !== 'regression-'
+        ) {
+            continue;
+        }
+        $foundScenarios[] = $identifier;
+    }
+
+    sort($analyzed);
+    sort($foundScenarios);
+
+    if ($foundScenarios != $analyzed) {
+        echo sprintf(
+            "Error: number of scenarios found (%d) and results found (%d) mismastch.\n",
+            count($foundScenarios),
+            count($analyzed)
+        );
+        exit(1);
+    }
+
     echo "Success\n";
 }
 
-analyze(__DIR__ . '/.tmp.scenarios/.results', __DIR__ . '/.tmp.scenarios/docker-compose.yml');
+analyze(__DIR__ . '/.tmp.scenarios');
