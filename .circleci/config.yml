@@ -506,12 +506,12 @@ jobs:
             export REPORT_EXIT_STATUS=1
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
             mkdir -p /tmp/artifacts/tests
-            TEST_FILES=$(circleci tests glob **/*.phpt | circleci tests split)
+            TEST_DIRECTORIES=$(find . -type d -name "tests" | sort | circleci tests split)
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
               -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php \
-              $TEST_FILES
+              $TEST_DIRECTORIES
       - run:
           command: |
             cd /usr/local/src/php
