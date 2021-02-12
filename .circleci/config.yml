@@ -468,6 +468,7 @@ jobs:
           path: /tmp/artifacts
 
   php_language_tests:
+    parallelism: 10
     parameters:
       docker_image:
         type: string
@@ -505,10 +506,12 @@ jobs:
             export REPORT_EXIT_STATUS=1
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
             mkdir -p /tmp/artifacts/tests
+            TEST_FILES=$(circleci tests glob **/*.phpt | circleci tests split)
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php
+              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php \
+              $TEST_FILES
       - run:
           command: |
             cd /usr/local/src/php
