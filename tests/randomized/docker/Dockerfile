@@ -19,11 +19,14 @@ RUN \
             php-pdo_mysql \
             php-pear \
             php-pecl-redis \
-            mod_php
+            mod_php \
+    && yum clean all \
+    && rm -rf /var/cache/yum
 
 # Installing vegeta
-ADD https://github.com/tsenart/vegeta/releases/download/v12.8.4/vegeta_12.8.4_linux_amd64.tar.gz /tmp/vegeta.tar.gz
-RUN tar -C /usr/bin -zxvf /tmp/vegeta.tar.gz vegeta
+RUN curl -L -o /tmp/vegeta.tar.gz https://github.com/tsenart/vegeta/releases/download/v12.8.4/vegeta_12.8.4_linux_amd64.tar.gz \
+    && tar -C /usr/bin -zxvf /tmp/vegeta.tar.gz vegeta \
+    && rm /tmp/vegeta.tar.gz
 
 # Installing composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
