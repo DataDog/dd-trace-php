@@ -506,8 +506,8 @@ jobs:
             export REPORT_EXIT_STATUS=1
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
             mkdir -p /tmp/artifacts/tests
-            TEST_DIRECTORIES=$(find . -type d -name "tests" | sort | circleci tests split)
-            echo "Testing directories: $(TEST_DIRECTORIES)"
+            export TEST_DIRECTORIES=$(find . -type d -name "tests" | sort | circleci tests split)
+            echo "Testing directories: ${TEST_DIRECTORIES}"
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
