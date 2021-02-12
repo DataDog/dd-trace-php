@@ -619,6 +619,76 @@ jobs:
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PERSIST_TO_WORKSPACE
 
+  integration_tests_split:
+    working_directory: ~/datadog
+    parallelism: << parameters.parallelism >>
+    parameters:
+      parallelism:
+        type: integer
+        default: 1
+      docker_image:
+        type: string
+      targets_file:
+        type: string
+      lib_curl_command:
+        type: string
+        default: none
+      integration_testsuite:
+        type: string
+        default: none
+      switch_php_version:
+        type: string
+        default: none
+      resource_class:
+        type: string
+        default: medium
+      sapi:
+        type: string
+        default: cli-server
+      disable_runner_distributed_tracing:
+        type: boolean
+        default: false
+    resource_class: << parameters.resource_class >>
+    executor:
+      name: with_integrations
+      docker_image: << parameters.docker_image >>
+    environment:
+      COMPOSER_PROCESS_TIMEOUT: 0
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - install_extension:
+          lib_curl_command: << parameters.lib_curl_command >>
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - run:
+          name: Run test
+          command: |
+              cat << parameters.targets_file >> | circleci tests split >/tmp/jobs.txt
+              echo "Jobs assigned to this node:"
+              cat /tmp/jobs.txt
+              for job in $(cat /tmp/jobs.txt) ; do
+                  echo "Running ${job}"
+                  make "${job}"
+              done
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts
+            find ~/datadog/tests -type f -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -exec cp --parents '{}' /tmp/artifacts \;
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts/
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+
   internal_integrations:
     parameters:
       docker_image:
@@ -640,6 +710,7 @@ jobs:
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
           php_version: << parameters.switch_php_version >>
+
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
@@ -663,6 +734,8 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
+
+
 
   framework_tests:
     working_directory: ~/datadog
@@ -1460,41 +1533,46 @@ workflows:
           requires: [ "Build PECL" ]
           name: "PHP 80 PECL tests"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
-      - integration_tests:
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
-      - integration_tests:
+          targets_file: .circleci/php-5.4_web.txt
+          parallelism: 5
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
+          targets_file: .circleci/php-7.2_web.txt
+          parallelism: 5
           docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
-      - integration_tests:
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
-      - integration_tests:
+          targets_file: .circleci/php-7.3_web.txt
+          parallelism: 5
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
-      - integration_tests:
+          targets_file: .circleci/php-7.4_web.txt
+          parallelism: 5
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
-          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          targets_file: .circleci/php-8.0_web.txt
+          parallelism: 5
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 55 custom autoloaded web tests with nginx + PHP-FPM"
@@ -1862,62 +1940,65 @@ workflows:
           integration_testsuite: "test_integrations_phpredis5"
           docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
           switch_php_version: '8.0'
-      - integration_tests:
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 Web integration tests"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          integration_testsuite: "test_web"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
+          targets_file: .circleci/php-5.4_web.txt
+          parallelism: 5
       - "Composer Tests 55":
           requires: [ 'Prepare Code' ]
-      - integration_tests:
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 56 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test_web"
           # docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
           docker_image: "datadog/docker-library:ddtrace_php_5_6"
           lib_curl_command: sudo apt update ; sudo apt-get -y install libcurl4-nss-dev
-      - integration_tests:
+          targets_file: .circleci/php-5.6_web.txt
+          parallelism: 5
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 70 Web integration tests"
-          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.0"
-      - integration_tests:
+          targets_file: .circleci/php-7.0_web.txt
+          parallelism: 5
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 71 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.1"
-      - integration_tests:
+          targets_file: .circleci/php-7.1_web.txt
+          parallelism: 5
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.2"
-      - integration_tests:
+          targets_file: .circleci/php-7.2_web.txt
+          parallelism: 5
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.3"
-      - integration_tests:
+          targets_file: .circleci/php-7.3_web.txt
+          parallelism: 5
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-dev-7.4"
-      - integration_tests:
+          targets_file: .circleci/php-7.4_web.txt
+          parallelism: 5
+      - integration_tests_split:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 Web integration tests"
           resource_class: medium+
-          integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
-      - internal_integrations:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 curl integration tests a shared lib"
-          ext_name: "curl"
-          docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
+          targets_file: .circleci/php-8.0_web.txt
+          parallelism: 5
       - integration_tests:
           requires: [ 'Prepare Code' ]
           resource_class: medium+
@@ -1936,6 +2017,11 @@ workflows:
                 - "datadog/dd-trace-ci:php-7.3-debug-buster"
                 - "datadog/dd-trace-ci:php-7.4-debug-buster"
                 - "datadog/dd-trace-ci:php-8.0_buster"
+      - internal_integrations:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 80 curl integration tests a shared lib"
+          ext_name: "curl"
+          docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
       - "Lint files":
           requires: [ 'Prepare Code' ]
       - "Static Analysis":
