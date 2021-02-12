@@ -34,6 +34,9 @@ RUN mkdir -p /tmp/corefiles
 RUN chmod -R a+w /tmp/corefiles
 ADD enable-coredump.sh /scripts/enable-coredump.sh
 
+# Preparing PHP
+RUN echo "date.timezone = UTC" > "/etc/php.d/00-adjust-timezones.ini"
+
 # Preparing PHP-FPM
 RUN mkdir -p /run/php-fpm
 RUN sed -i 's/^listen = .*$/listen = 9000/g' /etc/php-fpm.d/www.conf
