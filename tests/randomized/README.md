@@ -95,6 +95,31 @@ Currently the following checks are executed:
 - the returned status code can only be on of 200 (OK), 510 (controlled uncaught exception), 511 (controlled php error). Any other return code will result in a failing analysis.
 - At least 1000 requests have been executed. If we find that vegeta has performed less than 1000 request, then the  test fails as we might have put the system not under enough pressure and combination of execution paths to find meaningful problems. In this case the error will be reported with a message `Minimum request not matched` and, unless there are not requests at all, it typically means that your hardward is not power enough to run a large amount of concurrent tests. You can either reduce concurrency via `make execute CONCURRENT_JOBS=3` or run specific tests via `make -C .tmp.scenarios test.scenario.<scenario_name>`.
 
+### Launch a local environment with a specific scenario activated
+
+The folder where scenarios are generated provides a `docker-compose.yml` file and a `Makefile` file that can be used to launch tests environments singularly.
+
+For example, execute the following steps to launch a shell in a specific scenario named `randomized-661543622-centos7-7.4`.
+
+```
+$ make -C .tmp.scenarios shell.scenario.randomized-661543622-centos7-7.4
+```
+
+Inside the container you can optionally start the web servers and install the tracer automatically using the script provided in `/scripts/prepare.sh`.
+
+```
+> bash /scripts/prepare.sh
+```
+
+Once the bootstrap phase is completed, a nginx server will be listening on port 80, while an apache server will be listening on port 81. From within the container you can now run:
+
+```
+> curl -v localhost:80                # nginx
+> curl -v localhost:81                # apache
+> curl -v localhost:80?seed=123456    # optionally, provide a seed to exactly recreate the same execution path on multiple requests.
+```
+
+
 ## Debugging a segmentation fault
 
 At the beginning of every request a message is printed to correlate a PID and a seed. E.g. `Current PID: 70. Current seed 754539563`.
