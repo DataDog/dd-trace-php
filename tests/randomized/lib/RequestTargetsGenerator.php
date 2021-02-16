@@ -30,9 +30,8 @@ class RequestTargetsGenerator
             $port = [/* nginx */80, /* apache*/ 81][rand(0, 1)];
             $host = 'http://localhost';
             // Query String
-            $query = '';
+            $query = '?seed=' . \rand() . '&';
             if (Utils::percentOfTimes(50)) {
-                $query .= '?';
                 // We are adding a query string
                 foreach ($availableQueries as $key => $value) {
                     if (Utils::percentOfTimes(70)) {
