@@ -3,9 +3,9 @@
 #include "dictionary.h"
 
 // Globals
-
-// random pointer...  TODO this needs a whole strategy for deserialization
-void *dictionary_dflt_na = (void *)&(uint64_t){0};
+void *dictionary_dflt_na =
+    (void *)&(uint64_t){0}; // random pointer...  TODO this needs a whole
+                            // strategy for deserialization
 
 // TODO
 // * this and string_table should have parameter-by-parameter defaulting.  We
@@ -100,7 +100,8 @@ char _dictionary_values_resize(Dictionary *dict) {
   return 0;
 }
 
-/* The next time I write this, I'm going to replace the void* with a fat
+/*
+ *  The next time I write this, I'm going to replace the void* with a fat
  * pointer in order to properly represent length.  That way, I can avoid heap
  * allocations when the user is just adding any kind of 64-bit type.
  */
@@ -122,13 +123,17 @@ static char _dictionary_insert(Dictionary *dict, ssize_t idx, void *val,
   // Intern or reference the value, clearing the old one if semantically valid
   if (dict->copy_vals) {
     if (dict->values[idx] && dict->values[idx] != DICT_NA) {
-      free(dict->values[idx]);
+      free((dict->values[idx]) - 4);
       dict->values[idx] = NULL;
     }
 
     if (val != DICT_NA) {
-      dict->values[idx] = calloc(1, sz_val);
+      dict->values[idx] = calloc(1, sz_val + sizeof(uint32_t));
+      uint32_t sz_write = sz_val;
+      memcpy(dict->values[idx], &sz_write, sizeof(uint32_t));
+      dict->values[idx] += sizeof(uint32_t);
       memcpy(dict->values[idx], val, sz_val);
+
     } else {
       dict->values[idx] = DICT_NA;
     }
