@@ -1,0 +1,14 @@
+RESULTS_DIR := ./.results
+DURATION := 30s
+
+test.scenario.%: results.scenario.%
+	@docker-compose run -e DURATION=$(DURATION) $(*)
+
+results.scenario.%:
+	@mkdir -p $(RESULTS_DIR)/$(*)
+	@chmod -R a+w $(RESULTS_DIR)/$(*)
+
+shell.scenario.%:
+	@docker-compose run --rm $(*) bash
+
+test: {{test_target}}

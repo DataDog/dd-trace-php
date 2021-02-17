@@ -265,7 +265,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!dockerfiles/**/*' '!tests/ext/sandbox/**' '!tests/ext/sandbox-prehook/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!ext/vendor/**/*' '!ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.*.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!LICENSE.*' '!tooling/*' || touch .failure
+          command: node_modules/.bin/eclint check '**/*' '!dockerfiles/**/*' '!tests/ext/sandbox/**' '!tests/ext/sandbox-prehook/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!ext/vendor/**/*' '!ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.*.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!LICENSE.*' '!tooling/*' '!tests/randomized/**' || touch .failure
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
@@ -694,7 +694,6 @@ jobs:
           name: Validate centos package
           command: << parameters.configuration >> ./dockerfiles/verify_packages/verify.sh
 
-
   verify_centos_6:
     working_directory: ~/datadog
     machine:
@@ -735,6 +734,47 @@ jobs:
       - run:
           name: Validate debian package
           command: << parameters.configuration >> bash ./dockerfiles/verify_packages/verify.sh
+
+  randomized_tests:
+    working_directory: ~/datadog
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: xlarge
+    parameters:
+      batch:
+        # Batch is only used to run a number of this jobs in parallel via a testing matrix.
+        type: integer
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Install required packages
+          command: sudo apt update && sudo apt install -y php git
+      - run:
+          name: "Increase virtual memory limit for elasticsearch"
+          command: sudo sysctl -w vm.max_map_count=262144
+      - run:
+          name: Copy tracer package
+          command: make -C tests/randomized tracer.local
+      - run:
+          name: Pull docker images
+          command: make -C tests/randomized pull
+      - run:
+          name: Generate scenarios
+          command: make -C tests/randomized generate
+      - run:
+          name: Starting composer environment
+          command: make -C tests/randomized up
+      - run:
+          name: Wait for services to be started
+          command: sleep 5
+      - run:
+          name: Execute tests
+          command: make -C tests/randomized execute CONCURRENT_JOBS=5 DURATION=1m
+      - run:
+          name: Analyze results
+          command: make -C tests/randomized analyze
+      - store_artifacts:
+          path: 'tests/randomized/.tmp.scenarios/.results'
 
   pecl_build:
     working_directory: ~/datadog
@@ -1122,6 +1162,12 @@ workflows:
             - "Compile PHP 74 nts + zts + debug"
             - "Compile PHP 80 nts + zts + debug"
             - "Build PECL"
+      - randomized_tests:
+          requires: [ 'package extension' ]
+          matrix:
+            parameters:
+              batch: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ]
+
       - placeholder:
           requires: [ 'package extension' ]
           name: Framework tests
