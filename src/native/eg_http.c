@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "dd_send.h"
 
 int main() {
@@ -36,10 +38,6 @@ int main() {
   DDR_push(req, "name=\"format\"", NULL, (unsigned char *)"pprof",
            strlen("pprof"));
 
-  // The flow of the calling application may require the DDReq to become
-  // invalid.  In that case, you dan discard the buffer and start over.
-  DDR_clearbody(req);
-
   // You can also send a DPRof object and DDReq will add it in a standard way.
   // You can add multiple pprofs and it'll enumerate them in a way that is
   // accepted by the backend (at the time of writing)
@@ -75,11 +73,6 @@ int main() {
     printf("The result was %s\n", DDR_code2str(ret)); // You can also convert an
                                                       // rc into a string
   }
-
-  // At a future point in time, DDReq will offer some kind of retry strategy,
-  // but for now it's up to the application to structure a valid approach.
-  // As such, `DDR_send()` does not clear its buffers until you tell it to.
-  DDR_clear(req);
 
   // Even though a DDReq does JIT initialization, you may still want to return
   // its internal buffers to the OS.  The caller is responsible for doing the

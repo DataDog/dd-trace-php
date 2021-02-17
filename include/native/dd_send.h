@@ -31,8 +31,7 @@ typedef enum DDRCode {
   DDRC_VAL_LEN,
 } DDRCode;
 
-// Convert an enum to a human-readable message
-const char *DDRC_table[] = {DDRC_PARAMS(DDRCP_ELOOK) "Invalid code"};
+extern const char *DDRC_table[];
 
 /**********************************  DDReq  ***********************************/
 #define DDRP_SRCT(a, b, c, d, e, f) char *b;
@@ -72,12 +71,6 @@ typedef enum DDRVals {
   DDR_PARAMS(DDRP_ENUM) DDR_VAL_LEN,
 } DDRVals;
 
-char *DDR_keys[] = {DDR_PARAMS(DDRP_KEYS)};        // Label/header/names
-char DDR_types[] = {DDR_PARAMS(DDRP_TYPE)};        // Column C
-bool DDR_reqd[] = {DDR_PARAMS(DDRP_REQD)};         // Column E
-unsigned int DDR_idx[] = {DDR_PARAMS(DDRP_ENUM)};  // enum, in order
-char *DDR_defaults[] = {DDR_PARAMS(DDRP_DFLT)};    // Column F
-
 #define DDR_BLEN 65
 typedef struct DDReq {
   struct HttpConn conn;
@@ -102,10 +95,22 @@ typedef struct DDReq {
 } DDReq;
 // clang-format on
 
+/********************************  Constants  *********************************/
+extern const char *DDR_keys[];
+extern const char DDR_types[];
+extern const char *DDR_defaults[];
+extern const unsigned int DDR_idx[];
+extern const bool DDR_reqd[];
+
 DDReq *DDR_init(DDReq *);
 void DDR_free(DDReq *);
-int DDR_push(DDReq *, const char *, const char *, const unsigned char *, size_t);
-int DDR_clearbody(DDReq *);
+int DDR_push(DDReq *, const char *, const char *, const unsigned char *,
+             size_t);
 int DDR_pprof(DDReq *, DProf *);
+int DDR_finalize(DDReq *req);
+int DDR_send(DDReq *);
+int DDR_watch(DDReq *, int);
+int DDR_clear(DDReq *);
+const char *DDR_code2str(int);
 
 #endif

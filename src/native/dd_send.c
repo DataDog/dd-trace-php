@@ -1,6 +1,17 @@
+#include <stdio.h>
+
 #include "dd_send.h"
 
-inline static char *DDR_code2str(int c) {
+/********************************  Constants  *********************************/
+const char *DDRC_table[] = {DDRC_PARAMS(DDRCP_ELOOK) "Invalid code"};
+const char *DDR_keys[] = {DDR_PARAMS(DDRP_KEYS)};
+const char DDR_types[] = {DDR_PARAMS(DDRP_TYPE)};
+const unsigned int DDR_idx[] = {DDR_PARAMS(DDRP_ENUM)};
+const bool DDR_reqd[] = {DDR_PARAMS(DDRP_REQD)};
+const char *DDR_defaults[] = {DDR_PARAMS(DDRP_DFLT)};
+
+/********************************  Functions  *********************************/
+const char *DDR_code2str(int c) {
   if (c < 0 || c > DDRC_VAL_LEN)
     c = DDRC_VAL_LEN;
   return DDRC_table[c];
@@ -148,7 +159,7 @@ int DDR_finalize(DDReq *req) {
     // If we got a value, great!  If not, check for a default.  If there's
     // no value and no default, skip this entry.
     if (!val && DDR_defaults[j])
-      val = DDR_defaults[j];
+      val = (char *)DDR_defaults[j];
     else if (!val && !DDR_defaults[j] && DDR_reqd[i])
       return DDRC_EINVAL;
     else if (!val && !DDR_defaults[j])
