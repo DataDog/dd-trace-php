@@ -17,6 +17,19 @@ const char *DDR_code2str(int c) {
   return DDRC_table[c];
 }
 
+inline static bool apikey_isvalid(char *key) {
+  size_t n = 0;
+  if (!key)
+    return false;
+  if (32 != ((n = strlen(key))))
+    return false;
+
+  for (size_t i = 0; i < n; i++)
+    if (!islower(key[i]) && !isdigit(key[i]))
+      return false;
+  return true;
+}
+
 char *HTTP_RandomNameMake(char *s, int n) {
   static char tokens[] = "0123456789abcdef";
   s[n] = 0;
@@ -142,14 +155,16 @@ int DDR_finalize(DDReq *req) {
   unsigned char *tagval_str = NULL;
   size_t sz = 0;
 
+  // Preflight check--if the user supplied an apikey, check for validity
+  if (req->apikey && !apikey_isvalid(req->apikey))
+    return DDRC_EBADKEY;
+
   // Validate info for connection
   if (!req->host || !req->port)
     return DDRC_EINVAL;
   as_sprintf(req->as_header, "POST http://%s%s HTTP/1.1\r\n", req->host,
              "/v1/input");
   as_sprintf(req->as_header, "Host: %s:%s\r\n", req->host, req->port);
-
-  // Populate the boundary
 
   // Populate header and body elements
   for (int i = 0; i < DDR_VAL_LEN; i++) {

@@ -11,6 +11,7 @@
 // clang-format off
 #define DDRC_PARAMS(X)                                                         \
   X(ESUCCESS,          "successful")                                           \
+  X(EBADKEY,           "supplied API key is structurally invalid")             \
   X(EFAILED,           "operation failed")                                     \
   X(ECONN,             "failed to connect")                                    \
   X(EDISCO,            "disconnected during operation")                        \
