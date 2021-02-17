@@ -47,7 +47,8 @@ RUN sed -i 's/^listen = .*$/listen = 9000/g' /etc/php-fpm.d/www.conf
 # Preparing NGINX
 RUN groupadd www-data
 RUN adduser -M --system -g www-data www-data
-ADD nginx.conf /etc/nginx/conf.d/default.conf
+ADD nginx.conf /etc/nginx/nginx.conf
+ADD nginx.site.conf /etc/nginx/conf.d/default.conf
 
 # Preparing HTTPD
 RUN sed -i 's/Listen 80/Listen 81/' /etc/httpd/conf/httpd.conf
