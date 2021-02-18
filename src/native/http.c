@@ -133,8 +133,9 @@ ssize_t HttpResProcess(HttpRes *res) {
   uint64_t ret_uint = 0;
   p = res->as->str;
 
-  // Extract the Status-Line
-  if (!(p = strstr(p, "\r\n")))
+  // Extract the Status-Line.  First, check to make sure that we actually have
+  // a valid line!
+  if (!(strstr(p, "\r\n")))
     return -1; // Incomplete
 
   // TODO don't skip HTTP version
@@ -158,7 +159,7 @@ ssize_t HttpResProcess(HttpRes *res) {
     if (!(q = strstr(p, "\r\n")))
       return -1;
     q += 2;                             // q points to next line
-    if (q[2] == '\r' && q[3] == '\n') { // Done with header
+    if (q[0] == '\r' && q[1] == '\n') { // Done with header
       p = q + 4;
       break;
     }
@@ -175,6 +176,7 @@ ssize_t HttpResProcess(HttpRes *res) {
         break;
       }
     }
+    p = q;
   }
 
   // If we're here, we're processing the body of the message.
@@ -191,15 +193,18 @@ ssize_t HttpResRecv(HttpRes *res) {
   while (true) {
     if (-1 ==
         (n = recv(res->conn->fd, &A->str[A->n], A->sz - A->n, MSG_DONTWAIT))) {
-      if (errno == EINTR || errno == EWOULDBLOCK) {
+      if (errno == EWOULDBLOCK) {
+        // -1 return with ewouldblock means there's no data to read
+        return 0;
+      } else if (errno == EINTR) {
         continue;
       } else {
         return -1;
       }
     }
     A->n += n;
-    if (n > 0)
-      continue;
+    if (n == 0)
+      break;
   }
   return n;
 }
@@ -222,8 +227,14 @@ int HttpResRecvTimedwait(HttpRes *res, int timeout) {
     switch (poll(&fds, 1, timeout)) {
     case 1: // Something is up with the FD we submitted
       if ((ret = HttpResRecv(res)))
-        return ret;
-      return HttpResProcess(res);
+        if (-1 == ret)
+          return HTTP_ERES;
+      int ret = HttpResProcess(res);
+      if (-1 == ret)
+        return HTTP_EPARSE;
+      if (res->code < 200 || res->code >= 300)
+        return HTTP_ENOT200;
+      return HTTP_ESUCCESS;
     case 0: // timed out
       return HTTP_ETIMEOUT;
     default: // An error happened

@@ -33,6 +33,8 @@ typedef enum HTTP_RET {
   HTTP_ECONN,
   HTTP_EADDR,
   HTTP_ESOCK,
+  HTTP_ERES,
+  HTTP_EPARSE,
   HTTP_EALREADYCONNECTED, // Tried to connect, but already connected.
   HTTP_EPARADOX,          // Special error
 } HTTP_RET;

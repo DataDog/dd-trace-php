@@ -14,11 +14,13 @@
   X(EBADKEY,           "supplied API key is structurally invalid")             \
   X(EFAILED,           "operation failed")                                     \
   X(ECONN,             "failed to connect")                                    \
+  X(ERES,              "failed to receive response")                           \
   X(EDISCO,            "disconnected during operation")                        \
   X(EINVAL,            "invalid input value")                                  \
   X(ETOOMANYPPROFS,    "too many pprofs (max 10)")                             \
   X(ESERIAL,           "couldn't serialize payload")                           \
   X(ENOT200,           "HTTP did not return 200 code")                         \
+  X(EPARSE,            "could not parse server response headers")              \
   X(ETIMEOUT,          "call timed out")                                       \
   X(ENOREQ,            "invalid wait, no response pending")                    \
   X(EADDR,             "invalid host or port")                                 \
@@ -46,28 +48,32 @@ extern const char *DDRC_table[];
 // A - enum name
 // B - key name, also string representation
 // C - Type
-//     0 - HTTP header
-//     1 - Multipart upload form value
-//     2 - Tag-encoded multipart upload value
+//     0 - Ignored
+//     1 - HTTP header
+//     2 - Multipart upload form value
+//     3 - Tag-encoded multipart upload value
 // D - Encoded keyname
 // E - Is this value required?
 // F - Default (NB, some keys provide their own defaults)
+// Commented out the below:
+// Accept-Encoding is a header
+// runtime-os is a tag[]
 //  A                B                 C  D                   E  F
 #define DDR_PARAMS(X)                                                          \
-  X(USERAGENT,       user_agent,       0, "User-Agent",       0, "ddprof")     \
-  X(ACCEPT,          accept,           0, "Accept",           0, "*/*")        \
-  X(APIKEY,          apikey,           0, "DD-API-KEY",       0, NULL)         \
-  X(ACCEPTENCODING,  accept_encoding,  0, "Accept-Encoding",  0, NULL)         \
-  X(RECORDINGSTART,  recording_start,  1, "recording-start",  0, NULL)         \
-  X(RECORDINGEND,    recording_end,    1, "recording-end",    0, NULL)         \
-  X(HOSTTAG,         host_tag,         2, "machine_host",     0, NULL)         \
-  X(SERVICE,         service,          2, "service",          0, "myservice")  \
-  X(SITE,            site,             2, "site",             0, NULL)         \
-  X(LANGUAGE,        language,         2, "language",         1, "ILLEGAL")    \
+  X(USERAGENT,       user_agent,       1, "User-Agent",       0, "ddprof")     \
+  X(ACCEPT,          accept,           1, "Accept",           0, "*/*")        \
+  X(APIKEY,          apikey,           1, "DD-API-KEY",       0, NULL)         \
+  X(ACCEPTENCODING,  accept_encoding,  0, "Accept-Encoding",  0, "gzip")       \
+  X(RECORDINGSTART,  recording_start,  2, "recording-start",  0, NULL)         \
+  X(RECORDINGEND,    recording_end,    2, "recording-end",    0, NULL)         \
+  X(HOSTTAG,         host_tag,         3, "host",             1, "localhost")  \
+  X(SERVICE,         service,          3, "service",          0, "myservice")  \
+  X(SITE,            site,             3, "site",             0, NULL)         \
+  X(LANGUAGE,        language,         3, "language",         1, "ILLEGAL")    \
   X(RUNTIME,         runtime,          2, "runtime",          1, "ILLEGAL")    \
-  X(ENVIRONMENT,     environment,      2, "environment",      0, "prod-test")  \
-  X(PROFILERVERSION, profiler_version, 2, "profiler-version", 0, NULL)         \
-  X(RUNTIMEOS,       runtime_os,       2, "runtime-os",       0, NULL)
+  X(ENVIRONMENT,     environment,      3, "environment",      0, "prod-test")  \
+  X(PROFILERVERSION, profiler_version, 3, "profiler-version", 0, NULL)         \
+  X(RUNTIMEOS,       runtime_os,       0, "runtime-os",       0, NULL)
 // clang-format on
 
 typedef enum DDRVals {
@@ -110,6 +116,7 @@ void DDR_free(DDReq *);
 int DDR_push(DDReq *, const char *, const char *, const unsigned char *,
              size_t);
 int DDR_pprof(DDReq *, DProf *);
+void DDR_setTimeNano(DDReq *, int64_t, int64_t);
 int DDR_finalize(DDReq *req);
 int DDR_send(DDReq *);
 int DDR_watch(DDReq *, int);

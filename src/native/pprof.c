@@ -478,6 +478,22 @@ char pprof_sampleFree(PPSample **sample, size_t sz) {
   return 0;
 }
 
+static inline void _pprof_durationSet(DProf *dp, int64_t duration_nanos) {
+  dp->pprof.duration_nanos = duration_nanos;
+}
+
+static inline void _pprof_timeSet(DProf *dp, int64_t time_nanos) {
+  dp->pprof.time_nanos = time_nanos;
+}
+
+void pprof_durationSet(DProf *dp, int64_t duration_nanos) {
+  _pprof_durationSet(dp, duration_nanos);
+}
+
+void pprof_timeSet(DProf *dp, int64_t time_nanos) {
+  _pprof_timeSet(dp, time_nanos);
+}
+
 void pprof_timeUpdate(DProf *dp) {
   if (!dp)
     return;
@@ -491,8 +507,9 @@ void pprof_durationUpdate(DProf *dp) {
     return;
   struct timeval tv = {0};
   gettimeofday(&tv, NULL);
-  pprof_durationSet(
-      dp, (tv.tv_sec * 1000 * 1000 + tv.tv_usec) * 1000 - dp->pprof.time_nanos);
+  int64_t duration = (tv.tv_sec * 1000 * 1000 + tv.tv_usec) * 1000 -
+      dp->pprof.time_nanos + dp->pprof.duration_nanos;
+  _pprof_durationSet(dp, duration);
 }
 
 DProf *pprof_Init(DProf *dp, const char **sample_names,
@@ -796,7 +813,7 @@ size_t pprof_zip(DProf *dp, unsigned char *ret, const size_t sz_packed) {
   return zs.total_out;
 }
 
-unsigned char *pprof_flush(DProf *dp, size_t *sz) {
+void pprof_finalize(DProf *dp) {
   // Update the string table parameters and anything else that isn't auto-
   // matically up-to-spec with pprof
   dp->pprof.string_table = dp->string_table(dp->string_table_data);
@@ -804,6 +821,11 @@ unsigned char *pprof_flush(DProf *dp, size_t *sz) {
 
   // Update pprof timing details
   pprof_durationUpdate(dp);
+}
+
+unsigned char *pprof_flush(DProf *dp, size_t *sz) {
+  // Finalize
+  pprof_finalize(dp);
 
   // Serialize and zip pprof
   unsigned char *buf;

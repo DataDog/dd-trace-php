@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 
 #include "dd_send.h"
 
@@ -48,6 +49,7 @@ DDReq *DDR_init(DDReq *req) {
 
   req->as_header = as_init(NULL);
   req->as_body = as_init(NULL);
+  req->res.as = as_init(NULL);
   req->req.conn = &req->conn;
   req->res.conn = &req->conn;
 
@@ -94,8 +96,7 @@ int DDR_pprof(DDReq *req, DProf *dp) {
   uint64_t i = 0;
   uint64_t sz;
 
-  // Get the length of the overall value, for instance.
-  // "samples,cpu"
+  // Get the length of the overall value, for instance, "samples,cpu"
   for (i = 0; i < dp->pprof.n_sample_type; i++) {
     idx = dp->pprof.sample_type[i]->type;
     (void)pprof_getstr(dp, idx, &sz); // Assume this is a cstr
@@ -103,7 +104,7 @@ int DDR_pprof(DDReq *req, DProf *dp) {
   }
 
   // Create the string holding the types
-  char *types_str = malloc(sz_vt + 1);
+  char *types_str = calloc(1, sz_vt + 1);
   for (i = 0; i + 1 < dp->pprof.n_sample_type; i++) {
     idx = dp->pprof.sample_type[i]->type;
     strcat(types_str, (char *)pprof_getstr(dp, idx, NULL));
@@ -141,11 +142,34 @@ int DDR_pprof(DDReq *req, DProf *dp) {
   ret = DDR_push(req, value_type, NULL, (unsigned char *)types_str,
                  strlen(types_str));
 
+  // Emit exactly one format section
+  if (0 == req->pprof_count)
+    DDR_push(req, "name=\"format\"", NULL, (const unsigned char *)"format",
+             strlen("format"));
+
   // Cleanup
   req->pprof_count++;
   free(pprof_str);
   free(types_str);
   return ret;
+}
+
+void DDR_setTimeNano(DDReq *req, int64_t ti, int64_t tf) {
+  ti /= 1000000000; // time_t is in seconds
+  tf /= 1000000000;
+  char time_start[128] = {0};
+  char time_end[128] = {0};
+
+  struct tm *tm_start = localtime(&ti);
+  struct tm *tm_end = localtime(&tf);
+
+  strftime(time_start, 128, "%Y-%m-%dT%H:%M:%SZ", tm_start);
+  strftime(time_end, 128, "%Y-%m-%dT%H:%M:%SZ", tm_end);
+
+  DDR_push(req, "name=\"recording-start\"", NULL,
+           (const unsigned char *)time_start, strlen(time_start));
+  DDR_push(req, "name=\"recording-end\"", NULL, (const unsigned char *)time_end,
+           strlen(time_end));
 }
 
 int DDR_finalize(DDReq *req) {
@@ -162,8 +186,9 @@ int DDR_finalize(DDReq *req) {
   // Validate info for connection
   if (!req->host || !req->port)
     return DDRC_EINVAL;
-  as_sprintf(req->as_header, "POST http://%s%s HTTP/1.1\r\n", req->host,
-             "/v1/input");
+  //  as_sprintf(req->as_header, "POST http://%s%s HTTP/1.1\r\n", req->host,
+  //             "/v1/input");
+  as_sprintf(req->as_header, "POST %s HTTP/1.1\r\n", "/v1/input");
   as_sprintf(req->as_header, "Host: %s:%s\r\n", req->host, req->port);
 
   // Populate header and body elements
@@ -180,10 +205,12 @@ int DDR_finalize(DDReq *req) {
     else if (!val && !DDR_defaults[j])
       continue;
     switch (DDR_types[j]) {
-    case 0: // This goes into the HTTP header
-      as_sprintf(req->as_header, "%s: %s\r\n", DDR_keys[j], val);
+    case 0: // Skipit
       break;
-    case 1: // This goes in as a multipart segment
+    case 1: // This goes into the HTTP header
+      as_sprintf(req->as_header, "%s:%s\r\n", DDR_keys[j], val);
+      break;
+    case 2: // This goes in as a multipart segment
       // TODO lots of ways to do this that avoid the alloc.  We could
       //      have a lookup table or a single large region or...
       sz = 1 + snprintf(NULL, 0, fmt_name, DDR_keys[j]);
@@ -192,7 +219,7 @@ int DDR_finalize(DDReq *req) {
       DDR_push(req, name_str, NULL, (unsigned char *)val, strlen(val));
       free(name_str);
       break;
-    case 2: // Similar to 1, but different
+    case 3: // Similar to 1, but different
       sz = 1 + snprintf(NULL, 0, fmt_tagval, DDR_keys[j], val);
       tagval_str = malloc(sz);
       snprintf((char *)tagval_str, sz, fmt_tagval, DDR_keys[j], val);
@@ -217,19 +244,23 @@ int DDR_finalize(DDReq *req) {
 #define caseH2D(x)                                                             \
   case (HTTP_##x):                                                             \
     return DDRC_##x
+
 // technically this could be done programmatically, but whatever
 inline static int DDR_http2ddr(int http) {
   switch (http) {
     caseH2D(ESUCCESS);
     caseH2D(ENOT200);
+    caseH2D(EPARSE);
     caseH2D(ETIMEOUT);
     caseH2D(ENOREQ);
     caseH2D(ECONN);
     caseH2D(EADDR);
     caseH2D(ESOCK);
+    caseH2D(ERES);
     caseH2D(EALREADYCONNECTED);
     caseH2D(EPARADOX);
   }
+  printf("HTTP thingy failed (%d)\n", http);
   return DDRC_EFAILED;
 }
 
@@ -237,7 +268,7 @@ int DDR_send(DDReq *req) {
   int ret;
 
   // Our last remaining thing to do is compute the content-length.
-  as_sprintf(req->as_header, "Content-Length: %ld\r\n\r\n", req->as_body->n);
+  as_sprintf(req->as_header, "Content-Length:%ld\r\n\r\n", req->as_body->n);
 
   // JIT population, as HttpSend() will perform a connect under-the-hood
   req->req.host = (unsigned char *)req->host;
@@ -256,7 +287,10 @@ int DDR_watch(DDReq *req, int timeout) {
 
 int DDR_clear(DDReq *req) {
   req->pprof_count = 0;
-  if (as_clear(req->as_body) || as_clear(req->as_header))
+  if (as_clear(req->as_body) || as_clear(req->as_header) ||
+      as_clear(req->res.as)) {
+    printf("Failed to clear\n");
     return DDRC_EFAILED;
+  }
   return DDRC_ESUCCESS;
 }

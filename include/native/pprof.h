@@ -236,9 +236,7 @@ void pprof_timeUpdate(DProf *);
  * @param time_nanos The time in nanoseconds since the Unix epoch, at which
  *                   point collection into this pprof began
  ******************************************************************************/
-static inline void pprof_timeSet(DProf *dp, int64_t time_nanos) {
-  dp->pprof.time_nanos = time_nanos;
-}
+static inline void pprof_timeSet(DProf *, int64_t);
 
 /*******************************************************************************
  * Sets the duration_nanos field of a pprof
@@ -254,9 +252,7 @@ static inline void pprof_timeSet(DProf *dp, int64_t time_nanos) {
  *                       the difference between original collection start time
  *                       and the current time.
  ******************************************************************************/
-static inline void pprof_durationSet(DProf *dp, int64_t duration_nanos) {
-  dp->pprof.duration_nanos = duration_nanos;
-}
+void pprof_durationSet(DProf *, int64_t);
 
 /*******************************************************************************
  * Clears the sample list from a pprof
@@ -268,6 +264,12 @@ static inline void pprof_durationSet(DProf *dp, int64_t duration_nanos) {
  * @param dp An initialized DProf object
  ******************************************************************************/
 char pprof_sampleClear(DProf *);
+
+/*******************************************************************************
+ * Prepares a pprof to be serialized by updating the time and protobuf
+   structures
+ ******************************************************************************/
+void pprof_finalize(DProf *);
 
 /*******************************************************************************
  * Serializes and compresses a pprof and prepares the internal structure to
