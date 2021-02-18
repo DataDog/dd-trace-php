@@ -763,7 +763,7 @@ jobs:
           command: make -C tests/randomized generate
       - run:
           name: Execute tests
-          command: make -C tests/randomized test CONCURRENT_JOBS=5 DURATION=1m30s
+          command: make -C tests/randomized test CONCURRENT_JOBS=5 DURATION=1m
       - run:
           name: Analyze results
           command: make -C tests/randomized analyze
