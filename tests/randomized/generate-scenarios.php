@@ -56,16 +56,13 @@ function generate()
     }
 
     // Unpacking regressions
-    foreach (scandir(REGRESSIONS_FOLDER) as $fileName) {
-        if (substr($fileName, - strlen('.tar.gz')) !== '.tar.gz') {
+    foreach (scandir(REGRESSIONS_FOLDER) as $regressionIdentifier) {
+        if (\substr($regressionIdentifier, 0, strlen('regression-')) !== 'regression-') {
             continue;
         }
-
-        $nameParts = explode('.tar.gz', $fileName);
-        $regressionIdentifier = $nameParts[0];
         $testIdentifiers[] = $regressionIdentifier;
 
-        $cmd = sprintf("tar -xzf %s/%s -C %s", REGRESSIONS_FOLDER, $fileName, TMP_SCENARIOS_FOLDER);
+        $cmd = sprintf("cp -r %s/%s %s", REGRESSIONS_FOLDER, $regressionIdentifier, TMP_SCENARIOS_FOLDER);
         exec($cmd);
     }
 

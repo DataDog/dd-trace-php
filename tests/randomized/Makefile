@@ -99,6 +99,6 @@ freeze:
 	@cp -r $(TMP_SCENARIO_FOLDER)/$(SCENARIO_NAME) /tmp/regression-$(REGRESSION_NAME)
 	@grep -Ril "$(SCENARIO_NAME)" /tmp/regression-$(REGRESSION_NAME) | xargs sed -i '' -e 's|$(SCENARIO_NAME)|regression-$(REGRESSION_NAME)|'
 	@mkdir -p $(REGRESSIONS_FOLDER)
-	@tar -czf $(REGRESSIONS_FOLDER)/regression-$(REGRESSION_NAME).tar.gz -C /tmp ./regression-$(REGRESSION_NAME)/
+	@cp -r /tmp/regression-$(REGRESSION_NAME) $(REGRESSIONS_FOLDER)
 	@rm -rf /tmp/regression-$(REGRESSION_NAME)
 	@echo "Done"
