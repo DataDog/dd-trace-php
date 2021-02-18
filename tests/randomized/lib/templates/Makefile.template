@@ -4,3 +4,5 @@ test.scenario.%:
 	@make -C $(*) run DURATION=$(DURATION)
 
 test: {{test_targets}}
+
+# keep this line to avoid whitespace errors with generated files

@@ -14,3 +14,5 @@ prepare_results_folders:
 	@rm -rf $(RESULTS_DIR)/$(SCENARIO)
 	@mkdir -p $(RESULTS_DIR)/$(SCENARIO)
 	@chmod -R a+w $(RESULTS_DIR)/$(SCENARIO)
+
+# keep this line to avoid whitespace errors with generated files
