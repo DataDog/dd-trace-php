@@ -8,7 +8,7 @@ RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline
 
 RUN \
     rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
-    && yum install -y elinks wget nginx httpd unzip gdb git \
+    && yum install -y elinks wget nginx httpd unzip gdb git nc \
     && rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-7.rpm \
     && yum --enablerepo=remi-php${PHP_MAJOR}${PHP_MINOR} install -y \
             php-cli \
@@ -39,6 +39,11 @@ ADD enable-coredump.sh /scripts/enable-coredump.sh
 
 # Preparing PHP
 RUN echo "date.timezone = UTC" > "/etc/php.d/00-adjust-timezones.ini"
+
+# Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
+# changed without an appropriate code review.
+ADD https://raw.githubusercontent.com/eficode/wait-for/672a28f0509433e3b4b9bcd4d9cd7668cea7e31a/wait-for /scripts/wait-for.sh
+RUN chmod +x /scripts/wait-for.sh
 
 # Preparing PHP-FPM
 RUN mkdir -p /run/php-fpm
