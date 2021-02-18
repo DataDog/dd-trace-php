@@ -857,6 +857,9 @@ unsigned char *pprof_flush(DProf *dp, size_t *sz) {
     break;
   }
 
+  // Duration is now zero.
+  dp->pprof.duration_nanos = 0;
+
   // Wrap up.  It's up to the caller to free.
   if (sz)
     *sz = sz_zipped;
