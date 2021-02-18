@@ -240,6 +240,14 @@ function ddtrace_config_path_fragment_regex()
 /**
  * @return string[]
  */
+function ddtrace_config_path_query_resource_params()
+{
+    return \_ddtrace_config_indexed_array(\getenv('DD_TRACE_QUERY_STRING_RESOURCE_PARAMS'), []);
+}
+
+/**
+ * @return string[]
+ */
 function ddtrace_config_path_mapping_incoming()
 {
     return \_ddtrace_config_indexed_array(\getenv('DD_TRACE_RESOURCE_URI_MAPPING_INCOMING'), []);
