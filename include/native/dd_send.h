@@ -62,8 +62,10 @@ extern const char *DDRC_table[];
   X(RECORDINGEND,    recording_end,    1, "recording-end",    0, NULL)         \
   X(HOSTTAG,         host_tag,         2, "machine_host",     0, NULL)         \
   X(SERVICE,         service,          2, "service",          0, "myservice")  \
+  X(SITE,            site,             2, "site",             0, NULL)         \
   X(LANGUAGE,        language,         2, "language",         1, "ILLEGAL")    \
   X(RUNTIME,         runtime,          2, "runtime",          1, "ILLEGAL")    \
+  X(ENVIRONMENT,     environment,      2, "environment",      0, "prod-test")  \
   X(PROFILERVERSION, profiler_version, 2, "profiler-version", 0, NULL)         \
   X(RUNTIMEOS,       runtime_os,       2, "runtime-os",       0, NULL)
 // clang-format on

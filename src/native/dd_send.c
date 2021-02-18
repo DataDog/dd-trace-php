@@ -181,7 +181,6 @@ int DDR_finalize(DDReq *req) {
       continue;
     switch (DDR_types[j]) {
     case 0: // This goes into the HTTP header
-      printf("%s: %s\r\n", DDR_keys[j], val);
       as_sprintf(req->as_header, "%s: %s\r\n", DDR_keys[j], val);
       break;
     case 1: // This goes in as a multipart segment
