@@ -768,10 +768,8 @@ jobs:
           name: Analyze results
           command: make -C tests/randomized analyze
       - run:
-          name: Create single archive containing all test results
-          command: tar -czvf results.tar.gz tests/randomized/.tmp.scenarios/.results
-      - store_artifacts:
-          path: 'results.tar.gz'
+          name: Fix PHP-FPM logs permissions before storing artifacts
+          command: sudo chmod -R a+r tests/randomized/.tmp.scenarios/.results
       - store_artifacts:
           path: 'tests/randomized/.tmp.scenarios/.results'
 
