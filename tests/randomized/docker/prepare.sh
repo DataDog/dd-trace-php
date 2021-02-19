@@ -36,3 +36,5 @@ composer --working-dir=/var/www/html install
 # Wait for problematic (host:port)s to be available here.
 echo "Waiting for elasticsearch"
 bash /scripts/wait-for.sh elasticsearch:9200 -t 30
+echo "Waiting for mysql"
+bash /scripts/wait-for.sh mysql:3306 -t 30
