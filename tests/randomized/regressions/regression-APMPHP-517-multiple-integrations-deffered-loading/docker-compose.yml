@@ -1,5 +1,8 @@
 version: '3.7'
 
+volumes:
+    composer_cache:
+
 services:
 
   agent:
@@ -31,10 +34,8 @@ services:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
-  # services definition will be after this line
-
   php-test:
-    image: datadog/dd-trace-ci:php-randomizedtests-centos7-7.1
+    image: datadog/dd-trace-ci:php-randomizedtests-centos7-7.2
     ulimits:
       core: 99999999999
     privileged: true
@@ -49,6 +50,7 @@ services:
       - ../.results/regression-APMPHP-517-multiple-integrations-deffered-loading/php-fpm:/var/log/php-fpm
       - ../.results/regression-APMPHP-517-multiple-integrations-deffered-loading/apache:/var/log/httpd/
     environment:
+        DURATION: ${DURATION}
         INSTALL_MODE: package
         TEST_SCENARIO: regression-APMPHP-517-multiple-integrations-deffered-loading
     depends_on:

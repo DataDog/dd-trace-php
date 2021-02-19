@@ -1,5 +1,8 @@
 version: '3.7'
 
+volumes:
+    composer_cache:
+
 services:
 
   agent:
@@ -31,10 +34,8 @@ services:
       - MYSQL_USER=test
       - MYSQL_DATABASE=test
 
-  # services definition will be after this line
-
   php-test:
-    image: datadog/dd-trace-ci:php-randomizedtests-centos7-5.6
+    image: datadog/dd-trace-ci:php-randomizedtests-centos7-7.0
     ulimits:
       core: 99999999999
     privileged: true
@@ -44,13 +45,14 @@ services:
       - ./www.apache.conf:/etc/httpd/conf.d/www.conf
       - ./vegeta-request-targets.txt:/vegeta-request-targets.txt
       - ../.tracer-versions:/tmp/tracer-versions
-      - ../.results/regression-GH1001-out-of-sync-span-stack-closed/:/results/
-      - ../.results/regression-GH1001-out-of-sync-span-stack-closed/nginx:/var/log/nginx
-      - ../.results/regression-GH1001-out-of-sync-span-stack-closed/php-fpm:/var/log/php-fpm
-      - ../.results/regression-GH1001-out-of-sync-span-stack-closed/apache:/var/log/httpd/
+      - ../.results/regression-GH1070-origin-header/:/results/
+      - ../.results/regression-GH1070-origin-header/nginx:/var/log/nginx
+      - ../.results/regression-GH1070-origin-header/php-fpm:/var/log/php-fpm
+      - ../.results/regression-GH1070-origin-header/apache:/var/log/httpd/
     environment:
+        DURATION: ${DURATION}
         INSTALL_MODE: package
-        TEST_SCENARIO: regression-GH1001-out-of-sync-span-stack-closed
+        TEST_SCENARIO: regression-GH1070-origin-header
     depends_on:
       - agent
       - elasticsearch

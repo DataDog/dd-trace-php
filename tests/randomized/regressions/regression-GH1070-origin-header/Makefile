@@ -1,6 +1,6 @@
 RESULTS_DIR := ../.results
 DURATION := 30s
-SCENARIO := regression-APMPHP-517-multiple-integrations-deffered-loading
+SCENARIO := regression-GH1070-origin-header
 
 run: prepare_results_folders
 	@DURATION=$(DURATION) docker-compose up php-test

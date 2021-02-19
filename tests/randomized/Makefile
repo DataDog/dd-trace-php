@@ -63,7 +63,7 @@ tracer.download:
 tracer.version:
 	@echo "Downloading tracer version: $(TRACER_VERSION)"
 	@mkdir -p $(TRACER_DOWNLOAD_PATH)
-	@curl --silent -L -o $(TRACER_DOWNLOAD_PATH)/ddtrace-test.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(TRACER_VERSION)/datadog-php-tracer-$(TRACER_VERSION).x86_64.tar.gz"
+	@curl -L -o $(TRACER_DOWNLOAD_PATH)/ddtrace-test.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(TRACER_VERSION)/datadog-php-tracer-$(TRACER_VERSION).x86_64.tar.gz"
 	@echo "Done"
 
 generate: clean results_folder
