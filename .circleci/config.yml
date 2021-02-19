@@ -767,6 +767,11 @@ jobs:
       - run:
           name: Analyze results
           command: make -C tests/randomized analyze
+      - run:
+          name: Create single archive containing all test results
+          command: tar -czvf results.tar.gz tests/randomized/.tmp.scenarios/.results
+      - store_artifacts:
+          path: 'results.tar.gz'
       - store_artifacts:
           path: 'tests/randomized/.tmp.scenarios/.results'
 
