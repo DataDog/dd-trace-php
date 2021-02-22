@@ -41,7 +41,7 @@ ADD enable-coredump.sh /scripts/enable-coredump.sh
 RUN echo "date.timezone = UTC" > "/etc/php.d/00-adjust-timezones.ini"
 
 # Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
-# changed without an appropriate code review.
+# be changed without an appropriate code review.
 ADD https://raw.githubusercontent.com/eficode/wait-for/672a28f0509433e3b4b9bcd4d9cd7668cea7e31a/wait-for /scripts/wait-for.sh
 RUN chmod +x /scripts/wait-for.sh
 
