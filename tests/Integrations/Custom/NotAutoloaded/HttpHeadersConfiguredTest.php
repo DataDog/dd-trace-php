@@ -17,7 +17,7 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'my-service',
-            'DD_TRACE_HTTP_HEADERS' => '  fIrSt-HEADER   ,  SECOND-header  , third-HEADER , FORTH-HEADER',
+            'DD_TRACE_HEADER_TAGS' => '  fIrSt-HEADER   ,  SECOND-header  , third-HEADER , FORTH-HEADER',
         ]);
     }
 

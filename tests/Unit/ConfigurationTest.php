@@ -46,7 +46,7 @@ EOD;
         putenv('DD_TRACE_SAMPLE_RATE');
         putenv('DD_TRACE_SAMPLING_RULES');
         putenv('DD_TRACE_SLIM_ENABLED');
-        putenv('DD_TRACE_HTTP_HEADERS');
+        putenv('DD_TRACE_HEADER_TAGS');
         putenv('DD_VERSION');
     }
 
@@ -579,7 +579,7 @@ EOD;
     public function testHttpHeadersCanSetOne()
     {
         $this->putEnvAndReloadConfig([
-            'DD_TRACE_HTTP_HEADERS=A-Header',
+            'DD_TRACE_HEADER_TAGS=A-Header',
         ]);
         $this->assertSame(['a-header'], \ddtrace_config_http_headers());
     }
@@ -587,7 +587,7 @@ EOD;
     public function testHttpHeadersCanSetMultiple()
     {
         $this->putEnvAndReloadConfig([
-            'DD_TRACE_HTTP_HEADERS=A-Header   ,Any-Name    ,    cOn7aining-!spe_cial?:ch/ars    ',
+            'DD_TRACE_HEADER_TAGS=A-Header   ,Any-Name    ,    cOn7aining-!spe_cial?:ch/ars    ',
         ]);
         // Same behavior as python tracer:
         // https://github.com/DataDog/dd-trace-py/blob/f1298cb8100f146059f978b58c88641bd7424af8/ddtrace/http/headers.py

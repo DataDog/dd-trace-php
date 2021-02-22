@@ -365,6 +365,6 @@ function ddtrace_config_http_headers()
         function ($header) {
             return \strtolower($header);
         },
-        \_ddtrace_config_indexed_array(\getenv('DD_TRACE_HTTP_HEADERS'), [])
+        \_ddtrace_config_indexed_array(\getenv('DD_TRACE_HEADER_TAGS'), [])
     );
 }
