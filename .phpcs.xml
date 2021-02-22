@@ -50,4 +50,5 @@
     <exclude-pattern>tests/overhead/*</exclude-pattern>
     <exclude-pattern>tests/Frameworks/*/Version_*/*</exclude-pattern>
     <exclude-pattern>tests/AutoInstrumentation</exclude-pattern>
+    <exclude-pattern>tmp</exclude-pattern>
 </ruleset>
