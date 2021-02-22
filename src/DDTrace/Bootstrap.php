@@ -5,6 +5,7 @@ namespace DDTrace;
 use DDTrace\Http\Request;
 use DDTrace\Integrations\IntegrationsLoader;
 use DDTrace\Integrations\Web\WebIntegration;
+use DDTrace\Private_;
 
 /**
  * Bootstrap the the datadog tracer.
@@ -102,12 +103,13 @@ final class Bootstrap
             $span->setTag(Tag::SPAN_TYPE, Type::CLI);
         } else {
             $operationName = 'web.request';
+            $httpHeaders = Request::getHeaders();
             $span = $tracer->startRootSpan(
                 $operationName,
                 StartSpanOptionsFactory::createForWebRequest(
                     $tracer,
                     $options,
-                    Request::getHeaders()
+                    $httpHeaders
                 )
             )->getSpan();
             $span->setTag(Tag::SPAN_TYPE, Type::WEB_SERVLET);
@@ -119,6 +121,11 @@ final class Bootstrap
             }
             // Status code defaults to 200, will be later on changed when http_response_code will be called
             $span->setTag(Tag::HTTP_STATUS_CODE, 200);
+
+            // Adding configured incoming request http headers
+            foreach (Private_\util_extract_configured_headers_as_tags($httpHeaders, true) as $tag => $value) {
+                $span->setTag($tag, $value);
+            }
         }
         $integration = WebIntegration::getInstance();
         $integration->addTraceAnalyticsIfEnabledLegacy($span);
@@ -134,6 +141,21 @@ final class Bootstrap
 
             if (isset($parsedHttpStatusCode)) {
                 $rootSpan->setTag(Tag::HTTP_STATUS_CODE, $parsedHttpStatusCode);
+            }
+
+            // Adding configured outgoing response http headers
+            if (isset($args[0]) && \is_string($args[0])) {
+                $headerParts = explode(':', $args[0], 2);
+                if (count($headerParts) == 2) {
+                    foreach (
+                        Private_\util_extract_configured_headers_as_tags(
+                            [$headerParts[0] => $headerParts[1]],
+                            false
+                        ) as $tag => $value
+                    ) {
+                        $rootSpan->setTag($tag, $value);
+                    }
+                }
             }
         });
 
