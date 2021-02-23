@@ -54,7 +54,7 @@ function _util_uri_apply_rules($uriPath, $incoming)
     }
 
     // Removing query string
-    $uriPath = strstr($uriPath, '?', true) ? : $uriPath;
+    $uriPath = strstr($uriPath, '?', true) ?: $uriPath;
 
     // We always expect leading slash if it is a pure path, while urls with RFC3986 complaint schemes are preserved.
     // See: https://tools.ietf.org/html/rfc3986#page-17
@@ -76,9 +76,9 @@ function _util_uri_apply_rules($uriPath, $incoming)
     $legacyMappings = getenv('DD_TRACE_RESOURCE_URI_MAPPING');
     if (
         empty($fragmentRegexes)
-            && empty($incomingMappings)
-            && empty($outgoingMappings)
-            && !empty($legacyMappings)
+        && empty($incomingMappings)
+        && empty($outgoingMappings)
+        && !empty($legacyMappings)
     ) {
         $normalizer = new Urls(explode(',', $legacyMappings));
         return $normalizer->normalize($uriPath);
@@ -142,4 +142,33 @@ function util_normalize_host_uds_as_service($hostOrUDS)
     $noSpaces = \str_replace(' ', '', $noSchema);
 
     return \trim(preg_replace('/[^a-zA-Z0-9.\_]+/', '-', $noSpaces), '- ');
+}
+
+/**
+ * Extract all headers that are configured to be added as tags as an associative array [tag_name=>tag_value].
+
+ * @param string[] $allHeaders
+ * @param boolean $isRequest true for request headers, false for response headers.
+ * @return string[]
+ */
+function util_extract_configured_headers_as_tags($allHeaders, $isRequest)
+{
+    $headersPassList = \ddtrace_config_http_headers();
+    if (count($headersPassList) === 0) {
+        return [];
+    }
+
+    $pattern = '/([^a-z0-9_\-:\/]){1}/i';
+    $requestOrResponse = $isRequest ? 'request' : 'response';
+    $prefix = "http.$requestOrResponse.headers.";
+    $headersToTag = [];
+    foreach ($allHeaders as $name => $value) {
+        $lowerName = \trim(\strtolower($name));
+        if (\in_array($lowerName, $headersPassList)) {
+            $tagName = $prefix . \preg_replace($pattern, '_', $lowerName);
+            $headersToTag[$tagName] = \trim($value);
+        }
+    }
+
+    return $headersToTag;
 }

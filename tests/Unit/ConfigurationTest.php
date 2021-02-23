@@ -46,6 +46,7 @@ EOD;
         putenv('DD_TRACE_SAMPLE_RATE');
         putenv('DD_TRACE_SAMPLING_RULES');
         putenv('DD_TRACE_SLIM_ENABLED');
+        putenv('DD_TRACE_HEADER_TAGS');
         putenv('DD_VERSION');
     }
 
@@ -448,15 +449,15 @@ EOD;
             ],
             'one service mapping' => [
                 'service1:service2',
-                [ 'service1' => 'service2' ],
+                ['service1' => 'service2'],
             ],
             'multiple service mappings' => [
                 'service1:service2,service3:service4',
-                [ 'service1' => 'service2', 'service3' => 'service4' ],
+                ['service1' => 'service2', 'service3' => 'service4'],
             ],
             'tolerant to extra whitespace' => [
                 'service1 :    service2 ,         service3 : service4                    ',
-                [ 'service1' => 'service2', 'service3' => 'service4' ],
+                ['service1' => 'service2', 'service3' => 'service4'],
             ],
         ];
     }
@@ -568,5 +569,28 @@ EOD;
             'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST=true',
         ]);
         $this->assertTrue(\ddtrace_config_redis_client_split_by_host_enabled());
+    }
+
+    public function testHttpHeadersDefaultsToEmpty()
+    {
+        $this->assertEmpty(\ddtrace_config_http_headers());
+    }
+
+    public function testHttpHeadersCanSetOne()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_HEADER_TAGS=A-Header',
+        ]);
+        $this->assertSame(['a-header'], \ddtrace_config_http_headers());
+    }
+
+    public function testHttpHeadersCanSetMultiple()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_TRACE_HEADER_TAGS=A-Header   ,Any-Name    ,    cOn7aining-!spe_cial?:ch/ars    ',
+        ]);
+        // Same behavior as python tracer:
+        // https://github.com/DataDog/dd-trace-py/blob/f1298cb8100f146059f978b58c88641bd7424af8/ddtrace/http/headers.py
+        $this->assertSame(['a-header', 'any-name', 'con7aining-!spe_cial?:ch/ars'], \ddtrace_config_http_headers());
     }
 }
