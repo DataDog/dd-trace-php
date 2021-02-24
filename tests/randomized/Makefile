@@ -6,6 +6,7 @@ REGRESSION_NAME := "provide-regression-name"
 DOCKER_IMAGE_PREFIX := datadog/dd-trace-ci:php-randomizedtests-
 TRACER_TEST_URL := https://github.com/DataDog/dd-trace-php/releases/download/0.54.0/datadog-php-tracer-0.54.0.x86_64.tar.gz
 TRACER_DOWNLOAD_PATH := ./.tracer-versions
+TRACER_VERSION := 0.55.0
 CONCURRENT_JOBS := 5
 DURATION := 30s
 NUMBER_OF_SCENARIOS := 20
@@ -59,6 +60,12 @@ tracer.download:
 	@curl --silent -L -o $(TRACER_DOWNLOAD_PATH)/ddtrace-test.tar.gz "$(TRACER_TEST_URL)"
 	@echo "Done"
 
+tracer.version:
+	@echo "Downloading tracer version: $(TRACER_VERSION)"
+	@mkdir -p $(TRACER_DOWNLOAD_PATH)
+	@curl -L -o $(TRACER_DOWNLOAD_PATH)/ddtrace-test.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(TRACER_VERSION)/datadog-php-tracer-$(TRACER_VERSION).x86_64.tar.gz"
+	@echo "Done"
+
 generate: clean results_folder
 	@php generate-scenarios.php --seed=$(SEED) --number=$(NUMBER_OF_SCENARIOS)
 	@cp -r ${TRACER_DOWNLOAD_PATH} $$(pwd)/$(TMP_SCENARIO_FOLDER)
@@ -73,11 +80,7 @@ scenarios_clean:
 results_folder:
 	@mkdir -p $(TMP_RESULTS_FOLDER)
 
-up:
-	@docker-compose -f $(DOCKER_COMPOSE_FILE) up --remove-orphans -d agent redis httpbin memcached elasticsearch mysql
-	@sleep 10
-
-execute: clean_results up
+test: clean_results
 	@echo "Starting tests with $(CONCURRENT_JOBS) concurrent runs."
 	@make -C $(TMP_SCENARIO_FOLDER) --jobs=$(CONCURRENT_JOBS) test DURATION=$(DURATION)
 
@@ -90,7 +93,12 @@ clean:
 clean_results:
 	@rm -rf $(TMP_RESULTS_FOLDER)
 
-freeze.%:
+# Example: make freeze SCENARIO_NAME=randomized-12345678-centos7-7.4 REGRESSION_NAME=GH1070-origin-header
+freeze:
+	@rm -rf /tmp/regression-$(REGRESSION_NAME)
+	@cp -r $(TMP_SCENARIO_FOLDER)/$(SCENARIO_NAME) /tmp/regression-$(REGRESSION_NAME)
+	@grep -Ril "$(SCENARIO_NAME)" /tmp/regression-$(REGRESSION_NAME) | xargs sed -i '' -e 's|$(SCENARIO_NAME)|regression-$(REGRESSION_NAME)|'
 	@mkdir -p $(REGRESSIONS_FOLDER)
-	@cp -r $(TMP_SCENARIO_FOLDER)/files-randomized-$(*)-* $(REGRESSIONS_FOLDER)/$(REGRESSION_NAME)
+	@cp -r /tmp/regression-$(REGRESSION_NAME) $(REGRESSIONS_FOLDER)
+	@rm -rf /tmp/regression-$(REGRESSION_NAME)
 	@echo "Done"

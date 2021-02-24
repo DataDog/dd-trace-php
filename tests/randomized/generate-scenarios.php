@@ -2,7 +2,9 @@
 
 use RandomizedTests\Tooling\ApacheConfigGenerator;
 use RandomizedTests\Tooling\DockerComposeFileGenerator;
+use RandomizedTests\Tooling\EnvFileGenerator;
 use RandomizedTests\Tooling\MakefileGenerator;
+use RandomizedTests\Tooling\MakefileScenarioGenerator;
 use RandomizedTests\Tooling\PhpFpmConfigGenerator;
 use RandomizedTests\Tooling\RequestTargetsGenerator;
 
@@ -11,11 +13,14 @@ include __DIR__ . '/config/inis.php';
 include __DIR__ . '/config/platforms.php';
 include __DIR__ . '/lib/ApacheConfigGenerator.php';
 include __DIR__ . '/lib/DockerComposeFileGenerator.php';
+include __DIR__ . '/lib/EnvFileGenerator.php';
 include __DIR__ . '/lib/MakefileGenerator.php';
+include __DIR__ . '/lib/MakefileScenarioGenerator.php';
 include __DIR__ . '/lib/PhpFpmConfigGenerator.php';
 include __DIR__ . '/lib/RequestTargetsGenerator.php';
 
-const TMP_SCENARIOS_FOLDER = __DIR__ . '/.tmp.scenarios';
+const TMP_SCENARIOS_FOLDER = './.tmp.scenarios';
+const REGRESSIONS_FOLDER = './regressions';
 const MAX_ENV_MODIFICATIONS = 5;
 const MAX_INI_MODIFICATIONS = 5;
 
@@ -25,11 +30,11 @@ function generate()
 
     $options = getopt('', ['scenario:']);
 
-    $testDataByIdentifier = [];
+    $testIdentifiers = [];
     if (isset($options['scenario'])) {
         // Generate only one scenario
         $seed = intval($options['scenario']);
-        $testDataByIdentifier = array_merge($testDataByIdentifier, generateOne($seed));
+        $testIdentifiers[] = generateOne($seed);
     } else {
         // If a scenario number has not been provided, we generate a number of different scenarios based on based
         // configuration
@@ -46,12 +51,22 @@ function generate()
 
         for ($iteration = 0; $iteration < $numberOfScenarios; $iteration++) {
             $scenarioSeed = rand();
-            $testDataByIdentifier = array_merge($testDataByIdentifier, generateOne($scenarioSeed));
+            $testIdentifiers[] = generateOne($scenarioSeed);
         }
     }
 
-    (new MakefileGenerator())->generate("$scenariosFolder/Makefile", array_keys($testDataByIdentifier));
-    (new DockerComposeFileGenerator())->generate("$scenariosFolder/docker-compose.yml", $testDataByIdentifier);
+    // Unpacking regressions
+    foreach (scandir(REGRESSIONS_FOLDER) as $regressionIdentifier) {
+        if (\substr($regressionIdentifier, 0, strlen('regression-')) !== 'regression-') {
+            continue;
+        }
+        $testIdentifiers[] = $regressionIdentifier;
+
+        $cmd = sprintf("cp -r %s/%s %s", REGRESSIONS_FOLDER, $regressionIdentifier, TMP_SCENARIOS_FOLDER);
+        exec($cmd);
+    }
+
+    (new MakefileGenerator())->generate("$scenariosFolder/Makefile", $testIdentifiers);
 }
 
 function generateOne($scenarioSeed)
@@ -85,7 +100,7 @@ function generateOne($scenarioSeed)
         $iniModifications[$currentIni] = $availableValues[array_rand($availableValues)];
     }
     $identifier = "randomized-$scenarioSeed-$selectedOs-$selectedPhpVersion";
-    $scenarioFolder = TMP_SCENARIOS_FOLDER . "/$identifier";
+    $scenarioFolder = TMP_SCENARIOS_FOLDER . DIRECTORY_SEPARATOR . $identifier;
 
     // Preparing folder
     exec("mkdir -p $scenarioFolder/app");
@@ -96,15 +111,19 @@ function generateOne($scenarioSeed)
     (new ApacheConfigGenerator())->generate("$scenarioFolder/www.apache.conf", $envModifications, $iniModifications);
     (new PhpFpmConfigGenerator())->generate("$scenarioFolder/www.php-fpm.conf", $envModifications, $iniModifications);
     (new RequestTargetsGenerator())->generate("$scenarioFolder/vegeta-request-targets.txt", 2000);
-
-    return [
-        $identifier => [
+    (new MakefileScenarioGenerator())->generate("$scenarioFolder/Makefile", $identifier);
+    (new EnvFileGenerator())->generate("$scenarioFolder/.env", $identifier);
+    (new DockerComposeFileGenerator())->generate(
+        "$scenarioFolder/docker-compose.yml",
+        [
             'identifier' => $identifier,
             'scenario_folder' => $scenarioFolder,
             'image' => "datadog/dd-trace-ci:php-randomizedtests-$selectedOs-$selectedPhpVersion",
             'installation_method' => $selectedInstallationMethod,
-        ],
-    ];
+        ]
+    );
+
+    return $identifier;
 }
 
 generate();

@@ -4,29 +4,23 @@ namespace RandomizedTests\Tooling;
 
 class DockerComposeFileGenerator
 {
-    public function generate($destination, array $substitutionsByIdentifier)
+    public function generate($destination, array $substitutions)
     {
-        $services = "";
-        $serviceTemplate = file_get_contents(__DIR__ . '/templates/docker-compose.service.template.yml');
-        foreach ($substitutionsByIdentifier as $identifier => $substitutions) {
-            $needles = \array_map(
-                function ($key) {
-                    return "{{{$key}}}";
-                },
-                array_keys($substitutions)
-            );
-            $replaces = array_values($substitutions);
-            $services .= str_replace(
+        $needles = \array_map(
+            function ($key) {
+                return "{{{$key}}}";
+            },
+            array_keys($substitutions)
+        );
+        $replaces = array_values($substitutions);
+
+        file_put_contents(
+            $destination,
+            \str_replace(
                 $needles,
                 $replaces,
-                $serviceTemplate
-            ) . "\n";
-        }
-        $dockerComposeFile = \str_replace(
-            '{{services}}',
-            $services,
-            file_get_contents(__DIR__ . '/templates/docker-compose.template.yml')
+                file_get_contents(__DIR__ . '/templates/docker-compose.template.yml')
+            )
         );
-        file_put_contents($destination, $dockerComposeFile);
     }
 }

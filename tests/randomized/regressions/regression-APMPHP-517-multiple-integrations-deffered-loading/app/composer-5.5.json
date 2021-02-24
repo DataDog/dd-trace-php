@@ -1,0 +1,11 @@
+{
+    "autoload": {
+        "psr-4": {
+            "RandomizedTests\\": "./src/RandomizedTests"
+        }
+    },
+    "require": {
+        "guzzlehttp/guzzle": "5.*",
+        "datadog/dd-trace": "^0.49.0"
+    }
+}

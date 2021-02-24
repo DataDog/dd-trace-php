@@ -69,6 +69,9 @@ class RequestTargetsGenerator
             );
         }
 
+        // Removing extra new lines at the end of the file to avoid git's "new blank line at EOF" during commit.
+        $requests = preg_replace('/\n+$/', "\n", $requests);
+
         file_put_contents($destination, $requests);
     }
 }

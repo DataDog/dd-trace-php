@@ -1,0 +1,62 @@
+version: '3.7'
+
+volumes:
+    composer_cache:
+
+services:
+
+  agent:
+    image: datadog/agent:7
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+
+  redis:
+    image: redis:latest
+
+  httpbin:
+    image: kennethreitz/httpbin
+
+  memcached:
+    image: "memcached:1.5-alpine"
+
+  elasticsearch:
+    image: "elasticsearch:6.8.13"
+    environment:
+      - discovery.type=single-node
+
+  mysql:
+    image: mysql:5.7
+    environment:
+      - MYSQL_ROOT_PASSWORD=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_USER=test
+      - MYSQL_DATABASE=test
+
+  php-test:
+    image: datadog/dd-trace-ci:php-randomizedtests-centos7-7.0
+    ulimits:
+      core: 99999999999
+    privileged: true
+    volumes:
+      - ./app:/var/www/html
+      - ./www.php-fpm.conf:/etc/php-fpm.d/www.conf
+      - ./www.apache.conf:/etc/httpd/conf.d/www.conf
+      - ./vegeta-request-targets.txt:/vegeta-request-targets.txt
+      - ../.tracer-versions:/tmp/tracer-versions
+      - ../.results/regression-GH1021-segfault-extension-disabled/:/results/
+      - ../.results/regression-GH1021-segfault-extension-disabled/nginx:/var/log/nginx
+      - ../.results/regression-GH1021-segfault-extension-disabled/php-fpm:/var/log/php-fpm
+      - ../.results/regression-GH1021-segfault-extension-disabled/apache:/var/log/httpd/
+    environment:
+        DURATION: ${DURATION}
+        INSTALL_MODE: package
+        TEST_SCENARIO: regression-GH1021-segfault-extension-disabled
+    depends_on:
+      - agent
+      - elasticsearch
+      - redis
+      - memcached
+      - mysql
+      - httpbin

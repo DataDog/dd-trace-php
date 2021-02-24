@@ -41,7 +41,7 @@ Scenarios will be generated in `.tmp.scenarios` folder.
 Execute tests based on the generated scenarios scenarios
 
 ```
-$ make execute
+$ make test
 ```
 
 Analyze the results (that will be generated in `.tmp.scenarios/.results` directory)
@@ -74,13 +74,13 @@ Using seed: 12345
 Running the following command will execute tests
 
 ```
-$ make execute
+$ make test
 ```
 
 By default 5 tests are executed at the same time to avoid resource starving. The number of concurrent jobs can be changed, though.
 
 ```
-$ make execute CONCURRENT_JOBS=10
+$ make test CONCURRENT_JOBS=10
 ```
 
 ### Analyze results
@@ -126,3 +126,22 @@ At the beginning of every request a message is printed to correlate a PID and a 
 That seed can be used later on to recreate the same request: `curl localhost:80?seed=754539563`.
 
 Note that the generated scenarios can be run individually. In the directory `.tmp.scenarios` you can see a `Makefile` with a list of targets that can be executed.
+
+## Freezing a known regression
+
+As soon as the radnomized testing framework detects either regressions or issues not yet released, we want to freeze to make sure they never happen again.
+
+Use the command `make freeze SCENARIO_NAME=<SCENARIO_NAME> REGRESSION_NAME=<REGRESSION_NAME>` where
+
+- `SCENARIO_NAME`: the name of the scenario from `.tmp.scenarios` folder;
+- `REGRESSION_NAME`: an exlicative name we want to give to the regression, starting with the GitHub issue name or ticket name.
+
+Examples:
+
+```
+make freeze SCENARIO_NAME=randomized-663735226-centos7-5.6 REGRESSION_NAME=GH1001-out-of-sync-span-stack-closed
+
+   ... or ...
+
+make freeze SCENARIO_NAME=randomized-1048937434-centos7-7.1 REGRESSION_NAME=APMPHP-517-multiple-integrations-deffered-loading
+```

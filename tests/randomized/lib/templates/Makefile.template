@@ -1,14 +1,11 @@
-RESULTS_DIR := ./.results
 DURATION := 30s
 
-test.scenario.%: results.scenario.%
-	@docker-compose run -e DURATION=$(DURATION) $(*)
-
-results.scenario.%:
-	@mkdir -p $(RESULTS_DIR)/$(*)
-	@chmod -R a+w $(RESULTS_DIR)/$(*)
+test.scenario.%:
+	@make -C $(*) run DURATION=$(DURATION)
 
 shell.scenario.%:
-	@docker-compose run --rm $(*) bash
+	@make -C $(*) shell
 
-test: {{test_target}}
+test: {{test_targets}}
+
+# keep this line to avoid whitespace errors with generated files
