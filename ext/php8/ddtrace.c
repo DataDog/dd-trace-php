@@ -1104,7 +1104,7 @@ static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     ddtrace_zppstrlen_t payload_len = 0;
     zval *curl_headers = NULL;
 
-    // As of 0.56.0 curl_headers is ignored because the Agent headers are set exclusively at the extension level.
+    // Agent HTTP headers are now set at the extension level so 'curl_headers' from userland is ignored
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "las", &num_traces, &curl_headers,
                                  &payload, &payload_len) == FAILURE) {
         ddtrace_log_debug("dd_trace_send_traces_via_thread() expects trace count, http headers, and http body");

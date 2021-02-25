@@ -63,6 +63,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/coms.c \
       ext/php5/configuration.c \
       ext/php5/configuration_php_iface.c \
+      ext/php5/ddshared.c \
       ext/php5/ddtrace_string.c \
       ext/php5/dispatch.c \
       ext/php5/dogstatsd_client.c \
@@ -97,6 +98,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/coms.c \
       ext/php5/configuration.c \
       ext/php5/configuration_php_iface.c \
+      ext/php5/ddshared.c \
       ext/php5/ddtrace_string.c \
       ext/php5/dispatch.c \
       ext/php5/dogstatsd_client.c \
@@ -130,6 +132,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/coms.c \
       ext/php7/configuration.c \
       ext/php7/configuration_php_iface.c \
+      ext/php7/ddshared.c \
       ext/php7/ddtrace_string.c \
       ext/php7/dispatch.c \
       ext/php7/dogstatsd_client.c \

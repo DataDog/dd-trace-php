@@ -91,6 +91,8 @@
             <file name="ext/php5/configuration_php_iface.h" role="src" />
             <file name="ext/php5/configuration_php_iface.c" role="src" />
             <file name="ext/php5/configuration_render.h" role="src" />
+            <file name="ext/php5/ddshared.c" role="src" />
+            <file name="ext/php5/ddshared.h" role="src" />
             <file name="ext/php5/ddtrace_string.c" role="src" />
             <file name="ext/php5/ddtrace_string.h" role="src" />
             <file name="ext/php5/ddtrace.c" role="src">
@@ -156,6 +158,8 @@
             <file name="ext/php7/configuration_php_iface.h" role="src" />
             <file name="ext/php7/configuration_php_iface.c" role="src" />
             <file name="ext/php7/configuration_render.h" role="src" />
+            <file name="ext/php7/ddshared.c" role="src" />
+            <file name="ext/php7/ddshared.h" role="src" />
             <file name="ext/php7/ddtrace_string.c" role="src" />
             <file name="ext/php7/ddtrace_string.h" role="src" />
             <file name="ext/php7/ddtrace.c" role="src">

@@ -7,6 +7,6 @@
 
 #include "compatibility.h"
 
-bool ddtrace_send_traces_via_thread(size_t num_traces, zval *curl_headers, char *payload, size_t payload_len TSRMLS_DC);
+bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t payload_len);
 
 #endif  // DDTRACE_COMMS_PHP_H
