@@ -40,7 +40,7 @@ static void (*dd_curl_setopt_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 static void (*dd_curl_setopt_array_handler)(INTERNAL_FUNCTION_PARAMETERS) = NULL;
 
 static bool dd_load_curl_integration(void) {
-    if (!dd_ext_curl_loaded || !le_curl || DDTRACE_G(disable_in_current_request)) {
+    if (!dd_ext_curl_loaded || DDTRACE_G(disable_in_current_request)) {
         return false;
     }
     return ddtrace_config_distributed_tracing_enabled();
@@ -133,8 +133,12 @@ static int dd_inject_distributed_tracing_headers(zval *ch) {
 }
 
 static bool dd_is_valid_curl_resource(zval *ch) {
-    void *resource = zend_fetch_resource(Z_RES_P(ch), NULL, le_curl);
-    return resource != NULL;
+    if (le_curl) {
+        void *resource = zend_fetch_resource(Z_RES_P(ch), NULL, le_curl);
+        return resource != NULL;
+    } else {
+        return false;
+    }
 }
 
 static void dd_multi_update_cache(zval *mh, HashTable *handles) {
