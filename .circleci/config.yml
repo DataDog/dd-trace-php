@@ -900,6 +900,24 @@ jobs:
             make -j
             make test
 
+      - run:
+          name: Build and test Datadog::PHP::Components
+          command: |
+            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+            mkdir -p /tmp/build/DatadogPHPComponents
+            cd /tmp/build/DatadogPHPComponents
+            if [ -f "/etc/debian_version" ]
+            then
+              toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
+            fi
+            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
+              $toolchain \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_TESTING=ON \
+              ~/datadog/components
+            make -j
+            make test
+
   compile_alpine:
     working_directory: ~/datadog
     parameters:
@@ -1063,7 +1081,7 @@ workflows:
                 - "datadog/dd-trace-ci:alpine"
                 - "datadog/dd-trace-ci:buster"
               cmake_version:
-                - "3.10.3"
+                - "3.13.5"
                 - "3.18.4"
               catch2_version:
                 - "2.4.2"

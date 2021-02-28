@@ -45,6 +45,7 @@
 #include "memory_limit.h"
 #include "random.h"
 #include "request_hooks.h"
+#include "runtime_id_plugin/runtime_id_plugin.h"
 #include "serializer.h"
 #include "signals.h"
 #include "span.h"
@@ -68,6 +69,14 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
                   zend_ddtrace_globals, ddtrace_globals)
 #endif
 PHP_INI_END()
+
+static const datadog_php_plugin *plugins[] = {
+    &datadog_php_runtime_id_plugin,
+};
+
+static bool plugin_enabled[sizeof plugins / sizeof *plugins];
+
+static const unsigned n_plugins = sizeof plugins / sizeof *plugins;
 
 static int ddtrace_startup(struct _zend_extension *extension) {
 #if PHP_VERSION_ID < 80000
@@ -348,6 +357,31 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_bgs_log_minit();
 
+    for (unsigned i = 0; i != n_plugins; ++i) {
+        const datadog_php_plugin *plugin = plugins[i];
+        plugin_enabled[i] = false;
+        // plugins must not be NULL and must have either minit or startup
+        if (!plugin || (!plugin->minit && !plugin->startup)) {
+            return FAILURE;
+        }
+        if (plugin->minit) {
+            switch (plugin->minit(type, module_number)) {
+                case DATADOG_PHP_PLUGIN_SUCCESS:
+                    plugin_enabled[i] = true;
+                    break;
+
+                case DATADOG_PHP_PLUGIN_FAILURE:
+                    plugin_enabled[i] = false;
+                    break;
+
+                case DATADOG_PHP_PLUGIN_DISABLE_PLUGIN:
+                    plugin_enabled[i] = false;
+                    // todo: what else to disable the whole ext?
+                    return FAILURE;
+            }
+        }
+    }
+
     ddtrace_dogstatsd_client_minit(TSRMLS_C);
     ddtrace_signals_minit(TSRMLS_C);
 
@@ -372,6 +406,13 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         ddtrace_config_shutdown();
         return SUCCESS;
+    }
+
+    for (unsigned i = 0; i != n_plugins; ++i) {
+        const datadog_php_plugin *plugin = plugins[i];
+        if (plugin_enabled[i] && plugin->mshutdown) {
+            plugin->mshutdown(type, module_number);
+        }
     }
 
     ddtrace_integrations_mshutdown();
@@ -404,6 +445,13 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     }
 
     array_init_size(&DDTRACE_G(additional_trace_meta), ddtrace_num_error_tags);
+
+    for (unsigned i = 0; i != n_plugins; ++i) {
+        const datadog_php_plugin *plugin = plugins[i];
+        if (plugin_enabled[i] && plugin->rinit) {
+            plugin->rinit(type, module_number);
+        }
+    }
 
     // Things that should only run on the first RINIT
     int expected_first_rinit = 1;
@@ -460,6 +508,8 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
+
+    // todo: call plugin rshutdown
 
     zval_dtor(&DDTRACE_G(additional_trace_meta));
     ZVAL_NULL(&DDTRACE_G(additional_trace_meta));
