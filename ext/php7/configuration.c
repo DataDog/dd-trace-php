@@ -173,6 +173,8 @@ bool ddtrace_config_distributed_tracing_enabled(TSRMLS_D) {
 // Get env name for <PREFIX_><INTEGRATION><_SUFFIX> (i.e. <DD_TRACE_><LARAVEL><_ENABLED>)
 size_t ddtrace_config_integration_env_name(char* name, const char* prefix, ddtrace_integration* integration,
                                            const char* suffix) {
+    ZEND_ASSERT(strlen(prefix) <= DDTRACE_LONGEST_INTEGRATION_ENV_PREFIX_LEN);
+    ZEND_ASSERT(strlen(suffix) <= DDTRACE_LONGEST_INTEGRATION_ENV_SUFFIX_LEN);
     return (size_t)snprintf(name, DDTRACE_LONGEST_INTEGRATION_ENV_LEN + 1, "%s%s%s", prefix, integration->name_ucase,
                             suffix);
 }
