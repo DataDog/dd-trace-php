@@ -326,11 +326,6 @@ typedef struct dd_error_info {
 static zend_string *dd_error_type(int code) {
     const char *error_type = "{unknown error}";
 
-#if PHP_VERSION_ID >= 80000
-    // mask off flags such as E_DONT_BAIL
-    code &= E_ALL;
-#endif
-
     switch (code) {
         case E_ERROR:
             error_type = "E_ERROR";
@@ -363,7 +358,6 @@ static zend_string *dd_fatal_error_stack(void) {
     return error_stack;
 }
 
-#if PHP_VERSION_ID < 80000
 static zend_string *dd_vprintf_zstr(size_t len, const char *format, va_list args) {
     va_list args2;
 
@@ -459,7 +453,6 @@ static dd_error_info dd_fatal_error(int type, const char *format, va_list args) 
         .stack = dd_fatal_error_stack(),
     };
 }
-#endif
 
 static int dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
     HashTable *ht = Z_ARR_P(meta);
@@ -593,7 +586,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     add_next_index_zval(array, el);
 }
 
-#if PHP_VERSION_ID < 80000
 void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
     /* We need the error handling to place nicely with the sandbox. The best
      * idea so far is to execute fatal error handling code iff the error handling
@@ -642,73 +634,3 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
 
     ddtrace_prev_error_cb(DDTRACE_ERROR_CB_PARAM_PASSTHRU);
 }
-#else
-
-static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
-    const char uncaught[] = "Uncaught ";
-    const char *data = ZSTR_VAL(msg);
-    size_t uncaught_len = sizeof uncaught - 1;  // ignore the null terminator
-    size_t size = ZSTR_LEN(msg);
-    if (size > uncaught_len && memcmp(data, uncaught, uncaught_len) == 0) {
-        char *newline = memchr(data, '\n', size);
-        if (newline) {
-            size_t offset = newline - data;
-            return zend_string_init(data, offset, 0);
-        }
-    }
-    return zend_string_copy(msg);
-}
-
-void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t error_lineno, zend_string *message) {
-    UNUSED(error_filename, error_lineno);
-
-    /* We need the error handling to place nicely with the sandbox. The best
-     * idea so far is to execute fatal error handling code iff the error handling
-     * mode is set to EH_NORMAL. If it's something else, such as EH_SUPPRESS or
-     * EH_THROW, then they are likely to be handled and accordingly they
-     * shouldn't be treated as fatal.
-     */
-    bool is_fatal_error = type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
-    if (EXPECTED(EG(active)) && EG(error_handling) == EH_NORMAL && UNEXPECTED(is_fatal_error)) {
-        /* If there is a fatal error in shutdown then this might not be an array
-         * because we set it to IS_NULL in RSHUTDOWN. We probably want a more
-         * robust way of detecting this, but I'm not sure how yet.
-         */
-        if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
-            dd_error_info error = {
-                .type = dd_error_type(type),
-                .msg = dd_truncate_uncaught_exception(message),
-                .stack = dd_fatal_error_stack(),
-            };
-            dd_fatal_error_to_meta(&DDTRACE_G(additional_trace_meta), error);
-            ddtrace_span_fci *span;
-            for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
-                if (span->exception || !span->span.span_data) {
-                    continue;
-                }
-
-                zval *meta = ddtrace_spandata_property_meta(span->span.span_data);
-                if (!meta) {
-                    continue;
-                }
-
-                if (Z_TYPE_P(meta) != IS_ARRAY) {
-                    zval_ptr_dtor(meta);
-                    array_init_size(meta, ddtrace_num_error_tags);
-                }
-                dd_fatal_error_to_meta(meta, error);
-            }
-            if (error.type) {
-                zend_string_release(error.type);
-            }
-            if (error.msg) {
-                zend_string_release(error.msg);
-            }
-            if (error.stack) {
-                zend_string_release(error.stack);
-            }
-            ddtrace_close_all_open_spans();
-        }
-    }
-}
-#endif

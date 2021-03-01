@@ -81,13 +81,9 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
     va_list argv;
 
     va_start(argv, argc);
-#if PHP_VERSION_ID < 80000
     ret = zend_fcall_info_argv(fci, argc, &argv);
     // The only way we mess this up is by passing in argc < 0
     ZEND_ASSERT(ret == SUCCESS);
-#else
-    zend_fcall_info_argv(fci, (uint32_t)argc, &argv);
-#endif
     va_end(argv);
 
     ddtrace_sandbox_backup backup = ddtrace_sandbox_begin();
@@ -99,11 +95,7 @@ static ZEND_RESULT_CODE dd_sandbox_fci_call(zend_execute_data *call, zend_fcall_
 
         if (PG(last_error_message) && backup.eh.message != PG(last_error_message)) {
             char *error;
-#if PHP_VERSION_ID < 80000
             error = PG(last_error_message);
-#else
-            error = ZSTR_VAL(PG(last_error_message));
-#endif
             ddtrace_log_errf("Error raised in ddtrace's closure for %s%s%s(): %s in %s on line %d", scope, colon, name,
                              error, PG(last_error_file), PG(last_error_lineno));
         }
@@ -1147,7 +1139,6 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
     }
 }
 
-#if PHP_VERSION_ID < 80000
 zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
     PHP7_UNUSED(error_filename, error_lineno);
 
@@ -1168,4 +1159,3 @@ zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
 
     return Z_OBJ(ex);
 }
-#endif

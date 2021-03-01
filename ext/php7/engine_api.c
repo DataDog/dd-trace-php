@@ -56,12 +56,10 @@ ZEND_RESULT_CODE ddtrace_call_method(zend_object *obj, zend_class_entry *ce, zen
         .object = obj,
         .param_count = argc,
     };
-#if PHP_VERSION_ID < 80000
     /* Must be 0 to allow for by-ref args
      * BUT if you use by-ref args, you need to free the ref if it gets separated!
      */
     fci.no_separation = 0;
-#endif
     ZVAL_STR(&fci.function_name, method->common.function_name);
 
     zend_fcall_info_cache fcc = {
@@ -139,17 +137,10 @@ ZEND_RESULT_CODE ddtrace_call_function(zend_function **fn_proxy, const char *nam
 }
 
 void ddtrace_write_property(zval *obj, const char *prop, size_t prop_len, zval *value) {
-#if PHP_VERSION_ID < 80000
     zval member = ddtrace_zval_stringl(prop, prop_len);
     // the underlying API doesn't tell you if it worked _shrug_
     Z_OBJ_P(obj)->handlers->write_property(obj, &member, value, NULL);
     zend_string_release(Z_STR(member));
-#else
-    zend_string *member = zend_string_init(prop, prop_len, 0);
-    // the underlying API doesn't tell you if it worked _shrug_
-    Z_OBJ_P(obj)->handlers->write_property(Z_OBJ_P(obj), member, value, NULL);
-    zend_string_release(member);
-#endif
 }
 
 // Modeled after PHP's property_exists for the Z_TYPE_P(object) == IS_OBJECT case
