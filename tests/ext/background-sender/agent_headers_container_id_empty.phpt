@@ -33,8 +33,6 @@ echo PHP_EOL;
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-Using test cgroup file: %s/stubs/cgroup.empty
-Successfully memoized Agent HTTP headers
 bool(true)
 
 Datadog-Meta-Lang: php

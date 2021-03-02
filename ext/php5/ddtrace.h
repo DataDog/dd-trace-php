@@ -62,7 +62,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint32_t closed_spans_count;
     int64_t compile_time_microseconds;
 
-    char *test_cgroup_file;
+    char *cgroup_file;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 

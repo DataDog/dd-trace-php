@@ -33,8 +33,6 @@ echo PHP_EOL;
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-Using test cgroup file: %s/stubs/cgroup.docker
-Successfully memoized Agent HTTP headers
 bool(true)
 
 Datadog-Container-Id: 9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f

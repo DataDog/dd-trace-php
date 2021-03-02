@@ -32,7 +32,6 @@ echo PHP_EOL;
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-Successfully memoized Agent HTTP headers
 bool(true)
 
 Datadog-Meta-Lang: php

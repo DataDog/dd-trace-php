@@ -35,7 +35,6 @@ echo PHP_EOL;
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-Successfully memoized Agent HTTP headers
 bool(true)
 
 Content-Type: application/msgpack
