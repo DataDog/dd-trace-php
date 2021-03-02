@@ -17,7 +17,6 @@ static void _comms_convert_append(zval *item, size_t offset, void *context) {
     zval converted;
     TSRMLS_FETCH();
 
-    PHP5_UNUSED(offset);
     PHP7_UNUSED(offset);
 
     ddtrace_convert_to_string(&converted, item TSRMLS_CC);
