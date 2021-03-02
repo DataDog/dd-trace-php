@@ -749,7 +749,7 @@ static void dd_fcall_end_non_tracing_posthook(ddtrace_span_fci *span_fci, zval *
 }
 
 static void dd_fcall_end_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_retval) {
-    PHP7_UNUSED(user_retval);
+    UNUSED(user_retval);
     dd_trace_stop_span_time(&span_fci->span);
 
     dd_set_default_properties();
@@ -757,7 +757,7 @@ static void dd_fcall_end_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_
 }
 
 static void dd_fcall_end_non_tracing_prehook(ddtrace_span_fci *span_fci, zval *user_retval) {
-    PHP7_UNUSED(span_fci, user_retval);
+    UNUSED(span_fci, user_retval);
 
     ddtrace_drop_top_open_span();
 }
@@ -1140,7 +1140,7 @@ PHP_FUNCTION(ddtrace_internal_function_handler) {
 }
 
 zend_object *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS) {
-    PHP7_UNUSED(error_filename, error_lineno);
+    UNUSED(error_filename, error_lineno);
 
     zval ex;
     va_list args2;
