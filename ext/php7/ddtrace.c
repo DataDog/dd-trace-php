@@ -357,10 +357,6 @@ static PHP_RINIT_FUNCTION(ddtrace) {
         ddtrace_startup_logging_first_rinit();
     }
 
-#if PHP_MAJOR_VERSION < 7
-    DDTRACE_G(should_warn_call_depth) = ddtrace_get_bool_config("DD_TRACE_WARN_CALL_STACK_DEPTH", TRUE TSRMLS_CC);
-#endif
-
     DDTRACE_G(request_init_hook_loaded) = 0;
     if (DDTRACE_G(request_init_hook) && DDTRACE_G(request_init_hook)[0]) {
         dd_request_init_hook_rinit(TSRMLS_C);
