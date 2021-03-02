@@ -65,7 +65,7 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
 #endif
 
 // Exposed for testing only
-STD_PHP_INI_ENTRY("ddtrace.test_cgroup_file", "", PHP_INI_SYSTEM, OnUpdateString, test_cgroup_file,
+STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, OnUpdateString, cgroup_file,
                   zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 

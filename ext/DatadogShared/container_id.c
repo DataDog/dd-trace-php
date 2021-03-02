@@ -7,7 +7,6 @@
 
 #include "datadog/string.h"
 
-#define CGROUP_FILE "/proc/self/cgroup"
 #define CONTAINER_ID_LEN 64
 
 struct dd_target {
@@ -67,15 +66,14 @@ char *dd_find_target(const char *line) {
 }
 
 datadog_string *datadog_container_id(const char *file) {
-    const char *cgroup_file = file != NULL ? file : CGROUP_FILE;
-    if (access(cgroup_file, F_OK | R_OK) != 0) {
+    if (file == NULL) {
         return NULL;
     }
 
     FILE *fp;
     char line[1024];
 
-    fp = fopen(cgroup_file, "r");
+    fp = fopen(file, "r");
     if (fp == NULL) {
         return NULL;
     }

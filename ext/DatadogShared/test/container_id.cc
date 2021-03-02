@@ -65,3 +65,8 @@ TEST_CASE("error edge cases when parsing container ID", "[container_id]") {
     datadog_string *id = datadog_container_id("./stubs/cgroup.edge_cases");
     REQUIRE(id == NULL);
 }
+
+TEST_CASE("a NULL cgroup file returns NULL", "[container_id]") {
+    datadog_string *id = datadog_container_id(NULL);
+    REQUIRE(id == NULL);
+}

@@ -1,7 +1,7 @@
 --TEST--
 The container ID is sent via HTTP headers to the Agent
 --INI--
-ddtrace.test_cgroup_file={PWD}/stubs/cgroup.docker
+ddtrace.cgroup_file={PWD}/stubs/cgroup.docker
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_BGS_ENABLED=1

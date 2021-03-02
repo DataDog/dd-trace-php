@@ -1,7 +1,7 @@
 --TEST--
 An empty container ID is not sent via HTTP headers to the Agent
 --INI--
-ddtrace.test_cgroup_file={PWD}/stubs/cgroup.empty
+ddtrace.cgroup_file={PWD}/stubs/cgroup.empty
 --ENV--
 DD_TRACE_DEBUG=1
 DD_TRACE_BGS_ENABLED=1
