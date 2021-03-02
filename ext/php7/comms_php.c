@@ -17,8 +17,7 @@ static void _comms_convert_append(zval *item, size_t offset, void *context) {
     zval converted;
     TSRMLS_FETCH();
 
-    PHP5_UNUSED(offset);
-    PHP7_UNUSED(offset);
+    UNUSED(offset);
 
     ddtrace_convert_to_string(&converted, item TSRMLS_CC);
     *list = curl_slist_append(*list, Z_STRVAL(converted));
