@@ -4,6 +4,11 @@ project(DDProf
   VERSION 0.1.0
 )
 
+find_library(PROTOBUF_C protobuf-c)
+if (NOT PROTOBUF_C)
+  message(FATAL_ERROR "Project requires protobuf-c!")
+endif ()
+
 add_library(DDProf
   src/arena.c
   src/string_table.cc
@@ -12,6 +17,8 @@ add_library(DDProf
   src/native/proto/profile.pb-c.c
   src/native/string_table.c
 )
+
+target_link_libraries(DDProf protobuf-c)
 
 target_compile_features(DDProf
   PUBLIC cxx_std_11 c_std_99

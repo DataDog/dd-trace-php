@@ -1,7 +1,10 @@
+#include <fcntl.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <zlib.h>
 
@@ -28,6 +31,7 @@
   } while (0)
 #endif
 
+// NB.  This allocates the objects, not just an array of pointers.
 #define pprofgrow(x, N, M)                                                     \
   __extension__({                                                              \
     int __rc = 0;                                                              \
@@ -52,7 +56,7 @@
 //    here as a horrible baseline.
 #define VOCAB_SZ 4096
 
-size_t addToVocab(char *str, char ***_st, size_t *_sz_st) {
+size_t addToVocab(const char *str, char ***_st, size_t *_sz_st) {
   if (!str)
     str = "";
   char **st = *_st;
@@ -67,7 +71,9 @@ size_t addToVocab(char *str, char ***_st, size_t *_sz_st) {
   if (!(sz_st % VOCAB_SZ)) {
     DBG_PRINT("Resizing vocab");
     char **buf = calloc(sz_st + VOCAB_SZ, sizeof(char *));
-    if (!buf) {} // TODO do something?
+    if (!buf) {
+      return (~0); // Error!
+    }
     memcpy(buf, st, sz_st * sizeof(char *));
     free(*_st);
     st = *_st = buf;
@@ -78,7 +84,7 @@ size_t addToVocab(char *str, char ***_st, size_t *_sz_st) {
   return sz_st;
 }
 
-uint64_t vocab_intern(void *state, char *str) {
+uint64_t vocab_intern(void *state, const char *str) {
   PPProfile *pprof = (PPProfile *)state;
   return addToVocab(str, &pprof->string_table, &pprof->n_string_table);
 }
@@ -96,7 +102,9 @@ size_t vocab_get_size(void *state) {
 /******************************************************************************\
 |*                       String Table (string_table.h)                        *|
 \******************************************************************************/
-uint64_t pprof_stringtable_intern(void *state, char *str) {
+#define STR_LEN_PTR(x) ((uint32_t *)&(x)[-4])
+#define STR_LEN(x) (*STR_LEN_PTR(x))
+uint64_t pprof_stringtable_intern(void *state, const char *str) {
   return stringtable_add_cstr((StringTable *)state, str);
 }
 
@@ -104,13 +112,22 @@ char **pprof_stringtable_gettable(void *state) {
   return (char **)((StringTable *)state)->arena->entry;
 }
 
+unsigned char *pprof_stringtable_get(void *state, uint64_t idx, uint64_t *sz) {
+  unsigned char *ret = stringtable_get((StringTable *)state, idx);
+  if (!ret)
+    return NULL;
+
+  if (sz)
+    *sz = STR_LEN(ret);
+  return ret;
+}
+
 size_t pprof_stringtable_size(void *state) {
   return ((StringTable *)state)->arena->entry_idx;
 }
 
 size_t pprof_strIntern(DProf *dp, const char *str) {
-  // todo: change intern_string to accept `const char *` instead of `char *)
-  return dp->intern_string(dp->string_table_data, (char *)str);
+  return dp->intern_string(dp->string_table_data, str);
 }
 
 /******************************************************************************\
@@ -120,6 +137,8 @@ size_t pprof_strIntern(DProf *dp, const char *str) {
 static uint64_t _pprof_mapNew(DProf *, uint64_t, uint64_t, uint64_t, uint64_t,
                               int64_t);
 static uint64_t _pprof_funNew(DProf *, int64_t, int64_t, int64_t, int64_t);
+static uint64_t _pprof_locNew(DProf *, uint64_t, uint64_t, const uint64_t *,
+                              const int64_t *, size_t);
 static uint64_t _pprof_lineNew(DProf *, PPLocation *, uint64_t, int64_t);
 static char _pprof_mapFree(PPMapping **, size_t);
 
@@ -243,10 +262,33 @@ static uint64_t _pprof_funNew(DProf *dp, int64_t id_name,
   pprof->n_function++;
   return id;
 }
+#include <ctype.h>
 
 uint64_t pprof_funAdd(DProf *dp, const char *name, const char *system_name,
                       const char *filename, int64_t start_line) {
   PPProfile *pprof = &dp->pprof;
+  if (!name)
+    name = "??";
+  for (unsigned long i = 0; i < strlen(name); i++)
+    if (!isgraph(name[i])) {
+      name = "??";
+      break;
+    }
+  if (!system_name)
+    system_name = "??";
+  for (unsigned long i = 0; i < strlen(system_name); i++)
+    if (!isgraph(system_name[i])) {
+      system_name = "??";
+      break;
+    }
+  if (!filename)
+    filename = "??";
+  for (unsigned long i = 0; i < strlen(filename); i++)
+    if (!isgraph(filename[i])) {
+      filename = "??";
+      break;
+    }
+
   int64_t id_name = pprof_strIntern(dp, name);
   int64_t id_system_name = pprof_strIntern(dp, system_name);
   int64_t id_filename = pprof_strIntern(dp, filename);
@@ -327,9 +369,8 @@ static PPLocation *findLocation(DProf *dp, uint64_t id_mapping, uint64_t addr,
   for (size_t i = 0; i < pprof->n_location; ++i) {
     PPLocation *location = pprof->location[i];
     if (isEqualLocation(location, id_mapping, addr, functions, lines,
-                        n_functions)) {
+                        n_functions))
       return location;
-    }
   }
   return NULL;
 }
@@ -438,6 +479,22 @@ char pprof_sampleFree(PPSample **sample, size_t sz) {
   return 0;
 }
 
+static inline void _pprof_durationSet(DProf *dp, int64_t duration_nanos) {
+  dp->pprof.duration_nanos = duration_nanos;
+}
+
+static inline void _pprof_timeSet(DProf *dp, int64_t time_nanos) {
+  dp->pprof.time_nanos = time_nanos;
+}
+
+void pprof_durationSet(DProf *dp, int64_t duration_nanos) {
+  _pprof_durationSet(dp, duration_nanos);
+}
+
+void pprof_timeSet(DProf *dp, int64_t time_nanos) {
+  _pprof_timeSet(dp, time_nanos);
+}
+
 void pprof_timeUpdate(DProf *dp) {
   if (!dp)
     return;
@@ -451,35 +508,45 @@ void pprof_durationUpdate(DProf *dp) {
     return;
   struct timeval tv = {0};
   gettimeofday(&tv, NULL);
-  pprof_durationSet(
-      dp, (tv.tv_sec * 1000 * 1000 + tv.tv_usec) * 1000 - dp->pprof.time_nanos);
+  int64_t duration = (tv.tv_sec * 1000 * 1000 + tv.tv_usec) * 1000 -
+      dp->pprof.time_nanos + dp->pprof.duration_nanos;
+  _pprof_durationSet(dp, duration);
 }
 
-char pprof_Init(DProf *dp, const char **sample_names, const char **sample_units,
-                size_t n_sampletypes) {
+DProf *pprof_Init(DProf *dp, const char **sample_names,
+                  const char **sample_units, size_t n_sampletypes) {
+  if (!dp) {
+    dp = calloc(1, sizeof(*dp));
+    if (!dp)
+      return NULL;
+    dp->ownership = 1;
+  }
+
   PPProfile *pprof = &dp->pprof;
   // Early sanity checks
   if (!sample_names || !sample_units || 2 > n_sampletypes)
-    return -1;
+    goto dpi_cleanup01;
 
   // Define the appropriate internment strategy
+  dp->table_type = 1; // aggressively!
   switch (dp->table_type) {
   case 0:
     dp->intern_string = vocab_intern;
     dp->string_table = vocab_get_table;
     dp->string_table_size = vocab_get_size;
+    dp->string_table_get = NULL; // TODO, this is an error!!!
     dp->string_table_data = pprof;
     break;
   default: // Error, default to best implementation so far
   case 1:
     dp->intern_string = pprof_stringtable_intern;
     dp->string_table = pprof_stringtable_gettable;
+    dp->string_table_get = pprof_stringtable_get;
     dp->string_table_size = pprof_stringtable_size;
     dp->string_table_data =
         stringtable_init(NULL, &(StringTableOptions){.hash = 1, .logging = 0});
-
-    // TODO make this configurable
-    ((StringTable *)dp->string_table_data)->logging = 1;
+    ((StringTable *)dp->string_table_data)->logging =
+        1; // TODO make this configurable
     break;
   }
 
@@ -510,7 +577,12 @@ char pprof_Init(DProf *dp, const char **sample_names, const char **sample_units,
   pprof->period_type->type = pprof->sample_type[1]->type;
   pprof->period_type->unit = pprof->sample_type[1]->unit;
 
-  return 0;
+  return dp;
+
+dpi_cleanup01:
+  if (dp->ownership)
+    free(dp);
+  return NULL;
 }
 
 static char _pprof_mapFree(PPMapping **map, size_t sz) {
@@ -593,10 +665,10 @@ char pprof_sampleClear(DProf *dp) {
   return 0;
 }
 
-char pprof_Free(DProf *dp) {
+void pprof_Free(DProf *dp) {
+  if (!dp)
+    return;
   PPProfile *pprof = &dp->pprof;
-  if (!pprof) // Is this an error?
-    return 0;
 
   if (pprof->sample_type) {
     for (size_t i = 0; i < pprof->n_sample_type; i++)
@@ -655,7 +727,58 @@ char pprof_Free(DProf *dp) {
     free(pprof->comment);
     pprof->comment = NULL;
   }
-  return 0;
+}
+
+unsigned char *pprof_getstr(DProf *dp, uint64_t idx, uint64_t *sz) {
+  uint64_t _sz;
+  unsigned char *ret = dp->string_table_get(dp->string_table_data, idx, &_sz);
+  if (!ret)
+    return NULL;
+  if (sz)
+    *sz = _sz;
+  return ret;
+}
+
+inline static void pretty_print(char c) {
+  printf(isgraph(c) || isspace(c) ? "%c" : "//%o", c);
+}
+void pprof_print(DProf *dp) {
+  PPProfile *pprof = &dp->pprof;
+  size_t SZ = dp->string_table_size(dp->string_table_data);
+
+  // Print ValueType
+
+  // print samples
+  for (size_t i = 0; i < pprof->n_sample; i++) {
+    printf("smplID: %ld\n", i);
+    printf("  nloc: %zu\n", pprof->sample[i]->n_location_id);
+    for (size_t j = 0; j < pprof->sample[i]->n_location_id; j++) {
+      printf("  locID: %" PRIu64 "\n", pprof->sample[i]->location_id[j]);
+    }
+  }
+  // print mapping
+  // Print locations
+  for (size_t i = 0; i < pprof->n_location; i++) {
+    printf("locID: %ld\n", i);
+    printf("  MapID: %" PRIu64 "\n", pprof->location[i]->mapping_id);
+    printf("  Addr: %" PRIx64 "\n", pprof->location[i]->address);
+    for (size_t j = 0; j < pprof->location[i]->n_line; j++) {
+      printf("    LineID: %ld\n", j);
+      printf("    FunID: %" PRIu64 "\n", pprof->location[i]->line[j]->function_id);
+    }
+  }
+  // print line
+  // print functions
+
+  // print strings
+  for (size_t i = 0; i < SZ; i++) {
+    unsigned char *str = pprof_getstr(dp, i, NULL);
+    size_t sz = STR_LEN(str);
+    printf("Str %ld(%lu): ", i, sz);
+    for (size_t j = 0; j < sz; j++)
+      pretty_print(str[i]);
+    printf("\n");
+  }
 }
 
 /******************************************************************************\
@@ -690,3 +813,59 @@ size_t pprof_zip(DProf *dp, unsigned char *ret, const size_t sz_packed) {
 
   return zs.total_out;
 }
+
+void pprof_finalize(DProf *dp) {
+  // Update the string table parameters and anything else that isn't auto-
+  // matically up-to-spec with pprof
+  dp->pprof.string_table = dp->string_table(dp->string_table_data);
+  dp->pprof.n_string_table = dp->string_table_size(dp->string_table_data);
+
+  // Update pprof timing details
+  pprof_durationUpdate(dp);
+}
+
+unsigned char *pprof_flush(DProf *dp, size_t *sz) {
+  // Finalize
+  pprof_finalize(dp);
+
+  // Serialize and zip pprof
+  unsigned char *buf;
+  size_t sz_packed = perftools__profiles__profile__get_packed_size(&dp->pprof);
+  size_t sz_zipped = pprof_zip(dp, (buf = malloc(sz_packed)), sz_packed);
+
+#ifdef DD_DBG_PROFGEN
+  // Optionally for debug purposes, emit a pprof to disk
+  mkdir("./pprofs", 0777);
+  unlink("./pprofs/test.pb.gz");
+  int fd = open("./pprofs/test.pb.gz", O_RDWR | O_CREAT, 0677);
+  write(fd, buf, sz_zipped);
+  close(fd);
+
+  unsigned char *thisbuf = malloc(sz_packed);
+  size_t thislen = perftools__profiles__profile__pack(&dp->pprof, thisbuf);
+  GZip("./pprofs/test.pb", (const char *)thisbuf, thislen);
+  free(thisbuf);
+#endif
+
+  // Reset the pprof according to the clearing semantics set in the dp
+  switch (dp->flushmode) {
+  case 0:
+  case 1:
+  case 2:
+  case 3:
+  default:
+    pprof_sampleClear(dp);
+    break;
+  }
+
+  // Duration is now zero.
+  dp->pprof.duration_nanos = 0;
+
+  // Wrap up.  It's up to the caller to free.
+  if (sz)
+    *sz = sz_zipped;
+  return buf;
+}
+
+#undef STR_LEN_PTR
+#undef STR_LEN
