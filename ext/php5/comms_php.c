@@ -20,8 +20,8 @@ static void dd_append_header(struct curl_slist **list, const char *key, const ch
      * So 256 should give us plenty of wiggle room.
      */
     char header[256];
-    size_t len = snprintf(header, sizeof(header), "%s: %s", key, val);
-    if (len > 0 && len < sizeof(header)) {
+    size_t len = snprintf(header, sizeof header, "%s: %s", key, val);
+    if (len > 0 && len < sizeof header) {
         *list = curl_slist_append(*list, header);
     }
 }
