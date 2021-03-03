@@ -4,9 +4,7 @@
 
 #include "configuration.h"
 
-inline void ddtrace_log_err(const char *message) {
-    php_log_err(message);
-}
+inline void ddtrace_log_err(const char *message) { php_log_err(message); }
 
 #define ddtrace_log_debugf(...)            \
     do {                                   \
