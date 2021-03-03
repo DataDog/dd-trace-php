@@ -1,11 +1,12 @@
 #ifndef DD_TRACE_SHARED_H
 #define DD_TRACE_SHARED_H
 
-#include "datadog/string.h"
+#include "datadog/container_id.h"
+
+#define DDSHARED_CONTAINER_ID_LEN DATADOG_CONTAINER_ID_LEN
 
 void ddshared_minit(void);
-void ddshared_mshutdown(void);
 
-datadog_string *ddshared_container_id(void);
+char *ddshared_container_id(void);
 
 #endif  // DD_TRACE_SHARED_H

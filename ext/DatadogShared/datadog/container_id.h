@@ -1,8 +1,8 @@
 #ifndef DATADOG_CONTAINER_ID_H
 #define DATADOG_CONTAINER_ID_H
 
-#include "datadog/string.h"
+#define DATADOG_CONTAINER_ID_LEN 64
 
-datadog_string *datadog_container_id(const char *file);
+void datadog_container_id(char *buf, const char *file);
 
 #endif  // DATADOG_CONTAINER_ID_H

@@ -3,11 +3,12 @@
 
 #include <TSRM/TSRM.h>
 
-#include "datadog/string.h"
+#include "datadog/container_id.h"
+
+#define DDSHARED_CONTAINER_ID_LEN DATADOG_CONTAINER_ID_LEN
 
 void ddshared_minit(TSRMLS_D);
-void ddshared_mshutdown(void);
 
-datadog_string *ddshared_container_id(void);
+char *ddshared_container_id(void);
 
 #endif  // DD_TRACE_SHARED_H

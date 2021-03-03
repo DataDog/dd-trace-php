@@ -356,7 +356,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_integrations_mshutdown();
 
-    ddshared_mshutdown();
     ddtrace_signals_mshutdown();
 
     ddtrace_coms_mshutdown();
@@ -1084,9 +1083,9 @@ static PHP_FUNCTION(integration_analytics_sample_rate) {
  */
 static PHP_FUNCTION(container_id) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
-    datadog_string *id = ddshared_container_id();
-    if (id != NULL) {
-        RETVAL_STRINGL(id->val, id->len, 1);
+    char *id = ddshared_container_id();
+    if (id != NULL && id[0] != '\0') {
+        RETVAL_STRINGL(id, DDSHARED_CONTAINER_ID_LEN, 0);
     } else {
         RETURN_NULL();
     }

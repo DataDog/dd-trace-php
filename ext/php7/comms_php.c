@@ -32,9 +32,9 @@ static void dd_append_agent_headers(struct curl_slist **list) {
     dd_append_header(list, "Datadog-Meta-Lang-Interpreter", sapi_module.name);
     dd_append_header(list, "Datadog-Meta-Tracer-Version", PHP_DDTRACE_VERSION);
 
-    datadog_string *id = ddshared_container_id();
-    if (id != NULL) {
-        dd_append_header(list, "Datadog-Container-Id", id->val);
+    char *id = ddshared_container_id();
+    if (id != NULL && id[0] != '\0') {
+        dd_append_header(list, "Datadog-Container-Id", id);
     }
 
     /* Curl will add Expect: 100-continue if it is a POST over a certain size. The trouble is that CURL will

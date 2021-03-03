@@ -5,10 +5,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "datadog/string.h"
-
-#define CONTAINER_ID_LEN 64
-
 struct dd_target {
     const char *name;
     size_t len;
@@ -30,29 +26,28 @@ dd_target dd_targets[] = {
 };
 size_t dd_targets_len = sizeof dd_targets / sizeof dd_targets[0];
 
-datadog_string *dd_extract_id(char *pos) {
+void dd_extract_id(char *buf, char *pos) {
     size_t len = strlen(pos);
     char *end = pos + len - 1;
     while (end > pos && isspace(end[0])) {
         end--;
         len--;
     }
-    if (len < CONTAINER_ID_LEN) {
-        return NULL;
+    if (len < DATADOG_CONTAINER_ID_LEN) {
+        return;
     }
 
-    char id[CONTAINER_ID_LEN + 1] = {0};
-    for (size_t i = CONTAINER_ID_LEN; i > 0; i--) {
+    for (size_t i = DATADOG_CONTAINER_ID_LEN; i > 0; i--) {
         char c = end[0];
         // [^a-f0-9]
         if (!(c >= 'a' && c <= 'f') && !(c >= '0' && c <= '9')) {
-            return NULL;
+            buf[0] = '\0';
+            return;
         }
-        id[i - 1] = c;
+        buf[i - 1] = c;
         end--;
     }
-    id[CONTAINER_ID_LEN] = '\0';
-    return datadog_string_init(id, CONTAINER_ID_LEN);
+    buf[DATADOG_CONTAINER_ID_LEN] = '\0';
 }
 
 char *dd_find_target(const char *line) {
@@ -65,32 +60,32 @@ char *dd_find_target(const char *line) {
     return NULL;
 }
 
-datadog_string *datadog_container_id(const char *file) {
-    if (file == NULL) {
-        return NULL;
-    }
-
+void datadog_container_id(char *buf, const char *file) {
     FILE *fp;
     char line[1024];
 
+    buf[0] = '\0';
+
+    if (file == NULL || file[0] == '\0') {
+        return;
+    }
+
     fp = fopen(file, "r");
     if (fp == NULL) {
-        return NULL;
+        return;
     }
 
     while (!feof(fp)) {
         if (fgets(line, sizeof line, fp) != NULL) {
             char *pos = dd_find_target(line);
             if (pos) {
-                datadog_string *id = dd_extract_id(pos);
-                if (id) {
+                dd_extract_id(buf, pos);
+                if (buf[0] != '\0') {
                     fclose(fp);
-                    return id;
+                    return;
                 }
             }
         }
     }
     fclose(fp);
-
-    return NULL;
 }
