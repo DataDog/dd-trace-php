@@ -1,7 +1,7 @@
 #include <catch2/catch.hpp>
 
 extern "C" {
-#include "native/pprof.h"
+#include "pprof.h"
 }
 
 const char *empty_string = "";
@@ -30,7 +30,7 @@ TEST_CASE("Basic PHP frame example", "[php]") {
 
   std::size_t nsampletypes = sizeof sample_units / sizeof *sample_units;
 
-  REQUIRE(pprof_Init(&dprof, sample_names, sample_units, nsampletypes) == 0);
+  pprof_Init(&dprof, sample_names, sample_units, nsampletypes);
 
   const char *executable_name = "php";
   uint64_t mapping =
@@ -88,6 +88,5 @@ TEST_CASE("Basic PHP frame example", "[php]") {
   }
 
   // todo: what other properties should I assert?
-
-  REQUIRE(pprof_Free(&dprof) == 0);
+  pprof_Free(&dprof);
 }

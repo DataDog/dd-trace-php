@@ -1,10 +1,6 @@
 #ifndef _H_DICTIONARY
 #define _H_DICTIONARY
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "string_table.h"
 
 typedef struct DictionaryOptions {
@@ -43,7 +39,4 @@ ssize_t dictionary_put_cstr(Dictionary *, char *, void *, size_t);
 ssize_t dictionary_del(Dictionary *, unsigned char *, size_t);
 ssize_t dictionary_del_cstr(Dictionary *, char *);
 
-#ifdef __cplusplus
-}
-#endif
 #endif
