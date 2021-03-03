@@ -53,13 +53,13 @@ size_t ddtrace_integrations_len = sizeof ddtrace_integrations / sizeof ddtrace_i
 // Map of lowercase strings to the ddtrace_integration equivalent
 static HashTable _dd_string_to_integration_name_map;
 
-static void _dd_add_integration_to_map(char* name, size_t name_len, ddtrace_integration* integration);
+static void _dd_add_integration_to_map(char *name, size_t name_len, ddtrace_integration *integration);
 
 void ddtrace_integrations_minit(void) {
     zend_hash_init(&_dd_string_to_integration_name_map, ddtrace_integrations_len, NULL, NULL, 1);
 
     for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
-        char* name = ddtrace_integrations[i].name_lcase;
+        char *name = ddtrace_integrations[i].name_lcase;
         size_t name_len = ddtrace_integrations[i].name_len;
         _dd_add_integration_to_map(name, name_len, &ddtrace_integrations[i]);
     }
@@ -84,7 +84,7 @@ static void dd_register_known_calls(TSRMLS_D) {
 }
 
 static void dd_load_test_integrations(TSRMLS_D) {
-    char* test_deferred = getenv("_DD_LOAD_TEST_INTEGRATIONS");
+    char *test_deferred = getenv("_DD_LOAD_TEST_INTEGRATIONS");
     if (!test_deferred) {
         return;
     }

@@ -65,7 +65,6 @@ void ddtrace_dispatch_init(TSRMLS_D);
 void ddtrace_dispatch_destroy(TSRMLS_D);
 void ddtrace_dispatch_reset(TSRMLS_D);
 
-
 #undef EX
 #define EX(element) ((execute_data)->element)
 
