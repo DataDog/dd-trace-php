@@ -64,34 +64,10 @@ inline void ddtrace_dispatch_release(ddtrace_dispatch_t *dispatch) {
 void ddtrace_dispatch_init(TSRMLS_D);
 void ddtrace_dispatch_destroy(TSRMLS_D);
 
-#if PHP_VERSION_ID < 70000
-
-#undef EX
-#define EX(element) ((execute_data)->element)
-
-#if PHP_VERSION_ID < 50500
-#define FBC() EX(fbc)
-#define NUM_ADDITIONAL_ARGS() (0)
-#define OBJECT() EX(object)
-#elif PHP_VERSION_ID < 50600
-#define FBC() (EX(call)->fbc)
-#define NUM_ADDITIONAL_ARGS() (0)
-#define OBJECT() (EX(call) ? EX(call)->object : NULL)
-#else
-#define FBC() (EX(call)->fbc)
-#define NUM_ADDITIONAL_ARGS() EX(call)->num_additional_args
-#define OBJECT() (EX(call) ? EX(call)->object : NULL)
-#endif
-
-void ddtrace_class_lookup_release_compat(void *zv);
-
-#define ddtrace_zval_ptr_dtor(x) zval_dtor(x)
-#else
 void ddtrace_class_lookup_release_compat(zval *zv);
 
 #define ddtrace_zval_ptr_dtor(x) zval_ptr_dtor(x)
 #define INIT_ZVAL(x) ZVAL_NULL(&x)
-#endif
 
 HashTable *ddtrace_new_class_lookup(zval *clazz TSRMLS_DC);
 zend_bool ddtrace_dispatch_store(HashTable *class_lookup, ddtrace_dispatch_t *dispatch);
