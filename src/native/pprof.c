@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -752,18 +753,18 @@ void pprof_print(DProf *dp) {
     printf("smplID: %ld\n", i);
     printf("  nloc: %zu\n", pprof->sample[i]->n_location_id);
     for (size_t j = 0; j < pprof->sample[i]->n_location_id; j++) {
-      printf("  locID: %ld\n", pprof->sample[i]->location_id[j]);
+      printf("  locID: %" PRIu64 "\n", pprof->sample[i]->location_id[j]);
     }
   }
   // print mapping
   // Print locations
   for (size_t i = 0; i < pprof->n_location; i++) {
     printf("locID: %ld\n", i);
-    printf("  MapID: %ld\n", pprof->location[i]->mapping_id);
-    printf("  Addr: %lx\n", pprof->location[i]->address);
+    printf("  MapID: %" PRIu64 "\n", pprof->location[i]->mapping_id);
+    printf("  Addr: %" PRIx64 "\n", pprof->location[i]->address);
     for (size_t j = 0; j < pprof->location[i]->n_line; j++) {
       printf("    LineID: %ld\n", j);
-      printf("    FunID: %ld\n", pprof->location[i]->line[j]->function_id);
+      printf("    FunID: %" PRIu64 "\n", pprof->location[i]->line[j]->function_id);
     }
   }
   // print line
