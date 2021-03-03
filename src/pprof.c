@@ -766,7 +766,8 @@ void pprof_print(DProf *dp) {
     printf("  Addr: %" PRIx64 "\n", pprof->location[i]->address);
     for (size_t j = 0; j < pprof->location[i]->n_line; j++) {
       printf("    LineID: %ld\n", j);
-      printf("    FunID: %" PRIu64 "\n", pprof->location[i]->line[j]->function_id);
+      printf("    FunID: %" PRIu64 "\n",
+             pprof->location[i]->line[j]->function_id);
     }
   }
   // print line
