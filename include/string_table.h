@@ -1,10 +1,6 @@
 #ifndef _H_STRING_TABLE
 #define _H_STRING_TABLE
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
@@ -162,7 +158,4 @@ ssize_t stringtable_add_cstr(StringTable *, const char *);
  ******************************************************************************/
 unsigned char *stringtable_get(StringTable *, ssize_t);
 
-#ifdef __cplusplus
-}
-#endif
 #endif
