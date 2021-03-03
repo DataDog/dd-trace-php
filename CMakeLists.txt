@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(DDProf
-  LANGUAGES C CXX
+  LANGUAGES C
   VERSION 0.1.0
 )
 
@@ -9,19 +9,22 @@ if (NOT PROTOBUF_C)
   message(FATAL_ERROR "Project requires protobuf-c!")
 endif ()
 
+find_package(ZLIB REQUIRED)
+
 add_library(DDProf
-  src/arena.c
-  src/string_table.cc
   src/native/dictionary.c
   src/native/pprof.c
   src/native/proto/profile.pb-c.c
   src/native/string_table.c
 )
 
-target_link_libraries(DDProf protobuf-c)
+target_link_libraries(DDProf
+  PUBLIC ZLIB::ZLIB
+  PRIVATE protobuf-c
+)
 
 target_compile_features(DDProf
-  PUBLIC cxx_std_11 c_std_99
+  PUBLIC c_std_99
   PRIVATE c_std_11
 )
 
@@ -47,6 +50,7 @@ set_target_properties(DDProf PROPERTIES
 #]]
 add_library(DDProf::DDProf ALIAS DDProf)
 
+#[[
 install(
   TARGETS DDProf
   EXPORT DDProfTargets
@@ -85,10 +89,13 @@ install(
   DIRECTORY include/
   DESTINATION include
 )
+]]
 
 # Add infrastructure for enabling tests
+#[[ currently not updated
 option(BUILD_DDPROF_TESTING "Enable tests" OFF)
 if (${BUILD_DDPROF_TESTING})
   enable_testing()
   add_subdirectory(test)
 endif()
+]]
