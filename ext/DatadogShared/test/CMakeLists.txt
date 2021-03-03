@@ -11,17 +11,10 @@ target_link_libraries(catch2main PUBLIC Catch2::Catch2)
 target_compile_features(catch2main PUBLIC cxx_std_11)
 
 #[[
-  DatadogString
-#]]
-add_executable(string string.cc)
-target_link_libraries(string PUBLIC catch2main Datadog::String)
-catch_discover_tests(string)
-
-#[[
   DatadogContainerId
 #]]
 add_executable(container_id container_id.cc)
-target_link_libraries(container_id PUBLIC catch2main Datadog::String Datadog::ContainerId)
+target_link_libraries(container_id PUBLIC catch2main Datadog::ContainerId)
 file(
   COPY ${CMAKE_CURRENT_SOURCE_DIR}/stubs
   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}

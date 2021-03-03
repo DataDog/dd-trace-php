@@ -36,7 +36,6 @@ if test "$PHP_DDTRACE" != "no"; then
 
   DD_SHARED_SOURCES="\
     ext/DatadogShared/container_id.c \
-    ext/DatadogShared/string.c \
   "
 
   DD_TRACE_VENDOR_SOURCES="\

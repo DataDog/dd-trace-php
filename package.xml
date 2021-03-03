@@ -56,9 +56,7 @@
             <file name="ext/DatadogMemHash/test/main.cc" role="test" />
 
             <file name="ext/DatadogShared/container_id.c" role="src" />
-            <file name="ext/DatadogShared/string.c" role="src" />
             <file name="ext/DatadogShared/datadog/container_id.h" role="src" />
-            <file name="ext/DatadogShared/datadog/string.h" role="src" />
 
             <file name="ext/version.h" role="src" />
             <!-- Third party -->

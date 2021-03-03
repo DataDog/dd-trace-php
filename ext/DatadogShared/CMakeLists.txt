@@ -5,25 +5,6 @@ project(DatadogShared
 )
 
 #[[
-  DatadogString
-#]]
-add_library(DatadogString string.c)
-target_include_directories(DatadogString PUBLIC
-  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/>
-  $<INSTALL_INTERFACE:include>
-)
-
-target_compile_features(DatadogString PRIVATE c_std_11)
-
-set_target_properties(DatadogString PROPERTIES
-  OUTPUT_NAME datadog_string # libdatadog_string.{a,so}
-  PUBLIC_HEADER datadog/string.h
-  VERSION ${PROJECT_VERSION}
-)
-
-add_library(Datadog::String ALIAS DatadogString)
-
-#[[
   DatadogContainerId
 #]]
 add_library(DatadogContainerId container_id.c)
