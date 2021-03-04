@@ -63,6 +63,10 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
 PHP_INI_END()
 
 static int ddtrace_startup(struct _zend_extension *extension) {
+    if (DDTRACE_G(disable) = 1) {
+        return SUCCESS;
+    }
+
     ddtrace_resource = zend_get_resource_handle(extension);
 #if PHP_VERSION_ID >= 70400
     ddtrace_op_array_extension = zend_get_op_array_extension_handle();
@@ -75,6 +79,10 @@ static int ddtrace_startup(struct _zend_extension *extension) {
 
 static void ddtrace_shutdown(struct _zend_extension *extension) {
     UNUSED(extension);
+
+    if (DDTRACE_G(disable) = 1) {
+        return;
+    }
 
     ddtrace_internal_handlers_shutdown();
 }
@@ -256,7 +264,7 @@ static void dd_register_fatal_error_ce(TSRMLS_D) {
  */
 static bool dd_is_cli() { return strcmp("cli", sapi_module.name) == 0; }
 
-static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
+static void dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
     if (strcmp("fpm-fcgi", sapi_module.name) == 0 || strcmp("apache2handler", sapi_module.name) == 0 || dd_is_cli() ||
         strcmp("cli-server", sapi_module.name) == 0 || strcmp("cgi-fcgi", sapi_module.name) == 0) {
         return;
@@ -269,7 +277,7 @@ static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
  * Disable tracing if user explicitly disabled tracer by configuration or if a CLI SAPI is used and CLI tracing
  * is not explictly enabled.
  */
-static void dd_disable_by_configuration_or_cli_not_explicitly_enabled(TSRMLS_D) {
+static void dd_disable_by_configuration(TSRMLS_D) {
     if (!get_dd_trace_enabled()) {
         ddtrace_log_debugf("Tracing is disabled by user setting; disabling ddtrace");
     } else if (dd_is_cli() && !get_dd_trace_cli_enabled()) {
@@ -290,9 +298,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     // config initialization needs to be at the top
     ddtrace_initialize_config(TSRMLS_C);
 
-    dd_disable_by_configuration_or_cli_not_explicitly_enabled(TSRMLS_C);
+    dd_disable_by_configuration(TSRMLS_C);
 
-    _dd_disable_if_incompatible_sapi_detected(TSRMLS_C);
+    dd_disable_if_incompatible_sapi_detected(TSRMLS_C);
 
     atomic_init(&ddtrace_first_rinit, 1);
     atomic_init(&ddtrace_warn_legacy_api, 1);
