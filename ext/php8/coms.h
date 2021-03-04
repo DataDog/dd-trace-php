@@ -40,8 +40,6 @@ void ddtrace_coms_curl_shutdown(void);
 void ddtrace_coms_rshutdown(void);
 uint32_t ddtrace_coms_next_group_id(void);
 
-extern atomic_uintptr_t memoized_agent_curl_headers;
-
 bool ddtrace_coms_init_and_start_writer(void);
 bool ddtrace_coms_trigger_writer_flush(void);
 bool ddtrace_coms_set_writer_send_on_flush(bool send);

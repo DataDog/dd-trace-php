@@ -1,65 +1,11 @@
 #include "comms_php.h"
 
-#include <SAPI.h>
-#include <stdatomic.h>
-
-#include "arrays.h"
-#include "compat_string.h"
-#include "compatibility.h"
 #include "coms.h"
-#include "ddshared.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "mpack/mpack.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
-
-static void dd_append_header(struct curl_slist **list, const char *key, const char *val) {
-    /* The longest Agent header should be:
-     * Datadog-Container-Id: <64-char-hash>
-     * So 256 should give us plenty of wiggle room.
-     */
-    char header[256];
-    size_t len = snprintf(header, sizeof header, "%s: %s", key, val);
-    if (len > 0 && len < sizeof header) {
-        *list = curl_slist_append(*list, header);
-    }
-}
-
-static void dd_append_agent_headers(struct curl_slist **list) {
-    dd_append_header(list, "Datadog-Meta-Lang", "php");
-    dd_append_header(list, "Datadog-Meta-Version", PHP_VERSION);
-    dd_append_header(list, "Datadog-Meta-Lang-Interpreter", sapi_module.name);
-    dd_append_header(list, "Datadog-Meta-Tracer-Version", PHP_DDTRACE_VERSION);
-
-    char *id = ddshared_container_id();
-    if (id != NULL && id[0] != '\0') {
-        dd_append_header(list, "Datadog-Container-Id", id);
-    }
-
-    /* Curl will add Expect: 100-continue if it is a POST over a certain size. The trouble is that CURL will
-     * wait for *1 second* for 100 Continue response before sending the rest of the data. This wait is
-     * configurable, but requires a newer curl than we have on CentOS 6. So instead we send an empty Expect.
-     */
-    dd_append_header(list, "Expect", "");
-}
-
-static bool dd_memoize_http_headers(void) {
-    if (((struct curl_slist *)atomic_load(&memoized_agent_curl_headers)) != NULL) {
-        return false;
-    }
-
-    struct curl_slist *list = NULL;
-    dd_append_agent_headers(&list);
-
-    if (list != NULL) {
-        uintptr_t desired = (uintptr_t)list;
-        uintptr_t expect = (uintptr_t)NULL;
-        return atomic_compare_exchange_strong(&memoized_agent_curl_headers, &expect, desired);
-    }
-
-    return false;
-}
 
 bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t payload_len TSRMLS_DC) {
     if (num_traces != 1) {
@@ -67,10 +13,6 @@ bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t pay
         return false;
     }
     bool sent_to_background_sender = false;
-
-    if (dd_memoize_http_headers()) {
-        ddtrace_log_debug("Successfully memoized Agent HTTP headers");
-    }
 
     /* Encoders encode X traces, but we need to do concatenation at the
      * transport layer too, so we strip away the msgpack array prefix.
