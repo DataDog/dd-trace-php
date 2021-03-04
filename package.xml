@@ -36,7 +36,22 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+    - Add randomized testing to test hundreds of different scenarios #1131
+    - Add configured http headers to root span #1154
+    - Add the possibility to freeze a regression in a specific randomized tests scenario #1153
+    ### Changed
+    - Remove non php7 code from ext/php7 folder #1162
+    - Remove non php5 code from ext/php5 folder #1164
+    ### Fixed
+    - Add missing dependency on curl extension for PHP 8 #1144 (Thanks @remicollet!)
+    - Fix initialization of `curl_multi_init()` for distributed tracing #1159
+    - Add comment to long running example for method instead of function #1149
+    - Fix linting + xfail a flaky test #1147
+    - Update links in README.md to configuration and OT docs #1069
+    - Fix clang-format installation after circleci image update to buster #1141
+    </notes>
     <contents>
         <dir name="/">
             <!-- Shared -->
