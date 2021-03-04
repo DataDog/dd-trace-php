@@ -784,18 +784,18 @@ void ddtrace_execute_internal_mshutdown(void) {
 
 void ddtrace_engine_hooks_rinit(TSRMLS_D) {
 #if ZTS
-    PHP5_UNUSED(TSRMLS_C);
+    UNUSED(TSRMLS_C);
 #endif
 }
 
 void ddtrace_engine_hooks_rshutdown(TSRMLS_D) {
 #if ZTS
-    PHP5_UNUSED(TSRMLS_C);
+    UNUSED(TSRMLS_C);
 #endif
 }
 
 zval *ddtrace_make_exception_from_error(DDTRACE_ERROR_CB_PARAMETERS TSRMLS_DC) {
-    PHP5_UNUSED(error_filename, error_lineno);
+    UNUSED(error_filename, error_lineno);
 
     zval *exception, *message_zv, *code_zv;
     MAKE_STD_ZVAL(exception);

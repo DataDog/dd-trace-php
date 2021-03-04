@@ -5,12 +5,8 @@
 #include "configuration.h"
 
 inline void ddtrace_log_err(const char *message) {
-#if PHP_VERSION_ID < 80000
     TSRMLS_FETCH();
     php_log_err((char *)message TSRMLS_CC);
-#else
-    php_log_err(message);
-#endif
 }
 
 #define ddtrace_log_debugf(...)            \

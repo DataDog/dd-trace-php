@@ -39,11 +39,7 @@ static inline uint64_t zval_to_uint64(zval *zid) {
         return 0U;
     }
     const char *id = Z_STRVAL_P(zid);
-#if PHP_VERSION_ID >= 70000
-    size_t i = 0;
-#else
     int i = 0;
-#endif
     for (; i < Z_STRLEN_P(zid); i++) {
         if (id[i] < '0' || id[i] > '9') {
             return 0U;

@@ -167,10 +167,10 @@ static void _add_assoc_zval_copy(zval *el, const char *name, zval *prop) {
  * @see https://github.com/php/php-src/blob/PHP-5.4/Zend/zend_exceptions.c#L543-L605
  */
 static int _trace_string(zval **frame TSRMLS_DC, int num_args, va_list args, zend_hash_key *hash_key) {
-    PHP5_UNUSED(hash_key);
+    UNUSED(hash_key);
 #ifdef ZTS
     /* This arg is required for the zend_hash_apply_with_arguments function signature, but we don't need it */
-    PHP5_UNUSED(TSRMLS_C);
+    UNUSED(TSRMLS_C);
 #endif
 
     char *s_tmp, **str;

@@ -36,13 +36,8 @@ static bool dd_try_find_method_dispatch(zend_class_entry *class, zval *fname, dd
     }
     HashTable *class_lookup = NULL;
 
-#if PHP_VERSION_ID < 70000
     const char *class_name = class->name;
     size_t class_name_length = class->name_length;
-#else
-    const char *class_name = ZSTR_VAL(class->name);
-    size_t class_name_length = ZSTR_LEN(class->name);
-#endif
 
     class_lookup = ddtrace_hash_find_ptr_lc(DDTRACE_G(class_lookup), class_name, class_name_length);
     if (class_lookup) {
@@ -69,18 +64,11 @@ ddtrace_dispatch_t *ddtrace_find_dispatch(zend_class_entry *scope, zval *fname T
     return dispatch;
 }
 
-#if PHP_VERSION_ID >= 70000
-static void dispatch_table_dtor(zval *zv) {
-    zend_hash_destroy(Z_PTR_P(zv));
-    efree(Z_PTR_P(zv));
-}
-#else
 static void dispatch_table_dtor(void *zv) {
     HashTable *ht = *(HashTable **)zv;
     zend_hash_destroy(ht);
     efree(ht);
 }
-#endif
 
 void ddtrace_dispatch_init(TSRMLS_D) {
     if (!DDTRACE_G(class_lookup)) {
@@ -120,7 +108,6 @@ void ddtrace_dispatch_reset(TSRMLS_D) {
 static HashTable *_get_lookup_for_target(zval *class_name TSRMLS_DC) {
     HashTable *overridable_lookup = NULL;
     if (class_name && DDTRACE_G(class_lookup)) {
-#if PHP_VERSION_ID < 70000
         // downcase the class name before lookup as class names are case insensitive.
         zval *class_name_prev = class_name;
         MAKE_STD_ZVAL(class_name);
@@ -133,16 +120,6 @@ static HashTable *_get_lookup_for_target(zval *class_name TSRMLS_DC) {
         }
         zval_ptr_dtor(&class_name);
         class_name = class_name_prev;
-#else
-        zend_string *class_name_lc = zend_string_tolower(Z_STR_P(class_name));
-        overridable_lookup = zend_hash_find_ptr(DDTRACE_G(class_lookup), class_name_lc);
-        if (!overridable_lookup) {
-            zval tmp;
-            ZVAL_STR(&tmp, class_name_lc);
-            overridable_lookup = ddtrace_new_class_lookup(&tmp TSRMLS_CC);
-        }
-        zend_string_release(class_name_lc);
-#endif
     } else {
         overridable_lookup = DDTRACE_G(function_lookup);
     }
@@ -165,11 +142,7 @@ zend_bool ddtrace_trace(zval *class_name, zval *function_name, zval *callable, u
         ZVAL_NULL(&dispatch.callable);
     }
 
-#if PHP_VERSION_ID < 70000
     ZVAL_STRINGL(&dispatch.function_name, Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), 1);
-#else
-    ZVAL_COPY(&dispatch.function_name, function_name);
-#endif
     ddtrace_downcase_zval(&dispatch.function_name);  // method/function names are case insensitive in PHP
     dispatch.options = options;
 
