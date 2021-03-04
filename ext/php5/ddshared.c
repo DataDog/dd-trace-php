@@ -1,7 +1,6 @@
 #include "ddshared.h"
 
 #include "datadog/container_id.h"
-#include "datadog/string.h"
 #include "ddtrace.h"
 #include "logging.h"
 
