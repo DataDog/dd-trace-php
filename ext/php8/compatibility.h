@@ -52,9 +52,6 @@
 #define _GET_UNUSED_MACRO_OF_ARITY(_1, _2, _3, _4, _5, ARITY, ...) UNUSED_##ARITY
 #define UNUSED(...) _GET_UNUSED_MACRO_OF_ARITY(__VA_ARGS__, 5, 4, 3, 2, 1)(__VA_ARGS__)
 
-#define PHP5_UNUSED(...) /* unused unused */
-#define PHP7_UNUSED(...) UNUSED(__VA_ARGS__)
-
 #define COMPAT_RETVAL_STRING(c) RETVAL_STRING(c)
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval*)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
