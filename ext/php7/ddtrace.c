@@ -280,14 +280,15 @@ static void dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
 static void dd_disable_by_configuration(TSRMLS_D) {
     if (!get_dd_trace_enabled()) {
         ddtrace_log_debugf("Tracing is disabled by user setting; disabling ddtrace");
-    } else if (dd_is_cli() && !get_dd_trace_cli_enabled()) {
-        ddtrace_log_debugf("CLI SAPI not explicitly enabled; disabling ddtrace");
-    } else {
-        // If we are in this branch, it means that we do not have to disable the tracer
+        DDTRACE_G(disable) = 1;
         return;
     }
 
-    DDTRACE_G(disable) = 1;
+    if (dd_is_cli() && !get_dd_trace_cli_enabled()) {
+        ddtrace_log_debugf("CLI SAPI not explicitly enabled; disabling ddtrace");
+        DDTRACE_G(disable) = 1;
+        return;
+    }
 }
 
 static PHP_MINIT_FUNCTION(ddtrace) {
