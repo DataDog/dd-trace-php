@@ -15,10 +15,6 @@ bool ddtrace_is_excluded_module(zend_module_entry *module, char *error) {
     }
     if (strcmp("xdebug", module->name) == 0) {
         /*
-        PHP 7.0 was only supported from Xdebug 2.4 through 2.7
-        @see: https://xdebug.org/docs/compat
-        */
-        /*
         Xdebug versions < 2.9.3 did not call neighboring extension's opcode handlers.
         @see: https://github.com/xdebug/xdebug/commit/87c61401e27df786a06cc881bd2011ce985b08dd
         @see: https://xdebug.org/announcements/2020-03-13
