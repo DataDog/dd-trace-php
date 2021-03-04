@@ -648,9 +648,7 @@ static void dd_agent_headers_free(struct curl_slist *list) {
     }
 }
 
-void ddtrace_coms_curl_shutdown(void) {
-    dd_agent_headers_free(dd_agent_curl_headers);
-}
+void ddtrace_coms_curl_shutdown(void) { dd_agent_headers_free(dd_agent_curl_headers); }
 
 static long _dd_max_long(long a, long b) { return a >= b ? a : b; }
 
