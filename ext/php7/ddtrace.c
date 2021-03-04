@@ -63,7 +63,7 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateStrin
 PHP_INI_END()
 
 static int ddtrace_startup(struct _zend_extension *extension) {
-    if (DDTRACE_G(disable) = 1) {
+    if (DDTRACE_G(disable)) {
         return SUCCESS;
     }
 
@@ -80,7 +80,7 @@ static int ddtrace_startup(struct _zend_extension *extension) {
 static void ddtrace_shutdown(struct _zend_extension *extension) {
     UNUSED(extension);
 
-    if (DDTRACE_G(disable) = 1) {
+    if (DDTRACE_G(disable)) {
         return;
     }
 
