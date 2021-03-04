@@ -251,13 +251,34 @@ static void dd_register_fatal_error_ce(TSRMLS_D) {
     ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_ce_exception TSRMLS_CC);
 }
 
+/*
+ * Tells whether or not the script is executed from the command line.
+ */
+static bool dd_is_cli() { return strcmp("cli", sapi_module.name) == 0; }
+
 static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
-    if (strcmp("fpm-fcgi", sapi_module.name) == 0 || strcmp("apache2handler", sapi_module.name) == 0 ||
-        strcmp("cli", sapi_module.name) == 0 || strcmp("cli-server", sapi_module.name) == 0 ||
-        strcmp("cgi-fcgi", sapi_module.name) == 0) {
+    if (strcmp("fpm-fcgi", sapi_module.name) == 0 || strcmp("apache2handler", sapi_module.name) == 0 || dd_is_cli() ||
+        strcmp("cli-server", sapi_module.name) == 0 || strcmp("cgi-fcgi", sapi_module.name) == 0) {
         return;
     }
     ddtrace_log_debugf("Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
+    DDTRACE_G(disable) = 1;
+}
+
+/*
+ * Disable tracing if user explicitly disabled tracer by configuration or if a CLI SAPI is used and CLI tracing
+ * is not explictly enabled.
+ */
+static void dd_disable_by_configuration_or_cli_not_explicitly_enabled(TSRMLS_D) {
+    if (!get_dd_trace_enabled()) {
+        ddtrace_log_debugf("Tracing is disabled by user setting; disabling ddtrace");
+    } else if (dd_is_cli() && !get_dd_trace_cli_enabled()) {
+        ddtrace_log_debugf("CLI SAPI not explicitly enabled; disabling ddtrace");
+    } else {
+        // If we are in this branch, it means that we do not have to disable the tracer
+        return;
+    }
+
     DDTRACE_G(disable) = 1;
 }
 
@@ -268,7 +289,11 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     // config initialization needs to be at the top
     ddtrace_initialize_config(TSRMLS_C);
+
+    dd_disable_by_configuration_or_cli_not_explicitly_enabled(TSRMLS_C);
+
     _dd_disable_if_incompatible_sapi_detected(TSRMLS_C);
+
     atomic_init(&ddtrace_first_rinit, 1);
     atomic_init(&ddtrace_warn_legacy_api, 1);
 
@@ -1354,7 +1379,7 @@ zend_module_entry ddtrace_module_entry = {STANDARD_MODULE_HEADER,
 
 #ifdef COMPILE_DL_DDTRACE
 ZEND_GET_MODULE(ddtrace)
-#if defined(ZTS) && PHP_VERSION_ID >= 70000
+#if defined(ZTS)
 ZEND_TSRMLS_CACHE_DEFINE();
 #endif
 #endif
