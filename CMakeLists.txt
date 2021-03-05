@@ -36,7 +36,11 @@ target_include_directories(DDProf
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/native>
 )
-target_compile_definitions(DDProf PRIVATE -DDD_DBG_PROFGEN)
+
+option(DDPROF_DBG_PROFGEN off)
+if (${DDPROF_DBG_PROFGEN})
+  target_compile_definitions(DDProf PRIVATE -DDD_DBG_PROFGEN)
+endif ()
 
 set_target_properties(DDProf PROPERTIES
   OUTPUT_NAME ddprof # It should be named libddprof.{a,so}
