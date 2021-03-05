@@ -37,8 +37,10 @@ int TcpSockNew() {
     return -1;
   if (-1 == SockSetBit(fd, TCP_NODELAY, 1))
     return close(fd), -1;
+#if __linux__
   if (-1 == SockSetBit(fd, TCP_QUICKACK, 1))
     return close(fd), -1;
+#endif
   return fd;
 }
 
