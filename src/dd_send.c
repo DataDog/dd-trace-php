@@ -190,7 +190,7 @@ int DDR_finalize(DDReq *req) {
     return DDRC_EINVAL;
   //  as_sprintf(req->as_header, "POST http://%s%s HTTP/1.1\r\n", req->host,
   //             "/v1/input");
-  as_sprintf(req->as_header, "POST %s HTTP/1.1\r\n", "/v1/input");
+  as_sprintf(req->as_header, "POST %s HTTP/1.1\r\n", "/profiling/v1/input");
   as_sprintf(req->as_header, "Host: %s:%s\r\n", req->host, req->port);
 
   // Populate header and body elements
