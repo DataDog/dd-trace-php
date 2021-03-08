@@ -14,13 +14,7 @@ extern inline bool ddtrace_string_equals(ddtrace_string a, ddtrace_string b);
  * We aren't modifying anything, so we'll use const and just cast inside.
  */
 static const char *_dd_memnstr(const char *haystack, const char *needle, int needle_len, const char *end) {
-#if PHP_VERSION_ID < 50600
-    return zend_memnstr((char *)haystack, (char *)needle, needle_len, (char *)end);
-#elif PHP_VERSION_ID < 70000
-    return zend_memnstr((const char *)haystack, (const char *)needle, needle_len, (char *)end);
-#else
     return zend_memnstr((const char *)haystack, (const char *)needle, needle_len, (const char *)end);
-#endif
 }
 
 /**

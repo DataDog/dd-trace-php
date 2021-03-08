@@ -326,10 +326,8 @@ typedef struct dd_error_info {
 static zend_string *dd_error_type(int code) {
     const char *error_type = "{unknown error}";
 
-#if PHP_VERSION_ID >= 80000
     // mask off flags such as E_DONT_BAIL
     code &= E_ALL;
-#endif
 
     switch (code) {
         case E_ERROR:
@@ -362,104 +360,6 @@ static zend_string *dd_fatal_error_stack(void) {
     zval_ptr_dtor(&stack);
     return error_stack;
 }
-
-#if PHP_VERSION_ID < 80000
-static zend_string *dd_vprintf_zstr(size_t len, const char *format, va_list args) {
-    va_list args2;
-
-    zend_string *msg = zend_string_alloc(len, 0);
-    ZSTR_LEN(msg) = len;
-
-    va_copy(args2, args);
-    int written = vsnprintf(ZSTR_VAL(msg), len + 1, format, args2);
-    va_end(args2);
-
-    if (written < 0) {
-        zend_string_release(msg);
-        return NULL;
-    }
-
-    ZSTR_VAL(msg)[len] = '\0';
-    return msg;
-}
-
-// Returns NULL in error conditions
-static zend_string *dd_fatal_error_msg(const char *format, va_list args) {
-    va_list args2;
-
-    /* In PHP 7 an uncaught exception results in a fatal error. The error
-     * message includes the call stack and its arguments, which is a vector for
-     * information disclosure. We need to avoid this.
-     *
-     * We capture the first line of the error which won't include arguments.
-     * The length of the buffer here is hopefully large enough to capture the
-     * first line so we can avoid allocating the full string, as these can be
-     * quite large and we're only interested in the first line.
-     */
-    const char uncaught[] = "Uncaught ";
-    char buffer[256];
-
-    va_copy(args2, args);
-    int prefix = vsnprintf(buffer, sizeof buffer, format, args2);
-    va_end(args2);
-
-    if (prefix < 0) {
-        return NULL;
-    }
-
-    /* The -1 is to avoid the null terminator which is included in literals and
-     * will not be present in the rendered error message at that position.
-     */
-    size_t uncaught_len = sizeof uncaught - 1;
-    if ((unsigned)prefix >= uncaught_len && memcmp(buffer, uncaught, uncaught_len) == 0) {
-        char *newline = memchr(buffer, '\n', sizeof buffer);
-        if (newline) {
-            *newline = '\0';
-            size_t linelen = newline - buffer;
-
-            // +1 for null terminator
-            zend_string *msg = zend_string_alloc(linelen + 1, 0);
-            memcpy(ZSTR_VAL(msg), buffer, linelen + 1);  // copy NULL too
-            ZSTR_LEN(msg) = linelen;
-
-            return msg;
-        } else {
-            // our buffer wasn't big enough; we have to render the full message
-            zend_string *msg = dd_vprintf_zstr(prefix, format, args);
-            if (!msg) {
-                return NULL;
-            }
-
-            newline = memchr(ZSTR_VAL(msg), '\n', sizeof buffer);
-            if (UNEXPECTED(!newline)) {
-                // This is suspect; there is always a newline in these messages
-                zend_string_release(msg);
-                return NULL;
-            }
-
-            size_t linepos = newline - ZSTR_VAL(msg);
-            ZSTR_LEN(msg) = linepos;
-            *newline = '\0';
-            return msg;
-        }
-    }
-
-    zend_string *msg = dd_vprintf_zstr(prefix, format, args);
-    if (!msg) {
-        return NULL;
-    }
-
-    return msg;
-}
-
-static dd_error_info dd_fatal_error(int type, const char *format, va_list args) {
-    return (dd_error_info){
-        .type = dd_error_type(type),
-        .msg = dd_fatal_error_msg(format, args),
-        .stack = dd_fatal_error_stack(),
-    };
-}
-#endif
 
 static int dd_fatal_error_to_meta(zval *meta, dd_error_info error) {
     HashTable *ht = Z_ARR_P(meta);
@@ -593,57 +493,6 @@ void ddtrace_serialize_span_to_array(ddtrace_span_fci *span_fci, zval *array TSR
     add_next_index_zval(array, el);
 }
 
-#if PHP_VERSION_ID < 80000
-void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
-    /* We need the error handling to place nicely with the sandbox. The best
-     * idea so far is to execute fatal error handling code iff the error handling
-     * mode is set to EH_NORMAL. If it's something else, such as EH_SUPPRESS or
-     * EH_THROW, then they are likely to be handled and accordingly they
-     * shouldn't be treated as fatal.
-     */
-    bool is_fatal_error = type & (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
-    if (EXPECTED(EG(active)) && EG(error_handling) == EH_NORMAL && UNEXPECTED(is_fatal_error)) {
-        /* If there is a fatal error in shutdown then this might not be an array
-         * because we set it to IS_NULL in RSHUTDOWN. We probably want a more
-         * robust way of detecting this, but I'm not sure how yet.
-         */
-        if (Z_TYPE(DDTRACE_G(additional_trace_meta)) == IS_ARRAY) {
-            dd_error_info error = dd_fatal_error(type, format, args);
-            dd_fatal_error_to_meta(&DDTRACE_G(additional_trace_meta), error);
-            ddtrace_span_fci *span;
-            for (span = DDTRACE_G(open_spans_top); span; span = span->next) {
-                if (span->exception || !span->span.span_data) {
-                    continue;
-                }
-
-                zval *meta = ddtrace_spandata_property_meta(span->span.span_data);
-                if (!meta) {
-                    continue;
-                }
-
-                if (Z_TYPE_P(meta) != IS_ARRAY) {
-                    zval_ptr_dtor(meta);
-                    array_init_size(meta, ddtrace_num_error_tags);
-                }
-                dd_fatal_error_to_meta(meta, error);
-            }
-            if (error.type) {
-                zend_string_release(error.type);
-            }
-            if (error.msg) {
-                zend_string_release(error.msg);
-            }
-            if (error.stack) {
-                zend_string_release(error.stack);
-            }
-            ddtrace_close_all_open_spans();
-        }
-    }
-
-    ddtrace_prev_error_cb(DDTRACE_ERROR_CB_PARAM_PASSTHRU);
-}
-#else
-
 static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
     const char uncaught[] = "Uncaught ";
     const char *data = ZSTR_VAL(msg);
@@ -711,4 +560,3 @@ void ddtrace_observer_error_cb(int type, const char *error_filename, uint32_t er
         }
     }
 }
-#endif
