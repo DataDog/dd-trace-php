@@ -7,6 +7,25 @@ use GuzzleHttp\Client as GuzzleClient;
 
 class Snippets
 {
+    public function availableIntegrations()
+    {
+        $all = [
+            'elasticsearch' => 1,
+            'guzzle' => 1,
+            'memcached' => 1,
+            'mysqli' => 1,
+            'curl' => 2,
+            'pdo' => 1,
+            'phpredis' => 1,
+        ];
+
+        if (Utils::isPhpVersion(5, 4) || Utils::isPhpVersion(5, 5) || Utils::isPhpVersion(8, 0)) {
+            unset($all['elasticsearch']);
+        }
+
+        return $all;
+    }
+
     public function mysqliVariant1()
     {
         $mysqli = \mysqli_connect('mysql', 'test', 'test', 'test');
@@ -37,6 +56,36 @@ class Snippets
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         $output = curl_exec($ch);
         curl_close($ch);
+    }
+
+    public function curlVariant2()
+    {
+        $ch1 = curl_init();
+        curl_setopt($ch1, CURLOPT_URL, 'httpbin/get?client=curl&multi');
+        curl_setopt($ch1, CURLOPT_RETURNTRANSFER, 1);
+
+        $ch2 = curl_init();
+        curl_setopt($ch2, CURLOPT_URL, 'httpbin/get?client=curl&multi');
+        curl_setopt($ch2, CURLOPT_RETURNTRANSFER, 1);
+
+        $ch3 = curl_init();
+        curl_setopt($ch3, CURLOPT_URL, 'httpbin/get?client=curl&multi');
+        curl_setopt($ch3, CURLOPT_RETURNTRANSFER, 1);
+
+        $mh = curl_multi_init();
+
+        do {
+            $status = curl_multi_exec($mh, $active);
+            if ($active) {
+                // Wait a short time for more activity
+                curl_multi_select($mh);
+            }
+        } while ($active && $status == CURLM_OK);
+
+        curl_multi_remove_handle($mh, $ch1);
+        curl_multi_remove_handle($mh, $ch2);
+        curl_multi_remove_handle($mh, $ch3);
+        curl_multi_close($mh);
     }
 
     public function elasticsearchVariant1()
