@@ -179,7 +179,7 @@ class RandomExecutionPath
     public function runSomeIntegrations()
     {
         $this->logEnter(__FUNCTION__);
-        $availableIntegrations = $this->availableIntegrations();
+        $availableIntegrations = $this->snippets->availableIntegrations();
         $availableIntegrationsNames = \array_keys($availableIntegrations);
         $numberOfIntegrationsToRun = \rand(0, \count($availableIntegrations));
         for ($integrationIndex = 0; $integrationIndex < $numberOfIntegrationsToRun; $integrationIndex++) {
@@ -191,25 +191,6 @@ class RandomExecutionPath
             $this->snippets->$functionName();
         }
         $this->logLeave(__FUNCTION__);
-    }
-
-    private function availableIntegrations()
-    {
-        $all = [
-            'elasticsearch' => 1,
-            'guzzle' => 1,
-            'memcached' => 1,
-            'mysqli' => 1,
-            'curl' => 1,
-            'pdo' => 1,
-            'phpredis' => 1,
-        ];
-
-        if (Utils::isPhpVersion(5, 4) || Utils::isPhpVersion(5, 5) || Utils::isPhpVersion(8, 0)) {
-            unset($all['elasticsearch']);
-        }
-
-        return $all;
     }
 
     private function maybeSomethingHappens()
