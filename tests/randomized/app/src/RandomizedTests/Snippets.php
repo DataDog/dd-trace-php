@@ -175,6 +175,14 @@ class Snippets
             return;
         }
 
+        $version = curl_version();
+        if (!isset($version['version_number']) || $version['version_number'] < 0x072e00) {
+            /* CURLMOPT_PUSHFUNCTION is only available in curl v7.46.0
+             * @see https://github.com/php/php-src/blob/ce0bc58/ext/curl/interface.c#L1018
+             */
+            return;
+        }
+
         $mh = curl_multi_init();
 
         /* Set a CURLMOPT_PUSHFUNCTION callback.
