@@ -173,7 +173,6 @@ final class IntegrationsLoaderTest extends BaseTestCase
             $excluded[] = 'cakephp';
             $excluded[] = 'lumen';
             $excluded[] = 'mongo';
-            $excluded[] = 'symfony';
             $excluded[] = 'zendframework';
         }
         foreach ($excluded as $integrationToExclude) {
