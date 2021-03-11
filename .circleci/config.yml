@@ -478,25 +478,14 @@ jobs:
       docker_image: datadog/dd-trace-ci:php-master_buster
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_EXPORT_CI_ENV
       - run:
           name: Build master branch
           command: install-php-master
       - run:
           name: Create php ini dir
           command: mkdir -v -p $(php-config --ini-dir)
-      - run:
-          name: Update to Composer 2
-          command: |
-            if which sudo &>/dev/null
-            then
-              sudo composer self-update --2
-            else
-              composer self-update --2
-            fi
-      - <<: *STEP_COMPOSER_UPDATE
-      - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-      - <<: *STEP_EXPORT_CI_ENV
       - prepare_extension_and_composer_with_cache
       - run:
           name: Run extension phpt tests
