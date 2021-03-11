@@ -39,6 +39,12 @@
     <notes>${notes}</notes>
     <contents>
         <dir name="/">
+            <!-- components -->
+            <file name="components/sapi/sapi.c" role="src" />
+            <file name="components/sapi/sapi.h" role="src" />
+            <file name="components/string_view/string_view.c" role="src" />
+            <file name="components/string_view/string_view.h" role="src" />
+
             <!-- Shared -->
             <file name="ext/DatadogArena/arena.c" role="src" />
             <file name="ext/DatadogArena/datadog/arena.h" role="src" />
