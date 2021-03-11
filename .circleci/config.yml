@@ -483,13 +483,21 @@ jobs:
           command: install-php-master
       - run:
           name: Create php ini dir
-          command: mkdir -p $(php-config --ini-dir)
-      - prepare_extension_and_composer_with_cache
-      - <<: *STEP_COMPOSER_SELF_UPDATE
+          command: mkdir -v -p $(php-config --ini-dir)
+      - run:
+          name: Update to Composer 2
+          command: |
+            if which sudo &>/dev/null
+            then
+              sudo composer self-update --2
+            else
+              composer self-update --2
+            fi
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
+      - prepare_extension_and_composer_with_cache
       - run:
           name: Run extension phpt tests
           command: make test_c BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
