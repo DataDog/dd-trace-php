@@ -520,8 +520,6 @@ DProf *pprof_Init(DProf *dp, const char **sample_names,
     if (!dp)
       return NULL;
     dp->ownership = 1;
-  } else {
-    dp->ownership = 0;
   }
 
   PPProfile *pprof = &dp->pprof;
@@ -837,17 +835,32 @@ unsigned char *pprof_flush(DProf *dp, size_t *sz) {
   size_t sz_zipped = pprof_zip(dp, (buf = malloc(sz_packed)), sz_packed);
 
 #ifdef DD_DBG_PROFGEN
-  // Optionally for debug purposes, emit a pprof to disk
+  static char *my_pprof_my_zip = "./pprofs/mytest.pb.gz";
+  static char *my_pprof_nozip = "./pprofs/mytest.pb";
+  static char *my_pprof_gzip = "./pprofs/mygzip.pb.gz";
+
+  // Clear whatever might be there
   mkdir("./pprofs", 0777);
-  unlink("./pprofs/test.pb.gz");
-  int fd = open("./pprofs/test.pb.gz", O_RDWR | O_CREAT, 0677);
+  unlink(my_pprof_my_zip);
+  unlink(my_pprof_nozip);
+  unlink(my_pprof_gzip);
+
+  // my_pprof_my_zip
+  int fd = open(my_pprof_my_zip, O_RDWR | O_CREAT, 0677);
   write(fd, buf, sz_zipped);
   close(fd);
 
-  unsigned char *thisbuf = malloc(sz_packed);
-  size_t thislen = perftools__profiles__profile__pack(&dp->pprof, thisbuf);
-  GZip("./pprofs/test.pb", (const char *)thisbuf, thislen);
-  free(thisbuf);
+  // my_pprof_nozip
+  void *buf_nozip = malloc(sz_packed);
+  perftools__profiles__profile__pack(&dp->pprof, buf_nozip);
+  fd = open(my_pprof_nozip, O_RDWR | O_CREAT, 0677);
+  write(fd, buf_nozip, sz_packed);
+  close(fd);
+
+  // my_pprof_gzip
+  size_t thislen = perftools__profiles__profile__pack(&dp->pprof, buf_nozip);
+  GZip(my_pprof_gzip, (const char *)buf_nozip, thislen);
+  free(buf_nozip);
 #endif
 
   // Reset the pprof according to the clearing semantics set in the dp

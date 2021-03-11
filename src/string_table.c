@@ -3,10 +3,6 @@
 
 #include "string_table.h"
 
-#ifdef D_SANITY_CHECKS
-#include <signal.h>
-#endif
-
 // ONLY FOR INTERNAL USE.  ONLY.
 #define STR_LEN_PTR(x) ((uint32_t *)&(x)[-4])
 #define STR_LEN(x) (*STR_LEN_PTR(x))
@@ -313,12 +309,9 @@ static ssize_t _StringTableArena_append(StringTableArena *sta,
   unsigned char *arena_ptr = dst + sizeof(uint32_t); // What we return
   uint32_t write_len = sz_val;                       // Size after padding
 
-#ifdef D_SANITY_CHECKS
-  if (STA_ALIGN(dst) != dst)
-    printf("NOT ALIGNED\n"), raise(SIGINT);
-  if (sz_total & STA_ALIGNMENT_MASK)
-    printf("LENGTH NOT ALIGNED\n"), raise(SIGINT);
-#endif
+  // Alignment checks
+  assert(STA_ALIGN(dst) == dst);
+  assert(!(sz_total & STA_ALIGNMENT_MASK));
 
   // Copy the 4-byte header (length) TODO this can overrun?
   memcpy(dst, &write_len, sizeof(uint32_t));

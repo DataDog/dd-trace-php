@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <time.h>
+#include <unistd.h> // TODO take this out and make a generic close in http.h
 
 #include "dd_send.h"
 
@@ -45,8 +46,6 @@ DDReq *DDR_init(DDReq *req) {
     if (!req)
       return NULL;
     req->ownership = 0x01;
-  } else {
-    req->ownership = 0;
   }
 
   req->as_header = as_init(NULL);
@@ -86,12 +85,9 @@ int DDR_push(DDReq *req, const char *disposition, const char *type,
 
 // Allocation can fail, so have to return state
 int DDR_pprof(DDReq *req, DProf *dp) {
-  static char pprof_disp[] = "name=\"data[?]\"; filename=\"?.pprof\"";
+  static char pprof_disp[] =
+      "name=\"data[auto.pprof]\"; filename=\"auto.pb.gz\"";
   static char pprof_type[] = "application/octet-stream";
-  static char value_type[] = "name=\"types[?]\"";
-  static int data_idx = 11; // TODO better to use strcr
-  static int file_idx = 26;
-  static int val_idx = 12;
 
   // Extract the value information
   int sz_vt = 0, idx = 0, ret = DDRC_EFAILED;
@@ -105,23 +101,11 @@ int DDR_pprof(DDReq *req, DProf *dp) {
     sz_vt += 1 + sz;
   }
 
-  // Create the string holding the types
-  char *types_str = calloc(1, sz_vt + 1);
-  for (i = 0; i + 1 < dp->pprof.n_sample_type; i++) {
-    idx = dp->pprof.sample_type[i]->type;
-    strcat(types_str, (char *)pprof_getstr(dp, idx, NULL));
-    strcat(types_str, ",");
-  }
-  idx = dp->pprof.sample_type[i]->type;
-  strcat(types_str, (char *)pprof_getstr(dp, idx, NULL));
-  value_type[val_idx] = '0' + req->pprof_count;
-
   // Serialize pprof
   if (!dp)
     return DDRC_EINVAL;
   unsigned char *pprof_str = pprof_flush(dp, &sz);
   if (!pprof_str) {
-    free(types_str);
     return DDRC_ESERIAL;
   }
 
@@ -130,29 +114,16 @@ int DDR_pprof(DDReq *req, DProf *dp) {
   // Prepare to write the appropriate multipart sections
   if (req->pprof_count > 9)
     return DDRC_ETOOMANYPPROFS;
-  pprof_disp[data_idx] = '0' + req->pprof_count;
-  pprof_disp[file_idx] = '0' + req->pprof_count;
 
   // Emit the serialized pprof
   if ((ret = DDR_push(req, pprof_disp, pprof_type, pprof_str, sz))) {
-    free(types_str);
     free(pprof_str);
     return ret;
   }
 
-  // Emit the type information
-  ret = DDR_push(req, value_type, NULL, (unsigned char *)types_str,
-                 strlen(types_str));
-
-  // Emit exactly one format section
-  if (0 == req->pprof_count)
-    DDR_push(req, "name=\"format\"", NULL, (const unsigned char *)"format",
-             strlen("format"));
-
   // Cleanup
   req->pprof_count++;
   free(pprof_str);
-  free(types_str);
   return ret;
 }
 
@@ -168,9 +139,9 @@ void DDR_setTimeNano(DDReq *req, int64_t ti, int64_t tf) {
   strftime(time_start, 128, "%Y-%m-%dT%H:%M:%SZ", tm_start);
   strftime(time_end, 128, "%Y-%m-%dT%H:%M:%SZ", tm_end);
 
-  DDR_push(req, "name=\"recording-start\"", NULL,
-           (const unsigned char *)time_start, strlen(time_start));
-  DDR_push(req, "name=\"recording-end\"", NULL, (const unsigned char *)time_end,
+  DDR_push(req, "name=\"start\"", NULL, (const unsigned char *)time_start,
+           strlen(time_start));
+  DDR_push(req, "name=\"end\"", NULL, (const unsigned char *)time_end,
            strlen(time_end));
 }
 
@@ -188,8 +159,6 @@ int DDR_finalize(DDReq *req) {
   // Validate info for connection
   if (!req->host || !req->port)
     return DDRC_EINVAL;
-  //  as_sprintf(req->as_header, "POST http://%s%s HTTP/1.1\r\n", req->host,
-  //             "/v1/input");
   as_sprintf(req->as_header, "POST %s HTTP/1.1\r\n", "/profiling/v1/input");
   as_sprintf(req->as_header, "Host: %s:%s\r\n", req->host, req->port);
 
@@ -234,11 +203,17 @@ int DDR_finalize(DDReq *req) {
     }
   }
 
-  // Wrap up by populating the boundary
+  // Tell the server that we don't want to hang out after this
+  as_sprintf(req->as_header, "Connection: close\r\n");
+
+  // Wrap up by populating the boundary header
   as_sprintf(req->as_header,
              "Content-Type: multipart/form-data; "
              "boundary=%s\r\n",
              req->boundary);
+
+  // ... and also pushing a blank boundary line
+  as_sprintf(req->as_body, "--%s\r\n", req->boundary);
 
   return DDRC_ESUCCESS;
 }
@@ -284,7 +259,17 @@ int DDR_send(DDReq *req) {
 }
 
 int DDR_watch(DDReq *req, int timeout) {
-  return DDR_http2ddr(HttpResRecvTimedwait(&req->res, timeout));
+  int ret = DDR_http2ddr(HttpResRecvTimedwait(&req->res, timeout));
+
+  // TODO we should formalize the list of states to close the connection against
+  //      and possibly also generalize connection semantics.  This is a sloppy
+  //      way of emulating tail-end enforcement of `connection: close`
+  if (ret != DDRC_ENOREQ && ret != DDRC_ETIMEOUT) {
+    close(req->conn.fd);
+    req->conn.fd = -1;
+    req->conn.state = HCS_INIT;
+  }
+  return ret;
 }
 
 int DDR_clear(DDReq *req) {
