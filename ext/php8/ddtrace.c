@@ -38,6 +38,7 @@
 #include "memory_limit.h"
 #include "random.h"
 #include "request_hooks.h"
+#include "sapi/sapi.h"
 #include "serializer.h"
 #include "signals.h"
 #include "span.h"
@@ -250,14 +251,26 @@ static void dd_register_fatal_error_ce(TSRMLS_D) {
     ddtrace_ce_fatal_error = zend_register_internal_class_ex(&ce, zend_ce_exception TSRMLS_CC);
 }
 
-static void _dd_disable_if_incompatible_sapi_detected(TSRMLS_D) {
-    if (strcmp("fpm-fcgi", sapi_module.name) == 0 || strcmp("apache2handler", sapi_module.name) == 0 ||
-        strcmp("cli", sapi_module.name) == 0 || strcmp("cli-server", sapi_module.name) == 0 ||
-        strcmp("cgi-fcgi", sapi_module.name) == 0) {
-        return;
+static bool dd_is_compatible_sapi(datadog_php_string_view module_name) {
+    switch (datadog_php_sapi_from_name(module_name)) {
+        case DATADOG_PHP_SAPI_APACHE2HANDLER:
+        case DATADOG_PHP_SAPI_CGI_FCGI:
+        case DATADOG_PHP_SAPI_CLI:
+        case DATADOG_PHP_SAPI_CLI_SERVER:
+        case DATADOG_PHP_SAPI_FPM_FCGI:
+            return true;
+
+        default:
+            return false;
     }
-    ddtrace_log_debugf("Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
-    DDTRACE_G(disable) = 1;
+}
+
+static void dd_disable_if_incompatible_sapi_detected(void) {
+    datadog_php_string_view module_name = datadog_php_string_view_from_cstr(sapi_module.name);
+    if (UNEXPECTED(!dd_is_compatible_sapi(module_name))) {
+        ddtrace_log_debugf("Incompatible SAPI detected '%s'; disabling ddtrace", sapi_module.name);
+        DDTRACE_G(disable) = 1;
+    }
 }
 
 static PHP_MINIT_FUNCTION(ddtrace) {
@@ -267,7 +280,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     // config initialization needs to be at the top
     ddtrace_initialize_config(TSRMLS_C);
-    _dd_disable_if_incompatible_sapi_detected(TSRMLS_C);
+    dd_disable_if_incompatible_sapi_detected();
     atomic_init(&ddtrace_first_rinit, 1);
     atomic_init(&ddtrace_warn_legacy_api, 1);
 
