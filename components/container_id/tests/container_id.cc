@@ -29,6 +29,14 @@ TEST_CASE("parse a Fargate container ID", "[container_id]") {
     REQUIRE(strcmp("432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da", id) == 0);
 }
 
+/* TODO
+TEST_CASE("parse a Fargate 1.4+ container ID", "[container_id]") {
+    char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
+    datadog_php_container_id(id, "./stubs/cgroup.fargate.1.4");
+    REQUIRE(strcmp("34dc0b5e626f2c5c4c5170e34b10e765-1234567890", id) == 0);
+}
+*/
+
 TEST_CASE("parse a container ID with leading and trailing whitespace", "[container_id]") {
     char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
     datadog_php_container_id(id, "./stubs/cgroup.whitespace");

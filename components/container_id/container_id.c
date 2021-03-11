@@ -19,25 +19,38 @@ static struct {
     // 9:perf_event:/ecs/user-ecs-classic/5a0d5ceddf6c44c1928d367a815d890f/38fac3e99302b3622be089dd41e7ccf38aff368a86cc339972075136ee2710ce
     // Example Fargate
     // 11:something:/ecs/5a081c13-b8cf-4801-b427-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da
+    // Example Fargate 1.4+
+    // 1:name=systemd:/ecs/34dc0b5e626f2c5c4c5170e34b10e765-1234567890
     {":/ecs/", sizeof(":/ecs/") - 1},
 };
 static size_t dd_targets_len = sizeof dd_targets / sizeof dd_targets[0];
 
-static void dd_extract_id(char *buf, char *pos) {
-    size_t len = strlen(pos);
-    char *end = pos + len - 1;
-    while (end > pos && isspace(end[0])) {
-        end--;
-        len--;
+/* Updates the 'end' pointer to the last non-whitespace & non-null-terminating
+ * character of a 'str'
+ */
+static size_t dd_str_seek_end(char *str, char **end) {
+    size_t len = strlen(str);
+    *end = str + len - 1;
+    while (*end > str && isspace(*end[0])) {
+        --*end;
+        --len;
     }
+    return len;
+}
+
+static void dd_extract_id(char *buf, char *pos) {
+    char *end = NULL;
+    size_t len = dd_str_seek_end(pos, &end);
+
     if (len < DATADOG_PHP_CONTAINER_ID_MAX_LEN) {
         return;
     }
 
+    // TODO Refactor to support Fargate 1.4+ IDs
+    // [a-f0-9]{64}
     for (size_t i = DATADOG_PHP_CONTAINER_ID_MAX_LEN; i > 0; i--) {
         char c = end[0];
-        // [^a-f0-9]
-        if (!(c >= 'a' && c <= 'f') && !(c >= '0' && c <= '9')) {
+        if (!isxdigit(c)) {
             buf[0] = '\0';
             return;
         }
