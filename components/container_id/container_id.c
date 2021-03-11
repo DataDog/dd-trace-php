@@ -1,17 +1,14 @@
-#include "datadog/container_id.h"
+#include "container_id.h"
 
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-struct dd_target {
+static struct {
     const char *name;
     size_t len;
-};
-typedef struct dd_target dd_target;
-
-dd_target dd_targets[] = {
+} dd_targets[] = {
     // Example Docker
     // 13:name=systemd:/docker/3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860
     {":/docker/", sizeof(":/docker/") - 1},
@@ -24,20 +21,20 @@ dd_target dd_targets[] = {
     // 11:something:/ecs/5a081c13-b8cf-4801-b427-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da
     {":/ecs/", sizeof(":/ecs/") - 1},
 };
-size_t dd_targets_len = sizeof dd_targets / sizeof dd_targets[0];
+static size_t dd_targets_len = sizeof dd_targets / sizeof dd_targets[0];
 
-void dd_extract_id(char *buf, char *pos) {
+static void dd_extract_id(char *buf, char *pos) {
     size_t len = strlen(pos);
     char *end = pos + len - 1;
     while (end > pos && isspace(end[0])) {
         end--;
         len--;
     }
-    if (len < DATADOG_CONTAINER_ID_LEN) {
+    if (len < DATADOG_PHP_CONTAINER_ID_MAX_LEN) {
         return;
     }
 
-    for (size_t i = DATADOG_CONTAINER_ID_LEN; i > 0; i--) {
+    for (size_t i = DATADOG_PHP_CONTAINER_ID_MAX_LEN; i > 0; i--) {
         char c = end[0];
         // [^a-f0-9]
         if (!(c >= 'a' && c <= 'f') && !(c >= '0' && c <= '9')) {
@@ -47,10 +44,10 @@ void dd_extract_id(char *buf, char *pos) {
         buf[i - 1] = c;
         end--;
     }
-    buf[DATADOG_CONTAINER_ID_LEN] = '\0';
+    buf[DATADOG_PHP_CONTAINER_ID_MAX_LEN] = '\0';
 }
 
-char *dd_find_target(const char *line) {
+static char *dd_find_target(const char *line) {
     for (size_t i = 0; i < dd_targets_len; ++i) {
         char *pos = strstr(line, dd_targets[i].name);
         if (pos) {
@@ -60,7 +57,7 @@ char *dd_find_target(const char *line) {
     return NULL;
 }
 
-void datadog_container_id(char *buf, const char *file) {
+void datadog_php_container_id(char *buf, const char *file) {
     FILE *fp;
     char line[1024];
 

@@ -40,6 +40,8 @@
     <contents>
         <dir name="/">
             <!-- components -->
+            <file name="components/container_id/container_id.c" role="src" />
+            <file name="components/container_id/container_id.h" role="src" />
             <file name="components/sapi/sapi.c" role="src" />
             <file name="components/sapi/sapi.h" role="src" />
             <file name="components/string_view/string_view.c" role="src" />
@@ -54,9 +56,6 @@
             <file name="ext/DatadogMemHash/include/datadog/memhash.hh" role="src" />
             <file name="ext/DatadogMemHash/test/cantor.cc" role="test" />
             <file name="ext/DatadogMemHash/test/main.cc" role="test" />
-
-            <file name="ext/DatadogShared/container_id.c" role="src" />
-            <file name="ext/DatadogShared/datadog/container_id.h" role="src" />
 
             <file name="ext/version.h" role="src" />
             <!-- Third party -->

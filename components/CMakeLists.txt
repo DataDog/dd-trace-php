@@ -37,6 +37,8 @@ add_subdirectory(string_view)
 # sapi depends on string_view
 add_subdirectory(sapi)
 
+add_subdirectory(container_id)
+
 install(EXPORT DatadogPhpComponentsTargets
   FILE DatadogPhpComponentsTargets.cmake
   NAMESPACE Datadog::Php::

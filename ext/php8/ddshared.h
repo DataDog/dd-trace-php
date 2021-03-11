@@ -1,9 +1,7 @@
 #ifndef DD_TRACE_SHARED_H
 #define DD_TRACE_SHARED_H
 
-#include "datadog/container_id.h"
-
-#define DDSHARED_CONTAINER_ID_LEN DATADOG_CONTAINER_ID_LEN
+#include "container_id/container_id.h"
 
 void ddshared_minit(void);
 
