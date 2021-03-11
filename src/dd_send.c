@@ -46,6 +46,8 @@ DDReq *DDR_init(DDReq *req) {
     if (!req)
       return NULL;
     req->ownership = 0x01;
+  } else {
+    req->owernship = 0;
   }
 
   req->as_header = as_init(NULL);
