@@ -485,6 +485,8 @@ jobs:
           name: Create php ini dir
           command: mkdir -p $(php-config --ini-dir)
       - prepare_extension_and_composer_with_cache
+      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
