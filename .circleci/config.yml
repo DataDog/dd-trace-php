@@ -489,6 +489,9 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - run:
+          name: Install PHPUnit ^9.5
+          command: composer require phpunit/phpunit ^9.5 --with-all-dependencies --ignore-platform-reqs
+      - run:
           name: Run extension phpt tests
           command: make test_c BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
       - run:
