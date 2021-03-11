@@ -481,6 +481,9 @@ jobs:
       - run:
           name: Build master branch
           command: install-php-master
+      - run:
+          name: Create php ini dir
+          command: mkdir -p $(php-config --ini-dir)
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
