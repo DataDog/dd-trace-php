@@ -1085,7 +1085,7 @@ static PHP_FUNCTION(container_id) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
     char *id = ddshared_container_id();
     if (id != NULL && id[0] != '\0') {
-        RETVAL_STRINGL(id, DDSHARED_CONTAINER_ID_LEN, 0);
+        RETVAL_STRING(id, 1);
     } else {
         RETURN_NULL();
     }
