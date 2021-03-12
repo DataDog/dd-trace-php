@@ -533,9 +533,10 @@ TEST_WEB_80 := \
 	test_web_laravel_8x \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_symfony_44 \
+	test_web_symfony_51 \
 	test_web_yii_2 \
 	test_web_custom
-	#test_web_symfony_51 ; will work eventually; currently hung on: doctrine/doctrine-migrations-bundle
 
 define run_tests
 	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1)

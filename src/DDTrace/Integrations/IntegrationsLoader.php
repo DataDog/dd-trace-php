@@ -73,6 +73,8 @@ class IntegrationsLoader
                 '\DDTrace\Integrations\Laravel\LaravelIntegration';
             $this->integrations[MysqliIntegration::NAME] =
                 '\DDTrace\Integrations\Mysqli\MysqliIntegration';
+            $this->integrations[SymfonyIntegration::NAME] =
+                '\DDTrace\Integrations\Symfony\SymfonyIntegration';
             return;
         }
 
