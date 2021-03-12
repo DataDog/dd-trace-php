@@ -707,6 +707,11 @@ test_web_symfony_51:
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_1 update
 	php tests/Frameworks/Symfony/Version_5_1/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V5_1)
+test_web_symfony_52:
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_2 update
+	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests,tests/Integrations/Symfony/V5_2)
+
 test_web_wordpress_48:
 	$(call run_tests,tests/Integrations/WordPress/V4_8)
 test_web_wordpress_55:
