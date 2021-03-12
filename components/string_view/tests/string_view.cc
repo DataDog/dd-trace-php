@@ -9,17 +9,17 @@ TEST_CASE("string_view init", "[string_view]") {
     datadog_php_string_view str = DATADOG_PHP_STRING_VIEW_INIT;
 
     REQUIRE(str.len == 0);
-    REQUIRE(str.ptr == NULL);
+    REQUIRE(str.ptr);
 }
 
 TEST_CASE("string_view cstrings", "[string_view]") {
     datadog_php_string_view empty = datadog_php_string_view_from_cstr("");
     REQUIRE(empty.len == 0);
-    REQUIRE(empty.ptr[0] == '\0');
+    REQUIRE(empty.ptr);
 
     datadog_php_string_view nil = datadog_php_string_view_from_cstr(nullptr);
     REQUIRE(nil.len == 0);
-    REQUIRE(nil.ptr == NULL);
+    REQUIRE(nil.ptr);
 
     datadog_php_string_view abc = datadog_php_string_view_from_cstr("abc");
     REQUIRE(abc.len == 3);
@@ -34,11 +34,11 @@ TEST_CASE("string_view cstrings", "[string_view]") {
 TEST_CASE("string_view empty equal", "[string_view]") {
     datadog_php_string_view empty = datadog_php_string_view_from_cstr("");
     REQUIRE(empty.len == 0);
-    REQUIRE(empty.ptr[0] == '\0');
+    REQUIRE(empty.ptr);
 
     datadog_php_string_view nil = datadog_php_string_view_from_cstr(nullptr);
     REQUIRE(nil.len == 0);
-    REQUIRE(nil.ptr == NULL);
+    REQUIRE(nil.ptr);
 
     REQUIRE(datadog_php_string_view_equal(empty, nil));
 }

@@ -5,7 +5,7 @@
 datadog_php_string_view datadog_php_string_view_from_cstr(const char cstr[]) {
     datadog_php_string_view string_view = {
         .len = cstr ? strlen(cstr) : 0,
-        .ptr = cstr,
+        .ptr = cstr ? cstr : "",
     };
     return string_view;
 }
