@@ -11,6 +11,9 @@ case $(php-config --vernum | cut -c1-3) in
     506 ) xdebug_version="-2.5.5" ;;
     700 ) xdebug_version="-2.7.2" ;;
     701 ) xdebug_version="-2.8.1" ;;
+    702 ) xdebug_version="-2.9.8" ;;
+    703 ) xdebug_version="-2.9.8" ;;
+    704 ) xdebug_version="-2.9.8" ;;
 
     # Anything newer uses very under-development versions
     * )   xdebug_version="" ;;

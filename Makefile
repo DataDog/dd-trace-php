@@ -432,6 +432,7 @@ TEST_WEB_72 := \
 	test_web_symfony_44 \
 	test_web_symfony_50 \
 	test_web_symfony_51 \
+	test_web_symfony_52 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_yii_2 \
@@ -469,6 +470,7 @@ TEST_WEB_73 := \
 	test_web_symfony_44 \
 	test_web_symfony_50 \
 	test_web_symfony_51 \
+	test_web_symfony_52 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_yii_2 \
@@ -506,6 +508,7 @@ TEST_WEB_74 := \
 	test_web_symfony_44 \
 	test_web_symfony_50 \
 	test_web_symfony_51 \
+	test_web_symfony_52 \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_yii_2 \
@@ -535,6 +538,7 @@ TEST_WEB_80 := \
 	test_web_slim_4 \
 	test_web_symfony_44 \
 	test_web_symfony_51 \
+	test_web_symfony_52 \
 	test_web_yii_2 \
 	test_web_custom
 
@@ -707,6 +711,11 @@ test_web_symfony_51:
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_1 update
 	php tests/Frameworks/Symfony/Version_5_1/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests,tests/Integrations/Symfony/V5_1)
+test_web_symfony_52:
+	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_2 update
+	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests,tests/Integrations/Symfony/V5_2)
+
 test_web_wordpress_48:
 	$(call run_tests,tests/Integrations/WordPress/V4_8)
 test_web_wordpress_55:
