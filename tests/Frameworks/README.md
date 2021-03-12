@@ -150,6 +150,19 @@ Link: https://symfony.com/doc/5.1/setup.html
 
     $ composer create-project symfony/website-skeleton Version_5_1 "5.1.*"
 
+### Symfony 5.2
+
+For Symfony 5.2 I intentionally installed the symfony/skeleton instead of the
+full web skeleton; this removes dependencies we do not use like doctrine/dbal.
+We had troubles with installing compatible versions of these unused dependencies
+in the past.
+Link: https://symfony.com/doc/5.2/setup.html
+
+    $ composer create-project symfony/skeleton Version_5_2 "5.2.*"
+    $ cd Version_5_2
+    $ composer require doctrine/annotations
+    $ composer require symfony/twig-bundle
+
 ## Custom frameworks
 
 These aren't real frameworks, but they represent unsupported frameworks and custom frameworks.
