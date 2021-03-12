@@ -385,7 +385,7 @@ final class PDOTest extends IntegrationTestCase
             try {
                 $pdo = $this->pdoInstance();
                 $stmt = $pdo->prepare($query);
-                $stmt->execute([1]);
+                $stmt->execute();
                 $stmt->fetchAll();
                 $stmt->closeCursor();
                 $stmt = null;
@@ -412,7 +412,7 @@ final class PDOTest extends IntegrationTestCase
                 $pdo = $this->pdoInstance();
                 $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
                 $stmt = $pdo->prepare($query);
-                $stmt->execute([1]);
+                $stmt->execute();
                 $stmt->fetchAll();
                 $stmt->closeCursor();
                 $stmt = null;
