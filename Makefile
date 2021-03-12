@@ -533,6 +533,7 @@ TEST_WEB_80 := \
 	test_web_laravel_8x \
 	test_web_slim_312 \
 	test_web_slim_4 \
+	test_web_symfony_44 \
 	test_web_symfony_51 \
 	test_web_yii_2 \
 	test_web_custom
