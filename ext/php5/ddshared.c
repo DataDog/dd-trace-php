@@ -2,7 +2,6 @@
 
 #include "container_id/container_id.h"
 #include "ddtrace.h"
-#include "logging.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
