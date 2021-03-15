@@ -7,17 +7,23 @@
 /**
  * A string view is a non-owning view into another string. The original string
  * should not be changed from the view.
+ *
+ * TREAT THIS AS OPAQUE, even though it is not! Use the macros and functions to
+ * initialize this struct; DO NOT memzero or rely on defaults like = {} to init
+ * this, because we need to guarantee `ptr` is not null to avoid undefined
+ * behavior.
  */
 typedef struct datadog_php_string_view {
     size_t len;
-    const char *ptr;
+    const char *ptr;  // must not be null; use "" for empty string
+    // it would be great if nonnull attribute worked on struct fields
 } datadog_php_string_view;
 
 /* Used to initialize an empty string e.g.
  *   datadog_php_string_view str = DATADOG_PHP_STRING_VIEW_INIT;
  */
 #define DATADOG_PHP_STRING_VIEW_INIT \
-    { 0, NULL }
+    { 0, "" }
 
 /* Initialize from a string literal e.g.
  *   datadog_php_string_view str = DATADOG_PHP_STRING_VIEW_LITERAL("hello");

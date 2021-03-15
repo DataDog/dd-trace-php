@@ -1,10 +1,5 @@
 #include "comms_php.h"
 
-#include <stdatomic.h>
-
-#include "arrays.h"
-#include "compat_string.h"
-#include "compatibility.h"
 #include "coms.h"
 #include "ddtrace.h"
 #include "logging.h"
@@ -12,47 +7,12 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static void _comms_convert_append(zval *item, size_t offset, void *context) {
-    struct curl_slist **list = context;
-    zval converted;
-    TSRMLS_FETCH();
-
-    UNUSED(offset);
-
-    ddtrace_convert_to_string(&converted, item TSRMLS_CC);
-    *list = curl_slist_append(*list, Z_STRVAL(converted));
-    zval_dtor(&converted);
-}
-
-static struct curl_slist *_dd_convert_hashtable_to_curl_slist(HashTable *input) {
-    if (zend_hash_num_elements(input) > 0) {
-        struct curl_slist *list = NULL;
-        ddtrace_array_walk(input, _comms_convert_append, &list);
-        return list;
-    }
-    return NULL;
-}
-
-static bool _dd_memoize_http_headers(HashTable *input) {
-    if (((struct curl_slist *)atomic_load(&memoized_agent_curl_headers)) == NULL && zend_hash_num_elements(input) > 0) {
-        uintptr_t desired = (uintptr_t)_dd_convert_hashtable_to_curl_slist(input);
-        uintptr_t expect = (uintptr_t)NULL;
-        return atomic_compare_exchange_strong(&memoized_agent_curl_headers, &expect, desired);
-    }
-    return false;
-}
-
-bool ddtrace_send_traces_via_thread(size_t num_traces, zval *curl_headers, char *payload,
-                                    size_t payload_len TSRMLS_DC) {
+bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t payload_len) {
     if (num_traces != 1) {
         // The background sender is capable of sending exactly one trace atm
         return false;
     }
     bool sent_to_background_sender = false;
-
-    if (_dd_memoize_http_headers(Z_ARRVAL_P(curl_headers))) {
-        ddtrace_log_debug("Successfully memoized Agent HTTP headers");
-    }
 
     /* Encoders encode X traces, but we need to do concatenation at the
      * transport layer too, so we strip away the msgpack array prefix.

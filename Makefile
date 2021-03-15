@@ -16,6 +16,7 @@ INI_FILE := $(shell php -i | awk -F"=>" '/Scan this dir for additional .ini file
 
 C_FILES := $(shell find components ext src/dogstatsd -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES := $(shell find tests/ext -name '*.php*' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
+TEST_STUB_FILES := $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 INIT_HOOK_TEST_FILES := $(shell find tests/C2PHP -name '*.phpt' -o -name '*.inc' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 M4_FILES := $(shell find m4 -name '*.m4*' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 
@@ -70,7 +71,7 @@ install_ini: $(INI_FILE)
 install_all: install install_ini
 
 test_c: export DD_TRACE_CLI_ENABLED=1
-test_c: $(SO_FILE) $(TEST_FILES)
+test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
 	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
@@ -78,7 +79,7 @@ test_c: $(SO_FILE) $(TEST_FILES)
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all $(TESTS)
 
 test_c_mem: export DD_TRACE_CLI_ENABLED=1
-test_c_mem: $(SO_FILE) $(TEST_FILES)
+test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
 	export TEST_PHP_SRCDIR=$(BUILD_DIR); \
@@ -107,7 +108,7 @@ test_with_init_hook_asan: $(SO_FILE) $(INIT_HOOK_TEST_FILES)
 	)
 
 test_c_asan: export DD_TRACE_CLI_ENABLED=1
-test_c_asan: $(SO_FILE) $(TEST_FILES)
+test_c_asan: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
@@ -118,7 +119,7 @@ test_c_asan: $(SO_FILE) $(TEST_FILES)
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all --asan $(TESTS); \
 	)
 
-test_extension_ci: $(SO_FILE) $(TEST_FILES)
+test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	( \
 	set -xe; \
 	export REPORT_EXIT_STATUS=1; \
@@ -207,7 +208,7 @@ packages: .apk .rpm .deb .tar.gz
 	tar -zcf packages.tar.gz $(PACKAGES_BUILD_DIR)
 
 verify_pecl_file_definitions:
-	@for i in $(C_FILES) $(TEST_FILES) $(M4_FILES); do\
+	@for i in $(C_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES); do\
 		grep -q $${i#"$(BUILD_DIR)/"} package.xml && continue;\
 		echo package.xml is missing \"$${i#"$(BUILD_DIR)/"}\"; \
 		exit 1;\

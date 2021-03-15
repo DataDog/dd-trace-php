@@ -119,6 +119,7 @@ services:
   '7.4-debug-asan': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-asan-buster' }
   '8.0': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
   '8.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
+  '8.0-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
   'php-master': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   'ubuntu-16.04-7.1': { <<: *base_php_service, build: 'dockerfiles/ubuntu-16.04-php-7.1' }
   'ubuntu-18.04-7.2': { <<: *base_php_service, build: 'dockerfiles/ubuntu-18.04-php-7.2' }
@@ -172,6 +173,8 @@ services:
 
   request-replayer:
     image: datadog/dd-trace-ci:php-request-replayer
+    ports:
+      - "8766:80"
 
   agent:
     image: datadog/agent:latest

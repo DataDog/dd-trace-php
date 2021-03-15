@@ -27,6 +27,7 @@
 #include "coms.h"
 #include "configuration.h"
 #include "configuration_php_iface.h"
+#include "ddshared.h"
 #include "ddtrace.h"
 #include "ddtrace_string.h"
 #include "dispatch.h"
@@ -62,6 +63,10 @@ STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "@php_dir@/datadog_trace/bridge/d
 STD_PHP_INI_ENTRY("ddtrace.request_init_hook", "", PHP_INI_SYSTEM, OnUpdateString, request_init_hook,
                   zend_ddtrace_globals, ddtrace_globals)
 #endif
+
+// Exposed for testing only
+STD_PHP_INI_ENTRY("ddtrace.cgroup_file", "/proc/self/cgroup", PHP_INI_SYSTEM, OnUpdateString, cgroup_file,
+                  zend_ddtrace_globals, ddtrace_globals)
 PHP_INI_END()
 
 static int ddtrace_startup(struct _zend_extension *extension) {
@@ -324,6 +329,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     ddtrace_dogstatsd_client_minit(TSRMLS_C);
     ddtrace_signals_minit(TSRMLS_C);
+    ddshared_minit(TSRMLS_C);
 
     dd_register_span_data_ce(TSRMLS_C);
     dd_register_fatal_error_ce(TSRMLS_C);
@@ -1070,6 +1076,21 @@ static PHP_FUNCTION(integration_analytics_sample_rate) {
     RETVAL_DOUBLE(ddtrace_config_integration_analytics_sample_rate(integration TSRMLS_CC));
 }
 
+/* This is only exposed to serialize the container ID into an HTTP Agent header for the userland transport
+ * (`DDTrace\Transport\Http`). The background sender (extension-level transport) is decoupled from userland
+ * code to create any HTTP Agent headers. Once the dependency on the userland transport has been removed,
+ * this function can also be removed.
+ */
+static PHP_FUNCTION(container_id) {
+    UNUSED(return_value_used, this_ptr, return_value_ptr, ht TSRMLS_CC);
+    char *id = ddshared_container_id();
+    if (id != NULL && id[0] != '\0') {
+        RETVAL_STRING(id, 1);
+    } else {
+        RETURN_NULL();
+    }
+}
+
 static PHP_FUNCTION(trigger_error) {
     UNUSED(return_value_used, this_ptr, return_value_ptr, ht);
     ddtrace_string message;
@@ -1133,13 +1154,14 @@ static PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     ddtrace_zppstrlen_t payload_len = 0;
     zval *curl_headers = NULL;
 
+    // Agent HTTP headers are now set at the extension level so 'curl_headers' from userland is ignored
     if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, ZEND_NUM_ARGS() TSRMLS_CC, "las", &num_traces, &curl_headers,
                                  &payload, &payload_len) == FAILURE) {
         ddtrace_log_debug("dd_trace_send_traces_via_thread() expects trace count, http headers, and http body");
         RETURN_FALSE;
     }
 
-    bool result = ddtrace_send_traces_via_thread(num_traces, curl_headers, payload, payload_len TSRMLS_CC);
+    bool result = ddtrace_send_traces_via_thread(num_traces, payload, payload_len TSRMLS_CC);
     dd_prepare_for_new_trace(TSRMLS_C);
     RETURN_BOOL(result);
 }
@@ -1394,6 +1416,7 @@ static const zend_function_entry ddtrace_functions[] = {
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_enabled, arginfo_ddtrace_config_integration_analytics_enabled),
     DDTRACE_SUB_NS_FE("Config\\", integration_analytics_sample_rate,
                       arginfo_ddtrace_config_integration_analytics_sample_rate),
+    DDTRACE_SUB_NS_FE("System\\", container_id, arginfo_ddtrace_void),
     DDTRACE_SUB_NS_FE("Testing\\", trigger_error, arginfo_ddtrace_testing_trigger_error),
     DDTRACE_FE_END};
 

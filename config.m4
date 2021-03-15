@@ -41,6 +41,7 @@ if test "$PHP_DDTRACE" != "no"; then
   "
 
   DD_TRACE_COMPONENT_SOURCES="\
+    components/container_id/container_id.c \
     components/sapi/sapi.c \
     components/string_view/string_view.c \
   "
@@ -58,6 +59,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/coms.c \
       ext/php5/configuration.c \
       ext/php5/configuration_php_iface.c \
+      ext/php5/ddshared.c \
       ext/php5/ddtrace_string.c \
       ext/php5/dispatch.c \
       ext/php5/dogstatsd_client.c \
@@ -92,6 +94,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/coms.c \
       ext/php5/configuration.c \
       ext/php5/configuration_php_iface.c \
+      ext/php5/ddshared.c \
       ext/php5/ddtrace_string.c \
       ext/php5/dispatch.c \
       ext/php5/dogstatsd_client.c \
@@ -125,6 +128,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php7/coms.c \
       ext/php7/configuration.c \
       ext/php7/configuration_php_iface.c \
+      ext/php7/ddshared.c \
       ext/php7/ddtrace_string.c \
       ext/php7/dispatch.c \
       ext/php7/dogstatsd_client.c \
@@ -162,6 +166,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php8/coms.c \
       ext/php8/configuration.c \
       ext/php8/configuration_php_iface.c \
+      ext/php8/ddshared.c \
       ext/php8/ddtrace_string.c \
       ext/php8/dispatch.c \
       ext/php8/dogstatsd_client.c \
@@ -207,6 +212,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_ADD_INCLUDE([$ext_srcdir/components])
   PHP_ADD_BUILD_DIR([$ext_builddir/components])
+  PHP_ADD_BUILD_DIR([$ext_builddir/components/container_id])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/sapi])
   PHP_ADD_BUILD_DIR([$ext_builddir/components/string_view])
 

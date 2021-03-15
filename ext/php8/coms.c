@@ -1,5 +1,6 @@
 #include "coms.h"
 
+#include <SAPI.h>
 #include <curl/curl.h>
 #include <errno.h>
 #include <pthread.h>
@@ -14,6 +15,8 @@
 
 #include "compatibility.h"
 #include "configuration.h"
+#include "ddshared.h"
+#include "ext/version.h"
 #include "logging.h"
 #include "mpack/mpack.h"
 
@@ -603,16 +606,49 @@ static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
 #define TRACE_PATH_STR "/v0.4/traces"
 #define HOST_FORMAT_STR "http://%s:%u"
 
-atomic_uintptr_t memoized_agent_curl_headers;
+static struct curl_slist *dd_agent_curl_headers = NULL;
 
-void ddtrace_coms_curl_shutdown(void) {
-    uintptr_t desired = (uintptr_t)NULL;
-    uintptr_t expect = atomic_load(&memoized_agent_curl_headers);
-    if (expect != (uintptr_t)NULL) {
-        atomic_compare_exchange_strong(&memoized_agent_curl_headers, &expect, desired);
-        curl_slist_free_all((struct curl_slist *)expect);
+static void dd_append_header(struct curl_slist **list, const char *key, const char *val) {
+    /* The longest Agent header should be:
+     * Datadog-Container-Id: <64-char-hash>
+     * So 256 should give us plenty of wiggle room.
+     */
+    char header[256];
+    size_t len = snprintf(header, sizeof header, "%s: %s", key, val);
+    if (len > 0 && len < sizeof header) {
+        *list = curl_slist_append(*list, header);
     }
 }
+
+static struct curl_slist *dd_agent_headers_alloc(void) {
+    struct curl_slist *list = NULL;
+
+    dd_append_header(&list, "Datadog-Meta-Lang", "php");
+    dd_append_header(&list, "Datadog-Meta-Version", PHP_VERSION);
+    dd_append_header(&list, "Datadog-Meta-Lang-Interpreter", sapi_module.name);
+    dd_append_header(&list, "Datadog-Meta-Tracer-Version", PHP_DDTRACE_VERSION);
+
+    char *id = ddshared_container_id();
+    if (id != NULL && id[0] != '\0') {
+        dd_append_header(&list, "Datadog-Container-Id", id);
+    }
+
+    /* Curl will add Expect: 100-continue if it is a POST over a certain size. The trouble is that CURL will
+     * wait for *1 second* for 100 Continue response before sending the rest of the data. This wait is
+     * configurable, but requires a newer curl than we have on CentOS 6. So instead we send an empty Expect.
+     */
+    dd_append_header(&list, "Expect", "");
+
+    return list;
+}
+
+static void dd_agent_headers_free(struct curl_slist *list) {
+    if (list != NULL) {
+        curl_slist_free_all(list);
+    }
+}
+
+void ddtrace_coms_curl_shutdown(void) { dd_agent_headers_free(dd_agent_curl_headers); }
 
 static long _dd_max_long(long a, long b) { return a >= b ? a : b; }
 
@@ -690,9 +726,8 @@ static size_t _dd_dummy_write_callback(char *ptr, size_t size, size_t nmemb, voi
 #define DD_TRACE_COUNT_HEADER "X-Datadog-Trace-Count: "
 
 static void _dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trace_count) {
-    struct curl_slist *static_headers = (struct curl_slist *)atomic_load(&memoized_agent_curl_headers);
     struct curl_slist *headers = NULL;
-    for (struct curl_slist *current = static_headers; current; current = current->next) {
+    for (struct curl_slist *current = dd_agent_curl_headers; current; current = current->next) {
         headers = curl_slist_append(headers, current->data);
     }
     headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
@@ -905,7 +940,8 @@ bool ddtrace_coms_init_and_start_writer(void) {
     struct _writer_loop_data_t *writer = _dd_get_writer();
     _dd_writer_set_operational_state(writer);
     atomic_store(&writer->current_pid, getpid());
-    atomic_store(&memoized_agent_curl_headers, (uintptr_t)NULL);
+
+    dd_agent_curl_headers = dd_agent_headers_alloc();
 
     if (writer->thread) {
         return false;
