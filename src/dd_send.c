@@ -47,7 +47,7 @@ DDReq *DDR_init(DDReq *req) {
       return NULL;
     req->ownership = 0x01;
   } else {
-    req->owernship = 0;
+    req->ownership = 0;
   }
 
   req->as_header = as_init(NULL);
@@ -161,7 +161,10 @@ int DDR_finalize(DDReq *req) {
   // Validate info for connection
   if (!req->host || !req->port)
     return DDRC_EINVAL;
-  as_sprintf(req->as_header, "POST %s HTTP/1.1\r\n", "/profiling/v1/input");
+  if (req->apikey)
+    as_sprintf(req->as_header, "POST %s HTTP/1.1\r\n", "/v1/input");
+  else
+    as_sprintf(req->as_header, "POST %s HTTP/1.1\r\n", "/profiling/v1/input");
   as_sprintf(req->as_header, "Host: %s:%s\r\n", req->host, req->port);
 
   // Populate header and body elements

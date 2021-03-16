@@ -16,6 +16,11 @@
 
 #include "http.h"
 
+// We want to prevent the OS from sending us completely unnecessary signals.
+#ifdef __APPLE__
+#define MSG_NOSIGNAL 0
+#endif
+
 int SockSetBit(int fd, int bit, bool v) {
   return setsockopt(fd, IPPROTO_TCP, bit, (const void *)&(int){v}, sizeof(int));
 }
@@ -39,6 +44,11 @@ int TcpSockNew() {
     return close(fd), -1;
 #if __linux__
   if (-1 == SockSetBit(fd, TCP_QUICKACK, 1))
+    return close(fd), -1;
+#endif
+#if __APPLE__
+  if (-1 ==
+      setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&(int){1}, sizeof(int)))
     return close(fd), -1;
 #endif
   return fd;

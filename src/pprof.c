@@ -521,7 +521,7 @@ DProf *pprof_Init(DProf *dp, const char **sample_names,
       return NULL;
     dp->ownership = 1;
   } else {
-    dp->owernship = 0;
+    dp->ownership = 0;
   }
 
   PPProfile *pprof = &dp->pprof;

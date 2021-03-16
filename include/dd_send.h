@@ -69,7 +69,7 @@ extern const char *DDRC_table[];
   X(HOSTTAG,         host_tag,         3, "host",             1, "localhost")  \
   X(SERVICE,         service,          3, "service",          0, "myservice")  \
   X(LANGUAGE,        language,         3, "language",         1, "ILLEGAL")    \
-  X(RUNTIME,         runtime,          2, "runtime",          1, "ILLEGAL")    \
+  X(RUNTIME,         runtime,          2, "runtime",          0, NULL)         \
   X(SITE,            site,             3, "site",             0, NULL)         \
   X(ENVIRONMENT,     environment,      3, "environment",      0, "prod-test")  \
   X(PROFILERVERSION, profiler_version, 3, "profiler-version", 0, NULL)         \
