@@ -10,6 +10,11 @@
 #include "logging.h"
 #include "span.h"
 
+#if !(defined(HAVE_CURL) && !defined(COMPILE_DL_CURL))
+__attribute__((weak)) zend_class_entry *curl_ce = NULL;
+__attribute__((weak)) zend_class_entry *curl_multi_ce = NULL;
+#endif
+
 // True global - only modify during MINIT/MSHUTDOWN
 bool dd_ext_curl_loaded = false;
 zend_long dd_const_curlopt_httpheader = 0;
