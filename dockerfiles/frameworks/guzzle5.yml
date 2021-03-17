@@ -9,7 +9,7 @@ services:
       context: contrib
       target: guzzle
     environment:
-      - GUZZLE_VERSION_TAG=5.3.3
+      - GUZZLE_VERSION_TAG=5.3.4
       - PHP_MAJOR_MINOR_TESTED=5.6 7.0 7.1 7.2 7.3 7.4
     ulimits:
       core: 99999999999
