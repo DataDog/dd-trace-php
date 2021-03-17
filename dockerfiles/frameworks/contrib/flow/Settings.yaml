@@ -1,0 +1,8 @@
+Neos:
+  Flow:
+    persistence:
+      backendOptions:
+        host: 'mysql'
+        driver: pdo_mysql
+        user: 'root'
+        dbname: 'flow_functional_testing'
