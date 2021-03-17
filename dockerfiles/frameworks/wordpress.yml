@@ -4,6 +4,9 @@ services:
   wordpress:
     depends_on: ['mysql', 'nginx_file_server']
     image: 'datadog/dd-trace-ci:php-framework-wordpress'
+    build:
+      context: contrib
+      target: wordpress
     ulimits:
       core: 99999999999
     cap_add:

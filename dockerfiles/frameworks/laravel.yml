@@ -7,6 +7,9 @@ services:
       - "REDIS_HOST=redis"
       - "MEMCACHED_HOST=memcached"
     image: 'datadog/dd-trace-ci:php-framework-laravel'
+    build:
+      context: contrib
+      target: laravel
     ulimits:
       core: 99999999999
     cap_add:

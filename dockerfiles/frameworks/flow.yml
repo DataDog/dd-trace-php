@@ -4,6 +4,9 @@ services:
   flow:
     depends_on: ['mysql', 'nginx_file_server']
     image: 'datadog/dd-trace-ci:php-framework-flow'
+    build:
+      context: contrib
+      target: flow
     ulimits:
       core: 99999999999
     cap_add:
