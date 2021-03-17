@@ -53,6 +53,10 @@ RUN set -xe; \
     ); \
     apt-get clean;
 
+# Installing node used as a testing server
+RUN curl -fsSL https://deb.nodesource.com/setup_15.x | bash - \
+    && apt-get install -y nodejs
+
 RUN set -xe; \
     php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');";\
     php -r "if (hash_file('sha384', 'composer-setup.php') === '$(curl -L -o - https://composer.github.io/installer.sig)') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"; \
@@ -68,6 +72,10 @@ RUN set -xe; \
       rm /usr/share/php/.registry/.channel.pecl.php.net/redis.reg || true; \
       pecl install redis; \
     done
+
+# Utility to disable phpunit tests
+ADD expect-phpunit-failure.sh /usr/local/bin/expect-phpunit-failure
+RUN chmod a+x /usr/local/bin/expect-phpunit-failure
 
 ENV COMPOSER_MEMORY_LIMIT -1
 ADD entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -223,3 +231,13 @@ RUN set -xe; \
 WORKDIR /home/phpredis-${PHPREDIS_VERSION_TAG}
 ADD phpredis/${PHPREDIS_VERSION_TAG}/run.sh ./run.sh
 CMD [ "./run.sh" ]
+
+########################################################################################################################
+## Guzzle
+########################################################################################################################
+FROM base AS guzzle
+WORKDIR /home/app
+ADD guzzle /scripts
+RUN chmod a+x /scripts/*.sh
+
+CMD [ "/scripts/run.sh" ]

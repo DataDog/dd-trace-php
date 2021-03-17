@@ -1,0 +1,21 @@
+version: "3.6"
+
+services:
+  guzzle5:
+    depends_on:
+      - nginx_file_server
+    image: datadog/dd-trace-ci:php-framework-guzzle
+    build:
+      context: contrib
+      target: guzzle
+    environment:
+      - GUZZLE_VERSION_TAG=5.3.3
+      - PHP_MAJOR_MINOR=7.4
+    ulimits:
+      core: 99999999999
+    cap_add:
+      - SYS_PTRACE
+
+  nginx_file_server:
+    build: nginx_file_server
+    expose: ["80"]
