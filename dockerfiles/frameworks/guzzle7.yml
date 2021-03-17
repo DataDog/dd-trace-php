@@ -10,7 +10,7 @@ services:
       target: guzzle
     environment:
       - GUZZLE_VERSION_TAG=7.2.0
-      - PHP_MAJOR_MINOR=7.4
+      - PHP_MAJOR_MINOR_TESTED=7.2 7.3 7.4 8.0
     ulimits:
       core: 99999999999
     cap_add:
