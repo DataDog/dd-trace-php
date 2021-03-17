@@ -156,8 +156,8 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                    ])->withExistingTagsNames(['error.stack'])
-                    ->setError(null, 'Foo error')
+                    ])
+                    ->setError(null, null)
                     ->withChildren([
                         $this->wrapMiddleware(
                             [

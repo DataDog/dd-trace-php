@@ -64,6 +64,7 @@ class SlimIntegration extends Integration
                         }
                     });
 
+                    /* Blocked: https://datadoghq.atlassian.net/browse/APMPHP-553
                     \DDTrace\hook_method(
                         'Slim\\Middleware\\ErrorMiddleware',
                         'handleException',
@@ -76,6 +77,7 @@ class SlimIntegration extends Integration
                             }
                         }
                     );
+                     */
                 }
 
                 if ('3' === $majorVersion) {
