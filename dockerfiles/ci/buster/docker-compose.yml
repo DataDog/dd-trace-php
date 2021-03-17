@@ -16,6 +16,16 @@ services:
         phpTarGzUrl: https://www.php.net/distributions/php-8.0.3.tar.gz
         phpSha256Hash: e7ecfee901e0843377b64b2d8124132eae75bdb71a2675ba7c5c038d6592383d
 
+  php-8.0-shared-ext:
+    image: datadog/dd-trace-ci:php-8.0-shared-ext
+    build:
+      context: ./php-8.0
+      dockerfile: Dockerfile_shared_ext
+      args:
+        phpVersion: 8.0
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.3.tar.gz
+        phpSha256Hash: e7ecfee901e0843377b64b2d8124132eae75bdb71a2675ba7c5c038d6592383d
+
   php-master:
     image: datadog/dd-trace-ci:php-master_buster
     build:
