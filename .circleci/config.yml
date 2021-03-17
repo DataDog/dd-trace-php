@@ -1228,6 +1228,30 @@ workflows:
           name: "Flow baseline testsuite"
       - framework_tests:
           requires: [ "Framework tests" ]
+          framework_target: guzzle5
+          name: "Guzzle 5 testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: guzzle5_no_ddtrace
+          name: "Guzzle 5 baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: guzzle6
+          name: "Guzzle 6 testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: guzzle6_no_ddtrace
+          name: "Guzzle 6 baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: guzzle7
+          name: "Guzzle 7 testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
+          framework_target: guzzle7_no_ddtrace
+          name: "Guzzle 7 baseline testsuite"
+      - framework_tests:
+          requires: [ "Framework tests" ]
           framework_target: laravel
           name: "Laravel testsuite"
       - framework_tests:

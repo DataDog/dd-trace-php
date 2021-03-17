@@ -14,7 +14,7 @@ RUN set -xe; \
 
 RUN set -xe; \
     apt-get update; \
-    apt-get install -y $(for V in 5.6 7.0 7.1 7.2 7.3; do \
+    apt-get install -y $(for V in 5.6 7.0 7.1 7.2 7.3 7.4 8.0; do \
         echo \
         php${V}-fpm \
         php${V}-apcu \
@@ -24,7 +24,6 @@ RUN set -xe; \
         php${V}-gd \
         php${V}-iconv \
         php${V}-imagick \
-        php${V}-json \
         php${V}-intl \
         php${V}-fileinfo\
         php${V}-mbstring \
@@ -47,7 +46,16 @@ RUN set -xe; \
         php${V}-bcmath; \
     done; \
     ); \
+    apt-get install -y $(for V in 5.6 7.0 7.1 7.2 7.3 7.4; do \
+        echo \
+        php${V}-json; \
+    done; \
+    ); \
     apt-get clean;
+
+# Installing node used as a testing server
+RUN curl -fsSL https://deb.nodesource.com/setup_15.x | bash - \
+    && apt-get install -y nodejs
 
 RUN set -xe; \
     php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');";\
@@ -59,14 +67,20 @@ RUN set -xe; \
 ADD switch_php.sh /usr/local/bin/switch_php
 
 RUN set -xe; \
-    for V in 7.0 7.1 7.2 7.3; do \
+    for V in 7.0 7.1 7.2 7.3 7.4 8.0; do \
       switch_php ${V}; \
       rm /usr/share/php/.registry/.channel.pecl.php.net/redis.reg || true; \
       pecl install redis; \
     done
 
+# Utility to disable phpunit tests
+ADD expect-phpunit-failure.sh /usr/local/bin/expect-phpunit-failure
+RUN chmod a+x /usr/local/bin/expect-phpunit-failure
+
 ENV COMPOSER_MEMORY_LIMIT -1
 ADD entrypoint.sh /usr/local/bin/entrypoint.sh
+ADD flow/20-redis.ini /etc/php/8.0/cli/conf.d/20-redis.ini
+ADD flow/20-redis.ini /etc/php/7.4/cli/conf.d/20-redis.ini
 ADD flow/20-redis.ini /etc/php/7.3/cli/conf.d/20-redis.ini
 ADD flow/20-redis.ini /etc/php/7.2/cli/conf.d/20-redis.ini
 ADD flow/20-redis.ini /etc/php/7.1/cli/conf.d/20-redis.ini
@@ -217,3 +231,13 @@ RUN set -xe; \
 WORKDIR /home/phpredis-${PHPREDIS_VERSION_TAG}
 ADD phpredis/${PHPREDIS_VERSION_TAG}/run.sh ./run.sh
 CMD [ "./run.sh" ]
+
+########################################################################################################################
+## Guzzle
+########################################################################################################################
+FROM base AS guzzle
+WORKDIR /home/app
+ADD guzzle /scripts
+RUN chmod a+x /scripts/*.sh
+
+CMD [ "/scripts/run.sh" ]
