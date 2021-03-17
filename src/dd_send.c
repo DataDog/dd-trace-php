@@ -172,14 +172,15 @@ int DDR_finalize(DDReq *req) {
     int j = DDR_idx[i];
     char *val = req->values[j];
 
-    // If we got a value, great!  If not, check for a default.  If there's
-    // no value and no default, skip this entry.
-    if (!val && DDR_defaults[j])
-      val = (char *)DDR_defaults[j];
-    else if (!val && !DDR_defaults[j] && DDR_reqd[i])
-      return DDRC_EINVAL;
-    else if (!val && !DDR_defaults[j])
-      continue;
+    // If the request specified a value, then use that.
+    if (!val) {
+      if (DDR_reqd[i])
+        return (long)DDR_defaults[j];
+      else if (DDR_defaults[j])
+        val = (char *)DDR_defaults[j];
+      else
+        continue;
+    }
     switch (DDR_types[j]) {
     case 0: // Skipit
       break;
