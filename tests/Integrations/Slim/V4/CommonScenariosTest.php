@@ -35,6 +35,56 @@ final class CommonScenariosTest extends WebFrameworkTestCase
         $this->assertFlameGraph($traces, $spanExpectations);
     }
 
+    private function wrapMiddleware(array $children, array $setError = []): SpanAssertion
+    {
+        if (!empty($setError)) {
+            return SpanAssertion::build(
+                'slim.middleware',
+                'slim_test_app',
+                'web',
+                'Slim\\Middleware\\ErrorMiddleware'
+            )->withChildren([
+                SpanAssertion::build(
+                    'slim.middleware',
+                    'slim_test_app',
+                    'web',
+                    'Slim\Middleware\RoutingMiddleware'
+                )->withChildren([
+                    SpanAssertion::build(
+                        'slim.middleware',
+                        'slim_test_app',
+                        'web',
+                        'Slim\\Views\\TwigMiddleware'
+                    )
+                    ->withChildren($children)
+                    ->withExistingTagsNames(['error.stack'])
+                    ->setError(...$setError)
+                ])->withExistingTagsNames(['error.stack'])->setError(...$setError),
+            ])/* ->setError(...$setError) ; no error on ErrorMiddleware*/;
+        } else {
+            return SpanAssertion::build(
+                'slim.middleware',
+                'slim_test_app',
+                'web',
+                'Slim\\Middleware\\ErrorMiddleware'
+            )->withChildren([
+                SpanAssertion::build(
+                    'slim.middleware',
+                    'slim_test_app',
+                    'web',
+                    'Slim\Middleware\RoutingMiddleware'
+                )->withChildren([
+                    SpanAssertion::build(
+                        'slim.middleware',
+                        'slim_test_app',
+                        'web',
+                        'Slim\\Views\\TwigMiddleware'
+                    )->withChildren($children)
+                ]),
+            ]);
+        }
+    }
+
     public function provideSpecs()
     {
         return $this->buildDataProvider(
@@ -52,14 +102,16 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple',
                         'http.status_code' => '200',
                     ])->withChildren([
-                        SpanAssertion::build(
-                            'slim.route',
-                            'slim_test_app',
-                            'web',
-                            'Closure::__invoke'
-                        )->withExactTags([
-                            'slim.route.name' => 'simple-route',
-                        ])
+                        $this->wrapMiddleware([
+                            SpanAssertion::build(
+                                'slim.route',
+                                'slim_test_app',
+                                'web',
+                                'Closure::__invoke'
+                            )->withExactTags([
+                                'slim.route.name' => 'simple-route',
+                            ])
+                        ]),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -74,21 +126,23 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
                     ])->withChildren([
-                        SpanAssertion::build(
-                            'slim.route',
-                            'slim_test_app',
-                            'web',
-                            'Closure::__invoke'
-                        )->withChildren([
+                        $this->wrapMiddleware([
                             SpanAssertion::build(
-                                'slim.view',
+                                'slim.route',
                                 'slim_test_app',
                                 'web',
-                                'simple_view.phtml'
-                            )->withExactTags([
-                                'slim.view' => 'simple_view.phtml',
-                            ])
-                        ])
+                                'Closure::__invoke'
+                            )->withChildren([
+                                SpanAssertion::build(
+                                    'slim.view',
+                                    'slim_test_app',
+                                    'web',
+                                    'simple_view.phtml'
+                                )->withExactTags([
+                                    'slim.view' => 'simple_view.phtml',
+                                ]),
+                            ]),
+                        ]),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -102,17 +156,23 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
                         'http.status_code' => '500',
-                    ])->setError(null, null)
-                        ->withChildren([
-                            SpanAssertion::build(
-                                'slim.route',
-                                'slim_test_app',
-                                'web',
-                                'Closure::__invoke'
-                            )->withExistingTagsNames([
-                                'error.stack'
-                            ])->setError(null, 'Foo error')
-                        ]),
+                    ])
+                    ->setError(null, null)
+                    ->withChildren([
+                        $this->wrapMiddleware(
+                            [
+                                SpanAssertion::build(
+                                    'slim.route',
+                                    'slim_test_app',
+                                    'web',
+                                    'Closure::__invoke'
+                                )->withExistingTagsNames([
+                                    'error.stack'
+                                ])->setError(null, 'Foo error')
+                            ],
+                            [null, 'Foo error']
+                        )
+                    ]),
                 ],
             ]
         );
