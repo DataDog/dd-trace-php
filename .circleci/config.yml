@@ -623,9 +623,6 @@ jobs:
     parameters:
       docker_image:
         type: string
-      valgrind_config:
-        type: string
-        default: musl
       switch_php_version:
         type: string
         default: none
@@ -646,8 +643,6 @@ jobs:
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
-      - copy_valgrind_rc:
-          valgrind_config: << parameters.valgrind_config >>
       - run:
           name: Ensure ext/<< parameters.ext_name >> is missing
           command: |
