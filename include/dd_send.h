@@ -17,11 +17,6 @@
   X(ERES,              "failed to receive response")                           \
   X(EDISCO,            "disconnected during operation")                        \
   X(EINVAL,            "invalid input value")                                  \
-  X(EARG_NOSTART,      "no start value given")                                 \
-  X(EARG_NOEND,        "no end value given")                                   \
-  X(EARG_NOHOST,       "no host value given")                                  \
-  X(EARG_NOLANG,       "no language value given")                              \
-  X(EARG_NOFAM,        "no family value given")                                \
   X(ETOOMANYPPROFS,    "too many pprofs (max 10)")                             \
   X(ESERIAL,           "couldn't serialize payload")                           \
   X(ENOT200,           "HTTP did not return 200 code")                         \
@@ -48,7 +43,7 @@ extern const char *DDRC_table[];
 #define DDRP_TYPE(a, b, c, d, e, f) c,
 #define DDRP_INTR(a, b, c, d, e, f) #b, // Introsection
 #define DDRP_REQD(a, b, c, d, e, f) e,
-#define DDRP_DFLT(a, b, c, d, e, f) (char*)f,
+#define DDRP_DFLT(a, b, c, d, e, f) f,
 
 // A - enum name
 // B - key name, also string representation
@@ -64,23 +59,23 @@ extern const char *DDRC_table[];
 // Accept-Encoding is a header
 // runtime-os is a tag[]
 //  A                B                 C  D                   E  F
-#define DDR_PARAMS(X)                                                               \
-  X(USERAGENT,       user_agent,       1, "User-Agent",       0, "ddprof")          \
-  X(ACCEPT,          accept,           1, "Accept",           0, "*/*")             \
-  X(APIKEY,          apikey,           1, "DD-API-KEY",       0, NULL)              \
-  X(ACCEPTENCODING,  accept_encoding,  0, "Accept-Encoding",  0, "gzip")            \
-  X(RECORDINGSTART,  start,            2, "start",            1, DDRC_EARG_NOSTART) \
-  X(RECORDINGEND,    end,              2, "end",              1, DDRC_EARG_NOEND)   \
-  X(HOSTTAG,         host_tag,         3, "host",             1, DDRC_EARG_NOHOST)  \
-  X(SERVICE,         service,          3, "service",          0, "myservice")       \
-  X(LANGUAGE,        language,         3, "language",         1, DDRC_EARG_NOLANG)  \
-  X(RUNTIME,         runtime,          2, "runtime",          0, NULL)              \
-  X(SITE,            site,             3, "site",             0, NULL)              \
-  X(ENVIRONMENT,     environment,      3, "environment",      0, "prod-test")       \
-  X(PROFILERVERSION, profiler_version, 3, "profiler-version", 0, NULL)              \
-  X(RUNTIMEOS,       runtime_os,       0, "runtime-os",       0, NULL)              \
-  X(INTAKEVERSION,   intake_version,   2, "version",          0, "3")               \
-  X(FAMILY,          family,           2, "family",           1, DDRC_EARG_NOFAM)
+#define DDR_PARAMS(X)                                                          \
+  X(USERAGENT,       user_agent,       1, "User-Agent",       0, "ddprof")     \
+  X(ACCEPT,          accept,           1, "Accept",           0, "*/*")        \
+  X(APIKEY,          apikey,           1, "DD-API-KEY",       0, NULL)         \
+  X(ACCEPTENCODING,  accept_encoding,  0, "Accept-Encoding",  0, "gzip")       \
+  X(RECORDINGSTART,  start,            2, "start",            0, NULL)         \
+  X(RECORDINGEND,    end,              2, "end",              0, NULL)         \
+  X(HOSTTAG,         host_tag,         3, "host",             1, "localhost")  \
+  X(SERVICE,         service,          3, "service",          0, "myservice")  \
+  X(LANGUAGE,        language,         3, "language",         1, "ILLEGAL")    \
+  X(RUNTIME,         runtime,          2, "runtime",          0, NULL)         \
+  X(SITE,            site,             3, "site",             0, NULL)         \
+  X(ENVIRONMENT,     environment,      3, "environment",      0, "prod-test")  \
+  X(PROFILERVERSION, profiler_version, 3, "profiler-version", 0, NULL)         \
+  X(RUNTIMEOS,       runtime_os,       0, "runtime-os",       0, NULL)         \
+  X(INTAKEVERSION,   intake_version,   2, "version",          0, "3")          \
+  X(FAMILY,          family,           2, "family",           0, "unknown")
 // clang-format on
 
 typedef enum DDRVals {
