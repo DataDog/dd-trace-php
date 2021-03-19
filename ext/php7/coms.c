@@ -303,15 +303,8 @@ bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new, size_t min_
 }
 
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) {
-    if (!data || size > DDTRACE_COMS_STACK_MAX_SIZE) {
+    if (!data || size > DDTRACE_COMS_STACK_MAX_SIZE || size == 0) {
         return false;
-    }
-
-    if (size == 0) {
-        size = strlen(data);
-        if (size == 0) {
-            return false;
-        }
     }
 
     uint32_t store_result = _dd_store_data(group_id, data, size);

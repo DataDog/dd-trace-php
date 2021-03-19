@@ -33,7 +33,10 @@ inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
     return ddtrace_coms_is_stack_unused(stack) && atomic_load(&stack->bytes_written) == 0;
 }
 
+// Adds serialized data to the transmission buffer. This function is called by the main thread serving the
+// request and is the only interface between the main thread and the background sender thread.
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size);
+
 bool ddtrace_coms_minit(void);
 void ddtrace_coms_mshutdown(void);
 void ddtrace_coms_curl_shutdown(void);
