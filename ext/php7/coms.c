@@ -52,8 +52,12 @@ static uint32_t _dd_store_data(group_id_t group_id, const char *src, size_t size
 
     size_t position = atomic_fetch_add(&stack->position, size_to_alloc);
     if ((position + size_to_alloc) > stack->size) {
-        // allocation failed
+        // No room to allocate the payload
         atomic_fetch_sub(&stack->refcount, 1);
+        // Note: if we realize that the current payload doesn't fit into this stack, the stack remains unusable
+        // because `payload` will be at this point always > `stack->size`.
+        // As a consequence a few large payloads can invalidate soon stacks, and small payloads that
+        // could easily fit in any stack would have to find another stack.
         return ENOMEM;
     }
 

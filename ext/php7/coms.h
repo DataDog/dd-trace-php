@@ -11,10 +11,23 @@
 #define DDTRACE_COMS_STACK_INITIAL_SIZE (1024u * 128u)         // 128 KiB
 #define DDTRACE_COMS_STACKS_BACKLOG_SIZE 10
 
+/*
+Each stack will contain multiple payload. Each fragment has the form: <payload_N>=<size_N><group_id_N><data_N>
+For example, asssuming sizeof(size_t) == 8 and sizeof(data) == 100:
+    <size_0><group_id_0><data_0><size_1><group_id_1><data_1>...
+    |       |           |       |       |           |
+    |       |           |       |       |           └> position 132
+    |       |           |       |       └> position 124
+    |       |           |       └> position 116
+    |       |           └> position 16
+    |       └> position 8
+    └> position 0
+*/
 typedef struct ddtrace_coms_stack_t {
     size_t size;
-    _Atomic(size_t) position;
-    _Atomic(size_t) bytes_written;
+    _Atomic(size_t) position;       // current cursor in the stack. Next data will be written starting at this position.
+    _Atomic(size_t) bytes_written;  // includes size_t bytes to store `size` and and size_t bytes to store the group id
+                                    // for each payload.
     _Atomic(int32_t) refcount;
     char *data;
 } ddtrace_coms_stack_t;
