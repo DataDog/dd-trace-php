@@ -9,6 +9,11 @@ services:
     environment:
       - REDIS_HOST=redis
     image: datadog/dd-trace-ci:php-framework-phpredis-3
+    build:
+      context: contrib
+      target: phpredis
+      args:
+        - PHPREDIS_VERSION_TAG=3.1.6
     ulimits:
       core: 99999999999
     cap_add:

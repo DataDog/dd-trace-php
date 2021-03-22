@@ -1,0 +1,72 @@
+From 3e4efcf86d0df40a90a53b42378ca3092f34d823 Mon Sep 17 00:00:00 2001
+From: Patch Maker <example@example.com>
+Date: Wed, 5 Aug 2020 15:02:17 +0000
+Subject: [PATCH] patch
+
+---
+ tests/RedisTest.php | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/tests/RedisTest.php b/tests/RedisTest.php
+index 7dcd17f..981bf95 100644
+--- a/tests/RedisTest.php
++++ b/tests/RedisTest.php
+@@ -5757,6 +5757,7 @@ class Redis_Test extends TestSuite
+
+     public function testSession_savedToRedis()
+     {
++	return $this->markTestSkipped('disabling some session tests as we miss proper setup');
+         $this->setSessionHandler();
+
+         $sessionId = $this->generateSessionId();
+@@ -5778,7 +5779,8 @@ class Redis_Test extends TestSuite
+
+     public function testSession_lockingDisabledByDefault()
+     {
+-        $this->setSessionHandler();
++	return $this->markTestSkipped('disabling some session tests as we miss proper setup');
++	$this->setSessionHandler();
+         $sessionId = $this->generateSessionId();
+         $this->startSessionProcess($sessionId, 5, true, 300, false);
+         usleep(100000);
+@@ -5805,7 +5807,8 @@ class Redis_Test extends TestSuite
+
+     public function testSession_lock_ttlMaxExecutionTime()
+     {
+-        $this->setSessionHandler();
++	return $this->markTestSkipped('skipping because session is not properly setup');
++	$this->setSessionHandler();
+         $sessionId = $this->generateSessionId();
+         $this->startSessionProcess($sessionId, 10, true, 2);
+         usleep(100000);
+@@ -5821,7 +5824,8 @@ class Redis_Test extends TestSuite
+
+     public function testSession_lock_ttlLockExpire()
+     {
+-        $this->setSessionHandler();
++	return $this->markTestSkipped('disabling some session tests as we miss proper setup');
++	$this->setSessionHandler();
+         $sessionId = $this->generateSessionId();
+         $this->startSessionProcess($sessionId, 10, true, 300, true, null, -1, 2);
+         usleep(100000);
+@@ -5837,7 +5841,8 @@ class Redis_Test extends TestSuite
+
+     public function testSession_lockHoldCheckBeforeWrite_otherProcessHasLock()
+     {
+-        $this->setSessionHandler();
++	return $this->markTestSkipped('disabling some session tests as we miss proper setup');
++	$this->setSessionHandler();
+         $sessionId = $this->generateSessionId();
+         $this->startSessionProcess($sessionId, 2, true, 300, true, null, -1, 1, 'firstProcess');
+         usleep(1500000); // 1.5 sec
+@@ -6211,7 +6216,7 @@ class Redis_Test extends TestSuite
+                         $cmd .= ' --define extension=igbinary.so';
+                     }
+                     if (!$redis) {
+-                        $cmd .= ' --define extension=' . dirname(__DIR__) . '/modules/redis.so';
++                        $cmd .= ' --define extension=redis.so';
+                     }
+                 }
+             }
+--
+2.20.1
