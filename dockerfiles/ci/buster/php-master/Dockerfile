@@ -10,10 +10,8 @@ RUN set -eux; \
 COPY install-php-master /usr/local/bin/
 RUN install-php-master
 
-# Install Composer
-RUN set -eux; \
-    curl -q https://raw.githubusercontent.com/composer/getcomposer.org/76a7060ccb93902cd7576b67264ad91c8a2700e2/web/installer | \
-    sudo php -- --filename=composer --install-dir=/usr/local/bin;
+
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 COPY welcome /etc/motd
 
