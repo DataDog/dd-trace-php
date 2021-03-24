@@ -3,6 +3,7 @@
 namespace DDTrace\OpenTracer;
 
 use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
+use OpenTracing\Scope as OTScope;
 use OpenTracing\ScopeManager as OTScopeManager;
 use OpenTracing\Span as OTSpan;
 
@@ -24,7 +25,7 @@ final class ScopeManager implements OTScopeManager
     /**
      * {@inheritdoc}
      */
-    public function activate(OTSpan $span, $finishSpanOnClose = true)
+    public function activate(OTSpan $span, $finishSpanOnClose = true): OTScope
     {
         $scope = $this->scopeManager->activate(
             $span instanceof Span ?
@@ -38,7 +39,7 @@ final class ScopeManager implements OTScopeManager
     /**
      * {@inheritdoc}
      */
-    public function getActive()
+    public function getActive(): ?OTScope
     {
         $activeScope = $this->scopeManager->getActive();
         if (null === $activeScope) {
