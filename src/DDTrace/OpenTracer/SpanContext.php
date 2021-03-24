@@ -24,7 +24,7 @@ final class SpanContext implements OTSpanContext
     /**
      * {@inheritdoc}
      */
-    public function getBaggageItem($key): ?string
+    public function getBaggageItem(string $key): ?string
     {
         return $this->context->getBaggageItem($key);
     }
@@ -32,7 +32,7 @@ final class SpanContext implements OTSpanContext
     /**
      * {@inheritdoc}
      */
-    public function withBaggageItem($key, $value): OTSpanContext
+    public function withBaggageItem(string $key, string $value): OTSpanContext
     {
         return new self($this->context->withBaggageItem($key, $value));
     }

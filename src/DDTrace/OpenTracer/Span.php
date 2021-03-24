@@ -30,7 +30,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function overwriteOperationName($operationName): void
+    public function overwriteOperationName(string $operationName): void
     {
         $this->span->overwriteOperationName($operationName);
     }
@@ -38,7 +38,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function setTag($key, $value): void
+    public function setTag(string $key, $value): void
     {
         $this->span->setTag($key, $value);
     }
@@ -83,7 +83,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function addBaggageItem($key, $value): void
+    public function addBaggageItem(string $key, string $value): void
     {
         $this->span->addBaggageItem($key, $value);
     }
@@ -91,7 +91,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function getBaggageItem($key): ?string
+    public function getBaggageItem(string $key): ?string
     {
         return $this->span->getBaggageItem($key);
     }

@@ -25,7 +25,7 @@ final class ScopeManager implements OTScopeManager
     /**
      * {@inheritdoc}
      */
-    public function activate(OTSpan $span, $finishSpanOnClose = true): OTScope
+    public function activate(OTSpan $span, bool $finishSpanOnClose = true): OTScope
     {
         $scope = $this->scopeManager->activate(
             $span instanceof Span ?

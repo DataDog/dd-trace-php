@@ -75,7 +75,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function startSpan($operationName, $options = []): OTSpan
+    public function startSpan(string $operationName, $options = []): OTSpan
     {
         if ($options instanceof \OpenTracing\StartSpanOptions) {
             $options = self::deconstructStartSpanOptions($options);
@@ -88,7 +88,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function startActiveSpan($operationName, $options = []): OTScope
+    public function startActiveSpan(string $operationName, $options = []): OTScope
     {
         if ($options instanceof \OpenTracing\StartSpanOptions) {
             $options = self::deconstructStartSpanOptions($options);
@@ -101,7 +101,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function inject(OTSpanContext $spanContext, $format, &$carrier): void
+    public function inject(OTSpanContext $spanContext, string $format, &$carrier): void
     {
         $this->tracer->inject(
             $spanContext instanceof SpanContext
@@ -115,7 +115,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function extract($format, $carrier): ?OTSpanContext
+    public function extract(string $format, $carrier): ?OTSpanContext
     {
         return new SpanContext(
             $this->tracer->extract($format, $carrier)
