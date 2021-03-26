@@ -140,7 +140,6 @@
             <file name="ext/php5/memory_limit.h" role="src" />
             <file name="ext/php5/php5/dispatch.c" role="src" />
             <file name="ext/php5/php5/engine_hooks.c" role="src" />
-            <file name="ext/php5/php5_4/auto_flush.c" role="src" />
             <file name="ext/php5/php5_4/dispatch.c" role="src" />
             <file name="ext/php5/php5_4/engine_hooks.c" role="src" />
             <file name="ext/php5/random.c" role="src" />
