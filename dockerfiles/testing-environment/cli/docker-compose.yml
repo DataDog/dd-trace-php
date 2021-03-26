@@ -1,0 +1,34 @@
+version: "3.7"
+
+services:
+  "5.5":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli:5.5"
+    build:
+      context: .
+      args:
+        - PHP_VERSION=5.5
+    depends_on:
+      - agent
+      - httpbin
+    ports:
+      - 7777:80
+    environment:
+      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.56.0/datadog-php-tracer_0.56.0_amd64.deb
+      - DD_TRACE_DEBUG=true
+    volumes:
+      - ./:/var/app
+    command: ["./local-run.sh"]
+
+  httpbin:
+    image: kennethreitz/httpbin
+
+  agent:
+    image: datadog/agent:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_APM_ENABLED=true
+      - DD_APM_ENV=testenv
