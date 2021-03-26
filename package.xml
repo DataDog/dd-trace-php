@@ -295,6 +295,23 @@
             <file name="tests/ext/includes/sanity_check.php" role="test" />
             <file name="tests/ext/includes/try_catch_finally.php" role="test" />
 
+            <file name="tests/ext/integrations/curl/distributed_tracing.inc" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_copy_handle.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_001.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_existing_headers_002.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_inject.inc" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_inject_exception.inc" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_missing_fn.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_001.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_002.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_copy_handle.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_copy_handle_bug_71523.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_disable.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_001.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_002.phpt" role="test" />
+            <file name="tests/ext/integrations/curl/distributed_tracing_curl_sandboxed.phpt" role="test" />
+
             <file name="tests/ext/request-init-hook/contains-binary-character/dd_init.php" role="test" />
             <file name="tests/ext/request-init-hook/raises-e-notice/dd_init.php" role="test" />
             <file name="tests/ext/request-init-hook/raises-fatal-error/dd_init.php" role="test" />
@@ -350,22 +367,6 @@
             <file name="tests/ext/sandbox/deferred_load_missing_load_fn.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_load_using_function.phpt" role="test" />
             <file name="tests/ext/sandbox/deferred_loading_helper.php" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing.inc" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_copy_handle.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_existing_headers_001.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_existing_headers_002.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_inject.inc" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_inject_exception.inc" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_missing_fn.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_001.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_002.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_copy_handle.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_copy_handle_bug_71523.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_disable.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_existing_headers_001.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_multi_exec_existing_headers_002.phpt" role="test" />
-            <file name="tests/ext/sandbox/distributed_tracing_curl_sandboxed.phpt" role="test" />
             <file name="tests/ext/sandbox/drop_spans.phpt" role="test" />
             <file name="tests/ext/sandbox/errors_are_flagged_from_userland.phpt" role="test" />
             <file name="tests/ext/sandbox/exception_does_not_close_span_that_catches.phpt" role="test" />

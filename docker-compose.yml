@@ -118,6 +118,7 @@ services:
   '7.4-debug': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
   '7.4-debug-asan': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-asan-buster' }
   '8.0': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
+  '8.0-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
   '8.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
   '8.0-alpine': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
   'php-master': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
