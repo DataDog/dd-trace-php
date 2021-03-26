@@ -8,7 +8,8 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 bool ddtrace_send_traces_via_thread(size_t num_traces, char *payload, size_t payload_len TSRMLS_DC) {
-    if (num_traces != 1) {
+    if (num_traces > 1) {
+        ddtrace_log_debugf("Invalid number of traces received: %ld", num_traces);
         // The background sender is capable of sending exactly one trace atm
         return false;
     }
