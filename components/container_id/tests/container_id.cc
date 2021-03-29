@@ -29,14 +29,15 @@ TEST_CASE("parse a Fargate container ID", "[container_id]") {
     REQUIRE(strcmp("432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da", id) == 0);
 }
 
-/* TODO
 TEST_CASE("parse a Fargate 1.4+ container ID", "[container_id]") {
     char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
     datadog_php_container_id(id, "./stubs/cgroup.fargate.1.4");
     REQUIRE(strcmp("34dc0b5e626f2c5c4c5170e34b10e765-1234567890", id) == 0);
 }
-*/
 
+/* Whitespace around the matching ID is permitted so long as it is matched
+ * within a valid cgroup line.
+ */
 TEST_CASE("parse a container ID with leading and trailing whitespace", "[container_id]") {
     char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
     datadog_php_container_id(id, "./stubs/cgroup.whitespace");
@@ -55,10 +56,13 @@ TEST_CASE("missing cgroup file makes an empty string", "[container_id]") {
     REQUIRE(id[0] == '\0');
 }
 
-TEST_CASE("unrecognized container ID makes an empty string", "[container_id]") {
+/* To be consistent with other tracers, unrecognized services that match the
+ * generic container ID regex patterns are considered valid.
+ */
+TEST_CASE("parse unrecognized container ID", "[container_id]") {
     char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
     datadog_php_container_id(id, "./stubs/cgroup.unrecognized");
-    REQUIRE(id[0] == '\0');
+    REQUIRE(strcmp("9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f", id) == 0);
 }
 
 TEST_CASE("error edge cases when parsing container ID", "[container_id]") {
@@ -73,6 +77,11 @@ TEST_CASE("a NULL cgroup file makes an empty string", "[container_id]") {
     REQUIRE(id[0] == '\0');
 }
 
+TEST_CASE("a NULL buf does not crash", "[container_id]") {
+    datadog_php_container_id(NULL, "./stubs/cgroup.docker");
+    REQUIRE(true);
+}
+
 TEST_CASE("an empty cgroup file makes an empty string", "[container_id]") {
     char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
     datadog_php_container_id(id, "");
@@ -83,5 +92,24 @@ TEST_CASE("the buffer defaults to an empty string", "[container_id]") {
     char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
     id[0] == 'a';
     datadog_php_container_id(id, "");
+    REQUIRE(id[0] == '\0');
+}
+
+TEST_CASE("valid container ID with invalid line pattern makes an empty string", "[container_id]") {
+    char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
+    datadog_php_container_id(id, "./stubs/cgroup.invalid_line_container_id");
+    REQUIRE(id[0] == '\0');
+}
+
+TEST_CASE("valid task ID with invalid line pattern makes an empty string", "[container_id]") {
+    char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
+    datadog_php_container_id(id, "./stubs/cgroup.invalid_line_task_id");
+    REQUIRE(id[0] == '\0');
+}
+
+/* To be consistent with other tracers we only match lower case hex. */
+TEST_CASE("uppercase container IDs return an empty string", "[container_id]") {
+    char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
+    datadog_php_container_id(id, "./stubs/cgroup.upper");
     REQUIRE(id[0] == '\0');
 }
