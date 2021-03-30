@@ -1,0 +1,30 @@
+stages:
+  - ci-image
+  - build
+
+variables:
+  CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/dd-trace-php:latest
+
+ci-image:default:
+  stage: ci-image
+  when: manual
+  # only: ["master"]
+  tags: ["runner:docker", "size:large"]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v3892323-786b6fd-20.10.3
+  script:
+    - docker build --tag 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/dd-trace-php:latest -f .gitlab/Dockerfile .
+    - docker push 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/dd-trace-php:latest
+
+build:
+  tags: ["runner:docker", "size:large"]
+  stage: build
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v3892323-786b6fd-20.10.3
+  script:
+    - docker version
+    - docker buildx install
+    - docker build -f dockerfiles/packaging/Dockerfile . --target export -t tmp_export 
+    - docker image save tmp_export  | tar --wildcards --strip-components=1 -x '*/layer.tar'
+    - mv layer.tar artifacts.tar
+  artifacts:
+    paths:
+      - 'artifacts.tar'

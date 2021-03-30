@@ -2,4 +2,7 @@
 .composer/
 tests/Frameworks/**
 tmp/
+/dockerfiles/packaging/Dockerfile
 **/vendor/**
+!/ext/vendor
+*.tar
