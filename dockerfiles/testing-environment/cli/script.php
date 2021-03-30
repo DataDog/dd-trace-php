@@ -1,13 +1,14 @@
 <?php
 
-// // Temporarily required on PHP 5
-// if (phpversion('ddtrace') !== false) {
-//     \DDTrace\trace_function('entrypoint_function', function ($span) {
-//         $span->type = 'cli';
-//         $span->service = getenv('DD_SERVICE');
-//         $span->meta['scenario'] = 'prepend-getenv';
-//     });
-// }
+if (PHP_MAJOR_VERSION !== 5) {
+    if (phpversion('ddtrace') !== false) {
+        \DDTrace\trace_function('some_function', function ($span) {
+            $span->type = 'cli';
+            $span->service = getenv('DD_SERVICE');
+            $span->meta['scenario'] = 'prepend-getenv';
+        });
+    }
+}
 
 function some_function()
 {
@@ -23,7 +24,7 @@ error_log('Script started...');
 
 while (true) {
     /* Beginning Datadog */
-    if (class_exists('DDTrace\GlobalTracer')) {
+    if (PHP_MAJOR_VERSION === 5 && class_exists('DDTrace\GlobalTracer')) {
         $tracer = DDTrace\GlobalTracer::get();
         $scope = $tracer->startActiveSpan('some_operation_name');
         $rootSpan = $scope->getSpan();
@@ -37,11 +38,11 @@ while (true) {
     some_function();
     // ... customer code ...
 
+    /* Beginning Datadog */
     if ($tracer !== null) {
-        /* Beginning Datadog */
         $scope->close();
         $tracer->flush();
         $tracer->reset();
-        /* End Datadog */
     }
+    /* End Datadog */
 }

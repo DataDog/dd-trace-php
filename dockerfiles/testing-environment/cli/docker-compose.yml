@@ -1,6 +1,7 @@
 version: "3.7"
 
 services:
+
   "5.5-long":
     image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli-long:5.5"
     build:
@@ -10,15 +11,105 @@ services:
     depends_on:
       - agent
       - httpbin
-    ports:
-      - 7777:80
-    environment:
-      - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.56.0/datadog-php-tracer_0.56.0_amd64.deb
-      - DD_TRACE_DEBUG=true
-      - HTTPBIN_HOST=httpbin
-      - DD_SERVICE=local-cli-relenv
-      - DD_ENV=relenv-local
-      - DD_AGENT_HOST=agent
+    env_file: .env
+    volumes:
+      - ./:/var/app
+    command: ["./local-run.sh"]
+
+  "5.6-long":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli-long:5.6"
+    build:
+      context: .
+      args:
+        - PHP_VERSION=5.6
+    depends_on:
+      - agent
+      - httpbin
+    env_file: .env
+    volumes:
+      - ./:/var/app
+    command: ["./local-run.sh"]
+
+  "7.0-long":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli-long:7.0"
+    build:
+      context: .
+      args:
+        - PHP_VERSION=7.0
+    depends_on:
+      - agent
+      - httpbin
+    env_file: .env
+    volumes:
+      - ./:/var/app
+    command: ["./local-run.sh"]
+
+  "7.1-long":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli-long:7.1"
+    build:
+      context: .
+      args:
+        - PHP_VERSION=7.1
+    depends_on:
+      - agent
+      - httpbin
+    env_file: .env
+    volumes:
+      - ./:/var/app
+    command: ["./local-run.sh"]
+
+  "7.2-long":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli-long:7.2"
+    build:
+      context: .
+      args:
+        - PHP_VERSION=7.2
+    depends_on:
+      - agent
+      - httpbin
+    env_file: .env
+    volumes:
+      - ./:/var/app
+    command: ["./local-run.sh"]
+
+  "7.3-long":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli-long:7.3"
+    build:
+      context: .
+      args:
+        - PHP_VERSION=7.3
+    depends_on:
+      - agent
+      - httpbin
+    env_file: .env
+    volumes:
+      - ./:/var/app
+    command: ["./local-run.sh"]
+
+  "7.4-long":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli-long:7.4"
+    build:
+      context: .
+      args:
+        - PHP_VERSION=7.4
+    depends_on:
+      - agent
+      - httpbin
+    env_file: .env
+    volumes:
+      - ./:/var/app
+    command: ["./local-run.sh"]
+
+  "8.0-long":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli-long:8.0"
+    build:
+      context: .
+      args:
+        - PHP_VERSION=8.0
+    depends_on:
+      - agent
+      - httpbin
+    env_file: .env
     volumes:
       - ./:/var/app
     command: ["./local-run.sh"]
