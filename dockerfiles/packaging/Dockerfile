@@ -1,7 +1,9 @@
+ARG DOCKER_REGISTRY=docker.io
+
 FROM scratch as src
 COPY / / 
 
-FROM datadog/dd-trace-ci:php-7.3_centos-6 as php-7.3-base
+FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-7.3_centos-6 as php-7.3-base
 COPY --from=src / /build/
 WORKDIR /build/
 
@@ -21,7 +23,7 @@ COPY --from=php-7.3 /build/extensions/*.so /
 COPY --from=php-7.3-zts /build/extensions/*.so /
 COPY --from=php-7.3-debug /build/extensions/*.so /
 
-FROM datadog/docker-library:ddtrace_php_fpm_packaging as packager
+FROM ${DOCKER_REGISTRY}/datadog/docker-library:ddtrace_php_fpm_packaging as packager
 WORKDIR /build/
 COPY --from=src / /build/
 COPY --from=extensions / /build/extensions/
