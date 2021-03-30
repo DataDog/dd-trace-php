@@ -1,8 +1,8 @@
 version: "3.7"
 
 services:
-  "5.5":
-    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli:5.5"
+  "5.5-long":
+    image: "registry.ddbuild.io/apm-integrations-testing/handmade/php-cli-long:5.5"
     build:
       context: .
       args:
@@ -15,6 +15,10 @@ services:
     environment:
       - TRACER_DOWNLOAD_URL=https://github.com/DataDog/dd-trace-php/releases/download/0.56.0/datadog-php-tracer_0.56.0_amd64.deb
       - DD_TRACE_DEBUG=true
+      - HTTPBIN_HOST=httpbin
+      - DD_SERVICE=local-cli-relenv
+      - DD_ENV=relenv-local
+      - DD_AGENT_HOST=agent
     volumes:
       - ./:/var/app
     command: ["./local-run.sh"]

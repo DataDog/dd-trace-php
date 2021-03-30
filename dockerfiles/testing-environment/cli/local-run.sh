@@ -10,9 +10,4 @@ if [ ! -z ${TRACER_DOWNLOAD_URL} ]; then
     dpkg -i dd-trace-php.deb
 fi
 
-DD_TRACE_CLI_ENABLED=true \
-    DD_AGENT_HOST=agent \
-    DD_SERVICE=local-cli-relenv \
-    DD_ENV=relenv-local \
-    DD_TRACE_GENERATE_ROOT_SPAN=false \
-    php script.php
+DD_TRACE_CLI_ENABLED=true DD_TRACE_GENERATE_ROOT_SPAN=false php script.php
