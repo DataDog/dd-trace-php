@@ -292,9 +292,14 @@ jobs:
       - <<: *STEP_STORE_TEST_RESULTS
 
   "Static Analysis":
+    parameters:
+      docker_image:
+        type: string
+      scenario:
+        type: string
     working_directory: ~/datadog
     docker:
-      - image: circleci/php:7.3
+      - image: << paramters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
@@ -308,29 +313,7 @@ jobs:
             composer scenario:update
       - run:
           name: Running phpstan
-          command: composer scenario opentracing ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
-
-  "Test OpenTracing Integration on PHP 80":
-    working_directory: ~/datadog
-    docker:
-      - image: circleci/php:8.0
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - lib_curl_workaround:
-          command: sudo apt update; sudo apt -y install libcurl4-nss-dev
-      - prepare_extension_and_composer_with_cache
-      - run:
-          name: Install phpstan
-          command: |
-            composer global require phpstan/phpstan:0.12.*
-            composer global require psr/log
-            composer scenario:update
-      - run:
-          name: Running phpstan
-          command: composer scenario opentracing1; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
-      - run:
-          name: Running phpunit
-          command: make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
+          command: composer scenario << paramters.scenario >> ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
   "Composer Tests 55":
     working_directory: ~/datadog
@@ -1910,9 +1893,11 @@ workflows:
                 - "datadog/dd-trace-ci:php-8.0_buster"
       - "Lint files":
           requires: [ 'Prepare Code' ]
-      - "Static Analysis":
+      - "Static Analysis 56":
           requires: [ 'Prepare Code' ]
-      - "Test OpenTracing Integration on PHP 80":
+          docker_image: circleci/php:5.6
+      - "Static Analysis 80":
           requires: [ 'Prepare Code' ]
+          docker_image: circleci/php:8.0
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]

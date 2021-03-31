@@ -143,17 +143,6 @@ final class SpanTest extends BaseTestCase
         $this->assertEquals(self::ANOTHER_TYPE, $span->unwrapped()->getType());
     }
 
-    public function testAddTagsFailsForInvalidTagKey()
-    {
-        self::markTestSkipped('This test will not work due to the type hints');
-        $this->setExpectedException(
-            '\DDTrace\Exceptions\InvalidSpanArgument',
-            'Invalid key type in given span tags. Expected string, got integer.'
-        );
-        $span = $this->createSpan();
-        $span->setTag(1, self::TAG_VALUE);
-    }
-
     private function createSpan()
     {
         $span = new DDSpan(
