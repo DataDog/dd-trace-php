@@ -83,7 +83,7 @@
                 "scenario-options": {
                     "create-lockfile": false
                 }
-            }
+            },
             "opentracing1": {
                 "require": {
                     "opentracing/opentracing": "^1.0"
