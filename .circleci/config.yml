@@ -337,9 +337,6 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-      - store_artifacts:
-          path: ~/datadog/bridge/_generated.php
-          destination: << parameters.scenario >>_generated.php
       - run:
           name: Running phpunit
           command: |
@@ -1936,8 +1933,8 @@ workflows:
           scenario: opentracing1
       - unit_test_opentracing:
           requires: [ 'Prepare Code' ]
-          name: "Unit Test OpenTracing 56"
-          docker_image: circleci/php:5.6
+          name: "Unit Test OpenTracing 71"
+          docker_image: circleci/php:7.1
           scenario: opentracing
           make_target: test_opentracing
       - unit_test_opentracing:
