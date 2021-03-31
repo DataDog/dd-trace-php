@@ -291,7 +291,7 @@ jobs:
           command: make verify_all
       - <<: *STEP_STORE_TEST_RESULTS
 
-  "Static Analysis":
+  static_analysis:
     parameters:
       docker_image:
         type: string
@@ -1895,12 +1895,12 @@ workflows:
                 - "datadog/dd-trace-ci:php-8.0_buster"
       - "Lint files":
           requires: [ 'Prepare Code' ]
-      - "Static Analysis":
+      - static_analysis:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 56"
           docker_image: circleci/php:5.6
           scenario: opentracing
-      - "Static Analysis":
+      - static_analysis:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 80"
           docker_image: circleci/php:8.0
