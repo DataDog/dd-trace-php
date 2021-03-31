@@ -1983,8 +1983,8 @@ workflows:
           scenario: opentracing1
       - unit_test_opentracing:
           requires: [ 'Prepare Code' ]
-          name: "Unit Test OpenTracing 71"
-          docker_image: circleci/php:7.1
+          name: "Unit Test OpenTracing 72"
+          docker_image: circleci/php:7.2
           scenario: opentracing
           make_target: test_opentracing
       - unit_test_opentracing:
