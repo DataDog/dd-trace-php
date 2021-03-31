@@ -1933,9 +1933,15 @@ workflows:
           scenario: opentracing1
       - unit_test_opentracing:
           requires: [ 'Prepare Code' ]
+          name: "Unit Test OpenTracing 56"
+          docker_image: circleci/php:5.6
+          scenario: opentracing
+          make_target: test_opentracing
+      - unit_test_opentracing:
+          requires: [ 'Prepare Code' ]
           name: "Unit Test OpenTracing 80"
           docker_image: circleci/php:8.0
           scenario: opentracing1
-          make_target: test_opentracing
+          make_target: test_opentracing_10
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
