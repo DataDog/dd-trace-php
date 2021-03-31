@@ -601,7 +601,7 @@ test_opentracing:
 
 test_opentracing_10:
 	$(MAKE) test_scenario_opentracing1
-	$(call run_tests,tests/OpenTracerUnit1)
+	$(call run_tests,tests/OpenTracer1Unit)
 
 test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
 test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))

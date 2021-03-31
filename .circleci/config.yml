@@ -338,7 +338,7 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - run:
-          name: Running phpstan
+          name: Running phpunit
           command: |
             composer scenario << parameters.scenario >> ;
             make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
