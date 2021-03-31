@@ -320,6 +320,12 @@ jobs:
           command: sudo apt update; sudo apt -y install libcurl4-nss-dev
       - prepare_extension_and_composer_with_cache
       - run:
+          name: Install phpstan
+          command: |
+            composer global require phpstan/phpstan:0.12.*
+            composer global require psr/log
+            composer scenario:update
+      - run:
           name: Running phpstan
           command: composer scenario opentracing1; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
       - run:
