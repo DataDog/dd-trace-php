@@ -1990,7 +1990,7 @@ workflows:
       - unit_test_opentracing:
           requires: [ 'Prepare Code' ]
           name: "Unit Test OpenTracing 80"
-          docker_image: "datadog/dd-trace-ci:php-8.0-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           scenario: opentracing1
           make_target: test_opentracing_10
       - "Post-Install Hook":
