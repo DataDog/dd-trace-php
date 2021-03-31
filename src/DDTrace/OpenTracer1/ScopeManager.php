@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\OpenTracer;
+namespace DDTrace\OpenTracer1;
 
 use DDTrace\Contracts\ScopeManager as ScopeManagerInterface;
 use OpenTracing\Scope as OTScope;

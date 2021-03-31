@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\OpenTracer;
+namespace DDTrace\OpenTracer1;
 
 use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Span as DDSpan;
