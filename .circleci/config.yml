@@ -310,7 +310,7 @@ jobs:
       - run:
           name: Install phpstan
           command: |
-            composer global require phpstan/phpstan:0.12.*
+            composer global require phpstan/phpstan
             composer global require psr/log
             composer scenario:update
       - run:
@@ -322,6 +322,8 @@ jobs:
       docker_image:
         type: string
         default: ""
+      scenario:
+        type: string
       make_target:
         type: string
         default: ""
