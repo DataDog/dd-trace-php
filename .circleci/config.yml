@@ -317,6 +317,30 @@ jobs:
           name: Running phpstan
           command: composer scenario << parameters.scenario >> ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
+  unit_test_opentracing:
+    parameters:
+      docker_image:
+        type: string
+        default: ""
+      make_target:
+        type: string
+        default: ""
+    working_directory: ~/datadog
+    docker:
+      - image: << parameters.docker_image >>
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - lib_curl_workaround:
+          command: sudo apt update; sudo apt -y install libcurl4-nss-dev
+      - prepare_extension_and_composer_with_cache
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - run:
+          name: Running phpstan
+          command: |
+            composer scenario << parameters.scenario >> ;
+            make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
+
   "Composer Tests 55":
     working_directory: ~/datadog
     # killed in large due to OOM in Symfony 2.8 :'(
@@ -1905,5 +1929,11 @@ workflows:
           name: "Static Analysis 80"
           docker_image: circleci/php:8.0
           scenario: opentracing1
+      - unit_test_opentracing:
+          requires: [ 'Prepare Code' ]
+          name: "Unit Test OpenTracing 80"
+          docker_image: circleci/php:8.0
+          scenario: opentracing1
+          make_target: test_opentracing
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
