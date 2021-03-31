@@ -301,7 +301,7 @@ jobs:
         default: ""
     working_directory: ~/datadog
     docker:
-      - image: << paramters.docker_image >>
+      - image: << parameters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
@@ -315,7 +315,7 @@ jobs:
             composer scenario:update
       - run:
           name: Running phpstan
-          command: composer scenario << paramters.scenario >> ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
+          command: composer scenario << parameters.scenario >> ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
   "Composer Tests 55":
     working_directory: ~/datadog
