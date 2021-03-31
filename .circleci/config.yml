@@ -337,6 +337,9 @@ jobs:
       - prepare_extension_and_composer_with_cache
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - store_artifacts:
+          path: ~/datadog/bridge/_generated.php
+          destination: << parameters.scenario >>_generated.php
       - run:
           name: Running phpunit
           command: |
