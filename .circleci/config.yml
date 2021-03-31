@@ -1895,7 +1895,7 @@ workflows:
           requires: [ 'Prepare Code' ]
       - "Static Analysis":
           requires: [ 'Prepare Code' ]
-            name: "Static Analysis 56"
+          name: "Static Analysis 56"
           docker_image: circleci/php:5.6
       - "Static Analysis":
           requires: [ 'Prepare Code' ]
