@@ -1893,11 +1893,13 @@ workflows:
                 - "datadog/dd-trace-ci:php-8.0_buster"
       - "Lint files":
           requires: [ 'Prepare Code' ]
-      - "Static Analysis 56":
+      - "Static Analysis":
           requires: [ 'Prepare Code' ]
+            name: "Static Analysis 56"
           docker_image: circleci/php:5.6
-      - "Static Analysis 80":
+      - "Static Analysis":
           requires: [ 'Prepare Code' ]
+          name: "Static Analysis 80"
           docker_image: circleci/php:8.0
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
