@@ -6,7 +6,9 @@ use DDTrace\Contracts\Tracer as TracerInterface;
 use DDTrace\Propagator;
 use DDTrace\Tracer as DDTracer;
 use DDTrace\Transport;
+use OpenTracing\Scope as OTScope;
 use OpenTracing\ScopeManager as OTScopeManager;
+use OpenTracing\Span as OTSpan;
 use OpenTracing\SpanContext as OTSpanContext;
 use OpenTracing\Tracer as OTTracer;
 
@@ -73,7 +75,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function startSpan($operationName, $options = [])
+    public function startSpan(string $operationName, $options = []): OTSpan
     {
         if ($options instanceof \OpenTracing\StartSpanOptions) {
             $options = self::deconstructStartSpanOptions($options);
@@ -86,7 +88,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function startActiveSpan($operationName, $options = [])
+    public function startActiveSpan(string $operationName, $options = []): OTScope
     {
         if ($options instanceof \OpenTracing\StartSpanOptions) {
             $options = self::deconstructStartSpanOptions($options);
@@ -99,7 +101,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function inject(OTSpanContext $spanContext, $format, &$carrier)
+    public function inject(OTSpanContext $spanContext, string $format, &$carrier): void
     {
         $this->tracer->inject(
             $spanContext instanceof SpanContext
@@ -113,7 +115,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function extract($format, $carrier)
+    public function extract(string $format, $carrier): ?OTSpanContext
     {
         return new SpanContext(
             $this->tracer->extract($format, $carrier)
@@ -123,7 +125,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function flush()
+    public function flush(): void
     {
         $this->tracer->flush();
     }
@@ -131,7 +133,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function getScopeManager()
+    public function getScopeManager(): OTScopeManager
     {
         if (isset($this->scopeManager)) {
             return $this->scopeManager;
@@ -144,7 +146,7 @@ final class Tracer implements OTTracer
     /**
      * {@inheritdoc}
      */
-    public function getActiveSpan()
+    public function getActiveSpan(): ?OTSpan
     {
         $activeSpan = $this->tracer->getActiveSpan();
         if (null === $activeSpan) {

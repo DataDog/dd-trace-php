@@ -325,7 +325,8 @@ TEST_WEB_56 := \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_zend_1 \
-	test_web_custom
+	test_web_custom \
+	test_opentracing
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
@@ -594,9 +595,13 @@ test_distributed_tracing:
 test_metrics:
 	$(call run_tests,--testsuite=metrics $(TESTS))
 
+test_opentracing:
+	$(MAKE) test_scenario_opentracing
+	$(call run_tests,tests/OpenTracerUnit)
+
 test_opentracing_10:
 	$(MAKE) test_scenario_opentracing1
-	$(call run_tests,tests/OpenTracerUnit)
+	$(call run_tests,tests/OpenTracerUnit1)
 
 test_integrations: $(TEST_INTEGRATIONS_$(PHP_MAJOR_MINOR))
 test_web: $(TEST_WEB_$(PHP_MAJOR_MINOR))

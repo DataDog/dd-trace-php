@@ -5,6 +5,7 @@ namespace DDTrace\OpenTracer;
 use DDTrace\Contracts\Span as SpanInterface;
 use DDTrace\Span as DDSpan;
 use OpenTracing\Span as OTSpan;
+use OpenTracing\SpanContext as OTSpanContext;
 
 final class Span implements OTSpan
 {
@@ -29,7 +30,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function overwriteOperationName($operationName)
+    public function overwriteOperationName(string $operationName): void
     {
         $this->span->overwriteOperationName($operationName);
     }
@@ -37,7 +38,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function setTag($key, $value)
+    public function setTag(string $key, $value): void
     {
         $this->span->setTag($key, $value);
     }
@@ -45,7 +46,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function finish($finishTime = null)
+    public function finish($finishTime = null): void
     {
         $this->span->finish($finishTime);
     }
@@ -53,7 +54,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function getOperationName()
+    public function getOperationName(): string
     {
         return $this->span->getOperationName();
     }
@@ -61,7 +62,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function getContext()
+    public function getContext(): OTSpanContext
     {
         if (isset($this->context)) {
             return $this->context;
@@ -74,7 +75,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function log(array $fields = [], $timestamp = null)
+    public function log(array $fields = [], $timestamp = null): void
     {
         $this->span->log($fields, $timestamp);
     }
@@ -82,7 +83,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function addBaggageItem($key, $value)
+    public function addBaggageItem(string $key, string $value): void
     {
         $this->span->addBaggageItem($key, $value);
     }
@@ -90,7 +91,7 @@ final class Span implements OTSpan
     /**
      * {@inheritdoc}
      */
-    public function getBaggageItem($key)
+    public function getBaggageItem(string $key): ?string
     {
         return $this->span->getBaggageItem($key);
     }

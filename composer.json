@@ -73,20 +73,5 @@
         ],
         "install-ext": "make sudo install install_ini $*",
         "test-ext": "make test_c TESTS=tests/ext"
-    },
-    "extra": {
-        "scenarios": {
-            "opentracing1": {
-                "require": {
-                    "opentracing/opentracing": "^1.0"
-                },
-                "scenario-options": {
-                    "create-lockfile": false
-                }
-            }
-        },
-        "scenario-options": {
-            "dependency-licenses": false
-        }
     }
 }

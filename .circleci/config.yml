@@ -308,7 +308,23 @@ jobs:
             composer scenario:update
       - run:
           name: Running phpstan
-          command: composer scenario opentracing1 ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
+          command: composer scenario opentracing ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
+
+  "Test OpenTracing Integration 8.0":
+    working_directory: ~/datadog
+    docker:
+      - image: circleci/php:8.0
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - lib_curl_workaround:
+          command: sudo apt update; sudo apt -y install libcurl4-nss-dev
+      - prepare_extension_and_composer_with_cache
+      - run:
+          name: Running phpstan
+          command: composer scenario opentracing1; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
+      - run:
+          name: Running phpunit
+          command: make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
 
   "Composer Tests 55":
     working_directory: ~/datadog

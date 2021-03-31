@@ -4,6 +4,7 @@ namespace DDTrace\OpenTracer;
 
 use DDTrace\Contracts\Scope as ScopeInterface;
 use OpenTracing\Scope as OTScope;
+use OpenTracing\Span as OTSpan;
 
 final class Scope implements OTScope
 {
@@ -28,7 +29,7 @@ final class Scope implements OTScope
     /**
      * {@inheritdoc}
      */
-    public function close()
+    public function close(): void
     {
         $this->scope->close();
     }
@@ -36,7 +37,7 @@ final class Scope implements OTScope
     /**
      * {@inheritdoc}
      */
-    public function getSpan()
+    public function getSpan(): OTSpan
     {
         if (isset($this->span)) {
             return $this->span;
