@@ -310,7 +310,7 @@ jobs:
           name: Running phpstan
           command: composer scenario opentracing ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
-  "Test OpenTracing Integration on PHP 8":
+  "Test OpenTracing Integration on PHP 80":
     working_directory: ~/datadog
     docker:
       - image: circleci/php:8.0
@@ -1905,6 +1905,8 @@ workflows:
       - "Lint files":
           requires: [ 'Prepare Code' ]
       - "Static Analysis":
+          requires: [ 'Prepare Code' ]
+      - "Test OpenTracing Integration on PHP 80":
           requires: [ 'Prepare Code' ]
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
