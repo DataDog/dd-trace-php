@@ -41,7 +41,7 @@
             },
             "opentracing": {
                 "require": {
-                    "opentracing/opentracing": "1.0.0-beta5"
+                    "opentracing/opentracing": "1.0.0-beta6"
                 },
                 "scenario-options": {
                     "create-lockfile": false
