@@ -325,8 +325,7 @@ TEST_WEB_56 := \
 	test_web_wordpress_48 \
 	test_web_wordpress_55 \
 	test_web_zend_1 \
-	test_web_custom \
-	test_opentracing
+	test_web_custom
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
