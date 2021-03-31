@@ -310,7 +310,7 @@ jobs:
       - run:
           name: Install phpstan
           command: |
-            composer global require phpstan/phpstan
+            composer global require phpstan/phpstan:0.12.*
             composer global require psr/log
             composer scenario:update
       - run:
@@ -1923,8 +1923,8 @@ workflows:
           requires: [ 'Prepare Code' ]
       - static_analysis:
           requires: [ 'Prepare Code' ]
-          name: "Static Analysis 56"
-          docker_image: circleci/php:5.6
+          name: "Static Analysis 71"
+          docker_image: circleci/php:7.1
           scenario: opentracing
       - static_analysis:
           requires: [ 'Prepare Code' ]
