@@ -1897,9 +1897,11 @@ workflows:
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 56"
           docker_image: circleci/php:5.6
+          scenario: opentracing
       - "Static Analysis":
           requires: [ 'Prepare Code' ]
           name: "Static Analysis 80"
           docker_image: circleci/php:8.0
+          scenario: opentracing1
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
