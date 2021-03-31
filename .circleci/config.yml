@@ -652,6 +652,51 @@ jobs:
       - <<: *STEP_COMPOSER_CACHE_SAVE
       - <<: *STEP_PERSIST_TO_WORKSPACE
 
+  internal_integrations:
+    parameters:
+      docker_image:
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+      ext_name:
+        type: string
+    working_directory: ~/datadog
+    environment:
+      DDAGENT_HOSTNAME: 127.0.0.1
+      DD_AGENT_HOST: 127.0.0.1
+      HTTPBIN_HOSTNAME: httpbin_integration
+    executor:
+      name: with_httpbin_and_request_replayer
+      docker_image: << parameters.docker_image >>
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - run:
+          name: Ensure ext/<< parameters.ext_name >> is missing
+          command: |
+            if php --ri=<< parameters.ext_name >> &> /dev/null
+            then
+              echo 'ext/<< parameters.ext_name >> is enabled but should not be installed'
+              exit 1
+            fi
+      - run:
+          name: Run << parameters.ext_name >> integration tests with ext/<< parameters.ext_name >> as shared lib + leak detection
+          command: make test_extension_ci BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results TESTS='-d extension=<< parameters.ext_name >>.so ./tests/ext/integrations/<< parameters.ext_name >>'
+      - <<: *STEP_STORE_TEST_RESULTS
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts/core_dumps
+            find tmp -name "core.*" | xargs -I % -n 1 cp % /tmp/artifacts/core_dumps
+            cp -a tmp/build_extension/tests/ext /tmp/artifacts/tests
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
   framework_tests:
     working_directory: ~/datadog
     parameters:
@@ -1901,6 +1946,11 @@ workflows:
           resource_class: medium+
           integration_testsuite: "test_web"
           docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
+      - internal_integrations:
+          requires: [ 'Prepare Code' ]
+          name: "PHP 80 curl integration tests a shared lib"
+          ext_name: "curl"
+          docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           resource_class: medium+

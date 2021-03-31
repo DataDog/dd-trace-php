@@ -57,3 +57,4 @@ make clean
 make -j "$((`nproc`+1))"
 make install
 switch-php ${phpVersion}-debug
+mkdir -vp $(php-config --ini-dir)
