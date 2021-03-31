@@ -295,8 +295,10 @@ jobs:
     parameters:
       docker_image:
         type: string
+        default: ""
       scenario:
         type: string
+        default: ""
     working_directory: ~/datadog
     docker:
       - image: << paramters.docker_image >>
