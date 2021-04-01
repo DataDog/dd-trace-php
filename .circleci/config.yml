@@ -1341,13 +1341,23 @@ workflows:
           requires: [ 'package extension' ]
           name: Framework tests
       - framework_tests:
+          name: "Flow testsuite"
+          filters:
+            branches:
+              only:
+                - /^master$/
+                - /^ddtrace-.*/
           requires: [ "Framework tests" ]
           framework_target: flow
-          name: "Flow testsuite"
       - framework_tests:
-          requires: [ "Framework tests" ]
-          framework_target: flow_no_ddtrace
           name: "Flow baseline testsuite"
+          requires: [ "Framework tests" ]
+          filters:
+            branches:
+              only:
+                - /^master$/
+                - /^ddtrace-.*/
+          framework_target: flow_no_ddtrace
       - framework_tests:
           requires: [ "Framework tests" ]
           framework_target: laravel
