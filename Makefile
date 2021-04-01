@@ -540,8 +540,6 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_predis1 \
-	test_opentracing_beta5 \
-	test_opentracing_beta6 \
 	test_opentracing_10
 
 TEST_WEB_80 := \
