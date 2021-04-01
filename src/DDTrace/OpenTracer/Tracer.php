@@ -58,7 +58,10 @@ final class Tracer implements OTTracer
         }
 
         $options['finish_span_on_close'] = $obj->shouldFinishSpanOnClose();
-        $options['ignore_active_span'] = $obj->shouldIgnoreActiveSpan();
+        if (\method_exists($obj, 'shouldIgnoreActiveSpan')) {
+            // This method (and the 'ignore_active_span' concept) has been added in opentracing 1.0.0-beta6.
+            $options['ignore_active_span'] = $obj->shouldIgnoreActiveSpan();
+        }
 
         /* Later: finish supporting OpenTracing\References
         $references = $obj->getReferences();
