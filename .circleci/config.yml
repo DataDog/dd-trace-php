@@ -786,6 +786,7 @@ jobs:
     working_directory: ~/datadog
     machine:
       image: ubuntu-2004:202010-01
+    resource_class: xlarge
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
