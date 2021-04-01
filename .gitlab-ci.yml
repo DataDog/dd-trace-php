@@ -9,7 +9,7 @@ build:
   script:
     - docker version
     - docker buildx install
-    - docker build -f dockerfiles/packaging/Dockerfile . --target export -t tmp_export 
+    - docker build -f dockerfiles/packaging/Dockerfile . --target export -t tmp_export
     - docker image save tmp_export  | tar --wildcards --strip-components=1 -x '*/layer.tar'
     - mkdir artifacts
     - tar -xf layer.tar -C artifacts
