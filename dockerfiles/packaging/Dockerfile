@@ -3,6 +3,75 @@ ARG DOCKER_REGISTRY=docker.io
 FROM scratch as src
 COPY / /
 
+### PHP 5.4
+
+FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-5.4_centos-6 as php-5.4-base
+COPY --from=src / /build/
+WORKDIR /build/
+
+FROM php-5.4-base as php-5.4
+RUN bash dockerfiles/packaging/build.sh 5.4 20100412
+
+FROM php-5.4-base as php-5.4-zts
+RUN bash dockerfiles/packaging/build.sh 5.4-zts 20100412-zts
+
+FROM php-5.4-base as php-5.4-debug
+ENV CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra"
+RUN bash dockerfiles/packaging/build.sh 5.4 20100412-debug
+
+FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-compile-extension-alpine-5.4 as php-5.4-base-alpine
+COPY --from=src / /build/
+WORKDIR /build/
+
+FROM php-5.4-base-alpine as php-5.4-alpine
+RUN sh dockerfiles/packaging/build-alpine.sh 5.4 20100412
+
+### PHP 5.5
+
+FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-5.5_centos-6 as php-5.5-base
+COPY --from=src / /build/
+WORKDIR /build/
+
+FROM php-5.5-base as php-5.5
+RUN bash dockerfiles/packaging/build.sh 5.5 20121113
+
+FROM php-5.5-base as php-5.5-zts
+RUN bash dockerfiles/packaging/build.sh 5.5-zts 20121113-zts
+
+FROM php-5.5-base as php-5.5-debug
+ENV CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra"
+RUN bash dockerfiles/packaging/build.sh 5.5 20121113-debug
+
+FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-compile-extension-alpine-5.5 as php-5.5-base-alpine
+COPY --from=src / /build/
+WORKDIR /build/
+
+FROM php-5.5-base-alpine as php-5.5-alpine
+RUN sh dockerfiles/packaging/build-alpine.sh 5.5 20121113
+
+### PHP 5.6
+
+FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-5.6_centos-6 as php-5.6-base
+COPY --from=src / /build/
+WORKDIR /build/
+
+FROM php-5.6-base as php-5.6
+RUN bash dockerfiles/packaging/build.sh 5.6 20131106
+
+FROM php-5.6-base as php-5.6-zts
+RUN bash dockerfiles/packaging/build.sh 5.6-zts 20131106-zts
+
+FROM php-5.6-base as php-5.6-debug
+ENV CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra"
+RUN bash dockerfiles/packaging/build.sh 5.6 20131106-debug
+
+FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-compile-extension-alpine-5.6 as php-5.6-base-alpine
+COPY --from=src / /build/
+WORKDIR /build/
+
+FROM php-5.6-base-alpine as php-5.6-alpine
+RUN sh dockerfiles/packaging/build-alpine.sh 5.6 20131106
+
 ### PHP 7.0
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-7.0_centos-6 as php-7.0-base
@@ -118,8 +187,43 @@ WORKDIR /build/
 FROM php-7.4-base-alpine as php-7.4-alpine
 RUN sh dockerfiles/packaging/build-alpine.sh 7.4 20190902
 
+### PHP 8.0
+
+FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-8.0_centos-6 as php-8.0-base
+COPY --from=src / /build/
+WORKDIR /build/
+
+FROM php-8.0-base as php-8.0
+RUN bash dockerfiles/packaging/build.sh 8.0 20200930
+
+FROM php-8.0-base as php-8.0-zts
+RUN bash dockerfiles/packaging/build.sh 8.0-zts 20200930-zts
+
+FROM php-8.0-base as php-8.0-debug
+ENV CFLAGS="-std=gnu11 -O0 -g -Wall -Wextra"
+RUN bash dockerfiles/packaging/build.sh 8.0 20200930-debug
+
+FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-compile-extension-alpine-8.0 as php-8.0-base-alpine
+COPY --from=src / /build/
+WORKDIR /build/
+
+FROM php-8.0-base-alpine as php-8.0-alpine
+RUN sh dockerfiles/packaging/build-alpine.sh 8.0 20200930
+
 # copy all built extensions into a single tmp image
 FROM scratch as extensions
+COPY --from=php-5.4 /build/extensions/*.so /
+COPY --from=php-5.4-zts /build/extensions/*.so /
+COPY --from=php-5.4-debug /build/extensions/*.so /
+COPY --from=php-5.4-alpine /build/extensions/*.so /
+COPY --from=php-5.5 /build/extensions/*.so /
+COPY --from=php-5.5-zts /build/extensions/*.so /
+COPY --from=php-5.5-debug /build/extensions/*.so /
+COPY --from=php-5.5-alpine /build/extensions/*.so /
+COPY --from=php-5.6 /build/extensions/*.so /
+COPY --from=php-5.6-zts /build/extensions/*.so /
+COPY --from=php-5.6-debug /build/extensions/*.so /
+COPY --from=php-5.6-alpine /build/extensions/*.so /
 COPY --from=php-7.0 /build/extensions/*.so /
 COPY --from=php-7.0-zts /build/extensions/*.so /
 COPY --from=php-7.0-debug /build/extensions/*.so /
@@ -140,6 +244,10 @@ COPY --from=php-7.4 /build/extensions/*.so /
 COPY --from=php-7.4-zts /build/extensions/*.so /
 COPY --from=php-7.4-debug /build/extensions/*.so /
 COPY --from=php-7.4-alpine /build/extensions/*.so /
+COPY --from=php-8.0 /build/extensions/*.so /
+COPY --from=php-8.0-zts /build/extensions/*.so /
+COPY --from=php-8.0-debug /build/extensions/*.so /
+COPY --from=php-8.0-alpine /build/extensions/*.so /
 
 FROM ${DOCKER_REGISTRY}/datadog/docker-library:ddtrace_php_fpm_packaging as packager
 WORKDIR /build/
