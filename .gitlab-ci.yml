@@ -1,5 +1,6 @@
 stages:
   - build
+  - deploy
 
 build:
   tags: ["runner:docker", "size:large"]
