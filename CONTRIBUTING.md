@@ -45,7 +45,7 @@ Then install the `ddtrace` extension.
 $ composer install-ext
 ```
 
-> **Note:** You'll need to run the above `install-ext` command to install the `ddtrace` extension every time you access the container's bash for the first time.
+> :memo: **Note:** You'll need to run the above `install-ext` command to install the `ddtrace` extension every time you access the container's bash for the first time.
 
 You can check that the extension was installed properly.
 
@@ -79,6 +79,10 @@ $ docker-compose down -v
 First you need to update composer's dependecies in `./tests` folder:
 
     $ make composer_tests_update
+
+> :memo: **Note:** To disable reliance on the generated files during development and testing, set the following environment variable:
+> 
+> `export DD_AUTOLOAD_NO_COMPILE=true`
 
 Then you can run tests:
 

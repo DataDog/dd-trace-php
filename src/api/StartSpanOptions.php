@@ -192,7 +192,7 @@ final class StartSpanOptions
         }
 
         // @phpstan-ignore-next-line
-        if ($value instanceof \DDTrace\OpenTracer\SpanContext) {
+        if ($value instanceof \DDTrace\OpenTracer\SpanContext || $value instanceof \DDTrace\OpenTracer1\SpanContext) {
             // @phpstan-ignore-next-line
             return Reference::create(Reference::CHILD_OF, $value->unwrapped());
         }

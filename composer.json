@@ -76,9 +76,25 @@
     },
     "extra": {
         "scenarios": {
-            "opentracing1": {
+            "opentracing_beta5": {
+                "require": {
+                    "opentracing/opentracing": "1.0.0-beta5"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "opentracing_beta6": {
                 "require": {
                     "opentracing/opentracing": "1.0.0-beta6"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
+            "opentracing10": {
+                "require": {
+                    "opentracing/opentracing": "^1.0"
                 },
                 "scenario-options": {
                     "create-lockfile": false

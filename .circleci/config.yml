@@ -291,10 +291,17 @@ jobs:
           command: make verify_all
       - <<: *STEP_STORE_TEST_RESULTS
 
-  "Static Analysis":
+  static_analysis:
+    parameters:
+      docker_image:
+        type: string
+        default: ""
+      scenario:
+        type: string
+        default: ""
     working_directory: ~/datadog
     docker:
-      - image: circleci/php:7.3
+      - image: << parameters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - lib_curl_workaround:
@@ -308,7 +315,7 @@ jobs:
             composer scenario:update
       - run:
           name: Running phpstan
-          command: composer scenario opentracing1 ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
+          command: composer scenario << parameters.scenario >> ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
   "Composer Tests 55":
     working_directory: ~/datadog
@@ -1938,7 +1945,15 @@ workflows:
                 - "datadog/dd-trace-ci:php-8.0_buster"
       - "Lint files":
           requires: [ 'Prepare Code' ]
-      - "Static Analysis":
+      - static_analysis:
           requires: [ 'Prepare Code' ]
+          name: "Static Analysis 71"
+          docker_image: circleci/php:7.1
+          scenario: opentracing_beta6
+      - static_analysis:
+          requires: [ 'Prepare Code' ]
+          name: "Static Analysis 80"
+          docker_image: circleci/php:8.0
+          scenario: opentracing10
       - "Post-Install Hook":
           requires: [ 'Prepare Code' ]
