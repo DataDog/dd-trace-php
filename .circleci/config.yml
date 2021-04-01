@@ -782,6 +782,18 @@ jobs:
           name: Validate debian package
           command: << parameters.configuration >> bash ./dockerfiles/verify_packages/verify.sh
 
+  package:
+    working_directory: ~/datadog
+    machine:
+      image: ubuntu-2004:202010-01
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: "Build packages"
+          command: make packages_in_docker
+      - store_artifacts:
+          path: layer.tar
+
   randomized_tests:
     working_directory: ~/datadog
     machine:
@@ -1143,6 +1155,12 @@ jobs:
 
 workflows:
   version: 2
+
+  package:
+    jobs:
+      - "Prepare Code"
+      - package:
+          requires: [ 'Prepare Code' ]
 
   components:
     jobs:
