@@ -235,6 +235,7 @@ ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/substr_compare.phpt
 ext/standard/tests/time/strptime_basic.phpt
 tests/basic/027.phpt
+tests/basic/php_logo_guid.phpt
 tests/classes/__call_004.phpt
 tests/classes/__call_005.phpt
 tests/classes/autoload_001.phpt
