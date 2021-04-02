@@ -41,7 +41,19 @@
 #define MIN_ID_LEN DATADOG_PHP_CONTAINER_ID_MIN_LEN
 #define MAX_ID_LEN DATADOG_PHP_CONTAINER_ID_MAX_LEN
 
-static void dd_extract_task_id(char *buf, const char *line) {
+typedef datadog_php_container_id_parser dd_parser;
+
+static bool dd_parser_is_valid_line(dd_parser *parser, const char *line) {
+    return regexec(&parser->line_regex, line, 0, NULL, 0) == 0;
+}
+
+static bool dd_parser_extract_task_id(dd_parser *parser, char *buf, const char *line) {
+    if (regexec(&parser->task_regex, line, 0, NULL, 0) != 0) return false;
+
+    /* Normally we could just use 'regmatch_t' to obtain the results from this
+     * regex match, but unfortunately if Oniguruma <= 6.9.4 is linked in, the
+     * 'regmatch_t' will be mangled so we cannot use it here.
+     */
     char *pos = (char *)line;
     size_t len = strlen(line);
     unsigned int buf_pos = 0;
@@ -80,9 +92,13 @@ static void dd_extract_task_id(char *buf, const char *line) {
     }
 
     buf[buf_pos] = '\0';
+
+    return true;
 }
 
-static void dd_extract_container_id(char *buf, const char *line) {
+static bool dd_parser_extract_container_id(dd_parser *parser, char *buf, const char *line) {
+    if (regexec(&parser->container_regex, line, 0, NULL, 0) != 0) return false;
+
     char *pos = (char *)line;
     size_t len = strlen(line);
     unsigned int buf_pos = 0;
@@ -99,16 +115,12 @@ static void dd_extract_container_id(char *buf, const char *line) {
     }
 
     buf[buf_pos] = '\0';
+
+    return true;
 }
 
-void datadog_php_container_id(char *buf, const char *file) {
-    FILE *fp;
-
-    if (buf == NULL) return;
-
-    buf[0] = '\0';
-
-    if (file == NULL || file[0] == '\0' || (fp = fopen(file, "r")) == NULL) return;
+bool datadog_php_container_id_parser_ctor(dd_parser *parser) {
+    if (parser == NULL) return false;
 
     /* According to the in-code docs:
      *
@@ -117,22 +129,50 @@ void datadog_php_container_id(char *buf, const char *file) {
      * 'regfree'."
      * https://elixir.bootlin.com/glibc/latest/source/posix/regex.h#L535
      *
-     * For this reason we zero-initialize all of the 'regex_t' patterns so that
-     * we can still call regfree() on them if regcomp() fails to initialize the
+     * For this reason we zero-out all of the 'regex_t' patterns so that we can
+     * still call regfree() on them if regcomp() fails to initialize the
      * pattern buffer.
      */
-    regex_t line_regex = {0};
-    regex_t task_regex = {0};
-    regex_t container_regex = {0};
-    int l_res = regcomp(&line_regex, LINE_REGEX, REG_NOSUB);
-    int t_res = regcomp(&task_regex, TASK_REGEX, REG_NOSUB);
-    int c_res = regcomp(&container_regex, CONTAINER_REGEX, REG_NOSUB);
+    memset(parser, 0, sizeof *parser);
+
+    int l_res = regcomp(&parser->line_regex, LINE_REGEX, REG_NOSUB);
+    int t_res = regcomp(&parser->task_regex, TASK_REGEX, REG_NOSUB);
+    int c_res = regcomp(&parser->container_regex, CONTAINER_REGEX, REG_NOSUB);
     if (l_res != 0 || t_res != 0 || c_res != 0) {
-        regfree(&container_regex);
-        regfree(&task_regex);
-        regfree(&line_regex);
+        datadog_php_container_id_parser_dtor(parser);
+        return false;
+    }
+
+    parser->is_valid_line = dd_parser_is_valid_line;
+    parser->extract_task_id = dd_parser_extract_task_id;
+    parser->extract_container_id = dd_parser_extract_container_id;
+
+    return true;
+}
+
+bool datadog_php_container_id_parser_dtor(dd_parser *parser) {
+    if (parser == NULL) return false;
+
+    regfree(&parser->container_regex);
+    regfree(&parser->task_regex);
+    regfree(&parser->line_regex);
+
+    return true;
+}
+
+bool datadog_php_container_id_from_file(char *buf, const char *file) {
+    FILE *fp;
+
+    if (buf == NULL) return false;
+
+    buf[0] = '\0';
+
+    if (file == NULL || file[0] == '\0' || (fp = fopen(file, "r")) == NULL) return false;
+
+    dd_parser parser;
+    if (datadog_php_container_id_parser_ctor(&parser) == false) {
         fclose(fp);
-        return;
+        return false;
     }
 
     char line[1024];
@@ -140,22 +180,21 @@ void datadog_php_container_id(char *buf, const char *file) {
         if (fgets(line, sizeof line, fp) == NULL) continue;
 
         /* Match a valid cgroup line. */
-        if (regexec(&line_regex, line, 0, NULL, 0) != 0) continue;
+        if (!parser.is_valid_line(&parser, line)) {
+            /* This does not look like a valid cgroup line so we skip it. */
+            continue;
+        }
 
-        /* Normally we could just use 'regmatch_t' to obtain the results from
-         * this regex match, but unfortunately if Oniguruma <= 6.9.4 is linked
-         * in, the 'regmatch_t' will be mangled so we cannot use it here.
-         */
-        if (regexec(&task_regex, line, 0, NULL, 0) == 0) {
-            dd_extract_task_id(buf, line);
+        /* Match a task ID and fill into buf. */
+        if (parser.extract_task_id(&parser, buf, line)) {
             /* We found a task ID which takes precedence over a standard
              * container ID so we can stop scanning the file.
              */
             break;
         }
 
-        if (buf[0] == '\0' && (regexec(&container_regex, line, 0, NULL, 0) == 0)) {
-            dd_extract_container_id(buf, line);
+        /* Match a container ID and fill into empty buf. */
+        if (buf[0] == '\0' && parser.extract_container_id(&parser, buf, line)) {
             /* We found a valid container ID but we cannot stop scanning the
              * file because there might be a task ID in the file (as is the
              * case with Fargate 1.4+) and those take precedence over standard
@@ -165,9 +204,9 @@ void datadog_php_container_id(char *buf, const char *file) {
         }
     }
 
-    regfree(&container_regex);
-    regfree(&task_regex);
-    regfree(&line_regex);
-
+    /* This only fails if parser is NULL. */
+    (void)datadog_php_container_id_parser_dtor(&parser);
     fclose(fp);
+
+    return true;
 }
