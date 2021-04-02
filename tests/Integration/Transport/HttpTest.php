@@ -144,7 +144,7 @@ final class HttpTest extends BaseTestCase
 
         $httpTransport->send($tracer);
 
-        $traceRequest = $this->getLastAgentRequest()[0];
+        $traceRequest = $this->getLastAgentRequest();
 
         $this->assertEquals('php', $traceRequest['headers']['Datadog-Meta-Lang']);
         $this->assertEquals(\PHP_VERSION, $traceRequest['headers']['Datadog-Meta-Lang-Version']);
@@ -166,7 +166,7 @@ final class HttpTest extends BaseTestCase
         $span->finish();
 
         $httpTransport->send($tracer);
-        $traceRequest = $this->getLastAgentRequest()[0];
+        $traceRequest = $this->getLastAgentRequest();
 
         $this->assertArrayHasKey('Content-Length', $traceRequest['headers']);
     }
@@ -244,7 +244,7 @@ final class HttpTest extends BaseTestCase
         $httpTransport->setHeader('X-my-custom-header', 'my-custom-value');
         $httpTransport->send($tracer);
 
-        $traceRequest = $this->getLastAgentRequest()[0];
+        $traceRequest = $this->getLastAgentRequest();
 
         $this->assertEquals('my-custom-value', $traceRequest['headers']['X-my-custom-header']);
     }
