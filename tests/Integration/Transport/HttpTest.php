@@ -3,11 +3,11 @@
 namespace DDTrace\Tests\Integration\Transport;
 
 use DDTrace\Encoders\Json;
+use DDTrace\GlobalTracer;
 use DDTrace\Tests\Common\AgentReplayerTrait;
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tracer;
 use DDTrace\Transport\Http;
-use DDTrace\GlobalTracer;
 
 final class HttpTest extends BaseTestCase
 {
@@ -24,7 +24,7 @@ final class HttpTest extends BaseTestCase
 
     public function agentUrl()
     {
-        return 'http://' . ($_SERVER["DDAGENT_HOSTNAME"] ? $_SERVER["DDAGENT_HOSTNAME"] :  "localhost") . ':8126';
+        return 'http://' . ($_SERVER["DDAGENT_HOSTNAME"] ? $_SERVER["DDAGENT_HOSTNAME"] : "localhost") . ':8126';
     }
 
     public function agentTracesUrl()
@@ -37,7 +37,7 @@ final class HttpTest extends BaseTestCase
         $logger = $this->withDebugLogger();
 
         $httpTransport = new Http(new Json(), [
-            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
+            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces',
         ]);
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
@@ -45,7 +45,7 @@ final class HttpTest extends BaseTestCase
         $span = $tracer->startSpan('test', [
             'tags' => [
                 'key1' => 'value1',
-            ]
+            ],
         ]);
 
         $span->finish();
@@ -65,10 +65,10 @@ final class HttpTest extends BaseTestCase
         $logger = $this->withDebugLogger();
 
         $badHttpTransport = new Http(new Json(), [
-            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces'
+            'endpoint' => 'http://0.0.0.0:8127/v0.3/traces',
         ]);
         $goodHttpTransport = new Http(new Json(), [
-            'endpoint' => $this->agentTracesUrl()
+            'endpoint' => $this->agentTracesUrl(),
         ]);
 
         $tracer = new Tracer(null);
@@ -104,7 +104,7 @@ final class HttpTest extends BaseTestCase
         $logger = $this->withDebugLogger();
 
         $httpTransport = new Http(new Json(), [
-            'endpoint' => $this->agentTracesUrl()
+            'endpoint' => $this->agentTracesUrl(),
         ]);
         $tracer = new Tracer($httpTransport);
         GlobalTracer::set($tracer);
@@ -112,14 +112,14 @@ final class HttpTest extends BaseTestCase
         $span = $tracer->startSpan('test', [
             'tags' => [
                 'key1' => 'value1',
-            ]
+            ],
         ]);
 
         $childSpan = $tracer->startSpan('child_test', [
             'child_of' => $span,
             'tags' => [
                 'key2' => 'value2',
-            ]
+            ],
         ]);
 
         $childSpan->finish();
@@ -144,7 +144,7 @@ final class HttpTest extends BaseTestCase
 
         $httpTransport->send($tracer);
 
-        $traceRequest = $this->getLastAgentRequest();
+        $traceRequest = $this->getLastAgentRequest()[0];
 
         $this->assertEquals('php', $traceRequest['headers']['Datadog-Meta-Lang']);
         $this->assertEquals(\PHP_VERSION, $traceRequest['headers']['Datadog-Meta-Lang-Version']);
@@ -166,7 +166,7 @@ final class HttpTest extends BaseTestCase
         $span->finish();
 
         $httpTransport->send($tracer);
-        $traceRequest = $this->getLastAgentRequest();
+        $traceRequest = $this->getLastAgentRequest()[0];
 
         $this->assertArrayHasKey('Content-Length', $traceRequest['headers']);
     }
@@ -215,8 +215,8 @@ final class HttpTest extends BaseTestCase
 
         $records = $logger->all();
         $curlOperationTimedout = \version_compare(\PHP_VERSION, '5.5', '<')
-            ? \CURLE_OPERATION_TIMEOUTED
-            : \CURLE_OPERATION_TIMEDOUT;
+        ? \CURLE_OPERATION_TIMEOUTED
+        : \CURLE_OPERATION_TIMEDOUT;
         $prefix = "Reporting of spans failed: {$curlOperationTimedout} / ";
         $suffix = "(TIMEOUT_MS={$timeout}, CONNECTTIMEOUT_MS={$curlTimeout})";
 
@@ -244,7 +244,7 @@ final class HttpTest extends BaseTestCase
         $httpTransport->setHeader('X-my-custom-header', 'my-custom-value');
         $httpTransport->send($tracer);
 
-        $traceRequest = $this->getLastAgentRequest();
+        $traceRequest = $this->getLastAgentRequest()[0];
 
         $this->assertEquals('my-custom-value', $traceRequest['headers']['X-my-custom-header']);
     }

@@ -23,7 +23,7 @@ final class LongRunningScriptTest extends CLITestCase
             'DD_TRACE_BGS_TIMEOUT' => 3000,
         ]);
 
-        $this->assertSame('3', $agentRequest['headers']['X-Datadog-Trace-Count']);
-        $this->assertCount(3, json_decode($agentRequest['body'], true));
+        $this->assertSame('3', $agentRequest[0]['headers']['X-Datadog-Trace-Count']);
+        $this->assertCount(3, json_decode($agentRequest[0]['body'], true));
     }
 }
