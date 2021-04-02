@@ -47,76 +47,130 @@ static bool dd_parser_is_valid_line(dd_parser *parser, const char *line) {
     return regexec(&parser->line_regex, line, 0, NULL, 0) == 0;
 }
 
+#define LEN_SO_FAR (end - start)
+
+#define TASK_ID_MIN_LEN (32 + 1 + 1)   // [0-9a-f]{32}-[0-9]{1}
+#define TASK_ID_MAX_LEN (32 + 1 + 20)  // [0-9a-f]{32}-[0-9]{20}
+
 static bool dd_parser_extract_task_id(dd_parser *parser, char *buf, const char *line) {
     if (regexec(&parser->task_regex, line, 0, NULL, 0) != 0) return false;
 
-    /* Normally we could just use 'regmatch_t' to obtain the results from this
-     * regex match, but unfortunately if Oniguruma <= 6.9.4 is linked in, the
-     * 'regmatch_t' will be mangled so we cannot use it here.
+    /* Normally we would just use 'regmatch_t' for position matching and
+     * extract the desired string from the matched position. But
+     * unfortunately if Oniguruma <= 6.9.4 is linked in, the POSIX regex
+     * symbols are overridden with Oniguruma flavored ones and 'regmatch_t'
+     * will be mangled so we cannot use it here.
+     *
+     * Ideally we would fall back to extracting the IDs using sscanf(), but
+     * since there is no format directive for a minimum or exact field width,
+     * sscanf() will often pull out other parts of the cgroup line that are
+     * not part of the target ID.
+     *
+     * That leaves us with our final old-school fallback of traversing the
+     * string one character at a time to find start and end of the target ID.
      */
-    char *pos = (char *)line;
-    size_t len = strlen(line);
-    unsigned int buf_pos = 0;
+    char *start;
+    char *end;
+    size_t len;
 
-    while ((size_t)(pos - line) < len) {
-        // [0-9a-f]{32}
-        while (isxdigit(pos[0]) && buf_pos < 32) {
-            buf[buf_pos++] = pos[0];
-            pos++;
+    start = end = (char *)line;
+    len = strlen(line);
+
+    /* Traverse the string to find a task ID with the following pattern:
+     *
+     * [0-9a-f]{32}-[0-9]{1,20}
+     *
+     */
+    while ((size_t)(start - line + TASK_ID_MIN_LEN) <= len) {
+        end = start;
+
+        /* We start off looking for 32 hex chars in a row: [0-9a-f]{32} */
+        while (isxdigit(end[0]) && LEN_SO_FAR < 32) {
+            end++;
         }
 
-        // -
-        if (buf_pos != 32 || pos[0] != '-') {
-            buf_pos = 0;
-            pos++;
+        /* After exactly 32 hex characters, there should be a hyphen: - */
+        if (LEN_SO_FAR != 32 || end[0] != '-') {
+            start++;
             continue;
         }
-        buf[buf_pos++] = '-';
-        pos++;
+        end++;
 
-        // [0-9]{1,20}
-        while (isdigit(pos[0]) && buf_pos < (32 + 1 + 20)) {
-            buf[buf_pos++] = pos[0];
-            pos++;
+        /* Finally there should be an unsigned 64-bit int: [0-9]{1,20} */
+        while (isdigit(end[0]) && LEN_SO_FAR < TASK_ID_MAX_LEN) {
+            end++;
         }
-        if (buf_pos <= (32 + 1)) {
-            buf_pos = 0;
-            pos++;
+
+        /* We must capture at least one number. */
+        if (LEN_SO_FAR < TASK_ID_MIN_LEN) {
+            start++;
             continue;
         }
 
         /* We have a valid task ID at this point so we can ignore the rest of
          * the line.
          */
-        break;
+        memcpy(buf, start, LEN_SO_FAR);
+        buf[LEN_SO_FAR] = '\0';
+
+        return true;
     }
 
-    buf[buf_pos] = '\0';
-
-    return true;
+    /* If we made it down here that means our regex pattern matched but we
+     * failed to manually extract the ID from the string.
+     */
+    return false;
 }
+
+#define CONTAINER_ID_LEN 64  // [0-9a-f]{64}
 
 static bool dd_parser_extract_container_id(dd_parser *parser, char *buf, const char *line) {
     if (regexec(&parser->container_regex, line, 0, NULL, 0) != 0) return false;
 
-    char *pos = (char *)line;
-    size_t len = strlen(line);
-    unsigned int buf_pos = 0;
+    /* We cannot use 'regmatch_t' for position matching due to the possibility
+     * of Oniguruma <= 6.9.4 being linked nor can we use sscanf() (as explained
+     * in comments above). So we fall back to traversing the string
+     * character-by-character to find the start and end positions of the target
+     * ID.
+     */
+    char *start;
+    char *end;
+    size_t len;
 
-    // [0-9a-f]{64}
-    while ((size_t)(pos - line) < len && buf_pos < 64) {
-        if (!isxdigit(pos[0])) {
-            buf_pos = 0;
-            pos++;
+    start = end = (char *)line;
+    len = strlen(line);
+
+    /* Traverse the string to find a container ID with the following pattern:
+     *
+     * [0-9a-f]{64}
+     *
+     */
+    while ((size_t)(start - line + CONTAINER_ID_LEN) <= len) {
+        end = start;
+
+        /* We need exactly 64 hex characters in a row. */
+        while (isxdigit(end[0]) && LEN_SO_FAR < CONTAINER_ID_LEN) {
+            end++;
+        }
+
+        if (LEN_SO_FAR != CONTAINER_ID_LEN) {
+            start++;
             continue;
         }
-        buf[buf_pos++] = pos[0];
-        pos++;
+
+        /* We have a valid container ID at this point so we can ignore the rest
+         * of the line.
+         */
+        memcpy(buf, start, LEN_SO_FAR);
+        buf[LEN_SO_FAR] = '\0';
+
+        return true;
     }
 
-    buf[buf_pos] = '\0';
-
-    return true;
+    /* If we made it down here that means our regex pattern matched but we
+     * failed to manually extract the ID from the string.
+     */
+    return false;
 }
 
 bool datadog_php_container_id_parser_ctor(dd_parser *parser) {
