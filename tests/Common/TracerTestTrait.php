@@ -4,15 +4,15 @@ namespace DDTrace\Tests\Common;
 
 use DDTrace\Encoders\Json;
 use DDTrace\Encoders\SpanEncoder;
+use DDTrace\GlobalTracer;
 use DDTrace\Span;
 use DDTrace\SpanContext;
 use DDTrace\Tests\DebugTransport;
-use DDTrace\Tracer;
-use DDTrace\Transport\Http;
-use DDTrace\GlobalTracer;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use DDTrace\Tests\WebServer;
+use DDTrace\Tracer;
+use DDTrace\Transport\Http;
 use Exception;
 use PHPUnit\Framework\TestCase;
 
@@ -58,7 +58,6 @@ trait TracerTestTrait
         return $this->flushAndGetTraces($transport);
     }
 
-
     /**
      * @param $fn
      * @param null $tracer
@@ -77,7 +76,7 @@ trait TracerTestTrait
 
         $fn($tracer);
 
-        $traces =  $this->flushAndGetTraces($transport);
+        $traces = $this->flushAndGetTraces($transport);
 
         putenv('DD_TRACE_SPANS_LIMIT');
         dd_trace_internal_fn('ddtrace_reload_config');
@@ -135,7 +134,7 @@ trait TracerTestTrait
 
         $fn(function (RequestSpec $request) use ($webServer, &$curlInfo) {
             if ($request instanceof GetSpec) {
-                $curl =  curl_init('http://127.0.0.1:6666' . $request->getPath());
+                $curl = curl_init('http://127.0.0.1:6666' . $request->getPath());
                 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($curl, CURLOPT_HTTPHEADER, $request->getHeaders());
                 $response = curl_exec($curl);
@@ -190,7 +189,7 @@ trait TracerTestTrait
      */
     private function resetRequestDumper()
     {
-        $curl =  curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
+        $curl = curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
         curl_exec($curl);
     }
 
@@ -226,7 +225,7 @@ trait TracerTestTrait
         // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
         // for loop.
         for ($attemptNumber = 1; $attemptNumber <= 20; $attemptNumber++) {
-            $curl =  curl_init(self::$agentRequestDumperUrl . '/replay');
+            $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
             // Retrieving data
             $response = curl_exec($curl);
@@ -235,8 +234,8 @@ trait TracerTestTrait
                 // Temporary workaround until we get a proper test runner
                 \usleep(
                     'fpm-fcgi' === \getenv('DD_TRACE_TEST_SAPI')
-                        ? 500 * 1000 // 500 ms for PHP-FPM
-                        : 50 * 1000 // 50 ms for other SAPIs
+                    ? 500 * 1000// 500 ms for PHP-FPM
+                    : 50 * 1000// 50 ms for other SAPIs
                 );
                 continue;
             } else {
@@ -251,11 +250,21 @@ trait TracerTestTrait
         // For now we only support asserting traces against one dump at a time.
         $loaded = json_decode($response, true);
 
-        if (!isset($loaded['body'])) {
+        // Data is returned as [{trace_1}, {trace_2}]. As of today we only support parsing 1 trace.
+        if (count($loaded) > 1) {
+            TestCase::fail(
+                sprintf("Received multiple bodys from request replayer: %s", \var_export($loaded, true))
+            );
+        }
+
+        $uniqueRequest = $loaded[0];
+
+        if (!isset($uniqueRequest['body'])) {
             return [];
         }
 
-        $rawTraces = json_decode($loaded['body'], true);
+        $rawTraces = json_decode($uniqueRequest['body'], true);
+
         $traces = [];
 
         foreach ($rawTraces as $spansInTrace) {
