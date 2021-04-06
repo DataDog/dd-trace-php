@@ -790,6 +790,9 @@ jobs:
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
+          name: "Install docker's buildx"
+          command: docker install buildx
+      - run:
           name: "Build packages"
           command: make packages_in_docker
       - store_artifacts:
