@@ -3,7 +3,7 @@ stages:
   - deploy
 
 build:
-  tags: ["runner:docker", "size:large"]
+  tags: ["runner:docker", "size:4xlarge"]
   stage: build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v3892323-786b6fd-20.10.3
   script:
