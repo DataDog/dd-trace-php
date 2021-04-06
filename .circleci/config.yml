@@ -57,6 +57,13 @@ aliases:
     attach_workspace:
       at: ~/datadog
 
+  - &STEP_ENABLE_DOCKER_EXPERIMENTAL
+    run:
+      name: Enable docker exeprimental feature
+      command: |
+        sudo bash -c 'echo "{\"experimental\": true}" > /etc/docker/daemon.json'
+        sudo systemctl restart docker
+
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
@@ -787,11 +794,11 @@ jobs:
     machine:
       image: ubuntu-2004:202010-01
     resource_class: xlarge
+    environment:
+      DOCKER_BUILDKIT: 1
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          name: "Install docker's buildx"
-          command: docker buildx install
+      - <<: *STEP_ENABLE_DOCKER_EXPERIMENTAL
       - run:
           name: "Build packages"
           command: make packages_in_docker

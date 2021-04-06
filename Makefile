@@ -209,7 +209,7 @@ packages: .apk .rpm .deb .tar.gz
 
 packages_in_docker:
 	rm -rf ./extensions
-	docker buildx -f dockerfiles/packaging/Dockerfile . --target export -t tmp_export \
+	docker build -f dockerfiles/packaging/Dockerfile . --target export -t tmp_export \
 		&& docker image save tmp_export | tar --strip-components=1 -x '*/layer.tar'
 	echo "Artifacts produces in layer.tar"
 
