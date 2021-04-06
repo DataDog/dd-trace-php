@@ -793,7 +793,7 @@ jobs:
     working_directory: ~/datadog
     machine:
       image: ubuntu-2004:202010-01
-    resource_class: xlarge
+    resource_class: 2xlarge
     environment:
       DOCKER_BUILDKIT: 1
     steps:
