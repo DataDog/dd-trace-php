@@ -90,6 +90,7 @@ COPY --from=php-5.6-alpine /build/extensions/*.so /
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-7.0_centos-6 as php-7.0-base
 COPY --from=src / /build/
+COPY --from=php-5.x-output /*.so /
 WORKDIR /build/
 
 FROM php-7.0-base as php-7.0
@@ -104,13 +105,13 @@ RUN bash dockerfiles/packaging/build.sh 7.0 20151012-debug
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-compile-extension-alpine-7.0 as php-7.0-base-alpine
 COPY --from=src / /build/
+COPY --from=php-5.x-output /*.so /
 WORKDIR /build/
 
 FROM php-7.0-base-alpine as php-7.0-alpine
 RUN sh dockerfiles/packaging/build-alpine.sh 7.0 20151012
 
 FROM scratch AS php-7.0-output
-COPY --from=php-5.x-output /*.so /
 COPY --from=php-7.0 /build/extensions/*.so /
 COPY --from=php-7.0-zts /build/extensions/*.so /
 COPY --from=php-7.0-debug /build/extensions/*.so /
@@ -120,6 +121,7 @@ COPY --from=php-7.0-alpine /build/extensions/*.so /
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-7.1_centos-6 as php-7.1-base
 COPY --from=src / /build/
+COPY --from=php-7.0-output /*.so /
 WORKDIR /build/
 
 FROM php-7.1-base as php-7.1
@@ -134,13 +136,13 @@ RUN bash dockerfiles/packaging/build.sh 7.1 20160303-debug
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-compile-extension-alpine-7.1 as php-7.1-base-alpine
 COPY --from=src / /build/
+COPY --from=php-7.0-output /*.so /
 WORKDIR /build/
 
 FROM php-7.1-base-alpine as php-7.1-alpine
 RUN sh dockerfiles/packaging/build-alpine.sh 7.1 20160303
 
 FROM scratch as php-7.1-output
-COPY --from=php-7.0-output /*.so /
 COPY --from=php-7.1 /build/extensions/*.so /
 COPY --from=php-7.1-zts /build/extensions/*.so /
 COPY --from=php-7.1-debug /build/extensions/*.so /
@@ -150,6 +152,7 @@ COPY --from=php-7.1-alpine /build/extensions/*.so /
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-7.2_centos-6 as php-7.2-base
 COPY --from=src / /build/
+COPY --from=php-7.1-output /*.so /
 WORKDIR /build/
 
 FROM php-7.2-base as php-7.2
@@ -164,13 +167,13 @@ RUN bash dockerfiles/packaging/build.sh 7.2 20170718-debug
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-compile-extension-alpine-7.2 as php-7.2-base-alpine
 COPY --from=src / /build/
+COPY --from=php-7.1-output /*.so /
 WORKDIR /build/
 
 FROM php-7.2-base-alpine as php-7.2-alpine
 RUN sh dockerfiles/packaging/build-alpine.sh 7.2 20170718
 
 FROM scratch as php-7.2-output
-COPY --from=php-7.1-output /*.so /
 COPY --from=php-7.2 /build/extensions/*.so /
 COPY --from=php-7.2-zts /build/extensions/*.so /
 COPY --from=php-7.2-debug /build/extensions/*.so /
@@ -179,6 +182,7 @@ COPY --from=php-7.2-alpine /build/extensions/*.so /
 ### PHP 7.3
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-7.3_centos-6 as php-7.3-base
+COPY --from=php-7.2-output /*.so /
 COPY --from=src / /build/
 WORKDIR /build/
 
@@ -197,10 +201,10 @@ COPY --from=src / /build/
 WORKDIR /build/
 
 FROM php-7.3-base-alpine as php-7.3-alpine
+COPY --from=php-7.2-output /*.so /
 RUN sh dockerfiles/packaging/build-alpine.sh 7.3 20180731
 
 FROM scratch as php-7.3-output
-COPY --from=php-7.2-output /*.so /
 COPY --from=php-7.3 /build/extensions/*.so /
 COPY --from=php-7.3-zts /build/extensions/*.so /
 COPY --from=php-7.3-debug /build/extensions/*.so /
@@ -210,6 +214,7 @@ COPY --from=php-7.3-alpine /build/extensions/*.so /
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-7.4_centos-6 as php-7.4-base
 COPY --from=src / /build/
+COPY --from=php-7.3-output /*.so /
 WORKDIR /build/
 
 FROM php-7.4-base as php-7.4
@@ -224,13 +229,13 @@ RUN bash dockerfiles/packaging/build.sh 7.4 20190902-debug
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-compile-extension-alpine-7.4 as php-7.4-base-alpine
 COPY --from=src / /build/
+COPY --from=php-7.3-output /*.so /
 WORKDIR /build/
 
 FROM php-7.4-base-alpine as php-7.4-alpine
 RUN sh dockerfiles/packaging/build-alpine.sh 7.4 20190902
 
 FROM scratch as php-7.4-output
-COPY --from=php-7.3-output /*.so /
 COPY --from=php-7.4 /build/extensions/*.so /
 COPY --from=php-7.4-zts /build/extensions/*.so /
 COPY --from=php-7.4-debug /build/extensions/*.so /
@@ -240,6 +245,8 @@ COPY --from=php-7.4-alpine /build/extensions/*.so /
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-8.0_centos-6 as php-8.0-base
 COPY --from=src / /build/
+# this is hack to make the build not spawn 40 concurrent builds
+COPY --from=php-7.4-output /*.so / 
 WORKDIR /build/
 
 FROM php-8.0-base as php-8.0
@@ -254,13 +261,13 @@ RUN bash dockerfiles/packaging/build.sh 8.0 20200930-debug
 
 FROM ${DOCKER_REGISTRY}/datadog/dd-trace-ci:php-compile-extension-alpine-8.0 as php-8.0-base-alpine
 COPY --from=src / /build/
+COPY --from=php-7.4-output /*.so /
 WORKDIR /build/
 
 FROM php-8.0-base-alpine as php-8.0-alpine
 RUN sh dockerfiles/packaging/build-alpine.sh 8.0 20200930
 
 FROM scratch as php-8.0-output
-COPY --from=php-7.4-output /*.so /
 COPY --from=php-8.0 /build/extensions/*.so /
 COPY --from=php-8.0-zts /build/extensions/*.so /
 COPY --from=php-8.0-debug /build/extensions/*.so /
