@@ -2,7 +2,7 @@ extern "C" {
 #include "container_id/container_id.h"
 }
 
-#include <string.h>
+#include <cstring>
 
 #include <catch2/catch.hpp>
 

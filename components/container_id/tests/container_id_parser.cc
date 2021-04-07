@@ -2,7 +2,7 @@ extern "C" {
 #include "container_id/container_id.h"
 }
 
-#include <string.h>
+#include <cstring>
 
 #include <catch2/catch.hpp>
 
@@ -22,11 +22,10 @@ TEST_CASE("parser: valid cgroup lines", "[container_id_parser]") {
         "7:pids:/user.slice/user-0.slice/session-14.scope\n",
         "1::/",
         "0::",
-        NULL
     };
 
-    for (size_t i = 0; lines[i] != NULL; i++) {
-        REQUIRE(parser.is_valid_line(&parser, lines[i]));
+    for (const char *line : lines) {
+        REQUIRE(parser.is_valid_line(&parser, line));
     }
 
     REQUIRE(datadog_php_container_id_parser_dtor(&parser));
@@ -43,16 +42,14 @@ TEST_CASE("parser: invalid cgroup lines", "[container_id_parser]") {
         "1:perf_event",
         "\n",
         "",
-        NULL
     };
 
-    for (size_t i = 0; lines[i] != NULL; i++) {
-        REQUIRE(false == parser.is_valid_line(&parser, lines[i]));
+    for (const char *line : lines) {
+        REQUIRE(false == parser.is_valid_line(&parser, line));
     }
 
     REQUIRE(datadog_php_container_id_parser_dtor(&parser));
 }
-
 
 TEST_CASE("parser: successfully parse a container ID", "[container_id_parser]") {
     dd_parser parser;
@@ -66,16 +63,15 @@ TEST_CASE("parser: successfully parse a container ID", "[container_id_parser]") 
         "1:devices:      9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f        ",
         "1:name=systemd:/ecs/9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f/34dc0b5e626f2c5c4c5170e34b10e765-1234567890",  // Contains valid task ID
         "8:net_cls,net_prio:/ecs/55091c13-b8cf-4801-b527-f4601742204d/9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f",
-        NULL
     };
 
     char buf[MAX_ID_LEN + 1] = {0};
 
-    for (size_t i = 0; lines[i] != NULL; i++) {
+    for (const char *line : lines) {
         memset(buf, 0, sizeof buf);
         REQUIRE(buf[0] == '\0');
 
-        REQUIRE(parser.extract_container_id(&parser, buf, lines[i]));
+        REQUIRE(parser.extract_container_id(&parser, buf, line));
         REQUIRE(strcmp("9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f", buf) == 0);
     }
 
@@ -92,16 +88,15 @@ TEST_CASE("parser: fail to parse a container ID", "[container_id_parser]") {
         "",
         "a",
         "zd5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f",
-        NULL
     };
 
     char buf[MAX_ID_LEN + 1] = {0};
 
-    for (size_t i = 0; lines[i] != NULL; i++) {
+    for (const char *line : lines) {
         memset(buf, 0, sizeof buf);
         REQUIRE(buf[0] == '\0');
 
-        REQUIRE(false == parser.extract_container_id(&parser, buf, lines[i]));
+        REQUIRE(false == parser.extract_container_id(&parser, buf, line));
         REQUIRE(buf[0] == '\0');
     }
 
@@ -121,22 +116,20 @@ TEST_CASE("parser: successfully parse a task ID", "[container_id_parser]") {
         "1:name=systemd:/ecs/         34dc0b5e626f2c5c4c5170e34b10e765-1234567890       ",
         "1:name=systemd:/ecs/55091c13-b8cf-4801-b527-f4601742204d/34dc0b5e626f2c5c4c5170e34b10e765-1234567890",
         "1:name=systemd:/ecs/9d5b23edb1ba181e8910389a99906598d69ac9a0ead109ee55730cc416d95f7f/34dc0b5e626f2c5c4c5170e34b10e765-1234567890",  // Contains valid container ID
-        NULL
     };
 
     char buf[MAX_ID_LEN + 1] = {0};
 
-    for (size_t i = 0; lines[i] != NULL; i++) {
+    for (const char *line : lines) {
         memset(buf, 0, sizeof buf);
         REQUIRE(buf[0] == '\0');
 
-        REQUIRE(parser.extract_task_id(&parser, buf, lines[i]));
+        REQUIRE(parser.extract_task_id(&parser, buf, line));
         REQUIRE(strcmp("34dc0b5e626f2c5c4c5170e34b10e765-1234567890", buf) == 0);
     }
 
     REQUIRE(datadog_php_container_id_parser_dtor(&parser));
 }
-
 
 TEST_CASE("parser: successfully parse a task ID variations", "[container_id_parser]") {
     dd_parser parser;
@@ -197,16 +190,15 @@ TEST_CASE("parser: fail to parse a task ID", "[container_id_parser]") {
         "",
         "a",
         "\n",
-        NULL
     };
 
     char buf[MAX_ID_LEN + 1] = {0};
 
-    for (size_t i = 0; lines[i] != NULL; i++) {
+    for (const char *line : lines) {
         memset(buf, 0, sizeof buf);
         REQUIRE(buf[0] == '\0');
 
-        REQUIRE(false == parser.extract_task_id(&parser, buf, lines[i]));
+        REQUIRE(false == parser.extract_task_id(&parser, buf, line));
         REQUIRE(buf[0] == '\0');
     }
 
