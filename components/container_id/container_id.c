@@ -47,8 +47,6 @@ static bool dd_parser_is_valid_line(dd_parser *parser, const char *line) {
     return regexec(&parser->line_regex, line, 0, NULL, 0) == 0;
 }
 
-#define LEN_SO_FAR (end - start)
-
 #define TASK_ID_MIN_LEN (32 + 1 + 1)   // [0-9a-f]{32}-[0-9]{1}
 #define TASK_ID_MAX_LEN (32 + 1 + 20)  // [0-9a-f]{32}-[0-9]{20}
 
@@ -69,12 +67,8 @@ static bool dd_parser_extract_task_id(dd_parser *parser, char *buf, const char *
      * That leaves us with our final old-school fallback of traversing the
      * string one character at a time to find start and end of the target ID.
      */
-    char *start;
-    char *end;
-    size_t len;
-
-    start = end = (char *)line;
-    len = strlen(line);
+    const char *start = line;
+    size_t len = strlen(line);
 
     /* Traverse the string to find a task ID with the following pattern:
      *
@@ -82,27 +76,26 @@ static bool dd_parser_extract_task_id(dd_parser *parser, char *buf, const char *
      *
      */
     while ((size_t)(start - line + TASK_ID_MIN_LEN) <= len) {
-        end = start;
-
         /* We start off looking for 32 hex chars in a row: [0-9a-f]{32} */
-        while (isxdigit(end[0]) && LEN_SO_FAR < 32) {
-            end++;
+        size_t task_len = 0;
+        while (task_len < 32 && isxdigit(start[task_len])) {
+            ++task_len;
         }
 
         /* After exactly 32 hex characters, there should be a hyphen: - */
-        if (LEN_SO_FAR != 32 || end[0] != '-') {
+        if (task_len != 32 || start[task_len] != '-') {
             start++;
             continue;
         }
-        end++;
+        ++task_len;
 
         /* Finally there should be an unsigned 64-bit int: [0-9]{1,20} */
-        while (isdigit(end[0]) && LEN_SO_FAR < TASK_ID_MAX_LEN) {
-            end++;
+        while (task_len < TASK_ID_MAX_LEN && isdigit(start[task_len])) {
+            ++task_len;
         }
 
         /* We must capture at least one number. */
-        if (LEN_SO_FAR < TASK_ID_MIN_LEN) {
+        if (task_len < TASK_ID_MIN_LEN) {
             start++;
             continue;
         }
@@ -110,8 +103,8 @@ static bool dd_parser_extract_task_id(dd_parser *parser, char *buf, const char *
         /* We have a valid task ID at this point so we can ignore the rest of
          * the line.
          */
-        memcpy(buf, start, LEN_SO_FAR);
-        buf[LEN_SO_FAR] = '\0';
+        memcpy(buf, start, task_len);
+        buf[task_len] = '\0';
 
         return true;
     }
@@ -133,12 +126,8 @@ static bool dd_parser_extract_container_id(dd_parser *parser, char *buf, const c
      * character-by-character to find the start and end positions of the target
      * ID.
      */
-    char *start;
-    char *end;
-    size_t len;
-
-    start = end = (char *)line;
-    len = strlen(line);
+    const char *start = line;
+    size_t len = strlen(line);
 
     /* Traverse the string to find a container ID with the following pattern:
      *
@@ -146,14 +135,13 @@ static bool dd_parser_extract_container_id(dd_parser *parser, char *buf, const c
      *
      */
     while ((size_t)(start - line + CONTAINER_ID_LEN) <= len) {
-        end = start;
-
         /* We need exactly 64 hex characters in a row. */
-        while (isxdigit(end[0]) && LEN_SO_FAR < CONTAINER_ID_LEN) {
-            end++;
+        size_t id_len = 0;
+        while (id_len < CONTAINER_ID_LEN && isxdigit(start[id_len])) {
+            ++id_len;
         }
 
-        if (LEN_SO_FAR != CONTAINER_ID_LEN) {
+        if (id_len != CONTAINER_ID_LEN) {
             start++;
             continue;
         }
@@ -161,8 +149,8 @@ static bool dd_parser_extract_container_id(dd_parser *parser, char *buf, const c
         /* We have a valid container ID at this point so we can ignore the rest
          * of the line.
          */
-        memcpy(buf, start, LEN_SO_FAR);
-        buf[LEN_SO_FAR] = '\0';
+        memcpy(buf, start, id_len);
+        buf[id_len] = '\0';
 
         return true;
     }
