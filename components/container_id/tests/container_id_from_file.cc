@@ -91,7 +91,7 @@ TEST_CASE("an empty cgroup file makes an empty string", "[container_id]") {
 
 TEST_CASE("the buffer defaults to an empty string", "[container_id]") {
     char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
-    id[0] == 'a';
+    id[0] = 'a';
     REQUIRE(false == datadog_php_container_id_from_file(id, ""));
     REQUIRE(id[0] == '\0');
 }
