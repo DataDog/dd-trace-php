@@ -280,9 +280,11 @@
             <file name="tests/ext/background-sender/agent_headers.phpt" role="test" />
             <file name="tests/ext/background-sender/agent_headers_container_id.phpt" role="test" />
             <file name="tests/ext/background-sender/agent_headers_container_id_empty.phpt" role="test" />
+            <file name="tests/ext/background-sender/agent_headers_container_id_fargate.phpt" role="test" />
             <file name="tests/ext/background-sender/agent_headers_ignore_userland.phpt" role="test" />
             <file name="tests/ext/background-sender/stubs/cgroup.docker" role="test" />
             <file name="tests/ext/background-sender/stubs/cgroup.empty" role="test" />
+            <file name="tests/ext/background-sender/stubs/cgroup.fargate.1.4" role="test" />
 
             <file name="tests/ext/call_user_func/namespaced-array.phpt" role="test" />
             <file name="tests/ext/call_user_func/namespaced.phpt" role="test" />

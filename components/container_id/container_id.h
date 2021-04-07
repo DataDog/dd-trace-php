@@ -1,6 +1,9 @@
 #ifndef DATADOG_PHP_CONTAINER_ID_H
 #define DATADOG_PHP_CONTAINER_ID_H
 
+#include <regex.h>
+#include <stdbool.h>
+
 /* The shortest possible ID would be a Fargate 1.4+ ID that matches:
  *    [0-9a-f]{32}-\d+
  * Assuming it is possible for '\d+' to be a single digit, the shortest
@@ -20,6 +23,18 @@
  */
 #define DATADOG_PHP_CONTAINER_ID_MAX_LEN 64
 
-void datadog_php_container_id(char *buf, const char *file);
+typedef struct datadog_php_container_id_parser {
+    regex_t line_regex;
+    regex_t task_regex;
+    regex_t container_regex;
+    bool (*is_valid_line)(struct datadog_php_container_id_parser *parser, const char *line);
+    bool (*extract_task_id)(struct datadog_php_container_id_parser *parser, char *buf, const char *line);
+    bool (*extract_container_id)(struct datadog_php_container_id_parser *parser, char *buf, const char *line);
+} datadog_php_container_id_parser;
+
+bool datadog_php_container_id_parser_ctor(datadog_php_container_id_parser *parser);
+bool datadog_php_container_id_parser_dtor(datadog_php_container_id_parser *parser);
+
+bool datadog_php_container_id_from_file(char *buf, const char *file);
 
 #endif  // DATADOG_PHP_CONTAINER_ID_H

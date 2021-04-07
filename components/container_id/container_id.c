@@ -1,101 +1,254 @@
 #include "container_id.h"
 
 #include <ctype.h>
+#include <regex.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
-static struct {
-    const char *name;
-    size_t len;
-} dd_targets[] = {
-    // Example Docker
-    // 13:name=systemd:/docker/3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860
-    {":/docker/", sizeof(":/docker/") - 1},
-    // Example Kubernetes
-    // 11:perf_event:/kubepods/something/pod3d274242-8ee0-11e9-a8a6-1e68d864ef1a/3e74d3fd9db4c9dd921ae05c2502fb984d0cde1b36e581b13f79c639da4518a1
-    {":/kubepods/", sizeof(":/kubepods/") - 1},
-    // Example ECS
-    // 9:perf_event:/ecs/user-ecs-classic/5a0d5ceddf6c44c1928d367a815d890f/38fac3e99302b3622be089dd41e7ccf38aff368a86cc339972075136ee2710ce
-    // Example Fargate
-    // 11:something:/ecs/5a081c13-b8cf-4801-b427-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da
-    // Example Fargate 1.4+
-    // 1:name=systemd:/ecs/34dc0b5e626f2c5c4c5170e34b10e765-1234567890
-    {":/ecs/", sizeof(":/ecs/") - 1},
-};
-static size_t dd_targets_len = sizeof dd_targets / sizeof dd_targets[0];
-
-/* Updates the 'end' pointer to the last non-whitespace & non-null-terminating
- * character of a 'str'
+/* The Oniguruma library breaks extended regular expressions (ERE) in POSIX
+ * regex (REG_EXTENDED) until 6.9.5-rc1. Simply linking the library '-lonig'
+ * will cause the bug to occur. Starting in PHP 7.4, Oniguruma is no longer
+ * bundled with ext/mbstring, but is linked in ('-lonig') so we cannot reliably
+ * use ERE here. Basic regular expressions (BRE) do not seem to be affected by
+ * this bug therefore we used BRE syntax for the container ID pattern matching.
+ *
+ * https://github.com/kkos/oniguruma/issues/233
+ * https://www.php.net/manual/en/mbstring.installation.php
  */
-static size_t dd_str_seek_end(char *str, char **end) {
-    size_t len = strlen(str);
-    *end = str + len - 1;
-    while (*end > str && isspace(*end[0])) {
-        --*end;
-        --len;
-    }
-    return len;
+#define LINE_REGEX "^[0-9]\\{1,20\\}:[^:]*:.*$"  // Original ERE: "^[0-9]+:[^:]*:.+$"
+/* Examples of some valid container IDs.
+ *
+ * Docker
+ * 13:name=systemd:/docker/3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860
+ *
+ * Kubernetes
+ * 11:perf_event:/kubepods/something/pod3d274242-8ee0-11e9-a8a6-1e68d864ef1a/3e74d3fd9db4c9dd921ae05c2502fb984d0cde1b36e581b13f79c639da4518a1
+ *
+ * ECS
+ * 9:perf_event:/ecs/user-ecs-classic/5a0d5ceddf6c44c1928d367a815d890f/38fac3e99302b3622be089dd41e7ccf38aff368a86cc339972075136ee2710ce
+ *
+ * Fargate < 1.4
+ * 11:something:/ecs/5a081c13-b8cf-4801-b427-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da
+ */
+#define CONTAINER_REGEX "[0-9a-f]\\{64\\}"  // Original ERE: "[0-9a-f]{64}"
+/* Example of a valid task ID.
+ *
+ * Fargate 1.4+
+ * 1:name=systemd:/ecs/34dc0b5e626f2c5c4c5170e34b10e765-1234567890
+ */
+#define TASK_REGEX "[0-9a-f]\\{32\\}-[0-9]\\{1,20\\}"  // Original ERE: "[0-9a-f]{32}-[0-9]+"
+
+#define MIN_ID_LEN DATADOG_PHP_CONTAINER_ID_MIN_LEN
+#define MAX_ID_LEN DATADOG_PHP_CONTAINER_ID_MAX_LEN
+
+typedef datadog_php_container_id_parser dd_parser;
+
+static bool dd_parser_is_valid_line(dd_parser *parser, const char *line) {
+    return regexec(&parser->line_regex, line, 0, NULL, 0) == 0;
 }
 
-static void dd_extract_id(char *buf, char *pos) {
-    char *end = NULL;
-    size_t len = dd_str_seek_end(pos, &end);
+#define TASK_ID_MIN_LEN (32 + 1 + 1)   // [0-9a-f]{32}-[0-9]{1}
+#define TASK_ID_MAX_LEN (32 + 1 + 20)  // [0-9a-f]{32}-[0-9]{20}
 
-    if (len < DATADOG_PHP_CONTAINER_ID_MAX_LEN) {
-        return;
-    }
+static bool dd_parser_extract_task_id(dd_parser *parser, char *buf, const char *line) {
+    if (regexec(&parser->task_regex, line, 0, NULL, 0) != 0) return false;
 
-    // TODO Refactor to support Fargate 1.4+ IDs
-    // [a-f0-9]{64}
-    for (size_t i = DATADOG_PHP_CONTAINER_ID_MAX_LEN; i > 0; i--) {
-        char c = end[0];
-        if (!isxdigit(c)) {
-            buf[0] = '\0';
-            return;
+    /* Normally we would just use 'regmatch_t' for position matching and
+     * extract the desired string from the matched position. But
+     * unfortunately if Oniguruma <= 6.9.4 is linked in, the POSIX regex
+     * symbols are overridden with Oniguruma flavored ones and 'regmatch_t'
+     * will be mangled so we cannot use it here.
+     *
+     * Ideally we would fall back to extracting the IDs using sscanf(), but
+     * since there is no format directive for a minimum or exact field width,
+     * sscanf() will often pull out other parts of the cgroup line that are
+     * not part of the target ID.
+     *
+     * That leaves us with our final old-school fallback of traversing the
+     * string one character at a time to find start and end of the target ID.
+     */
+    const char *start = line;
+    size_t len = strlen(line);
+
+    /* Traverse the string to find a task ID with the following pattern:
+     *
+     * [0-9a-f]{32}-[0-9]{1,20}
+     *
+     */
+    while ((size_t)(start - line + TASK_ID_MIN_LEN) <= len) {
+        /* We start off looking for 32 hex chars in a row: [0-9a-f]{32} */
+        size_t task_len = 0;
+        while (task_len < 32 && isxdigit(start[task_len])) {
+            ++task_len;
         }
-        buf[i - 1] = c;
-        end--;
-    }
-    buf[DATADOG_PHP_CONTAINER_ID_MAX_LEN] = '\0';
-}
 
-static char *dd_find_target(const char *line) {
-    for (size_t i = 0; i < dd_targets_len; ++i) {
-        char *pos = strstr(line, dd_targets[i].name);
-        if (pos) {
-            return pos + dd_targets[i].len;
+        /* After exactly 32 hex characters, there should be a hyphen: - */
+        if (task_len != 32 || start[task_len] != '-') {
+            start++;
+            continue;
         }
+        ++task_len;
+
+        /* Finally there should be an unsigned 64-bit int: [0-9]{1,20} */
+        while (task_len < TASK_ID_MAX_LEN && isdigit(start[task_len])) {
+            ++task_len;
+        }
+
+        /* We must capture at least one number. */
+        if (task_len < TASK_ID_MIN_LEN) {
+            start++;
+            continue;
+        }
+
+        /* We have a valid task ID at this point so we can ignore the rest of
+         * the line.
+         */
+        memcpy(buf, start, task_len);
+        buf[task_len] = '\0';
+
+        return true;
     }
-    return NULL;
+
+    /* If we made it down here that means our regex pattern matched but we
+     * failed to manually extract the ID from the string.
+     */
+    return false;
 }
 
-void datadog_php_container_id(char *buf, const char *file) {
+#define CONTAINER_ID_LEN 64  // [0-9a-f]{64}
+
+static bool dd_parser_extract_container_id(dd_parser *parser, char *buf, const char *line) {
+    if (regexec(&parser->container_regex, line, 0, NULL, 0) != 0) return false;
+
+    /* We cannot use 'regmatch_t' for position matching due to the possibility
+     * of Oniguruma <= 6.9.4 being linked nor can we use sscanf() (as explained
+     * in comments above). So we fall back to traversing the string
+     * character-by-character to find the start and end positions of the target
+     * ID.
+     */
+    const char *start = line;
+    size_t len = strlen(line);
+
+    /* Traverse the string to find a container ID with the following pattern:
+     *
+     * [0-9a-f]{64}
+     *
+     */
+    while ((size_t)(start - line + CONTAINER_ID_LEN) <= len) {
+        /* We need exactly 64 hex characters in a row. */
+        size_t id_len = 0;
+        while (id_len < CONTAINER_ID_LEN && isxdigit(start[id_len])) {
+            ++id_len;
+        }
+
+        if (id_len != CONTAINER_ID_LEN) {
+            start++;
+            continue;
+        }
+
+        /* We have a valid container ID at this point so we can ignore the rest
+         * of the line.
+         */
+        memcpy(buf, start, id_len);
+        buf[id_len] = '\0';
+
+        return true;
+    }
+
+    /* If we made it down here that means our regex pattern matched but we
+     * failed to manually extract the ID from the string.
+     */
+    return false;
+}
+
+bool datadog_php_container_id_parser_ctor(dd_parser *parser) {
+    if (parser == NULL) return false;
+
+    /* According to the in-code docs:
+     *
+     * "Note that the translate table must either have been initialized by
+     * 'regcomp', with a malloc'ed value, or set to NULL before calling
+     * 'regfree'."
+     * https://elixir.bootlin.com/glibc/latest/source/posix/regex.h#L535
+     *
+     * For this reason we zero-out all of the 'regex_t' patterns so that we can
+     * still call regfree() on them if regcomp() fails to initialize the
+     * pattern buffer.
+     */
+    memset(parser, 0, sizeof *parser);
+
+    int l_res = regcomp(&parser->line_regex, LINE_REGEX, REG_NOSUB);
+    int t_res = regcomp(&parser->task_regex, TASK_REGEX, REG_NOSUB);
+    int c_res = regcomp(&parser->container_regex, CONTAINER_REGEX, REG_NOSUB);
+    if (l_res != 0 || t_res != 0 || c_res != 0) {
+        datadog_php_container_id_parser_dtor(parser);
+        return false;
+    }
+
+    parser->is_valid_line = dd_parser_is_valid_line;
+    parser->extract_task_id = dd_parser_extract_task_id;
+    parser->extract_container_id = dd_parser_extract_container_id;
+
+    return true;
+}
+
+bool datadog_php_container_id_parser_dtor(dd_parser *parser) {
+    if (parser == NULL) return false;
+
+    regfree(&parser->container_regex);
+    regfree(&parser->task_regex);
+    regfree(&parser->line_regex);
+
+    return true;
+}
+
+bool datadog_php_container_id_from_file(char *buf, const char *file) {
     FILE *fp;
-    char line[1024];
+
+    if (buf == NULL) return false;
 
     buf[0] = '\0';
 
-    if (file == NULL || file[0] == '\0') {
-        return;
+    if (file == NULL || file[0] == '\0' || (fp = fopen(file, "r")) == NULL) return false;
+
+    dd_parser parser;
+    if (datadog_php_container_id_parser_ctor(&parser) == false) {
+        fclose(fp);
+        return false;
     }
 
-    fp = fopen(file, "r");
-    if (fp == NULL) {
-        return;
-    }
-
+    char line[1024];
     while (!feof(fp)) {
-        if (fgets(line, sizeof line, fp) != NULL) {
-            char *pos = dd_find_target(line);
-            if (pos) {
-                dd_extract_id(buf, pos);
-                if (buf[0] != '\0') {
-                    fclose(fp);
-                    return;
-                }
-            }
+        if (fgets(line, sizeof line, fp) == NULL) continue;
+
+        /* Match a valid cgroup line. */
+        if (!parser.is_valid_line(&parser, line)) {
+            /* This does not look like a valid cgroup line so we skip it. */
+            continue;
+        }
+
+        /* Match a task ID and fill into buf. */
+        if (parser.extract_task_id(&parser, buf, line)) {
+            /* We found a task ID which takes precedence over a standard
+             * container ID so we can stop scanning the file.
+             */
+            break;
+        }
+
+        /* Match a container ID and fill into empty buf. */
+        if (buf[0] == '\0' && parser.extract_container_id(&parser, buf, line)) {
+            /* We found a valid container ID but we cannot stop scanning the
+             * file because there might be a task ID in the file (as is the
+             * case with Fargate 1.4+) and those take precedence over standard
+             * container IDs.
+             */
+            /* break; */
         }
     }
+
+    /* This only fails if parser is NULL. */
+    (void)datadog_php_container_id_parser_dtor(&parser);
     fclose(fp);
+
+    return true;
 }
