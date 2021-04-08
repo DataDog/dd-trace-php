@@ -1151,13 +1151,15 @@ jobs:
   show_glob:
     docker:
       - image: datadog/dd-trace-ci:php-7.4-debug-buster
+    working_directory: /usr/local/src/php
     parallelism: 3
     steps:
       - run:
           name: Sample
           command: |
             echo "hello everyone"
-            echo $(circleci tests glob **/tests | circleci tests split)
+            find * -type d -name tests | sort -u
+            echo $(find * -type d -name tests | sort -u | circleci tests split)
 
 workflows:
   version: 2
