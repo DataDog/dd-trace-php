@@ -478,18 +478,15 @@ jobs:
 
   php_language_tests:
     parameters:
-      docker_image:
+      php_major_minor:
         type: string
-      xfail_list:
-        type: string
-        default: none
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
     executor:
       name: with_agent
-      docker_image: << parameters.docker_image >>
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - prepare_extension_and_composer_with_cache
@@ -499,8 +496,8 @@ jobs:
           name: Run tests
           command: |
             sudo rm -f /usr/local/etc/php/conf.d/docker-php-ext-memcached.ini
-            if [[ ! "<<parameters.xfail_list>>" == "none" ]]; then
-              cp "<<parameters.xfail_list>>" /usr/local/src/php/xfail_tests.list
+            if [[ -f "dockerfiles/ci/xfail_tests/<<parameters.php_major_minor>>.list" ]]; then
+              cp "dockerfiles/ci/xfail_tests/<<parameters.php_major_minor>>.list" /usr/local/src/php/xfail_tests.list
               (
                 cd /usr/local/src/php
                 cat xfail_tests.list | xargs -n 1 rm -f || true
@@ -514,10 +511,11 @@ jobs:
             export REPORT_EXIT_STATUS=1
             export TEST_PHP_JUNIT=/tmp/artifacts/tests/php-tests.xml
             mkdir -p /tmp/artifacts/tests
+            TESTS=$(find * -type d -name tests | sort -u | circleci tests split)
             php run-tests.php -q \
               -p /usr/local/bin/php \
               --show-diff \
-              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php
+              -d ddtrace.request_init_hook=/home/circleci/datadog/bridge/dd_wrap_autoloader.php $(TESTS)
       - run:
           command: |
             cd /usr/local/src/php
@@ -1166,21 +1164,21 @@ jobs:
 workflows:
   version: 2
 
-  globbing:
-    jobs:
-      - show_glob:
-          matrix:
-            parameters:
-              php_major_minor:
-                - '5.4'
-                - '5.5'
-                - '5.6'
-                - '7.0'
-                - '7.1'
-                - '7.2'
-                - '7.3'
-                - '7.4'
-                - '8.0'
+  # globbing:
+  #   jobs:
+  #     - show_glob:
+  #         matrix:
+  #           parameters:
+  #             php_major_minor:
+  #               - '5.4'
+  #               - '5.5'
+  #               - '5.6'
+  #               - '7.0'
+  #               - '7.1'
+  #               - '7.2'
+  #               - '7.3'
+  #               - '7.4'
+  #               - '8.0'
 
   # components:
   #   jobs:
@@ -1548,9 +1546,9 @@ workflows:
   #         integration_testsuite: "test_web_custom"
   #         docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
 
-  # build:
-  #   jobs:
-  #     - "Prepare Code"
+  build:
+    jobs:
+      - "Prepare Code"
   #     - compile_extension:
   #         requires: [ 'Prepare Code' ]
   #         name: "PHP 55 Compilation test"
@@ -1746,14 +1744,15 @@ workflows:
   #         name: "PHP 80 Xdebug tests"
   #         docker_image: "datadog/dd-trace-ci:php-8.0_buster"
   #         xdebug_version_one: "3.0.0"
-  #     - placeholder:
-  #         requires: [ 'Prepare Code' ]
-  #         name: Language tests
-  #     - php_language_tests:
-  #         requires: [ 'Language tests' ]
-  #         name: "PHP 80 language tests"
-  #         xfail_list: dockerfiles/ci/xfail_tests/8.0.list
-  #         docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+      - placeholder:
+          requires: [ 'Prepare Code' ]
+          name: Language tests
+      - php_language_tests:
+          requires: [ 'Language tests' ]
+          matrix:
+            parameters:
+              php_major_minor:
+                - '8.0'
   #     - php_language_tests:
   #         requires: [ 'Language tests' ]
   #         name: "PHP 74 language tests"
