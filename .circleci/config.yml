@@ -1149,10 +1149,13 @@ jobs:
       - run: echo "."
 
   show_glob:
+    parameters:
+      php_major_minor:
+        type: string
     docker:
-      - image: datadog/dd-trace-ci:php-7.4-debug-buster
+      - image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>-debug-buster
     working_directory: /usr/local/src/php
-    parallelism: 3
+    parallelism: 10
     steps:
       - run:
           name: Sample
@@ -1166,7 +1169,19 @@ workflows:
 
   globbing:
     jobs:
-      - show_glob
+      - show_glob:
+          matrix:
+            parameters:
+              php_major_minor:
+                - '5.4'
+                - '5.5'
+                - '5.6'
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
 
   # components:
   #   jobs:
