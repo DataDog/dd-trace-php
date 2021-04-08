@@ -1156,8 +1156,8 @@ jobs:
       - run:
           name: Sample
           command: |
-            echo "hellow everyone"
-            echo $(circleci tests glob **/tests/ | circleci tests split)
+            echo "hello everyone"
+            echo $(circleci tests glob **/tests | circleci tests split)
 
 workflows:
   version: 2
