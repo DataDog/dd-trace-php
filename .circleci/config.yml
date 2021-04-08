@@ -1161,7 +1161,6 @@ jobs:
           name: Sample
           command: |
             echo "hello everyone"
-            find * -type d -name tests | sort -u
             echo $(find * -type d -name tests | sort -u | circleci tests split)
 
 workflows:
