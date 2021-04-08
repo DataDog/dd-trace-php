@@ -1149,8 +1149,8 @@ jobs:
       - run: echo "."
 
   show_glob:
-    machine:
-      image: circleci/classic:latest
+    docker:
+      - image: datadog/dd-trace-ci:php-7.4-debug-buster
     parallelism: 3
     steps:
       - run:
