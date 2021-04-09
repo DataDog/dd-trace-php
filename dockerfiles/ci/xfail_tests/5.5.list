@@ -79,11 +79,13 @@ ext/date/tests/date_timestamp_set_nullparam2.phpt
 ext/date/tests/test-parse-from-format.phpt
 ext/fileinfo/tests/bug68819_002.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
+ext/ftp/tests/005.phpt
 ext/json/tests/bug45791.phpt
 ext/json/tests/pass001.phpt
 ext/json/tests/pass003.phpt
 ext/json/tests/unsupported_type_error.phpt
 ext/openssl/tests/003.phpt
+ext/openssl/tests/bug54992.phpt
 ext/pdo/tests/pdo_014.phpt
 ext/pdo_sqlite/tests/bug50728.phpt
 ext/pdo_sqlite/tests/pdo_013.phpt

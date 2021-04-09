@@ -71,11 +71,13 @@ ext/date/tests/date_time_set_variation3.phpt
 ext/date/tests/test-parse-from-format.phpt
 ext/fileinfo/tests/bug68819_002.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
+ext/ftp/tests/005.phpt
 ext/json/tests/bug45791.phpt
 ext/json/tests/pass001.phpt
 ext/json/tests/pass003.phpt
 ext/mbstring/tests/zend_multibyte-08.phpt
 ext/openssl/tests/003.phpt
+ext/openssl/tests/bug54992.phpt
 ext/pdo/tests/pdo_013.phpt
 ext/pdo/tests/pdo_014.phpt
 ext/pdo/tests/pdo_023.phpt
