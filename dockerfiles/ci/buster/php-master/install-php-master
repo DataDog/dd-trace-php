@@ -20,11 +20,11 @@ git pull --depth=1 --rebase
 sharedConfig="
     --enable-option-checking=fatal \
     --enable-cgi \
-    --enable-embed \
     --enable-fpm \
     --enable-ftp \
     --enable-mbstring \
     --enable-opcache \
+    --enable-pcntl \
     --enable-phpdbg \
     --enable-sockets \
     --with-curl \
