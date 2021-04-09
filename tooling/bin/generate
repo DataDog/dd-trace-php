@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "<?php " > bridge/_generated.php
+
+process_file () {
+    PHP_CONTENT="$(php -w $1)"
+    # Removing the <?php prefix
+    PHP_CONTENT=$(echo "${PHP_CONTENT}" | sed 's/<?php//g')
+    # From 'namespace AAA\BBB; *' to 'namespace AAA\BBB { * }''
+    NAMESPACE=$(echo "${PHP_CONTENT}" | awk 'match($0, /namespace [a-zA-Z0-9\\_]+;/) { print substr( $0, RSTART + 10, RLENGTH - 10 -1 )}')
+    PHP_CONTENT_WITHOUT_NAMESPACE=$(echo "${PHP_CONTENT}" | sed -E 's/(namespace [a-zA-Z0-9\_]+);//g')
+    PHP_CONTENT="namespace ${NAMESPACE} { ${PHP_CONTENT_WITHOUT_NAMESPACE} }"
+
+    echo "${PHP_CONTENT}" >> bridge/_generated.php
+}
+export -f process_file
+
+cat bridge/_files.txt | xargs -I {} bash -c 'process_file "{}"'

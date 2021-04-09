@@ -20,5 +20,3 @@ function do_manual_instrumentation()
 do_manual_instrumentation();
 do_manual_instrumentation();
 do_manual_instrumentation();
-
-error_log('Script is done');

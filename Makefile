@@ -229,9 +229,7 @@ verify_all: verify_pecl_file_definitions verify_version
 #  - even if we leave classpreloader: 1.4.* and not use it for PHP 8, this is not enough because it would force
 #    phpunit version down to 5 (nikic common dependency) which is not compatible with PHP 8.
 generate:
-	@composer -dtooling/generation update
-	@composer -dtooling/generation generate
-	@composer -dtooling/generation verify
+	@./tooling/bin/generate
 
 # Find all generated core dumps, sorted by date descending
 cores:

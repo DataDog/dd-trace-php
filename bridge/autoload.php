@@ -2,9 +2,9 @@
 
 if (getenv('DD_AUTOLOAD_NO_COMPILE') === 'true') {
     // Development
-    $files = include __DIR__ . '/_files.php';
+    $files = explode("\n", file_get_contents(__DIR__ . '/_files.txt'));
     foreach ($files as $file) {
-        require $file;
+        require __DIR__ . "/../$file";
     }
 } else {
     // Production
