@@ -68,12 +68,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'App\Http\Controllers\CommonSpecsController@simple_view unnamed_route'
                     )->withExactTags([
+                        'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple_view',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/simple_view',
                         'http.status_code' => '200',
-                    ])->withExistingTagsNames([
-                        'laravel.route.name',
                     ])->withChildren([
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'simple_view')
                             ->withExactTags([
@@ -106,7 +105,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'App\Http\Controllers\CommonSpecsController@error unnamed_route'
                     )->withExactTags([
-                        'laravel.route.name' => '',
+                        'laravel.route.name' => 'unnamed_route',
                         'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@error',
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
