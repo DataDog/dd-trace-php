@@ -896,6 +896,11 @@ jobs:
       - run:
           name: Install cmake << parameters.cmake_version >>
           command: |
+            if [ -d "/opt/cmake/<< parameters.cmake_version >>" ]
+            then
+              echo 'cmake << parameters.cmake_version >> already installed'
+              exit 0
+            fi
             if [ -e /etc/alpine-release ]
             then
               # We build from source on Alpine (slow)
@@ -914,6 +919,11 @@ jobs:
       - run:
           name: Install Catch2
           command: |
+            if [ -d "/opt/catch2" ]
+            then
+              echo 'catch2 already installed'
+              exit 0
+            fi
             export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
             cd /tmp
             curl -OL https://github.com/catchorg/Catch2/archive/v<< parameters.catch2_version >>.tar.gz
