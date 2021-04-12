@@ -11,7 +11,7 @@ ARG phpTarGzUrl
 ARG phpSha256Hash
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
-    (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -); \
+    (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
