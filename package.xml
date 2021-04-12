@@ -37,14 +37,14 @@
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
     <notes>
-    Added
+    ### Added
     - Add curl_multi scenarios to randomized tests #1171 #1173
     - Add component system, string_view and sapi components #1172
     - Add tests for Symfony 5.2 #1177 #1178
     - Support PsrHttpServerMiddleware for Slim 4 #1170
     - Container tagging for AWS Fargate 1.4+ #1190
 
-    Changed
+    ### Changed
     - Remove non php8 code from ext/php8 folder #1165
     - Enable Symfony on PHP 8.0 #1176 #1178
     - Move container ID detection to the extension level #1143
@@ -55,7 +55,7 @@
     - Import framework tests suite from dd-trace-ci to dd-trace-php (#1183)
     - Do not keep alive connections while executing randomized testing (#1163)
 
-    Fixed
+    ### Fixed
     - Fix "undefined symbol: curl_multi_ce" on PHP 8 #1181 (thanks for the report @metaxy)
     - Compatibility with opentracing/opentracing:1.0.1 #1188 (thanks for the contribution @bbaga)
     </notes>
