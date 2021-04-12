@@ -119,13 +119,6 @@ aliases:
       name: Disable Xdebug for built-in web tests
       command: test -e /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && sudo rm -f $_ || true
 
-  - &STEP_INSTALL_DOCKERIZE
-    run:
-      name: Installing dockerize
-      command: |
-        curl -L --output dockerize.tar.gz https://github.com/jwilder/dockerize/releases/download/v0.6.1/dockerize-linux-amd64-v0.6.1.tar.gz
-        sudo tar -xf dockerize.tar.gz -C /usr/local/bin/ --overwrite
-
   - &STEP_WAIT_AGENT
     run:
       name: Waiting for Dockerized agent
@@ -558,7 +551,6 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_INSTALL_DOCKERIZE
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
@@ -618,7 +610,6 @@ jobs:
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_DISABLE_XDEBUG
-      - <<: *STEP_INSTALL_DOCKERIZE
       - <<: *STEP_WAIT_AGENT
       - <<: *STEP_WAIT_MYSQL
       - <<: *STEP_WAIT_REQUEST_REPLAYER
