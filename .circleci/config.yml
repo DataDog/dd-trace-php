@@ -124,7 +124,7 @@ aliases:
       name: Installing dockerize
       command: |
         curl -L --output dockerize.tar.gz https://github.com/jwilder/dockerize/releases/download/v0.6.1/dockerize-linux-amd64-v0.6.1.tar.gz
-        tar -xf dockerize.tar.gz -C /usr/local/bin/ --overwrite
+        sudo tar -xf dockerize.tar.gz -C /usr/local/bin/ --overwrite
 
   - &STEP_WAIT_AGENT
     run:
