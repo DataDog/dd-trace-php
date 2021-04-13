@@ -14,6 +14,7 @@ ${PHP_SRC_DIR}/configure \
     --enable-opcache \
     --enable-pcntl \
     --enable-sockets \
+    --enable-zip \
     --with-curl \
     --with-fpm-user=www-data \
     --with-fpm-group=www-data \
@@ -26,6 +27,5 @@ ${PHP_SRC_DIR}/configure \
     --with-pdo-sqlite \
     --with-pear \
     --with-readline \
-    --with-zip \
     --with-zlib \
     $@

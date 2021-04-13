@@ -1,10 +1,15 @@
 FROM datadog/dd-trace-ci:buster AS base
 
 ARG phpVersion
-ENV PHP_INSTALL_DIR_DEBUG_ZTS_ASAN=${PHP_INSTALL_DIR}/${phpVersion}-debug-zts-asan
+ENV PHP_INSTALL_DIR_DEBUG_ZTS=${PHP_INSTALL_DIR}/${phpVersion}-debug-zts
 ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/${phpVersion}-debug
 ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/${phpVersion}
 ENV PHP_VERSION=${phpVersion}
+
+# Curl path workaround (PHP 5 was before pkg-config was used)
+RUN set -eux; \
+    sudo ln -sf /usr/include/x86_64-linux-gnu/curl /usr/include/curl; \
+    sudo ln -sf /usr/lib/x86_64-linux-gnu/libcurl.a /usr/lib/libcurl.a
 
 FROM base as build
 ARG phpTarGzUrl
@@ -16,22 +21,20 @@ RUN set -eux; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
     ./buildconf --force;
-COPY configure_shared_ext.sh /home/circleci/configure.sh
+COPY configure.sh /home/circleci
 
-FROM build as php-debug-zts-asan
-ENV CFLAGS='-fsanitize=address -DZEND_TRACK_ARENA_ALLOC'
-ENV LDFLAGS='-fsanitize=address'
+FROM build as php-debug-zts
 RUN set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /home/circleci/configure.sh \
         --enable-debug \
-        --enable-zts \
-        --prefix=${PHP_INSTALL_DIR_DEBUG_ZTS_ASAN} \
-        --with-config-file-path=${PHP_INSTALL_DIR_DEBUG_ZTS_ASAN} \
-        --with-config-file-scan-dir=${PHP_INSTALL_DIR_DEBUG_ZTS_ASAN}/conf.d; \
+        --enable-maintainer-zts \
+        --prefix=${PHP_INSTALL_DIR_DEBUG_ZTS} \
+        --with-config-file-path=${PHP_INSTALL_DIR_DEBUG_ZTS} \
+        --with-config-file-scan-dir=${PHP_INSTALL_DIR_DEBUG_ZTS}/conf.d; \
     make -j "$((`nproc`+1))"; \
     make install; \
-    mkdir -p ${PHP_INSTALL_DIR_DEBUG_ZTS_ASAN}/conf.d;
+    mkdir -p ${PHP_INSTALL_DIR_DEBUG_ZTS}/conf.d;
 
 FROM build as php-debug
 RUN set -eux; \
@@ -58,35 +61,24 @@ RUN set -eux; \
 
 FROM base as final
 COPY --chown=circleci:circleci --from=build $PHP_SRC_DIR $PHP_SRC_DIR
-COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR_DEBUG_ZTS_ASAN $PHP_INSTALL_DIR_DEBUG_ZTS_ASAN
+COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR_DEBUG_ZTS $PHP_INSTALL_DIR_DEBUG_ZTS
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR_DEBUG_NTS $PHP_INSTALL_DIR_DEBUG_NTS
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR_NTS $PHP_INSTALL_DIR_NTS
 
-# Build core extensions as shared libraries.
-# We intentionally do not run 'make install' here so that we can test the
-# scenario where headers are not installed for the shared library.
 RUN set -eux; \
     for phpVer in $(ls ${PHP_INSTALL_DIR}); \
     do \
-        echo "Build shared extensions for PHP ${phpVer}..."; \
+        # Set default INI settings
+        sed 's/;date.timezone =/date.timezone = UTC/' <${PHP_SRC_DIR}/php.ini-development >${PHP_INSTALL_DIR}/${phpVer}/etc/php.ini; \
+        \
+        echo "Install exts for PHP $phpVer..."; \
         switch-php ${phpVer}; \
-        mkdir -p $(php-config --extension-dir); \
+        iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
-        # ext/curl
-        echo "Building ext/curl..."; \
-        cd ${PHP_SRC_DIR}/ext/curl; \
-        phpize; ./configure; make; \
-        mv ./modules/*.so $(php-config --extension-dir); \
-        make clean; phpize --clean; \
-        \
-        # ext/pdo
-        echo "Building ext/pdo..."; \
-        cd ${PHP_SRC_DIR}/ext/pdo; \
-        phpize; ./configure; make; \
-        mv ./modules/*.so $(php-config --extension-dir); \
-        make clean; phpize --clean; \
-        \
-        # TODO Add ext/pdo_mysql, ext/pdo_pgsql, and ext/pdo_sqlite
+        yes 'no' | pecl install memcached-2.2.0; \
+        pecl install mongo; echo "extension=mongo.so" >> ${iniDir}/mongo.ini; \
+        # Xdebug is disabled by default
+        pecl install xdebug-2.2.7; \
     done;
 
 RUN set -eux; \
