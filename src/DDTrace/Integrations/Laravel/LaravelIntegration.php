@@ -16,6 +16,8 @@ class LaravelIntegration extends Integration
 {
     const NAME = 'laravel';
 
+    const UNNAMED_ROUTE = 'unnamed_route';
+
     /**
      * @var string
      */
@@ -86,11 +88,20 @@ class LaravelIntegration extends Integration
 
                 // Overwriting the default web integration
                 $integration->addTraceAnalyticsIfEnabledLegacy($rootSpan);
+                $routeName = $route->getName() ?: LaravelIntegration::UNNAMED_ROUTE;
+                // Starting with PHP 7, unnamed routes have been given a randomly generated name that we need to
+                // normalize:
+                // https://github.com/laravel/framework/blob/7.x/src/Illuminate/Routing/AbstractRouteCollection.php#L227
+                if (\substr($routeName, 0, 11) === "generated::") {
+                    $routeName = LaravelIntegration::UNNAMED_ROUTE;
+                }
+
                 $rootSpan->setTag(
                     Tag::RESOURCE_NAME,
-                    $route->getActionName() . ' ' . ($route->getName() ?: 'unnamed_route')
+                    $route->getActionName() . ' ' . $routeName
                 );
-                $rootSpan->setTag('laravel.route.name', $route->getName());
+
+                $rootSpan->setTag('laravel.route.name', $routeName);
                 $rootSpan->setTag('laravel.route.action', $route->getActionName());
                 $rootSpan->setTag('http.url', $request->url());
                 $rootSpan->setTag('http.method', $request->method());
