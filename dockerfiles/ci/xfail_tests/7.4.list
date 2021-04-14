@@ -387,6 +387,7 @@ ext/standard/tests/serialize/serialize_globals_var_refs.phpt
 ext/standard/tests/serialize/sleep_uninitialized_typed_prop.phpt
 ext/standard/tests/serialize/typed_property_refs.phpt
 ext/standard/tests/streams/bug78902.phpt
+ext/standard/tests/streams/proc_open_bug69900.phpt
 ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/zip/tests/bug38943.phpt

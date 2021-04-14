@@ -2,6 +2,43 @@
 
 This file explains why we decided to disable specific PHP language tests. Investigations for tests disabled before this file was created are not present.
 
+---
+
+# Categories of tests
+
+## Object/resource ID skips
+
+The following tests are marked as skipped due to the test relying on a hard-coded resource or object ID. All of these IDs change when the PHP tracer is enabled due to the objects/resources created in the `ddtrace.request_init_hook`.
+
+- `ext/sockets/tests/socket_create_pair.phpt`
+- `ext/zip/tests/bug38943.phpt`
+- `ext/zip/tests/bug38943_2.phpt`
+- `Zend/tests/bug80194.phpt`
+
+## Random port selection
+
+Many tests choose a random port to start up a service. Many of these tests have been updated to not used a random port in more recent PHP versions, but we skip these tests in older versions of PHP because they often choose a port that is already in use in CI.
+
+- `ext/sockets/tests/socket_connect_params.phpt` ([Fixed](https://github.com/php/php-src/commit/3e9dac2) in PHP 7.4)
+
+## Fail even with no tracer installed
+
+The following tests fail even when the tracer is not installed.
+
+- `ext/mcrypt/tests/bug67707.phpt` (PHP 7.1 only)
+- `ext/mcrypt/tests/bug72535.phpt` (PHP 7.1 only)
+- `ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt` (PHP 7.1+)
+
+## Deep call stacks (PHP 5)
+
+On PHP 5, certain tests can have intermittently deep call stacks that are deep enough to trigger the warning: `ddtrace has detected a call stack depth of 512`.
+
+- `Zend/tests/bug54268.phpt`
+
+---
+
+# Specific tests
+
 ## `ext/pcntl/tests/pcntl_unshare_01.phpt`
 
 Disabled on versions: `7.4` (it wasn't there on [7.3-](https://github.com/php/php-src/tree/PHP-7.3/ext/pcntl/tests)).
@@ -30,7 +67,6 @@ This test started to fail after we [enabled the pcntl extension](https://github.
 It was [skipped before](https://github.com/php/php-src/blob/bcd100d812b525c982cf75d6c6dabe839f61634a/ext/openssl/tests/bug54992.phpt#L6) because function `pcntl_fork` was not available.
 
 Building again the container without `pcntl` enabled AND not even building the tracer, the test still fails. Possibly the reason is that we need an ssh server listening internally on [port 64321](https://github.com/php/php-src/blob/bcd100d812b525c982cf75d6c6dabe839f61634a/ext/openssl/tests/bug54992.phpt#L13). Configuring the openssh server to run even this last test is neyond the scope of our language tests.
-
 
 ## `ext/ftp/tests`
 
@@ -70,38 +106,11 @@ bool(false)
 
 This test was flaky until it was [fixed in PHP 7.2](https://github.com/php/php-src/commit/f4474e5).
 
----
+## `ext/standard/tests/streams/proc_open_bug69900.phpt`
 
-# Categories of tests
-
-## Object/resource ID skips
-
-The following tests are marked as skipped due to the test relying on a hard-coded resource or object ID. All of these IDs change when the PHP tracer is enabled due to the objects/resources created in the `ddtrace.request_init_hook`.
-
-- `ext/sockets/tests/socket_create_pair.phpt`
-- `ext/zip/tests/bug38943.phpt`
-- `ext/zip/tests/bug38943_2.phpt`
-- `Zend/tests/bug80194.phpt`
-
-## Random port selection
-
-Many tests choose a random port to start up a service. Many of these tests have been updated to not used a random port in more recent PHP versions, but we skip these tests in older versions of PHP because they often choose a port that is already in use in CI.
-
-- `ext/sockets/tests/socket_connect_params.phpt` ([Fixed](https://github.com/php/php-src/commit/3e9dac2) in PHP 7.4)
-
-## Fail even with no tracer installed
-
-The following tests fail even when the tracer is not installed.
-
-- `ext/mcrypt/tests/bug67707.phpt` (PHP 7.1 only)
-- `ext/mcrypt/tests/bug72535.phpt` (PHP 7.1 only)
-- `ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt` (PHP 7.1+)
-
-## Deep call stacks (PHP 5)
-
-On PHP 5, certain tests can have intermittently deep call stacks that are deep enough to trigger the warning: `ddtrace has detected a call stack depth of 512`.
-
-- `Zend/tests/bug54268.phpt`
+* Disabled on versions: `7.0+`.
+* [Broken CI build example](https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/5558/workflows/0f25c071-6f6c-4d83-b075-536f6a63369e/jobs/382667)
+* This test has [a long history of being flaky in CI](https://github.com/php/php-src/commits/master/ext/standard/tests/streams/proc_open_bug69900.phpt).
 
 ## `sapi/cli/tests/017.phpt`
 
