@@ -326,6 +326,13 @@
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_multi_exec_existing_headers_002.phpt" role="test" />
             <file name="tests/ext/integrations/curl/distributed_tracing_curl_sandboxed.phpt" role="test" />
 
+            <file name="tests/ext/pcntl/functions.inc" role="test" />
+            <file name="tests/ext/pcntl/pcntl_fork_long_running_autoflush.phpt" role="test" />
+            <file name="tests/ext/pcntl/pcntl_fork_long_running_manual.phpt" role="test" />
+            <file name="tests/ext/pcntl/pcntl_fork_short_running_multiple.phpt" role="test" />
+            <file name="tests/ext/pcntl/pcntl_fork_short_running_nested.phpt" role="test" />
+            <file name="tests/ext/pcntl/pcntl_fork_short_running_single.phpt" role="test" />
+
             <file name="tests/ext/request-init-hook/contains-binary-character/dd_init.php" role="test" />
             <file name="tests/ext/request-init-hook/raises-e-notice/dd_init.php" role="test" />
             <file name="tests/ext/request-init-hook/raises-fatal-error/dd_init.php" role="test" />

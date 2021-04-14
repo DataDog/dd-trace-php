@@ -29,6 +29,8 @@ x-aliases:
         - PHP_IDE_CONFIG=serverName=docker
       cap_add:
         - SYS_PTRACE
+      # Privileged is requires to run some pcntl tests locally.
+      # privileged: true
   - &base_54_service
       <<: *base_php_service
       volumes:

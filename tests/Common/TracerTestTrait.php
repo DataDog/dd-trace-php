@@ -159,8 +159,15 @@ trait TracerTestTrait
     public function inCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '')
     {
         $this->resetRequestDumper();
+        $this->executeCli($scriptPath, $customEnvs, $customInis, $arguments);
+        return $this->parseTracesFromDumpedData();
+    }
+
+    public function executeCli($scriptPath, $customEnvs = [], $customInis = [], $arguments = '')
+    {
         $envs = (string) new EnvSerializer(array_merge(
             [
+                'DD_AUTOLOAD_NO_COMPILE' => getenv('DD_AUTOLOAD_NO_COMPILE'),
                 'DD_TRACE_CLI_ENABLED' => 'true',
                 'DD_AGENT_HOST' => 'request-replayer',
                 'DD_TRACE_AGENT_PORT' => '80',
@@ -180,14 +187,12 @@ trait TracerTestTrait
         $arguments = escapeshellarg($arguments);
         $commandToExecute = "$envs php $inis $script $arguments";
         `$commandToExecute`;
-
-        return $this->parseTracesFromDumpedData();
     }
 
     /**
      * Reset the request dumper removing all the dumped  data file.
      */
-    private function resetRequestDumper()
+    public function resetRequestDumper()
     {
         $curl = curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
         curl_exec($curl);
@@ -221,27 +226,7 @@ trait TracerTestTrait
      */
     private function parseTracesFromDumpedData()
     {
-        // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
-        // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
-        // for loop.
-        for ($attemptNumber = 1; $attemptNumber <= 20; $attemptNumber++) {
-            $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            // Retrieving data
-            $response = curl_exec($curl);
-            if (!$response) {
-                // PHP-FPM requests are much slower in the container
-                // Temporary workaround until we get a proper test runner
-                \usleep(
-                    'fpm-fcgi' === \getenv('DD_TRACE_TEST_SAPI')
-                    ? 500 * 1000// 500 ms for PHP-FPM
-                    : 50 * 1000// 50 ms for other SAPIs
-                );
-                continue;
-            } else {
-                break;
-            }
-        }
+        $response = $this->retrieveDumpedData();
 
         if (!$response) {
             return [];
@@ -308,6 +293,100 @@ trait TracerTestTrait
             $traces[] = $spans;
         }
         return $traces;
+    }
+
+    public function parseMultipleRequestsFromDumpedData()
+    {
+        $response = $this->retrieveDumpedData();
+        if (!$response) {
+            return [];
+        }
+
+        // For now we only support asserting traces against one dump at a time.
+        $manyRequests = json_decode($response, true);
+        $tracesAllRequests = [];
+
+        // We receive back an array of traces
+        foreach ($manyRequests as $uniqueRequest) {
+            // error_log('Request: ' . print_r($uniqueRequest, 1));
+            $rawTraces = json_decode($uniqueRequest['body'], true);
+            $tracesOneRequest = [];
+
+            foreach ($rawTraces as $spansInTrace) {
+                $spans = [];
+                foreach ($spansInTrace as $rawSpan) {
+                    $spanContext = new SpanContext(
+                        $rawSpan['trace_id'],
+                        $rawSpan['span_id'],
+                        isset($rawSpan['parent_id']) ? $rawSpan['parent_id'] : null
+                    );
+
+                    if (empty($rawSpan['resource'])) {
+                        TestCase::fail(sprintf("Span '%s' has empty resource name", $rawSpan['name']));
+                        return;
+                    }
+
+                    $span = new Span(
+                        $rawSpan['name'],
+                        $spanContext,
+                        isset($rawSpan['service']) ? $rawSpan['service'] : null,
+                        $rawSpan['resource'],
+                        $rawSpan['start']
+                    );
+
+                    // We want to use reflection to set properties so that we do not fire
+                    // potentials changes in setters.
+                    $this->setRawPropertyFromArray($span, $rawSpan, 'operationName', 'name');
+                    $this->setRawPropertyFromArray($span, $rawSpan, 'service');
+                    $this->setRawPropertyFromArray($span, $rawSpan, 'resource');
+                    $this->setRawPropertyFromArray($span, $rawSpan, 'startTime', 'start');
+                    $this->setRawPropertyFromArray($span, $rawSpan, 'hasError', 'error', function ($value) {
+                        return $value == 1 || $value == true;
+                    });
+                    $this->setRawPropertyFromArray($span, $rawSpan, 'type');
+                    $this->setRawPropertyFromArray($span, $rawSpan, 'duration');
+                    $this->setRawPropertyFromArray($span, $rawSpan, 'tags', 'meta');
+                    $this->setRawPropertyFromArray($span, $rawSpan, 'metrics', 'metrics');
+
+                    $spans[] = SpanEncoder::encode($span);
+                }
+                $tracesOneRequest[] = $spans;
+            }
+
+            $tracesAllRequests[] = $tracesOneRequest;
+        }
+
+        return $tracesAllRequests;
+    }
+
+    /**
+     * Returns the raw response body, if any, or null otherwise.
+     */
+    private function retrieveDumpedData()
+    {
+        $response = null;
+        // When tests run with the background sender enabled, there might be some delay between when a trace is flushed
+        // and actually sent. While we should find a smart way to tackle this, for now we do it quick and dirty, in a
+        // for loop.
+        for ($attemptNumber = 1; $attemptNumber <= 20; $attemptNumber++) {
+            $curl = curl_init(self::$agentRequestDumperUrl . '/replay');
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            // Retrieving data
+            $response = curl_exec($curl);
+            if (!$response) {
+                // PHP-FPM requests are much slower in the container
+                // Temporary workaround until we get a proper test runner
+                \usleep(
+                    'fpm-fcgi' === \getenv('DD_TRACE_TEST_SAPI')
+                    ? 500 * 1000// 500 ms for PHP-FPM
+                    : 50 * 1000// 50 ms for other SAPIs
+                );
+                continue;
+            } else {
+                break;
+            }
+        }
+        return $response;
     }
 
     /**
