@@ -193,6 +193,7 @@
             <file name="ext/php7/handlers_internal.h" role="src" />
             <file name="ext/php7/handlers_memcached.c" role="src" />
             <file name="ext/php7/handlers_mysqli.c" role="src" />
+            <file name="ext/php7/handlers_pcntl.c" role="src" />
             <file name="ext/php7/handlers_pdo.c" role="src" />
             <file name="ext/php7/handlers_phpredis.c" role="src" />
             <file name="ext/php7/integrations/integrations.c" role="src" />

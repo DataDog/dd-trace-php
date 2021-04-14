@@ -330,6 +330,16 @@ bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) 
     return store_result == 0;
 }
 
+void ddtrace_coms_reset_data(void) {
+    ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_globals.current_stack);
+    if (current_stack == NULL) {
+        // no stack to save data to
+        return;
+    }
+    _dd_coms_free_stack(current_stack);
+    atomic_store(&ddtrace_coms_globals.current_stack, NULL);
+}
+
 group_id_t ddtrace_coms_next_group_id(void) { return atomic_fetch_add(&ddtrace_coms_globals.next_group_id, 1); }
 
 struct _grouped_stack_t {
@@ -961,6 +971,14 @@ static bool _dd_has_pid_changed(void) {
     pid_t current_pid = getpid();
     pid_t previous_pid = atomic_load(&writer->current_pid);
     return current_pid != previous_pid;
+}
+
+void ddtrace_coms_kill_background_sender(void) {
+    struct _writer_loop_data_t *writer = _dd_get_writer();
+    if (writer->thread) {
+        free(writer->thread);
+        writer->thread = NULL;
+    }
 }
 
 bool ddtrace_coms_on_pid_change(void) {
