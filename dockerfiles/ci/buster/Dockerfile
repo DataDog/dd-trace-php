@@ -98,6 +98,15 @@ RUN set -eux; \
     tar -xf ../v${CATCH2_VERSION}.tar.gz --strip 1; \
     /opt/cmake/${CMAKE_VERSION}/bin/cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2; \
     /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install; \
+#Install lcov
+    LCOV_VERSION="1.15"; \
+    LCOV_SHA256="c1cda2fa33bec9aa2c2c73c87226cfe97de0831887176b45ee523c5e30f8053a"; \
+    cd /tmp && curl -OL https://github.com/linux-test-project/lcov/releases/download/v${LCOV_VERSION}/lcov-${LCOV_VERSION}.tar.gz; \
+    (echo "${LCOV_SHA256} lcov-${LCOV_VERSION}.tar.gz" | sha256sum -c -); \
+    mkdir lcov && cd lcov; \
+    tar -xf ../lcov-${LCOV_VERSION}.tar.gz --strip 1; \
+    make install; \
+    lcov --version;\
 # Docker
     DOCKERIZE_VERSION="0.6.1"; \
     DOCKERIZE_SHA256="1fa29cd41a5854fd5423e242f3ea9737a50a8c3bcf852c9e62b9eb02c6ccd370"; \
