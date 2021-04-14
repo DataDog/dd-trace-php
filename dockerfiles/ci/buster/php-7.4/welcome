@@ -7,7 +7,7 @@
 ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚═════╝
 
 The following PHP versions are supported:
-    7.4, 7.4-debug, 7.4-debug-zts-asan
+    nts, debug, debug-zts-asan
 
 To switch PHP versions run:
     $ switch-php <version>
