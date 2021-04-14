@@ -1,0 +1,28 @@
+#ifndef ZAI_SAPI_INI_H
+#define ZAI_SAPI_INI_H
+
+#include <stdbool.h>
+#include <stddef.h>
+
+/* Allocates memory for 'dest' and copies the entires from 'src' into it.
+ * 'dest' must point to NULL or no allocation will occur. Caller must free with
+ * zai_sapi_ini_entries_free().
+ */
+size_t zai_sapi_ini_entries_alloc(const char *src, char **dest);
+
+/* Frees the INI entires and sets the pointer to NULL to prevent a use after
+ * free.
+ */
+void zai_sapi_ini_entries_free(char **entries);
+
+/* Reallocates the INI entries and append a new entry. Returns the new length
+ * of the entires (not counting the null terminator) after appending the new
+ * entry. The pointer to 'entries' might change after reallocation.
+ *
+ * A length of '0' will be returned if:
+ *   - Reallocation fails (the 'entries' pointer will be unchanged)
+ *   - There was an error copying the new entry into memory
+ */
+size_t zai_sapi_ini_entries_realloc_append(char **entries, size_t entries_len, const char *key, const char *value);
+
+#endif  // ZAI_SAPI_INI_H
