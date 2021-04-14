@@ -75,7 +75,7 @@ RUN set -eux; \
         switch-php ${phpVer}; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
-        yes 'no' | pecl install memcached-2.2.0; \
+        yes 'no' | pecl install memcached-2.2.0; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
         pecl install mongo; echo "extension=mongo.so" >> ${iniDir}/mongo.ini; \
         # Xdebug is disabled by default
         pecl install xdebug-2.5.5; \
