@@ -1709,13 +1709,13 @@ workflows:
           name: "PHP 80 asan tests"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           unit_test_target: test_c_asan
-          switch_php_version: 8.0-debug-zts-asan
+          switch_php_version: debug-zts-asan
       - unit_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 asan tests C2PHP"
           docker_image: "datadog/dd-trace-ci:php-8.0_buster"
           unit_test_target: test_with_init_hook_asan
-          switch_php_version: 8.0-debug-zts-asan
+          switch_php_version: debug-zts-asan
       - opcache_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 opcache tests"
@@ -1878,7 +1878,7 @@ workflows:
           name: "PHP 80 Integration tests (PHPRedis 5)"
           integration_testsuite: "test_integrations_phpredis5"
           docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
-          switch_php_version: '8.0'
+          switch_php_version: nts
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 Web integration tests"

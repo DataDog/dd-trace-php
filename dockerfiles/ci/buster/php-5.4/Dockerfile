@@ -1,9 +1,9 @@
 FROM datadog/dd-trace-ci:buster AS base
 
 ARG phpVersion
-ENV PHP_INSTALL_DIR_DEBUG_ZTS=${PHP_INSTALL_DIR}/${phpVersion}-debug-zts
-ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/${phpVersion}-debug
-ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/${phpVersion}
+ENV PHP_INSTALL_DIR_DEBUG_ZTS=${PHP_INSTALL_DIR}/debug-zts
+ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/debug
+ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/nts
 ENV PHP_VERSION=${phpVersion}
 
 # Curl path workaround (PHP 5 was before pkg-config was used)
@@ -75,7 +75,7 @@ RUN set -eux; \
         switch-php ${phpVer}; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
-        yes 'no' | pecl install memcached-2.2.0; \
+        yes 'no' | pecl install memcached-2.2.0; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
         pecl install mongo; echo "extension=mongo.so" >> ${iniDir}/mongo.ini; \
         # Xdebug is disabled by default
         pecl install xdebug-2.2.7; \
@@ -83,7 +83,7 @@ RUN set -eux; \
 
 RUN set -eux; \
 # Set the default PHP version
-    switch-php ${PHP_VERSION}-debug;
+    switch-php debug;
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer

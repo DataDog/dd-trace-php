@@ -1,9 +1,9 @@
 FROM datadog/dd-trace-ci:buster AS base
 
 ARG phpVersion
-ENV PHP_INSTALL_DIR_DEBUG_ZTS_ASAN=${PHP_INSTALL_DIR}/${phpVersion}-debug-zts-asan
-ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/${phpVersion}-debug
-ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/${phpVersion}
+ENV PHP_INSTALL_DIR_DEBUG_ZTS_ASAN=${PHP_INSTALL_DIR}/debug-zts-asan
+ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/debug
+ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/nts
 ENV PHP_VERSION=${phpVersion}
 
 FROM base as build
@@ -91,7 +91,7 @@ RUN set -eux; \
 
 RUN set -eux; \
 # Set the default PHP version
-    switch-php ${PHP_VERSION}-debug;
+    switch-php debug;
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer

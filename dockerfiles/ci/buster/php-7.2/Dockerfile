@@ -1,9 +1,9 @@
 FROM datadog/dd-trace-ci:buster AS base
 
 ARG phpVersion
-ENV PHP_INSTALL_DIR_DEBUG_ZTS=${PHP_INSTALL_DIR}/${phpVersion}-debug-zts
-ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/${phpVersion}-debug
-ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/${phpVersion}
+ENV PHP_INSTALL_DIR_DEBUG_ZTS=${PHP_INSTALL_DIR}/debug-zts
+ENV PHP_INSTALL_DIR_DEBUG_NTS=${PHP_INSTALL_DIR}/debug
+ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/nts
 ENV PHP_VERSION=${phpVersion}
 
 FROM base as build
@@ -69,7 +69,7 @@ RUN set -eux; \
         \
         yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \
         pecl install ast; echo "extension=ast.so" >> ${iniDir}/ast.ini; \
-        yes 'no' | pecl install memcached; \
+        yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
         pecl install mongodb; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
         pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
         # Xdebug is disabled by default
@@ -80,7 +80,7 @@ RUN set -eux; \
 
 RUN set -eux; \
 # Set the default PHP version
-    switch-php ${PHP_VERSION}-debug;
+    switch-php debug;
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
