@@ -1797,29 +1797,6 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-7.4_buster_tmp"
           xdebug_version_one: "2.9.2"
           xdebug_version_two: "2.9.5"
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 Unit tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
-          valgrind_config: 8_0_musl
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 C2PHP tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
-          valgrind_config: 8_0_musl
-          unit_test_target: test_c2php
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 asan tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
-          unit_test_target: test_c_asan
-          switch_php_version: debug-zts-asan
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 asan tests C2PHP"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
-          unit_test_target: test_with_init_hook_asan
-          switch_php_version: debug-zts-asan
       - opcache_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 opcache tests"
@@ -1877,42 +1854,6 @@ workflows:
           name: "PHP 54 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.4.list
           docker_image: "datadog/dd-trace-ci:php-5.4_buster_tmp"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 54 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-5.4_buster_tmp"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 55 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-5.5_buster_tmp"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 56 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-5.6_buster_tmp"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 70 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.0_buster_tmp"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 71 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.1_buster_tmp"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 72 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.2_buster_tmp"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 73 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.3_buster_tmp"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.4_buster_tmp"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 Integration tests"
