@@ -6,7 +6,7 @@
  * ZAI SAPI is designed to test software components that are tightly coupled to
  * the Zend Engine.
  *
- * ZAI SAPI is a fork the the embed SAPI:
+ * ZAI SAPI is a fork of the embed SAPI:
  * https://github.com/php/php-src/tree/master/sapi/embed
  */
 #ifndef ZAI_SAPI_H
