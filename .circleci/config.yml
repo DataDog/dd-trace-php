@@ -266,7 +266,7 @@ jobs:
           command: mkdir -p test-results/phpcs
       - run:
           name: Running eclint
-          command: node_modules/.bin/eclint check '**/*' '!dockerfiles/**/*' '!tests/ext/sandbox/**' '!tests/ext/sandbox-prehook/*' '!tests/ext/background-sender/**/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!ext/vendor/**/*' '!ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.*.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!LICENSE.*' '!tooling/*' '!tests/randomized/**' '!components/*/tests/stubs/**' || touch .failure
+          command: node_modules/.bin/eclint check '**/*' '!dockerfiles/**/*' '!tests/ext/sandbox/**' '!tests/ext/sandbox-prehook/*' '!tests/ext/background-sender/**/*' '!config.*' '!m4/*' '!tmp/**/*' '!vendor/**/*' '!ext/vendor/**/*' '!ext/.libs/*' '!src/dogstatsd/**' '!LICENSE' '!phpstan.*.neon' '!tests/overhead/**' '!tests/Frameworks/*/Version_*/**' '!tests/dockerfiles/**' '!tests/AutoInstrumentation/**' '!.composer/**/*' '!LICENSE.*' '!tooling/*' '!tests/randomized/**' '!components/*/tests/stubs/**' '!**/CMakeLists.txt' || touch .failure
       - run:
           name: Running phpcs
           command: composer lint -- --report=junit | tee test-results/phpcs/results.xml || touch .failure
@@ -1013,6 +1013,92 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
+  Zai:
+    working_directory: ~/datadog
+    parameters:
+      os:
+        type: string
+      php_version:
+        type: string
+      cmake_version:
+        type: string
+      catch2_version:
+        type: string
+    docker:
+      - image: datadog/dd-trace-ci:php-<< parameters.php_version >>_<< parameters.os >>
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - run:
+          name: Install cmake << parameters.cmake_version >>
+          command: |
+            if [ -d "/opt/cmake/<< parameters.cmake_version >>" ]
+            then
+              echo 'cmake << parameters.cmake_version >> already installed'
+              exit 0
+            fi
+            cd /tmp && curl -OL https://github.com/Kitware/CMake/releases/download/v<< parameters.cmake_version >>/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz
+            sudo mkdir -p /opt/cmake/<< parameters.cmake_version >>
+            cd /opt/cmake/<< parameters.cmake_version >> && sudo tar -xf /tmp/cmake-<< parameters.cmake_version >>-Linux-x86_64.tar.gz --strip 1
+      - run:
+          name: Install Catch2
+          command: |
+            if [ -d "/opt/catch2" ]
+            then
+              echo 'catch2 already installed'
+              exit 0
+            fi
+            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+            cd /tmp
+            curl -OL https://github.com/catchorg/Catch2/archive/v<< parameters.catch2_version >>.tar.gz
+            mkdir catch2
+            cd catch2
+            tar -xf ../v<< parameters.catch2_version >>.tar.gz --strip 1
+            cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2
+            cmake --build build/ --target install
+
+      - run:
+          name: Build and test Zend Abstract Interface (ASan)
+          command: |
+            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+            mkdir -p /tmp/build/zai_asan
+            cd /tmp/build/zai_asan
+            if [ "<< parameters.php_version >>" = "7.4" || "<< parameters.php_version >>" = "8.0" ]
+            then
+              toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
+            fi
+            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
+              ${toolchain} \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_ZAI_TESTING=ON \
+              -DPHP_CONFIG=$(which php-config) \
+              ~/datadog/zend_abstract_interface
+            make -j all
+            make test
+
+      - run:
+          name: Build and test Zend Abstract Interface (UBSan)
+          command: |
+            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+            mkdir -p /tmp/build/zai_ubsan
+            cd /tmp/build/zai_ubsan
+            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
+              -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DBUILD_ZAI_TESTING=ON \
+              -DPHP_CONFIG=$(which php-config) \
+              ~/datadog/zend_abstract_interface
+            make -j all
+            make test
+
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts
+            cp /tmp/build/zai_asan/Testing/Temporary/LastTest.log /tmp/artifacts/LastTestASan.log
+            cp /tmp/build/zai_ubsan/Testing/Temporary/LastTest.log /tmp/artifacts/LastTestUBSan.log
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts
+
   compile_alpine:
     working_directory: ~/datadog
     parameters:
@@ -1180,6 +1266,32 @@ workflows:
                 - "3.19.6"
               catch2_version:
                 - "2.13.4"
+
+  zend_abstract_interface:
+    jobs:
+      - "Prepare Code"
+      - Zai:
+          requires: [ 'Prepare Code' ]
+          matrix:
+            parameters:
+              os:
+                # TODO Add CentOS & Alpine
+                - "buster"
+              php_version:
+                - "5.4"
+                - "5.5"
+                - "5.6"
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+                - "7.4"
+                - "8.0"
+              cmake_version:
+                - "3.18.3"
+                - "3.20.1"
+              catch2_version:
+                - "2.13.5"
 
   build_packages:
     jobs:
