@@ -18,7 +18,7 @@
 
 #define UNUSED(x) (void)(x)
 
-static size_t ini_entries_len = 0;
+static ssize_t ini_entries_len = -1;
 
 static int zs_startup(sapi_module_struct *sapi_module) { return php_module_startup(sapi_module, NULL, 0); }
 
@@ -109,7 +109,7 @@ static sapi_module_struct zai_module = {
 };
 
 bool zai_sapi_append_system_ini_entry(const char *key, const char *value) {
-    size_t len = zai_sapi_ini_entries_realloc_append(&zai_module.ini_entries, ini_entries_len, key, value);
+    ssize_t len = zai_sapi_ini_entries_realloc_append(&zai_module.ini_entries, (size_t)ini_entries_len, key, value);
     if (len <= ini_entries_len) {
         /* Play it safe and free if writing failed. */
         zai_sapi_ini_entries_free(&zai_module.ini_entries);
@@ -158,7 +158,7 @@ bool zai_sapi_sinit(void) {
     /* Allocate the initial SAPI INI settings. Append new INI settings to this
      * with zai_sapi_append_system_ini_entry() before MINIT is run.
      */
-    if ((ini_entries_len = zai_sapi_ini_entries_alloc(DEFAULT_INI, &zai_module.ini_entries)) == 0) return false;
+    if ((ini_entries_len = zai_sapi_ini_entries_alloc(DEFAULT_INI, &zai_module.ini_entries)) == -1) return false;
 
     /* Don't load any INI files (equivalent to running the CLI SAPI with '-n').
      * This will prevent inadvertently loading any extensions that we did not
