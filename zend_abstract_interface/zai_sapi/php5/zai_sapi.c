@@ -7,13 +7,10 @@
 #include "../zai_sapi_ini.h"
 #include "../zai_sapi_io.h"
 
-#define DEFAULT_INI          \
-    "html_errors=0\n"        \
-    "implicit_flush=1\n"     \
-    "output_buffering=0\n"   \
-    "max_execution_time=0\n" \
-    "max_input_time=-1\n"    \
-    "memory_limit=-1\n"      \
+#define DEFAULT_INI        \
+    "html_errors=0\n"      \
+    "implicit_flush=1\n"   \
+    "output_buffering=0\n" \
     "\0"
 
 #define UNUSED(x) (void)(x)
