@@ -330,9 +330,6 @@ jobs:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          name: Set php.ini defaults
-          command: printf "date.timezone=UTC\nmemory_limit=-1\n" | sudo tee -a /usr/local/etc/php/php.ini
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
