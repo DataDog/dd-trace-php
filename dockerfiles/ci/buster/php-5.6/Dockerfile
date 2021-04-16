@@ -7,14 +7,39 @@ ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/nts
 ENV PHP_VERSION=${phpVersion}
 
 # Curl path workaround (PHP 5 was before pkg-config was used)
-RUN set -eux; \
+RUN set -ex; \
     sudo ln -sf /usr/include/x86_64-linux-gnu/curl /usr/include/curl; \
     sudo ln -sf /usr/lib/x86_64-linux-gnu/libcurl.a /usr/lib/libcurl.a
+
+RUN savedAptMark="$(apt-mark showmanual)"; \
+    sudo apt-mark auto '.*' > /dev/null; \
+    sudo apt-mark manual $savedAptMark > /dev/null; \
+    sudo apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
+
+RUN set -xe; \
+    sudo apt-get remove -y libssl-dev
+
+RUN set -xe; \
+    { \
+        echo deb http://httpredir.debian.org/debian jessie main ;\
+        echo deb-src http://httpredir.debian.org/debian jessie main ;\
+        echo ;\
+        echo deb http://security.debian.org/ jessie/updates main ;\
+        echo deb-src http://security.debian.org/ jessie/updates main ;\
+    } | sudo tee /etc/apt/sources.list.d/jessie.list ;\
+    { \
+        echo Package: openssl libssl-dev libssl-doc;\
+        echo Pin: release a=oldoldstable ;\
+        echo Pin-Priority: 600 ;\
+    } | sudo tee /etc/apt/preferences.d/openssl;\
+    sudo apt-get update; \
+    sudo apt-get install -y --no-install-recommends \
+        openssl libssl-dev libssl-doc libcurl4-nss-dev;
 
 FROM base as build
 ARG phpTarGzUrl
 ARG phpSha256Hash
-RUN set -eux; \
+RUN set -ex; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
@@ -24,7 +49,7 @@ RUN set -eux; \
 COPY configure.sh /home/circleci
 
 FROM build as php-debug-zts
-RUN set -eux; \
+RUN set -ex; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /home/circleci/configure.sh \
         --enable-debug \
@@ -37,7 +62,7 @@ RUN set -eux; \
     mkdir -p ${PHP_INSTALL_DIR_DEBUG_ZTS}/conf.d;
 
 FROM build as php-debug
-RUN set -eux; \
+RUN set -ex; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /home/circleci/configure.sh \
         --enable-debug \
@@ -49,7 +74,7 @@ RUN set -eux; \
     mkdir -p ${PHP_INSTALL_DIR_DEBUG_NTS}/conf.d;
 
 FROM build as php-nts
-RUN set -eux; \
+RUN set -ex; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /home/circleci/configure.sh \
         --prefix=${PHP_INSTALL_DIR_NTS} \
@@ -65,7 +90,7 @@ COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR_DEBUG_ZTS $
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR_DEBUG_NTS $PHP_INSTALL_DIR_DEBUG_NTS
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR_NTS $PHP_INSTALL_DIR_NTS
 
-RUN set -eux; \
+RUN set -ex; \
     for phpVer in $(ls ${PHP_INSTALL_DIR}); \
     do \
         # Set default INI settings
@@ -73,6 +98,7 @@ RUN set -eux; \
         \
         echo "Install exts for PHP $phpVer..."; \
         switch-php ${phpVer}; \
+        pear update-channels; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
         yes 'no' | pecl install memcached-2.2.0; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
@@ -81,7 +107,7 @@ RUN set -eux; \
         pecl install xdebug-2.5.5; \
     done;
 
-RUN set -eux; \
+RUN set -ex; \
 # Set the default PHP version
     switch-php debug;
 
