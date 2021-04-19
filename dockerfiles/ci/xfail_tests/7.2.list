@@ -174,6 +174,7 @@ ext/simplexml/tests/bug69491.phpt
 ext/simplexml/tests/bug72971.phpt
 ext/simplexml/tests/bug72971_2.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/sockets/tests/socket_create_pair.phpt
 ext/sodium/tests/utils.phpt
 ext/spl/tests/ArrayObject_clone_other_std_props.phpt
 ext/spl/tests/ArrayObject_dump_during_sort.phpt
@@ -286,6 +287,8 @@ ext/standard/tests/serialize/bug70213.phpt
 ext/standard/tests/serialize/bug70219_1.phpt
 ext/standard/tests/serialize/bug72785.phpt
 ext/standard/tests/strings/implode1.phpt
+ext/zip/tests/bug38943.phpt
+ext/zip/tests/bug38943_2.phpt
 sapi/cli/tests/upload_2G.phpt
 tests/classes/__call_004.phpt
 tests/classes/__call_005.phpt

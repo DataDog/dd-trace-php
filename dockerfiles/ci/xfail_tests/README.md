@@ -29,3 +29,12 @@ This test started to fail after we [enabled the pcntl extension](https://github.
 It was [skipped before](https://github.com/php/php-src/blob/29ac2c59a49e0ca9d6a5399a49f4fd1afb058fa3/ext/ftp/tests/skipif.inc#L3) because function `pcntl_fork` was not available.
 
 The reason happens only in CI, not locally and it happens regardless of tracer being installed or not. It seems related to how routing is done in CI with the local network is shared (e.g. agent running in different container reachable via `127.0.0.1`). The conflict is due to the fact that the ftp servers launched by different suites have comnflicting ports.
+
+## Object/resource ID skips
+
+The following tests are marked as skipped due to the test relying on hard-coded resource or object ID. All of these IDs change when the PHP tracer is enabled due to the objects/resources created in the `ddtrace.request_init_hook`.
+
+- `ext/sockets/tests/socket_create_pair.phpt`
+- `ext/zip/tests/bug38943.phpt`
+- `ext/zip/tests/bug38943_2.phpt`
+- `Zend/tests/bug80194.phpt`
