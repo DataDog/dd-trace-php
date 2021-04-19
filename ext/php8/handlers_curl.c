@@ -1,12 +1,8 @@
 #include <php.h>
 #include <stdbool.h>
 
-#if defined(HAVE_CURL) && !defined(COMPILE_DL_CURL)
-#include <ext/curl/php_curl.h>
-#else
 __attribute__((weak)) zend_class_entry *curl_ce = NULL;
 __attribute__((weak)) zend_class_entry *curl_multi_ce = NULL;
-#endif
 
 #include "configuration.h"
 #include "engine_api.h"
@@ -391,7 +387,6 @@ void ddtrace_curl_handlers_startup(void) {
         return;
     }
 
-#if !(defined(HAVE_CURL) && !defined(COMPILE_DL_CURL))
     /* If curl is loaded as a shared library we need to fetch the addresses of
      * the class entry symbols and account or any name mangling.
      */
@@ -420,7 +415,6 @@ void ddtrace_curl_handlers_startup(void) {
             return;
         }
     }
-#endif
 
     zend_string *const_name = zend_string_init(ZEND_STRL("CURLOPT_HTTPHEADER"), 1);
     zval *const_value = zend_get_constant_ex(const_name, NULL, ZEND_FETCH_CLASS_SILENT);
