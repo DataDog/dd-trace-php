@@ -195,10 +195,16 @@ commands:
   prepare_extension_and_composer_with_cache:
     steps:
       - <<: *STEP_EXT_INSTALL
-      - run:  # disabled by default due to test flakiness
+      # Disabling TLS by default on 5.4 and 5.5 due to https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update
+      # Note `_generated.php` is built on 7.x and is not impacted
+      - run:
           name: Disable TLS to avoid composer flakiness (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
-          command: composer config disable-tls true
-      # - <<: *STEP_COMPOSER_SELF_UPDATE
+          command: |
+            if [ "$(php -r 'echo PHP_VERSION;')" -lt 50600 ]; then
+              composer config disable-tls true
+              composer -w tests config disable-tls true
+            fi
+      - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
