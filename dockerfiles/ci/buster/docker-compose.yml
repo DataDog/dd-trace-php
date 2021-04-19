@@ -8,7 +8,7 @@ services:
       context: .
 
   php-8.0:
-    image: datadog/dd-trace-ci:php-8.0_buster
+    image: datadog/dd-trace-ci:php-8.0_buster_tmp
     build:
       context: ./php-8.0
       args:
@@ -27,7 +27,7 @@ services:
         phpSha256Hash: e7ecfee901e0843377b64b2d8124132eae75bdb71a2675ba7c5c038d6592383d
 
   php-7.4:
-    image: datadog/dd-trace-ci:php-7.4_buster
+    image: datadog/dd-trace-ci:php-7.4_buster_tmp
     build:
       context: ./php-7.4
       args:
@@ -36,7 +36,7 @@ services:
         phpSha256Hash: ef2d2b463fc3444895ec599337b663a8832c6ade148d9832417e59aa2b9e93da
 
   php-7.3:
-    image: datadog/dd-trace-ci:php-7.3_buster
+    image: datadog/dd-trace-ci:php-7.3_buster_tmp
     build:
       context: ./php-7.3
       args:
@@ -45,7 +45,7 @@ services:
         phpSha256Hash: 4b7b9bd0526ad3f2c8d6fd950ea7b0ab2478b5b09755c6a620a4f3bcfbf59154
 
   php-7.2:
-    image: datadog/dd-trace-ci:php-7.2_buster
+    image: datadog/dd-trace-ci:php-7.2_buster_tmp
     build:
       context: ./php-7.2
       args:
@@ -54,7 +54,7 @@ services:
         phpSha256Hash: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
 
   php-7.1:
-    image: datadog/dd-trace-ci:php-7.1_buster
+    image: datadog/dd-trace-ci:php-7.1_buster_tmp
     build:
       context: ./php-7.1
       args:
@@ -63,7 +63,7 @@ services:
         phpSha256Hash: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
 
   php-7.0:
-    image: datadog/dd-trace-ci:php-7.0_buster
+    image: datadog/dd-trace-ci:php-7.0_buster_tmp
     build:
       context: ./php-7.0
       args:
@@ -72,7 +72,7 @@ services:
         phpSha256Hash: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
 
   php-5.6:
-    image: datadog/dd-trace-ci:php-5.6_buster
+    image: datadog/dd-trace-ci:php-5.6_buster_tmp
     build:
       context: ./php-5.6
       args:
@@ -81,7 +81,7 @@ services:
         phpSha256Hash: 56fb9878d12fdd921f6a0897e919f4e980d930160e154cbde2cc6d9206a27cac
 
   php-5.5:
-    image: datadog/dd-trace-ci:php-5.5_buster
+    image: datadog/dd-trace-ci:php-5.5_buster_tmp
     build:
       context: ./php-5.5
       args:
@@ -90,7 +90,7 @@ services:
         phpSha256Hash: 4f458c9b504269615715a62f182b7c2f89bb8284f484befc221b56a1571b506e
 
   php-5.4:
-    image: datadog/dd-trace-ci:php-5.4_buster
+    image: datadog/dd-trace-ci:php-5.4_buster_tmp
     build:
       context: ./php-5.4
       args:
