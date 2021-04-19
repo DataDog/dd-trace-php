@@ -84,9 +84,18 @@ aliases:
         - ~/.composer/cache
 
   - &STEP_COMPOSER_DISABLE_TLS
+    # Disabling TLS by default on 5.4 and 5.5 due to https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update
+    # Note `_generated.php` is built on 7.x and is not impacted
     run:
-      name: Disabling tls for php < 5.6 (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
-      command: composer config disable-tls true
+      name: Disable TLS to avoid composer flakiness (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
+      command: |
+        if [ "$(php -r 'echo PHP_VERSION_ID;')" -lt 50600 ]; then
+          composer config disable-tls true
+          composer --working-dir=tests config disable-tls true
+          echo "Disabled TLS"
+        else
+          echo "TLS is enabled"
+        fi
 
   - &STEP_COMPOSER_UPDATE
     run:
@@ -195,19 +204,8 @@ commands:
   prepare_extension_and_composer_with_cache:
     steps:
       - <<: *STEP_EXT_INSTALL
-      # Disabling TLS by default on 5.4 and 5.5 due to https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update
-      # Note `_generated.php` is built on 7.x and is not impacted
-      - run:
-          name: Disable TLS to avoid composer flakiness (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
-          command: |
-            if [ "$(php -r 'echo PHP_VERSION_ID;')" -lt 50600 ]; then
-              composer config disable-tls true
-              composer --working-dir=tests config disable-tls true
-              echo "Disabled TLS"
-            else
-              echo "TLS is enabled"
-            fi
-      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_DISABLE_TLS
+      # - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
