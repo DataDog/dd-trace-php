@@ -190,3 +190,9 @@ void zai_sapi_spindown(void) {
     zai_sapi_mshutdown();
     zai_sapi_sshutdown();
 }
+
+bool zai_sapi_execute_script(const char *file) {
+    zend_file_handle handle;
+    zend_stream_init_filename(&handle, file);
+    return zend_execute_scripts(ZEND_REQUIRE, NULL, 1, &handle) == SUCCESS;
+}

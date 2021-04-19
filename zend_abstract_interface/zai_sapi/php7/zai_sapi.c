@@ -217,3 +217,13 @@ void zai_sapi_spindown(void) {
     zai_sapi_mshutdown();
     zai_sapi_sshutdown();
 }
+
+bool zai_sapi_execute_script(const char *file) {
+    zend_file_handle handle;
+
+    memset((void *)&handle, 0, sizeof(zend_file_handle));
+    handle.type = ZEND_HANDLE_FILENAME;
+    handle.filename = file;
+
+    return zend_execute_scripts(ZEND_REQUIRE, NULL, 1, &handle) == SUCCESS;
+}
