@@ -200,9 +200,12 @@ commands:
       - run:
           name: Disable TLS to avoid composer flakiness (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
           command: |
-            if [ "$(php -r 'echo PHP_VERSION;')" -lt 50600 ]; then
+            if [ "$(php -r 'echo PHP_VERSION_ID;')" -lt 50600 ]; then
               composer config disable-tls true
-              composer -w tests config disable-tls true
+              composer --working-dir=tests config disable-tls true
+              echo "Disabled TLS"
+            else
+              echo "TLS is enabled"
             fi
       - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
