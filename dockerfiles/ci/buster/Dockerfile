@@ -213,3 +213,7 @@ STOPSIGNAL SIGQUIT
 
 EXPOSE 9000
 EXPOSE 80
+
+ADD install-ext-from-source /usr/local/bin/install-ext-from-source
+
+CMD [ "bash" ]
