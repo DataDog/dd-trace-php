@@ -79,10 +79,10 @@ RUN set -eux; \
         pecl install xdebug-2.9.2; \
         cd $(php-config --extension-dir); \
         mv xdebug.so xdebug-2.9.2.so; \
-        # 2.9.8
-        pecl install xdebug-2.9.8; \
+        # 2.9.5
+        pecl install xdebug-2.9.5; \
         cd $(php-config --extension-dir); \
-        mv xdebug.so xdebug-2.9.8.so; \
+        mv xdebug.so xdebug-2.9.5.so; \
     done;
 
 RUN set -eux; \
