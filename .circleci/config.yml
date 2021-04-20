@@ -1594,7 +1594,7 @@ workflows:
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 80 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster_tmp"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 web tests with nginx + FastCGI"
@@ -1765,7 +1765,7 @@ workflows:
                 - datadog/dd-trace-ci:php-7.2_buster_tmp
                 - datadog/dd-trace-ci:php-7.3_buster_tmp
                 - datadog/dd-trace-ci:php-7.4_buster_tmp
-                - datadog/dd-trace-ci:php-8.0_buster
+                - datadog/dd-trace-ci:php-8.0_buster_tmp
 
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
