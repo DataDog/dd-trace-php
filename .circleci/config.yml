@@ -205,7 +205,6 @@ commands:
     steps:
       - <<: *STEP_EXT_INSTALL
       - <<: *STEP_COMPOSER_DISABLE_TLS
-      # - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
@@ -499,7 +498,7 @@ jobs:
           php_version: << parameters.switch_php_version >>
       - install_extension
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      # - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_DISABLE_TLS
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
