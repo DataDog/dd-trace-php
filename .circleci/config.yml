@@ -1711,12 +1711,30 @@ workflows:
                 - '7.4'
                 - '8.0'
               make_target:
-                - test_web
                 - test_composer
                 - test_integration
                 - test_integrations
                 - test_distributed_tracing
                 - test_auto_instrumentation
+
+      - integration:
+          requires: [ 'Prepare Code' ]
+          # Due to Symfony OOM during composer update
+          resource_class: xlarge
+          matrix:
+            parameters:
+              php_major_minor:
+                - '5.4'
+                - '5.5'
+                - '5.6'
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
+              make_target:
+                - test_web
 
       - integration:
           requires: [ 'Prepare Code' ]
