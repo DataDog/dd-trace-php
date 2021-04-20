@@ -1777,7 +1777,7 @@ workflows:
           name: "PHP 71 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.1_buster_tmp"
           xdebug_version_one: "2.9.2"
-          xdebug_version_two: "2.9.5"
+          xdebug_version_two: "2.9.8"
       # - unit_tests: # disabled due to posisbly leaking tests
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 70 Unit tests-zts"
@@ -1787,19 +1787,19 @@ workflows:
           name: "PHP 72 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.2_buster_tmp"
           xdebug_version_one: "2.9.2"
-          xdebug_version_two: "2.9.5"
+          xdebug_version_two: "3.0.0"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.3_buster_tmp"
           xdebug_version_one: "2.9.2"
-          xdebug_version_two: "2.9.5"
+          xdebug_version_two: "3.0.0"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 Xdebug tests"
           docker_image: "datadog/dd-trace-ci:php-7.4_buster_tmp"
           xdebug_version_one: "2.9.2"
-          xdebug_version_two: "2.9.5"
+          xdebug_version_two: "3.0.0"
       - opcache_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 opcache tests"

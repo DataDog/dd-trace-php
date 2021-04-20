@@ -75,6 +75,11 @@ RUN set -eux; \
         pecl install mongodb; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
         pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
         # Xdebug is disabled by default
+        # 2.9.2
+        pecl install xdebug-2.9.2; \
+        cd $(php-config --extension-dir); \
+        mv xdebug.so xdebug-2.9.2.so; \
+        # 2.9.8
         pecl install xdebug-2.9.8; \
         cd $(php-config --extension-dir); \
         mv xdebug.so xdebug-2.9.8.so; \
