@@ -65,9 +65,9 @@ RUN set -eux; \
     do \
         echo "Install exts for PHP $phpVer..."; \
         switch-php ${phpVer}; \
+        pecl channel-update pecl.php.net; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
-        pear update-channels; \
         yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \
         yes '' | pecl install mcrypt; echo "extension=mcrypt.so" >> ${iniDir}/mcrypt.ini; \
         pecl install ast; echo "extension=ast.so" >> ${iniDir}/ast.ini; \
