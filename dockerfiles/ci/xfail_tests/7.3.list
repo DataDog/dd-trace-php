@@ -190,6 +190,7 @@ ext/simplexml/tests/bug69491.phpt
 ext/simplexml/tests/bug72971.phpt
 ext/simplexml/tests/bug72971_2.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/sockets/tests/socket_connect_params.phpt
 ext/sockets/tests/socket_create_pair.phpt
 ext/sodium/tests/utils.phpt
 ext/spl/tests/ArrayObject_clone_other_std_props.phpt
@@ -307,6 +308,7 @@ ext/standard/tests/serialize/bug72785.phpt
 ext/standard/tests/serialize/serialize_globals_var_refs.phpt
 ext/standard/tests/streams/bug78902.phpt
 ext/standard/tests/streams/proc_open_bug69900.phpt
+ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/zip/tests/bug38943.phpt
 ext/zip/tests/bug38943_2.phpt

@@ -446,6 +446,7 @@ ext/standard/tests/serialize/typed_property_refs.phpt
 ext/standard/tests/serialize/typed_property_ref_overwrite.phpt
 ext/standard/tests/serialize/typed_property_ref_overwrite2.phpt
 ext/standard/tests/streams/bug78902.phpt
+ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/sprintf_variation54.phpt
 ext/tokenizer/tests/PhpToken_constructor.phpt

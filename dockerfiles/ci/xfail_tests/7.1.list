@@ -123,6 +123,8 @@ ext/json/tests/pass001.phpt
 ext/mbstring/tests/zend_multibyte-01.phpt
 ext/mbstring/tests/zend_multibyte-02.phpt
 ext/mbstring/tests/zend_multibyte-06.phpt
+ext/mcrypt/tests/bug67707.phpt
+ext/mcrypt/tests/bug72535.phpt
 ext/openssl/tests/bug46127.phpt
 ext/openssl/tests/bug48182.phpt
 ext/openssl/tests/bug54992.phpt
@@ -161,6 +163,7 @@ ext/phar/tests/phar_buildfromiterator10.phpt
 ext/phar/tests/phar_buildfromiterator8.phpt
 ext/phar/tests/phar_oo_002.phpt
 ext/phar/tests/phar_oo_007.phpt
+ext/posix/tests/posix_errno_variation2.phpt
 ext/reflection/tests/007.phpt
 ext/reflection/tests/009.phpt
 ext/reflection/tests/025.phpt
@@ -189,6 +192,7 @@ ext/simplexml/tests/bug69491.phpt
 ext/simplexml/tests/bug72971.phpt
 ext/simplexml/tests/bug72971_2.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/sockets/tests/socket_connect_params.phpt
 ext/sockets/tests/socket_create_pair.phpt
 ext/spl/tests/ArrayObject_clone_other_std_props.phpt
 ext/spl/tests/ArrayObject_dump_during_sort.phpt
@@ -320,6 +324,7 @@ ext/standard/tests/serialize/bug70213.phpt
 ext/standard/tests/serialize/bug70219_1.phpt
 ext/standard/tests/serialize/bug72785.phpt
 ext/standard/tests/serialize/serialization_objects_007.phpt
+ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/zip/tests/bug38943.phpt
 ext/zip/tests/bug38943_2.phpt
