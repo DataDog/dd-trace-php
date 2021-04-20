@@ -94,7 +94,7 @@ RUN set -ex; \
     for phpVer in $(ls ${PHP_INSTALL_DIR}); \
     do \
         # Set default INI settings
-        sed 's/;date.timezone =/date.timezone = UTC/' <${PHP_SRC_DIR}/php.ini-development >${PHP_INSTALL_DIR}/${phpVer}/etc/php.ini; \
+        sed 's/;date.timezone =/date.timezone = UTC/' <${PHP_SRC_DIR}/php.ini-development >${PHP_INSTALL_DIR}/${phpVer}/php.ini; \
         \
         echo "Install exts for PHP $phpVer..."; \
         switch-php ${phpVer}; \
@@ -112,7 +112,7 @@ RUN set -ex; \
     switch-php debug;
 
 # Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:1 /usr/bin/composer /usr/local/bin/composer
 
 COPY welcome /etc/motd
 
