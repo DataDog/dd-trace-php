@@ -1,5 +1,6 @@
 #include "../zai_sapi.h"
 
+#include <Zend/zend_exceptions.h>
 #include <main/SAPI.h>
 #include <main/php_main.h>
 #include <main/php_variables.h>
@@ -222,14 +223,56 @@ bool zai_sapi_execute_script(const char *file) {
     return zend_execute_scripts(ZEND_REQUIRE TSRMLS_CC, NULL, 1, &handle) == SUCCESS;
 }
 
-bool zai_sapi_last_error_message_eq(const char *msg) {
+bool zai_sapi_fake_frame_push(zend_execute_data *frame) {
     TSRMLS_FETCH();
-    if (msg == NULL) return PG(last_error_message) == NULL;
-    if (PG(last_error_message) == NULL) return false;
+    zend_function *func;
+    if (zend_hash_find(EG(function_table), "zai\\noop", sizeof("zai\\noop") /* - 1 */, (void **)&func) == SUCCESS) {
+        memset(frame, 0, sizeof(zend_execute_data));
+
+        frame->function_state.function = func;
+        frame->prev_execute_data = EG(current_execute_data);
+
+        EG(current_execute_data) = frame;
+        return true;
+    }
+    return false;
+}
+
+void zai_sapi_fake_frame_pop(zend_execute_data *frame) {
+    TSRMLS_FETCH();
+    EG(current_execute_data) = frame->prev_execute_data;
+}
+
+bool zai_sapi_last_error_eq(int error_type, const char *msg) {
+    TSRMLS_FETCH();
+    if (PG(last_error_type) != error_type || PG(last_error_message) == NULL) return false;
     return strcmp(msg, PG(last_error_message)) == 0;
 }
 
-bool zai_sapi_last_error_type_eq(int error_type) {
+bool zai_sapi_last_error_is_empty(void) {
     TSRMLS_FETCH();
-    return PG(last_error_type) == error_type;
+    return PG(last_error_type) == 0 && PG(last_error_lineno) == 0 && PG(last_error_message) == NULL &&
+           PG(last_error_file) == NULL;
+}
+
+zend_class_entry *zai_sapi_throw_exception(const char *message) {
+    TSRMLS_FETCH();
+    zend_class_entry *ce = zend_exception_get_default(TSRMLS_C);
+    zend_throw_exception(ce, (char *)message, 0 TSRMLS_CC);
+    return ce;
+}
+
+bool zai_sapi_unhandled_exception_eq(zend_class_entry *ce, const char *message) {
+    TSRMLS_FETCH();
+    if (!zai_sapi_unhandled_exception_exists()) return false;
+    if (ce != Z_OBJCE_P(EG(exception))) return false;
+
+    zval *zmsg = zend_read_property(ce, EG(exception), "message", (sizeof("message") - 1), 1 TSRMLS_CC);
+    if (!zmsg && Z_TYPE_P(zmsg) != IS_STRING) return false;
+    return strcmp(Z_STRVAL_P(zmsg), message) == 0;
+}
+
+bool zai_sapi_unhandled_exception_exists(void) {
+    TSRMLS_FETCH();
+    return EG(exception) != NULL;
 }

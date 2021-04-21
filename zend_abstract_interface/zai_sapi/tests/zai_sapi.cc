@@ -9,6 +9,7 @@ TEST_CASE("eval: SAPI, modules, and request init/shutdown", "[zai_sapi]") {
     REQUIRE(zai_sapi_sinit());
     REQUIRE(zai_sapi_minit());
     REQUIRE(zai_sapi_rinit());
+    ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
     REQUIRE(ZAI_SAPI_EVAL_STR("echo 'Hello world' . PHP_EOL;") == SUCCESS);
@@ -21,6 +22,7 @@ TEST_CASE("eval: SAPI, modules, and request init/shutdown", "[zai_sapi]") {
 
 TEST_CASE("eval: spinup/spindown", "[zai_sapi]") {
     REQUIRE(zai_sapi_spinup());
+    ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
     REQUIRE(ZAI_SAPI_EVAL_STR("echo 'Hello world' . PHP_EOL;") == SUCCESS);
@@ -31,6 +33,7 @@ TEST_CASE("eval: spinup/spindown", "[zai_sapi]") {
 
 TEST_CASE("compile file success", "[zai_sapi]") {
     REQUIRE(zai_sapi_spinup());
+    ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_ABORT_ON_BAILOUT_OPEN()
 
     REQUIRE(zai_sapi_execute_script("./stubs/basic.php"));
@@ -41,6 +44,7 @@ TEST_CASE("compile file success", "[zai_sapi]") {
 
 TEST_CASE("compile file failure (file not found)", "[zai_sapi]") {
     REQUIRE(zai_sapi_spinup());
+    ZAI_SAPI_TSRMLS_FETCH();
     ZAI_SAPI_BAILOUT_EXPECTED_OPEN()
 
     // No need to wrap with REQUIRE() since it will zend_bailout (long jump)

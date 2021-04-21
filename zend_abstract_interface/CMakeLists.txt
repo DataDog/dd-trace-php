@@ -76,6 +76,7 @@ else()
 endif()
 
 add_subdirectory(zai_sapi)
+add_subdirectory(sandbox)
 
 install(EXPORT ZendAbstractInterfaceTargets
         FILE ZendAbstractInterfaceTargets.cmake

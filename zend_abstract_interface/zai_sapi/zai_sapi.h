@@ -78,13 +78,49 @@ bool zai_sapi_append_system_ini_entry(const char *key, const char *value);
  */
 bool zai_sapi_execute_script(const char *file);
 
-/* Returns true if 'msg' exactly matches the last error message from PHP
- * globals.
+/* Inserts a fake frame scoped to the 'Zai\noop' internal function into the
+ * active PHP execution stack. If there is no active execution context, the
+ * fake frame will be the first frame in the stack. If there is an existing
+ * stack active in the executor globals, the fake frame will be added to the
+ * top of the stack.
+ *
+ * Motivation: sometimes it is necessary to emulate code execution during
+ * runtime (e.g. a custom opcode handler) or to create an execution context
+ * for certain functionality (e.g. throw an exception when there is no active
+ * execution context). A fake frame provides an execution context for these
+ * cases.
  */
-bool zai_sapi_last_error_message_eq(const char *msg);
+bool zai_sapi_fake_frame_push(zend_execute_data *frame);
 
-/* Returns true if 'error_type' equals the last error type from PHP globals. */
-bool zai_sapi_last_error_type_eq(int error_type);
+/* Removes a fake frame from the active execution context. This should be done
+ * before the parent frame closes.
+ */
+void zai_sapi_fake_frame_pop(zend_execute_data *frame);
+
+/* Returns true if 'error_type' equals the last error type and 'msg' exactly
+ * matches the last error message from PHP globals.
+ */
+bool zai_sapi_last_error_eq(int error_type, const char *msg);
+
+/* Returns true if all of the globals associated with the last error are zeroed
+ * out.
+ */
+bool zai_sapi_last_error_is_empty();
+
+/* Throws an exception using the default exception class entry and sets the
+ * 'Exception::$message' string to 'message'. Returns the class entry used for
+ * the thrown exception. An execution context (an active PHP frame stack) must
+ * exist or this will raise a fatal error and call zend_bailout.
+ */
+zend_class_entry *zai_sapi_throw_exception(const char *message);
+
+/* Returns true if there is an unhandled exception that matches the class entry
+ * 'ce' and the 'Exception::$message' string is equal to 'message'.
+ */
+bool zai_sapi_unhandled_exception_eq(zend_class_entry *ce, const char *message);
+
+/* Returns true if there is an unhandled exception. */
+bool zai_sapi_unhandled_exception_exists(void);
 
 /* Handling zend_bailout
  *
@@ -113,6 +149,11 @@ bool zai_sapi_last_error_type_eq(int error_type);
     assert(false && "Expected a zend_bailout"); \
     }                                           \
     zend_end_try();
+
+/* On PHP 5 ZTS mode, many components require 'tsrm_ls' from TSRMLS_FETCH(). On
+ * PHP 7+, this is noop.
+ */
+#define ZAI_SAPI_TSRMLS_FETCH()
 
 /* Obscured in the compiler directives below are the following function-call
  * wrappers:
@@ -153,14 +194,8 @@ bool zai_sapi_last_error_type_eq(int error_type);
 /********************************** </PHP 7> *********************************/
 #else
 /********************************** <PHP 5> **********************************/
-#undef ZAI_SAPI_ABORT_ON_BAILOUT_OPEN
-#define ZAI_SAPI_ABORT_ON_BAILOUT_OPEN() \
-    TSRMLS_FETCH();                      \
-    zend_first_try {
-#undef ZAI_SAPI_BAILOUT_EXPECTED_OPEN
-#define ZAI_SAPI_BAILOUT_EXPECTED_OPEN() \
-    TSRMLS_FETCH();                      \
-    zend_first_try {
+#undef ZAI_SAPI_TSRMLS_FETCH
+#define ZAI_SAPI_TSRMLS_FETCH() TSRMLS_FETCH()
 #define ZAI_SAPI_EVAL_STR(str) zend_eval_stringl((char *)str, sizeof(str) - 1, NULL, (char *)"ZAI SAPI" TSRMLS_CC)
 #define ZAI_SAPI_INI_STR(name) zend_ini_string_ex((char *)(name), sizeof(name) /* - 1 */, 0, NULL)
 /********************************** </PHP 5> *********************************/

@@ -84,6 +84,7 @@ if test "$PHP_DDTRACE" != "no"; then
     "
 
     ZAI_SOURCES="\
+      zend_abstract_interface/sandbox/php5/sandbox.c \
       zend_abstract_interface/zai_sapi/php5/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
       zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
@@ -125,6 +126,7 @@ if test "$PHP_DDTRACE" != "no"; then
     "
 
     ZAI_SOURCES="\
+      zend_abstract_interface/sandbox/php5/sandbox.c \
       zend_abstract_interface/zai_sapi/php5/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
       zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
@@ -170,6 +172,7 @@ if test "$PHP_DDTRACE" != "no"; then
     "
 
     ZAI_SOURCES="\
+      zend_abstract_interface/sandbox/php7/sandbox.c \
       zend_abstract_interface/zai_sapi/php7/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
       zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
@@ -215,6 +218,7 @@ if test "$PHP_DDTRACE" != "no"; then
     "
 
     ZAI_SOURCES="\
+      zend_abstract_interface/sandbox/php8/sandbox.c \
       zend_abstract_interface/zai_sapi/php8/zai_sapi.c \
       zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
       zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
@@ -246,6 +250,10 @@ if test "$PHP_DDTRACE" != "no"; then
 
   PHP_ADD_INCLUDE([$ext_srcdir/zend_abstract_interface])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php5])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php7])
+  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/sandbox/php8])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi/php5])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/zai_sapi/php7])

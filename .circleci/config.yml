@@ -1017,31 +1017,74 @@ jobs:
             cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2
             cmake --build build/ --target install
 
-      - run:
-          name: Build and test Zend Abstract Interface (ASan)
-          command: |
-            export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-            mkdir -p /tmp/build/zai_asan
-            cd /tmp/build/zai_asan
-            if [ "<< parameters.php_version >>" = "7.4" || "<< parameters.php_version >>" = "8.0" ]
-            then
-              toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
-            fi
-            CMAKE_PREFIX_PATH=/opt/catch2 cmake \
-              ${toolchain} \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_ZAI_TESTING=ON \
-              -DPHP_CONFIG=$(which php-config) \
-              ~/datadog/zend_abstract_interface
-            make -j all
-            make test
+      # Builds that support ASan
+      - when:
+          condition:
+            or:
+              - equal: [ "7.4", << parameters.php_version >> ]
+              - equal: [ "8.0", << parameters.php_version >> ]
+          steps:
+            - run:
+                name: Build and test Zend Abstract Interface (nts, debug, debug-zts-asan)
+                command: |
+                  export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+                  for phpBuild in nts debug debug-zts-asan
+                  do
+                    switch-php ${phpBuild}
+                    mkdir -p /tmp/build/zai-${phpBuild}
+                    cd /tmp/build/zai-${phpBuild}
+                    toolchain=""
+                    if [ "${phpBuild}" = "debug-zts-asan" ]
+                    then
+                      toolchain="-DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/asan.cmake"
+                    fi
+                    CMAKE_PREFIX_PATH=/opt/catch2 cmake \
+                      ${toolchain} \
+                      -DCMAKE_BUILD_TYPE=Debug \
+                      -DBUILD_ZAI_TESTING=ON \
+                      -DPHP_CONFIG=$(which php-config) \
+                      ~/datadog/zend_abstract_interface
+                    make -j all
+                    make test
+                  done
+
+      # Builds that do not support ASan
+      - when:
+          condition:
+            or:
+              - equal: [ "5.4", << parameters.php_version >> ]
+              - equal: [ "5.5", << parameters.php_version >> ]
+              - equal: [ "5.6", << parameters.php_version >> ]
+              - equal: [ "7.0", << parameters.php_version >> ]
+              - equal: [ "7.1", << parameters.php_version >> ]
+              - equal: [ "7.2", << parameters.php_version >> ]
+              - equal: [ "7.3", << parameters.php_version >> ]
+          steps:
+            - run:
+                name: Build and test Zend Abstract Interface (nts, debug, debug-zts)
+                command: |
+                  export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
+                  for phpBuild in nts debug debug-zts
+                  do
+                    switch-php ${phpBuild}
+                    mkdir -p /tmp/build/zai-${phpBuild}
+                    cd /tmp/build/zai-${phpBuild}
+                    CMAKE_PREFIX_PATH=/opt/catch2 cmake \
+                      -DCMAKE_BUILD_TYPE=Debug \
+                      -DBUILD_ZAI_TESTING=ON \
+                      -DPHP_CONFIG=$(which php-config) \
+                      ~/datadog/zend_abstract_interface
+                    make -j all
+                    make test
+                  done
 
       - run:
-          name: Build and test Zend Abstract Interface (UBSan)
+          name: Build and test Zend Abstract Interface (debug + UBSan)
           command: |
+            switch-php debug
             export PATH="/opt/cmake/<< parameters.cmake_version >>/bin:$PATH"
-            mkdir -p /tmp/build/zai_ubsan
-            cd /tmp/build/zai_ubsan
+            mkdir -p /tmp/build/zai-debug-ubsan
+            cd /tmp/build/zai-debug-ubsan
             CMAKE_PREFIX_PATH=/opt/catch2 cmake \
               -DCMAKE_TOOLCHAIN_FILE=~/datadog/cmake/ubsan.cmake \
               -DCMAKE_BUILD_TYPE=Debug \
@@ -1054,8 +1097,7 @@ jobs:
       - run:
           command: |
             mkdir -p /tmp/artifacts
-            cp /tmp/build/zai_asan/Testing/Temporary/LastTest.log /tmp/artifacts/LastTestASan.log
-            cp /tmp/build/zai_ubsan/Testing/Temporary/LastTest.log /tmp/artifacts/LastTestUBSan.log
+            cp --parents /tmp/build/zai-*/Testing/Temporary/LastTest.log /tmp/artifacts/
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
