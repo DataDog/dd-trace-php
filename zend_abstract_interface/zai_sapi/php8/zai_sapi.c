@@ -4,6 +4,7 @@
 #include <main/php_main.h>
 #include <main/php_variables.h>
 
+#include "../zai_sapi_functions.h"
 #include "../zai_sapi_ini.h"
 #include "../zai_sapi_io.h"
 
@@ -88,8 +89,10 @@ static sapi_module_struct zai_module = {
     NULL, /* ini_defaults            */
     0,    /* phpinfo_as_text;        */
     NULL, /* ini_entries;            */
-    NULL, /* additional_functions    */
-    NULL  /* input_filter_init       */
+
+    zai_sapi_functions, /* additional_functions */
+
+    NULL /* input_filter_init */
 };
 
 bool zai_sapi_append_system_ini_entry(const char *key, const char *value) {
@@ -138,14 +141,6 @@ bool zai_sapi_sinit(void) {
 
     /* Show phpinfo()/module info as plain text. */
     zai_module.phpinfo_as_text = 1;
-
-    /* TODO: When we want to expose a function to userland for testing purposes
-     * (e.g. DDTrace\Testing\trigger_error()), we can add them as custom SAPI
-     * functions here. These functions will only exist in the ZAI SAPI for
-     * testing at the C unit test level and will not be shipped as a public
-     * userland API in the PHP tracer.
-     */
-    zai_module.additional_functions = NULL;
 
     return true;
 }
@@ -196,3 +191,11 @@ bool zai_sapi_execute_script(const char *file) {
     zend_stream_init_filename(&handle, file);
     return zend_execute_scripts(ZEND_REQUIRE, NULL, 1, &handle) == SUCCESS;
 }
+
+bool zai_sapi_last_error_message_eq(const char *msg) {
+    if (msg == NULL) return PG(last_error_message) == NULL;
+    if (PG(last_error_message) == NULL) return false;
+    return strcmp(msg, ZSTR_VAL(PG(last_error_message))) == 0;
+}
+
+bool zai_sapi_last_error_type_eq(int error_type) { return PG(last_error_type) == error_type; }

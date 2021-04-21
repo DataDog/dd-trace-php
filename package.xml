@@ -52,6 +52,8 @@
             <file name="zend_abstract_interface/zai_sapi/php7/zai_sapi.c" role="src" />
             <file name="zend_abstract_interface/zai_sapi/php8/zai_sapi.c" role="src" />
             <file name="zend_abstract_interface/zai_sapi/zai_sapi.h" role="src" />
+            <file name="zend_abstract_interface/zai_sapi/zai_sapi_functions.c" role="src" />
+            <file name="zend_abstract_interface/zai_sapi/zai_sapi_functions.h" role="src" />
             <file name="zend_abstract_interface/zai_sapi/zai_sapi_ini.c" role="src" />
             <file name="zend_abstract_interface/zai_sapi/zai_sapi_ini.h" role="src" />
             <file name="zend_abstract_interface/zai_sapi/zai_sapi_io.c" role="src" />
