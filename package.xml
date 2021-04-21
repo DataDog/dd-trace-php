@@ -36,7 +36,17 @@
         <api>stable</api>
     </stability>
     <license uri="https://github.com/DataDog/dd-trace-php/blob/master/LICENSE">BSD 3-Clause</license>
-    <notes>${notes}</notes>
+    <notes>
+    ### Added
+    - ZAI SAPI #1204
+    - [ZAI SAPI] Add test helpers #1208
+    - Add a Kubernetes example to container tagging tests #1206
+    - Add Buster containers for PHP 5.4 through 7.4 #1201
+    ### Changed
+    - Remove PHP version prefix from buster development containers #1203
+    ### Fixed
+    - handle laravel 7+ generated:: prefix for unnamed routes #1198
+    </notes>
     <contents>
         <dir name="/">
             <!-- components -->
