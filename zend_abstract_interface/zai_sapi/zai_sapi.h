@@ -78,6 +78,14 @@ bool zai_sapi_append_system_ini_entry(const char *key, const char *value);
  */
 bool zai_sapi_execute_script(const char *file);
 
+/* Returns true if 'msg' exactly matches the last error message from PHP
+ * globals.
+ */
+bool zai_sapi_last_error_message_eq(const char *msg);
+
+/* Returns true if 'error_type' equals the last error type from PHP globals. */
+bool zai_sapi_last_error_type_eq(int error_type);
+
 /* Handling zend_bailout
  *
  * A test will provide a false-positive when a component calls zend_bailout.

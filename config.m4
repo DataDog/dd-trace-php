@@ -85,6 +85,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
     ZAI_SOURCES="\
       zend_abstract_interface/zai_sapi/php5/zai_sapi.c \
+      zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
       zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
       zend_abstract_interface/zai_sapi/zai_sapi_io.c \
     "
@@ -125,6 +126,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
     ZAI_SOURCES="\
       zend_abstract_interface/zai_sapi/php5/zai_sapi.c \
+      zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
       zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
       zend_abstract_interface/zai_sapi/zai_sapi_io.c \
     "
@@ -169,6 +171,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
     ZAI_SOURCES="\
       zend_abstract_interface/zai_sapi/php7/zai_sapi.c \
+      zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
       zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
       zend_abstract_interface/zai_sapi/zai_sapi_io.c \
     "
@@ -213,6 +216,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
     ZAI_SOURCES="\
       zend_abstract_interface/zai_sapi/php8/zai_sapi.c \
+      zend_abstract_interface/zai_sapi/zai_sapi_functions.c \
       zend_abstract_interface/zai_sapi/zai_sapi_ini.c \
       zend_abstract_interface/zai_sapi/zai_sapi_io.c \
     "

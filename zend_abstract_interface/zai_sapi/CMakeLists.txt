@@ -1,4 +1,4 @@
-add_library(zai_sapi "zai_sapi_ini.c" "zai_sapi_io.c"
+add_library(zai_sapi zai_sapi_functions.c zai_sapi_ini.c zai_sapi_io.c
                      "${PHP_VERSION_DIRECTORY}/zai_sapi.c")
 
 target_include_directories(zai_sapi
@@ -21,6 +21,7 @@ endif()
 
 # This copies the include files when `install` is ran
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi.h
+              ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_functions.h
               ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_ini.h
               ${CMAKE_CURRENT_SOURCE_DIR}/zai_sapi_io.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zai_sapi/)
