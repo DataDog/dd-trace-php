@@ -1,7 +1,5 @@
 #include "sapi/sapi.h"
 
-#include <string.h>
-
 typedef datadog_php_sapi sapi_t;
 typedef datadog_php_string_view string_view_t;
 

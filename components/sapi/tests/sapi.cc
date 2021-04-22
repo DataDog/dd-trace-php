@@ -4,12 +4,12 @@ extern "C" {
 
 #include <catch2/catch.hpp>
 
-TEST_CASE("recongize real sapis", "[sapi]") {
+TEST_CASE("recognize real sapis", "[sapi]") {
     // these strings were taken from the PHP 8.0's sapi/ folder
     struct {
         const char *name;
         datadog_php_sapi sapi;
-    } cases[] = {
+    } servers[] = {
         {"apache2handler", DATADOG_PHP_SAPI_APACHE2HANDLER},
         {"cgi-fcgi", DATADOG_PHP_SAPI_CGI_FCGI},
         {"cli", DATADOG_PHP_SAPI_CLI},
@@ -20,24 +20,23 @@ TEST_CASE("recongize real sapis", "[sapi]") {
         {"phpdbg", DATADOG_PHP_SAPI_PHPDBG},
     };
 
-    unsigned n_sapis = sizeof cases / sizeof *cases;
-    for (unsigned i = 0; i != n_sapis; ++i) {
-        datadog_php_string_view view = datadog_php_string_view_from_cstr(cases[i].name);
+    for (auto server : servers) {
+        datadog_php_string_view view = datadog_php_string_view_from_cstr(server.name);
         datadog_php_sapi sapi = datadog_php_sapi_from_name(view);
 
-        REQUIRE(sapi == cases[i].sapi);
+        REQUIRE(sapi == server.sapi);
     }
 }
 
 TEST_CASE("unknown sapis", "[sapi]") {
     /* These used to be SAPIs, but have since been removed. I think that makes
-     * them good testing canidates for unknown SAPIs.
+     * them good testing candidates for unknown SAPIs.
      */
-    const char *cases[] = {
+    const char *servers[] = {
         "aolserver",
         "caudium",
 
-        // The fact "Continuity" is upper-cased gave me a giggle
+        // "Continuity" being upper-cased gave me a giggle, as all others aren't
         "Continuity",
 
         "isapi",
@@ -47,9 +46,8 @@ TEST_CASE("unknown sapis", "[sapi]") {
         "webjames",
     };
 
-    unsigned n_sapis = sizeof cases / sizeof *cases;
-    for (unsigned i = 0; i != n_sapis; ++i) {
-        datadog_php_string_view view = datadog_php_string_view_from_cstr(cases[i]);
+    for (auto server : servers) {
+        datadog_php_string_view view = datadog_php_string_view_from_cstr(server);
         datadog_php_sapi sapi = datadog_php_sapi_from_name(view);
 
         REQUIRE(sapi == DATADOG_PHP_SAPI_UNKNOWN);

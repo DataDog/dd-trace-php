@@ -4,15 +4,10 @@
 #include <regex.h>
 #include <stdbool.h>
 
-/* The shortest possible ID would be a Fargate 1.4+ ID that matches:
+/* Fargate 1.4+ IDs match:
  *    [0-9a-f]{32}-\d+
  * Assuming it is possible for '\d+' to be a single digit, the shortest
  * expected ID would be 32 + 1 + 1 = 34.
- */
-#define DATADOG_PHP_CONTAINER_ID_MIN_LEN 34
-
-/* Fargate 1.4+ IDs match:
- *    [0-9a-f]{32}-\d+
  * Assuming '\d+' is an unsigned 64-bit integer, the maximum possible value is
  * 18446744073709551615 which is 20 characters long. Thus the longest possible
  * Fargate 1.4+ ID would be 32 + 1 + 20 = 53 characters long.
