@@ -16,6 +16,17 @@ It was [skipped before](https://github.com/php/php-src/blob/bcd100d812b525c982cf
 
 Building again the container without `pcntl` enabled AND not even building the tracer, the test still fails. Possibly the reason is that we need an ssh server listening internally on [port 64321](https://github.com/php/php-src/blob/bcd100d812b525c982cf75d6c6dabe839f61634a/ext/openssl/tests/bug54992.phpt#L13). Configuring the openssh server to run even this last test is neyond the scope of our language tests.
 
+
+## `ext/ftp/tests`
+
+Disabled on versions: `5.4`, `5.5`.
+
+Links to sample broken executions: [5.4](https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/5626/workflows/6f8ee4d1-f2dd-4465-b3a0-44f8fde1a18f/jobs/396668/tests#failed-test-0).
+
+_Investigation_
+
+Such tests were skipped before and are incredibly unstable on 5. It might be a CI configuration or something, but they are unstable without the extension as well and it was decided not to spend any more time on these, for now.
+
 ## `ext/ftp/tests/005.phpt`
 
 Disabled on versions: `5.4`, `5.5`.
