@@ -1843,8 +1843,6 @@ workflows:
           name: "PHP 54 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.4.list
           docker_image: "datadog/dd-trace-ci:php-5.4_buster_tmp"
-      - "Composer Tests 55":
-          requires: [ 'Prepare Code' ]
       - internal_integrations:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 curl integration tests a shared lib"
