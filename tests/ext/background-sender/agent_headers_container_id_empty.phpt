@@ -1,7 +1,7 @@
 --TEST--
 An empty container ID is not sent via HTTP headers to the Agent
 --SKIPIF--
-<?php include __DIR__ . '/../includes/skipif_requires_dev_env.inc'; ?>
+<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 --INI--
 ddtrace.cgroup_file={PWD}/stubs/cgroup.empty
 --ENV--
