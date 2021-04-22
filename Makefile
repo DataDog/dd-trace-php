@@ -309,7 +309,6 @@ TEST_INTEGRATIONS_56 := \
 	test_opentracing_beta5
 
 TEST_WEB_56 := \
-	test_metrics \
 	test_web_cakephp_28 \
 	test_web_codeigniter_22 \
 	test_web_laravel_42 \
