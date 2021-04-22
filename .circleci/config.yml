@@ -537,7 +537,7 @@ jobs:
       - run:
           name: Run test
           command: |
-              cat << parameters.split_target_prefix >>_<< parameters.php_major_minor >>.txt | circleci tests split >/tmp/jobs.txt
+              cat ./circleci/<< parameters.split_target_prefix >>_<< parameters.php_major_minor >>.txt | circleci tests split >/tmp/jobs.txt
               echo "Jobs assigned to this node:"
               cat /tmp/jobs.txt
               for job in $(cat /tmp/jobs.txt) ; do
