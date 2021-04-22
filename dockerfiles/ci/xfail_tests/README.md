@@ -76,3 +76,14 @@ The following tests fail even when the tracer is not installed.
 On PHP 5, certain tests can have intermittently deep call stacks that are deep enough to trigger the warning: `ddtrace has detected a call stack depth of 512`.
 
 - `Zend/tests/bug54268.phpt`
+
+## `sapi/cli/tests/017.phpt`
+
+Disabled on versions: `5.5`, `5.6`.
+
+Links to sample broken executions: [5.5](https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/5610/workflows/b7836d18-ba47-4315-9cd2-4c1749c0e984/jobs/393611), [5.6](https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/5610/workflows/b7836d18-ba47-4315-9cd2-4c1749c0e984/jobs/393616).
+
+_Investigation_
+
+The test fails on new buster containers because we copy on 5.x the `php-development.ini` that enables `log_errors = On`.
+This causes this test to print an extra line (the logged error) and to fail. The failure happen without the tracer installed as well.
