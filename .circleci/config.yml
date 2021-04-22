@@ -323,37 +323,6 @@ jobs:
           name: Running phpstan
           command: composer scenario << parameters.scenario >> ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
-  "Composer Tests 55":
-    working_directory: ~/datadog
-    # killed in large due to OOM in Symfony 2.8 :'(
-    resource_class: xlarge
-    # Symfony is quite slow to update; let's do it in parallel
-    parallelism: 3
-    executor:
-      name: with_integrations
-      docker_image: "datadog/dd-trace-ci:php-5.5_buster_tmp"
-    environment:
-      COMPOSER_PROCESS_TIMEOUT: 0
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_COMPOSER_UPDATE
-      - <<: *STEP_COMPOSER_TESTS_UPDATE
-      - run:
-          name: Install extension
-          command: make debug all sudo install install_ini
-      - run:
-          name: Run web tests
-          command: |
-              # todo: use --split-by=timings to make it better distributed
-              # https://circleci.com/docs/2.0/parallelism-faster-jobs/#splitting-by-timing-data
-              circleci tests split <.circleci/php-5.5_web.txt >/tmp/jobs.txt
-              echo "Jobs assigned to this node:"
-              cat /tmp/jobs.txt
-              for job in $(cat /tmp/jobs.txt) ; do
-                  echo "Running ${job}"
-                  make "${job}"
-              done
-
   "Post-Install Hook":
     working_directory: ~/datadog
     docker:
