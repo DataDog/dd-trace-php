@@ -98,7 +98,7 @@ RUN set -eux; \
         \
         echo "Install exts for PHP $phpVer..."; \
         switch-php ${phpVer}; \
-        pear update-channels; \
+        pecl channel-update pecl.php.net; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
         yes 'no' | pecl install memcached-2.2.0; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \

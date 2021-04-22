@@ -7,7 +7,7 @@ ENV PHP_INSTALL_DIR_NTS=${PHP_INSTALL_DIR}/nts
 ENV PHP_VERSION=${phpVersion}
 
 # Curl path workaround (PHP 5 was before pkg-config was used)
-RUN set -ex; \
+RUN set -eux; \
     sudo ln -sf /usr/include/x86_64-linux-gnu/curl /usr/include/curl; \
     sudo ln -sf /usr/lib/x86_64-linux-gnu/libcurl.a /usr/lib/libcurl.a
 
@@ -39,7 +39,7 @@ RUN set -xe; \
 FROM base as build
 ARG phpTarGzUrl
 ARG phpSha256Hash
-RUN set -ex; \
+RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
@@ -49,7 +49,7 @@ RUN set -ex; \
 COPY configure.sh /home/circleci
 
 FROM build as php-debug-zts
-RUN set -ex; \
+RUN set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /home/circleci/configure.sh \
         --enable-debug \
@@ -62,7 +62,7 @@ RUN set -ex; \
     mkdir -p ${PHP_INSTALL_DIR_DEBUG_ZTS}/conf.d;
 
 FROM build as php-debug
-RUN set -ex; \
+RUN set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /home/circleci/configure.sh \
         --enable-debug \
@@ -74,7 +74,7 @@ RUN set -ex; \
     mkdir -p ${PHP_INSTALL_DIR_DEBUG_NTS}/conf.d;
 
 FROM build as php-nts
-RUN set -ex; \
+RUN set -eux; \
     mkdir -p /tmp/build-php && cd /tmp/build-php; \
     /home/circleci/configure.sh \
         --prefix=${PHP_INSTALL_DIR_NTS} \
@@ -90,7 +90,7 @@ COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR_DEBUG_ZTS $
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR_DEBUG_NTS $PHP_INSTALL_DIR_DEBUG_NTS
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR_NTS $PHP_INSTALL_DIR_NTS
 
-RUN set -ex; \
+RUN set -eux; \
     for phpVer in $(ls ${PHP_INSTALL_DIR}); \
     do \
         # Set default INI settings
@@ -98,7 +98,7 @@ RUN set -ex; \
         \
         echo "Install exts for PHP $phpVer..."; \
         switch-php ${phpVer}; \
-        pear update-channels; \
+        pecl channel-update pecl.php.net; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
         yes 'no' | pecl install memcached-2.2.0; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
@@ -107,7 +107,7 @@ RUN set -ex; \
         pecl install xdebug-2.5.5; \
     done;
 
-RUN set -ex; \
+RUN set -eux; \
 # Set the default PHP version
     switch-php debug;
 

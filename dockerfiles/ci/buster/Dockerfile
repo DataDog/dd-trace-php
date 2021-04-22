@@ -46,7 +46,7 @@ ENV PHPIZE_DEPS \
     pkg-config \
     re2c
 
-RUN set -ex; \
+RUN set -eux; \
 # Set timezone to UTC by default
     ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime; \
     \
@@ -122,7 +122,7 @@ RUN set -ex; \
 ENV APACHE_CONFDIR /etc/apache2
 ENV APACHE_ENVVARS $APACHE_CONFDIR/envvars
 
-RUN set -ex; \
+RUN set -eux; \
 # generically convert lines like
 #   export APACHE_RUN_USER=www-data
 # into
@@ -172,7 +172,7 @@ RUN set -ex; \
     } | tee "$APACHE_CONFDIR/conf-available/docker-php.conf" \
     && a2enconf docker-php;
 
-RUN set -ex; \
+RUN set -eux; \
 # Share welcome message with the world
     echo '[ ! -z "$TERM" -a -r /etc/motd ] && cat /etc/motd' \
         >> /etc/bash.bashrc;
@@ -181,7 +181,7 @@ RUN set -ex; \
 ENV PHP_SRC_DIR=/usr/local/src/php
 ENV PHP_INSTALL_DIR=/opt/php
 
-RUN set -ex; \
+RUN set -eux; \
 # Setup php source directory
     mkdir -p $PHP_SRC_DIR; \
     chown -R circleci:circleci /usr/local/src; \
@@ -192,7 +192,7 @@ RUN set -ex; \
 # Run everything else as circleci user
 USER circleci
 
-RUN set -ex; \
+RUN set -eux; \
 # Pretty prompt
     echo "PS1='\[\033[01;32m\]\u\[\033[00m\]\[\033[00;35m\](buster)\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '" | \
         tee -a /home/circleci/.bashrc; \
