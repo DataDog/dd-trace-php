@@ -394,6 +394,7 @@ jobs:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
       HTTPBIN_HOSTNAME: httpbin_integration
+      DATADOG_HAVE_DEV_ENV: 1
     executor:
       name: with_httpbin_and_request_replayer
       docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
@@ -601,6 +602,7 @@ jobs:
       DDAGENT_HOSTNAME: 127.0.0.1
       DD_AGENT_HOST: 127.0.0.1
       HTTPBIN_HOSTNAME: httpbin_integration
+      DATADOG_HAVE_DEV_ENV: 1
     executor:
       name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
@@ -814,8 +816,6 @@ jobs:
         type: boolean
         default: true
     working_directory: ~/datadog
-    environment:
-      HTTPBIN_HOSTNAME: httpbin_integration
     executor:
       name: with_httpbin_and_request_replayer
       docker_image: << parameters.docker_image >>
@@ -832,7 +832,11 @@ jobs:
       - run:
           name: Run phpt tests with PECL
           command: |
-            TERM=dumb sudo pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
+            sudo \
+            TERM=dumb \
+            HTTPBIN_HOSTNAME=httpbin_integration \
+            DATADOG_HAVE_DEV_ENV=1 \
+            pecl run-tests <<# parameters.showdiff >> --showdiff <</ parameters.showdiff >> --ini=" -d ddtrace.request_init_hook=" -p datadog_trace
       - run:
           name: Gather .diff files for artifacts
           command: |

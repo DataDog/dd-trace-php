@@ -1,5 +1,7 @@
 --TEST--
 The Fargate 1.4+ container ID is sent via HTTP headers to the Agent
+--SKIPIF--
+<?php include __DIR__ . '/../includes/skipif_requires_dev_env.inc'; ?>
 --INI--
 ddtrace.cgroup_file={PWD}/stubs/cgroup.fargate.1.4
 --ENV--
