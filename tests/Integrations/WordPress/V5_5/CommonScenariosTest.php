@@ -240,8 +240,9 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
-                        // WordPress doesn't appear to automatically set the proper error code
-                        'http.status_code' => '200',
+                        // On php 5 workdpress returns 500 on error, as expected, while on 7.x it returns 200
+                        // regardless of the extension being installed.
+                        'http.status_code' => $this->matchesPhpVersion('5') ? '500' : '200',
                     ])->ifPhpVersionNotMatch('5.4', function (SpanAssertion $assertion) {
                         // Automatic error attachment to root span in case of PHP 5.4 is still under development.
                         $message = PHP_MAJOR_VERSION >= 7
