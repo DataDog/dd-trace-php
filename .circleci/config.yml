@@ -1769,8 +1769,6 @@ workflows:
                 - '7.3'
                 - '7.4'
                 - '8.0'
-              make_target:
-                - test_web
 
       - integration:
           requires: [ 'Prepare Code' ]
