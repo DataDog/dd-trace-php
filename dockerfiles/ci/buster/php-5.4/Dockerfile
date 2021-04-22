@@ -102,9 +102,22 @@ RUN set -eux; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
         yes 'no' | pecl install memcached-2.2.0; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
-        pecl install mongo; echo "extension=mongo.so" >> ${iniDir}/mongo.ini; \
+# Install mongo
+        export MONGO_VERSION="1.6.16"; \
+        export MONGO_SHA256="67886b696c428c9313539adc05f01bd87cabd57d2e861fef3c18d95375661fb2"; \
+        install-ext-from-source \
+            https://github.com/mongodb/mongo-php-driver-legacy/archive/refs/tags/${MONGO_VERSION}.tar.gz \
+            ${MONGO_SHA256} \
+            "--enable-mongo"; \
+        echo "extension=mongo.so" >> ${iniDir}/mongo.ini; \
+# Install xdebug
+        export XDEBUG_VERSION="2.4.1"; \
+        export XDEBUG_SHA256="23c8786e0f5aae67b1e5035972bfff282710fb84c483887cebceb8ef5bbdf8ef"; \
+        install-ext-from-source \
+            https://xdebug.org/files/xdebug-${XDEBUG_VERSION}.tgz \
+            ${XDEBUG_SHA256} \
+            "--enable-xdebug"; \
         # Xdebug is disabled by default
-        pecl install xdebug-2.2.7; \
     done;
 
 RUN set -eux; \
