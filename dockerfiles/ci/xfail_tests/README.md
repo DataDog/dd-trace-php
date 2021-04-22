@@ -90,7 +90,7 @@ On PHP 5, certain tests can have intermittently deep call stacks that are deep e
 
 ## `sapi/cli/tests/017.phpt`
 
-Disabled on versions: `5.5`, `5.6`.
+Disabled on versions: `5.4`, `5.5`, `5.6`.
 
 Links to sample broken executions: [5.5](https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/5610/workflows/b7836d18-ba47-4315-9cd2-4c1749c0e984/jobs/393611), [5.6](https://app.circleci.com/pipelines/github/DataDog/dd-trace-php/5610/workflows/b7836d18-ba47-4315-9cd2-4c1749c0e984/jobs/393616).
 

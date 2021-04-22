@@ -241,6 +241,7 @@ ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/substr_compare.phpt
 ext/standard/tests/time/strptime_basic.phpt
 ext/zip/tests/bug38943.phpt
+sapi/cli/tests/017.phpt
 tests/basic/027.phpt
 tests/classes/__call_004.phpt
 tests/classes/__call_005.phpt
