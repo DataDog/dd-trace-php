@@ -537,7 +537,7 @@ jobs:
       - run:
           name: Run test
           command: |
-              cat ./circleci/<< parameters.split_target_prefix >>_<< parameters.php_major_minor >>.txt | circleci tests split >/tmp/jobs.txt
+              cat .circleci/<< parameters.split_target_prefix >>_<< parameters.php_major_minor >>.txt | circleci tests split >/tmp/jobs.txt
               echo "Jobs assigned to this node:"
               cat /tmp/jobs.txt
               for job in $(cat /tmp/jobs.txt) ; do
@@ -1755,7 +1755,6 @@ workflows:
           requires: [ 'Prepare Code' ]
           # Due to Symfony OOM during composer update
           resource_class: xlarge
-          split_target_prefix: web
           parallelism: 5
           matrix:
             parameters:
@@ -1769,6 +1768,8 @@ workflows:
                 - '7.3'
                 - '7.4'
                 - '8.0'
+              split_target_prefix:
+                - web
 
       - integration:
           requires: [ 'Prepare Code' ]
