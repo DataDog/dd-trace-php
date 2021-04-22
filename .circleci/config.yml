@@ -542,7 +542,7 @@ jobs:
               cat /tmp/jobs.txt
               for job in $(cat /tmp/jobs.txt) ; do
                   echo "Running ${job}"
-                  DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> "make ${job}" PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+                  DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make "${job}" PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
               done
       - run:
           command: |
