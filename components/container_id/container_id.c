@@ -38,9 +38,6 @@
  */
 #define TASK_REGEX "[0-9a-f]\\{32\\}-[0-9]\\{1,20\\}"  // Original ERE: "[0-9a-f]{32}-[0-9]+"
 
-#define MIN_ID_LEN DATADOG_PHP_CONTAINER_ID_MIN_LEN
-#define MAX_ID_LEN DATADOG_PHP_CONTAINER_ID_MAX_LEN
-
 typedef datadog_php_container_id_parser dd_parser;
 
 static bool dd_parser_is_valid_line(dd_parser *parser, const char *line) {

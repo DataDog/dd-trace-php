@@ -2,9 +2,8 @@ extern "C" {
 #include "container_id/container_id.h"
 }
 
-#include <cstring>
-
 #include <catch2/catch.hpp>
+#include <cstring>
 
 TEST_CASE("parse a Docker container ID", "[container_id]") {
     char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
@@ -74,12 +73,12 @@ TEST_CASE("error edge cases when parsing container ID", "[container_id]") {
 
 TEST_CASE("a NULL cgroup file makes an empty string", "[container_id]") {
     char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
-    REQUIRE(false == datadog_php_container_id_from_file(id, NULL));
+    REQUIRE(false == datadog_php_container_id_from_file(id, nullptr));
     REQUIRE(id[0] == '\0');
 }
 
 TEST_CASE("a NULL buf does not crash", "[container_id]") {
-    REQUIRE(false == datadog_php_container_id_from_file(NULL, "./stubs/cgroup.docker"));
+    REQUIRE(false == datadog_php_container_id_from_file(nullptr, "./stubs/cgroup.docker"));
     REQUIRE(true);
 }
 
