@@ -133,6 +133,7 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES)
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
 	$(MAKE) -C $(BUILD_DIR) CFLAGS="-g" clean all; \
+	export REQUEST_INIT_HOOK_PATH=$(REQUEST_INIT_HOOK_PATH); \
 	php -n -d 'memory_limit=-1' $$TEST_PHP_SRCDIR/run-tests.php -n -p $$(which php) -d extension=$(SO_FILE) -q --show-all $(TESTS); \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \

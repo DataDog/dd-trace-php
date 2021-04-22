@@ -1,16 +1,16 @@
 --TEST--
-Short running multiple forks
+Long running manual flush
 --SKIPIF--
 <?php die('at the moment '); ?>
---INI--
-ddtrace.request_init_hook=${REQUEST_INIT_HOOK_PATH}
 --ENV--
+DD_TRACE_CLI_ENABLED=true
 DD_TRACE_GENERATE_ROOT_SPAN=false
 DD_TRACE_AUTO_FLUSH_ENABLED=false
 --FILE--
 <?php
 
 require 'functions.inc';
+require getenv('REQUEST_INIT_HOOK_PATH');
 
 const ITERATIONS = 2;
 

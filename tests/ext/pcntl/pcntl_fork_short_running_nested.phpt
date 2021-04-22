@@ -1,5 +1,5 @@
 --TEST--
-Short running multiple forks
+Short running nested forks
 --FILE--
 <?php
 
