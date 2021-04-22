@@ -240,6 +240,10 @@ cores:
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
+define read_targets_list_from_file
+	$(shell cat $(1) | tr '\r\n' ' ')
+endef
+
 REQUEST_INIT_HOOK := -d ddtrace.request_init_hook=$(PROJECT_ROOT)/bridge/dd_wrap_autoloader.php
 ENV_OVERRIDE := DD_TRACE_CLI_ENABLED=true
 
@@ -260,12 +264,7 @@ TEST_INTEGRATIONS_54 := \
 	test_integrations_guzzle5 \
 	test_integrations_predis1
 
-TEST_WEB_54 := \
-	test_web_cakephp_28 \
-	test_web_laravel_42 \
-	test_web_yii_2 \
-	test_web_zend_1 \
-	test_web_custom
+TEST_WEB_54 := $(call read_targets_list_from_file,.circleci/web_5.4.txt)
 
 TEST_INTEGRATIONS_55 := \
 	test_integrations_deferred_loading \
@@ -279,21 +278,7 @@ TEST_INTEGRATIONS_55 := \
 	test_integrations_guzzle6 \
 	test_integrations_predis1
 
-TEST_WEB_55 := \
-	test_web_cakephp_28 \
-	test_web_codeigniter_22 \
-	test_web_laravel_42 \
-	test_web_lumen_52 \
-	test_web_slim_312 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_yii_2 \
-	test_web_wordpress_48 \
-	test_web_zend_1 \
-	test_web_custom
+TEST_WEB_55 := $(call read_targets_list_from_file,.circleci/web_5.5.txt)
 
 TEST_INTEGRATIONS_56 := \
 	test_integrations_deferred_loading \
@@ -308,22 +293,7 @@ TEST_INTEGRATIONS_56 := \
 	test_integrations_predis1 \
 	test_opentracing_beta5
 
-TEST_WEB_56 := \
-	test_web_cakephp_28 \
-	test_web_codeigniter_22 \
-	test_web_laravel_42 \
-	test_web_lumen_52 \
-	test_web_slim_312 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_yii_2 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_zend_1 \
-	test_web_custom
+TEST_WEB_56 := $(call read_targets_list_from_file,.circleci/web_5.6.txt)
 
 TEST_INTEGRATIONS_70 := \
 	test_integrations_deferred_loading \
@@ -340,23 +310,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_predis1 \
 	test_opentracing_beta5
 
-TEST_WEB_70 := \
-	test_metrics \
-	test_web_cakephp_28 \
-	test_web_codeigniter_22 \
-	test_web_laravel_42 \
-	test_web_lumen_52 \
-	test_web_slim_312 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_yii_2 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_zend_1 \
-	test_web_custom
+TEST_WEB_70 := $(call read_targets_list_from_file,.circleci/web_7.0.txt)
 
 TEST_INTEGRATIONS_71 := \
 	test_integrations_deferred_loading \
@@ -375,29 +329,7 @@ TEST_INTEGRATIONS_71 := \
 	test_opentracing_beta6 \
 	test_opentracing_10
 
-TEST_WEB_71 := \
-	test_metrics \
-	test_web_cakephp_28 \
-	test_web_codeigniter_22 \
-	test_web_laravel_42 \
-	test_web_laravel_57 \
-	test_web_laravel_58 \
-	test_web_lumen_52 \
-	test_web_lumen_56 \
-	test_web_lumen_58 \
-	test_web_slim_312 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_symfony_40 \
-	test_web_symfony_42 \
-	test_web_yii_2 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_zend_1 \
-	test_web_custom
+TEST_WEB_71 := $(call read_targets_list_from_file,.circleci/web_7.1.txt)
 
 TEST_INTEGRATIONS_72 := \
 	test_integrations_deferred_loading \
@@ -416,33 +348,7 @@ TEST_INTEGRATIONS_72 := \
 	test_opentracing_beta6 \
 	test_opentracing_10
 
-TEST_WEB_72 := \
-	test_metrics \
-	test_web_codeigniter_22 \
-	test_web_laravel_42 \
-	test_web_laravel_57 \
-	test_web_laravel_58 \
-	test_web_lumen_52 \
-	test_web_lumen_56 \
-	test_web_lumen_58 \
-	test_web_slim_312 \
-	test_web_slim_4 \
-	test_web_symfony_23 \
-	test_web_symfony_28 \
-	test_web_symfony_30 \
-	test_web_symfony_33 \
-	test_web_symfony_34 \
-	test_web_symfony_40 \
-	test_web_symfony_42 \
-	test_web_symfony_44 \
-	test_web_symfony_50 \
-	test_web_symfony_51 \
-	test_web_symfony_52 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_yii_2 \
-	test_web_zend_1 \
-	test_web_custom
+TEST_WEB_72 := $(call read_targets_list_from_file,.circleci/web_7.2.txt)
 
 TEST_INTEGRATIONS_73 :=\
 	test_integrations_deferred_loading \
@@ -460,29 +366,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_opentracing_beta6 \
 	test_opentracing_10
 
-TEST_WEB_73 := \
-	test_metrics \
-	test_web_codeigniter_22 \
-	test_web_laravel_57 \
-	test_web_laravel_58 \
-	test_web_laravel_8x \
-	test_web_lumen_52 \
-	test_web_lumen_56 \
-	test_web_lumen_58 \
-	test_web_slim_312 \
-	test_web_slim_4 \
-	test_web_symfony_34 \
-	test_web_symfony_40 \
-	test_web_symfony_42 \
-	test_web_symfony_44 \
-	test_web_symfony_50 \
-	test_web_symfony_51 \
-	test_web_symfony_52 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_yii_2 \
-	test_web_zend_1 \
-	test_web_custom
+TEST_WEB_73 := $(call read_targets_list_from_file,.circleci/web_7.3.txt)
 
 TEST_INTEGRATIONS_74 := \
 	test_integrations_deferred_loading \
@@ -500,29 +384,7 @@ TEST_INTEGRATIONS_74 := \
 	test_opentracing_beta6 \
 	test_opentracing_10
 
-TEST_WEB_74 := \
-	test_metrics \
-	test_web_codeigniter_22 \
-	test_web_laravel_57 \
-	test_web_laravel_58 \
-	test_web_laravel_8x \
-	test_web_lumen_52 \
-	test_web_lumen_56 \
-	test_web_lumen_58 \
-	test_web_slim_312 \
-	test_web_slim_4 \
-	test_web_symfony_34 \
-	test_web_symfony_40 \
-	test_web_symfony_42 \
-	test_web_symfony_44 \
-	test_web_symfony_50 \
-	test_web_symfony_51 \
-	test_web_symfony_52 \
-	test_web_wordpress_48 \
-	test_web_wordpress_55 \
-	test_web_yii_2 \
-	test_web_zend_1 \
-	test_web_custom
+TEST_WEB_74 := $(call read_targets_list_from_file,.circleci/web_7.3.txt)
 
 # NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that only
 # shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
@@ -539,17 +401,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_predis1 \
 	test_opentracing_10
 
-TEST_WEB_80 := \
-	test_metrics \
-	test_web_codeigniter_22 \
-	test_web_laravel_8x \
-	test_web_slim_312 \
-	test_web_slim_4 \
-	test_web_symfony_44 \
-	test_web_symfony_51 \
-	test_web_symfony_52 \
-	test_web_yii_2 \
-	test_web_custom
+TEST_WEB_80 := $(call read_targets_list_from_file,.circleci/web_8.0.txt)
 
 define run_tests
 	$(ENV_OVERRIDE) php $(REQUEST_INIT_HOOK) $(PHPUNIT) $(1)

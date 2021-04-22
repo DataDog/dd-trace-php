@@ -489,6 +489,72 @@ jobs:
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
 
+  split:
+    working_directory: ~/datadog
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 5.6
+        type: string
+      split_target_prefix:
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+      resource_class:
+        type: string
+        default: medium
+      sapi:
+        type: string
+        default: cli-server
+      parallelism:
+        type: integer
+        default: 1
+      disable_runner_distributed_tracing:
+        type: boolean
+        default: false
+    parallelism: << parameters.resource_class >>
+    resource_class: << parameters.parallelism >>
+    executor:
+      name: with_integrations
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster_tmp
+    environment:
+      COMPOSER_PROCESS_TIMEOUT: 0
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - install_extension
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_DISABLE_TLS
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - run:
+          name: Run test
+          command: |
+              cat << parameters.split_target_prefix >>_<< parameters.php_major_minor >>.txt | circleci tests split >/tmp/jobs.txt
+              echo "Jobs assigned to this node:"
+              cat /tmp/jobs.txt
+              for job in $(cat /tmp/jobs.txt) ; do
+                  echo "Running ${job}"
+                  DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> "make ${job}" PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+              done
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts
+            find ~/datadog/tests -type f -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -exec cp --parents '{}' /tmp/artifacts \;
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts/
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
+
   php_language_tests:
     parameters:
       docker_image:
@@ -1685,10 +1751,12 @@ workflows:
                 - test_distributed_tracing
                 - test_auto_instrumentation
 
-      - integration:
+      - split:
           requires: [ 'Prepare Code' ]
           # Due to Symfony OOM during composer update
           resource_class: xlarge
+          split_target_prefix: web
+          parallelism: 5
           matrix:
             parameters:
               php_major_minor:
