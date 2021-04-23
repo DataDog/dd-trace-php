@@ -9,17 +9,12 @@ ENV PHP_VERSION=${phpVersion}
 # Curl path workaround (PHP 5 was before pkg-config was used)
 RUN set -eux; \
     sudo ln -sf /usr/include/x86_64-linux-gnu/curl /usr/include/curl; \
-    sudo ln -sf /usr/lib/x86_64-linux-gnu/libcurl.a /usr/lib/libcurl.a
-
-RUN savedAptMark="$(apt-mark showmanual)"; \
+    sudo ln -sf /usr/lib/x86_64-linux-gnu/libcurl.a /usr/lib/libcurl.a; \
+    savedAptMark="$(apt-mark showmanual)"; \
     sudo apt-mark auto '.*' > /dev/null; \
     sudo apt-mark manual $savedAptMark > /dev/null; \
-    sudo apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
-
-RUN set -xe; \
-    sudo apt-get remove -y libssl-dev
-
-RUN set -xe; \
+    sudo apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+    sudo apt-get remove -y libssl-dev; \
     { \
         echo deb http://httpredir.debian.org/debian jessie main ;\
         echo deb-src http://httpredir.debian.org/debian jessie main ;\
