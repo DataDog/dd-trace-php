@@ -85,6 +85,7 @@ void ddtrace_internal_handlers_install(ddtrace_string traced_internal_functions)
 void ddtrace_curl_handlers_startup(void);
 void ddtrace_memcached_handlers_startup(void);
 void ddtrace_mysqli_handlers_startup(void);
+void ddtrace_pcntl_handlers_startup(void);
 void ddtrace_pdo_handlers_startup(void);
 void ddtrace_phpredis_handlers_startup(void);
 
@@ -98,6 +99,8 @@ void ddtrace_curl_handlers_rshutdown(void);
 void ddtrace_internal_handlers_startup(void) {
     // curl is different; it has pieces that always run.
     ddtrace_curl_handlers_startup();
+    // pcntl handlers have to run even if tracing of pcntl extension is not enabled.
+    ddtrace_pcntl_handlers_startup();
 
     // but the rest should be guarded
     if (ddtrace_resource == -1) {

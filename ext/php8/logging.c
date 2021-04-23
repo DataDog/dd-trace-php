@@ -57,7 +57,7 @@ int ddtrace_bgs_logf(const char *fmt, ...) {
             // todo: we only need 20-ish for the main part, but how much for the timezone?
             // Wish PHP printed -hhmm or +hhmm instead of the name
             char timebuf[64];
-            int time_len = strftime(timebuf, sizeof timebuf, "%d-%m-%Y %H:%m:%S %Z", now_local);
+            int time_len = strftime(timebuf, sizeof timebuf, "%d-%b-%Y %H:%M:%S %Z", now_local);
             if (time_len > 0) {
                 ret = fprintf(fh, "[%s] %s\n", timebuf, msgbuf);
             }
