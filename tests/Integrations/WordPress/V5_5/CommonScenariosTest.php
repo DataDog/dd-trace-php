@@ -240,7 +240,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                     )->withExactTags([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost:9999/error',
-                        // On php 5 workdpress returns 500 on error, as expected, while on 7.x it returns 200
+                        // On php 5 WordPress returns 500 on error, as expected, while on 7.x it returns 200
                         // regardless of the extension being installed.
                         'http.status_code' => $this->matchesPhpVersion('5') ? '500' : '200',
                     ])->ifPhpVersionNotMatch('5.4', function (SpanAssertion $assertion) {

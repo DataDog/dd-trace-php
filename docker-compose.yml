@@ -96,7 +96,6 @@ services:
   '7.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-6' }
   '7.1-centos-compiled': { <<: *base_php_service, build: 'dockerfiles/verify_packages/centos7-compiled' }
   '7.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_buster_tmp' }
-  '7.2-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2-buster' }
   '7.2-debug': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-debug' }
   '7.2-zts': { <<: *base_php_service, image: 'datadog/docker-library:ddtrace_alpine_php-7.2-zts' }
   '7.3':
