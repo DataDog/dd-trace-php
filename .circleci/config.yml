@@ -396,7 +396,7 @@ jobs:
       HTTPBIN_HOSTNAME: httpbin_integration
     executor:
       name: with_httpbin_and_request_replayer
-      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster_tmp
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - switch_php:
@@ -445,7 +445,7 @@ jobs:
     resource_class: << parameters.resource_class >>
     executor:
       name: with_integrations
-      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster_tmp
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
     environment:
       COMPOSER_PROCESS_TIMEOUT: 0
     steps:
@@ -792,7 +792,7 @@ jobs:
     working_directory: ~/datadog
     executor:
       name: with_agent
-      docker_image: "datadog/dd-trace-ci:php-7.4_buster_tmp"
+      docker_image: "datadog/dd-trace-ci:php-7.4_buster"
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
@@ -1514,69 +1514,69 @@ workflows:
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 54 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-5.4_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-5.4_buster"
           # PHP 5.4's pecl doesn't support showdiff
           showdiff: false
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 55 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-5.5_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-5.5_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 56 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-5.6_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-5.6_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 70 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-7.0_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.0_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 71 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-7.1_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.1_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 72 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-7.2_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 73 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-7.3_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 74 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-7.4_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 80 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 54 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-5.4_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-5.4_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.2_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.3_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.4_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 web tests with nginx + FastCGI"
@@ -1590,14 +1590,14 @@ workflows:
           resource_class: medium+
           sapi: fpm-fcgi
           integration_testsuite: "test_web_custom"
-          docker_image: "datadog/dd-trace-ci:php-5.5_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-5.5_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
           resource_class: medium+
           sapi: fpm-fcgi
           integration_testsuite: "test_web_custom"
-          docker_image: "datadog/dd-trace-ci:php-7.4_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
 
   build:
     jobs:
@@ -1732,22 +1732,22 @@ workflows:
           matrix:
             parameters:
               docker_image:
-                - datadog/dd-trace-ci:php-7.0_buster_tmp
-                - datadog/dd-trace-ci:php-7.1_buster_tmp
-                - datadog/dd-trace-ci:php-7.2_buster_tmp
-                - datadog/dd-trace-ci:php-7.3_buster_tmp
-                - datadog/dd-trace-ci:php-7.4_buster_tmp
-                - datadog/dd-trace-ci:php-8.0_buster_tmp
+                - datadog/dd-trace-ci:php-7.0_buster
+                - datadog/dd-trace-ci:php-7.1_buster
+                - datadog/dd-trace-ci:php-7.2_buster
+                - datadog/dd-trace-ci:php-7.3_buster
+                - datadog/dd-trace-ci:php-7.4_buster
+                - datadog/dd-trace-ci:php-8.0_buster
 
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 70 Xdebug tests"
-          docker_image: "datadog/dd-trace-ci:php-7.0_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.0_buster"
           xdebug_version_one: "2.7.2"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 71 Xdebug tests"
-          docker_image: "datadog/dd-trace-ci:php-7.1_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.1_buster"
           xdebug_version_one: "2.9.2"
           xdebug_version_two: "2.9.5"
       # - unit_tests: # disabled due to posisbly leaking tests
@@ -1757,19 +1757,19 @@ workflows:
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 Xdebug tests"
-          docker_image: "datadog/dd-trace-ci:php-7.2_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
           xdebug_version_one: "2.9.2"
           xdebug_version_two: "2.9.5"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 Xdebug tests"
-          docker_image: "datadog/dd-trace-ci:php-7.3_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
           xdebug_version_one: "2.9.2"
           xdebug_version_two: "2.9.5"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 Xdebug tests"
-          docker_image: "datadog/dd-trace-ci:php-7.4_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           xdebug_version_one: "2.9.2"
           xdebug_version_two: "2.9.5"
       - xdebug_tests:
@@ -1789,42 +1789,42 @@ workflows:
           requires: [ 'Language tests' ]
           name: "PHP 74 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.4.list
-          docker_image: "datadog/dd-trace-ci:php-7.4_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 73 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.3.list
-          docker_image: "datadog/dd-trace-ci:php-7.3_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 72 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.2.list
-          docker_image: "datadog/dd-trace-ci:php-7.2_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 71 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.1.list
-          docker_image: "datadog/dd-trace-ci:php-7.1_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.1_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 70 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.0.list
-          docker_image: "datadog/dd-trace-ci:php-7.0_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-7.0_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 56 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.6.list
-          docker_image: "datadog/dd-trace-ci:php-5.6_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-5.6_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 55 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.5.list
-          docker_image: "datadog/dd-trace-ci:php-5.5_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-5.5_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 54 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.4.list
-          docker_image: "datadog/dd-trace-ci:php-5.4_buster_tmp"
+          docker_image: "datadog/dd-trace-ci:php-5.4_buster"
       - internal_integrations:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 curl integration tests a shared lib"
