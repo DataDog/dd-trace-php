@@ -62,17 +62,6 @@ aliases:
       name: Build and install extension
       command: make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension
 
-  - &STEP_COMPOSER_SELF_UPDATE
-    run:
-      name: Updating composer itself
-      command: |
-        if which sudo &>/dev/null
-        then
-          sudo composer self-update
-        else
-          composer self-update
-        fi
-
   - &STEP_COMPOSER_CACHE_RESTORE
     restore_cache:
       <<: *CACHE_COMPOSER_KEY
@@ -84,9 +73,18 @@ aliases:
         - ~/.composer/cache
 
   - &STEP_COMPOSER_DISABLE_TLS
+    # Disabling TLS by default on 5.4 and 5.5 due to https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update
+    # Note `_generated.php` is built on 7.x and is not impacted
     run:
-      name: Disabling tls for php < 5.6 (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
-      command: composer config disable-tls true
+      name: Disable TLS to avoid composer flakiness (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
+      command: |
+        if [ "$(php -r 'echo PHP_VERSION_ID;')" -lt 50600 ]; then
+          composer config disable-tls true
+          composer --working-dir=tests config disable-tls true
+          echo "Disabled TLS"
+        else
+          echo "TLS is enabled"
+        fi
 
   - &STEP_COMPOSER_UPDATE
     run:
@@ -195,10 +193,7 @@ commands:
   prepare_extension_and_composer_with_cache:
     steps:
       - <<: *STEP_EXT_INSTALL
-      - run:  # disabled by default due to test flakiness
-          name: Disable TLS to avoid composer flakiness (https://stackoverflow.com/questions/47527455/getting-an-error-peer-fingerprint-did-not-match-after-running-composer-update)
-          command: composer config disable-tls true
-      - <<: *STEP_COMPOSER_SELF_UPDATE
+      - <<: *STEP_COMPOSER_DISABLE_TLS
       - <<: *STEP_COMPOSER_CACHE_RESTORE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_CACHE_SAVE
@@ -317,41 +312,6 @@ jobs:
           name: Running phpstan
           command: composer scenario << parameters.scenario >> ; PATH=$PATH:~/.composer/vendor/bin composer static-analyze
 
-  "Composer Tests 55":
-    working_directory: ~/datadog
-    # killed in large due to OOM in Symfony 2.8 :'(
-    resource_class: xlarge
-    # Symfony is quite slow to update; let's do it in parallel
-    parallelism: 3
-    executor:
-      name: with_integrations
-      docker_image: "datadog/dd-trace-ci:php-5.5-debug-buster"
-    environment:
-      COMPOSER_PROCESS_TIMEOUT: 0
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - run:
-          name: Set php.ini defaults
-          command: printf "date.timezone=UTC\nmemory_limit=-1\n" | sudo tee -a /usr/local/etc/php/php.ini
-      - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_UPDATE
-      - <<: *STEP_COMPOSER_TESTS_UPDATE
-      - run:
-          name: Install extension
-          command: make debug all sudo install install_ini
-      - run:
-          name: Run web tests
-          command: |
-              # todo: use --split-by=timings to make it better distributed
-              # https://circleci.com/docs/2.0/parallelism-faster-jobs/#splitting-by-timing-data
-              circleci tests split <.circleci/php-5.5_web.txt >/tmp/jobs.txt
-              echo "Jobs assigned to this node:"
-              cat /tmp/jobs.txt
-              for job in $(cat /tmp/jobs.txt) ; do
-                  echo "Running ${job}"
-                  make "${job}"
-              done
-
   "Post-Install Hook":
     working_directory: ~/datadog
     docker:
@@ -419,22 +379,16 @@ jobs:
               php run-tests.php -p $(which php) --show-all -d zend_extension=xdebug-<< parameters.xdebug_version_two >>.so ../../tests/xdebug/<< parameters.xdebug_version_two >>
             fi;
 
-  unit_tests:
+  test: &TEST_BASE
     parameters:
-      docker_image:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 5.6
         type: string
-      valgrind_config:
+      make_target:
         type: string
-        default: musl
-      lib_curl_command:
-        type: string
-        default: none
       switch_php_version:
         type: string
         default: none
-      unit_test_target:
-        type: string
-        default: test_extension_ci
     working_directory: ~/datadog
     environment:
       DDAGENT_HOSTNAME: 127.0.0.1
@@ -442,11 +396,9 @@ jobs:
       HTTPBIN_HOSTNAME: httpbin_integration
     executor:
       name: with_httpbin_and_request_replayer
-      docker_image: << parameters.docker_image >>
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      - lib_curl_workaround:
-          command: << parameters.lib_curl_command >>
       - switch_php:
           php_version: << parameters.switch_php_version >>
       - prepare_extension_and_composer_with_cache
@@ -454,17 +406,9 @@ jobs:
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - <<: *STEP_WAIT_REQUEST_REPLAYER
-      - copy_valgrind_rc:
-          valgrind_config: << parameters.valgrind_config >>
       - run:
-          name: Run extension tests with leak detection
-          command: make << parameters.unit_test_target >> BUILD_DIR=$(pwd)/tmp/build_extension JUNIT_RESULTS_DIR=$(pwd)/test-results
-      - run:
-          name: Run unit tests
-          command: make test_unit PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
-      - run:
-          name: Run API tests
-          command: make test_api_unit
+          name: Run tests
+          command: make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-unit/results.xml"
       - <<: *STEP_PERSIST_TO_WORKSPACE
       - <<: *STEP_STORE_TEST_RESULTS
       - run:
@@ -475,6 +419,63 @@ jobs:
           when: on_fail
       - store_artifacts:
           path: /tmp/artifacts
+
+  asan: *TEST_BASE
+
+  integration:
+    working_directory: ~/datadog
+    parameters:
+      php_major_minor:
+        # Expected in the format: <major>.<minor>, e.g. 5.6
+        type: string
+      make_target:
+        type: string
+      switch_php_version:
+        type: string
+        default: none
+      resource_class:
+        type: string
+        default: medium
+      sapi:
+        type: string
+        default: cli-server
+      disable_runner_distributed_tracing:
+        type: boolean
+        default: false
+    resource_class: << parameters.resource_class >>
+    executor:
+      name: with_integrations
+      docker_image: datadog/dd-trace-ci:php-<< parameters.php_major_minor >>_buster
+    environment:
+      COMPOSER_PROCESS_TIMEOUT: 0
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - switch_php:
+          php_version: << parameters.switch_php_version >>
+      - install_extension
+      - <<: *STEP_COMPOSER_CACHE_RESTORE
+      - <<: *STEP_COMPOSER_DISABLE_TLS
+      - <<: *STEP_COMPOSER_UPDATE
+      - <<: *STEP_COMPOSER_TESTS_UPDATE
+      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
+      - <<: *STEP_EXPORT_CI_ENV
+      - <<: *STEP_DISABLE_XDEBUG
+      - <<: *STEP_WAIT_AGENT
+      - <<: *STEP_WAIT_MYSQL
+      - <<: *STEP_WAIT_REQUEST_REPLAYER
+      - run:
+          name: Run tests
+          command: DD_TRACE_AGENT_TIMEOUT=1000 <<# parameters.disable_runner_distributed_tracing >> DD_DISTRIBUTED_TRACING=false <</ parameters.disable_runner_distributed_tracing >> DD_TRACE_TEST_SAPI=<< parameters.sapi >> make << parameters.make_target >> PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
+      - run:
+          command: |
+            mkdir -p /tmp/artifacts
+            find ~/datadog/tests -type f -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' -exec cp --parents '{}' /tmp/artifacts \;
+          when: on_fail
+      - store_artifacts:
+          path: /tmp/artifacts/
+      - <<: *STEP_COMPOSER_CACHE_SAVE
+      - <<: *STEP_PERSIST_TO_WORKSPACE
+      - <<: *STEP_STORE_TEST_RESULTS
 
   php_language_tests:
     parameters:
@@ -498,7 +499,7 @@ jobs:
       - run:
           name: Run tests
           command: |
-            sudo rm -f /usr/local/etc/php/conf.d/docker-php-ext-memcached.ini
+            sudo rm -f /opt/php/debug/conf.d/memcached.ini
             if [[ ! "<<parameters.xfail_list>>" == "none" ]]; then
               cp "<<parameters.xfail_list>>" /usr/local/src/php/xfail_tests.list
               (
@@ -530,45 +531,6 @@ jobs:
           path: /tmp/artifacts/tests/
       - store_artifacts:
           path: /tmp/artifacts/
-
-  base_integration_tests:
-    working_directory: ~/datadog
-    parameters:
-      docker_image:
-        type: string
-    resource_class: medium
-    executor:
-      name: with_integrations
-      docker_image: << parameters.docker_image >>
-    environment:
-      COMPOSER_PROCESS_TIMEOUT: 0
-    steps:
-      - <<: *STEP_ATTACH_WORKSPACE
-      - install_extension
-      - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_SELF_UPDATE
-      - <<: *STEP_COMPOSER_UPDATE
-      - <<: *STEP_COMPOSER_TESTS_UPDATE
-      - <<: *STEP_PREPARE_TEST_RESULTS_DIR
-      - <<: *STEP_EXPORT_CI_ENV
-      - <<: *STEP_WAIT_AGENT
-      - <<: *STEP_WAIT_MYSQL
-      - <<: *STEP_WAIT_REQUEST_REPLAYER
-      - run:
-          name: Run auto-instrumentation tests
-          command: make test_auto_instrumentation PHPUNIT_OPTS="--log-junit test-results/php-auto-instrumentation/results.xml"
-      - run:
-          name: Run composer interoperability tests
-          command: make test_composer PHPUNIT_OPTS="--log-junit test-results/php-composer/results.xml"
-      - run:
-          name: Run distributed-tracing tests
-          command: DD_TRACE_AGENT_TIMEOUT=1000 make test_distributed_tracing PHPUNIT_OPTS="--log-junit test-results/php-distributed-tracing/results.xml"
-      - run:
-          name: Run integration tests
-          command: make test_integration PHPUNIT_OPTS="--log-junit test-results/php-integration/results.xml"
-      - <<: *STEP_COMPOSER_CACHE_SAVE
-      - <<: *STEP_PERSIST_TO_WORKSPACE
-      - <<: *STEP_STORE_TEST_RESULTS
 
   integration_tests:
     working_directory: ~/datadog
@@ -605,7 +567,6 @@ jobs:
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
@@ -831,7 +792,7 @@ jobs:
     working_directory: ~/datadog
     executor:
       name: with_agent
-      docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+      docker_image: "datadog/dd-trace-ci:php-7.4_buster"
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
       - run:
@@ -1210,7 +1171,6 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
-      - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_GENERATE
       - run:
@@ -1554,37 +1514,37 @@ workflows:
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 54 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-5.4_buster"
           # PHP 5.4's pecl doesn't support showdiff
           showdiff: false
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 55 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-5.5-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-5.5_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 56 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-5.6_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 70 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.0_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 71 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.1_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 72 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 73 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 74 PECL tests"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
       - pecl_tests:
           requires: [ "Build PECL" ]
           name: "PHP 80 PECL tests"
@@ -1595,28 +1555,28 @@ workflows:
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-5.4_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 web tests with nginx + FastCGI"
           resource_class: medium+
           sapi: cgi-fcgi
           integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 web tests with nginx + FastCGI"
@@ -1630,208 +1590,188 @@ workflows:
           resource_class: medium+
           sapi: fpm-fcgi
           integration_testsuite: "test_web_custom"
-          docker_image: "datadog/dd-trace-ci:php-5.5-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-5.5_buster"
       - integration_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 custom autoloaded web tests with nginx + PHP-FPM"
           resource_class: medium+
           sapi: fpm-fcgi
           integration_testsuite: "test_web_custom"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
 
   build:
     jobs:
+
       - "Prepare Code"
+
       - compile_extension:
           requires: [ 'Prepare Code' ]
           name: "PHP 55 Compilation test"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
+
       - compile_extension:
           requires: [ 'Prepare Code' ]
           name: "PHP 56-zts Compilation test"
           docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-zts"
           lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - unit_tests:
+
+      - test:
           requires: [ 'Prepare Code' ]
-          name: "PHP 54 Unit tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - unit_tests:
+          matrix:
+            parameters:
+              php_major_minor:
+                - "5.4"
+                - "5.5"
+                - "5.6"
+                - "7.0"
+                - "7.1"
+                - "7.2"
+                - "7.3"
+                - "7.4"
+                - "8.0"
+              make_target:
+                - test_extension_ci
+                - test_unit
+                - test_api_unit
+                - test_c2php
+
+      - asan:
           requires: [ 'Prepare Code' ]
-          name: "PHP 54 C2PHP tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-          unit_test_target: test_c2php
-      - unit_tests:
+          matrix:
+            parameters:
+              php_major_minor:
+                - '7.4'
+                - '8.0'
+              switch_php_version:
+                - debug-zts-asan
+              make_target:
+                - test_c_asan
+                - test_with_init_hook_asan
+
+      - integration:
           requires: [ 'Prepare Code' ]
-          name: "PHP 55 Unit tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - unit_tests:
+          resource_class: medium+
+          matrix:
+            parameters:
+              php_major_minor:
+                - '5.4'
+                - '5.5'
+                - '5.6'
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
+              make_target:
+                - test_composer
+                - test_integration
+                - test_integrations
+                - test_distributed_tracing
+                - test_auto_instrumentation
+
+      - integration:
           requires: [ 'Prepare Code' ]
-          name: "PHP 55 C2PHP tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-          unit_test_target: test_c2php
-      - unit_tests:
+          # Due to Symfony OOM during composer update
+          resource_class: xlarge
+          matrix:
+            parameters:
+              php_major_minor:
+                - '5.4'
+                - '5.5'
+                - '5.6'
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
+              make_target:
+                - test_web
+
+      - integration:
           requires: [ 'Prepare Code' ]
-          name: "PHP 56 Unit tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - unit_tests:
+          resource_class: medium+
+          sapi: fpm-fcgi
+          disable_runner_distributed_tracing: true
+          matrix:
+            parameters:
+              php_major_minor:
+                - '5.4'
+                - '5.5'
+                - '5.6'
+                - '7.0'
+                - '7.1'
+                - '7.2'
+                - '7.3'
+                - '7.4'
+                - '8.0'
+              make_target:
+                - test_distributed_tracing
+
+      - integration:
+          # NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that
+          # only shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
+          # Since we run tests using php debug builds, we have to run test_integrations_phpredis5 in a separate runner
+          # and switch to a non-debug PHP build.
+          # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove this additional
+          # runner and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
           requires: [ 'Prepare Code' ]
-          name: "PHP 56 C2PHP tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-          unit_test_target: test_c2php
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 70 Unit tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 70 C2PHP tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-          unit_test_target: test_c2php
+          matrix:
+            parameters:
+              php_major_minor:
+                - '8.0'
+              switch_php_version:
+                - nts
+              make_target:
+                - test_integrations_phpredis5
+
       - opcache_tests:
           requires: [ 'Prepare Code' ]
-          name: "PHP 70 opcache tests"
-          docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
+          matrix:
+            parameters:
+              docker_image:
+                - datadog/dd-trace-ci:php-7.0_buster
+                - datadog/dd-trace-ci:php-7.1_buster
+                - datadog/dd-trace-ci:php-7.2_buster
+                - datadog/dd-trace-ci:php-7.3_buster
+                - datadog/dd-trace-ci:php-7.4_buster
+                - datadog/dd-trace-ci:php-8.0_buster
+
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 70 Xdebug tests"
-          docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.0_buster"
           xdebug_version_one: "2.7.2"
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 71 Unit tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 71 C2PHP tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-          unit_test_target: test_c2php
-      - opcache_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 71 opcache tests"
-          docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 71 Xdebug tests"
-          docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.1_buster"
           xdebug_version_one: "2.9.2"
           xdebug_version_two: "2.9.5"
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 72 Unit tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 72 C2PHP tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-          unit_test_target: test_c2php
       # - unit_tests: # disabled due to posisbly leaking tests
       #     requires: [ 'Prepare Code' ]
       #     name: "PHP 70 Unit tests-zts"
       #     docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-zts-debug"
-      - opcache_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 72 opcache tests"
-          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 72 Xdebug tests"
-          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
           xdebug_version_one: "2.9.2"
           xdebug_version_two: "2.9.5"
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 73 Unit tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
-          valgrind_config: 7_3_musl
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 73 C2PHP tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
-          valgrind_config: 7_3_musl
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-          unit_test_target: test_c2php
-      - opcache_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 73 opcache tests"
-          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 73 Xdebug tests"
-          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
           xdebug_version_one: "2.9.2"
           xdebug_version_two: "2.9.5"
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 Unit tests"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
-          valgrind_config: 7_4_musl
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 C2PHP tests"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
-          valgrind_config: 7_4_musl
-          unit_test_target: test_c2php
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 asan tests"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-asan-buster"
-          unit_test_target: test_c_asan
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 asan tests C2PHP"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-asan-buster"
-          unit_test_target: test_with_init_hook_asan
-      - opcache_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 opcache tests"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 74 Xdebug tests"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
           xdebug_version_one: "2.9.2"
           xdebug_version_two: "2.9.5"
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 Unit tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
-          valgrind_config: 8_0_musl
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 C2PHP tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
-          valgrind_config: 8_0_musl
-          unit_test_target: test_c2php
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 asan tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
-          unit_test_target: test_c_asan
-          switch_php_version: debug-zts-asan
-      - unit_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 asan tests C2PHP"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
-          unit_test_target: test_with_init_hook_asan
-          switch_php_version: debug-zts-asan
-      - opcache_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 opcache tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 Xdebug tests"
@@ -1849,222 +1789,47 @@ workflows:
           requires: [ 'Language tests' ]
           name: "PHP 74 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.4.list
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.4_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 73 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.3.list
-          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.3_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 72 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.2.list
-          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.2_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 71 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.1.list
-          docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.1_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 70 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/7.0.list
-          docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-7.0_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 56 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.6.list
-          docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-5.6_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 55 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.5.list
-          docker_image: "datadog/dd-trace-ci:php-5.5-debug-buster"
+          docker_image: "datadog/dd-trace-ci:php-5.5_buster"
       - php_language_tests:
           requires: [ 'Language tests' ]
           name: "PHP 54 language tests"
           xfail_list: dockerfiles/ci/xfail_tests/5.4.list
-          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 54 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-5.4-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 55 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-5.5-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 56 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-5.6-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 70 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.0-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 71 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.1-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 72 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.2-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 73 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.3-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-buster"
-      - base_integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 base integration tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 54 Integration tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          integration_testsuite: "test_integrations"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 55 Integration tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.5-debug"
-          integration_testsuite: "test_integrations"
-          lib_curl_command: |
-              sudo apk update
-              sudo apk add curl-dev cyrus-sasl-dev libmemcached-dev
-              echo "/usr" | sudo pecl install memcached-2.2.0
-              echo "extension=memcached.so" | sudo tee /usr/local/etc/php/conf.d/memcached.ini
-              echo "yes" | sudo pecl install mongo
-              echo "extension=mongo.so" | sudo tee /usr/local/etc/php/conf.d/mongo.ini
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 56 Integration tests"
-          integration_testsuite: "test_integrations"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 70 Integration tests"
-          integration_testsuite: "test_integrations"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.0-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 71 Integration tests"
-          integration_testsuite: "test_integrations"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.1-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 72 Integration tests"
-          integration_testsuite: "test_integrations"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.2-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 73 Integration tests"
-          integration_testsuite: "test_integrations"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-7.3-debug"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 Integration tests"
-          integration_testsuite: "test_integrations"
-          docker_image: "datadog/dd-trace-ci:php-7.4-debug-alpine-3.11"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 Integration tests"
-          integration_testsuite: "test_integrations"
-          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
-      - integration_tests:
-          # NOTE: test_integrations_phpredis5 is not included in the PHP 8.0 integrations tests because of this bug that
-          # only shows up in debug builds of PHP (https://github.com/phpredis/phpredis/issues/1869).
-          # Since we run tests using php debug builds, we have to run test_integrations_phpredis5 in a separate runner
-          # and switch to a non-debug PHP build.
-          # Once the fix for https://github.com/phpredis/phpredis/issues/1869 is released, we can remove this additional
-          # runner and add back again test_integrations_phpredis5 to the PHP 8.0 test suite.
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 Integration tests (PHPRedis 5)"
-          integration_testsuite: "test_integrations_phpredis5"
-          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
-          switch_php_version: nts
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 54 Web integration tests"
-          docker_image: "datadog/docker-library:ddtrace_alpine_php-5.4-debug"
-          integration_testsuite: "test_web"
-          lib_curl_command: sudo apk update ; sudo apk add curl-dev
-      - "Composer Tests 55":
-          requires: [ 'Prepare Code' ]
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 56 Web integration tests"
-          resource_class: medium+
-          integration_testsuite: "test_web"
-          # docker_image: "datadog/docker-library:ddtrace_alpine_php-5.6-debug" composer goes over memory if run with debug
-          docker_image: "datadog/docker-library:ddtrace_php_5_6"
-          lib_curl_command: sudo apt update ; sudo apt-get -y install libcurl4-nss-dev
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 70 Web integration tests"
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-dev-7.0"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 71 Web integration tests"
-          resource_class: medium+
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-dev-7.1"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 72 Web integration tests"
-          resource_class: medium+
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-dev-7.2"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 73 Web integration tests"
-          resource_class: medium+
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-dev-7.3"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 74 Web integration tests"
-          resource_class: medium+
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-dev-7.4"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 Web integration tests"
-          resource_class: medium+
-          integration_testsuite: "test_web"
-          docker_image: "datadog/dd-trace-ci:php-8.0_alpine"
+          docker_image: "datadog/dd-trace-ci:php-5.4_buster"
       - internal_integrations:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 curl integration tests a shared lib"
           ext_name: "curl"
           docker_image: "datadog/dd-trace-ci:php-8.0-shared-ext"
-      - integration_tests:
-          requires: [ 'Prepare Code' ]
-          resource_class: medium+
-          sapi: fpm-fcgi
-          integration_testsuite: "test_distributed_tracing"
-          disable_runner_distributed_tracing: true
-          matrix:
-            parameters:
-              docker_image:
-                - "datadog/dd-trace-ci:php-5.4-debug-buster"
-                - "datadog/dd-trace-ci:php-5.5-debug-buster"
-                - "datadog/dd-trace-ci:php-5.6-debug-buster"
-                - "datadog/dd-trace-ci:php-7.0-debug-buster"
-                - "datadog/dd-trace-ci:php-7.1-debug-buster"
-                - "datadog/dd-trace-ci:php-7.2-debug-buster"
-                - "datadog/dd-trace-ci:php-7.3-debug-buster"
-                - "datadog/dd-trace-ci:php-7.4-debug-buster"
-                - "datadog/dd-trace-ci:php-8.0_buster"
       - "Lint files":
           requires: [ 'Prepare Code' ]
       - static_analysis:

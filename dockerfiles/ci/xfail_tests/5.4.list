@@ -18,6 +18,7 @@ Zend/tests/bug46665.phpt
 Zend/tests/bug47714.phpt
 Zend/tests/bug48930.phpt
 Zend/tests/bug49908.phpt
+Zend/tests/bug54268.phpt
 Zend/tests/bug55007.phpt
 Zend/tests/bug61011.phpt
 Zend/tests/bug62907.phpt
@@ -71,7 +72,7 @@ ext/date/tests/date_time_set_variation3.phpt
 ext/date/tests/test-parse-from-format.phpt
 ext/fileinfo/tests/bug68819_002.phpt
 ext/fileinfo/tests/finfo_open_error.phpt
-ext/ftp/tests/005.phpt
+ext/ftp/tests
 ext/json/tests/bug45791.phpt
 ext/json/tests/pass001.phpt
 ext/json/tests/pass003.phpt
@@ -85,6 +86,7 @@ ext/pdo_sqlite/tests/bug50728.phpt
 ext/pdo_sqlite/tests/pdo_013.phpt
 ext/pdo_sqlite/tests/pdo_sqlite_lastinsertid.phpt
 ext/phar/tests/fatal_error_webphar.phpt
+ext/posix/tests/posix_errno_variation2.phpt
 ext/readline/tests/readline_callback_handler_install_001.phpt
 ext/readline/tests/readline_callback_handler_remove_001.phpt
 ext/readline/tests/readline_info_001.phpt
@@ -106,6 +108,8 @@ ext/session/tests/session_name_error.phpt
 ext/simplexml/tests/SimpleXMLElement_addAttribute_basic.phpt
 ext/simplexml/tests/bug66084_0.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/sockets/tests/socket_connect_params.phpt
+ext/sockets/tests/socket_create_pair.phpt
 ext/spl/tests/SplDoublylinkedlist_offsetunset_first.phpt
 ext/spl/tests/SplDoublylinkedlist_offsetunset_last.phpt
 ext/spl/tests/SplFixedArray_construct_param_SplFixedArray.phpt
@@ -236,6 +240,8 @@ ext/standard/tests/strings/004.phpt
 ext/standard/tests/strings/implode1.phpt
 ext/standard/tests/strings/substr_compare.phpt
 ext/standard/tests/time/strptime_basic.phpt
+ext/zip/tests/bug38943.phpt
+sapi/cli/tests/017.phpt
 tests/basic/027.phpt
 tests/classes/__call_004.phpt
 tests/classes/__call_005.phpt

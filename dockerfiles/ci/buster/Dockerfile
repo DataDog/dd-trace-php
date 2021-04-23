@@ -203,6 +203,7 @@ RUN set -eux; \
     echo 'set history save on' >> /home/circleci/.gdbinit; \
         chmod 600 /home/circleci/.gdbinit;
 
+COPY install-ext-from-source /usr/local/bin/install-ext-from-source
 COPY switch-php /usr/local/bin/
 
 WORKDIR /home/circleci
@@ -213,3 +214,5 @@ STOPSIGNAL SIGQUIT
 
 EXPOSE 9000
 EXPOSE 80
+
+CMD [ "bash" ]

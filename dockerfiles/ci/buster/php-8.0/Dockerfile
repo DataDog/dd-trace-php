@@ -67,6 +67,7 @@ RUN set -eux; \
     do \
         echo "Install exts for PHP $phpVer..."; \
         switch-php ${phpVer}; \
+        pecl channel-update pecl.php.net; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
         yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \

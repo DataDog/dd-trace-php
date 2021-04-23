@@ -20,6 +20,8 @@ ${PHP_SRC_DIR}/configure \
     --with-fpm-group=www-data \
     --with-libedit \
     --with-mhash \
+    --with-mcrypt \
+    --with-openssl \
     --with-mysqli=mysqlnd \
     --with-pdo-mysql=mysqlnd \
     --with-pdo-pgsql \

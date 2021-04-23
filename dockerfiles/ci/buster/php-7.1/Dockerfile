@@ -67,15 +67,22 @@ RUN set -eux; \
         switch-php ${phpVer}; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
+        pecl channel-update pecl.php.net; \
         yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini; \
+        pecl install mcrypt-1.0.0; echo "extension=mcrypt.so" >> ${iniDir}/mcrypt.ini; \
         pecl install ast; echo "extension=ast.so" >> ${iniDir}/ast.ini; \
         yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
         pecl install mongodb; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini; \
         pecl install redis; echo "extension=redis.so" >> ${iniDir}/redis.ini; \
         # Xdebug is disabled by default
-        pecl install xdebug-2.9.8; \
+        # 2.9.2
+        pecl install xdebug-2.9.2; \
         cd $(php-config --extension-dir); \
-        mv xdebug.so xdebug-2.9.8.so; \
+        mv xdebug.so xdebug-2.9.2.so; \
+        # 2.9.5
+        pecl install xdebug-2.9.5; \
+        cd $(php-config --extension-dir); \
+        mv xdebug.so xdebug-2.9.5.so; \
     done;
 
 RUN set -eux; \

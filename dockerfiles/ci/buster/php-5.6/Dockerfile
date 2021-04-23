@@ -9,7 +9,27 @@ ENV PHP_VERSION=${phpVersion}
 # Curl path workaround (PHP 5 was before pkg-config was used)
 RUN set -eux; \
     sudo ln -sf /usr/include/x86_64-linux-gnu/curl /usr/include/curl; \
-    sudo ln -sf /usr/lib/x86_64-linux-gnu/libcurl.a /usr/lib/libcurl.a
+    sudo ln -sf /usr/lib/x86_64-linux-gnu/libcurl.a /usr/lib/libcurl.a; \
+    savedAptMark="$(apt-mark showmanual)"; \
+    sudo apt-mark auto '.*' > /dev/null; \
+    sudo apt-mark manual $savedAptMark > /dev/null; \
+    sudo apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+    sudo apt-get remove -y libssl-dev; \
+    { \
+        echo deb http://httpredir.debian.org/debian jessie main ;\
+        echo deb-src http://httpredir.debian.org/debian jessie main ;\
+        echo ;\
+        echo deb http://security.debian.org/ jessie/updates main ;\
+        echo deb-src http://security.debian.org/ jessie/updates main ;\
+    } | sudo tee /etc/apt/sources.list.d/jessie.list ;\
+    { \
+        echo Package: openssl libssl-dev libssl-doc;\
+        echo Pin: release a=oldoldstable ;\
+        echo Pin-Priority: 600 ;\
+    } | sudo tee /etc/apt/preferences.d/openssl;\
+    sudo apt-get update; \
+    sudo apt-get install -y --no-install-recommends \
+        openssl libssl-dev libssl-doc libcurl4-nss-dev;
 
 FROM base as build
 ARG phpTarGzUrl
@@ -69,10 +89,11 @@ RUN set -eux; \
     for phpVer in $(ls ${PHP_INSTALL_DIR}); \
     do \
         # Set default INI settings
-        sed 's/;date.timezone =/date.timezone = UTC/' <${PHP_SRC_DIR}/php.ini-development >${PHP_INSTALL_DIR}/${phpVer}/etc/php.ini; \
+        sed 's/;date.timezone =/date.timezone = UTC/' <${PHP_SRC_DIR}/php.ini-development >${PHP_INSTALL_DIR}/${phpVer}/php.ini; \
         \
         echo "Install exts for PHP $phpVer..."; \
         switch-php ${phpVer}; \
+        pecl channel-update pecl.php.net; \
         iniDir=$(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}'); \
         \
         yes 'no' | pecl install memcached-2.2.0; echo "extension=memcached.so" >> ${iniDir}/memcached.ini; \
@@ -86,7 +107,7 @@ RUN set -eux; \
     switch-php debug;
 
 # Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:1 /usr/bin/composer /usr/local/bin/composer
 
 COPY welcome /etc/motd
 

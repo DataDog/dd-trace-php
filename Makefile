@@ -261,7 +261,6 @@ TEST_INTEGRATIONS_54 := \
 	test_integrations_predis1
 
 TEST_WEB_54 := \
-	test_metrics \
 	test_web_cakephp_28 \
 	test_web_laravel_42 \
 	test_web_yii_2 \
@@ -281,7 +280,6 @@ TEST_INTEGRATIONS_55 := \
 	test_integrations_predis1
 
 TEST_WEB_55 := \
-	test_metrics \
 	test_web_cakephp_28 \
 	test_web_codeigniter_22 \
 	test_web_laravel_42 \
@@ -311,7 +309,6 @@ TEST_INTEGRATIONS_56 := \
 	test_opentracing_beta5
 
 TEST_WEB_56 := \
-	test_metrics \
 	test_web_cakephp_28 \
 	test_web_codeigniter_22 \
 	test_web_laravel_42 \

@@ -19,6 +19,7 @@ ${PHP_SRC_DIR}/configure \
     --with-fpm-user=www-data \
     --with-fpm-group=www-data \
     --with-libedit \
+    --with-mcrypt \
     --with-mhash \
     --with-mysqli=mysqlnd \
     --with-openssl \

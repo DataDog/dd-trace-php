@@ -54,6 +54,7 @@ Zend/tests/bug79155.phpt
 Zend/tests/bug79778.phpt
 Zend/tests/bug79862.phpt
 Zend/tests/bug80037.phpt
+Zend/tests/bug80194.phpt
 Zend/tests/class_alias_020.phpt
 Zend/tests/class_name_as_scalar.phpt
 Zend/tests/closure_058.phpt
@@ -245,6 +246,7 @@ ext/simplexml/tests/bug72971.phpt
 ext/simplexml/tests/bug72971_2.phpt
 ext/simplexml/tests/bug75245.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/sockets/tests/socket_create_pair.phpt
 ext/sodium/tests/utils.phpt
 ext/spl/tests/ArrayObject_clone_other_std_props.phpt
 ext/spl/tests/ArrayObject_dump_during_sort.phpt
@@ -383,7 +385,10 @@ ext/standard/tests/serialize/serialize_globals_var_refs.phpt
 ext/standard/tests/serialize/sleep_uninitialized_typed_prop.phpt
 ext/standard/tests/serialize/typed_property_refs.phpt
 ext/standard/tests/streams/bug78902.phpt
+ext/standard/tests/streams/stream_context_tcp_nodelay_fopen.phpt
 ext/standard/tests/strings/implode1.phpt
+ext/zip/tests/bug38943.phpt
+ext/zip/tests/bug38943_2.phpt
 sapi/cli/tests/upload_2G.phpt
 sapi/fpm/tests/log-bm-in-shutdown-fn.phpt
 sapi/fpm/tests/log-bm-limit-1024-msg-80.phpt
