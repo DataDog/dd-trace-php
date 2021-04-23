@@ -57,6 +57,13 @@ aliases:
     attach_workspace:
       at: ~/datadog
 
+  - &STEP_ENABLE_DOCKER_EXPERIMENTAL
+    run:
+      name: Enable docker exeprimental feature
+      command: |
+        sudo bash -c 'echo "{\"experimental\": true}" > /etc/docker/daemon.json'
+        sudo systemctl restart docker
+
   - &STEP_EXT_INSTALL
     run:
       name: Build and install extension
@@ -789,6 +796,22 @@ jobs:
           name: Validate debian package
           command: << parameters.configuration >> bash ./dockerfiles/verify_packages/verify.sh
 
+  package:
+    working_directory: ~/datadog
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: 2xlarge
+    environment:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - <<: *STEP_ATTACH_WORKSPACE
+      - <<: *STEP_ENABLE_DOCKER_EXPERIMENTAL
+      - run:
+          name: "Build packages"
+          command: make packages_in_docker
+      - store_artifacts:
+          path: layer.tar
+
   randomized_tests:
     working_directory: ~/datadog
     machine:
@@ -1247,11 +1270,21 @@ jobs:
 workflows:
   version: 2
 
+  package:
+    jobs:
+      - "Prepare Code"
+      - package:
+          requires: [ 'Prepare Code' ]
+
   components:
     jobs:
       # We need to prepare code because centos 6's git is too old for CircleCI, true story:
       # > error: unknown switch `B'
-      - "Prepare Code"
+      - "Prepare Code":
+          filters:
+            branches:
+              only:
+                - master
       - ExtensionComponents:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -1295,7 +1328,11 @@ workflows:
 
   build_packages:
     jobs:
-      - "Prepare Code"
+      - "Prepare Code":
+          filters:
+            branches:
+              only:
+                - master
       - compile_alpine:
           requires: [ 'Prepare Code' ]
           matrix:
@@ -1641,7 +1678,11 @@ workflows:
 
   build:
     jobs:
-      - "Prepare Code"
+      - "Prepare Code":
+          filters:
+            branches:
+              only:
+                - master
       - compile_extension:
           requires: [ 'Prepare Code' ]
           name: "PHP 55 Compilation test"
