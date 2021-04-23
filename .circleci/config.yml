@@ -68,9 +68,13 @@ aliases:
       command: |
         if which sudo &>/dev/null
         then
-          sudo composer self-update
+          # if the version is old enough, it won't understand --2 and will
+          # error out, but on a regular self-update it will go to v2.
+          # Versions 1.10.1+ will only go to the latest v1 on a normal
+          # self-update, so we do this combination to get everyone onto v2
+          sudo composer self-update && sudo composer self-update --2
         else
-          composer self-update
+          composer self-update && composer self-update --2
         fi
 
   - &STEP_COMPOSER_CACHE_RESTORE
