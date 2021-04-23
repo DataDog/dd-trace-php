@@ -20,6 +20,11 @@ final class PCNTLTest extends IntegrationTestCase
      */
     public function testDoesNoHangAtShutdownWhenDisabled($scriptPath)
     {
+        if ($scriptPath === (__DIR__ . '/scripts/long-running-manual-flush.php')) {
+            $this->markTestSkipped('manual tracing cannot be done when disabled as classes are not available.');
+            return;
+        }
+
         $start = \microtime(true);
         $this->executeCli(
             $scriptPath,
@@ -139,6 +144,11 @@ final class PCNTLTest extends IntegrationTestCase
 
     public function testCliLongRunningMultipleForksAutoFlush()
     {
+        if ($this->matchesPhpVersion('5')) {
+            $this->markTestSkipped('autoflushing is not implelented on 5');
+            return;
+        }
+
         $this->executeCli(
             __DIR__ . '/scripts/long-running-autoflush.php',
             [

@@ -124,6 +124,7 @@
             <file name="ext/php5/handlers_curl.c" role="src" />
             <file name="ext/php5/handlers_internal.c" role="src" />
             <file name="ext/php5/handlers_internal.h" role="src" />
+            <file name="ext/php5/handlers_pcntl.c" role="src" />
             <file name="ext/php5/integrations/integrations.c" role="src" />
             <file name="ext/php5/integrations/integrations.h" role="src" />
             <file name="ext/php5/logging.c" role="src" />

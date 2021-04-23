@@ -48,6 +48,9 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void);
 bool ddtrace_coms_synchronous_flush(uint32_t timeout);
 bool ddtrace_coms_on_pid_change(void);
 
+// Kills the background sender thread
+void ddtrace_coms_kill_background_sender(void);
+
 /* exposed for testing {{{ */
 uint32_t ddtrace_coms_test_writers(void);
 uint32_t ddtrace_coms_test_consumer(void);

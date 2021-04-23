@@ -330,16 +330,6 @@ bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) 
     return store_result == 0;
 }
 
-void ddtrace_coms_reset_data(void) {
-    ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_globals.current_stack);
-    if (current_stack == NULL) {
-        // no stack to save data to
-        return;
-    }
-    _dd_coms_free_stack(current_stack);
-    atomic_store(&ddtrace_coms_globals.current_stack, NULL);
-}
-
 group_id_t ddtrace_coms_next_group_id(void) { return atomic_fetch_add(&ddtrace_coms_globals.next_group_id, 1); }
 
 struct _grouped_stack_t {

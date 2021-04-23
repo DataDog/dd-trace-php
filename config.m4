@@ -111,6 +111,7 @@ if test "$PHP_DDTRACE" != "no"; then
       ext/php5/excluded_modules.c \
       ext/php5/handlers_curl.c \
       ext/php5/handlers_internal.c \
+      ext/php5/handlers_pcntl.c \
       ext/php5/integrations/integrations.c \
       ext/php5/logging.c \
       ext/php5/memory_limit.c \

@@ -34,9 +34,6 @@ inline bool ddtrace_coms_is_stack_free(ddtrace_coms_stack_t *stack) {
 }
 
 bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size);
-// Resets and frees the current stack
-void ddtrace_coms_reset_data(void);
-
 bool ddtrace_coms_minit(void);
 void ddtrace_coms_mshutdown(void);
 void ddtrace_coms_curl_shutdown(void);

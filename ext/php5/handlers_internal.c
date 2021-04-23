@@ -12,7 +12,12 @@ void ddtrace_replace_internal_methods(ddtrace_string Class, size_t methods_len, 
 
 void ddtrace_curl_handlers_startup(void);
 void ddtrace_curl_handlers_rshutdown(TSRMLS_D);
+void ddtrace_pcntl_handlers_startup(void);
 
-void ddtrace_internal_handlers_startup(void) { ddtrace_curl_handlers_startup(); }
+void ddtrace_internal_handlers_startup(void) {
+    ddtrace_curl_handlers_startup();
+    // pcntl handlers have to run even if tracing of pcntl extension is not enabled.
+    ddtrace_pcntl_handlers_startup();
+}
 void ddtrace_internal_handlers_shutdown(void) {}
 void ddtrace_internal_handlers_rshutdown(TSRMLS_D) { ddtrace_curl_handlers_rshutdown(TSRMLS_C); }
