@@ -397,7 +397,6 @@ jobs:
         type: string
       make_target:
         type: string
-      # Can we remove it?
       switch_php_version:
         type: string
         default: none
