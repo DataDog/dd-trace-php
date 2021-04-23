@@ -499,7 +499,7 @@ jobs:
       - run:
           name: Run tests
           command: |
-            sudo rm -f /usr/local/etc/php/conf.d/docker-php-ext-memcached.ini
+            sudo rm -f /opt/php/debug/conf.d/memcached.ini
             if [[ ! "<<parameters.xfail_list>>" == "none" ]]; then
               cp "<<parameters.xfail_list>>" /usr/local/src/php/xfail_tests.list
               (
