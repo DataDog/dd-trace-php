@@ -62,17 +62,6 @@ aliases:
       name: Build and install extension
       command: make sudo install install_ini BUILD_DIR=$(pwd)/tmp/build_extension
 
-  - &STEP_COMPOSER_SELF_UPDATE
-    run:
-      name: Updating composer itself
-      command: |
-        if which sudo &>/dev/null
-        then
-          sudo composer self-update
-        else
-          composer self-update
-        fi
-
   - &STEP_COMPOSER_CACHE_RESTORE
     restore_cache:
       <<: *CACHE_COMPOSER_KEY
@@ -578,7 +567,6 @@ jobs:
       - install_extension:
           lib_curl_command: << parameters.lib_curl_command >>
       - <<: *STEP_COMPOSER_CACHE_RESTORE
-      # - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_TESTS_UPDATE
       - <<: *STEP_EXPORT_CI_ENV
@@ -1183,7 +1171,6 @@ jobs:
           paths:
             - ".git"
       - <<: *STEP_ATTACH_WORKSPACE
-      # - <<: *STEP_COMPOSER_SELF_UPDATE
       - <<: *STEP_COMPOSER_UPDATE
       - <<: *STEP_COMPOSER_GENERATE
       - run:
