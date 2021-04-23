@@ -215,4 +215,4 @@ STOPSIGNAL SIGQUIT
 EXPOSE 9000
 EXPOSE 80
 
-CMD ["php-fpm", "-F"]
+CMD [ "bash" ]
