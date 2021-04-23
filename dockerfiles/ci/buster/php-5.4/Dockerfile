@@ -123,5 +123,3 @@ RUN set -eux; \
 COPY --from=composer:1 /usr/bin/composer /usr/local/bin/composer
 
 COPY welcome /etc/motd
-
-CMD ["php-fpm", "-F"]
