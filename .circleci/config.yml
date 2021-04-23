@@ -1786,10 +1786,6 @@ workflows:
           docker_image: "datadog/dd-trace-ci:php-7.4_buster_tmp"
           xdebug_version_one: "2.9.2"
           xdebug_version_two: "2.9.5"
-      - opcache_tests:
-          requires: [ 'Prepare Code' ]
-          name: "PHP 80 opcache tests"
-          docker_image: "datadog/dd-trace-ci:php-8.0_buster"
       - xdebug_tests:
           requires: [ 'Prepare Code' ]
           name: "PHP 80 Xdebug tests"
