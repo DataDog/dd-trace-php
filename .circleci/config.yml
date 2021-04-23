@@ -493,7 +493,7 @@ jobs:
       docker_image: << parameters.docker_image >>
     steps:
       - <<: *STEP_ATTACH_WORKSPACE
-      # - prepare_extension_and_composer_with_cache
+      - prepare_extension_and_composer_with_cache
       - <<: *STEP_PREPARE_TEST_RESULTS_DIR
       - <<: *STEP_EXPORT_CI_ENV
       - run:
