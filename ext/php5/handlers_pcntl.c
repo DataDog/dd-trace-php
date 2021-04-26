@@ -35,7 +35,7 @@ typedef struct dd_pcntl_handler dd_pcntl_handler;
 
 static void dd_install_handler(dd_pcntl_handler handler) {
     zend_function *old_handler;
-    if (zend_hash_find(CG(function_table), handler.name, handler.name_len, (void **)&old_handler) == NULL &&
+    if (zend_hash_find(CG(function_table), handler.name, handler.name_len, (void **)&old_handler) == SUCCESS &&
         old_handler != NULL) {
         *handler.old_handler = old_handler->internal_function.handler;
         old_handler->internal_function.handler = handler.new_handler;
