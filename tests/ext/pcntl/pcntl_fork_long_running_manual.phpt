@@ -1,7 +1,5 @@
 --TEST--
 Long running manual flush
---SKIPIF--
-<?php die('at the moment '); ?>
 --ENV--
 DD_TRACE_CLI_ENABLED=true
 DD_TRACE_GENERATE_ROOT_SPAN=false
