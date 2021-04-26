@@ -33,7 +33,7 @@ struct dd_pcntl_handler {
 };
 typedef struct dd_pcntl_handler dd_pcntl_handler;
 
-static void dd_install_handler(dd_pcntl_handler handler) {
+static void dd_install_handler(dd_pcntl_handler handler TSRMLS_DC) {
     zend_function *old_handler;
     if (zend_hash_find(CG(function_table), handler.name, handler.name_len, (void **)&old_handler) == SUCCESS &&
         old_handler != NULL) {
